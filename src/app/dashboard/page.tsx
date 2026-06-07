@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { requireUser } from "@/lib/auth/guards";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -49,8 +51,11 @@ export default async function DashboardPage() {
               (coming in Phase 2).
             </CardDescription>
           </CardHeader>
-          <CardContent className="text-sm text-[var(--muted-foreground)]">
-            You have global access across all tenants.
+          <CardContent className="flex flex-col gap-3 text-sm text-[var(--muted-foreground)]">
+            <span>You have global access across all tenants.</span>
+            <Link href="/admin" className={buttonVariants({ size: "sm" })}>
+              Open Assessment Admin
+            </Link>
           </CardContent>
         </Card>
       ) : (
