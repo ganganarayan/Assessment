@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth/guards";
+import { isPlatformOwner } from "@/lib/auth/platform";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import {
   Card,
@@ -10,7 +11,8 @@ import {
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  const isSuperAdmin = user.role === "SUPER_ADMIN";
+  // MVP: platform owner is identified by email, not the DB role.
+  const isSuperAdmin = isPlatformOwner(user.email);
   const roleLabel = isSuperAdmin ? "Super Admin" : "Admin";
 
   return (
@@ -24,33 +26,6 @@ export default async function DashboardPage() {
         </div>
         <SignOutButton />
       </div>
-
-      {/* TEMPORARY DEBUG — remove after verifying role resolution */}
-      <Card className="border-amber-500">
-        <CardHeader>
-          <CardTitle>Debug (temporary)</CardTitle>
-          <CardDescription>Remove after verifying role resolution.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 text-xs">
-          <div>
-            <span className="text-[var(--muted-foreground)]">
-              typeof user.role:
-            </span>{" "}
-            <span className="font-mono">{typeof user.role}</span>
-          </div>
-          <div>
-            <span className="text-[var(--muted-foreground)]">
-              user.role === &quot;SUPER_ADMIN&quot;:
-            </span>{" "}
-            <span className="font-mono">
-              {String(user.role === "SUPER_ADMIN")}
-            </span>
-          </div>
-          <pre className="overflow-auto rounded bg-[var(--muted)] p-3 font-mono">
-            {JSON.stringify(user, null, 2)}
-          </pre>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
