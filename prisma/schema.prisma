@@ -33,9 +33,11 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users   User[]
-  domains Domain[]
-  theme   Theme?
+  users       User[]
+  domains     Domain[]
+  theme       Theme?
+  assessments Assessment[]
+  submissions Submission[]
 
   @@index([status])
   @@map("tenant")
@@ -104,8 +106,9 @@ model User {
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  sessions Session[]
-  accounts Account[]
+  sessions           Session[]
+  accounts           Account[]
+  createdAssessments Assessment[]
 
   @@index([tenantId])
   @@map("user")
@@ -162,4 +165,248 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+// ===========================================================================
+// Assessment Engine (MVP)
+// ===========================================================================
+
+enum AssessmentStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum QuestionType {
+  SINGLE_SELECT
+}
+
+enum BandLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum SubmissionStatus {
+  STARTED
+  COMPLETED
+}
+
+// ---------------------------------------------------------------------------
+// Assessment — the top-level container. Public at /a/[slug] when PUBLISHED.
+// ---------------------------------------------------------------------------
+
+model Assessment {
+  id               String           @id @default(cuid())
+  slug             String           @unique
+  title            String
+  description      String?
+  coverImageUrl    String?
+  status           AssessmentStatus @default(DRAFT)
+  estimatedMinutes Int?
+  thankYouMessage  String?
+
+  // Lead-capture configuration: enable + require each field independently.
+  collectFirstName  Boolean @default(true)
+  firstNameRequired Boolean @default(false)
+  collectLastName   Boolean @default(true)
+  lastNameRequired  Boolean @default(false)
+  collectEmail      Boolean @default(true)
+  emailRequired     Boolean @default(true)
+  collectMobile     Boolean @default(true)
+  mobileRequired    Boolean @default(false)
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Multi-tenancy retained; null = platform-owned (MVP default).
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  categories  Category[]
+  resultBands ResultBand[]
+  submissions Submission[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("assessment")
+}
+
+// ---------------------------------------------------------------------------
+// Category — groups questions; ordered for display.
+// ---------------------------------------------------------------------------
+
+model Category {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  questions      Question[]
+  categoryScores SubmissionCategoryScore[]
+
+  @@index([assessmentId])
+  @@map("category")
+}
+
+// ---------------------------------------------------------------------------
+// Question — single-select for MVP; carries a weight for scoring.
+// ---------------------------------------------------------------------------
+
+model Question {
+  id           String       @id @default(cuid())
+  text         String
+  type         QuestionType @default(SINGLE_SELECT)
+  weight       Float        @default(1)
+  required     Boolean      @default(true)
+  displayOrder Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  options Option[]
+  answers SubmissionAnswer[]
+
+  @@index([categoryId])
+  @@map("question")
+}
+
+// ---------------------------------------------------------------------------
+// Option — selectable answer with a numeric score value (e.g. 1..4).
+// ---------------------------------------------------------------------------
+
+model Option {
+  id           String   @id @default(cuid())
+  label        String
+  value        Int
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  answers SubmissionAnswer[]
+
+  @@index([questionId])
+  @@map("option")
+}
+
+// ---------------------------------------------------------------------------
+// ResultBand — score range -> interpretation shown after submission.
+// ---------------------------------------------------------------------------
+
+model ResultBand {
+  id           String    @id @default(cuid())
+  level        BandLevel
+  title        String
+  description  String?
+  minScore     Float
+  maxScore     Float
+  displayOrder Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  submissions Submission[]
+
+  @@index([assessmentId])
+  @@map("result_band")
+}
+
+// ---------------------------------------------------------------------------
+// Submission — one run of an assessment. Lead snapshot stored inline.
+// ---------------------------------------------------------------------------
+
+model Submission {
+  id     String           @id @default(cuid())
+  status SubmissionStatus @default(STARTED)
+
+  leadFirstName String?
+  leadLastName  String?
+  leadEmail     String?
+  leadMobile    String?
+
+  totalScore Float?
+  maxScore   Float?
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  // Snapshot tenant for later querying/segmentation.
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  resultBandId String?
+  resultBand   ResultBand? @relation(fields: [resultBandId], references: [id], onDelete: SetNull)
+
+  answers        SubmissionAnswer[]
+  categoryScores SubmissionCategoryScore[]
+
+  @@index([assessmentId])
+  @@index([leadEmail])
+  @@index([createdAt])
+  @@map("submission")
+}
+
+// ---------------------------------------------------------------------------
+// SubmissionAnswer — chosen option per question (one answer per question).
+// ---------------------------------------------------------------------------
+
+model SubmissionAnswer {
+  id        String   @id @default(cuid())
+  value     Int
+  createdAt DateTime @default(now())
+
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  optionId String
+  option   Option @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, questionId])
+  @@index([submissionId])
+  @@map("submission_answer")
+}
+
+// ---------------------------------------------------------------------------
+// SubmissionCategoryScore — computed per-category score for a submission.
+// ---------------------------------------------------------------------------
+
+model SubmissionCategoryScore {
+  id        String   @id @default(cuid())
+  score     Float
+  maxScore  Float
+  createdAt DateTime @default(now())
+
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, categoryId])
+  @@index([submissionId])
+  @@map("submission_category_score")
 }
