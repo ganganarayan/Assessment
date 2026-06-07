@@ -13,6 +13,27 @@ RUN apk add --no-cache openssl
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build-time variables.
+# Railway exposes service variables to a Dockerfile build only via ARG (they are
+# NOT auto-injected into RUN steps). NEXT_PUBLIC_* must be present so Next.js can
+# inline them into the client bundle; the server vars are touched because env.ts
+# validates at module load (the auth route imports it during build).
+# These live ONLY in this builder stage, which is discarded in the final image —
+# so no secrets are baked into the runtime image.
+ARG NEXT_PUBLIC_ROOT_DOMAIN
+ARG NEXT_PUBLIC_APP_URL
+ARG DATABASE_URL
+ARG BETTER_AUTH_SECRET
+ARG BETTER_AUTH_URL
+ARG ALLOWED_ORIGINS
+ENV NEXT_PUBLIC_ROOT_DOMAIN=$NEXT_PUBLIC_ROOT_DOMAIN \
+    NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
+    DATABASE_URL=$DATABASE_URL \
+    BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET \
+    BETTER_AUTH_URL=$BETTER_AUTH_URL \
+    ALLOWED_ORIGINS=$ALLOWED_ORIGINS
+
 RUN npx prisma generate && npm run build
 
 # ---- Runner ----------------------------------------------------------------
