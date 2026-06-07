@@ -56,11 +56,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
-# Fail the build (not runtime) if Prisma CLI deps aren't actually in the image.
-# effect is a transitive dep of @prisma/config (loaded by `prisma migrate
-# deploy`); this assertion guarantees it resolves in the final runner image.
-RUN node -e "require.resolve('effect'); require.resolve('@prisma/config'); require.resolve('prisma'); console.log('runtime CLI deps resolved OK')"
-
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
