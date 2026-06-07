@@ -1,0 +1,5 @@
+# Force Railway Nixpacks to build with Node 22.
+# Nixpacks otherwise defaults to Node 18, which is too old for Tailwind v4's
+# @tailwindcss/oxide native binding (requires Node 20+).
+[phases.setup]
+nixPkgs = ["nodejs_22"]
