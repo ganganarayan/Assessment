@@ -1,0 +1,3 @@
+# Feature-based modules live here (Phase 2): auth/, tenant/, assessment/, etc.
+# Each feature owns its components, server actions, schemas, and hooks,
+# keeping business logic separate from shared UI in src/components.

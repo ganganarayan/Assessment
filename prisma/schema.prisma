@@ -1,0 +1,165 @@
+// Assessment Engine SaaS — Prisma Schema (Phase 1)
+// Only foundation models: Tenant, Domain, Theme, User (+ Better Auth tables).
+// Assessment / Category / Question models arrive in Phase 2.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Roles
+// ---------------------------------------------------------------------------
+
+enum Role {
+  SUPER_ADMIN // Owner of the whole platform (the app creator). Global scope.
+  TENANT_ADMIN // Administrator of a single tenant (sub-domain builder).
+}
+
+// ---------------------------------------------------------------------------
+// Tenant — the core multi-tenancy boundary. Everything scopes to a Tenant.
+// ---------------------------------------------------------------------------
+
+model Tenant {
+  id        String   @id @default(cuid())
+  // Unique subdomain slug, e.g. "acme" -> acme.example.com
+  slug      String   @unique
+  name      String
+  status    TenantStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users   User[]
+  domains Domain[]
+  theme   Theme?
+
+  @@index([status])
+  @@map("tenant")
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+// ---------------------------------------------------------------------------
+// Domain — custom domains mapped to a tenant for white-label hosting.
+// ---------------------------------------------------------------------------
+
+model Domain {
+  id        String   @id @default(cuid())
+  // Full hostname, e.g. "assess.acme.com"
+  hostname  String   @unique
+  isPrimary Boolean  @default(false)
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("domain")
+}
+
+// ---------------------------------------------------------------------------
+// Theme — per-tenant branding/presentation config (kept independent of logic).
+// ---------------------------------------------------------------------------
+
+model Theme {
+  id             String   @id @default(cuid())
+  primaryColor   String   @default("#0f172a")
+  secondaryColor String   @default("#64748b")
+  logoUrl        String?
+  faviconUrl     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("theme")
+}
+
+// ---------------------------------------------------------------------------
+// User — application users. SUPER_ADMIN has tenantId = null (global).
+// Fields below also satisfy Better Auth's "user" model contract.
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  role          Role     @default(TENANT_ADMIN)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Null for SUPER_ADMIN (platform-wide); set for TENANT_ADMIN.
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  sessions Session[]
+  accounts Account[]
+
+  @@index([tenantId])
+  @@map("user")
+}
+
+// ---------------------------------------------------------------------------
+// Better Auth required tables (auth plumbing, not domain models).
+// ---------------------------------------------------------------------------
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
