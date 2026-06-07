@@ -93,8 +93,9 @@ deploy needed — Railway builds from GitHub):
 | `main`          | `main`     | Production |
 | `orbitq-assess` | `staging`  | Staging    |
 
-`railway.json` and `Dockerfile` are shared by both environments. Everything
-that differs is set as **per-environment variables** in the Railway dashboard.
+Deployment uses Railway's **native Nixpacks** builder (no Docker). `railway.json`
+is shared by both environments; everything that differs is set as
+**per-environment variables** in the Railway dashboard.
 
 **One-time setup (per environment):**
 
@@ -111,9 +112,10 @@ that differs is set as **per-environment variables** in the Railway dashboard.
 
 **Every deploy (automatic on push to the mapped branch):**
 
-- Build runs the `Dockerfile` (`npm ci` → `prisma generate` → `next build`).
+- Nixpacks installs deps and runs the `build` script (`prisma generate →
+  next build`).
 - Start command runs `prisma migrate deploy` against that environment's
-  `DATABASE_URL`, then boots the standalone server (`node server.js`).
+  `DATABASE_URL`, then `next start`.
 - Health check hits `/` (120s timeout); failures retry up to 5×.
 
 **Custom domains:** add tenant domains under the relevant environment →
