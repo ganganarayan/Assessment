@@ -17,6 +17,14 @@ export async function createResultBand(
   }
   const d = parsed.data;
 
+  const others = await prisma.resultBand.findMany({
+    where: { assessmentId },
+    select: { minScore: true, maxScore: true },
+  });
+  if (others.some((b) => d.minScore <= b.maxScore && d.maxScore >= b.minScore)) {
+    return { ok: false, error: "This range overlaps an existing result band." };
+  }
+
   const count = await prisma.resultBand.count({ where: { assessmentId } });
   const created = await prisma.resultBand.create({
     data: {
@@ -44,6 +52,20 @@ export async function updateResultBand(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
   const d = parsed.data;
+
+  const current = await prisma.resultBand.findUnique({
+    where: { id },
+    select: { assessmentId: true },
+  });
+  if (!current) return { ok: false, error: "Result band not found." };
+
+  const others = await prisma.resultBand.findMany({
+    where: { assessmentId: current.assessmentId, NOT: { id } },
+    select: { minScore: true, maxScore: true },
+  });
+  if (others.some((b) => d.minScore <= b.maxScore && d.maxScore >= b.minScore)) {
+    return { ok: false, error: "This range overlaps an existing result band." };
+  }
 
   const band = await prisma.resultBand.update({
     where: { id },

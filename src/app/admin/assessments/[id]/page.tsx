@@ -87,8 +87,9 @@ export default async function EditAssessmentPage({
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Result Bands</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
-          The band whose score range contains the total score is shown to the
-          respondent.
+          Bands are matched against the score <strong>percentage (0–100)</strong>,
+          so results stay comparable even when optional questions are skipped.
+          Ranges must not overlap; cover 0–100 with no gaps.
         </p>
         <ResultBandsManager assessmentId={a.id} bands={bands} />
       </section>

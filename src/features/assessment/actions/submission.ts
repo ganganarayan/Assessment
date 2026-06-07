@@ -106,6 +106,7 @@ export async function completeSubmission(
       id: true,
       slug: true,
       title: true,
+      status: true,
       categories: {
         select: {
           id: true,
@@ -126,6 +127,11 @@ export async function completeSubmission(
     },
   });
   if (!assessment) return { ok: false, error: "Assessment not found." };
+  // Re-check publication: an admin may have unpublished it mid-flight, in which
+  // case we must not score or emit a lead to the CRM.
+  if (assessment.status !== "PUBLISHED") {
+    return { ok: false, error: "This assessment is no longer available." };
+  }
 
   // Index questions and options for validation + scoring.
   const questions = assessment.categories.flatMap((c) =>
@@ -166,14 +172,17 @@ export async function completeSubmission(
     weight: q.weight,
     maxValue: q.options.reduce((m, o) => Math.max(m, o.value), 0),
   }));
-  const { categoryScores, totalScore, maxScore } = computeScores(
+  const { categoryScores, totalScore, maxScore, percentage } = computeScores(
     scoringQuestions,
     answerValueByQuestionId,
   );
-  const band = pickResultBand(assessment.resultBands, totalScore);
+  // Bands are matched against the percentage (invariant to skipped optional Qs).
+  const band = pickResultBand(assessment.resultBands, percentage);
 
-  // Persist atomically.
-  await prisma.$transaction([
+  // Persist atomically. The final statement is a compare-and-swap on status:
+  // only a writer that flips STARTED -> COMPLETED "wins". This makes scoring
+  // persistence and the CRM dispatch exactly-once under concurrent double-submits.
+  const tx = await prisma.$transaction([
     prisma.submissionAnswer.deleteMany({ where: { submissionId } }),
     prisma.submissionCategoryScore.deleteMany({ where: { submissionId } }),
     prisma.submissionAnswer.createMany({
@@ -194,8 +203,8 @@ export async function completeSubmission(
         maxScore: cs.maxScore,
       })),
     }),
-    prisma.submission.update({
-      where: { id: submissionId },
+    prisma.submission.updateMany({
+      where: { id: submissionId, status: "STARTED" },
       data: {
         status: "COMPLETED",
         totalScore,
@@ -205,6 +214,12 @@ export async function completeSubmission(
       },
     }),
   ]);
+
+  // If a concurrent writer already completed this submission, do not re-fire CRM.
+  const swap = tx[tx.length - 1] as { count: number } | undefined;
+  if (!swap || swap.count === 0) {
+    return { ok: true, data: { submissionId } };
+  }
 
   // Fire CRM automation (non-blocking; failures never break the result).
   const full = await prisma.submission.findUnique({
@@ -232,6 +247,7 @@ export async function completeSubmission(
       scores: {
         total: totalScore,
         max: maxScore,
+        percentage,
         categories: categoryScores.map((cs) => ({
           categoryId: cs.categoryId,
           name: categoryNameById.get(cs.categoryId) ?? "",

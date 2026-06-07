@@ -26,6 +26,8 @@ export interface SubmissionCompletedPayload {
   scores: {
     total: number;
     max: number;
+    /** total/max as a 0–100 percentage; the basis used for result-band matching. */
+    percentage: number;
     categories: Array<{
       categoryId: string;
       name: string;

@@ -6,21 +6,29 @@ import {
 } from "@/lib/crm/notify";
 
 /**
- * Submission-completed hook.
+ * Submission-completed hook (manual re-trigger / retry).
  *
- * POST { submissionId } -> builds the canonical { assessment, lead, scores,
- * result } payload and dispatches it to the CRM webhook abstraction. Useful for
- * manual re-trigger / retries; the public flow already fires this on completion.
+ * POST { submissionId } -> rebuilds the canonical { assessment, lead, scores,
+ * result } payload and dispatches it to the CRM webhook abstraction.
  *
- * Optional shared-secret: set CRM_HOOK_SECRET and send `Authorization: Bearer <secret>`.
+ * SECURITY: this endpoint is fail-closed. It REQUIRES a shared secret
+ * (CRM_HOOK_SECRET) via `Authorization: Bearer <secret>`. If the secret is not
+ * configured, the endpoint refuses all requests. The response NEVER echoes the
+ * lead PII payload back to the caller — only a delivery flag.
+ *
+ * Note: the normal public flow already fires this notification server-side on
+ * completion (see actions/submission.ts); this route is only for ops/retries.
  */
 export async function POST(req: Request) {
   const secret = process.env.CRM_HOOK_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!secret) {
+    return NextResponse.json(
+      { error: "Hook not configured" },
+      { status: 500 },
+    );
+  }
+  if (req.headers.get("authorization") !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   let body: { submissionId?: string };
@@ -47,6 +55,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Submission not found" }, { status: 404 });
   }
 
+  const total = submission.totalScore ?? 0;
+  const max = submission.maxScore ?? 0;
   const payload: SubmissionCompletedPayload = {
     submissionId: submission.id,
     completedAt: (submission.completedAt ?? submission.createdAt).toISOString(),
@@ -62,8 +72,9 @@ export async function POST(req: Request) {
       mobile: submission.leadMobile,
     },
     scores: {
-      total: submission.totalScore ?? 0,
-      max: submission.maxScore ?? 0,
+      total,
+      max,
+      percentage: max > 0 ? Math.round((total / max) * 10000) / 100 : 0,
       categories: submission.categoryScores.map((cs) => ({
         categoryId: cs.categoryId,
         name: cs.category.name,
@@ -81,5 +92,6 @@ export async function POST(req: Request) {
   };
 
   const { delivered } = await notifySubmissionCompleted(payload);
-  return NextResponse.json({ ok: true, delivered, payload });
+  // Do NOT echo the PII payload back to the caller.
+  return NextResponse.json({ ok: true, delivered });
 }

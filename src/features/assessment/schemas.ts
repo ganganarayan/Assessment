@@ -59,11 +59,12 @@ export const resultBandSchema = z
     level: bandLevelSchema,
     title: z.string().min(1, "Title is required.").max(160),
     description: z.string().max(2000).optional().or(z.literal("")),
-    minScore: z.coerce.number(),
-    maxScore: z.coerce.number(),
+    // Result bands match against the score PERCENTAGE (0–100).
+    minScore: z.coerce.number().min(0).max(100),
+    maxScore: z.coerce.number().min(0).max(100),
   })
   .refine((b) => b.maxScore >= b.minScore, {
-    message: "Max score must be greater than or equal to min score.",
+    message: "Max % must be greater than or equal to min %.",
     path: ["maxScore"],
   });
 export type ResultBandInput = z.infer<typeof resultBandSchema>;

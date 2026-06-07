@@ -70,7 +70,7 @@ export function ResultBandsManager({
                 <Badge variant="outline">{b.level}</Badge>
                 <span className="font-medium">{b.title}</span>
                 <span className="text-xs text-[var(--muted-foreground)]">
-                  {b.minScore}–{b.maxScore}
+                  {b.minScore}–{b.maxScore}%
                 </span>
               </div>
               {b.description ? (
@@ -163,12 +163,12 @@ function BandForm({
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <Label>Min score</Label>
-          <Input className="w-28" type="number" step="0.1" value={minScore} onChange={(e) => setMinScore(e.target.value)} />
+          <Label>Min %</Label>
+          <Input className="w-28" type="number" step="1" min={0} max={100} value={minScore} onChange={(e) => setMinScore(e.target.value)} />
         </div>
         <div className="flex flex-col gap-1">
-          <Label>Max score</Label>
-          <Input className="w-28" type="number" step="0.1" value={maxScore} onChange={(e) => setMaxScore(e.target.value)} />
+          <Label>Max %</Label>
+          <Input className="w-28" type="number" step="1" min={0} max={100} value={maxScore} onChange={(e) => setMaxScore(e.target.value)} />
         </div>
       </div>
       <div className="flex flex-col gap-1">

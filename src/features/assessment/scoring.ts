@@ -6,10 +6,18 @@
  *  - Each answered question contributes `value * weight` to its category.
  *  - Category score = sum of its answered questions' contributions.
  *  - Total score    = sum of all category scores.
- *  - maxScore       = sum of `maxValue * weight` over answered questions,
+ *  - maxScore       = sum of `maxValue * weight` over ANSWERED questions,
  *                     where maxValue is the question's highest option value.
- *  - Result band    = the band whose [minScore, maxScore] contains the total.
+ *  - Result bands are matched against the PERCENTAGE (total / max * 100), NOT
+ *    the absolute total. This makes banding invariant to how many OPTIONAL
+ *    questions a respondent skipped (the achievable ceiling moves with the
+ *    answered set, so only the ratio is comparable across submissions).
+ *
+ * All numeric outputs are rounded to 2 decimals to avoid float-precision drift
+ * (fractional weights) pushing a score just outside an intended band boundary.
  */
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 export interface ScoringQuestion {
   id: string;
@@ -36,6 +44,8 @@ export interface ScoreResult {
   categoryScores: CategoryScore[];
   totalScore: number;
   maxScore: number;
+  /** total / max as a 0–100 percentage (0 when max is 0). Banding basis. */
+  percentage: number;
 }
 
 /**
@@ -70,27 +80,67 @@ export function computeScores(
     maxScore += maxContribution;
   }
 
+  const categoryScores = Array.from(byCategory.values()).map((cs) => ({
+    categoryId: cs.categoryId,
+    score: round2(cs.score),
+    maxScore: round2(cs.maxScore),
+  }));
+
+  const roundedTotal = round2(totalScore);
+  const roundedMax = round2(maxScore);
+  const percentage =
+    roundedMax > 0 ? round2((roundedTotal / roundedMax) * 100) : 0;
+
   return {
-    categoryScores: Array.from(byCategory.values()),
-    totalScore,
-    maxScore,
+    categoryScores,
+    totalScore: roundedTotal,
+    maxScore: roundedMax,
+    percentage,
   };
 }
 
 /**
- * Pick the matching result band for a total score. Bands are evaluated in
- * display order; the first whose inclusive range contains the score wins.
- * Returns null if no band matches.
+ * Pick the matching result band for a score (the percentage in the public
+ * flow). Total function: a completed submission ALWAYS receives a band.
+ *  - exact match: first band whose inclusive [min, max] contains the score
+ *    (ordered by minScore; an epsilon absorbs float drift);
+ *  - below the lowest band  -> the lowest band;
+ *  - above the highest band -> the highest band;
+ *  - interior gap           -> the band with the nearest boundary.
+ * Returns null only when there are no bands.
  */
 export function pickResultBand<T extends ScoringBand>(
   bands: T[],
-  totalScore: number,
+  score: number,
 ): T | null {
-  const ordered = [...bands].sort((a, b) => a.displayOrder - b.displayOrder);
+  if (bands.length === 0) return null;
+  const ordered = [...bands].sort((a, b) => a.minScore - b.minScore);
+  const lowest = ordered[0];
+  const highest = ordered[ordered.length - 1];
+  if (!lowest || !highest) return null;
+
+  const EPS = 1e-9;
   for (const band of ordered) {
-    if (totalScore >= band.minScore && totalScore <= band.maxScore) {
+    if (score >= band.minScore - EPS && score <= band.maxScore + EPS) {
       return band;
     }
   }
-  return null;
+
+  if (score < lowest.minScore) return lowest;
+  if (score > highest.maxScore) return highest;
+
+  // Interior gap: nearest boundary wins.
+  let best = lowest;
+  let bestDist = Infinity;
+  for (const band of ordered) {
+    const dist = Math.min(
+      Math.abs(score - band.minScore),
+      Math.abs(score - band.maxScore),
+    );
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = band;
+    }
+  }
+  return best;
 }

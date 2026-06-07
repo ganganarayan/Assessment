@@ -11,6 +11,13 @@ import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Result page is intentionally PUBLIC-BY-LINK: it is reachable by anyone holding
+ * the submission id (a high-entropy cuid handed to the respondent). It renders
+ * NO lead PII — getSubmissionResult deliberately does not select leadFirstName /
+ * leadLastName / leadEmail / leadMobile — only the assessment title, score,
+ * result band, and category breakdown. Do not add PII to this page or query.
+ */
 export default async function ResultPage({
   params,
 }: {
@@ -22,6 +29,9 @@ export default async function ResultPage({
   if (!submission || submission.assessment.slug !== slug) notFound();
 
   const band = submission.resultBand;
+  const total = submission.totalScore ?? 0;
+  const max = submission.maxScore ?? 0;
+  const percentage = max > 0 ? Math.round((total / max) * 100) : 0;
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
@@ -46,8 +56,8 @@ export default async function ResultPage({
                   <CardTitle>{band?.title ?? "Result"}</CardTitle>
                 </div>
                 <CardDescription>
-                  Total score: {submission.totalScore ?? 0}
-                  {submission.maxScore ? ` / ${submission.maxScore}` : ""}
+                  Score: {percentage}% ({total}
+                  {max ? ` / ${max}` : ""})
                 </CardDescription>
               </CardHeader>
               {band?.description ? (
