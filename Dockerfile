@@ -49,11 +49,12 @@ RUN apk add --no-cache openssl \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-# Prisma schema + engines + CLI needed for `migrate deploy` at start.
+# Prisma schema (for migrate deploy) + full node_modules so the Prisma CLI's
+# transitive deps (e.g. @prisma/config -> effect) and externalized packages
+# resolve at runtime. The standalone tracer only includes app-bundle imports,
+# not the migrate CLI tree, so cherry-picking is insufficient.
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 USER nextjs
 EXPOSE 3000
