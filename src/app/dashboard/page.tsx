@@ -25,6 +25,33 @@ export default async function DashboardPage() {
         <SignOutButton />
       </div>
 
+      {/* TEMPORARY DEBUG — remove after verifying role resolution */}
+      <Card className="border-amber-500">
+        <CardHeader>
+          <CardTitle>Debug (temporary)</CardTitle>
+          <CardDescription>Remove after verifying role resolution.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2 text-xs">
+          <div>
+            <span className="text-[var(--muted-foreground)]">
+              typeof user.role:
+            </span>{" "}
+            <span className="font-mono">{typeof user.role}</span>
+          </div>
+          <div>
+            <span className="text-[var(--muted-foreground)]">
+              user.role === &quot;SUPER_ADMIN&quot;:
+            </span>{" "}
+            <span className="font-mono">
+              {String(user.role === "SUPER_ADMIN")}
+            </span>
+          </div>
+          <pre className="overflow-auto rounded bg-[var(--muted)] p-3 font-mono">
+            {JSON.stringify(user, null, 2)}
+          </pre>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Signed in</CardTitle>
