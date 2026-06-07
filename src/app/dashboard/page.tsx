@@ -11,6 +11,7 @@ import {
 export default async function DashboardPage() {
   const user = await requireUser();
   const isSuperAdmin = user.role === "SUPER_ADMIN";
+  const roleLabel = isSuperAdmin ? "Super Admin" : "Admin";
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-6 py-12">
@@ -18,7 +19,7 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-[var(--muted-foreground)]">
-            {isSuperAdmin ? "Super Admin" : "Tenant Admin"} workspace
+            {roleLabel} workspace
           </p>
         </div>
         <SignOutButton />
@@ -31,8 +32,8 @@ export default async function DashboardPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm">
           <Row label="Name" value={user.name} />
-          <Row label="Email" value={user.email} />
-          <Row label="Role" value={user.role ?? "—"} />
+          <Row label="Username (email)" value={user.email} />
+          <Row label="Role" value={roleLabel} />
           <Row label="Tenant ID" value={user.tenantId ?? "— (platform / none)"} />
         </CardContent>
       </Card>
@@ -53,9 +54,9 @@ export default async function DashboardPage() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Tenant Admin</CardTitle>
+            <CardTitle>Admin</CardTitle>
             <CardDescription>
-              Build and manage assessments for your tenant (coming in Phase 2).
+              Build and manage assessments for your workspace (coming in Phase 2).
             </CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-[var(--muted-foreground)]">

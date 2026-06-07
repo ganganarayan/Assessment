@@ -3,7 +3,7 @@
  *
  * Creates:
  *  - one platform SUPER_ADMIN (global, no tenant)
- *  - one demo Tenant ("acme") with a Theme, a custom Domain, and a TENANT_ADMIN
+ *  - one demo Tenant ("acme") with a Theme, a custom Domain, and an ADMIN
  *
  * Passwords are hashed through Better Auth so seeded users can sign in.
  * Idempotent: safe to run multiple times.
@@ -19,7 +19,7 @@ const SUPER_ADMIN = {
   password: "ChangeMe123!",
 };
 
-const TENANT_ADMIN = {
+const ADMIN = {
   name: "Acme Admin",
   email: "admin@acme.com",
   password: "ChangeMe123!",
@@ -78,20 +78,20 @@ async function main() {
     },
   });
 
-  // 3. Tenant admin attached to the demo tenant.
-  const tenantAdmin = await createUserWithPassword(TENANT_ADMIN);
+  // 3. Tenant admin (ADMIN) attached to the demo tenant.
+  const admin = await createUserWithPassword(ADMIN);
   await prisma.user.update({
-    where: { id: tenantAdmin.id },
+    where: { id: admin.id },
     data: {
-      role: Role.TENANT_ADMIN,
+      role: Role.ADMIN,
       tenantId: tenant.id,
       emailVerified: true,
     },
   });
 
   console.log("Seed complete:");
-  console.log(`  SUPER_ADMIN  -> ${SUPER_ADMIN.email} / ${SUPER_ADMIN.password}`);
-  console.log(`  TENANT_ADMIN -> ${TENANT_ADMIN.email} / ${TENANT_ADMIN.password}`);
+  console.log(`  SUPER_ADMIN -> ${SUPER_ADMIN.email} / ${SUPER_ADMIN.password}`);
+  console.log(`  ADMIN       -> ${ADMIN.email} / ${ADMIN.password}`);
   console.log(`  Tenant       -> acme (assess.acme.com)`);
 }
 

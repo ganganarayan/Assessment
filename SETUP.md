@@ -56,7 +56,7 @@ npm run db:seed         # create super admin + demo tenant
 Seeded accounts (change immediately):
 
 - **Super Admin** — `owner@example.com` / `ChangeMe123!`
-- **Tenant Admin** — `admin@acme.com` / `ChangeMe123!`
+- **Admin** — `admin@acme.com` / `ChangeMe123!`
 
 ## 5. Run locally
 

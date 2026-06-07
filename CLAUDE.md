@@ -60,7 +60,7 @@ Use Railway.
 Support:
 
 * Super Admin
-* Tenant Admin
+* Admin
 
 Every assessment belongs to a tenant.
 

@@ -17,7 +17,7 @@ datasource db {
 
 enum Role {
   SUPER_ADMIN // Owner of the whole platform (the app creator). Global scope.
-  TENANT_ADMIN // Administrator of a single tenant (sub-domain builder).
+  ADMIN // Administrator of a single tenant workspace. Logs in with their email.
 }
 
 // ---------------------------------------------------------------------------
@@ -96,11 +96,11 @@ model User {
   email         String   @unique
   emailVerified Boolean  @default(false)
   image         String?
-  role          Role     @default(TENANT_ADMIN)
+  role          Role     @default(ADMIN)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  // Null for SUPER_ADMIN (platform-wide); set for TENANT_ADMIN.
+  // Null for SUPER_ADMIN (platform-wide); set for ADMIN (tenant-scoped).
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
