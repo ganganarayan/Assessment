@@ -85,16 +85,40 @@ resolved tenant context.
 
 ## 7. Deploy to Railway
 
-1. **Create project** → New Project → Deploy from GitHub repo.
-2. **Add PostgreSQL** plugin. Railway injects `DATABASE_URL` automatically.
-3. **Set variables** (Service → Variables): `BETTER_AUTH_SECRET`,
-   `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`,
-   `ALLOWED_ORIGINS`, and all `R2_*` values.
-4. **Build/deploy** uses the `Dockerfile` (see `railway.json`). The start
-   command runs `prisma migrate deploy` then boots the standalone server.
-5. **Custom domains**: add tenant domains under Railway → Settings → Domains
-   (or a wildcard `*.yourdomain.com`), then create matching `Domain` rows so
-   middleware can resolve them.
+The project uses **one Railway project with two environments** (no local
+deploy needed — Railway builds from GitHub):
+
+| Environment     | Git branch | Purpose    |
+| --------------- | ---------- | ---------- |
+| `main`          | `main`     | Production |
+| `orbitq-assess` | `staging`  | Staging    |
+
+`railway.json` and `Dockerfile` are shared by both environments. Everything
+that differs is set as **per-environment variables** in the Railway dashboard.
+
+**One-time setup (per environment):**
+
+1. **Branch mapping** — each environment → Settings → Source → track its
+   branch (`main` → `main`, `staging` → `orbitq-assess`).
+2. **PostgreSQL** — add a Postgres plugin in *each* environment. Railway
+   injects that environment's own `DATABASE_URL` automatically, so production
+   and staging migrate independent databases.
+3. **Variables** (set separately in each environment, since values differ):
+   `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`,
+   `NEXT_PUBLIC_ROOT_DOMAIN`, `ALLOWED_ORIGINS`, and all `R2_*` values.
+   - Production points at the live root domain; staging at the staging domain.
+   - Use a **distinct** `BETTER_AUTH_SECRET` per environment.
+
+**Every deploy (automatic on push to the mapped branch):**
+
+- Build runs the `Dockerfile` (`npm ci` → `prisma generate` → `next build`).
+- Start command runs `prisma migrate deploy` against that environment's
+  `DATABASE_URL`, then boots the standalone server (`node server.js`).
+- Health check hits `/` (120s timeout); failures retry up to 5×.
+
+**Custom domains:** add tenant domains under the relevant environment →
+Settings → Domains (or a wildcard `*.yourdomain.com`), then create matching
+`Domain` rows so middleware can resolve them.
 
 ---
 
