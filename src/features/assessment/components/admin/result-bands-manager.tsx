@@ -153,7 +153,7 @@ function BandForm({
         <div className="flex flex-col gap-1">
           <Label>Level</Label>
           <select
-            className="h-10 rounded-md border bg-transparent px-3 text-sm"
+            className="h-10 rounded-md border border-cyan-500 bg-transparent px-3 text-sm focus:bg-white focus:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
             value={level}
             onChange={(e) => setLevel(e.target.value as Level)}
           >
