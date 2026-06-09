@@ -51,6 +51,18 @@ export function AssessmentRowActions({
       >
         Preview
       </Link>
+      <a
+        href={`/api/admin/assessments/${id}/export?format=json`}
+        className={buttonVariants({ variant: "ghost", size: "sm" })}
+      >
+        Export
+      </a>
+      <a
+        href={`/api/admin/assessments/${id}/export?format=csv`}
+        className={buttonVariants({ variant: "ghost", size: "sm" })}
+      >
+        CSV
+      </a>
       <Button size="sm" variant="outline" onClick={toggle} disabled={pending}>
         {published ? "Unpublish" : "Publish"}
       </Button>

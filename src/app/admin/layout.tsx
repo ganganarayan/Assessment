@@ -23,6 +23,9 @@ export default async function AdminLayout({
             <Link href="/admin/submissions" className="rounded-md px-3 py-2 hover:bg-[var(--muted)]">
               Submissions
             </Link>
+            <Link href="/admin/import" className="rounded-md px-3 py-2 hover:bg-[var(--muted)]">
+              Import
+            </Link>
           </nav>
           <SignOutButton />
         </div>
