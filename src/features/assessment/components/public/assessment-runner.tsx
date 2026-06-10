@@ -292,9 +292,18 @@ export function AssessmentRunner({
   }
 
   // step === "questions"
+  const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(" ");
+  const leadContact = [lead.email, lead.mobile].filter(Boolean).join(" · ");
   return (
     <div className="flex flex-col gap-8">
       <h2 className="text-xl font-semibold">{assessment.title}</h2>
+      {leadName || leadContact ? (
+        <div className="rounded-lg border bg-[var(--muted)] px-4 py-2 text-sm">
+          {leadName ? <span className="font-medium">{leadName}</span> : null}
+          {leadName && leadContact ? <span className="text-[var(--muted-foreground)]"> — </span> : null}
+          {leadContact ? <span className="text-[var(--muted-foreground)]">{leadContact}</span> : null}
+        </div>
+      ) : null}
       {assessment.categories.map((c) => (
         <div key={c.id} className="flex flex-col gap-4">
           <div>

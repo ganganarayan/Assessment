@@ -16,8 +16,6 @@ import { EventType, Prisma } from "@prisma/client";
 import { emitEvent } from "@/lib/events/emit";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { type EmitInput } from "@/features/events/types";
-import { getCurrentUser } from "@/lib/auth/session";
-import { isPlatformOwner } from "@/lib/auth/platform";
 import { normalizeIdentifier, evaluateLockout } from "@/features/assessment/lockout";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 
@@ -113,12 +111,6 @@ export async function startSubmission(
   const identifierValue = normalizeIdentifier(assessment.uniqueIdentifier, { email, mobile });
   const leadFields = { firstName, lastName, email, mobile };
 
-  // Only the platform owner (super admin) bypasses the lockout, so QA isn't
-  // blocked. Mere authentication is NOT enough — a self-registered respondent
-  // must never be able to skip the lockout.
-  const sessionUser = await getCurrentUser();
-  const adminBypass = sessionUser ? isPlatformOwner(sessionUser.email) : false;
-
   const submissionData = {
     assessmentId: assessment.id,
     tenantId: assessment.tenantId,
@@ -133,8 +125,8 @@ export async function startSubmission(
 
   // Lockout path — serialize per-identifier with an advisory lock so concurrent
   // double-submits can't slip two leads through, and a blocked retaker creates
-  // NO row / event / webhook.
-  if (!adminBypass && assessment.retakePolicy !== "UNLIMITED" && identifierValue) {
+  // NO row / event / webhook. (Set retakePolicy=UNLIMITED to allow free retakes.)
+  if (assessment.retakePolicy !== "UNLIMITED" && identifierValue) {
     const policy = assessment.retakePolicy as "DELAYED" | "NEVER";
     const outcome = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${assessment.id}:${identifierValue}`}, 0))`;

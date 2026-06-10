@@ -20,11 +20,9 @@ function fmt(iso: string | null) {
 export function WebhooksManager({
   active,
   inactive,
-  samples,
 }: {
   active: WebhookRow[];
   inactive: WebhookRow[];
-  samples: Record<string, string>;
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -80,8 +78,6 @@ export function WebhooksManager({
       </div>
       {err ? <p className="text-sm text-red-500">{err}</p> : null}
 
-      <PayloadPreview samples={samples} selected={name} />
-
       <Table
         title="Active"
         rows={active}
@@ -116,56 +112,6 @@ export function WebhooksManager({
         )}
       />
     </div>
-  );
-}
-
-/**
- * Read-only payload preview for the selected event type. The JSON is generated
- * server-side by the SAME assembler that emits real events (single source of
- * truth) — it is never editable (no per-webhook customization).
- */
-function PayloadPreview({
-  samples,
-  selected,
-}: {
-  samples: Record<string, string>;
-  selected: string;
-}) {
-  const names = Object.keys(samples);
-  const [pick, setPick] = useState(() =>
-    samples[selected.trim()] ? selected.trim() : (names[0] ?? ""),
-  );
-  if (names.length === 0) return null;
-  const body = samples[pick] ?? null;
-
-  return (
-    <section className="flex flex-col gap-2 rounded-lg border p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">Payload preview</h2>
-        <select
-          value={pick}
-          onChange={(e) => setPick(e.target.value)}
-          className="rounded-md border bg-[var(--background)] px-2 py-1 text-sm"
-        >
-          {names.map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-      </div>
-      <p className="text-xs text-[var(--muted-foreground)]">
-        Sample for the selected event — exactly what Assess360 POSTs (values are
-        examples). Read-only.
-      </p>
-      {body ? (
-        <pre className="max-h-96 overflow-auto rounded-md bg-[var(--muted)] p-3 text-xs leading-relaxed">
-          {body}
-        </pre>
-      ) : (
-        <p className="text-sm text-[var(--muted-foreground)]">No preview available.</p>
-      )}
-    </section>
   );
 }
 

@@ -164,6 +164,7 @@ export interface EventActivityRow {
   submissionId: string | null;
   leadEmail: string | null;
   payload: string; // event payload, pretty JSON
+  endpoint: string | null; // webhook URL the payload was POSTed to
   deliveryStatus: "delivered" | "failed" | "none";
   responseStatus: number | null;
   attemptCount: number;

@@ -71,6 +71,7 @@ export async function listEventActivity(opts: {
         select: {
           eventName: true,
           submissionId: true,
+          endpoint: true,
           success: true,
           responseStatus: true,
           attemptCount: true,
@@ -96,6 +97,7 @@ export async function listEventActivity(opts: {
       submissionId: e.submissionId,
       leadEmail: e.leadEmail,
       payload: JSON.stringify(e.payload, null, 2),
+      endpoint: d?.endpoint ?? null,
       deliveryStatus,
       responseStatus: d?.responseStatus ?? null,
       attemptCount: d?.attemptCount ?? 0,
