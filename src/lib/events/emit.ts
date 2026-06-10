@@ -1,11 +1,9 @@
-import { EventType, Prisma } from "@prisma/client";
+import { Prisma, type EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { env } from "@/lib/env";
 import { deliverWebhook } from "@/lib/webhooks/dispatch";
-import {
-  EVENT_NAME,
-  type EmitContext,
-  type EventEnvelope,
-} from "@/features/events/types";
+import { EVENT_NAME, type EmitInput } from "@/features/events/types";
+import { buildEnvelope } from "@/lib/events/payload";
 
 /**
  * Central event service.
@@ -15,32 +13,25 @@ import {
  *  - Webhook delivery NEVER blocks the user flow: the endpoint lookup and HTTP
  *    POST run in the background (the persistent Node server keeps the promise
  *    alive). A failed delivery is captured in WebhookLog, never thrown.
+ *
+ * Emitters pass a normalized EmitInput; the canonical envelope is assembled in
+ * one place (lib/events/payload.ts) so every event has an identical top level.
  */
-export async function emitEvent(
-  type: EventType,
-  data: Record<string, unknown>,
-  ctx: EmitContext = {},
-): Promise<void> {
+export async function emitEvent(type: EventType, input: EmitInput): Promise<void> {
   const name = EVENT_NAME[type];
+  const envelope = buildEnvelope(type, input, env.NEXT_PUBLIC_APP_URL);
 
-  const envelope: EventEnvelope = {
-    event: name,
-    type,
-    occurredAt: new Date().toISOString(),
-    source: "assess360",
-    data,
-  };
-
-  // 1) Always persist the event (source of truth), awaited.
+  // 1) Always persist the event (source of truth), awaited. Denormalized columns
+  //    are derived from the same input the payload was built from.
   await prisma.eventLog.create({
     data: {
       type,
       name,
       payload: envelope as unknown as Prisma.InputJsonValue,
       source: "assess360",
-      submissionId: ctx.submissionId ?? null,
-      assessmentId: ctx.assessmentId ?? null,
-      leadEmail: ctx.leadEmail ?? null,
+      submissionId: input.submissionId ?? null,
+      assessmentId: input.assessment?.id ?? null,
+      leadEmail: input.lead?.email ?? null,
     },
   });
 
@@ -54,7 +45,7 @@ export async function emitEvent(
       secret: webhook.secret,
       eventName: name,
       body: JSON.stringify(envelope),
-      submissionId: ctx.submissionId ?? null,
+      submissionId: input.submissionId ?? null,
     });
   })().catch(() => {
     // Delivery failures are recorded in WebhookLog; never surface to the user.

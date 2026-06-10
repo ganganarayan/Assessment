@@ -1,6 +1,7 @@
 import { EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { emitEvent } from "@/lib/events/emit";
+import { type EmitInput } from "@/features/events/types";
 
 const DEFAULT_HOURS = 24;
 const BATCH = 500;
@@ -28,7 +29,14 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
       leadLastName: true,
       leadEmail: true,
       leadMobile: true,
-      assessment: { select: { slug: true, title: true } },
+      assessment: {
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          tenant: { select: { id: true, slug: true, name: true } },
+        },
+      },
     },
     take: BATCH,
   });
@@ -41,22 +49,17 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
     });
     if (claim.count === 0) continue; // someone else handled/completed it
 
-    await emitEvent(
-      EventType.ASSESSMENT_ABANDONED,
-      {
-        submissionId: s.id,
-        assessment: { slug: s.assessment.slug, title: s.assessment.title },
-        lead: {
-          firstName: s.leadFirstName,
-          lastName: s.leadLastName,
-          email: s.leadEmail,
-          mobile: s.leadMobile,
-        },
-        startedAt: s.startedAt.toISOString(),
-        abandonedAfterHours: hours,
+    await emitEvent(EventType.ASSESSMENT_ABANDONED, {
+      submissionId: s.id,
+      tenant: s.assessment.tenant,
+      assessment: { id: s.assessment.id, slug: s.assessment.slug, title: s.assessment.title },
+      lead: {
+        firstName: s.leadFirstName,
+        lastName: s.leadLastName,
+        email: s.leadEmail,
+        mobile: s.leadMobile,
       },
-      { submissionId: s.id, assessmentId: s.assessmentId, leadEmail: s.leadEmail },
-    );
+    } satisfies EmitInput);
     swept++;
   }
 

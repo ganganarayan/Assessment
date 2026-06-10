@@ -28,7 +28,7 @@ export const NAME_TO_TYPE: Record<string, EventType> = Object.fromEntries(
   (Object.entries(EVENT_NAME) as [EventType, string][]).map(([t, n]) => [n, t]),
 );
 
-/** All event types in display order. */
+/** All event types (for name resolution / historical logs). */
 export const ALL_EVENT_TYPES: EventType[] = [
   EventType.LEAD_CREATED,
   EventType.ASSESSMENT_STARTED,
@@ -38,20 +38,95 @@ export const ALL_EVENT_TYPES: EventType[] = [
   EventType.ASSESSMENT_ABANDONED,
 ];
 
-/** Standardized envelope every webhook/event carries. */
-export interface EventEnvelope {
-  event: string; // dotted name, e.g. "assessment.completed"
-  type: EventType;
-  occurredAt: string; // ISO timestamp
-  source: "assess360";
-  data: Record<string, unknown>;
+/**
+ * Event types Assess360 actively emits + offers in the UI. `result.generated`
+ * is intentionally excluded: it is a duplicate of `assessment.completed` today
+ * (scoring is synchronous), so emitting it would create duplicate CRM records.
+ * The enum value/name is retained for historical logs and a possible future
+ * async result/report-ready step.
+ */
+export const ACTIVE_EVENT_TYPES: EventType[] = [
+  EventType.LEAD_CREATED,
+  EventType.ASSESSMENT_STARTED,
+  EventType.ASSESSMENT_COMPLETED,
+  EventType.RESULT_VIEWED,
+  EventType.ASSESSMENT_ABANDONED,
+];
+
+/* ---------------------------------------------------- canonical payload ---- */
+
+export interface PayloadTenant {
+  id: string;
+  slug: string;
+  name: string;
+}
+/** Lead fields are ALWAYS present (null when not collected) for stable mapping. */
+export interface PayloadLead {
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  mobile: string | null;
+}
+/** Marketing attribution. Keys always present (null until capture is wired). */
+export interface PayloadAttribution {
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  fbclid: string | null;
+  gclid: string | null;
+}
+export interface PayloadScore {
+  total: number;
+  max: number;
+  percentage: number;
+}
+export interface PayloadResultBand {
+  level: string;
+  title: string;
+}
+/** metadata for assessment-related events. */
+export interface AssessmentMetadata {
+  assessmentId: string | null;
+  assessmentTitle: string | null;
+  assessmentSlug: string | null;
+  assessmentUrl: string | null;
+  resultUrl: string | null;
+  score: PayloadScore | null;
+  resultBand: PayloadResultBand | null;
 }
 
-/** Context attached to the EventLog row for querying/segmentation. */
-export interface EmitContext {
+/**
+ * THE canonical envelope every event/webhook carries. The top level is stable
+ * across all events; only `metadata` varies by event type — so new event types
+ * add their own metadata builder without changing this base schema.
+ */
+export interface EventEnvelope {
+  event: string; // dotted name, e.g. "assessment.completed"
+  timestamp: string; // ISO timestamp
+  source: "assess360";
+  tenant: PayloadTenant | null;
+  submission: { id: string } | null;
+  lead: PayloadLead;
+  attribution: PayloadAttribution;
+  metadata: Record<string, unknown>;
+}
+
+/**
+ * Normalized input emitters pass to `emitEvent`. The central assembler
+ * (lib/events/payload.ts) turns this into an EventEnvelope — emitters never
+ * hand-build payloads.
+ */
+export interface EmitInput {
   submissionId?: string | null;
-  assessmentId?: string | null;
-  leadEmail?: string | null;
+  tenant?: PayloadTenant | null;
+  assessment?: { id: string; slug: string; title: string } | null;
+  lead?: Partial<PayloadLead> | null;
+  score?: PayloadScore | null;
+  resultBand?: PayloadResultBand | null;
+  attribution?: Partial<PayloadAttribution> | null;
+  /** Override the event timestamp (defaults to now). Used for deterministic samples. */
+  timestamp?: string;
 }
 
 /** A webhook row enriched with usage stats (for the Webhooks page). */

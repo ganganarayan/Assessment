@@ -1,6 +1,7 @@
 import { EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { emitEvent } from "@/lib/events/emit";
+import { type EmitInput } from "@/features/events/types";
 
 /**
  * Record a result view exactly once. Called from the result page (server) on
@@ -19,25 +20,40 @@ export async function markResultViewed(submissionId: string): Promise<void> {
     select: {
       id: true,
       assessmentId: true,
+      leadFirstName: true,
+      leadLastName: true,
       leadEmail: true,
+      leadMobile: true,
       totalScore: true,
       maxScore: true,
-      assessment: { select: { slug: true, title: true } },
+      assessment: {
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          tenant: { select: { id: true, slug: true, name: true } },
+        },
+      },
       resultBand: { select: { level: true, title: true } },
     },
   });
   if (!s) return;
 
-  await emitEvent(
-    EventType.RESULT_VIEWED,
-    {
-      submissionId: s.id,
-      assessment: { slug: s.assessment.slug, title: s.assessment.title },
-      scores: { total: s.totalScore, max: s.maxScore },
-      result: s.resultBand
-        ? { level: s.resultBand.level, title: s.resultBand.title }
-        : null,
+  const total = s.totalScore ?? 0;
+  const max = s.maxScore ?? 0;
+  const percentage = max > 0 ? Math.round((total / max) * 100) : 0;
+
+  await emitEvent(EventType.RESULT_VIEWED, {
+    submissionId: s.id,
+    tenant: s.assessment.tenant,
+    assessment: { id: s.assessment.id, slug: s.assessment.slug, title: s.assessment.title },
+    lead: {
+      firstName: s.leadFirstName,
+      lastName: s.leadLastName,
+      email: s.leadEmail,
+      mobile: s.leadMobile,
     },
-    { submissionId: s.id, assessmentId: s.assessmentId, leadEmail: s.leadEmail },
-  );
+    score: { total, max, percentage },
+    resultBand: s.resultBand ? { level: s.resultBand.level, title: s.resultBand.title } : null,
+  } satisfies EmitInput);
 }

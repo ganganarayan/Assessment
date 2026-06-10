@@ -147,7 +147,7 @@ async function main() {
       orderBy: { createdAt: "asc" },
       select: { name: true, createdAt: true },
     });
-    line("  EventLog rows for this submission (expect lead.created, assessment.started, assessment.completed, result.generated):");
+    line("  EventLog rows for this submission (expect lead.created, assessment.started, assessment.completed):");
     for (const e of subEvents) line(`    ${e.createdAt.toISOString()}  ${e.name}`);
 
     line("\n============ CHECK 4 & 5: assessment.completed -> webhook dispatch + WebhookLog ============");

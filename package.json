@@ -20,6 +20,7 @@
     "cron:abandoned": "tsx scripts/sweep-abandoned.ts",
     "verify:events": "tsx scripts/verify-events.ts",
     "verify:transfer": "tsx scripts/verify-transfer.ts",
+    "verify:webhook-payload": "tsx scripts/verify-webhook-payload.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

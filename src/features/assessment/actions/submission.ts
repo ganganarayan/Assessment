@@ -14,6 +14,7 @@ import {
 } from "@/features/assessment/scoring";
 import { EventType } from "@prisma/client";
 import { emitEvent } from "@/lib/events/emit";
+import { type EmitInput } from "@/features/events/types";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 
 /**
@@ -32,6 +33,7 @@ export async function startSubmission(
       slug: true,
       title: true,
       tenantId: true,
+      tenant: { select: { id: true, slug: true, name: true } },
       collectFirstName: true,
       firstNameRequired: true,
       collectLastName: true,
@@ -78,23 +80,16 @@ export async function startSubmission(
   });
 
   // Emit lead.created + assessment.started (EventLog always written; webhook
-  // delivery is non-blocking and never fails this flow).
-  const eventCtx = {
+  // delivery is non-blocking and never fails this flow). The canonical envelope
+  // is assembled centrally; we just pass normalized input.
+  const base: EmitInput = {
     submissionId: submission.id,
-    assessmentId: assessment.id,
-    leadEmail: email,
-  };
-  const leadData = {
-    submissionId: submission.id,
-    assessment: { slug: assessment.slug, title: assessment.title },
+    tenant: assessment.tenant,
+    assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
     lead: { firstName, lastName, email, mobile },
   };
-  await emitEvent(EventType.LEAD_CREATED, leadData, eventCtx);
-  await emitEvent(
-    EventType.ASSESSMENT_STARTED,
-    { submissionId: submission.id, assessment: { slug: assessment.slug, title: assessment.title } },
-    eventCtx,
-  );
+  await emitEvent(EventType.LEAD_CREATED, base);
+  await emitEvent(EventType.ASSESSMENT_STARTED, base);
 
   return { ok: true, data: { submissionId: submission.id } };
 }
@@ -129,6 +124,7 @@ export async function completeSubmission(
       slug: true,
       title: true,
       status: true,
+      tenant: { select: { id: true, slug: true, name: true } },
       categories: {
         select: {
           id: true,
@@ -160,9 +156,6 @@ export async function completeSubmission(
     c.questions.map((q) => ({ ...q, categoryId: c.id })),
   );
   const questionById = new Map(questions.map((q) => [q.id, q]));
-  const categoryNameById = new Map(
-    assessment.categories.map((c) => [c.id, c.name]),
-  );
 
   // Build answer value map (last answer per question wins).
   const answerValueByQuestionId = new Map<string, number>();
@@ -243,14 +236,16 @@ export async function completeSubmission(
     return { ok: true, data: { submissionId } };
   }
 
-  // Emit assessment.completed + result.generated. EventLog is always written;
-  // webhook delivery (incl. the CRM endpoint) is non-blocking and never fails
-  // this flow. Run only for the winning writer (exactly-once).
+  // Emit assessment.completed. EventLog is always written; webhook delivery
+  // (incl. the CRM endpoint) is non-blocking and never fails this flow. Run only
+  // for the winning writer (exactly-once).
+  //
+  // NOTE: result.generated is intentionally NOT emitted — scoring is synchronous,
+  // so it would be a duplicate of assessment.completed (same instant, same data)
+  // and create duplicate CRM records. See ACTIVE_EVENT_TYPES in events/types.ts.
   const full = await prisma.submission.findUnique({
     where: { id: submissionId },
     select: {
-      id: true,
-      completedAt: true,
       leadFirstName: true,
       leadLastName: true,
       leadEmail: true,
@@ -258,28 +253,9 @@ export async function completeSubmission(
     },
   });
 
-  const eventCtx = {
+  await emitEvent(EventType.ASSESSMENT_COMPLETED, {
     submissionId,
-    assessmentId: assessment.id,
-    leadEmail: full?.leadEmail ?? null,
-  };
-  const scoresData = {
-    total: totalScore,
-    max: maxScore,
-    percentage,
-    categories: categoryScores.map((cs) => ({
-      categoryId: cs.categoryId,
-      name: categoryNameById.get(cs.categoryId) ?? "",
-      score: cs.score,
-      maxScore: cs.maxScore,
-    })),
-  };
-  const resultData = band
-    ? { level: band.level, title: band.title, description: band.description }
-    : null;
-  const completedData = {
-    submissionId,
-    completedAt: (full?.completedAt ?? new Date()).toISOString(),
+    tenant: assessment.tenant,
     assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
     lead: {
       firstName: full?.leadFirstName ?? null,
@@ -287,21 +263,9 @@ export async function completeSubmission(
       email: full?.leadEmail ?? null,
       mobile: full?.leadMobile ?? null,
     },
-    scores: scoresData,
-    result: resultData,
-  };
-
-  await emitEvent(EventType.ASSESSMENT_COMPLETED, completedData, eventCtx);
-  await emitEvent(
-    EventType.RESULT_GENERATED,
-    {
-      submissionId,
-      assessment: { slug: assessment.slug, title: assessment.title },
-      scores: scoresData,
-      result: resultData,
-    },
-    eventCtx,
-  );
+    score: { total: totalScore, max: maxScore, percentage },
+    resultBand: band ? { level: band.level, title: band.title } : null,
+  } satisfies EmitInput);
 
   return { ok: true, data: { submissionId } };
 }
