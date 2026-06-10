@@ -23,6 +23,11 @@ export const EVENT_NAME: Record<EventType, string> = {
   [EventType.ASSESSMENT_ABANDONED]: "assessment.abandoned",
 };
 
+/** Reverse of EVENT_NAME: dotted name -> enum value. */
+export const NAME_TO_TYPE: Record<string, EventType> = Object.fromEntries(
+  (Object.entries(EVENT_NAME) as [EventType, string][]).map(([t, n]) => [n, t]),
+);
+
 /** All event types in display order. */
 export const ALL_EVENT_TYPES: EventType[] = [
   EventType.LEAD_CREATED,

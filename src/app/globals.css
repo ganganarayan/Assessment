@@ -24,16 +24,16 @@
   --border: #e2e8f0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-    --primary: #f8fafc;
-    --primary-foreground: #0f172a;
-    --muted: #1e293b;
-    --muted-foreground: #94a3b8;
-    --border: #1e293b;
-  }
+/* Dark theme is class-based (toggled on <html> by the theme switcher / init
+ * script). "System" resolves to .dark via the init script using the OS pref. */
+.dark {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --primary: #4f46e5;
+  --primary-foreground: #f8fafc;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --border: #1e293b;
 }
 
 * {
