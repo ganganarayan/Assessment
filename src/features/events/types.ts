@@ -21,6 +21,7 @@ export const EVENT_NAME: Record<EventType, string> = {
   [EventType.RESULT_GENERATED]: "result.generated",
   [EventType.RESULT_VIEWED]: "result.viewed",
   [EventType.ASSESSMENT_ABANDONED]: "assessment.abandoned",
+  [EventType.RESULT_LINK_REQUESTED]: "result.link_requested",
 };
 
 /** Reverse of EVENT_NAME: dotted name -> enum value. */
@@ -36,6 +37,7 @@ export const ALL_EVENT_TYPES: EventType[] = [
   EventType.RESULT_GENERATED,
   EventType.RESULT_VIEWED,
   EventType.ASSESSMENT_ABANDONED,
+  EventType.RESULT_LINK_REQUESTED,
 ];
 
 /**
@@ -51,6 +53,7 @@ export const ACTIVE_EVENT_TYPES: EventType[] = [
   EventType.ASSESSMENT_COMPLETED,
   EventType.RESULT_VIEWED,
   EventType.ASSESSMENT_ABANDONED,
+  EventType.RESULT_LINK_REQUESTED,
 ];
 
 /* ---------------------------------------------------- canonical payload ---- */
@@ -119,8 +122,8 @@ export interface EventEnvelope {
   contact_email: string | null;
   contact_phone: string | null;
   metadata: Record<string, unknown>;
-  /** Flat contact custom fields: contact.utm_source, contact.fbclid, … */
-  [contactField: `contact.${string}`]: string | null;
+  /** Flat contact custom fields: contact.utm_source, contact.score, … */
+  [contactField: `contact.${string}`]: string | number | null;
 }
 
 /**

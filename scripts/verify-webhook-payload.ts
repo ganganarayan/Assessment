@@ -54,6 +54,9 @@ const CONTACT_FIELDS = [
   "contact.utm_content",
   "contact.fbclid",
   "contact.gclid",
+  "contact.score",
+  "contact.result_band",
+  "contact.result_url",
 ];
 const TOP = [...TOP_FIXED, ...CONTACT_FIELDS];
 const META = ["assessmentId", "assessmentTitle", "assessmentSlug", "assessmentUrl", "resultUrl", "score", "resultBand"];
@@ -62,6 +65,7 @@ const scoredTypes = new Set<EventType>([
   EventType.ASSESSMENT_COMPLETED,
   EventType.RESULT_VIEWED,
   EventType.RESULT_GENERATED,
+  EventType.RESULT_LINK_REQUESTED,
 ]);
 
 console.log("Webhook payload verification\n");
@@ -99,10 +103,16 @@ for (const type of ACTIVE_EVENT_TYPES) {
     expect(`${name} · resultUrl`, meta.resultUrl === `${BASE}/a/${SLUG}/r/${SID}`, String(meta.resultUrl));
     expect(`${name} · score`, JSON.stringify(meta.score) === JSON.stringify({ total: 42, max: 60, percentage: 70 }));
     expect(`${name} · resultBand`, (meta.resultBand as { level: string }).level === "HIGH");
+    expect(`${name} · contact.score`, env["contact.score"] === 70, String(env["contact.score"]));
+    expect(`${name} · contact.result_band`, env["contact.result_band"] === "HIGH");
+    expect(`${name} · contact.result_url`, env["contact.result_url"] === `${BASE}/a/${SLUG}/r/${SID}`);
   } else {
     expect(`${name} · resultUrl null`, meta.resultUrl === null);
     expect(`${name} · score null`, meta.score === null);
     expect(`${name} · resultBand null`, meta.resultBand === null);
+    expect(`${name} · contact.score null`, env["contact.score"] === null);
+    expect(`${name} · contact.result_band null`, env["contact.result_band"] === null);
+    expect(`${name} · contact.result_url null`, env["contact.result_url"] === null);
   }
 
   const sample = buildSamplePayload(name, BASE);

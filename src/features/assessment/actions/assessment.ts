@@ -35,6 +35,10 @@ export async function createAssessment(
       emailRequired: d.emailRequired,
       collectMobile: d.collectMobile,
       mobileRequired: d.mobileRequired,
+      retakePolicy: d.retakePolicy,
+      retakeDays: d.retakeDays,
+      uniqueIdentifier: d.uniqueIdentifier,
+      trainingUrl: nullifyEmpty(d.trainingUrl),
       createdById: user.id,
     },
   });
@@ -76,6 +80,10 @@ export async function updateAssessment(
       emailRequired: d.emailRequired,
       collectMobile: d.collectMobile,
       mobileRequired: d.mobileRequired,
+      retakePolicy: d.retakePolicy,
+      retakeDays: d.retakeDays,
+      uniqueIdentifier: d.uniqueIdentifier,
+      trainingUrl: nullifyEmpty(d.trainingUrl),
     },
   });
 

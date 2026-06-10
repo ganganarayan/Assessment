@@ -126,7 +126,9 @@ async function main() {
       email: "verify@example.com",
       mobile: "",
     });
-    if (!start.ok || !start.data) throw new Error(`startSubmission failed: ${!start.ok ? start.error : "no data"}`);
+    if (!start.ok || start.data?.status !== "started") {
+      throw new Error(`startSubmission failed: ${!start.ok ? start.error : "unexpected lockout"}`);
+    }
     submissionId = start.data.submissionId;
     line(`  startSubmission -> ${submissionId}`);
 

@@ -51,6 +51,10 @@ const DEFAULTS: AssessmentFormValues = {
   emailRequired: true,
   collectMobile: true,
   mobileRequired: false,
+  retakePolicy: "DELAYED",
+  retakeDays: 15,
+  uniqueIdentifier: "EMAIL",
+  trainingUrl: "",
 };
 
 export function AssessmentForm({
@@ -202,6 +206,82 @@ export function AssessmentForm({
                   </label>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 rounded-lg border p-4">
+            <p className="text-sm font-medium">Retake policy</p>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Controls how often a respondent (identified below) may retake. Preserves
+              history — each retake is a new submission.
+            </p>
+
+            <fieldset className="flex flex-col gap-2">
+              <legend className="text-sm font-medium">Allow retakes?</legend>
+              {[
+                { v: "DELAYED", label: "Delayed — allow again after a cooling period" },
+                { v: "NEVER", label: "Never — one submission only" },
+                { v: "UNLIMITED", label: "Unlimited — immediate retakes" },
+              ].map((o) => (
+                <label key={o.v} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="retakePolicy"
+                    checked={values.retakePolicy === o.v}
+                    onChange={() => set("retakePolicy", o.v as AssessmentFormValues["retakePolicy"])}
+                  />
+                  {o.label}
+                </label>
+              ))}
+            </fieldset>
+
+            {values.retakePolicy === "DELAYED" ? (
+              <div className="flex flex-col gap-2 border-l-2 pl-4">
+                <Label htmlFor="retakeDays">Cooling period</Label>
+                <select
+                  id="retakeDays"
+                  value={values.retakeDays}
+                  onChange={(e) => set("retakeDays", Number(e.target.value))}
+                  className="w-40 rounded-md border bg-[var(--background)] px-2 py-1 text-sm"
+                >
+                  <option value={15}>15 days</option>
+                  <option value={30}>30 days</option>
+                  <option value={90}>90 days</option>
+                </select>
+              </div>
+            ) : null}
+
+            {values.retakePolicy !== "UNLIMITED" ? (
+              <fieldset className="flex flex-col gap-2">
+                <legend className="text-sm font-medium">Identify respondents by</legend>
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  The chosen field must be collected and required (set above).
+                </p>
+                {[
+                  { v: "EMAIL", label: "Email address" },
+                  { v: "MOBILE", label: "Mobile number" },
+                ].map((o) => (
+                  <label key={o.v} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="uniqueIdentifier"
+                      checked={values.uniqueIdentifier === o.v}
+                      onChange={() => set("uniqueIdentifier", o.v as AssessmentFormValues["uniqueIdentifier"])}
+                    />
+                    {o.label}
+                  </label>
+                ))}
+              </fieldset>
+            ) : null}
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="trainingUrl">Training / VSL link (shown on the retake-lock screen)</Label>
+              <Input
+                id="trainingUrl"
+                value={values.trainingUrl ?? ""}
+                onChange={(e) => set("trainingUrl", e.target.value)}
+                placeholder="https://…"
+              />
             </div>
           </div>
 

@@ -192,6 +192,17 @@ enum SubmissionStatus {
   COMPLETED
 }
 
+enum RetakePolicy {
+  DELAYED // block retakes within retakeDays; allow after
+  NEVER // one submission per identifier, ever
+  UNLIMITED // immediate retakes allowed
+}
+
+enum UniqueIdentifier {
+  EMAIL
+  MOBILE
+}
+
 // ---------------------------------------------------------------------------
 // Assessment — the top-level container. Public at /a/[slug] when PUBLISHED.
 // ---------------------------------------------------------------------------
@@ -215,6 +226,14 @@ model Assessment {
   emailRequired     Boolean @default(true)
   collectMobile     Boolean @default(true)
   mobileRequired    Boolean @default(false)
+
+  // Retake lockout: how often a respondent (keyed by uniqueIdentifier) may
+  // retake. DELAYED uses retakeDays; NEVER = once; UNLIMITED = no throttle.
+  retakePolicy     RetakePolicy     @default(DELAYED)
+  retakeDays       Int              @default(15)
+  uniqueIdentifier UniqueIdentifier @default(EMAIL)
+  // Optional VSL/training link shown on the retake-lockout screen.
+  trainingUrl      String?
 
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
@@ -344,6 +363,11 @@ model Submission {
   // Stored as JSON so new click-id params need no schema change.
   attribution Json?
 
+  // Normalized retake/dedup key (lowercased email or digits-only mobile),
+  // captured at start per the assessment's uniqueIdentifier. Indexed for the
+  // lockout lookup + future progress-trend queries.
+  identifierValue String?
+
   totalScore Float?
   maxScore   Float?
 
@@ -371,6 +395,7 @@ model Submission {
   @@index([leadEmail])
   @@index([createdAt])
   @@index([status, startedAt]) // abandonment sweep
+  @@index([assessmentId, identifierValue, status]) // retake lockout + trend
   @@map("submission")
 }
 
@@ -433,6 +458,7 @@ enum EventType {
   RESULT_GENERATED // result.generated
   RESULT_VIEWED // result.viewed
   ASSESSMENT_ABANDONED // assessment.abandoned
+  RESULT_LINK_REQUESTED // result.link_requested (returning user asks to be emailed their prior result)
 }
 
 // ---------------------------------------------------------------------------

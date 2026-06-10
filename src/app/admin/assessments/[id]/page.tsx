@@ -33,6 +33,10 @@ export default async function EditAssessmentPage({
     emailRequired: a.emailRequired,
     collectMobile: a.collectMobile,
     mobileRequired: a.mobileRequired,
+    retakePolicy: a.retakePolicy,
+    retakeDays: a.retakeDays,
+    uniqueIdentifier: a.uniqueIdentifier,
+    trainingUrl: a.trainingUrl ?? "",
   };
 
   const categories = a.categories.map((c) => ({

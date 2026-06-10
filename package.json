@@ -21,6 +21,7 @@
     "verify:events": "tsx scripts/verify-events.ts",
     "verify:transfer": "tsx scripts/verify-transfer.ts",
     "verify:webhook-payload": "tsx scripts/verify-webhook-payload.ts",
+    "verify:retake": "tsx scripts/verify-retake.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

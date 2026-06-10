@@ -16,7 +16,44 @@ import { EventType, Prisma } from "@prisma/client";
 import { emitEvent } from "@/lib/events/emit";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { type EmitInput } from "@/features/events/types";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isPlatformOwner } from "@/lib/auth/platform";
+import { normalizeIdentifier, evaluateLockout } from "@/features/assessment/lockout";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
+
+export type StartResult =
+  | { status: "started"; submissionId: string }
+  | {
+      status: "locked";
+      policy: "DELAYED" | "NEVER";
+      lastCompletedAt: string | null;
+      nextAvailableAt: string | null; // null = never (NEVER policy)
+    };
+
+type StartAssessment = {
+  id: string;
+  slug: string;
+  title: string;
+  tenant: { id: string; slug: string; name: string } | null;
+};
+
+/** Fire lead.created + assessment.started for a freshly created submission. */
+async function emitStart(
+  assessment: StartAssessment,
+  submissionId: string,
+  lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null },
+  attr: ReturnType<typeof normalizeAttribution>,
+) {
+  const base: EmitInput = {
+    submissionId,
+    tenant: assessment.tenant,
+    assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
+    lead,
+    attribution: attr ?? undefined,
+  };
+  await emitEvent(EventType.LEAD_CREATED, base);
+  await emitEvent(EventType.ASSESSMENT_STARTED, base);
+}
 
 /**
  * Start a submission: validate the lead per the assessment's capture config,
@@ -27,7 +64,7 @@ export async function startSubmission(
   slug: string,
   lead: LeadInput,
   attribution?: Record<string, string>,
-): Promise<ActionResult<{ submissionId: string }>> {
+): Promise<ActionResult<StartResult>> {
   const assessment = await prisma.assessment.findFirst({
     where: { slug, status: "PUBLISHED" },
     select: {
@@ -44,6 +81,9 @@ export async function startSubmission(
       emailRequired: true,
       collectMobile: true,
       mobileRequired: true,
+      retakePolicy: true,
+      retakeDays: true,
+      uniqueIdentifier: true,
     },
   });
   if (!assessment) return { ok: false, error: "Assessment not available." };
@@ -70,35 +110,161 @@ export async function startSubmission(
 
   // Sanitize untrusted attribution from the landing URL (known keys, capped).
   const attr = normalizeAttribution(attribution);
+  const identifierValue = normalizeIdentifier(assessment.uniqueIdentifier, { email, mobile });
+  const leadFields = { firstName, lastName, email, mobile };
 
-  const submission = await prisma.submission.create({
-    data: {
-      assessmentId: assessment.id,
-      tenantId: assessment.tenantId,
-      status: "STARTED",
-      leadFirstName: assessment.collectFirstName ? firstName : null,
-      leadLastName: assessment.collectLastName ? lastName : null,
-      leadEmail: assessment.collectEmail ? email : null,
-      leadMobile: assessment.collectMobile ? mobile : null,
-      ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
+  // Only the platform owner (super admin) bypasses the lockout, so QA isn't
+  // blocked. Mere authentication is NOT enough — a self-registered respondent
+  // must never be able to skip the lockout.
+  const sessionUser = await getCurrentUser();
+  const adminBypass = sessionUser ? isPlatformOwner(sessionUser.email) : false;
+
+  const submissionData = {
+    assessmentId: assessment.id,
+    tenantId: assessment.tenantId,
+    status: "STARTED" as const,
+    leadFirstName: assessment.collectFirstName ? firstName : null,
+    leadLastName: assessment.collectLastName ? lastName : null,
+    leadEmail: assessment.collectEmail ? email : null,
+    leadMobile: assessment.collectMobile ? mobile : null,
+    identifierValue,
+    ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
+  };
+
+  // Lockout path — serialize per-identifier with an advisory lock so concurrent
+  // double-submits can't slip two leads through, and a blocked retaker creates
+  // NO row / event / webhook.
+  if (!adminBypass && assessment.retakePolicy !== "UNLIMITED" && identifierValue) {
+    const policy = assessment.retakePolicy as "DELAYED" | "NEVER";
+    const outcome = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${assessment.id}:${identifierValue}`}, 0))`;
+      const last = await tx.submission.findFirst({
+        where: { assessmentId: assessment.id, identifierValue, status: "COMPLETED" },
+        orderBy: { completedAt: "desc" },
+        select: { completedAt: true },
+      });
+      const verdict = evaluateLockout(policy, assessment.retakeDays, last?.completedAt ?? null, new Date());
+      if (verdict.locked) {
+        return {
+          kind: "locked" as const,
+          lastCompletedAt: last?.completedAt ?? null,
+          nextAvailableAt: verdict.nextAvailableAt,
+        };
+      }
+      // Dedupe genuine double-clicks: reuse a very recent, non-abandoned start
+      // for the same identifier (short window only — NOT a stale hours-old row).
+      // Refresh its lead snapshot so the latest entered details win.
+      const REUSE_WINDOW_MS = 5 * 60 * 1000;
+      const recent = await tx.submission.findFirst({
+        where: {
+          assessmentId: assessment.id,
+          identifierValue,
+          status: "STARTED",
+          abandonedAt: null,
+          startedAt: { gte: new Date(Date.now() - REUSE_WINDOW_MS) },
+        },
+        orderBy: { startedAt: "desc" },
+        select: { id: true },
+      });
+      if (recent) {
+        await tx.submission.update({ where: { id: recent.id }, data: submissionData });
+        return { kind: "reused" as const, submissionId: recent.id };
+      }
+      const created = await tx.submission.create({ data: submissionData, select: { id: true } });
+      return { kind: "created" as const, submissionId: created.id };
+    });
+
+    if (outcome.kind === "locked") {
+      return {
+        ok: true,
+        data: {
+          status: "locked",
+          policy,
+          lastCompletedAt: outcome.lastCompletedAt?.toISOString() ?? null,
+          nextAvailableAt: outcome.nextAvailableAt?.toISOString() ?? null,
+        },
+      };
+    }
+    if (outcome.kind === "created") await emitStart(assessment, outcome.submissionId, leadFields, attr);
+    return { ok: true, data: { status: "started", submissionId: outcome.submissionId } };
+  }
+
+  // No lockout (UNLIMITED / admin / no identifier): create + emit directly.
+  const created = await prisma.submission.create({ data: submissionData, select: { id: true } });
+  await emitStart(assessment, created.id, leadFields, attr);
+  return { ok: true, data: { status: "started", submissionId: created.id } };
+}
+
+/**
+ * "Email my previous results": for a returning (locked-out) respondent, find their
+ * latest COMPLETED submission by identifier and emit result.link_requested so the
+ * CRM emails the secure result link to the registered address. NEVER reveals the
+ * link/score on-screen, and returns the same generic result whether or not a
+ * match exists (no enumeration).
+ */
+export async function requestPreviousResults(
+  slug: string,
+  lead: LeadInput,
+): Promise<ActionResult> {
+  const assessment = await prisma.assessment.findFirst({
+    where: { slug, status: "PUBLISHED" },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      uniqueIdentifier: true,
+      tenant: { select: { id: true, slug: true, name: true } },
     },
-    select: { id: true },
+  });
+  if (!assessment) return { ok: false, error: "Assessment not available." };
+
+  const parsed = leadSchema.safeParse(lead);
+  if (!parsed.success) return { ok: true }; // generic; never signal validity
+
+  const identifierValue = normalizeIdentifier(assessment.uniqueIdentifier, {
+    email: nullifyEmpty(parsed.data.email),
+    mobile: nullifyEmpty(parsed.data.mobile),
+  });
+  if (!identifierValue) return { ok: true };
+
+  const last = await prisma.submission.findFirst({
+    where: { assessmentId: assessment.id, identifierValue, status: "COMPLETED" },
+    orderBy: { completedAt: "desc" },
+    select: {
+      id: true,
+      leadFirstName: true,
+      leadLastName: true,
+      leadEmail: true,
+      leadMobile: true,
+      totalScore: true,
+      maxScore: true,
+      attribution: true,
+      resultBand: { select: { level: true, title: true } },
+    },
   });
 
-  // Emit lead.created + assessment.started (EventLog always written; webhook
-  // delivery is non-blocking and never fails this flow). The canonical envelope
-  // is assembled centrally; we just pass normalized input.
-  const base: EmitInput = {
-    submissionId: submission.id,
-    tenant: assessment.tenant,
-    assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
-    lead: { firstName, lastName, email, mobile },
-    attribution: attr ?? undefined,
-  };
-  await emitEvent(EventType.LEAD_CREATED, base);
-  await emitEvent(EventType.ASSESSMENT_STARTED, base);
+  // Only emit when there is a deliverable email address (the CRM emails the link).
+  if (last && last.leadEmail) {
+    const total = last.totalScore ?? 0;
+    const max = last.maxScore ?? 0;
+    const percentage = max > 0 ? Math.round((total / max) * 100) : 0;
+    await emitEvent(EventType.RESULT_LINK_REQUESTED, {
+      submissionId: last.id,
+      tenant: assessment.tenant,
+      assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
+      lead: {
+        firstName: last.leadFirstName,
+        lastName: last.leadLastName,
+        email: last.leadEmail,
+        mobile: last.leadMobile,
+      },
+      score: { total, max, percentage },
+      resultBand: last.resultBand ? { level: last.resultBand.level, title: last.resultBand.title } : null,
+      attribution: normalizeAttribution(last.attribution) ?? undefined,
+    } satisfies EmitInput);
+  }
 
-  return { ok: true, data: { submissionId: submission.id } };
+  return { ok: true };
 }
 
 /**

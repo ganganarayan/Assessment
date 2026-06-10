@@ -99,6 +99,7 @@ const METADATA_BUILDERS: Partial<Record<EventType, MetadataBuilder>> = {
   [EventType.RESULT_GENERATED]: assessmentMetadata,
   [EventType.RESULT_VIEWED]: assessmentMetadata,
   [EventType.ASSESSMENT_ABANDONED]: assessmentMetadata,
+  [EventType.RESULT_LINK_REQUESTED]: assessmentMetadata,
 };
 
 /* --------------------------------------------------------- the assembler --- */
@@ -134,6 +135,14 @@ export function buildEnvelope(
   for (const [key, value] of Object.entries(attribution)) {
     envelope[`contact.${key}`] = value;
   }
+  // Result fields as flat contact custom fields too (null on non-scored events).
+  const m = envelope.metadata as Record<string, unknown>;
+  const score = m.score as { percentage?: number } | null;
+  const band = m.resultBand as { level?: string } | null;
+  envelope["contact.score"] = score?.percentage ?? null;
+  envelope["contact.result_band"] = band?.level ?? null;
+  envelope["contact.result_url"] = (m.resultUrl as string | null) ?? null;
+
   return envelope;
 }
 
@@ -147,7 +156,8 @@ export function buildSamplePayload(eventName: string, baseUrl: string): EventEnv
   const scored =
     type === EventType.ASSESSMENT_COMPLETED ||
     type === EventType.RESULT_VIEWED ||
-    type === EventType.RESULT_GENERATED;
+    type === EventType.RESULT_GENERATED ||
+    type === EventType.RESULT_LINK_REQUESTED;
 
   return buildEnvelope(
     type,

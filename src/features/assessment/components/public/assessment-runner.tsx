@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   startSubmission,
   completeSubmission,
+  requestPreviousResults,
 } from "@/features/assessment/actions/submission";
 import type { LeadInput } from "@/features/assessment/schemas";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ export interface PublicAssessment {
   description: string | null;
   coverImageUrl: string | null;
   estimatedMinutes: number | null;
+  trainingUrl: string | null;
   collectFirstName: boolean;
   firstNameRequired: boolean;
   collectLastName: boolean;
@@ -41,7 +43,21 @@ export interface PublicAssessment {
   categories: PublicCategory[];
 }
 
-type Step = "intro" | "lead" | "questions";
+type Step = "intro" | "lead" | "questions" | "locked";
+
+interface Lockout {
+  policy: "DELAYED" | "NEVER";
+  lastCompletedAt: string | null;
+  nextAvailableAt: string | null;
+}
+
+function fmtDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? null
+    : d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+}
 
 export function AssessmentRunner({
   assessment,
@@ -62,6 +78,8 @@ export function AssessmentRunner({
   });
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [lockout, setLockout] = useState<Lockout | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
   const [pending, start] = useTransition();
 
   const questions = assessment.categories.flatMap((c) => c.questions);
@@ -78,8 +96,29 @@ export function AssessmentRunner({
         setError(res.error);
         return;
       }
+      if (res.data?.status === "locked") {
+        setLockout({
+          policy: res.data.policy,
+          lastCompletedAt: res.data.lastCompletedAt,
+          nextAvailableAt: res.data.nextAvailableAt,
+        });
+        setStep("locked");
+        return;
+      }
       setSubmissionId(res.data?.submissionId ?? null);
       setStep("questions");
+    });
+  }
+
+  function emailPreviousResults() {
+    setError(null);
+    start(async () => {
+      const res = await requestPreviousResults(assessment.slug, lead);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setEmailSent(true);
     });
   }
 
@@ -190,6 +229,65 @@ export function AssessmentRunner({
           {pending ? "Starting…" : "Continue"}
         </Button>
       </form>
+    );
+  }
+
+  if (step === "locked" && lockout) {
+    const lastDate = fmtDate(lockout.lastCompletedAt);
+    const nextDate = fmtDate(lockout.nextAvailableAt);
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-2xl font-bold tracking-tight">
+            You have already completed this assessment
+          </h2>
+          {lockout.policy === "NEVER" ? (
+            <p className="text-[var(--muted-foreground)]">
+              This assessment can be taken only once.
+            </p>
+          ) : (
+            <p className="text-[var(--muted-foreground)]">
+              Meaningful emotional and behavioural change requires time and consistent
+              implementation.
+              {nextDate ? (
+                <>
+                  {" "}
+                  Your next reassessment will be available on <strong>{nextDate}</strong>.
+                </>
+              ) : null}
+            </p>
+          )}
+          {lastDate ? (
+            <p className="text-sm text-[var(--muted-foreground)]">Completed on {lastDate}.</p>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          {assessment.collectEmail ? (
+            emailSent ? (
+              <p className="text-sm">
+                If a previous result exists for your details, we’ve emailed it to your
+                registered address.
+              </p>
+            ) : (
+              <Button onClick={emailPreviousResults} disabled={pending}>
+                {pending ? "Sending…" : "Email My Previous Results"}
+              </Button>
+            )
+          ) : null}
+          {assessment.trainingUrl ? (
+            <a
+              href={assessment.trainingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-[var(--muted)]"
+            >
+              Watch Recommended Training
+            </a>
+          ) : null}
+        </div>
+        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+      </div>
     );
   }
 

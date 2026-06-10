@@ -48,6 +48,7 @@ export default async function PublicAssessmentPage({
     description: a.description,
     coverImageUrl: a.coverImageUrl,
     estimatedMinutes: a.estimatedMinutes,
+    trainingUrl: a.trainingUrl,
     collectFirstName: a.collectFirstName,
     firstNameRequired: a.firstNameRequired,
     collectLastName: a.collectLastName,

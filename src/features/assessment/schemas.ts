@@ -27,6 +27,32 @@ export const assessmentSchema = z.object({
   emailRequired: z.boolean().default(true),
   collectMobile: z.boolean().default(true),
   mobileRequired: z.boolean().default(false),
+  // Retake lockout config.
+  retakePolicy: z.enum(["DELAYED", "NEVER", "UNLIMITED"]).default("DELAYED"),
+  retakeDays: z.coerce
+    .number()
+    .int()
+    .refine((n) => [15, 30, 90].includes(n), "Retake period must be 15, 30, or 90 days.")
+    .default(15),
+  uniqueIdentifier: z.enum(["EMAIL", "MOBILE"]).default("EMAIL"),
+  trainingUrl: z.string().url("Must be a valid URL.").optional().or(z.literal("")),
+}).superRefine((d, ctx) => {
+  // A lockout can only be enforced if the identifying field is always captured.
+  if (d.retakePolicy === "UNLIMITED") return;
+  if (d.uniqueIdentifier === "EMAIL" && !(d.collectEmail && d.emailRequired)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["uniqueIdentifier"],
+      message: "Retake lockout by Email requires Email to be collected and required.",
+    });
+  }
+  if (d.uniqueIdentifier === "MOBILE" && !(d.collectMobile && d.mobileRequired)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["uniqueIdentifier"],
+      message: "Retake lockout by Mobile requires Mobile to be collected and required.",
+    });
+  }
 });
 export type AssessmentInput = z.infer<typeof assessmentSchema>;
 
