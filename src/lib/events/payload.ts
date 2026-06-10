@@ -109,16 +109,32 @@ export function buildEnvelope(
   baseUrl: string,
 ): EventEnvelope {
   const builder = METADATA_BUILDERS[type];
-  return {
+  const lead = { ...NULL_LEAD, ...(input.lead ?? {}) };
+  const attribution = { ...NULL_ATTRIBUTION, ...(input.attribution ?? {}) };
+
+  const fullName =
+    [lead.firstName, lead.lastName]
+      .map((p) => (typeof p === "string" ? p.trim() : ""))
+      .filter(Boolean)
+      .join(" ") || null;
+
+  const envelope: EventEnvelope = {
     event: EVENT_NAME[type],
     timestamp: input.timestamp ?? new Date().toISOString(),
     source: "assess360",
     tenant: input.tenant ?? null,
     submission: input.submissionId ? { id: input.submissionId } : null,
-    lead: { ...NULL_LEAD, ...(input.lead ?? {}) },
-    attribution: { ...NULL_ATTRIBUTION, ...(input.attribution ?? {}) },
+    contact_name: fullName,
+    contact_email: lead.email ?? null,
+    contact_phone: lead.mobile ?? null,
     metadata: builder ? (builder(input, baseUrl) as Record<string, unknown>) : {},
   };
+
+  // Flat contact custom fields (CRM auto-maps contact.<key>).
+  for (const [key, value] of Object.entries(attribution)) {
+    envelope[`contact.${key}`] = value;
+  }
+  return envelope;
 }
 
 /* --------------------------------------------------- preview sample data --- */
@@ -144,7 +160,14 @@ export function buildSamplePayload(eventName: string, baseUrl: string): EventEnv
         slug: "emotional-stability-assessment",
         title: "Emotional Stability Assessment",
       },
-      lead: { firstName: "Ganesh", lastName: null, email: "ganesh@example.com", mobile: "+919999999999" },
+      lead: { firstName: "Ganesh", lastName: "Kumar", email: "ganesh@example.com", mobile: "+919999999999" },
+      attribution: {
+        utm_source: "fb",
+        utm_medium: "Facebook_Mobile_Feed",
+        utm_campaign: "Q2 Emotional Stability",
+        utm_content: "Stress Ad A",
+        fbclid: "IwAR0Example",
+      },
       score: scored ? { total: 42, max: 60, percentage: 70 } : null,
       resultBand: scored ? { level: "HIGH", title: "High Emotional Load" } : null,
     },

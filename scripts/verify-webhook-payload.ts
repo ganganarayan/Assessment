@@ -1,8 +1,9 @@
 /**
  * Webhook payload verification (no DB). Asserts the canonical envelope is stable
- * across every active event, URLs are correct, lead/attribution keys are always
- * present, and assessment metadata is uniform. Proves the preview (buildSample
- * Payload) and real emission (buildEnvelope) share one shape.
+ * across every active event, contact is emitted in the flat CRM form
+ * (contact_name / contact_email / contact_phone + contact.<custom_field>), URLs
+ * are correct, and assessment metadata is uniform. Proves the preview
+ * (buildSamplePayload) and real emission (buildEnvelope) share one shape.
  *
  *   npx tsx scripts/verify-webhook-payload.ts
  */
@@ -34,9 +35,27 @@ const keysEq = (obj: object, expected: string[]) => {
   return got.length === exp.length && got.every((k, i) => k === exp[i]);
 };
 
-const TOP = ["event", "timestamp", "source", "tenant", "submission", "lead", "attribution", "metadata"];
-const LEAD = ["firstName", "lastName", "email", "mobile"];
-const ATTR = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid"];
+const TOP_FIXED = [
+  "event",
+  "timestamp",
+  "source",
+  "tenant",
+  "submission",
+  "contact_name",
+  "contact_email",
+  "contact_phone",
+  "metadata",
+];
+const CONTACT_FIELDS = [
+  "contact.utm_source",
+  "contact.utm_medium",
+  "contact.utm_campaign",
+  "contact.utm_term",
+  "contact.utm_content",
+  "contact.fbclid",
+  "contact.gclid",
+];
+const TOP = [...TOP_FIXED, ...CONTACT_FIELDS];
 const META = ["assessmentId", "assessmentTitle", "assessmentSlug", "assessmentUrl", "resultUrl", "score", "resultBand"];
 
 const scoredTypes = new Set<EventType>([
@@ -55,7 +74,8 @@ for (const type of ACTIVE_EVENT_TYPES) {
     submissionId: SID,
     tenant: { id: "t1", slug: "acme", name: "Acme" },
     assessment: { id: "a1", slug: SLUG, title: "Emotional Stability Assessment" },
-    lead: { firstName: "Ganesh", lastName: null, email: "g@example.com", mobile: null },
+    lead: { firstName: "Ganesh", lastName: "Kumar", email: "g@example.com", mobile: "+919999999999" },
+    attribution: { utm_source: "fb", utm_medium: "feed", utm_campaign: "q2", utm_content: "adA", fbclid: "x" },
     score: scored ? { total: 42, max: 60, percentage: 70 } : null,
     resultBand: scored ? { level: "HIGH", title: "High Emotional Load" } : null,
   };
@@ -66,11 +86,13 @@ for (const type of ACTIVE_EVENT_TYPES) {
   expect(`${name} · source`, env.source === "assess360");
   expect(`${name} · submission.id`, env.submission?.id === SID);
   expect(`${name} · tenant`, env.tenant?.slug === "acme");
-  expect(`${name} · lead keys stable`, keysEq(env.lead, LEAD));
-  expect(`${name} · lead null preserved`, env.lead.lastName === null && env.lead.mobile === null);
-  expect(`${name} · attribution keys`, keysEq(env.attribution, ATTR));
-  const attr = env.attribution as unknown as Record<string, unknown>;
-  expect(`${name} · attribution all null`, ATTR.every((k) => attr[k] === null));
+  expect(`${name} · contact_name`, env.contact_name === "Ganesh Kumar", String(env.contact_name));
+  expect(`${name} · contact_email`, env.contact_email === "g@example.com");
+  expect(`${name} · contact_phone`, env.contact_phone === "+919999999999");
+  expect(`${name} · contact.utm_source`, env["contact.utm_source"] === "fb", String(env["contact.utm_source"]));
+  expect(`${name} · contact.utm_campaign`, env["contact.utm_campaign"] === "q2");
+  expect(`${name} · contact.utm_term null`, env["contact.utm_term"] === null);
+  expect(`${name} · contact.gclid null`, env["contact.gclid"] === null);
   expect(`${name} · metadata keys`, keysEq(meta, META), JSON.stringify(Object.keys(meta)));
   expect(`${name} · assessmentUrl`, meta.assessmentUrl === `${BASE}/a/${SLUG}`, String(meta.assessmentUrl));
   if (scored) {
@@ -83,25 +105,16 @@ for (const type of ACTIVE_EVENT_TYPES) {
     expect(`${name} · resultBand null`, meta.resultBand === null);
   }
 
-  // Preview uses the same shape.
   const sample = buildSamplePayload(name, BASE);
   expect(`${name} · sample built`, sample !== null && keysEq(sample, TOP));
 }
 
-// Attribution pass-through (captured from the landing URL).
+// contact_name composition.
 {
-  const env = buildEnvelope(
-    EventType.LEAD_CREATED,
-    { submissionId: SID, attribution: { utm_source: "facebook", utm_term: "stress", fbclid: "abc" } },
-    BASE,
-  );
-  expect(
-    "attribution pass-through",
-    env.attribution.utm_source === "facebook" &&
-      env.attribution.utm_term === "stress" &&
-      env.attribution.fbclid === "abc" &&
-      env.attribution.gclid === null,
-  );
+  const solo = buildEnvelope(EventType.LEAD_CREATED, { submissionId: SID, lead: { firstName: "Solo" } }, BASE);
+  expect("contact_name from single field", solo.contact_name === "Solo");
+  const none = buildEnvelope(EventType.LEAD_CREATED, { submissionId: SID, lead: {} }, BASE);
+  expect("contact_name empty -> null", none.contact_name === null && none.contact_email === null);
 }
 
 // normalizeAttribution: known keys only, trims, junk dropped, all-empty -> null.

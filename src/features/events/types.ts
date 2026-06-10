@@ -98,9 +98,16 @@ export interface AssessmentMetadata {
 }
 
 /**
- * THE canonical envelope every event/webhook carries. The top level is stable
- * across all events; only `metadata` varies by event type — so new event types
- * add their own metadata builder without changing this base schema.
+ * THE canonical envelope every event/webhook carries.
+ *
+ * Contact is emitted in CRM-friendly FLAT form (GoHighLevel inbound-webhook
+ * convention): standard fields `contact_name` / `contact_email` /
+ * `contact_phone`, and every other contact attribute as a dotted custom-field
+ * key `contact.<key>` (e.g. `contact.utm_source`). No nested contact object.
+ *
+ * The top level is stable across all events; only `metadata` varies by event
+ * type — so new event types add their own metadata builder without changing
+ * this base schema. New contact custom fields just add another `contact.<key>`.
  */
 export interface EventEnvelope {
   event: string; // dotted name, e.g. "assessment.completed"
@@ -108,9 +115,12 @@ export interface EventEnvelope {
   source: "assess360";
   tenant: PayloadTenant | null;
   submission: { id: string } | null;
-  lead: PayloadLead;
-  attribution: PayloadAttribution;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
   metadata: Record<string, unknown>;
+  /** Flat contact custom fields: contact.utm_source, contact.fbclid, … */
+  [contactField: `contact.${string}`]: string | null;
 }
 
 /**
