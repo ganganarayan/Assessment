@@ -1,18 +1,19 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { parseCsv } from "./csv";
 import {
   assessmentExportSchema,
   EXPORT_SCHEMA_VERSION,
   type AssessmentExport,
-  type ImportMode,
+  type AssessmentBodyExport,
 } from "./schema";
 
 export type ParseResult =
   | { ok: true; data: AssessmentExport }
   | { ok: false; errors: string[] };
 
-/** Parse + validate an uploaded export (JSON authoritative; CSV best-effort). */
+/** Parse + validate an uploaded export (one format: { assessments: [...] }). */
 export function parseImportText(raw: string, format: "json" | "csv"): ParseResult {
   let candidate: unknown;
   if (format === "json") {
@@ -29,16 +30,10 @@ export function parseImportText(raw: string, format: "json" | "csv"): ParseResul
 
   const parsed = assessmentExportSchema.safeParse(candidate);
   if (!parsed.success) {
-    // Surface a clear version error first if that's the cause.
-    const versionIssue = parsed.error.issues.find((i) =>
-      i.path.includes("schemaVersion"),
-    );
-    if (versionIssue) {
+    if (parsed.error.issues.some((i) => i.path.includes("schemaVersion"))) {
       return {
         ok: false,
-        errors: [
-          `Unsupported schemaVersion. This server supports version ${EXPORT_SCHEMA_VERSION}.`,
-        ],
+        errors: [`Unsupported schemaVersion. This server supports version ${EXPORT_SCHEMA_VERSION}.`],
       };
     }
     return {
@@ -51,7 +46,7 @@ export function parseImportText(raw: string, format: "json" | "csv"): ParseResul
   return { ok: true, data: parsed.data };
 }
 
-/** Reconstruct an export object from the flat CSV format. */
+/** Reconstruct the export document from the flat CSV (grouped by assessment_slug). */
 function buildExportFromCsv(
   raw: string,
 ): { ok: true; value: unknown } | { ok: false; errors: string[] } {
@@ -60,55 +55,62 @@ function buildExportFromCsv(
 
   const header = rows[0] ?? [];
   const idx = (name: string) => header.indexOf(name);
-  const need = ["row_type", "title", "slug"];
-  for (const col of need) {
+  for (const col of ["assessment_slug", "assessment_title", "row_type"]) {
     if (idx(col) === -1) {
       return { ok: false, errors: [`CSV is missing required column "${col}".`] };
     }
   }
-
   const get = (row: string[], name: string): string => {
     const i = idx(name);
     return i === -1 ? "" : (row[i] ?? "").trim();
   };
 
-  let title = "";
-  let slug = "";
-
-  // Preserve insertion order of categories and questions.
-  const categories = new Map<
-    string,
-    {
-      name: string;
-      order: number;
-      questions: Map<
-        string,
-        {
-          text: string;
-          weight: number;
-          required: boolean;
-          order: number;
-          options: { label: string; value: number; displayOrder: number }[];
-        }
-      >;
+  interface Acc {
+    title: string;
+    slug: string;
+    categories: Map<
+      string,
+      {
+        name: string;
+        order: number;
+        questions: Map<
+          string,
+          {
+            text: string;
+            weight: number;
+            required: boolean;
+            order: number;
+            options: { label: string; value: number; displayOrder: number }[];
+          }
+        >;
+      }
+    >;
+    bands: AssessmentBodyExport["resultBands"];
+  }
+  const assessments = new Map<string, Acc>();
+  const getAcc = (slug: string, title: string): Acc => {
+    let a = assessments.get(slug);
+    if (!a) {
+      a = { title, slug, categories: new Map(), bands: [] };
+      assessments.set(slug, a);
     }
-  >();
-  const bands: AssessmentExport["assessment"]["resultBands"] = [];
+    return a;
+  };
 
   for (const row of rows.slice(1)) {
+    const slug = get(row, "assessment_slug");
+    if (!slug) continue;
+    const acc = getAcc(slug, get(row, "assessment_title"));
     const type = get(row, "row_type");
-    if (!title) title = get(row, "title");
-    if (!slug) slug = get(row, "slug");
 
     if (type === "QUESTION_OPTION") {
       const catName = get(row, "category");
-      const catOrder = Number(get(row, "category_order")) || 0;
-      const qText = get(row, "question");
-      let cat = categories.get(catName);
+      let cat = acc.categories.get(catName);
       if (!cat) {
-        cat = { name: catName, order: catOrder, questions: new Map() };
-        categories.set(catName, cat);
+        cat = { name: catName, order: Number(get(row, "category_order")) || 0, questions: new Map() };
+        acc.categories.set(catName, cat);
       }
+      const qText = get(row, "question");
       let q = cat.questions.get(qText);
       if (!q) {
         q = {
@@ -126,72 +128,59 @@ function buildExportFromCsv(
         displayOrder: Number(get(row, "option_order")) || q.options.length,
       });
     } else if (type === "BAND") {
-      const level = get(row, "band_level").toUpperCase();
-      bands.push({
-        level: level as AssessmentExport["assessment"]["resultBands"][number]["level"],
+      acc.bands.push({
+        level: get(row, "band_level").toUpperCase() as AssessmentBodyExport["resultBands"][number]["level"],
         title: get(row, "band_title"),
         description: get(row, "band_description") || null,
         minScore: Number(get(row, "band_min")) || 0,
         maxScore: Number(get(row, "band_max")) || 0,
-        displayOrder: Number(get(row, "band_order")) || bands.length,
+        displayOrder: acc.bands.length,
       });
     }
   }
 
-  // CSV cannot carry lead-capture config / meta — apply sensible defaults.
-  const value = {
-    schemaVersion: EXPORT_SCHEMA_VERSION,
-    assessment: {
-      title,
-      slug,
-      description: null,
-      coverImageUrl: null,
-      estimatedMinutes: null,
-      thankYouMessage: null,
-      collectFirstName: true,
-      firstNameRequired: false,
-      collectLastName: true,
-      lastNameRequired: false,
-      collectEmail: true,
-      emailRequired: true,
-      collectMobile: true,
-      mobileRequired: false,
-      categories: Array.from(categories.values())
-        .sort((a, b) => a.order - b.order)
-        .map((c, ci) => ({
-          name: c.name,
-          description: null,
-          displayOrder: ci,
-          questions: Array.from(c.questions.values())
-            .sort((a, b) => a.order - b.order)
-            .map((q, qi) => ({
-              text: q.text,
-              type: "SINGLE_SELECT",
-              weight: q.weight,
-              required: q.required,
-              displayOrder: qi,
-              options: q.options.map((o, oi) => ({
-                label: o.label,
-                value: o.value,
-                displayOrder: oi,
-              })),
-            })),
-        })),
-      resultBands: bands.map((b, bi) => ({ ...b, displayOrder: bi })),
-    },
-  };
-  return { ok: true, value };
+  const bodies = Array.from(assessments.values()).map((a) => ({
+    title: a.title,
+    slug: a.slug,
+    description: null,
+    coverImageUrl: null,
+    estimatedMinutes: null,
+    thankYouMessage: null,
+    collectFirstName: true,
+    firstNameRequired: false,
+    collectLastName: true,
+    lastNameRequired: false,
+    collectEmail: true,
+    emailRequired: true,
+    collectMobile: true,
+    mobileRequired: false,
+    categories: Array.from(a.categories.values())
+      .sort((x, y) => x.order - y.order)
+      .map((c, ci) => ({
+        name: c.name,
+        description: null,
+        displayOrder: ci,
+        questions: Array.from(c.questions.values())
+          .sort((x, y) => x.order - y.order)
+          .map((q, qi) => ({
+            text: q.text,
+            type: "SINGLE_SELECT",
+            weight: q.weight,
+            required: q.required,
+            displayOrder: qi,
+            options: q.options.map((o, oi) => ({ label: o.label, value: o.value, displayOrder: oi })),
+          })),
+      })),
+    resultBands: a.bands.map((b, bi) => ({ ...b, displayOrder: bi })),
+  }));
+
+  return { ok: true, value: { schemaVersion: EXPORT_SCHEMA_VERSION, assessments: bodies } };
 }
 
 export async function slugExists(slug: string): Promise<boolean> {
-  const found = await prisma.assessment.findUnique({
-    where: { slug },
-    select: { id: true },
-  });
-  return found !== null;
+  return (await prisma.assessment.findUnique({ where: { slug }, select: { id: true } })) !== null;
 }
 
-/** Find an unused "<slug>-copy[-n]" slug. */
 export async function generateCopySlug(base: string): Promise<string> {
   let candidate = `${base}-copy`;
   let n = 1;
@@ -203,79 +192,80 @@ export async function generateCopySlug(base: string): Promise<string> {
   return candidate;
 }
 
-/**
- * Create the assessment + full tree in a SINGLE transaction. Any failure rolls
- * the whole import back — no partial imports. For "replace", the existing
- * assessment with the target slug (and its children + submissions, via cascade)
- * is deleted first inside the same transaction.
- */
-export async function performImport(
-  data: AssessmentExport,
-  mode: ImportMode,
+function createData(
+  body: AssessmentBodyExport,
   finalSlug: string,
   userId: string | null,
-): Promise<{ id: string; slug: string }> {
-  const a = data.assessment;
-
-  return prisma.$transaction(async (tx) => {
-    if (mode === "replace") {
-      await tx.assessment.deleteMany({ where: { slug: finalSlug } });
-    }
-
-    const created = await tx.assessment.create({
-      data: {
-        title: a.title,
-        slug: finalSlug,
-        description: a.description ?? null,
-        coverImageUrl: a.coverImageUrl ?? null,
-        estimatedMinutes: a.estimatedMinutes ?? null,
-        thankYouMessage: a.thankYouMessage ?? null,
-        collectFirstName: a.collectFirstName,
-        firstNameRequired: a.firstNameRequired,
-        collectLastName: a.collectLastName,
-        lastNameRequired: a.lastNameRequired,
-        collectEmail: a.collectEmail,
-        emailRequired: a.emailRequired,
-        collectMobile: a.collectMobile,
-        mobileRequired: a.mobileRequired,
-        status: "DRAFT",
-        createdById: userId,
-        categories: {
-          create: a.categories.map((c, ci) => ({
-            name: c.name,
-            description: c.description ?? null,
-            displayOrder: ci,
-            questions: {
-              create: c.questions.map((q, qi) => ({
-                text: q.text,
-                weight: q.weight,
-                required: q.required,
-                displayOrder: qi,
-                options: {
-                  create: q.options.map((o, oi) => ({
-                    label: o.label,
-                    value: o.value,
-                    displayOrder: oi,
-                  })),
-                },
-              })),
+): Prisma.AssessmentCreateInput {
+  return {
+    title: body.title,
+    slug: finalSlug,
+    description: body.description ?? null,
+    coverImageUrl: body.coverImageUrl ?? null,
+    estimatedMinutes: body.estimatedMinutes ?? null,
+    thankYouMessage: body.thankYouMessage ?? null,
+    collectFirstName: body.collectFirstName,
+    firstNameRequired: body.firstNameRequired,
+    collectLastName: body.collectLastName,
+    lastNameRequired: body.lastNameRequired,
+    collectEmail: body.collectEmail,
+    emailRequired: body.emailRequired,
+    collectMobile: body.collectMobile,
+    mobileRequired: body.mobileRequired,
+    status: "DRAFT",
+    ...(userId ? { createdBy: { connect: { id: userId } } } : {}),
+    categories: {
+      create: body.categories.map((c, ci) => ({
+        name: c.name,
+        description: c.description ?? null,
+        displayOrder: ci,
+        questions: {
+          create: c.questions.map((q, qi) => ({
+            text: q.text,
+            weight: q.weight,
+            required: q.required,
+            displayOrder: qi,
+            options: {
+              create: q.options.map((o, oi) => ({ label: o.label, value: o.value, displayOrder: oi })),
             },
           })),
         },
-        resultBands: {
-          create: a.resultBands.map((b, bi) => ({
-            level: b.level,
-            title: b.title,
-            description: b.description ?? null,
-            minScore: b.minScore,
-            maxScore: b.maxScore,
-            displayOrder: bi,
-          })),
-        },
-      },
-      select: { id: true, slug: true },
-    });
+      })),
+    },
+    resultBands: {
+      create: body.resultBands.map((b, bi) => ({
+        level: b.level,
+        title: b.title,
+        description: b.description ?? null,
+        minScore: b.minScore,
+        maxScore: b.maxScore,
+        displayOrder: bi,
+      })),
+    },
+  };
+}
 
-    return created;
+export interface ImportItem {
+  body: AssessmentBodyExport;
+  finalSlug: string;
+  replace: boolean;
+}
+
+/**
+ * Import all assessments in ONE transaction — any failure rolls everything back
+ * (no partial imports). For replace, the existing slug is deleted first.
+ */
+export async function performImportAll(
+  items: ImportItem[],
+  userId: string | null,
+): Promise<number> {
+  return prisma.$transaction(async (tx) => {
+    for (const item of items) {
+      if (item.replace) {
+        await tx.assessment.deleteMany({ where: { slug: item.finalSlug } });
+      }
+      await tx.assessment.create({ data: createData(item.body, item.finalSlug, userId) });
+    }
+    return items.length;
   });
 }

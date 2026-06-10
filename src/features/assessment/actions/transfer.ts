@@ -7,72 +7,86 @@ import {
   parseImportText,
   slugExists,
   generateCopySlug,
-  performImport,
+  performImportAll,
+  type ImportItem,
 } from "@/features/assessment/transfer/import";
-import type { ImportMode, ImportPreview } from "@/features/assessment/transfer/schema";
+import type {
+  ImportMode,
+  ImportPreviewItem,
+} from "@/features/assessment/transfer/schema";
 
 type Format = "json" | "csv";
 
-/** Validate an uploaded export and return a preview (or validation errors). */
+/** Validate an upload and return a per-assessment preview (or errors). */
 export async function previewImport(
   raw: string,
   format: Format,
-): Promise<ActionResult<ImportPreview> & { errors?: string[] }> {
+): Promise<ActionResult<ImportPreviewItem[]> & { errors?: string[] }> {
   await requireSuperAdmin();
-
   const parsed = parseImportText(raw, format);
   if (!parsed.ok) {
     return { ok: false, error: "Validation failed.", errors: parsed.errors };
   }
 
-  const a = parsed.data.assessment;
-  const preview: ImportPreview = {
-    title: a.title,
-    slug: a.slug,
-    categoryCount: a.categories.length,
-    questionCount: a.categories.reduce((n, c) => n + c.questions.length, 0),
-    resultBandCount: a.resultBands.length,
-    slugExists: await slugExists(a.slug),
-  };
-  return { ok: true, data: preview };
+  const items: ImportPreviewItem[] = [];
+  for (const a of parsed.data.assessments) {
+    items.push({
+      title: a.title,
+      slug: a.slug,
+      categoryCount: a.categories.length,
+      questionCount: a.categories.reduce((n, c) => n + c.questions.length, 0),
+      resultBandCount: a.resultBands.length,
+      slugExists: await slugExists(a.slug),
+    });
+  }
+  return { ok: true, data: items };
 }
 
-/** Import an assessment transactionally with duplicate-slug handling. */
-export async function importAssessment(
+/** Import every assessment in the document, with one duplicate-slug policy. */
+export async function importAssessments(
   raw: string,
   format: Format,
   mode: ImportMode,
-): Promise<ActionResult<{ id: string; slug: string }> & { errors?: string[] }> {
+): Promise<ActionResult<{ count: number }> & { errors?: string[] }> {
   const user = await requireSuperAdmin();
-
   const parsed = parseImportText(raw, format);
   if (!parsed.ok) {
     return { ok: false, error: "Validation failed.", errors: parsed.errors };
   }
 
-  const baseSlug = parsed.data.assessment.slug;
-  const exists = await slugExists(baseSlug);
+  const conflicts: string[] = [];
+  const items: ImportItem[] = [];
+  const usedSlugs = new Set<string>();
 
-  let finalSlug = baseSlug;
-  if (exists) {
-    if (mode === "create") {
-      return {
-        ok: false,
-        error: "An assessment with this slug already exists. Choose “Create copy” or “Replace existing”.",
-      };
+  for (const body of parsed.data.assessments) {
+    const exists = await slugExists(body.slug);
+    let finalSlug = body.slug;
+    let replace = false;
+
+    if (exists) {
+      if (mode === "create") {
+        conflicts.push(body.slug);
+        continue;
+      }
+      if (mode === "copy") finalSlug = await generateCopySlug(body.slug);
+      if (mode === "replace") replace = true;
     }
-    if (mode === "copy") {
-      finalSlug = await generateCopySlug(baseSlug);
-    }
-    // mode === "replace": keep baseSlug; existing row is deleted in the txn.
-  } else if (mode === "copy") {
-    finalSlug = await generateCopySlug(baseSlug);
+    if (usedSlugs.has(finalSlug)) finalSlug = await generateCopySlug(finalSlug);
+    usedSlugs.add(finalSlug);
+    items.push({ body, finalSlug, replace });
+  }
+
+  if (mode === "create" && conflicts.length > 0) {
+    return {
+      ok: false,
+      error: `These slugs already exist: ${conflicts.join(", ")}. Choose “Create copy” or “Replace existing”.`,
+    };
   }
 
   try {
-    const created = await performImport(parsed.data, mode, finalSlug, user.id);
+    const count = await performImportAll(items, user.id);
     revalidatePath("/admin/assessments");
-    return { ok: true, data: created };
+    return { ok: true, data: { count } };
   } catch {
     return { ok: false, error: "Import failed; no changes were made." };
   }

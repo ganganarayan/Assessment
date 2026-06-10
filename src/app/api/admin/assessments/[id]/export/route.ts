@@ -1,44 +1,32 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isPlatformOwner } from "@/lib/auth/platform";
-import {
-  buildAssessmentExport,
-  exportToCsv,
-  exportFilename,
-} from "@/features/assessment/transfer/export";
+import { buildExportJson, buildExportCsv, exportFilename } from "@/features/assessment/transfer/export";
 
 /**
- * Download an assessment export. Super-admin (platform owner) only.
+ * Export ONE assessment in the unified format (same shape as Export All).
  *   GET /api/admin/assessments/<id>/export?format=json|csv
- * JSON is the authoritative, lossless format; CSV is for backup/reporting.
  */
-export async function GET(
-  req: Request,
-  ctx: { params: Promise<{ id: string }> },
-) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user || !isPlatformOwner(user.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await ctx.params;
+  const a = await prisma.assessment.findUnique({ where: { id }, select: { slug: true } });
+  if (!a) return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
+
   const format = new URL(req.url).searchParams.get("format") === "csv" ? "csv" : "json";
-
-  const data = await buildAssessmentExport(id, new Date().toISOString());
-  if (!data) {
-    return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
-  }
-
-  const filename = exportFilename(data.assessment.slug, format);
-  const body = format === "csv" ? exportToCsv(data) : JSON.stringify(data, null, 2);
-  const contentType =
-    format === "csv" ? "text/csv; charset=utf-8" : "application/json; charset=utf-8";
+  const now = new Date().toISOString();
+  const body = format === "csv" ? await buildExportCsv([id]) : await buildExportJson([id], now);
 
   return new NextResponse(body, {
     status: 200,
     headers: {
-      "content-type": contentType,
-      "content-disposition": `attachment; filename="${filename}"`,
+      "content-type": format === "csv" ? "text/csv; charset=utf-8" : "application/json; charset=utf-8",
+      "content-disposition": `attachment; filename="${exportFilename(`assessment-${a.slug}`, format)}"`,
       "cache-control": "no-store",
     },
   });

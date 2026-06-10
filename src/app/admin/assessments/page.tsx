@@ -27,15 +27,12 @@ export default async function AssessmentsPage() {
             >
               Export All ▼
             </summary>
-            <div className="absolute right-0 z-10 mt-1 flex w-56 flex-col rounded-md border bg-[var(--background)] p-1 text-sm shadow">
+            <div className="absolute right-0 z-10 mt-1 flex w-40 flex-col rounded-md border bg-[var(--background)] p-1 text-sm shadow">
               <a href="/api/admin/assessments/export-all?format=json" className="rounded px-2 py-1.5 hover:bg-[var(--muted)]">
                 JSON
               </a>
-              <a href="/api/admin/assessments/export-all?format=structure-csv" className="rounded px-2 py-1.5 hover:bg-[var(--muted)]">
-                Assessment Structure CSV
-              </a>
-              <a href="/api/admin/assessments/export-all?format=responses-csv" className="rounded px-2 py-1.5 hover:bg-[var(--muted)]">
-                Responses CSV
+              <a href="/api/admin/assessments/export-all?format=csv" className="rounded px-2 py-1.5 hover:bg-[var(--muted)]">
+                CSV
               </a>
             </div>
           </details>

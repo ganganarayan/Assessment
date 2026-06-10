@@ -64,10 +64,15 @@ export const assessmentBodyExport = z.object({
   resultBands: z.array(resultBandExport),
 });
 
+/**
+ * THE export/import document — one format for everything. A single assessment
+ * exports as an array of one; "Export All" as an array of many. Import accepts
+ * exactly this shape, so any export round-trips back in.
+ */
 export const assessmentExportSchema = z.object({
   schemaVersion: z.literal(EXPORT_SCHEMA_VERSION),
   exportedAt: z.string().optional(),
-  assessment: assessmentBodyExport,
+  assessments: z.array(assessmentBodyExport).min(1, "No assessments in file."),
 });
 
 export type OptionExport = z.infer<typeof optionExport>;
@@ -77,8 +82,8 @@ export type ResultBandExport = z.infer<typeof resultBandExport>;
 export type AssessmentBodyExport = z.infer<typeof assessmentBodyExport>;
 export type AssessmentExport = z.infer<typeof assessmentExportSchema>;
 
-/** A short, human-readable summary used by the import preview. */
-export interface ImportPreview {
+/** Per-assessment summary used by the import preview. */
+export interface ImportPreviewItem {
   title: string;
   slug: string;
   categoryCount: number;
