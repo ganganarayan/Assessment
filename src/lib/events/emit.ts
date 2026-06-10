@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db/prisma";
 import { deliverWebhook } from "@/lib/webhooks/dispatch";
 import {
   EVENT_NAME,
-  PRODUCT,
   type EmitContext,
   type EventEnvelope,
 } from "@/features/events/types";
@@ -23,14 +22,6 @@ export async function emitEvent(
   ctx: EmitContext = {},
 ): Promise<void> {
   const name = EVENT_NAME[type];
-
-  // Registry gate: if the event is registered and NOT active (deactivated or
-  // purged), skip emission entirely. Existing EventLog/WebhookLog are untouched.
-  const registered = await prisma.event.findUnique({
-    where: { product_name: { product: PRODUCT, name } },
-    select: { status: true },
-  });
-  if (registered && registered.status !== "ACTIVE") return;
 
   const envelope: EventEnvelope = {
     event: name,
@@ -53,16 +44,14 @@ export async function emitEvent(
     },
   });
 
-  // 2) Dispatch to the configured endpoint — fully non-blocking.
+  // 2) Deliver to the ACTIVE webhook for this event name — fully non-blocking.
   void (async () => {
-    const endpoint = await prisma.webhookEndpoint.findUnique({
-      where: { event: type },
-    });
-    if (!endpoint || !endpoint.enabled) return;
+    const webhook = await prisma.webhook.findUnique({ where: { name } });
+    if (!webhook || webhook.status !== "ACTIVE") return;
     await deliverWebhook({
-      endpointId: endpoint.id,
-      url: endpoint.url,
-      secret: endpoint.secret,
+      webhookId: webhook.id,
+      url: webhook.url,
+      secret: webhook.secret,
       eventName: name,
       body: JSON.stringify(envelope),
       submissionId: ctx.submissionId ?? null,

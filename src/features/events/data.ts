@@ -1,7 +1,7 @@
 import "server-only";
-import { EventType, type WebhookEndpoint } from "@prisma/client";
+import { EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import type { RegistryRow } from "@/features/events/types";
+import type { WebhookRow } from "@/features/events/types";
 
 export async function listEventLogs(opts: {
   type?: EventType;
@@ -39,39 +39,13 @@ export async function eventCountsByType(): Promise<Map<EventType, number>> {
   return map;
 }
 
-export async function getWebhookEndpointsByEvent(): Promise<
-  Map<EventType, WebhookEndpoint>
-> {
-  const rows = await prisma.webhookEndpoint.findMany();
-  const map = new Map<EventType, WebhookEndpoint>();
-  for (const r of rows) map.set(r.event, r);
-  return map;
-}
-
-export async function listWebhookLogs(opts: { page: number; pageSize: number }) {
-  const [rows, total] = await Promise.all([
-    prisma.webhookLog.findMany({
-      orderBy: { createdAt: "desc" },
-      skip: (opts.page - 1) * opts.pageSize,
-      take: opts.pageSize,
-    }),
-    prisma.webhookLog.count(),
-  ]);
-  return { rows, total };
-}
-
-export async function getAppSetting() {
-  return prisma.appSetting.findUnique({ where: { id: "singleton" } });
-}
-
-/** Event registry grouped by lifecycle stage, enriched with count + last-fired. */
-export async function getEventRegistry(): Promise<{
-  active: RegistryRow[];
-  deactivated: RegistryRow[];
-  purged: RegistryRow[];
+/** Webhooks split into active/inactive, enriched with event log count + last fired. */
+export async function getWebhooks(): Promise<{
+  active: WebhookRow[];
+  inactive: WebhookRow[];
 }> {
-  const [events, counts] = await Promise.all([
-    prisma.event.findMany({ orderBy: { name: "asc" } }),
+  const [webhooks, counts] = await Promise.all([
+    prisma.webhook.findMany({ orderBy: { name: "asc" } }),
     prisma.eventLog.groupBy({
       by: ["name"],
       _count: { _all: true },
@@ -79,22 +53,37 @@ export async function getEventRegistry(): Promise<{
     }),
   ]);
   const byName = new Map(counts.map((c) => [c.name, c]));
-
-  const rows: RegistryRow[] = events.map((e) => {
-    const c = byName.get(e.name);
+  const rows: WebhookRow[] = webhooks.map((w) => {
+    const c = byName.get(w.name);
     return {
-      id: e.id,
-      name: e.name,
-      status: e.status,
-      builtIn: e.builtIn,
-      count: c?._count._all ?? 0,
+      id: w.id,
+      name: w.name,
+      url: w.url,
+      status: w.status,
+      logCount: c?._count._all ?? 0,
       lastFired: c?._max.createdAt ? c._max.createdAt.toISOString() : null,
     };
   });
-
   return {
     active: rows.filter((r) => r.status === "ACTIVE"),
-    deactivated: rows.filter((r) => r.status === "DEACTIVATED"),
-    purged: rows.filter((r) => r.status === "PURGED"),
+    inactive: rows.filter((r) => r.status === "INACTIVE"),
   };
+}
+
+export async function listWebhookLogs(opts: { page: number; pageSize: number }) {
+  const [rows, total, activeWebhooks] = await Promise.all([
+    prisma.webhookLog.findMany({
+      orderBy: { createdAt: "desc" },
+      skip: (opts.page - 1) * opts.pageSize,
+      take: opts.pageSize,
+    }),
+    prisma.webhookLog.count(),
+    prisma.webhook.findMany({ where: { status: "ACTIVE" }, select: { name: true } }),
+  ]);
+  const activeNames = new Set(activeWebhooks.map((w) => w.name));
+  return { rows, total, activeNames };
+}
+
+export async function getAppSetting() {
+  return prisma.appSetting.findUnique({ where: { id: "singleton" } });
 }

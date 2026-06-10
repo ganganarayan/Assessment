@@ -54,8 +54,8 @@ async function main() {
   let createdAssessmentId: string | null = null;
   let submissionId: string | null = null;
   let oldSubmissionId: string | null = null;
-  const originalEndpoint = await prisma.webhookEndpoint.findUnique({
-    where: { event: EventType.ASSESSMENT_COMPLETED },
+  const originalEndpoint = await prisma.webhook.findUnique({
+    where: { name: "assessment.completed" },
   });
 
   try {
@@ -70,16 +70,16 @@ async function main() {
     line("\n============ CHECK 6: seeded CRM endpoint (assessment.completed) ============");
     line(
       originalEndpoint
-        ? `  FOUND  url=${originalEndpoint.url}  enabled=${originalEndpoint.enabled}  hasSecret=${Boolean(originalEndpoint.secret)}`
+        ? `  FOUND  url=${originalEndpoint.url}  status=${originalEndpoint.status}  hasSecret=${Boolean(originalEndpoint.secret)}`
         : "  NONE (run `npm run seed:webhooks` with CRM_WEBHOOK_URL set)",
     );
 
     // Temporarily redirect assessment.completed -> in-process receiver.
     const testSecret = generateWebhookSecret();
-    await prisma.webhookEndpoint.upsert({
-      where: { event: EventType.ASSESSMENT_COMPLETED },
-      update: { url: receiverUrl, secret: testSecret, enabled: true },
-      create: { event: EventType.ASSESSMENT_COMPLETED, url: receiverUrl, secret: testSecret, enabled: true },
+    await prisma.webhook.upsert({
+      where: { name: "assessment.completed" },
+      update: { url: receiverUrl, secret: testSecret, status: "ACTIVE" },
+      create: { name: "assessment.completed", url: receiverUrl, secret: testSecret, status: "ACTIVE" },
     });
     line(`\n(temporarily pointed assessment.completed -> ${receiverUrl})`);
 
@@ -212,17 +212,17 @@ async function main() {
   } finally {
     // Restore the original assessment.completed endpoint (never leave the test URL).
     if (originalEndpoint) {
-      await prisma.webhookEndpoint.update({
-        where: { event: EventType.ASSESSMENT_COMPLETED },
+      await prisma.webhook.update({
+        where: { name: "assessment.completed" },
         data: {
           url: originalEndpoint.url,
           secret: originalEndpoint.secret,
-          enabled: originalEndpoint.enabled,
+          status: originalEndpoint.status,
         },
       });
     } else {
-      await prisma.webhookEndpoint
-        .delete({ where: { event: EventType.ASSESSMENT_COMPLETED } })
+      await prisma.webhook
+        .delete({ where: { name: "assessment.completed" } })
         .catch(() => {});
     }
 

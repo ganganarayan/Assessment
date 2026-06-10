@@ -1,12 +1,9 @@
 /**
- * Seed the existing CRM webhook into the assessment.completed endpoint, and
- * ensure the AppSetting singleton exists. Idempotent — safe to run on any
- * environment (staging/production):
+ * Seed the existing CRM webhook (assessment.completed) and ensure the AppSetting
+ * singleton exists. Idempotent — safe on any environment:
  *   npx tsx scripts/seed-webhooks.ts
- *
  * Reads CRM_WEBHOOK_URL from the environment.
  */
-import { EventType } from "@prisma/client";
 import { prisma } from "../src/lib/db/prisma";
 import { generateWebhookSecret } from "../src/lib/webhooks/sign";
 
@@ -19,27 +16,27 @@ async function main() {
 
   const url = process.env.CRM_WEBHOOK_URL;
   if (!url) {
-    console.log("[seed-webhooks] CRM_WEBHOOK_URL not set; skipped CRM endpoint.");
+    console.log("[seed-webhooks] CRM_WEBHOOK_URL not set; skipped CRM webhook.");
     return;
   }
 
-  const existing = await prisma.webhookEndpoint.findUnique({
-    where: { event: EventType.ASSESSMENT_COMPLETED },
+  const existing = await prisma.webhook.findUnique({
+    where: { name: "assessment.completed" },
   });
   if (existing) {
-    console.log("[seed-webhooks] assessment.completed endpoint already exists; left as-is.");
+    console.log("[seed-webhooks] assessment.completed webhook already exists; left as-is.");
     return;
   }
 
-  await prisma.webhookEndpoint.create({
+  await prisma.webhook.create({
     data: {
-      event: EventType.ASSESSMENT_COMPLETED,
+      name: "assessment.completed",
       url,
-      enabled: true,
+      status: "ACTIVE",
       secret: generateWebhookSecret(),
     },
   });
-  console.log("[seed-webhooks] created assessment.completed endpoint from CRM_WEBHOOK_URL.");
+  console.log("[seed-webhooks] created assessment.completed webhook from CRM_WEBHOOK_URL.");
 }
 
 main()

@@ -16,7 +16,7 @@ export default async function WebhookLogsPage({
 }) {
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
-  const { rows, total } = await listWebhookLogs({ page, pageSize: PAGE_SIZE });
+  const { rows, total, activeNames } = await listWebhookLogs({ page, pageSize: PAGE_SIZE });
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const data: WebhookLogRow[] = rows.map((r) => ({
@@ -30,6 +30,8 @@ export default async function WebhookLogsPage({
     createdAt: r.createdAt.toISOString(),
     payload: JSON.stringify(r.payload, null, 2),
     responseBody: r.responseBody,
+    // Retry only when the delivery failed AND the webhook is currently ACTIVE.
+    canRetry: !r.success && activeNames.has(r.eventName),
   }));
 
   return (

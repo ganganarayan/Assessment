@@ -137,3 +137,11 @@ Always keep assessment logic independent from presentation layer.
 Prefer configuration over hardcoding.
 
 Prefer extensibility over temporary solutions.
+
+# Build & Deployment Workflow
+
+* Run `npm run typecheck` before committing.
+* Do NOT run a local `npm run build` — rely on the Railway build (staging) for build validation.
+* Commit and push to the `staging` branch only.
+* Do NOT push or merge to `main` (production) until explicitly told.
+* After pushing, verify the Railway staging deployment succeeded.

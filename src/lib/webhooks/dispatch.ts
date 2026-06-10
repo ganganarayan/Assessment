@@ -10,7 +10,7 @@ export interface DeliverArgs {
   eventName: string;
   /** Exact JSON string that is signed and sent (and stored for retry fidelity). */
   body: string;
-  endpointId?: string | null;
+  webhookId?: string | null;
   submissionId?: string | null;
   attempt?: number;
 }
@@ -61,7 +61,7 @@ export async function deliverWebhook(args: DeliverArgs): Promise<DeliverResult> 
       error,
       attemptCount: args.attempt ?? 1,
       success,
-      webhookEndpointId: args.endpointId ?? null,
+      webhookId: args.webhookId ?? null,
       submissionId: args.submissionId ?? null,
     },
     select: { id: true },

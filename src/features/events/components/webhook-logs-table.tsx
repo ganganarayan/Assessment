@@ -17,6 +17,7 @@ export interface WebhookLogRow {
   createdAt: string;
   payload: string;
   responseBody: string | null;
+  canRetry: boolean;
 }
 
 function fmt(iso: string) {
@@ -102,12 +103,16 @@ export function WebhookLogsTable({ rows }: { rows: WebhookLogRow[] }) {
               </span>
             </div>
 
-            {!selected.success ? (
+            {selected.canRetry ? (
               <div className="mt-3">
                 <Button size="sm" onClick={() => retry(selected.id)} disabled={pending}>
                   {pending ? "Retrying…" : "Retry"}
                 </Button>
               </div>
+            ) : !selected.success ? (
+              <p className="mt-3 text-xs text-[var(--muted-foreground)]">
+                Retry unavailable — the webhook for this event is inactive or purged.
+              </p>
             ) : null}
 
             <Section title="Payload" body={selected.payload} />

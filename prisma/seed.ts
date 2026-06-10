@@ -8,7 +8,7 @@
  * Passwords are hashed through Better Auth so seeded users can sign in.
  * Idempotent: safe to run multiple times.
  */
-import { PrismaClient, Role, EventType } from "@prisma/client";
+import { PrismaClient, Role } from "@prisma/client";
 import { auth } from "../src/lib/auth/auth";
 import { generateWebhookSecret } from "../src/lib/webhooks/sign";
 
@@ -97,13 +97,13 @@ async function main() {
     create: { id: "singleton" },
   });
   if (process.env.CRM_WEBHOOK_URL) {
-    await prisma.webhookEndpoint.upsert({
-      where: { event: EventType.ASSESSMENT_COMPLETED },
+    await prisma.webhook.upsert({
+      where: { name: "assessment.completed" },
       update: {},
       create: {
-        event: EventType.ASSESSMENT_COMPLETED,
+        name: "assessment.completed",
         url: process.env.CRM_WEBHOOK_URL,
-        enabled: true,
+        status: "ACTIVE",
         secret: generateWebhookSecret(),
       },
     });

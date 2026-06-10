@@ -2,140 +2,165 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { EventType } from "@prisma/client";
+import type { WebhookRow } from "@/features/events/types";
 import {
-  saveWebhookEndpoint,
-  testWebhook,
-  regenerateWebhookSecret,
+  createWebhook,
+  activateWebhook,
+  deactivateWebhook,
+  purgeWebhook,
 } from "@/features/events/actions/webhooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
-export interface WebhookRow {
-  event: EventType;
-  name: string;
-  url: string;
-  enabled: boolean;
-  secret: string | null;
+function fmt(iso: string | null) {
+  return iso ? iso.slice(0, 16).replace("T", " ") : "—";
 }
 
-export function WebhooksManager({ rows }: { rows: WebhookRow[] }) {
+export function WebhooksManager({
+  active,
+  inactive,
+}: {
+  active: WebhookRow[];
+  inactive: WebhookRow[];
+}) {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [enabled, setEnabled] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  function create() {
+    setErr(null);
+    start(async () => {
+      const res = await createWebhook(name, url, enabled);
+      if (!res.ok) return setErr(res.error);
+      setName("");
+      setUrl("");
+      setEnabled(true);
+      router.refresh();
+    });
+  }
+
+  function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
+    setErr(null);
+    start(async () => {
+      const res = await fn();
+      if (!res.ok) setErr(res.error ?? "Action failed.");
+      router.refresh();
+    });
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-      {rows.map((row) => (
-        <WebhookCard key={row.event} row={row} />
-      ))}
+    <div className="flex flex-col gap-6">
+      {/* Create form: one row */}
+      <div className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center">
+        <Input
+          className="sm:w-56"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Event Name (e.g. lead.created)"
+        />
+        <Input
+          className="sm:flex-1"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://example.com/webhook"
+        />
+        <label className="flex items-center gap-2 px-1 text-sm">
+          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+          Active
+        </label>
+        <Button onClick={create} disabled={pending || !name.trim() || !url.trim()}>
+          Create
+        </Button>
+      </div>
+      {err ? <p className="text-sm text-red-500">{err}</p> : null}
+
+      <Table
+        title="Active"
+        rows={active}
+        actions={(r) => (
+          <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => deactivateWebhook(r.id))}>
+            Deactivate
+          </Button>
+        )}
+      />
+
+      <Table
+        title="Inactive"
+        rows={inactive}
+        actions={(r) => (
+          <div className="flex justify-end gap-2">
+            <Button size="sm" disabled={pending} onClick={() => run(() => activateWebhook(r.id))}>
+              Activate
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => {
+                if (confirm("Purge permanently removes this webhook configuration. It cannot be restored. (Logs are kept.) Continue?")) {
+                  run(() => purgeWebhook(r.id));
+                }
+              }}
+            >
+              Purge
+            </Button>
+          </div>
+        )}
+      />
     </div>
   );
 }
 
-function WebhookCard({ row }: { row: WebhookRow }) {
-  const router = useRouter();
-  const [url, setUrl] = useState(row.url);
-  const [enabled, setEnabled] = useState(row.enabled);
-  const [showSecret, setShowSecret] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-
-  function save() {
-    setMsg(null);
-    setErr(null);
-    start(async () => {
-      const res = await saveWebhookEndpoint(row.event, url, enabled);
-      if (!res.ok) return setErr(res.error);
-      setMsg("Saved.");
-      router.refresh();
-    });
-  }
-
-  function test() {
-    setMsg(null);
-    setErr(null);
-    start(async () => {
-      const res = await testWebhook(row.event);
-      if (!res.ok) return setErr(res.error);
-      setMsg(`Test delivered (status ${res.data?.status ?? "ok"}).`);
-      router.refresh();
-    });
-  }
-
-  function regen() {
-    if (!confirm("Regenerate the signing secret? Receivers must be updated.")) return;
-    setMsg(null);
-    setErr(null);
-    start(async () => {
-      const res = await regenerateWebhookSecret(row.event);
-      if (!res.ok) return setErr(res.error);
-      setMsg("Secret regenerated.");
-      router.refresh();
-    });
-  }
-
+function Table({
+  title,
+  rows,
+  actions,
+}: {
+  title: string;
+  rows: WebhookRow[];
+  actions: (r: WebhookRow) => React.ReactNode;
+}) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-mono text-base">{row.name}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2">
-          <Label>Endpoint URL</Label>
-          <Input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://example.com/webhook"
-          />
+    <section className="flex flex-col gap-2">
+      <h2 className="text-lg font-semibold">
+        {title} <span className="text-sm font-normal text-[var(--muted-foreground)]">({rows.length})</span>
+      </h2>
+      {rows.length === 0 ? (
+        <p className="text-sm text-[var(--muted-foreground)]">None.</p>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full text-sm">
+            <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+              <tr>
+                <th className="px-3 py-1.5">Event Name</th>
+                <th className="px-3 py-1.5">Endpoint URL</th>
+                <th className="px-3 py-1.5">Status</th>
+                <th className="px-3 py-1.5">Log Count</th>
+                <th className="px-3 py-1.5">Last Fired</th>
+                <th className="px-3 py-1.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td className="px-3 py-1.5 font-mono text-xs">{r.name}</td>
+                  <td className="max-w-xs truncate px-3 py-1.5 text-xs">{r.url}</td>
+                  <td className="px-3 py-1.5">
+                    <Badge variant={r.status === "ACTIVE" ? "success" : "muted"}>{r.status}</Badge>
+                  </td>
+                  <td className="px-3 py-1.5">{r.logCount}</td>
+                  <td className="whitespace-nowrap px-3 py-1.5 text-xs">{fmt(r.lastFired)}</td>
+                  <td className="px-3 py-1.5 text-right">{actions(r)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={enabled}
-            onChange={(e) => setEnabled(e.target.checked)}
-          />
-          Enabled
-        </label>
-
-        <div className="flex flex-col gap-1">
-          <Label>Secret</Label>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 truncate rounded-md border bg-[var(--muted)] px-2 py-1 text-xs">
-              {row.secret
-                ? showSecret
-                  ? row.secret
-                  : "•".repeat(24)
-                : "(generated on save)"}
-            </code>
-            {row.secret ? (
-              <Button size="sm" variant="ghost" onClick={() => setShowSecret((s) => !s)}>
-                {showSecret ? "Hide" : "Reveal"}
-              </Button>
-            ) : null}
-            <Button size="sm" variant="ghost" onClick={regen} disabled={pending}>
-              Regenerate
-            </Button>
-          </div>
-        </div>
-
-        {err ? <p className="text-sm text-red-500">{err}</p> : null}
-        {msg ? <p className="text-sm text-emerald-600">{msg}</p> : null}
-
-        <div className="flex gap-2">
-          <Button size="sm" onClick={save} disabled={pending}>
-            {pending ? "Working…" : "Save"}
-          </Button>
-          <Button size="sm" variant="outline" onClick={test} disabled={pending}>
-            Test Webhook
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      )}
+    </section>
   );
 }

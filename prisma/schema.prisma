@@ -455,21 +455,27 @@ model EventLog {
 }
 
 // ---------------------------------------------------------------------------
-// WebhookEndpoint — platform-global config: one endpoint per event.
+// Webhook — a webhook IS the event definition. Keyed by event name (immutable,
+// unique). Lifecycle: ACTIVE <-> INACTIVE; Purge deletes the row (config only —
+// EventLog/WebhookLog history is never deleted). Routing + registry are one.
 // ---------------------------------------------------------------------------
 
-model WebhookEndpoint {
-  id        String    @id @default(cuid())
-  event     EventType @unique // one endpoint per event (platform-global)
+enum WebhookStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Webhook {
+  id        String        @id @default(cuid())
+  name      String        @unique // event name, immutable + unique
   url       String
-  enabled   Boolean   @default(true)
+  status    WebhookStatus @default(ACTIVE)
   secret    String // HMAC-SHA256 signing secret for X-Assess-Signature
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
-  logs WebhookLog[]
-
-  @@map("webhook_endpoint")
+  @@index([status])
+  @@map("webhook")
 }
 
 // ---------------------------------------------------------------------------
@@ -488,8 +494,8 @@ model WebhookLog {
   success        Boolean  @default(false)
   createdAt      DateTime @default(now())
 
-  webhookEndpointId String?
-  webhookEndpoint   WebhookEndpoint? @relation(fields: [webhookEndpointId], references: [id], onDelete: SetNull)
+  // Plain reference (no FK) so purging a Webhook never affects log history.
+  webhookId String?
 
   submissionId String?
 
@@ -512,31 +518,3 @@ model AppSetting {
   @@map("app_setting")
 }
 
-// ---------------------------------------------------------------------------
-// Event Registry — catalog + lifecycle for event names. The name is IMMUTABLE;
-// only status transitions are allowed (ACTIVE -> DEACTIVATED -> PURGED, terminal).
-// Routing (webhooks) is managed separately. EventLog/WebhookLog reference events
-// by NAME (no FK), so lifecycle changes never delete log history.
-// `product` namespaces the registry for reuse across Assess360 / VidaPulse /
-// Divine Leads / future products.
-// ---------------------------------------------------------------------------
-
-enum EventStatus {
-  ACTIVE
-  DEACTIVATED
-  PURGED
-}
-
-model Event {
-  id        String      @id @default(cuid())
-  product   String      @default("assess360")
-  name      String
-  status    EventStatus @default(ACTIVE)
-  builtIn   Boolean     @default(false) // the 6 Assess360 assessment events
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-
-  @@unique([product, name])
-  @@index([status])
-  @@map("event")
-}
