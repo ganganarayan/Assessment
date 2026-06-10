@@ -2,43 +2,36 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { retryWebhookLog } from "@/features/events/actions/webhooks";
+import type { EventActivityRow } from "@/features/events/types";
+import { retryEvent } from "@/features/events/actions/webhooks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-export interface WebhookLogRow {
-  id: string;
-  eventName: string;
-  endpoint: string;
-  responseStatus: number | null;
-  success: boolean;
-  attemptCount: number;
-  error: string | null;
-  createdAt: string;
-  payload: string;
-  responseBody: string | null;
-  canRetry: boolean;
-}
 
 function fmt(iso: string) {
   return iso.slice(0, 16).replace("T", " ");
 }
 
-export function WebhookLogsTable({ rows }: { rows: WebhookLogRow[] }) {
+const STATUS: Record<EventActivityRow["deliveryStatus"], { label: string; variant: "success" | "outline" | "muted" }> = {
+  delivered: { label: "delivered", variant: "success" },
+  failed: { label: "failed", variant: "outline" },
+  none: { label: "no delivery", variant: "muted" },
+};
+
+export function WebhookLogsTable({ rows }: { rows: EventActivityRow[] }) {
   const router = useRouter();
-  const [selected, setSelected] = useState<WebhookLogRow | null>(null);
+  const [selected, setSelected] = useState<EventActivityRow | null>(null);
   const [pending, start] = useTransition();
 
   function retry(id: string) {
     start(async () => {
-      await retryWebhookLog(id);
+      await retryEvent(id);
       setSelected(null);
       router.refresh();
     });
   }
 
   if (rows.length === 0) {
-    return <p className="text-sm text-[var(--muted-foreground)]">No webhook deliveries yet.</p>;
+    return <p className="text-sm text-[var(--muted-foreground)]">No events yet.</p>;
   }
 
   return (
@@ -47,11 +40,11 @@ export function WebhookLogsTable({ rows }: { rows: WebhookLogRow[] }) {
         <table className="w-full text-sm">
           <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
             <tr>
-              <th className="px-3 py-2">Date</th>
-              <th className="px-3 py-2">Event</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Attempts</th>
-              <th className="px-3 py-2">Response Code</th>
+              <th className="px-3 py-1.5">Date</th>
+              <th className="px-3 py-1.5">Event</th>
+              <th className="px-3 py-1.5">Status</th>
+              <th className="px-3 py-1.5">Attempts</th>
+              <th className="px-3 py-1.5">Response Code</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -61,15 +54,15 @@ export function WebhookLogsTable({ rows }: { rows: WebhookLogRow[] }) {
                 onClick={() => setSelected(r)}
                 className="cursor-pointer hover:bg-[var(--muted)]"
               >
-                <td className="whitespace-nowrap px-3 py-2 text-xs">{fmt(r.createdAt)}</td>
-                <td className="px-3 py-2 font-mono text-xs">{r.eventName}</td>
-                <td className="px-3 py-2">
-                  <Badge variant={r.success ? "success" : "outline"}>
-                    {r.success ? "success" : "failed"}
+                <td className="whitespace-nowrap px-3 py-1.5 text-xs">{fmt(r.createdAt)}</td>
+                <td className="px-3 py-1.5 font-mono text-xs">{r.eventName}</td>
+                <td className="px-3 py-1.5">
+                  <Badge variant={STATUS[r.deliveryStatus].variant}>
+                    {STATUS[r.deliveryStatus].label}
                   </Badge>
                 </td>
-                <td className="px-3 py-2">{r.attemptCount}</td>
-                <td className="px-3 py-2">{r.responseStatus ?? "—"}</td>
+                <td className="px-3 py-1.5">{r.attemptCount}</td>
+                <td className="px-3 py-1.5">{r.responseStatus ?? "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -86,7 +79,8 @@ export function WebhookLogsTable({ rows }: { rows: WebhookLogRow[] }) {
               <div>
                 <h2 className="font-mono text-lg font-semibold">{selected.eventName}</h2>
                 <p className="text-xs text-[var(--muted-foreground)]">
-                  {fmt(selected.createdAt)} · {selected.endpoint}
+                  {fmt(selected.createdAt)}
+                  {selected.leadEmail ? ` · ${selected.leadEmail}` : ""}
                 </p>
               </div>
               <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>
@@ -95,8 +89,8 @@ export function WebhookLogsTable({ rows }: { rows: WebhookLogRow[] }) {
             </div>
 
             <div className="mt-4 flex items-center gap-2 text-sm">
-              <Badge variant={selected.success ? "success" : "outline"}>
-                {selected.success ? "success" : "failed"}
+              <Badge variant={STATUS[selected.deliveryStatus].variant}>
+                {STATUS[selected.deliveryStatus].label}
               </Badge>
               <span className="text-[var(--muted-foreground)]">
                 code {selected.responseStatus ?? "—"} · attempt {selected.attemptCount}
@@ -109,14 +103,17 @@ export function WebhookLogsTable({ rows }: { rows: WebhookLogRow[] }) {
                   {pending ? "Retrying…" : "Retry"}
                 </Button>
               </div>
-            ) : !selected.success ? (
+            ) : selected.deliveryStatus !== "delivered" ? (
               <p className="mt-3 text-xs text-[var(--muted-foreground)]">
-                Retry unavailable — the webhook for this event is inactive or purged.
+                Retry unavailable — no active webhook for this event.
               </p>
             ) : null}
 
             <Section title="Payload" body={selected.payload} />
-            <Section title="Response" body={selected.responseBody ?? "(no body)"} />
+            <Section
+              title="Response"
+              body={selected.responseBody ?? "(no delivery attempt)"}
+            />
             {selected.error ? <Section title="Error" body={selected.error} /> : null}
           </div>
         </div>

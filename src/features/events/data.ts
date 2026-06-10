@@ -1,43 +1,6 @@
 import "server-only";
-import { EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import type { WebhookRow } from "@/features/events/types";
-
-export async function listEventLogs(opts: {
-  type?: EventType;
-  page: number;
-  pageSize: number;
-}) {
-  const where = opts.type ? { type: opts.type } : {};
-  const [rows, total] = await Promise.all([
-    prisma.eventLog.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (opts.page - 1) * opts.pageSize,
-      take: opts.pageSize,
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        createdAt: true,
-        submissionId: true,
-        leadEmail: true,
-      },
-    }),
-    prisma.eventLog.count({ where }),
-  ]);
-  return { rows, total };
-}
-
-export async function eventCountsByType(): Promise<Map<EventType, number>> {
-  const grouped = await prisma.eventLog.groupBy({
-    by: ["type"],
-    _count: { _all: true },
-  });
-  const map = new Map<EventType, number>();
-  for (const g of grouped) map.set(g.type, g._count._all);
-  return map;
-}
+import type { WebhookRow, EventActivityRow } from "@/features/events/types";
 
 /** Webhooks split into active/inactive, enriched with event log count + last fired. */
 export async function getWebhooks(): Promise<{
@@ -70,18 +33,79 @@ export async function getWebhooks(): Promise<{
   };
 }
 
-export async function listWebhookLogs(opts: { page: number; pageSize: number }) {
-  const [rows, total, activeWebhooks] = await Promise.all([
-    prisma.webhookLog.findMany({
+/**
+ * Unified Webhook Logs: every event firing (EventLog), enriched with its latest
+ * webhook delivery (WebhookLog) by submission + event name. Retry is offered
+ * when an ACTIVE webhook exists and the event was not successfully delivered.
+ */
+export async function listEventActivity(opts: {
+  page: number;
+  pageSize: number;
+}): Promise<{ rows: EventActivityRow[]; total: number }> {
+  const [events, total, activeWebhooks] = await Promise.all([
+    prisma.eventLog.findMany({
       orderBy: { createdAt: "desc" },
       skip: (opts.page - 1) * opts.pageSize,
       take: opts.pageSize,
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        submissionId: true,
+        leadEmail: true,
+        payload: true,
+      },
     }),
-    prisma.webhookLog.count(),
+    prisma.eventLog.count(),
     prisma.webhook.findMany({ where: { status: "ACTIVE" }, select: { name: true } }),
   ]);
   const activeNames = new Set(activeWebhooks.map((w) => w.name));
-  return { rows, total, activeNames };
+
+  const subIds = events
+    .map((e) => e.submissionId)
+    .filter((s): s is string => Boolean(s));
+  const deliveries = subIds.length
+    ? await prisma.webhookLog.findMany({
+        where: { submissionId: { in: subIds } },
+        orderBy: { createdAt: "desc" },
+        select: {
+          eventName: true,
+          submissionId: true,
+          success: true,
+          responseStatus: true,
+          attemptCount: true,
+          responseBody: true,
+          error: true,
+        },
+      })
+    : [];
+  // Latest delivery per submission+event (deliveries are ordered desc).
+  const delMap = new Map<string, (typeof deliveries)[number]>();
+  for (const d of deliveries) {
+    const key = `${d.submissionId}|${d.eventName}`;
+    if (!delMap.has(key)) delMap.set(key, d);
+  }
+
+  const rows: EventActivityRow[] = events.map((e) => {
+    const d = e.submissionId ? delMap.get(`${e.submissionId}|${e.name}`) : undefined;
+    const deliveryStatus = d ? (d.success ? "delivered" : "failed") : "none";
+    return {
+      id: e.id,
+      eventName: e.name,
+      createdAt: e.createdAt.toISOString(),
+      submissionId: e.submissionId,
+      leadEmail: e.leadEmail,
+      payload: JSON.stringify(e.payload, null, 2),
+      deliveryStatus,
+      responseStatus: d?.responseStatus ?? null,
+      attemptCount: d?.attemptCount ?? 0,
+      responseBody: d?.responseBody ?? null,
+      error: d?.error ?? null,
+      canRetry: activeNames.has(e.name) && deliveryStatus !== "delivered",
+    };
+  });
+
+  return { rows, total };
 }
 
 export async function getAppSetting() {

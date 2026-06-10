@@ -63,3 +63,22 @@ export interface WebhookRow {
   logCount: number;
   lastFired: string | null;
 }
+
+/**
+ * One Webhook Logs row = an event firing, enriched with its latest webhook
+ * delivery (event log and webhook log are one view).
+ */
+export interface EventActivityRow {
+  id: string; // EventLog id
+  eventName: string;
+  createdAt: string;
+  submissionId: string | null;
+  leadEmail: string | null;
+  payload: string; // event payload, pretty JSON
+  deliveryStatus: "delivered" | "failed" | "none";
+  responseStatus: number | null;
+  attemptCount: number;
+  responseBody: string | null;
+  error: string | null;
+  canRetry: boolean;
+}

@@ -67,25 +67,36 @@ export async function purgeWebhook(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-/** Re-fire a failed delivery — only allowed while the webhook is ACTIVE. */
-export async function retryWebhookLog(logId: string): Promise<ActionResult> {
+/**
+ * Re-fire an event's webhook delivery using the original event payload.
+ * Only allowed while an ACTIVE webhook exists for that event name.
+ */
+export async function retryEvent(eventLogId: string): Promise<ActionResult> {
   await requireSuperAdmin();
-  const log = await prisma.webhookLog.findUnique({ where: { id: logId } });
-  if (!log) return { ok: false, error: "Log not found." };
+  const ev = await prisma.eventLog.findUnique({ where: { id: eventLogId } });
+  if (!ev) return { ok: false, error: "Event not found." };
 
-  const webhook = await prisma.webhook.findUnique({ where: { name: log.eventName } });
+  const webhook = await prisma.webhook.findUnique({ where: { name: ev.name } });
   if (!webhook || webhook.status !== "ACTIVE") {
     return { ok: false, error: "Retry is only possible for active webhooks." };
   }
+
+  const last = ev.submissionId
+    ? await prisma.webhookLog.findFirst({
+        where: { submissionId: ev.submissionId, eventName: ev.name },
+        orderBy: { attemptCount: "desc" },
+        select: { attemptCount: true },
+      })
+    : null;
 
   await deliverWebhook({
     webhookId: webhook.id,
     url: webhook.url,
     secret: webhook.secret,
-    eventName: log.eventName,
-    body: JSON.stringify(log.payload),
-    submissionId: log.submissionId,
-    attempt: log.attemptCount + 1,
+    eventName: ev.name,
+    body: JSON.stringify(ev.payload),
+    submissionId: ev.submissionId,
+    attempt: (last?.attemptCount ?? 0) + 1,
   });
 
   revalidatePath("/admin/webhook-logs");
