@@ -32,10 +32,31 @@ const NULL_ATTRIBUTION: PayloadAttribution = {
   utm_source: null,
   utm_medium: null,
   utm_campaign: null,
+  utm_term: null,
   utm_content: null,
   fbclid: null,
   gclid: null,
 };
+
+/**
+ * Sanitize untrusted attribution (from the landing URL or a stored JSON row)
+ * into the canonical block: only known keys, trimmed, length-capped. Returns
+ * null when nothing meaningful is present (so the column stays NULL).
+ */
+export function normalizeAttribution(input: unknown): PayloadAttribution | null {
+  const src = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
+  const out: PayloadAttribution = { ...NULL_ATTRIBUTION };
+  let any = false;
+  for (const key of Object.keys(NULL_ATTRIBUTION) as (keyof PayloadAttribution)[]) {
+    const v = src[key];
+    const s = typeof v === "string" ? v.trim().slice(0, 512) : "";
+    if (s) {
+      out[key] = s;
+      any = true;
+    }
+  }
+  return any ? out : null;
+}
 
 const stripSlash = (s: string) => s.replace(/\/+$/, "");
 

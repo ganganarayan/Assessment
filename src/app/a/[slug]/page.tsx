@@ -7,12 +7,38 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/** UTM + click-id params captured from the landing URL. */
+const ATTRIBUTION_KEYS = [
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_term",
+  "utm_content",
+  "fbclid",
+  "gclid",
+] as const;
+
+function pickAttribution(
+  sp: Record<string, string | string[] | undefined>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const key of ATTRIBUTION_KEYS) {
+    const raw = sp[key];
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    if (typeof value === "string" && value.trim()) out[key] = value;
+  }
+  return out;
+}
+
 export default async function PublicAssessmentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
+  const attribution = pickAttribution(await searchParams);
   const a = await getPublishedAssessmentBySlug(slug);
   if (!a) notFound();
 
@@ -45,7 +71,7 @@ export default async function PublicAssessmentPage({
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
-      <AssessmentRunner assessment={assessment} />
+      <AssessmentRunner assessment={assessment} attribution={attribution} />
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import { EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { emitEvent } from "@/lib/events/emit";
+import { normalizeAttribution } from "@/lib/events/payload";
 import { type EmitInput } from "@/features/events/types";
 
 /**
@@ -24,6 +25,7 @@ export async function markResultViewed(submissionId: string): Promise<void> {
       leadLastName: true,
       leadEmail: true,
       leadMobile: true,
+      attribution: true,
       totalScore: true,
       maxScore: true,
       assessment: {
@@ -55,5 +57,6 @@ export async function markResultViewed(submissionId: string): Promise<void> {
     },
     score: { total, max, percentage },
     resultBand: s.resultBand ? { level: s.resultBand.level, title: s.resultBand.title } : null,
+    attribution: normalizeAttribution(s.attribution) ?? undefined,
   } satisfies EmitInput);
 }

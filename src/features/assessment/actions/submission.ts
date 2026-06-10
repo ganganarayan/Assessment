@@ -12,8 +12,9 @@ import {
   pickResultBand,
   type ScoringQuestion,
 } from "@/features/assessment/scoring";
-import { EventType } from "@prisma/client";
+import { EventType, Prisma } from "@prisma/client";
 import { emitEvent } from "@/lib/events/emit";
+import { normalizeAttribution } from "@/lib/events/payload";
 import { type EmitInput } from "@/features/events/types";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 
@@ -25,6 +26,7 @@ import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/s
 export async function startSubmission(
   slug: string,
   lead: LeadInput,
+  attribution?: Record<string, string>,
 ): Promise<ActionResult<{ submissionId: string }>> {
   const assessment = await prisma.assessment.findFirst({
     where: { slug, status: "PUBLISHED" },
@@ -66,6 +68,9 @@ export async function startSubmission(
   if (assessment.collectMobile && assessment.mobileRequired && !mobile)
     return { ok: false, error: "Mobile number is required." };
 
+  // Sanitize untrusted attribution from the landing URL (known keys, capped).
+  const attr = normalizeAttribution(attribution);
+
   const submission = await prisma.submission.create({
     data: {
       assessmentId: assessment.id,
@@ -75,6 +80,7 @@ export async function startSubmission(
       leadLastName: assessment.collectLastName ? lastName : null,
       leadEmail: assessment.collectEmail ? email : null,
       leadMobile: assessment.collectMobile ? mobile : null,
+      ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
     },
     select: { id: true },
   });
@@ -87,6 +93,7 @@ export async function startSubmission(
     tenant: assessment.tenant,
     assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
     lead: { firstName, lastName, email, mobile },
+    attribution: attr ?? undefined,
   };
   await emitEvent(EventType.LEAD_CREATED, base);
   await emitEvent(EventType.ASSESSMENT_STARTED, base);
@@ -110,7 +117,7 @@ export async function completeSubmission(
 
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
-    select: { id: true, status: true, assessmentId: true },
+    select: { id: true, status: true, assessmentId: true, attribution: true },
   });
   if (!submission) return { ok: false, error: "Submission not found." };
   if (submission.status === "COMPLETED") {
@@ -265,6 +272,7 @@ export async function completeSubmission(
     },
     score: { total: totalScore, max: maxScore, percentage },
     resultBand: band ? { level: band.level, title: band.title } : null,
+    attribution: normalizeAttribution(submission.attribution) ?? undefined,
   } satisfies EmitInput);
 
   return { ok: true, data: { submissionId } };

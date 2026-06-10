@@ -43,7 +43,14 @@ export interface PublicAssessment {
 
 type Step = "intro" | "lead" | "questions";
 
-export function AssessmentRunner({ assessment }: { assessment: PublicAssessment }) {
+export function AssessmentRunner({
+  assessment,
+  attribution,
+}: {
+  assessment: PublicAssessment;
+  /** UTM + click-id params from the landing URL; forwarded to startSubmission. */
+  attribution?: Record<string, string>;
+}) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("intro");
   const [submissionId, setSubmissionId] = useState<string | null>(null);
@@ -66,7 +73,7 @@ export function AssessmentRunner({ assessment }: { assessment: PublicAssessment 
     e.preventDefault();
     setError(null);
     start(async () => {
-      const res = await startSubmission(assessment.slug, lead);
+      const res = await startSubmission(assessment.slug, lead, attribution);
       if (!res.ok) {
         setError(res.error);
         return;

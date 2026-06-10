@@ -340,6 +340,10 @@ model Submission {
   leadEmail     String?
   leadMobile    String?
 
+  // Marketing attribution captured from the landing URL (utm_*, fbclid, gclid).
+  // Stored as JSON so new click-id params need no schema change.
+  attribution Json?
+
   totalScore Float?
   maxScore   Float?
 

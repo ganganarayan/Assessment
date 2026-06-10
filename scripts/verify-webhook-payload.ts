@@ -7,7 +7,11 @@
  *   npx tsx scripts/verify-webhook-payload.ts
  */
 import { EventType } from "@prisma/client";
-import { buildEnvelope, buildSamplePayload } from "../src/lib/events/payload";
+import {
+  buildEnvelope,
+  buildSamplePayload,
+  normalizeAttribution,
+} from "../src/lib/events/payload";
 import { ACTIVE_EVENT_TYPES, EVENT_NAME, type EmitInput } from "../src/features/events/types";
 
 const BASE = "https://assess.applygitawisdom.com";
@@ -32,7 +36,7 @@ const keysEq = (obj: object, expected: string[]) => {
 
 const TOP = ["event", "timestamp", "source", "tenant", "submission", "lead", "attribution", "metadata"];
 const LEAD = ["firstName", "lastName", "email", "mobile"];
-const ATTR = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "fbclid", "gclid"];
+const ATTR = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid"];
 const META = ["assessmentId", "assessmentTitle", "assessmentSlug", "assessmentUrl", "resultUrl", "score", "resultBand"];
 
 const scoredTypes = new Set<EventType>([
@@ -84,14 +88,32 @@ for (const type of ACTIVE_EVENT_TYPES) {
   expect(`${name} · sample built`, sample !== null && keysEq(sample, TOP));
 }
 
-// Attribution pass-through (when capture is wired later).
+// Attribution pass-through (captured from the landing URL).
 {
   const env = buildEnvelope(
     EventType.LEAD_CREATED,
-    { submissionId: SID, attribution: { utm_source: "facebook", fbclid: "abc" } },
+    { submissionId: SID, attribution: { utm_source: "facebook", utm_term: "stress", fbclid: "abc" } },
     BASE,
   );
-  expect("attribution pass-through", env.attribution.utm_source === "facebook" && env.attribution.fbclid === "abc" && env.attribution.gclid === null);
+  expect(
+    "attribution pass-through",
+    env.attribution.utm_source === "facebook" &&
+      env.attribution.utm_term === "stress" &&
+      env.attribution.fbclid === "abc" &&
+      env.attribution.gclid === null,
+  );
+}
+
+// normalizeAttribution: known keys only, trims, junk dropped, all-empty -> null.
+{
+  const norm = normalizeAttribution({ utm_source: "  fb  ", junk: "x", gclid: "" });
+  expect(
+    "normalizeAttribution sanitizes",
+    norm !== null && norm.utm_source === "fb" && norm.gclid === null && !("junk" in norm),
+  );
+  expect("normalizeAttribution empty -> null", normalizeAttribution({}) === null);
+  expect("normalizeAttribution non-object -> null", normalizeAttribution("nope") === null);
+  expect("normalizeAttribution caps length", (normalizeAttribution({ utm_campaign: "a".repeat(999) })?.utm_campaign ?? "").length === 512);
 }
 
 // Unknown event → no sample (preview guards).

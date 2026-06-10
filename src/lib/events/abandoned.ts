@@ -1,6 +1,7 @@
 import { EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { emitEvent } from "@/lib/events/emit";
+import { normalizeAttribution } from "@/lib/events/payload";
 import { type EmitInput } from "@/features/events/types";
 
 const DEFAULT_HOURS = 24;
@@ -29,6 +30,7 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
       leadLastName: true,
       leadEmail: true,
       leadMobile: true,
+      attribution: true,
       assessment: {
         select: {
           id: true,
@@ -59,6 +61,7 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
         email: s.leadEmail,
         mobile: s.leadMobile,
       },
+      attribution: normalizeAttribution(s.attribution) ?? undefined,
     } satisfies EmitInput);
     swept++;
   }

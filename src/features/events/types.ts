@@ -67,11 +67,12 @@ export interface PayloadLead {
   email: string | null;
   mobile: string | null;
 }
-/** Marketing attribution. Keys always present (null until capture is wired). */
+/** Marketing attribution captured from the landing URL. Keys always present. */
 export interface PayloadAttribution {
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
+  utm_term: string | null;
   utm_content: string | null;
   fbclid: string | null;
   gclid: string | null;
