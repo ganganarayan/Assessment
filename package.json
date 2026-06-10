@@ -19,6 +19,7 @@
     "seed:webhooks": "tsx scripts/seed-webhooks.ts",
     "cron:abandoned": "tsx scripts/sweep-abandoned.ts",
     "verify:events": "tsx scripts/verify-events.ts",
+    "verify:transfer": "tsx scripts/verify-transfer.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

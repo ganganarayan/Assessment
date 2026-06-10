@@ -28,6 +28,7 @@ export function ImportWizard() {
   const [items, setItems] = useState<ImportPreviewItem[] | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [inputKey, setInputKey] = useState(0);
   const [pending, start] = useTransition();
 
   const anyExists = items?.some((i) => i.slugExists) ?? false;
@@ -38,10 +39,12 @@ export function ImportWizard() {
     setItems(null);
     setErrors([]);
     setError(null);
+    setInputKey((k) => k + 1); // remount the file input so the same file re-fires
   }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
     setItems(null);
     setErrors([]);
@@ -49,6 +52,7 @@ export function ImportWizard() {
 
     const text = await file.text();
     const fmt = file.name.toLowerCase().endsWith(".csv") ? "csv" : "json";
+    input.value = ""; // allow re-selecting the same file after a failed import
     setRaw(text);
     setFormat(fmt);
     setFileName(file.name);
@@ -92,7 +96,7 @@ export function ImportWizard() {
           <CardDescription>Accepted: .json or .csv (the same format Export produces).</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <input type="file" accept=".json,.csv,application/json,text/csv" onChange={onFile} className="text-sm" />
+          <input key={inputKey} type="file" accept=".json,.csv,application/json,text/csv" onChange={onFile} className="text-sm" />
           {fileName ? (
             <p className="text-xs text-[var(--muted-foreground)]">
               {fileName} · detected format: <span className="font-mono uppercase">{format}</span>

@@ -1,10 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
-import {
-  EXPORT_SCHEMA_VERSION,
-  type AssessmentBodyExport,
-} from "./schema";
-import { toCsv } from "./csv";
+import { type AssessmentBodyExport } from "./schema";
+import { bodiesToJson, bodiesToCsv } from "./format";
 
 /**
  * Build the portable body for one assessment (ids/tenant/submissions stripped;
@@ -87,63 +84,12 @@ export async function buildExportJson(
   ids: string[],
   exportedAt: string,
 ): Promise<string> {
-  const assessments = await buildBodies(ids);
-  return JSON.stringify(
-    { schemaVersion: EXPORT_SCHEMA_VERSION, exportedAt, assessments },
-    null,
-    2,
-  );
+  return bodiesToJson(await buildBodies(ids), exportedAt);
 }
 
-const CSV_HEADER = [
-  "assessment_slug",
-  "assessment_title",
-  "row_type",
-  "category",
-  "category_order",
-  "question",
-  "weight",
-  "required",
-  "question_order",
-  "option_label",
-  "option_value",
-  "option_order",
-  "band_level",
-  "band_title",
-  "band_description",
-  "band_min",
-  "band_max",
-  "band_order",
-];
-
-/** THE CSV export — same flat schema for one assessment or many. */
+/** THE CSV export — same lossless schema for one assessment or many. */
 export async function buildExportCsv(ids: string[]): Promise<string> {
-  const bodies = await buildBodies(ids);
-  const rows: (string | number | boolean | null)[][] = [CSV_HEADER];
-
-  for (const a of bodies) {
-    a.categories.forEach((c) => {
-      c.questions.forEach((q) => {
-        q.options.forEach((o) => {
-          rows.push([
-            a.slug, a.title, "QUESTION_OPTION",
-            c.name, c.displayOrder,
-            q.text, q.weight, q.required, q.displayOrder,
-            o.label, o.value, o.displayOrder,
-            "", "", "", "", "", "",
-          ]);
-        });
-      });
-    });
-    a.resultBands.forEach((b) => {
-      rows.push([
-        a.slug, a.title, "BAND",
-        "", "", "", "", "", "", "", "", "",
-        b.level, b.title, b.description ?? "", b.minScore, b.maxScore, b.displayOrder,
-      ]);
-    });
-  }
-  return toCsv(rows);
+  return bodiesToCsv(await buildBodies(ids));
 }
 
 export function exportFilename(stem: string, ext: "json" | "csv"): string {

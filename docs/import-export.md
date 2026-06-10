@@ -18,11 +18,13 @@ you export re-imports cleanly**. There are no separate "structure" or
 
 | Format | Role | Lossless | Re-importable |
 | ------ | ---- | -------- | ------------- |
-| **JSON** | Authoritative | ✅ Yes — full structure + lead config | ✅ Yes |
-| **CSV** | Backup / reporting | ⚠️ Structure + bands only | ✅ Yes (lead config + meta default on import) |
+| **JSON** | Authoritative | ✅ Yes — full structure + meta + lead config | ✅ Yes |
+| **CSV** | Spreadsheet-friendly | ✅ Yes — same fields, flat layout | ✅ Yes |
 
-Always use **JSON** for environment migration. CSV is for human-readable
-backup/reporting and quick structural review in a spreadsheet.
+Both formats round-trip losslessly (structure, metadata, lead-capture config,
+and result bands). JSON is the most compact; CSV is convenient for reviewing or
+editing in a spreadsheet. The round-trip is covered by an automated test —
+`npm run verify:transfer` (no database required).
 
 ## Export
 
@@ -129,24 +131,33 @@ one entry per assessment (an array of one for a single export):
 
 ## CSV format
 
-One flat file for one assessment or many — rows are grouped by
-`assessment_slug`, with a `row_type` discriminator. Every row carries the full
-column set; unused columns are blank:
+One flat file for one assessment or many. Rows are grouped by `assessment_slug`
+and discriminated by `row_type` (`ASSESSMENT` / `CATEGORY` / `QUESTION` /
+`OPTION` / `BAND`). Structure is **positional** via the `*_index` columns, never
+by display text, so duplicate category names, repeated question wording, empty
+categories, and exact ordering all survive a round-trip. Each row fills only the
+columns relevant to its type; the rest are blank.
 
 ```
-assessment_slug, assessment_title, row_type,
-category, category_order, question, weight, required, question_order,
-option_label, option_value, option_order,
-band_level, band_title, band_description, band_min, band_max, band_order
+assessment_slug, row_type,
+assessment_title, description, cover_image_url, estimated_minutes, thank_you_message,
+collect_first_name, first_name_required, collect_last_name, last_name_required,
+collect_email, email_required, collect_mobile, mobile_required,
+category_index, category_name, category_description,
+question_index, question_text, weight, required,
+option_index, option_label, option_value,
+band_index, band_level, band_title, band_description, band_min, band_max
 ```
 
-- `QUESTION_OPTION` rows fill the `category…option_order` columns (one row per
-  option).
-- `BAND` rows fill the `band_*` columns.
+- `ASSESSMENT` — one per assessment: title, meta, and the lead-capture flags.
+- `CATEGORY` — one per category (`category_index` keys it); preserves empties.
+- `QUESTION` — one per question (`category_index` + `question_index`).
+- `OPTION` — one per option (`… + option_index`).
+- `BAND` — one per result band (`band_index`).
 
-CSV import reconstructs categories → questions → options and result bands per
-`assessment_slug`, but **cannot** carry lead-capture config or assessment meta
-(description, cover, estimated time, thank-you) — those default. Use JSON for an
+Content fields are written/read verbatim (commas, quotes, and newlines are
+RFC-4180 quoted), and a leading UTF-8 BOM (added by Excel/Windows on re-save) is
+stripped on import. CSV carries the same data as JSON, so either format is an
 exact copy.
 
 ## Migration workflow: staging → production

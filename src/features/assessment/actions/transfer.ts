@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -56,22 +57,30 @@ export async function importAssessments(
 
   const conflicts: string[] = [];
   const items: ImportItem[] = [];
+  // Slugs already claimed by the DB or by an earlier entry in THIS file, so two
+  // same-base entries can never resolve to the same slug (which would fail the
+  // whole transaction on the unique constraint).
   const usedSlugs = new Set<string>();
 
   for (const body of parsed.data.assessments) {
-    const exists = await slugExists(body.slug);
+    const taken = (await slugExists(body.slug)) || usedSlugs.has(body.slug);
     let finalSlug = body.slug;
     let replace = false;
 
-    if (exists) {
-      if (mode === "create") {
+    if (mode === "create") {
+      if (taken) {
         conflicts.push(body.slug);
         continue;
       }
-      if (mode === "copy") finalSlug = await generateCopySlug(body.slug);
-      if (mode === "replace") replace = true;
+    } else if (mode === "copy") {
+      if (taken) finalSlug = await generateCopySlug(body.slug, usedSlugs);
+    } else {
+      // replace: overwrite the matching DB slug; a same-slug in-file duplicate
+      // becomes a copy so the two creates don't collide.
+      replace = await slugExists(body.slug);
+      while (usedSlugs.has(finalSlug)) finalSlug = await generateCopySlug(finalSlug, usedSlugs);
     }
-    if (usedSlugs.has(finalSlug)) finalSlug = await generateCopySlug(finalSlug);
+
     usedSlugs.add(finalSlug);
     items.push({ body, finalSlug, replace });
   }
@@ -87,7 +96,14 @@ export async function importAssessments(
     const count = await performImportAll(items, user.id);
     revalidatePath("/admin/assessments");
     return { ok: true, data: { count } };
-  } catch {
+  } catch (e) {
+    const code = e instanceof Prisma.PrismaClientKnownRequestError ? e.code : "";
+    if (code === "P2002") {
+      return { ok: false, error: "Import failed: a slug collided during import. No changes were made." };
+    }
+    if (code === "P2028") {
+      return { ok: false, error: "Import timed out — the file is too large for one transaction. No changes were made." };
+    }
     return { ok: false, error: "Import failed; no changes were made." };
   }
 }
