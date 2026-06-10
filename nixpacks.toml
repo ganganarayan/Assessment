@@ -3,3 +3,10 @@
 # @tailwindcss/oxide native binding (requires Node 20+).
 [phases.setup]
 nixPkgs = ["nodejs_22"]
+
+# Install devDependencies too. The environment sets NODE_ENV=production, which
+# makes `npm ci` omit devDependencies — but the build needs them (@tailwindcss/
+# postcss, tailwindcss, typescript, eslint, prisma CLI). The explicit
+# --include=dev flag has highest precedence and overrides NODE_ENV / npm config.
+[phases.install]
+cmds = ["npm ci --include=dev"]
