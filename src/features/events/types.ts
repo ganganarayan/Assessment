@@ -1,5 +1,8 @@
 import { EventType } from "@prisma/client";
 
+/** Registry namespace for this product (events are reusable across products). */
+export const PRODUCT = "assess360";
+
 /**
  * Assess360 event vocabulary.
  *
@@ -52,4 +55,14 @@ export interface EmitContext {
   submissionId?: string | null;
   assessmentId?: string | null;
   leadEmail?: string | null;
+}
+
+/** A registry row enriched with usage stats (for the Events page). */
+export interface RegistryRow {
+  id: string;
+  name: string;
+  status: "ACTIVE" | "DEACTIVATED" | "PURGED";
+  builtIn: boolean;
+  count: number;
+  lastFired: string | null;
 }

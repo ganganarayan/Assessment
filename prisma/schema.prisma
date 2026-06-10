@@ -511,3 +511,32 @@ model AppSetting {
 
   @@map("app_setting")
 }
+
+// ---------------------------------------------------------------------------
+// Event Registry — catalog + lifecycle for event names. The name is IMMUTABLE;
+// only status transitions are allowed (ACTIVE -> DEACTIVATED -> PURGED, terminal).
+// Routing (webhooks) is managed separately. EventLog/WebhookLog reference events
+// by NAME (no FK), so lifecycle changes never delete log history.
+// `product` namespaces the registry for reuse across Assess360 / VidaPulse /
+// Divine Leads / future products.
+// ---------------------------------------------------------------------------
+
+enum EventStatus {
+  ACTIVE
+  DEACTIVATED
+  PURGED
+}
+
+model Event {
+  id        String      @id @default(cuid())
+  product   String      @default("assess360")
+  name      String
+  status    EventStatus @default(ACTIVE)
+  builtIn   Boolean     @default(false) // the 6 Assess360 assessment events
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([product, name])
+  @@index([status])
+  @@map("event")
+}
