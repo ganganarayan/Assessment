@@ -237,17 +237,21 @@ export function AssessmentForm({
 
             {values.retakePolicy === "DELAYED" ? (
               <div className="flex flex-col gap-2 border-l-2 pl-4">
-                <Label htmlFor="retakeDays">Cooling period</Label>
-                <select
+                <Label htmlFor="retakeDays">Lock period (days before a retake is allowed)</Label>
+                <Input
                   id="retakeDays"
+                  type="number"
+                  min={1}
+                  max={3650}
+                  className="w-40"
                   value={values.retakeDays}
-                  onChange={(e) => set("retakeDays", Number(e.target.value))}
-                  className="w-40 rounded-md border bg-[var(--background)] px-2 py-1 text-sm"
-                >
-                  <option value={15}>15 days</option>
-                  <option value={30}>30 days</option>
-                  <option value={90}>90 days</option>
-                </select>
+                  onChange={(e) =>
+                    set("retakeDays", e.target.value === "" ? 1 : Math.max(1, Number(e.target.value)))
+                  }
+                />
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Any number of days (e.g. 15, 30, 90). Applies to this assessment only.
+                </p>
               </div>
             ) : null}
 

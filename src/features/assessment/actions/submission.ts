@@ -16,6 +16,8 @@ import { EventType, Prisma } from "@prisma/client";
 import { emitEvent } from "@/lib/events/emit";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { type EmitInput } from "@/features/events/types";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isPlatformOwner } from "@/lib/auth/platform";
 import { normalizeIdentifier, evaluateLockout } from "@/features/assessment/lockout";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 
@@ -62,6 +64,7 @@ export async function startSubmission(
   slug: string,
   lead: LeadInput,
   attribution?: Record<string, string>,
+  preview?: boolean,
 ): Promise<ActionResult<StartResult>> {
   const assessment = await prisma.assessment.findFirst({
     where: { slug, status: "PUBLISHED" },
@@ -111,6 +114,14 @@ export async function startSubmission(
   const identifierValue = normalizeIdentifier(assessment.uniqueIdentifier, { email, mobile });
   const leadFields = { firstName, lastName, email, mobile };
 
+  // Admin preview/testing bypasses the lockout — ONLY when the ?preview=1 flag is
+  // set AND the caller is the authenticated platform owner (never the flag alone).
+  let adminPreview = false;
+  if (preview) {
+    const u = await getCurrentUser();
+    adminPreview = u ? isPlatformOwner(u.email) : false;
+  }
+
   const submissionData = {
     assessmentId: assessment.id,
     tenantId: assessment.tenantId,
@@ -123,10 +134,14 @@ export async function startSubmission(
     ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
   };
 
-  // Lockout path — serialize per-identifier with an advisory lock so concurrent
-  // double-submits can't slip two leads through, and a blocked retaker creates
-  // NO row / event / webhook. (Set retakePolicy=UNLIMITED to allow free retakes.)
-  if (assessment.retakePolicy !== "UNLIMITED" && identifierValue) {
+  // Lockout path — serialize per-(assessment + identifier) with an advisory lock
+  // so concurrent submits can't slip two leads through, and a blocked retaker
+  // creates NO row / event / webhook. Lockout is scoped to THIS assessment +
+  // identifier (completing assessment A never blocks assessment B).
+  // State machine: COMPLETED (in window) = hard lock; an in-flight STARTED /
+  // ABANDONED row = resume until completed; otherwise create a new submission.
+  // (Set retakePolicy=UNLIMITED to allow free retakes; ?preview=1 as owner bypasses.)
+  if (!adminPreview && assessment.retakePolicy !== "UNLIMITED" && identifierValue) {
     const policy = assessment.retakePolicy as "DELAYED" | "NEVER";
     const outcome = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${assessment.id}:${identifierValue}`}, 0))`;
@@ -143,24 +158,16 @@ export async function startSubmission(
           nextAvailableAt: verdict.nextAvailableAt,
         };
       }
-      // Dedupe genuine double-clicks: reuse a very recent, non-abandoned start
-      // for the same identifier (short window only — NOT a stale hours-old row).
-      // Refresh its lead snapshot so the latest entered details win.
-      const REUSE_WINDOW_MS = 5 * 60 * 1000;
-      const recent = await tx.submission.findFirst({
-        where: {
-          assessmentId: assessment.id,
-          identifierValue,
-          status: "STARTED",
-          abandonedAt: null,
-          startedAt: { gte: new Date(Date.now() - REUSE_WINDOW_MS) },
-        },
+      // Resume an in-flight attempt (STARTED, including ABANDONED) until it is
+      // completed — refresh its lead snapshot so the latest entered details win.
+      const inflight = await tx.submission.findFirst({
+        where: { assessmentId: assessment.id, identifierValue, status: "STARTED" },
         orderBy: { startedAt: "desc" },
         select: { id: true },
       });
-      if (recent) {
-        await tx.submission.update({ where: { id: recent.id }, data: submissionData });
-        return { kind: "reused" as const, submissionId: recent.id };
+      if (inflight) {
+        await tx.submission.update({ where: { id: inflight.id }, data: submissionData });
+        return { kind: "reused" as const, submissionId: inflight.id };
       }
       const created = await tx.submission.create({ data: submissionData, select: { id: true } });
       return { kind: "created" as const, submissionId: created.id };

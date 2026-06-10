@@ -46,7 +46,7 @@ export function AssessmentRowActions({
         Edit
       </Link>
       <Link
-        href={`/a/${slug}`}
+        href={`/a/${slug}?preview=1`}
         target="_blank"
         className={buttonVariants({ variant: "ghost", size: "sm" })}
       >

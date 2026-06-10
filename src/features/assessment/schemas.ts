@@ -31,8 +31,9 @@ export const assessmentSchema = z.object({
   retakePolicy: z.enum(["DELAYED", "NEVER", "UNLIMITED"]).default("DELAYED"),
   retakeDays: z.coerce
     .number()
-    .int()
-    .refine((n) => [15, 30, 90].includes(n), "Retake period must be 15, 30, or 90 days.")
+    .int("Lock days must be a whole number.")
+    .min(1, "Lock days must be at least 1.")
+    .max(3650, "Lock days can be at most 3650.")
     .default(15),
   uniqueIdentifier: z.enum(["EMAIL", "MOBILE"]).default("EMAIL"),
   trainingUrl: z.string().url("Must be a valid URL.").optional().or(z.literal("")),

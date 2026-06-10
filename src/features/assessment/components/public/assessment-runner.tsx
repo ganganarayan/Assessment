@@ -32,6 +32,8 @@ export interface PublicAssessment {
   coverImageUrl: string | null;
   estimatedMinutes: number | null;
   trainingUrl: string | null;
+  retakePolicy: "DELAYED" | "NEVER" | "UNLIMITED";
+  retakeDays: number;
   collectFirstName: boolean;
   firstNameRequired: boolean;
   collectLastName: boolean;
@@ -62,10 +64,13 @@ function fmtDate(iso: string | null): string | null {
 export function AssessmentRunner({
   assessment,
   attribution,
+  preview,
 }: {
   assessment: PublicAssessment;
   /** UTM + click-id params from the landing URL; forwarded to startSubmission. */
   attribution?: Record<string, string>;
+  /** Admin preview flag (?preview=1); server verifies the caller before bypassing. */
+  preview?: boolean;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("intro");
@@ -91,7 +96,7 @@ export function AssessmentRunner({
     e.preventDefault();
     setError(null);
     start(async () => {
-      const res = await startSubmission(assessment.slug, lead, attribution);
+      const res = await startSubmission(assessment.slug, lead, attribution, preview);
       if (!res.ok) {
         setError(res.error);
         return;
@@ -149,6 +154,12 @@ export function AssessmentRunner({
   }
 
   if (step === "intro") {
+    const retakeNotice =
+      assessment.retakePolicy === "NEVER"
+        ? "Please answer honestly — this assessment can be taken only once."
+        : assessment.retakePolicy === "DELAYED"
+          ? `Please answer honestly in one sitting. Once you submit, you won't be able to retake this assessment for ${assessment.retakeDays} day${assessment.retakeDays === 1 ? "" : "s"}.`
+          : null;
     return (
       <div className="flex flex-col gap-6">
         {assessment.coverImageUrl ? (
@@ -170,6 +181,11 @@ export function AssessmentRunner({
             </p>
           ) : null}
         </div>
+        {retakeNotice ? (
+          <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-[var(--foreground)]">
+            {retakeNotice}
+          </p>
+        ) : null}
         <Button size="lg" onClick={() => setStep("lead")}>
           Start
         </Button>

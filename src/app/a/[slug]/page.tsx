@@ -38,7 +38,9 @@ export default async function PublicAssessmentPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
-  const attribution = pickAttribution(await searchParams);
+  const sp = await searchParams;
+  const attribution = pickAttribution(sp);
+  const preview = sp.preview === "1"; // admin-only bypass; verified server-side
   const a = await getPublishedAssessmentBySlug(slug);
   if (!a) notFound();
 
@@ -49,6 +51,8 @@ export default async function PublicAssessmentPage({
     coverImageUrl: a.coverImageUrl,
     estimatedMinutes: a.estimatedMinutes,
     trainingUrl: a.trainingUrl,
+    retakePolicy: a.retakePolicy,
+    retakeDays: a.retakeDays,
     collectFirstName: a.collectFirstName,
     firstNameRequired: a.firstNameRequired,
     collectLastName: a.collectLastName,
@@ -72,7 +76,7 @@ export default async function PublicAssessmentPage({
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
-      <AssessmentRunner assessment={assessment} attribution={attribution} />
+      <AssessmentRunner assessment={assessment} attribution={attribution} preview={preview} />
     </main>
   );
 }
