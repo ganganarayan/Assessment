@@ -12,7 +12,8 @@ import {
   pickResultBand,
   type ScoringQuestion,
 } from "@/features/assessment/scoring";
-import { notifySubmissionCompleted } from "@/lib/crm/notify";
+import { EventType } from "@prisma/client";
+import { emitEvent } from "@/lib/events/emit";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 
 /**
@@ -28,6 +29,8 @@ export async function startSubmission(
     where: { slug, status: "PUBLISHED" },
     select: {
       id: true,
+      slug: true,
+      title: true,
       tenantId: true,
       collectFirstName: true,
       firstNameRequired: true,
@@ -73,6 +76,25 @@ export async function startSubmission(
     },
     select: { id: true },
   });
+
+  // Emit lead.created + assessment.started (EventLog always written; webhook
+  // delivery is non-blocking and never fails this flow).
+  const eventCtx = {
+    submissionId: submission.id,
+    assessmentId: assessment.id,
+    leadEmail: email,
+  };
+  const leadData = {
+    submissionId: submission.id,
+    assessment: { slug: assessment.slug, title: assessment.title },
+    lead: { firstName, lastName, email, mobile },
+  };
+  await emitEvent(EventType.LEAD_CREATED, leadData, eventCtx);
+  await emitEvent(
+    EventType.ASSESSMENT_STARTED,
+    { submissionId: submission.id, assessment: { slug: assessment.slug, title: assessment.title } },
+    eventCtx,
+  );
 
   return { ok: true, data: { submissionId: submission.id } };
 }
@@ -221,7 +243,9 @@ export async function completeSubmission(
     return { ok: true, data: { submissionId } };
   }
 
-  // Fire CRM automation (non-blocking; failures never break the result).
+  // Emit assessment.completed + result.generated. EventLog is always written;
+  // webhook delivery (incl. the CRM endpoint) is non-blocking and never fails
+  // this flow. Run only for the winning writer (exactly-once).
   const full = await prisma.submission.findUnique({
     where: { id: submissionId },
     select: {
@@ -233,33 +257,51 @@ export async function completeSubmission(
       leadMobile: true,
     },
   });
-  if (full) {
-    await notifySubmissionCompleted({
-      submissionId: full.id,
-      completedAt: (full.completedAt ?? new Date()).toISOString(),
-      assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
-      lead: {
-        firstName: full.leadFirstName,
-        lastName: full.leadLastName,
-        email: full.leadEmail,
-        mobile: full.leadMobile,
-      },
-      scores: {
-        total: totalScore,
-        max: maxScore,
-        percentage,
-        categories: categoryScores.map((cs) => ({
-          categoryId: cs.categoryId,
-          name: categoryNameById.get(cs.categoryId) ?? "",
-          score: cs.score,
-          maxScore: cs.maxScore,
-        })),
-      },
-      result: band
-        ? { level: band.level, title: band.title, description: band.description }
-        : null,
-    });
-  }
+
+  const eventCtx = {
+    submissionId,
+    assessmentId: assessment.id,
+    leadEmail: full?.leadEmail ?? null,
+  };
+  const scoresData = {
+    total: totalScore,
+    max: maxScore,
+    percentage,
+    categories: categoryScores.map((cs) => ({
+      categoryId: cs.categoryId,
+      name: categoryNameById.get(cs.categoryId) ?? "",
+      score: cs.score,
+      maxScore: cs.maxScore,
+    })),
+  };
+  const resultData = band
+    ? { level: band.level, title: band.title, description: band.description }
+    : null;
+  const completedData = {
+    submissionId,
+    completedAt: (full?.completedAt ?? new Date()).toISOString(),
+    assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
+    lead: {
+      firstName: full?.leadFirstName ?? null,
+      lastName: full?.leadLastName ?? null,
+      email: full?.leadEmail ?? null,
+      mobile: full?.leadMobile ?? null,
+    },
+    scores: scoresData,
+    result: resultData,
+  };
+
+  await emitEvent(EventType.ASSESSMENT_COMPLETED, completedData, eventCtx);
+  await emitEvent(
+    EventType.RESULT_GENERATED,
+    {
+      submissionId,
+      assessment: { slug: assessment.slug, title: assessment.title },
+      scores: scoresData,
+      result: resultData,
+    },
+    eventCtx,
+  );
 
   return { ok: true, data: { submissionId } };
 }

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getSubmissionResult } from "@/features/assessment/data";
+import { markResultViewed } from "@/features/events/record";
 import {
   Card,
   CardContent,
@@ -27,6 +28,9 @@ export default async function ResultPage({
   const submission = await getSubmissionResult(submissionId);
 
   if (!submission || submission.assessment.slug !== slug) notFound();
+
+  // Emit result.viewed once (server-side; no UI impact, non-blocking webhook).
+  await markResultViewed(submissionId);
 
   const band = submission.resultBand;
   const total = submission.totalScore ?? 0;

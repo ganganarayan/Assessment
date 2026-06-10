@@ -343,10 +343,12 @@ model Submission {
   totalScore Float?
   maxScore   Float?
 
-  startedAt   DateTime  @default(now())
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  abandonedAt    DateTime? // set by the abandonment sweep when STARTED past the delay
+  resultViewedAt DateTime? // set once when the result page is first viewed
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   assessmentId String
   assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
@@ -364,6 +366,7 @@ model Submission {
   @@index([assessmentId])
   @@index([leadEmail])
   @@index([createdAt])
+  @@index([status, startedAt]) // abandonment sweep
   @@map("submission")
 }
 
@@ -409,4 +412,102 @@ model SubmissionCategoryScore {
   @@unique([submissionId, categoryId])
   @@index([submissionId])
   @@map("submission_category_score")
+}
+
+// ===========================================================================
+// Event Engine & Automation (Phase 1)
+// ===========================================================================
+
+// Assess360 is the source of truth ONLY for assessment-related events.
+// External funnel events (e.g. external.vsl_viewed, external.strategy_call_booked)
+// are owned by other systems and may be POSTed in later via a reserved ingest
+// API — they are intentionally NOT part of this enum.
+enum EventType {
+  LEAD_CREATED // lead.created
+  ASSESSMENT_STARTED // assessment.started
+  ASSESSMENT_COMPLETED // assessment.completed
+  RESULT_GENERATED // result.generated
+  RESULT_VIEWED // result.viewed
+  ASSESSMENT_ABANDONED // assessment.abandoned
+}
+
+// ---------------------------------------------------------------------------
+// EventLog — append-only ledger. ALWAYS written when an event is emitted,
+// independent of webhook delivery. Powers the Events feed + audit + replay.
+// ---------------------------------------------------------------------------
+
+model EventLog {
+  id        String   @id @default(cuid())
+  type      EventType
+  name      String // dotted public name, e.g. "assessment.completed"
+  payload   Json
+  source    String   @default("assess360") // future: "external" for ingested events
+  createdAt DateTime @default(now())
+
+  submissionId String?
+  assessmentId String?
+  leadEmail    String?
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([submissionId])
+  @@map("event_log")
+}
+
+// ---------------------------------------------------------------------------
+// WebhookEndpoint — platform-global config: one endpoint per event.
+// ---------------------------------------------------------------------------
+
+model WebhookEndpoint {
+  id        String    @id @default(cuid())
+  event     EventType @unique // one endpoint per event (platform-global)
+  url       String
+  enabled   Boolean   @default(true)
+  secret    String // HMAC-SHA256 signing secret for X-Assess-Signature
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  logs WebhookLog[]
+
+  @@map("webhook_endpoint")
+}
+
+// ---------------------------------------------------------------------------
+// WebhookLog — one row per delivery attempt; supports inspection + retry.
+// ---------------------------------------------------------------------------
+
+model WebhookLog {
+  id             String   @id @default(cuid())
+  eventName      String
+  endpoint       String
+  payload        Json
+  responseStatus Int?
+  responseBody   String?
+  error          String?
+  attemptCount   Int      @default(1)
+  success        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  webhookEndpointId String?
+  webhookEndpoint   WebhookEndpoint? @relation(fields: [webhookEndpointId], references: [id], onDelete: SetNull)
+
+  submissionId String?
+
+  @@index([eventName])
+  @@index([success])
+  @@index([createdAt])
+  @@map("webhook_log")
+}
+
+// ---------------------------------------------------------------------------
+// AppSetting — singleton platform settings (configurable automation knobs).
+// ---------------------------------------------------------------------------
+
+model AppSetting {
+  id                  String   @id @default("singleton")
+  abandonedAfterHours Int      @default(24)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("app_setting")
 }
