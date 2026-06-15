@@ -35,11 +35,14 @@ export function ConnectDestination({
     <div className="flex flex-col gap-4">
       <ol className="list-decimal pl-5 text-sm text-[var(--muted-foreground)]">
         <li>Paste <strong>Part A</strong> into your page&apos;s <span className="font-mono">&lt;head&gt;</span>.</li>
-        <li>Paste <strong>Part B</strong> where you want the results + video to appear.</li>
-        <li>Drop your video embed into the marked spot inside Part B.</li>
+        <li>Paste <strong>Part B</strong> in the section where you want the assessment results to show.</li>
+        <li>Add your other elements (your VSL video, a calendar, or anything else) below this, in a separate section.</li>
       </ol>
       <CodeBlock title="Part A — paste in page header" code={partA} />
-      <CodeBlock title="Part B — paste in page body (then add your video)" code={partB} />
+      <CodeBlock
+        title="Part B — paste in page body, in the section where you want the assessment results to show"
+        code={partB}
+      />
     </div>
   );
 }
@@ -141,8 +144,5 @@ function buildBodySnippet(categories: string[]): string {
   <p>Overall: <span id="band-overall"></span> (<span id="band-score"></span>%)</p>
 
 ${cats}
-
-  <!-- ===================== PASTE YOUR VIDEO EMBED HERE ===================== -->
-
 </div>`;
 }
