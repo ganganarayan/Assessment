@@ -22,6 +22,8 @@
     "verify:transfer": "tsx scripts/verify-transfer.ts",
     "verify:webhook-payload": "tsx scripts/verify-webhook-payload.ts",
     "verify:retake": "tsx scripts/verify-retake.ts",
+    "verify:vsl": "tsx scripts/verify-vsl.ts",
+    "seed:category-bands": "tsx scripts/seed-category-bands.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

@@ -235,6 +235,13 @@ model Assessment {
   // Optional VSL/training link shown on the retake-lockout screen.
   trainingUrl      String?
 
+  // Destination page the respondent lands on after completing (with ?t=<token>).
+  // Its ORIGIN (derived on save) is what authorizes the public read endpoint's
+  // CORS — the admin never configures CORS directly.
+  targetUrl       String?
+  targetOrigin    String? // scheme://host[:port], derived from targetUrl
+  tokenTtlSeconds Int? // result-token TTL; null => system default
+
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -272,6 +279,7 @@ model Category {
 
   questions      Question[]
   categoryScores SubmissionCategoryScore[]
+  bands          CategoryResultBand[]
 
   @@index([assessmentId])
   @@map("category")
@@ -347,6 +355,29 @@ model ResultBand {
 }
 
 // ---------------------------------------------------------------------------
+// CategoryResultBand — per-CATEGORY band: a percentage range -> {label, meaning}.
+// Mirrors ResultBand but scoped to a Category. minScore/maxScore are 0–100
+// percentages (same basis as overall bands). Non-overlap validated like overall.
+// ---------------------------------------------------------------------------
+
+model CategoryResultBand {
+  id           String   @id @default(cuid())
+  label        String
+  meaning      String?
+  minScore     Float // percentage 0–100
+  maxScore     Float
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+  @@map("category_result_band")
+}
+
+// ---------------------------------------------------------------------------
 // Submission — one run of an assessment. Lead snapshot stored inline.
 // ---------------------------------------------------------------------------
 
@@ -367,6 +398,15 @@ model Submission {
   // captured at start per the assessment's uniqueIdentifier. Indexed for the
   // lockout lookup + future progress-trend queries.
   identifierValue String?
+
+  // Opaque public ids (no-ambiguous alphabet). customerId minted at lead capture
+  // (separate from identifierValue); resultToken minted on completion and placed
+  // in the destination URL. resultSnapshot is the denormalized read-endpoint
+  // payload, computed once at completion for a fast, join-free GET /api/r/:token.
+  customerId           String?   @unique
+  resultToken          String?   @unique
+  resultTokenExpiresAt DateTime?
+  resultSnapshot       Json?
 
   totalScore Float?
   maxScore   Float?

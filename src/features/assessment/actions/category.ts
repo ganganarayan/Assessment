@@ -16,6 +16,14 @@ export async function createCategory(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
+  // Names must be unique within an assessment: per-category webhook fields are
+  // keyed by name (contact.<name> band/…), so duplicates would collide.
+  const dup = await prisma.category.findFirst({
+    where: { assessmentId, name: parsed.data.name },
+    select: { id: true },
+  });
+  if (dup) return { ok: false, error: "A category with that name already exists." };
+
   const count = await prisma.category.count({ where: { assessmentId } });
   const created = await prisma.category.create({
     data: {
@@ -39,6 +47,17 @@ export async function updateCategory(
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
+
+  const current = await prisma.category.findUnique({
+    where: { id },
+    select: { assessmentId: true },
+  });
+  if (!current) return { ok: false, error: "Category not found." };
+  const dup = await prisma.category.findFirst({
+    where: { assessmentId: current.assessmentId, name: parsed.data.name, NOT: { id } },
+    select: { id: true },
+  });
+  if (dup) return { ok: false, error: "A category with that name already exists." };
 
   const category = await prisma.category.update({
     where: { id },

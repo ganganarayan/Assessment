@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssessmentById } from "@/features/assessment/data";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
+import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
 import { CategoriesManager } from "@/features/assessment/components/admin/categories-manager";
+import { env } from "@/lib/env";
 import { ResultBandsManager } from "@/features/assessment/components/admin/result-bands-manager";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +39,8 @@ export default async function EditAssessmentPage({
     retakeDays: a.retakeDays,
     uniqueIdentifier: a.uniqueIdentifier,
     trainingUrl: a.trainingUrl ?? "",
+    targetUrl: a.targetUrl ?? "",
+    tokenTtlSeconds: a.tokenTtlSeconds ?? undefined,
   };
 
   const categories = a.categories.map((c) => ({
@@ -82,6 +86,18 @@ export default async function EditAssessmentPage({
       </div>
 
       <AssessmentForm mode="edit" id={a.id} initial={initial} />
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Connect your destination page</h2>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Paste a URL above (Destination page), save, then copy this connector into your page.
+        </p>
+        <ConnectDestination
+          targetUrl={a.targetUrl}
+          categories={a.categories.map((c) => c.name)}
+          endpointBase={env.NEXT_PUBLIC_APP_URL}
+        />
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Categories &amp; Questions</h2>

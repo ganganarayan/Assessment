@@ -89,6 +89,13 @@ export interface PayloadResultBand {
   level: string;
   title: string;
 }
+export interface PayloadCategory {
+  name: string;
+  score: number;
+  max: number;
+  band: string | null;
+  meaning: string | null;
+}
 /** metadata for assessment-related events. */
 export interface AssessmentMetadata {
   assessmentId: string | null;
@@ -98,6 +105,7 @@ export interface AssessmentMetadata {
   resultUrl: string | null;
   score: PayloadScore | null;
   resultBand: PayloadResultBand | null;
+  categories: PayloadCategory[] | null;
 }
 
 /**
@@ -133,11 +141,15 @@ export interface EventEnvelope {
  */
 export interface EmitInput {
   submissionId?: string | null;
+  customerId?: string | null;
   tenant?: PayloadTenant | null;
   assessment?: { id: string; slug: string; title: string } | null;
   lead?: Partial<PayloadLead> | null;
   score?: PayloadScore | null;
   resultBand?: PayloadResultBand | null;
+  categories?: PayloadCategory[] | null;
+  /** Destination/result URL (built server-side, e.g. `${targetUrl}?t=${token}`). */
+  resultUrl?: string | null;
   attribution?: Partial<PayloadAttribution> | null;
   /** Override the event timestamp (defaults to now). Used for deterministic samples. */
   timestamp?: string;

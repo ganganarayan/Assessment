@@ -57,9 +57,13 @@ const CONTACT_FIELDS = [
   "contact.score",
   "contact.result_band",
   "contact.result_url",
+  "contact.customer_id",
+  "contact.scorePercent",
+  "contact.scoreRaw",
+  "contact.max",
 ];
 const TOP = [...TOP_FIXED, ...CONTACT_FIELDS];
-const META = ["assessmentId", "assessmentTitle", "assessmentSlug", "assessmentUrl", "resultUrl", "score", "resultBand"];
+const META = ["assessmentId", "assessmentTitle", "assessmentSlug", "assessmentUrl", "resultUrl", "score", "resultBand", "categories"];
 
 const scoredTypes = new Set<EventType>([
   EventType.ASSESSMENT_COMPLETED,
@@ -137,6 +141,45 @@ for (const type of ACTIVE_EVENT_TYPES) {
   expect("normalizeAttribution empty -> null", normalizeAttribution({}) === null);
   expect("normalizeAttribution non-object -> null", normalizeAttribution("nope") === null);
   expect("normalizeAttribution caps length", (normalizeAttribution({ utm_campaign: "a".repeat(999) })?.utm_campaign ?? "").length === 512);
+}
+
+// Per-category flat fields + metadata.categories on a real completed payload.
+{
+  const env = buildEnvelope(
+    EventType.ASSESSMENT_COMPLETED,
+    {
+      submissionId: SID,
+      customerId: "K7M2P9QX",
+      tenant: { id: "t1", slug: "acme", name: "Acme" },
+      assessment: { id: "a1", slug: SLUG, title: "X" },
+      lead: { firstName: "G", email: "g@x.com" },
+      score: { total: 42, max: 60, percentage: 70 },
+      resultBand: { level: "HIGH", title: "High" },
+      categories: [
+        { name: "Sleep & Mental Recovery", score: 10, max: 12, band: "Strong", meaning: "good" },
+        { name: "Stress Load", score: 3, max: 12, band: "Low", meaning: "watch" },
+      ],
+      resultUrl: "https://page.com/r?ref=fb&t=ABC",
+    } satisfies EmitInput,
+    BASE,
+  );
+  expect("categories flat band", env["contact.Sleep & Mental Recovery band"] === "Strong");
+  expect("categories flat meaning", env["contact.Sleep & Mental Recovery meaning"] === "good");
+  expect("categories flat score", env["contact.Stress Load score"] === 3);
+  const cats = (env.metadata as { categories?: unknown[] }).categories;
+  expect("metadata.categories present", Array.isArray(cats) && cats.length === 2);
+  expect("contact.customer_id on completed", env["contact.customer_id"] === "K7M2P9QX");
+  expect("contact.result_url is destination", env["contact.result_url"] === "https://page.com/r?ref=fb&t=ABC");
+}
+
+// scorePercent is a rounded integer (matches the read endpoint / connector).
+{
+  const env = buildEnvelope(
+    EventType.ASSESSMENT_COMPLETED,
+    { submissionId: SID, score: { total: 2, max: 3, percentage: 66.67 } },
+    BASE,
+  );
+  expect("scorePercent rounds 66.67 -> 67", env["contact.scorePercent"] === 67);
 }
 
 // Unknown event → no sample (preview guards).

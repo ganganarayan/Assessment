@@ -37,6 +37,15 @@ export const assessmentSchema = z.object({
     .default(15),
   uniqueIdentifier: z.enum(["EMAIL", "MOBILE"]).default("EMAIL"),
   trainingUrl: z.string().url("Must be a valid URL.").optional().or(z.literal("")),
+  // Destination page the respondent lands on after completing. Its origin
+  // authorizes the public read endpoint (CORS), so it must be a valid https URL.
+  targetUrl: z
+    .string()
+    .url("Enter a valid URL.")
+    .startsWith("https://", "Destination URL must use https://")
+    .optional()
+    .or(z.literal("")),
+  tokenTtlSeconds: z.coerce.number().int().min(60).max(86400).optional(),
 }).superRefine((d, ctx) => {
   // A lockout can only be enforced if the identifying field is always captured.
   if (d.retakePolicy === "UNLIMITED") return;

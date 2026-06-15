@@ -55,6 +55,8 @@ const DEFAULTS: AssessmentFormValues = {
   retakeDays: 15,
   uniqueIdentifier: "EMAIL",
   trainingUrl: "",
+  targetUrl: "",
+  tokenTtlSeconds: undefined,
 };
 
 export function AssessmentForm({
@@ -286,6 +288,40 @@ export function AssessmentForm({
                 onChange={(e) => set("trainingUrl", e.target.value)}
                 placeholder="https://…"
               />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 rounded-lg border p-4">
+            <p className="text-sm font-medium">Destination page</p>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Where respondents land after finishing (we append <span className="font-mono">?t=&lt;token&gt;</span>).
+              This page is also what the result endpoint authorizes (CORS). Leave blank to
+              show the built-in result page.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="targetUrl">Destination page URL</Label>
+              <Input
+                id="targetUrl"
+                value={values.targetUrl ?? ""}
+                onChange={(e) => set("targetUrl", e.target.value)}
+                placeholder="https://your-page.com/results"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="tokenTtl">Result link lifetime (seconds)</Label>
+              <Input
+                id="tokenTtl"
+                type="number"
+                min={60}
+                max={86400}
+                className="w-40"
+                value={values.tokenTtlSeconds ?? ""}
+                onChange={(e) =>
+                  set("tokenTtlSeconds", e.target.value === "" ? undefined : Number(e.target.value))
+                }
+                placeholder="3600"
+              />
+              <p className="text-xs text-[var(--muted-foreground)]">Default 3600 (1 hour) if blank.</p>
             </div>
           </div>
 

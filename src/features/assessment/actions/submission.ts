@@ -15,11 +15,37 @@ import {
 import { EventType, Prisma } from "@prisma/client";
 import { emitEvent } from "@/lib/events/emit";
 import { normalizeAttribution } from "@/lib/events/payload";
-import { type EmitInput } from "@/features/events/types";
+import { type EmitInput, type PayloadCategory } from "@/features/events/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { normalizeIdentifier, evaluateLockout } from "@/features/assessment/lockout";
+import { generateCustomerId, generateToken } from "@/lib/ids";
+import { env } from "@/lib/env";
+import { buildResultSnapshot, mapCategoryResult } from "@/lib/result/snapshot";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
+
+/** The ONE system-level fallback for the result-token TTL (overridable per assessment). */
+const DEFAULT_RESULT_TOKEN_TTL_SECONDS = 3600;
+
+/** Destination URL the respondent lands on; falls back to the internal result page. */
+function buildResultUrl(
+  targetUrl: string | null,
+  slug: string,
+  submissionId: string,
+  token: string | null,
+): string {
+  if (targetUrl && token) {
+    try {
+      const u = new URL(targetUrl);
+      u.searchParams.set("t", token); // correct even if targetUrl already has a query/fragment
+      return u.toString();
+    } catch {
+      /* malformed targetUrl — fall back to the internal result page */
+    }
+  }
+  return `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}`;
+}
+
 
 export type StartResult =
   | { status: "started"; submissionId: string }
@@ -41,11 +67,13 @@ type StartAssessment = {
 async function emitStart(
   assessment: StartAssessment,
   submissionId: string,
+  customerId: string,
   lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null },
   attr: ReturnType<typeof normalizeAttribution>,
 ) {
   const base: EmitInput = {
     submissionId,
+    customerId,
     tenant: assessment.tenant,
     assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
     lead,
@@ -113,6 +141,8 @@ export async function startSubmission(
   const attr = normalizeAttribution(attribution);
   const identifierValue = normalizeIdentifier(assessment.uniqueIdentifier, { email, mobile });
   const leadFields = { firstName, lastName, email, mobile };
+  // Mint the customerId once (8 chars; the @unique index is the collision backstop).
+  const newCustomerId = generateCustomerId();
 
   // Admin preview/testing bypasses the lockout — ONLY when the ?preview=1 flag is
   // set AND the caller is the authenticated platform owner (never the flag alone).
@@ -160,17 +190,25 @@ export async function startSubmission(
       }
       // Resume an in-flight attempt (STARTED, including ABANDONED) until it is
       // completed — refresh its lead snapshot so the latest entered details win.
+      // Keep the existing customerId (mint one only if the row predates it).
       const inflight = await tx.submission.findFirst({
         where: { assessmentId: assessment.id, identifierValue, status: "STARTED" },
         orderBy: { startedAt: "desc" },
-        select: { id: true },
+        select: { id: true, customerId: true },
       });
       if (inflight) {
-        await tx.submission.update({ where: { id: inflight.id }, data: submissionData });
-        return { kind: "reused" as const, submissionId: inflight.id };
+        const customerId = inflight.customerId ?? newCustomerId;
+        await tx.submission.update({
+          where: { id: inflight.id },
+          data: inflight.customerId ? submissionData : { ...submissionData, customerId },
+        });
+        return { kind: "reused" as const, submissionId: inflight.id, customerId };
       }
-      const created = await tx.submission.create({ data: submissionData, select: { id: true } });
-      return { kind: "created" as const, submissionId: created.id };
+      const created = await tx.submission.create({
+        data: { ...submissionData, customerId: newCustomerId },
+        select: { id: true },
+      });
+      return { kind: "created" as const, submissionId: created.id, customerId: newCustomerId };
     });
 
     if (outcome.kind === "locked") {
@@ -184,13 +222,18 @@ export async function startSubmission(
         },
       };
     }
-    if (outcome.kind === "created") await emitStart(assessment, outcome.submissionId, leadFields, attr);
+    if (outcome.kind === "created") {
+      await emitStart(assessment, outcome.submissionId, outcome.customerId, leadFields, attr);
+    }
     return { ok: true, data: { status: "started", submissionId: outcome.submissionId } };
   }
 
   // No lockout (UNLIMITED / admin / no identifier): create + emit directly.
-  const created = await prisma.submission.create({ data: submissionData, select: { id: true } });
-  await emitStart(assessment, created.id, leadFields, attr);
+  const created = await prisma.submission.create({
+    data: { ...submissionData, customerId: newCustomerId },
+    select: { id: true },
+  });
+  await emitStart(assessment, created.id, newCustomerId, leadFields, attr);
   return { ok: true, data: { status: "started", submissionId: created.id } };
 }
 
@@ -274,7 +317,7 @@ export async function requestPreviousResults(
 export async function completeSubmission(
   submissionId: string,
   input: AnswersInput,
-): Promise<ActionResult<{ submissionId: string }>> {
+): Promise<ActionResult<{ submissionId: string; resultUrl: string }>> {
   const parsed = answersSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid answers." };
@@ -282,11 +325,25 @@ export async function completeSubmission(
 
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
-    select: { id: true, status: true, assessmentId: true, attribution: true },
+    select: {
+      id: true,
+      status: true,
+      assessmentId: true,
+      attribution: true,
+      customerId: true,
+      resultToken: true,
+      assessment: { select: { slug: true, targetUrl: true } },
+    },
   });
   if (!submission) return { ok: false, error: "Submission not found." };
   if (submission.status === "COMPLETED") {
-    return { ok: true, data: { submissionId } };
+    const resultUrl = buildResultUrl(
+      submission.assessment.targetUrl,
+      submission.assessment.slug,
+      submissionId,
+      submission.resultToken,
+    );
+    return { ok: true, data: { submissionId, resultUrl } };
   }
 
   const assessment = await prisma.assessment.findUnique({
@@ -296,6 +353,8 @@ export async function completeSubmission(
       slug: true,
       title: true,
       status: true,
+      targetUrl: true,
+      tokenTtlSeconds: true,
       tenant: { select: { id: true, slug: true, name: true } },
       categories: {
         select: {
@@ -308,6 +367,9 @@ export async function completeSubmission(
               required: true,
               options: { select: { id: true, value: true } },
             },
+          },
+          bands: {
+            select: { id: true, label: true, meaning: true, minScore: true, maxScore: true, displayOrder: true },
           },
         },
       },
@@ -366,6 +428,28 @@ export async function completeSubmission(
   // Bands are matched against the percentage (invariant to skipped optional Qs).
   const band = pickResultBand(assessment.resultBands, percentage);
 
+  // Per-category band mapping (reuses the generic pickResultBand).
+  const categoryById = new Map(assessment.categories.map((c) => [c.id, c]));
+  const categoryResults: PayloadCategory[] = categoryScores.map((cs) => {
+    const cat = categoryById.get(cs.categoryId);
+    return mapCategoryResult(cat?.name ?? "", cs.score, cs.maxScore, cat?.bands ?? []);
+  });
+
+  // Opaque public ids + denormalized read-endpoint snapshot + destination URL.
+  const customerId = submission.customerId ?? generateCustomerId();
+  const token = generateToken();
+  const ttl = assessment.tokenTtlSeconds ?? DEFAULT_RESULT_TOKEN_TTL_SECONDS;
+  const expiresAt = new Date(Date.now() + ttl * 1000);
+  const snapshot = buildResultSnapshot({
+    customerId,
+    scoreRaw: totalScore,
+    max: maxScore,
+    scorePercent: Math.round(percentage),
+    resultBand: band?.title ?? null,
+    categories: categoryResults,
+  });
+  const resultUrl = buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, token);
+
   // Persist atomically. The final statement is a compare-and-swap on status:
   // only a writer that flips STARTED -> COMPLETED "wins". This makes scoring
   // persistence and the CRM dispatch exactly-once under concurrent double-submits.
@@ -398,14 +482,29 @@ export async function completeSubmission(
         maxScore,
         resultBandId: band?.id ?? null,
         completedAt: new Date(),
+        resultToken: token,
+        resultTokenExpiresAt: expiresAt,
+        resultSnapshot: snapshot as unknown as Prisma.InputJsonValue,
+        ...(submission.customerId ? {} : { customerId }),
       },
     }),
   ]);
 
-  // If a concurrent writer already completed this submission, do not re-fire CRM.
+  // If a concurrent writer already completed this submission, do not re-fire CRM;
+  // return that writer's destination URL.
   const swap = tx[tx.length - 1] as { count: number } | undefined;
   if (!swap || swap.count === 0) {
-    return { ok: true, data: { submissionId } };
+    const existing = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      select: { resultToken: true },
+    });
+    return {
+      ok: true,
+      data: {
+        submissionId,
+        resultUrl: buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, existing?.resultToken ?? null),
+      },
+    };
   }
 
   // Emit assessment.completed. EventLog is always written; webhook delivery
@@ -427,6 +526,7 @@ export async function completeSubmission(
 
   await emitEvent(EventType.ASSESSMENT_COMPLETED, {
     submissionId,
+    customerId,
     tenant: assessment.tenant,
     assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
     lead: {
@@ -437,8 +537,10 @@ export async function completeSubmission(
     },
     score: { total: totalScore, max: maxScore, percentage },
     resultBand: band ? { level: band.level, title: band.title } : null,
+    categories: categoryResults,
+    resultUrl,
     attribution: normalizeAttribution(submission.attribution) ?? undefined,
   } satisfies EmitInput);
 
-  return { ok: true, data: { submissionId } };
+  return { ok: true, data: { submissionId, resultUrl } };
 }

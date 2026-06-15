@@ -20,6 +20,7 @@ import {
   type AssessmentMetadata,
   type PayloadLead,
   type PayloadAttribution,
+  type PayloadCategory,
 } from "@/features/events/types";
 
 const NULL_LEAD: PayloadLead = {
@@ -86,9 +87,14 @@ function assessmentMetadata(input: EmitInput, baseUrl: string): AssessmentMetada
     assessmentTitle: a?.title ?? null,
     assessmentSlug: slug,
     assessmentUrl: slug ? publicAssessmentUrl(baseUrl, slug) : null,
-    resultUrl: hasResult ? publicResultUrl(baseUrl, slug as string, sid as string) : null,
+    // Destination URL (targetUrl?t=token) is passed in on completion; otherwise
+    // fall back to the internal result page when a result exists.
+    resultUrl:
+      input.resultUrl ??
+      (hasResult ? publicResultUrl(baseUrl, slug as string, sid as string) : null),
     score: input.score ?? null,
     resultBand: input.resultBand ?? null,
+    categories: input.categories ?? null,
   };
 }
 
@@ -137,11 +143,29 @@ export function buildEnvelope(
   }
   // Result fields as flat contact custom fields too (null on non-scored events).
   const m = envelope.metadata as Record<string, unknown>;
-  const score = m.score as { percentage?: number } | null;
+  const score = m.score as { percentage?: number; total?: number; max?: number } | null;
   const band = m.resultBand as { level?: string } | null;
-  envelope["contact.score"] = score?.percentage ?? null;
+  // Round percentage so the webhook agrees with the read endpoint / connector
+  // (both use Math.round(percentage)); metadata.score keeps the precise value.
+  const pctRounded = score && score.percentage != null ? Math.round(score.percentage) : null;
+  envelope["contact.customer_id"] = input.customerId ?? null;
+  envelope["contact.score"] = pctRounded; // kept for back-compat
+  envelope["contact.scorePercent"] = pctRounded;
+  envelope["contact.scoreRaw"] = score?.total ?? null;
+  envelope["contact.max"] = score?.max ?? null;
   envelope["contact.result_band"] = band?.level ?? null;
   envelope["contact.result_url"] = (m.resultUrl as string | null) ?? null;
+
+  // Per-category bands as flat contact custom fields (keyed by exact category
+  // name), so the CRM can map e.g. `contact.Sleep & Mental Recovery band`.
+  const cats = (m.categories as PayloadCategory[] | null) ?? null;
+  if (cats) {
+    for (const c of cats) {
+      envelope[`contact.${c.name} band`] = c.band;
+      envelope[`contact.${c.name} meaning`] = c.meaning;
+      envelope[`contact.${c.name} score`] = c.score;
+    }
+  }
 
   return envelope;
 }
@@ -164,6 +188,7 @@ export function buildSamplePayload(eventName: string, baseUrl: string): EventEnv
     {
       timestamp: "2026-01-01T12:00:00.000Z",
       submissionId: "sub_3x4mpl3",
+      customerId: "K7M2P9QX",
       tenant: { id: "tnt_acme", slug: "acme", name: "Acme Coaching" },
       assessment: {
         id: "asm_emotional",

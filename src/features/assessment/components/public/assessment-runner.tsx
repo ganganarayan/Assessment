@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useTransition } from "react";
 import {
   startSubmission,
   completeSubmission,
@@ -45,7 +44,7 @@ export interface PublicAssessment {
   categories: PublicCategory[];
 }
 
-type Step = "intro" | "lead" | "questions" | "locked";
+type Step = "intro" | "lead" | "questions" | "locked" | "redirecting";
 
 interface Lockout {
   policy: "DELAYED" | "NEVER";
@@ -72,7 +71,6 @@ export function AssessmentRunner({
   /** Admin preview flag (?preview=1); server verifies the caller before bypassing. */
   preview?: boolean;
 }) {
-  const router = useRouter();
   const [step, setStep] = useState<Step>("intro");
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [lead, setLead] = useState<LeadInput>({
@@ -85,6 +83,7 @@ export function AssessmentRunner({
   const [error, setError] = useState<string | null>(null);
   const [lockout, setLockout] = useState<Lockout | null>(null);
   const [emailSent, setEmailSent] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const questions = assessment.categories.flatMap((c) => c.questions);
@@ -149,7 +148,8 @@ export function AssessmentRunner({
         setError(res.error);
         return;
       }
-      router.push(`/a/${assessment.slug}/r/${submissionId}`);
+      setRedirectUrl(res.data?.resultUrl ?? `/a/${assessment.slug}/r/${submissionId}`);
+      setStep("redirecting");
     });
   }
 
@@ -307,6 +307,10 @@ export function AssessmentRunner({
     );
   }
 
+  if (step === "redirecting" && redirectUrl) {
+    return <CountdownRedirect url={redirectUrl} />;
+  }
+
   // step === "questions"
   const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(" ");
   const leadContact = [lead.email, lead.mobile].filter(Boolean).join(" · ");
@@ -356,6 +360,36 @@ export function AssessmentRunner({
       <Button size="lg" onClick={submitAnswers} disabled={pending}>
         {pending ? "Submitting…" : "Submit"}
       </Button>
+    </div>
+  );
+}
+
+/**
+ * 5-second "evaluating…" countdown, then a hard redirect to the destination URL
+ * (the customer's page with ?t=token, or the internal result page as fallback).
+ */
+function CountdownRedirect({ url }: { url: string }) {
+  const [n, setN] = useState(5);
+  useEffect(() => {
+    if (n <= 0) {
+      window.location.replace(url);
+      return;
+    }
+    const t = setTimeout(() => setN((x) => x - 1), 1000);
+    return () => clearTimeout(t);
+  }, [n, url]);
+
+  return (
+    <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
+      <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--muted)] border-t-[var(--primary)]" />
+      {n > 0 ? (
+        <>
+          <p className="text-lg font-medium">Evaluating your results…</p>
+          <p className="text-4xl font-bold tabular-nums">{n}</p>
+        </>
+      ) : (
+        <p className="text-lg font-medium">Your results are ready</p>
+      )}
     </div>
   );
 }

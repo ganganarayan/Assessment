@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { assessmentSchema, type AssessmentInput } from "@/features/assessment/schemas";
+import { originOf } from "@/lib/result/cors";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 
 export async function createAssessment(
@@ -39,6 +40,9 @@ export async function createAssessment(
       retakeDays: d.retakeDays,
       uniqueIdentifier: d.uniqueIdentifier,
       trainingUrl: nullifyEmpty(d.trainingUrl),
+      targetUrl: nullifyEmpty(d.targetUrl),
+      targetOrigin: originOf(nullifyEmpty(d.targetUrl)),
+      tokenTtlSeconds: d.tokenTtlSeconds ?? null,
       createdById: user.id,
     },
   });
@@ -84,6 +88,9 @@ export async function updateAssessment(
       retakeDays: d.retakeDays,
       uniqueIdentifier: d.uniqueIdentifier,
       trainingUrl: nullifyEmpty(d.trainingUrl),
+      targetUrl: nullifyEmpty(d.targetUrl),
+      targetOrigin: originOf(nullifyEmpty(d.targetUrl)),
+      tokenTtlSeconds: d.tokenTtlSeconds ?? null,
     },
   });
 
