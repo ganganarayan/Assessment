@@ -4,7 +4,7 @@ import { THEME_COOKIE, THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Assessment Engine SaaS",
+  title: "Assessment",
   description: "Multi-tenant assessment platform foundation.",
 };
 

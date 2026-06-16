@@ -58,7 +58,7 @@ export function SignUpForm() {
       <CardHeader>
         <CardTitle>Create account</CardTitle>
         <CardDescription>
-          Sign up to use the Assessment Engine.
+          Sign up to use Assessment.
         </CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit}>

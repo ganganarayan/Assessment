@@ -56,7 +56,7 @@ export function SignInForm() {
       <CardHeader>
         <CardTitle>Sign in</CardTitle>
         <CardDescription>
-          Access your Assessment Engine dashboard.
+          Access your Assessment dashboard.
         </CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit}>

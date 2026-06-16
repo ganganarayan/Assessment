@@ -16,7 +16,7 @@ export default async function HomePage() {
           Staging · Phase 1 deployed successfully
         </span>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Assessment Engine SaaS Foundation Ready
+          Assessment Foundation Ready
         </h1>
         <p className="max-w-md text-sm text-[var(--muted-foreground)] sm:text-base">
           Multi-tenant foundation is live: authentication, tenant resolution,
