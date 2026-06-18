@@ -7,6 +7,7 @@ import {
   requestPreviousResults,
 } from "@/features/assessment/actions/submission";
 import type { LeadInput } from "@/features/assessment/schemas";
+import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -109,6 +110,8 @@ export function AssessmentRunner({
         setStep("locked");
         return;
       }
+      // Meta Pixel: a real registration (not a retake-lockout) just happened.
+      pixelTrack("CompleteRegistration", { content_name: assessment.title });
       setSubmissionId(res.data?.submissionId ?? null);
       setStep("questions");
     });
@@ -148,6 +151,8 @@ export function AssessmentRunner({
         setError(res.error);
         return;
       }
+      // Meta Pixel: assessment finished (custom event) — fire before the redirect.
+      pixelTrackCustom("AssessmentCompleted", { content_name: assessment.title });
       setRedirectUrl(res.data?.resultUrl ?? `/a/${assessment.slug}/r/${submissionId}`);
       setStep("redirecting");
     });

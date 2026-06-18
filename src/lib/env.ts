@@ -28,12 +28,16 @@ const serverSchema = z.object({
 const publicSchema = z.object({
   NEXT_PUBLIC_ROOT_DOMAIN: z.string().min(1),
   NEXT_PUBLIC_APP_URL: z.string().url(),
+  // Meta (Facebook) Pixel id. Optional — when unset, no pixel is injected.
+  // NEXT_PUBLIC_* is inlined at BUILD time, so a rebuild is needed after setting it.
+  NEXT_PUBLIC_META_PIXEL_ID: z.string().min(1).optional(),
 });
 
 // Public vars must be referenced statically for Next.js inlining.
 const publicEnv = publicSchema.parse({
   NEXT_PUBLIC_ROOT_DOMAIN: process.env.NEXT_PUBLIC_ROOT_DOMAIN,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  NEXT_PUBLIC_META_PIXEL_ID: process.env.NEXT_PUBLIC_META_PIXEL_ID,
 });
 
 // Server vars are only validated on the server (never bundled to the client).
