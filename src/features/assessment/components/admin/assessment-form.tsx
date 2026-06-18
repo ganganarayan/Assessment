@@ -281,13 +281,20 @@ export function AssessmentForm({
             ) : null}
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="trainingUrl">Training / VSL link (shown on the retake-lock screen)</Label>
+              <Label htmlFor="trainingUrl">
+                Training / VSL link (shown on the retake-lock screen){" "}
+                <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="trainingUrl"
+                required
                 value={values.trainingUrl ?? ""}
                 onChange={(e) => set("trainingUrl", e.target.value)}
                 placeholder="https://…"
               />
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Required. Can be the same URL as the destination page below.
+              </p>
             </div>
           </div>
 
@@ -295,17 +302,22 @@ export function AssessmentForm({
             <p className="text-sm font-medium">Destination page</p>
             <p className="text-xs text-[var(--muted-foreground)]">
               Where respondents land after finishing (we append <span className="font-mono">?t=&lt;token&gt;</span>).
-              This page is also what the result endpoint authorizes (CORS). Leave blank to
-              show the built-in result page.
+              This page is also what the result endpoint authorizes (CORS).
             </p>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="targetUrl">Destination page URL</Label>
+              <Label htmlFor="targetUrl">
+                Destination page URL <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="targetUrl"
+                required
                 value={values.targetUrl ?? ""}
                 onChange={(e) => set("targetUrl", e.target.value)}
                 placeholder="https://your-page.com/results"
               />
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Required, must be https. Can be the same URL as the Training / VSL link above.
+              </p>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="tokenTtl">Result link lifetime (seconds)</Label>

@@ -36,15 +36,19 @@ export const assessmentSchema = z.object({
     .max(3650, "Lock days can be at most 3650.")
     .default(15),
   uniqueIdentifier: z.enum(["EMAIL", "MOBILE"]).default("EMAIL"),
-  trainingUrl: z.string().url("Must be a valid URL.").optional().or(z.literal("")),
-  // Destination page the respondent lands on after completing. Its origin
-  // authorizes the public read endpoint (CORS), so it must be a valid https URL.
+  // Training/VSL link shown on the retake-lock screen. REQUIRED (may be the same
+  // URL as the destination page).
+  trainingUrl: z
+    .string()
+    .min(1, "Training / VSL link is required.")
+    .url("Enter a valid Training / VSL URL."),
+  // Destination page the respondent lands on after completing. REQUIRED. Its
+  // origin authorizes the public read endpoint (CORS), so it must be https.
   targetUrl: z
     .string()
+    .min(1, "Destination page URL is required.")
     .url("Enter a valid URL.")
-    .startsWith("https://", "Destination URL must use https://")
-    .optional()
-    .or(z.literal("")),
+    .startsWith("https://", "Destination URL must use https://"),
   tokenTtlSeconds: z.coerce.number().int().min(60).max(86400).optional(),
 }).superRefine((d, ctx) => {
   // A lockout can only be enforced if the identifying field is always captured.
