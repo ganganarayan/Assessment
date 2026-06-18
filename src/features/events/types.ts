@@ -56,6 +56,14 @@ export const ACTIVE_EVENT_TYPES: EventType[] = [
   EventType.RESULT_LINK_REQUESTED,
 ];
 
+/**
+ * Dotted names the app actually emits — the ONLY valid outbound-webhook event
+ * names. The admin UI offers these in a dropdown and createWebhook rejects
+ * anything else, so a typo (e.g. "aeeseement.completed") can never be saved as a
+ * silently-never-delivering webhook.
+ */
+export const EMITTED_EVENT_NAMES: string[] = ACTIVE_EVENT_TYPES.map((t) => EVENT_NAME[t]);
+
 /* ---------------------------------------------------- canonical payload ---- */
 
 export interface PayloadTenant {

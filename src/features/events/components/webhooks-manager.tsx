@@ -20,23 +20,29 @@ function fmt(iso: string | null) {
 export function WebhooksManager({
   active,
   inactive,
+  availableEventNames,
 }: {
   active: WebhookRow[];
   inactive: WebhookRow[];
+  /** Emitted event names not yet registered — the only valid choices. */
+  availableEventNames: string[];
 }) {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const [name, setName] = useState(availableEventNames[0] ?? "");
   const [url, setUrl] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
+  // The effective selection: keep the user's pick if still available, else the
+  // first available name (auto-advances after a create removes one from the list).
+  const selected = availableEventNames.includes(name) ? name : (availableEventNames[0] ?? "");
+
   function create() {
     setErr(null);
     start(async () => {
-      const res = await createWebhook(name, url, enabled);
+      const res = await createWebhook(selected, url, enabled);
       if (!res.ok) return setErr(res.error);
-      setName("");
       setUrl("");
       setEnabled(true);
       router.refresh();
@@ -56,12 +62,24 @@ export function WebhooksManager({
     <div className="flex flex-col gap-6">
       {/* Create form: one row */}
       <div className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center">
-        <Input
-          className="sm:w-56"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Event Name (e.g. lead.created)"
-        />
+        {availableEventNames.length > 0 ? (
+          <select
+            className="h-9 rounded-md border bg-[var(--background)] px-2 text-sm text-[var(--foreground)] sm:w-56"
+            value={selected}
+            onChange={(e) => setName(e.target.value)}
+            aria-label="Event name"
+          >
+            {availableEventNames.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <p className="px-1 text-sm text-[var(--muted-foreground)] sm:w-56">
+            All event webhooks created.
+          </p>
+        )}
         <Input
           className="sm:flex-1"
           value={url}
@@ -72,7 +90,10 @@ export function WebhooksManager({
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
           Active
         </label>
-        <Button onClick={create} disabled={pending || !name.trim() || !url.trim()}>
+        <Button
+          onClick={create}
+          disabled={pending || !selected || !url.trim() || availableEventNames.length === 0}
+        >
           Create
         </Button>
       </div>

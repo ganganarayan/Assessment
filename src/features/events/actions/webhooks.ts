@@ -7,6 +7,7 @@ import { requireSuperAdmin } from "@/lib/auth/guards";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { deliverWebhook } from "@/lib/webhooks/dispatch";
 import { generateWebhookSecret } from "@/lib/webhooks/sign";
+import { EMITTED_EVENT_NAMES } from "@/features/events/types";
 
 // Event names: immutable + unique. Lowercase, dotted (e.g. lead.created).
 const nameSchema = z
@@ -25,6 +26,14 @@ export async function createWebhook(
   await requireSuperAdmin();
   const n = nameSchema.safeParse(name);
   if (!n.success) return { ok: false, error: n.error.issues[0]?.message ?? "Invalid event name." };
+  // Only events the app actually emits can be subscribed to — this rejects typos
+  // (e.g. "aeeseement.completed") that would otherwise never deliver.
+  if (!EMITTED_EVENT_NAMES.includes(n.data)) {
+    return {
+      ok: false,
+      error: `Unknown event "${n.data}". Valid events: ${EMITTED_EVENT_NAMES.join(", ")}.`,
+    };
+  }
   const u = urlSchema.safeParse(url);
   if (!u.success) return { ok: false, error: u.error.issues[0]?.message ?? "Invalid URL." };
 
