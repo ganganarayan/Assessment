@@ -1,23 +1,18 @@
 import { notFound } from "next/navigation";
 import { getSubmissionResult } from "@/features/assessment/data";
 import { markResultViewed } from "@/features/events/record";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Result page is intentionally PUBLIC-BY-LINK: it is reachable by anyone holding
- * the submission id (a high-entropy cuid handed to the respondent). It renders
- * NO lead PII — getSubmissionResult deliberately does not select leadFirstName /
- * leadLastName / leadEmail / leadMobile — only the assessment title, score,
- * result band, and category breakdown. Do not add PII to this page or query.
+ * Built-in fallback confirmation page. It is reached only when an assessment has
+ * no Destination URL (Destination URL is mandatory for new assessments, so in
+ * practice this is a safety net for legacy assessments / direct navigation).
+ *
+ * It DELIBERATELY renders NO score, band, or category breakdown — results are
+ * delivered ONLY via the configured destination page (token + connector reading
+ * /api/r/:token). getSubmissionResult also selects no lead PII. Do not add
+ * results or PII to this page.
  */
 export default async function ResultPage({
   params,
@@ -32,69 +27,32 @@ export default async function ResultPage({
   // Emit result.viewed once (server-side; no UI impact, non-blocking webhook).
   await markResultViewed(submissionId);
 
-  const band = submission.resultBand;
-  const total = submission.totalScore ?? 0;
-  const max = submission.maxScore ?? 0;
-  const percentage = max > 0 ? Math.round((total / max) * 100) : 0;
+  const completed = submission.status === "COMPLETED";
+  const thankYou = submission.assessment.thankYouMessage?.trim();
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-1">
-          <p className="text-sm text-[var(--muted-foreground)]">
-            {submission.assessment.title}
-          </p>
-          <h1 className="text-3xl font-bold tracking-tight">Your result</h1>
-        </div>
-
-        {submission.status !== "COMPLETED" ? (
-          <p className="text-[var(--muted-foreground)]">
-            This submission is not complete yet.
-          </p>
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-[var(--muted-foreground)]">
+          {submission.assessment.title}
+        </p>
+        {completed ? (
+          <>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Your assessment has been recorded
+            </h1>
+            <p className="text-[var(--muted-foreground)]">
+              {thankYou && thankYou.length > 0
+                ? thankYou
+                : "Thank you for completing the assessment."}
+            </p>
+          </>
         ) : (
           <>
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  {band ? <Badge variant="outline">{band.level}</Badge> : null}
-                  <CardTitle>{band?.title ?? "Result"}</CardTitle>
-                </div>
-                <CardDescription>
-                  Score: {percentage}% ({total}
-                  {max ? ` / ${max}` : ""})
-                </CardDescription>
-              </CardHeader>
-              {band?.description ? (
-                <CardContent className="text-sm">{band.description}</CardContent>
-              ) : null}
-            </Card>
-
-            {submission.categoryScores.length > 0 ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Category breakdown</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-2 text-sm">
-                  {submission.categoryScores.map((cs) => (
-                    <div
-                      key={cs.id}
-                      className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0"
-                    >
-                      <span>{cs.category.name}</span>
-                      <span className="font-medium">
-                        {cs.score} / {cs.maxScore}
-                      </span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            ) : null}
-
-            {submission.assessment.thankYouMessage ? (
-              <p className="text-sm text-[var(--muted-foreground)]">
-                {submission.assessment.thankYouMessage}
-              </p>
-            ) : null}
+            <h1 className="text-3xl font-bold tracking-tight">Almost there</h1>
+            <p className="text-[var(--muted-foreground)]">
+              This submission is not complete yet.
+            </p>
           </>
         )}
       </div>
