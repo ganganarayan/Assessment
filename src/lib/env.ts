@@ -23,6 +23,14 @@ const serverSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   R2_BUCKET_NAME: z.string().min(1).optional(),
   R2_PUBLIC_URL: z.string().url().optional(),
+
+  // Meta Conversions API (server-side events). ALL optional: when the access
+  // token is unset the CAPI sender is a no-op, so the app boots and the browser
+  // pixel still works. META_DATASET_ID defaults to NEXT_PUBLIC_META_PIXEL_ID.
+  META_CAPI_ACCESS_TOKEN: z.string().min(1).optional(),
+  META_DATASET_ID: z.string().min(1).optional(),
+  META_GRAPH_API_VERSION: z.string().min(1).default("v21.0"),
+  META_CAPI_TEST_EVENT_CODE: z.string().min(1).optional(),
 });
 
 const publicSchema = z.object({

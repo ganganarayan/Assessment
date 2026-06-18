@@ -23,6 +23,7 @@
     "verify:webhook-payload": "tsx scripts/verify-webhook-payload.ts",
     "verify:retake": "tsx scripts/verify-retake.ts",
     "verify:vsl": "tsx scripts/verify-vsl.ts",
+    "verify:capi": "tsx scripts/verify-capi.ts",
     "seed:category-bands": "tsx scripts/seed-category-bands.ts",
     "postinstall": "prisma generate"
   },

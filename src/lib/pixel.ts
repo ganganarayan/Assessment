@@ -8,14 +8,28 @@ declare global {
   }
 }
 
-export function pixelTrack(event: string, params?: Record<string, unknown>): void {
+/**
+ * `eventID` (optional) deduplicates this browser event against the server-side
+ * Conversions API event of the same name — pass the id the server returned.
+ */
+export function pixelTrack(
+  event: string,
+  params?: Record<string, unknown>,
+  eventID?: string,
+): void {
   if (typeof window !== "undefined" && typeof window.fbq === "function") {
-    window.fbq("track", event, params);
+    if (eventID) window.fbq("track", event, params, { eventID });
+    else window.fbq("track", event, params);
   }
 }
 
-export function pixelTrackCustom(event: string, params?: Record<string, unknown>): void {
+export function pixelTrackCustom(
+  event: string,
+  params?: Record<string, unknown>,
+  eventID?: string,
+): void {
   if (typeof window !== "undefined" && typeof window.fbq === "function") {
-    window.fbq("trackCustom", event, params);
+    if (eventID) window.fbq("trackCustom", event, params, { eventID });
+    else window.fbq("trackCustom", event, params);
   }
 }

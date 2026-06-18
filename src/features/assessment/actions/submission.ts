@@ -21,6 +21,9 @@ import { isPlatformOwner } from "@/lib/auth/platform";
 import { normalizeIdentifier, evaluateLockout } from "@/features/assessment/lockout";
 import { generateCustomerId, generateToken } from "@/lib/ids";
 import { env } from "@/lib/env";
+import { randomUUID } from "crypto";
+import { sendCapiEvent, isCapiConfigured } from "@/lib/meta/send";
+import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { buildResultSnapshot, mapCategoryResult } from "@/lib/result/snapshot";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 
@@ -48,7 +51,7 @@ function buildResultUrl(
 
 
 export type StartResult =
-  | { status: "started"; submissionId: string }
+  | { status: "started"; submissionId: string; eventId?: string }
   | {
       status: "locked";
       policy: "DELAYED" | "NEVER";
@@ -81,6 +84,45 @@ async function emitStart(
   };
   await emitEvent(EventType.LEAD_CREATED, base);
   await emitEvent(EventType.ASSESSMENT_STARTED, base);
+}
+
+/**
+ * Fire everything that happens on a NEW registration: the CRM events (lead.created
+ * + assessment.started) AND a server-side Meta CAPI `CompleteRegistration`.
+ * Returns the CAPI eventId so the browser pixel can fire with the SAME id and
+ * Meta deduplicates the two. Called ONLY on the created path (never on resume),
+ * so a registration is counted exactly once.
+ */
+async function fireRegistration(
+  assessment: StartAssessment,
+  submissionId: string,
+  customerId: string,
+  lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null },
+  attr: ReturnType<typeof normalizeAttribution>,
+): Promise<string> {
+  await emitStart(assessment, submissionId, customerId, lead, attr);
+  const eventId = randomUUID();
+  // Server-side Meta CAPI. Inert unless configured; getMetaRequestContext is
+  // fail-soft; the send is fire-and-forget so Meta's network never adds latency.
+  // The eventId is returned regardless so the browser pixel can dedup.
+  if (isCapiConfigured()) {
+    const ctx = await getMetaRequestContext();
+    void sendCapiEvent({
+      eventName: "CompleteRegistration",
+      eventId,
+      eventTimeMs: Date.now(),
+      eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
+      user: {
+        email: lead.email,
+        phone: lead.mobile,
+        firstName: lead.firstName,
+        lastName: lead.lastName,
+        ...ctx,
+      },
+      customData: { content_name: assessment.title },
+    }).catch(() => {});
+  }
+  return eventId;
 }
 
 /**
@@ -222,10 +264,14 @@ export async function startSubmission(
         },
       };
     }
+    let eventId: string | undefined;
     if (outcome.kind === "created") {
-      await emitStart(assessment, outcome.submissionId, outcome.customerId, leadFields, attr);
+      eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr);
     }
-    return { ok: true, data: { status: "started", submissionId: outcome.submissionId } };
+    return {
+      ok: true,
+      data: { status: "started", submissionId: outcome.submissionId, ...(eventId ? { eventId } : {}) },
+    };
   }
 
   // No lockout (UNLIMITED / admin / no identifier): create + emit directly.
@@ -233,8 +279,8 @@ export async function startSubmission(
     data: { ...submissionData, customerId: newCustomerId },
     select: { id: true },
   });
-  await emitStart(assessment, created.id, newCustomerId, leadFields, attr);
-  return { ok: true, data: { status: "started", submissionId: created.id } };
+  const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr);
+  return { ok: true, data: { status: "started", submissionId: created.id, eventId } };
 }
 
 /**
@@ -317,7 +363,7 @@ export async function requestPreviousResults(
 export async function completeSubmission(
   submissionId: string,
   input: AnswersInput,
-): Promise<ActionResult<{ submissionId: string; resultUrl: string }>> {
+): Promise<ActionResult<{ submissionId: string; resultUrl: string; eventId?: string }>> {
   const parsed = answersSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid answers." };
@@ -542,5 +588,27 @@ export async function completeSubmission(
     attribution: normalizeAttribution(submission.attribution) ?? undefined,
   } satisfies EmitInput);
 
-  return { ok: true, data: { submissionId, resultUrl } };
+  // Server-side Meta CAPI (AssessmentCompleted). Runs ONLY for the winning
+  // writer (exactly-once); the returned eventId dedups the browser pixel.
+  // Inert unless configured; fail-soft context; non-blocking send.
+  const eventId = randomUUID();
+  if (isCapiConfigured()) {
+    const ctx = await getMetaRequestContext();
+    void sendCapiEvent({
+      eventName: "AssessmentCompleted",
+      eventId,
+      eventTimeMs: Date.now(),
+      eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
+      user: {
+        email: full?.leadEmail ?? null,
+        phone: full?.leadMobile ?? null,
+        firstName: full?.leadFirstName ?? null,
+        lastName: full?.leadLastName ?? null,
+        ...ctx,
+      },
+      customData: { content_name: assessment.title },
+    }).catch(() => {});
+  }
+
+  return { ok: true, data: { submissionId, resultUrl, eventId } };
 }

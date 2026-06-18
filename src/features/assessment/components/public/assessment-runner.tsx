@@ -110,8 +110,12 @@ export function AssessmentRunner({
         setStep("locked");
         return;
       }
-      // Meta Pixel: a real registration (not a retake-lockout) just happened.
-      pixelTrack("CompleteRegistration", { content_name: assessment.title });
+      // Meta Pixel: fire CompleteRegistration ONLY on a genuine new
+      // registration (server returns an eventId then; absent on resume). The
+      // eventId dedups against the server-side CAPI event of the same name.
+      if (res.data?.status === "started" && res.data.eventId) {
+        pixelTrack("CompleteRegistration", { content_name: assessment.title }, res.data.eventId);
+      }
       setSubmissionId(res.data?.submissionId ?? null);
       setStep("questions");
     });
@@ -151,8 +155,12 @@ export function AssessmentRunner({
         setError(res.error);
         return;
       }
-      // Meta Pixel: assessment finished (custom event) — fire before the redirect.
-      pixelTrackCustom("AssessmentCompleted", { content_name: assessment.title });
+      // Meta Pixel: assessment finished (custom event) — fire before the
+      // redirect, ONLY for the winning completion (server returns an eventId
+      // then). The eventId dedups against the server-side CAPI event.
+      if (res.data?.eventId) {
+        pixelTrackCustom("AssessmentCompleted", { content_name: assessment.title }, res.data.eventId);
+      }
       setRedirectUrl(res.data?.resultUrl ?? `/a/${assessment.slug}/r/${submissionId}`);
       setStep("redirecting");
     });
