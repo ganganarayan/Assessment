@@ -31,7 +31,7 @@ export function isCapiConfigured(): boolean {
  * for "is the app's event reaching Meta" — unlike sendCapiEvent it surfaces the
  * status + body instead of swallowing.
  */
-export async function testCapi(): Promise<{
+export async function testCapi(testEventCode?: string): Promise<{
   ok: boolean;
   eventName: string;
   datasetId?: string;
@@ -49,6 +49,9 @@ export async function testCapi(): Promise<{
         "META_CAPI_ACCESS_TOKEN (and a dataset/pixel id) is NOT set on this environment, so the app sends nothing to Meta. Add it in Railway → Variables for THIS service.",
     };
   }
+  // A test code (entered for this send, or the env default) routes the event to
+  // the Events Manager → Test Events tab so you can watch it arrive in seconds.
+  const code = (testEventCode && testEventCode.trim()) || cfg.testEventCode;
   const body = JSON.stringify({
     data: [
       buildCapiEvent({
@@ -60,7 +63,7 @@ export async function testCapi(): Promise<{
         customData: { content_name: "CAPI diagnostic" },
       }),
     ],
-    ...(cfg.testEventCode ? { test_event_code: cfg.testEventCode } : {}),
+    ...(code ? { test_event_code: code } : {}),
   });
   const url = `https://graph.facebook.com/${cfg.version}/${cfg.datasetId}/events?access_token=${encodeURIComponent(cfg.accessToken)}`;
   try {

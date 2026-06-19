@@ -3,16 +3,18 @@
 import { useState, useTransition } from "react";
 import { testMetaCapi } from "@/features/events/actions/capi-test";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type Result = Awaited<ReturnType<typeof testMetaCapi>>;
 
 export function CapiTester() {
   const [result, setResult] = useState<Result | null>(null);
+  const [code, setCode] = useState("");
   const [pending, start] = useTransition();
 
   function run() {
     setResult(null);
-    start(async () => setResult(await testMetaCapi()));
+    start(async () => setResult(await testMetaCapi(code)));
   }
 
   return (
@@ -27,11 +29,22 @@ export function CapiTester() {
         </p>
       </div>
 
-      <div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Input
+          className="sm:w-72"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="Test Events code (optional, e.g. TEST12345)"
+        />
         <Button onClick={run} disabled={pending}>
           {pending ? "Sending…" : "Send test event to Meta"}
         </Button>
       </div>
+      <p className="text-xs text-[var(--muted-foreground)]">
+        Paste the code from Events Manager → your dataset → <em>Test Events</em> to watch this
+        event arrive there live (it won&apos;t count as a real conversion). Leave blank to send a
+        normal event.
+      </p>
 
       {result ? (
         <div className="rounded-md border p-3 text-sm">

@@ -5,7 +5,7 @@ import { testCapi } from "@/lib/meta/send";
 
 /** Super-admin diagnostic: fire a server-side AssessmentCompleted to Meta CAPI
  *  and return Meta's real response. */
-export async function testMetaCapi() {
+export async function testMetaCapi(testEventCode?: string) {
   await requireSuperAdmin();
-  return testCapi();
+  return testCapi(testEventCode);
 }
