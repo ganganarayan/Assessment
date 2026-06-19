@@ -45,7 +45,7 @@ export interface PublicAssessment {
   categories: PublicCategory[];
 }
 
-type Step = "intro" | "lead" | "questions" | "locked" | "evaluating" | "redirecting";
+type Step = "intro" | "lead" | "questions" | "locked" | "evaluating";
 
 interface Lockout {
   policy: "DELAYED" | "NEVER";
@@ -84,7 +84,6 @@ export function AssessmentRunner({
   const [error, setError] = useState<string | null>(null);
   const [lockout, setLockout] = useState<Lockout | null>(null);
   const [emailSent, setEmailSent] = useState(false);
-  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const questions = assessment.categories.flatMap((c) => c.questions);
@@ -165,8 +164,11 @@ export function AssessmentRunner({
       if (res.data?.eventId) {
         pixelTrackCustom("AssessmentCompleted", { content_name: assessment.title }, res.data.eventId);
       }
-      setRedirectUrl(res.data?.resultUrl ?? `/a/${assessment.slug}/r/${submissionId}`);
-      setStep("redirecting");
+      // Keep the one spinner up while the pixel beacon flushes, then go — no
+      // second countdown, no flicker.
+      const url = res.data?.resultUrl ?? `/a/${assessment.slug}/r/${submissionId}`;
+      await new Promise((r) => setTimeout(r, 1200));
+      window.location.replace(url);
     });
   }
 
@@ -328,10 +330,6 @@ export function AssessmentRunner({
     return <EvaluatingCountdown />;
   }
 
-  if (step === "redirecting" && redirectUrl) {
-    return <CountdownRedirect url={redirectUrl} />;
-  }
-
   // step === "questions"
   const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(" ");
   const leadContact = [lead.email, lead.mobile].filter(Boolean).join(" · ");
@@ -386,10 +384,10 @@ export function AssessmentRunner({
 }
 
 /**
- * "Analyzing…" countdown from 10 shown WHILE the server scores + generates the AI
- * statement. It's cosmetic: the actual redirect is driven by completeSubmission
- * resolving (the statement is stored by then), so we stop and move on the moment
- * the response arrives — counting past 0 just shows "Almost ready…".
+ * One big spinner shown from submit until the redirect, with the countdown number
+ * centered INSIDE the ring. The number is a separate (non-rotating) layer so it
+ * stays upright while the ring spins. Cosmetic: the redirect is driven by
+ * completeSubmission resolving; past 0 it shows a check.
  */
 function EvaluatingCountdown() {
   const [n, setN] = useState(10);
@@ -399,45 +397,14 @@ function EvaluatingCountdown() {
     return () => clearTimeout(t);
   }, [n]);
   return (
-    <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
-      <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--muted)] border-t-[var(--primary)]" />
+    <div className="flex min-h-[55vh] flex-col items-center justify-center gap-6 text-center">
+      <div className="relative h-36 w-36">
+        <div className="absolute inset-0 animate-spin rounded-full border-4 border-[var(--muted)] border-t-[var(--primary)]" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-5xl font-bold tabular-nums">{n > 0 ? n : "✓"}</span>
+        </div>
+      </div>
       <p className="text-lg font-medium">Analyzing your results…</p>
-      {n > 0 ? (
-        <p className="text-4xl font-bold tabular-nums">{n}</p>
-      ) : (
-        <p className="text-sm text-[var(--muted-foreground)]">Almost ready…</p>
-      )}
-    </div>
-  );
-}
-
-/**
- * Brief "results ready" pause (lets the browser pixel flush) then a hard redirect
- * to the destination URL. The AI statement is already generated + stored by now
- * (during the "Analyzing…" step), so this stays short.
- */
-function CountdownRedirect({ url }: { url: string }) {
-  const [n, setN] = useState(2);
-  useEffect(() => {
-    if (n <= 0) {
-      window.location.replace(url);
-      return;
-    }
-    const t = setTimeout(() => setN((x) => x - 1), 1000);
-    return () => clearTimeout(t);
-  }, [n, url]);
-
-  return (
-    <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
-      <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--muted)] border-t-[var(--primary)]" />
-      {n > 0 ? (
-        <>
-          <p className="text-lg font-medium">Evaluating your results…</p>
-          <p className="text-4xl font-bold tabular-nums">{n}</p>
-        </>
-      ) : (
-        <p className="text-lg font-medium">Your results are ready</p>
-      )}
     </div>
   );
 }
