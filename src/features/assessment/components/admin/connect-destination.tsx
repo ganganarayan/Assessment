@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const CONNECTOR_VERSION = "v7";
+const CONNECTOR_VERSION = "v8";
 
 /**
  * Two snippets, because the customer's page builder runs scripts ONLY in the
@@ -37,9 +37,10 @@ export function ConnectDestination({
   return (
     <div className="flex flex-col gap-4">
       <ol className="list-decimal pl-5 text-sm text-[var(--muted-foreground)]">
-        <li>Paste <strong>Part A</strong> in the page&apos;s <span className="font-mono">&lt;head&gt;</span> (head/custom-code section — this is where scripts run).</li>
-        <li>Paste <strong>Part B</strong> in the page <strong>body, right above your video</strong> (it&apos;s plain HTML).</li>
-        <li>Both stay blank until a result loads. To confirm, open the page&apos;s browser Console — you should see <span className="font-mono">[assess360] connector {CONNECTOR_VERSION} active</span>. Re-copy <strong>both</strong> whenever you change settings.</li>
+        <li><strong>First remove any old assess360 code</strong> from the page (old <span className="font-mono">id=&quot;ai-statement&quot;</span> / <span className="font-mono">assess360-results</span> blocks and any <span className="font-mono">{"{%contact.ai_statement%}"}</span> tag) — duplicate pastes get auto-renamed by the builder and break it.</li>
+        <li>Paste <strong>Part A</strong> in the page&apos;s <span className="font-mono">&lt;head&gt;</span> (where scripts run).</li>
+        <li>Paste <strong>Part B</strong> in the page <strong>body, right above your video</strong> (plain HTML; it uses a class, not an id, so it survives re-pastes).</li>
+        <li>Stays blank until a result loads. Console should show <span className="font-mono">[assess360] connector {CONNECTOR_VERSION} active</span>.</li>
       </ol>
       <CodeBlock title={`Part A — paste in <head> (connector ${CONNECTOR_VERSION})`} code={partA} />
       <CodeBlock title="Part B — paste in body, above your video" code={partB} />
@@ -94,9 +95,10 @@ function buildHeadSnippet(endpointBase: string): string {
   function show(d) {
     var stmt = d.aiStatement || d.resultSuggestion || d.resultBand;
     if (stmt == null) return;
-    // Fill EVERY #ai-statement (robust if old code left a duplicate hidden one).
-    var els = document.querySelectorAll('[id="ai-statement"]');
-    if (!els.length) { console.warn('[assess360] Part B missing — paste <div id="ai-statement"></div> in the page body'); return; }
+    // Target a CLASS (builders don't rename duplicate classes) + any id starting
+    // with "ai-statement" (builders auto-suffix duplicate ids to -2, -3, ...).
+    var els = document.querySelectorAll('.assess360-ai-statement, [id^="ai-statement"]');
+    if (!els.length) { console.warn('[assess360] target missing — paste the body snippet (div.assess360-ai-statement) above your video'); return; }
     for (var i = 0; i < els.length; i++) els[i].textContent = String(stmt);
   }
   function go() { load().then(show).catch(function () {}); }
@@ -107,7 +109,8 @@ function buildHeadSnippet(endpointBase: string): string {
 }
 
 function buildBodySnippet(): string {
-  // Plain HTML for the body — invisible until the head script fills it.
+  // Class-based (NOT id) so the page builder never renames it on duplicate paste.
+  // Invisible until the head script fills it.
   return `<!-- assess360 results ${CONNECTOR_VERSION} — paste in body, above your video -->
-<div id="ai-statement" style="white-space:pre-line"></div>`;
+<div class="assess360-ai-statement" style="white-space:pre-line"></div>`;
 }
