@@ -106,11 +106,7 @@ export default async function EditAssessmentPage({
         <p className="text-xs text-[var(--muted-foreground)]">
           Paste a URL above (Destination page), save, then copy this connector into your page.
         </p>
-        <ConnectDestination
-          targetUrl={a.targetUrl}
-          categories={a.categories.map((c) => c.name)}
-          endpointBase={env.NEXT_PUBLIC_APP_URL}
-        />
+        <ConnectDestination targetUrl={a.targetUrl} endpointBase={env.NEXT_PUBLIC_APP_URL} />
       </section>
 
       <section className="flex flex-col gap-3">

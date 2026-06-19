@@ -155,6 +155,7 @@ export function buildEnvelope(
   envelope["contact.max"] = score?.max ?? null;
   envelope["contact.result_band"] = band?.level ?? null;
   envelope["contact.result_url"] = (m.resultUrl as string | null) ?? null;
+  envelope["contact.ai_statement"] = input.aiStatement ?? null;
 
   // Per-category bands as flat contact custom fields (keyed by exact category
   // name), so the CRM can map e.g. `contact.Sleep & Mental Recovery band`.

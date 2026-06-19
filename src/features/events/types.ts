@@ -158,6 +158,8 @@ export interface EmitInput {
   categories?: PayloadCategory[] | null;
   /** Destination/result URL (built server-side, e.g. `${targetUrl}?t=${token}`). */
   resultUrl?: string | null;
+  /** AI-generated personalized statement (sent to the CRM as contact.ai_statement). */
+  aiStatement?: string | null;
   attribution?: Partial<PayloadAttribution> | null;
   /** Override the event timestamp (defaults to now). Used for deterministic samples. */
   timestamp?: string;

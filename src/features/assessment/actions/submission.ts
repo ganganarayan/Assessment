@@ -624,6 +624,7 @@ export async function completeSubmission(
     resultBand: band ? { level: band.level, title: band.title } : null,
     categories: categoryResults,
     resultUrl,
+    aiStatement,
     attribution: normalizeAttribution(submission.attribution) ?? undefined,
   } satisfies EmitInput);
 

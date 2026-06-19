@@ -61,6 +61,7 @@ const CONTACT_FIELDS = [
   "contact.scorePercent",
   "contact.scoreRaw",
   "contact.max",
+  "contact.ai_statement",
 ];
 const TOP = [...TOP_FIXED, ...CONTACT_FIELDS];
 const META = ["assessmentId", "assessmentTitle", "assessmentSlug", "assessmentUrl", "resultUrl", "score", "resultBand", "categories"];
@@ -160,9 +161,11 @@ for (const type of ACTIVE_EVENT_TYPES) {
         { name: "Stress Load", score: 3, max: 12, band: "Low", meaning: "watch" },
       ],
       resultUrl: "https://page.com/r?ref=fb&t=ABC",
+      aiStatement: "Hi G, you're carrying a lot right now…",
     } satisfies EmitInput,
     BASE,
   );
+  expect("contact.ai_statement carries through", env["contact.ai_statement"] === "Hi G, you're carrying a lot right now…");
   expect("categories flat band", env["contact.Sleep & Mental Recovery band"] === "Strong");
   expect("categories flat meaning", env["contact.Sleep & Mental Recovery meaning"] === "good");
   expect("categories flat score", env["contact.Stress Load score"] === 3);
