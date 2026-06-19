@@ -24,6 +24,7 @@ import { env } from "@/lib/env";
 import { randomUUID } from "crypto";
 import { sendCapiEvent, isCapiConfigured } from "@/lib/meta/send";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
+import { generatePersonalStatement } from "@/lib/ai/generate";
 import { buildResultSnapshot, mapCategoryResult } from "@/lib/result/snapshot";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 
@@ -378,6 +379,7 @@ export async function completeSubmission(
       attribution: true,
       customerId: true,
       resultToken: true,
+      leadFirstName: true,
       assessment: { select: { slug: true, targetUrl: true } },
     },
   });
@@ -486,6 +488,40 @@ export async function completeSubmission(
   const token = generateToken();
   const ttl = assessment.tokenTtlSeconds ?? DEFAULT_RESULT_TOKEN_TTL_SECONDS;
   const expiresAt = new Date(Date.now() + ttl * 1000);
+  // Guard the billable, multi-second AI call: if a concurrent writer already
+  // completed this submission (it passed the COMPLETED check at the top but won
+  // the race during scoring), return their result instead of generating again.
+  const recheck = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    select: { status: true, resultToken: true },
+  });
+  if (recheck?.status === "COMPLETED") {
+    return {
+      ok: true,
+      data: {
+        submissionId,
+        resultUrl: buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, recheck.resultToken),
+      },
+    };
+  }
+
+  // AI personalized statement (RAW scores only — no per-category interpretation).
+  // Fail-soft: null when AI is off/slow/errors, and the page falls back to the
+  // static suggestion. Generated once and stored on the submission/snapshot.
+  const aiStatement = await generatePersonalStatement({
+    firstName: submission.leadFirstName,
+    assessmentTitle: assessment.title,
+    scoreRaw: totalScore,
+    max: maxScore,
+    percentage: Math.round(percentage),
+    band: band?.title ?? null,
+    categories: categoryScores.map((cs) => ({
+      name: categoryById.get(cs.categoryId)?.name ?? "",
+      score: cs.score,
+      max: cs.maxScore,
+    })),
+  });
+
   const snapshot = buildResultSnapshot({
     customerId,
     scoreRaw: totalScore,
@@ -493,6 +529,7 @@ export async function completeSubmission(
     scorePercent: Math.round(percentage),
     resultBand: band?.title ?? null,
     resultSuggestion: band?.description ?? null,
+    aiStatement,
     categories: categoryResults,
   });
   const resultUrl = buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, token);
@@ -532,6 +569,7 @@ export async function completeSubmission(
         resultToken: token,
         resultTokenExpiresAt: expiresAt,
         resultSnapshot: snapshot as unknown as Prisma.InputJsonValue,
+        aiStatement,
         ...(submission.customerId ? {} : { customerId }),
       },
     }),

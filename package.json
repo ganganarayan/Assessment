@@ -24,6 +24,7 @@
     "verify:retake": "tsx scripts/verify-retake.ts",
     "verify:vsl": "tsx scripts/verify-vsl.ts",
     "verify:capi": "tsx scripts/verify-capi.ts",
+    "verify:ai": "tsx scripts/verify-ai.ts",
     "seed:category-bands": "tsx scripts/seed-category-bands.ts",
     "postinstall": "prisma generate"
   },

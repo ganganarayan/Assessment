@@ -408,6 +408,9 @@ model Submission {
   resultTokenExpiresAt DateTime?
   resultSnapshot       Json?
 
+  // AI-generated personalized statement (stored against this submission/date).
+  aiStatement String?
+
   totalScore Float?
   maxScore   Float?
 
@@ -582,6 +585,15 @@ model WebhookLog {
 model AppSetting {
   id                  String   @id @default("singleton")
   abandonedAfterHours Int      @default(24)
+
+  // AI personalized-statement config (platform-level). The API key is stored
+  // ENCRYPTED at rest (see lib/crypto) and never returned to the client.
+  aiEnabled   Boolean @default(false)
+  aiProvider  String? // "claude" | "openai" | "gemini"
+  aiModel     String?
+  aiApiKeyEnc String?
+  aiGuidance  String?
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

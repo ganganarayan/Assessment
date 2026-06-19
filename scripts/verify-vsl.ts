@@ -57,13 +57,17 @@ console.log("VSL / token feature verification\n");
     scorePercent: 78,
     resultBand: "Balanced",
     resultSuggestion: "Keep it up.",
+    aiStatement: "Hi Sam, you're holding a lot…",
     categories: [{ name: "Sleep", score: 10, max: 12, band: "Strong", meaning: "good" }],
   });
   const keys = Object.keys(snap).sort().join(",");
-  expect("snapshot top keys", keys === "categories,customerId,max,resultBand,resultSuggestion,scorePercent,scoreRaw", keys);
+  expect("snapshot top keys", keys === "aiStatement,categories,customerId,max,resultBand,resultSuggestion,scorePercent,scoreRaw", keys);
   expect("snapshot values", snap.scorePercent === 78 && snap.scoreRaw === 47 && snap.max === 60 && snap.customerId === "K7M2P9QX");
   expect("snapshot resultSuggestion", snap.resultSuggestion === "Keep it up.");
-  expect("resultSuggestion defaults null", buildResultSnapshot({ customerId: "X", scoreRaw: 0, max: 0, scorePercent: 0, resultBand: null, categories: [] }).resultSuggestion === null);
+  expect("snapshot aiStatement", snap.aiStatement === "Hi Sam, you're holding a lot…");
+  const bare = buildResultSnapshot({ customerId: "X", scoreRaw: 0, max: 0, scorePercent: 0, resultBand: null, categories: [] });
+  expect("resultSuggestion defaults null", bare.resultSuggestion === null);
+  expect("aiStatement defaults null", bare.aiStatement === null);
 }
 
 // (d) Read outcome: 404 / 410 / 200.

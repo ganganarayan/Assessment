@@ -28,6 +28,8 @@ export interface ResultSnapshot {
   resultBand: string | null;
   /** Overall band suggestion/advice text (the matched result band's description). */
   resultSuggestion: string | null;
+  /** AI-generated personalized statement (null when AI is off/unavailable). */
+  aiStatement: string | null;
   categories: CategoryResultEntry[];
 }
 
@@ -54,6 +56,7 @@ export function buildResultSnapshot(args: {
   scorePercent: number;
   resultBand: string | null;
   resultSuggestion?: string | null;
+  aiStatement?: string | null;
   categories: CategoryResultEntry[];
 }): ResultSnapshot {
   return {
@@ -63,6 +66,7 @@ export function buildResultSnapshot(args: {
     max: args.max,
     resultBand: args.resultBand,
     resultSuggestion: args.resultSuggestion ?? null,
+    aiStatement: args.aiStatement ?? null,
     categories: args.categories,
   };
 }

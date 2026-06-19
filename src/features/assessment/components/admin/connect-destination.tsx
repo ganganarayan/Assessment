@@ -96,6 +96,8 @@ function buildHeaderSnippet(endpointBase: string): string {
     setText(document.getElementById("band-score"), d.scorePercent);
     setText(document.getElementById("band-overall"), d.resultBand);
     setText(document.getElementById("band-suggestion"), d.resultSuggestion);
+    // AI personalized statement falls back to the static suggestion when absent.
+    setText(document.getElementById("ai-statement"), d.aiStatement || d.resultSuggestion);
     (d.categories || []).forEach(function (c) {
       document.querySelectorAll('[data-cat="' + esc(c.name) + '"]').forEach(function (el) {
         var f = el.getAttribute("data-field");
@@ -141,6 +143,9 @@ function buildBodySnippet(categories: string[]): string {
 
   return `<div id="assess360-results">
   <div id="eval-state">Evaluating your results…</div>
+
+  <!-- Personalized AI message — sits above your video. -->
+  <p id="ai-statement"></p>
 
   <p>Overall: <span id="band-overall"></span></p>
   <p id="band-suggestion"></p>

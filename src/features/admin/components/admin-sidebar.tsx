@@ -28,7 +28,13 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
       { href: "/admin/pixel-test", label: "Pixel Tester" },
     ],
   },
-  { section: null, items: [{ href: "/admin/settings", label: "Settings" }] },
+  {
+    section: null,
+    items: [
+      { href: "/admin/ai", label: "AI" },
+      { href: "/admin/settings", label: "Settings" },
+    ],
+  },
 ];
 
 export function AdminSidebar() {
