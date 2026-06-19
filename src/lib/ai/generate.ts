@@ -15,10 +15,11 @@ import { DEFAULT_MODEL, isAiProvider, type AiConfig, type StatementInput } from 
 const TIMEOUT_MS = 12_000;
 const MAX_TOKENS = 400;
 
-export async function getAiConfig(): Promise<AiConfig | null> {
+async function readAiConfig(requireEnabled: boolean): Promise<AiConfig | null> {
   try {
     const s = await prisma.appSetting.findUnique({ where: { id: "singleton" } });
-    if (!s || !s.aiEnabled || !s.aiApiKeyEnc || !s.aiProvider) return null;
+    if (!s || !s.aiApiKeyEnc || !s.aiProvider) return null;
+    if (requireEnabled && !s.aiEnabled) return null;
     if (!isAiProvider(s.aiProvider)) return null;
     const apiKey = decryptWithSecret(s.aiApiKeyEnc, env.BETTER_AUTH_SECRET);
     if (!apiKey) return null;
@@ -33,6 +34,11 @@ export async function getAiConfig(): Promise<AiConfig | null> {
     console.error("[ai] config error:", e instanceof Error ? e.message : String(e));
     return null;
   }
+}
+
+/** Config used to actually GENERATE on the funnel — only when AI is enabled. */
+export async function getAiConfig(): Promise<AiConfig | null> {
+  return readAiConfig(true);
 }
 
 export async function isAiConfigured(): Promise<boolean> {
@@ -72,9 +78,10 @@ export async function testStatement(): Promise<{
   text?: string;
   error?: string;
 }> {
-  const cfg = await getAiConfig();
+  // Test ignores the Enable toggle — you test the key/model first, THEN enable.
+  const cfg = await readAiConfig(false);
   if (!cfg) {
-    return { ok: false, ms: 0, error: "AI is disabled or no API key is saved. Save a key and enable AI first." };
+    return { ok: false, ms: 0, error: "No API key saved (or it couldn't be read). Save a provider + key first." };
   }
   const { system, user } = buildStatementMessages({
     firstName: "Alex",
