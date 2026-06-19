@@ -68,10 +68,14 @@ function CodeBlock({ title, code }: { title: string; code: string }) {
   );
 }
 
+const CONNECTOR_VERSION = "v3";
+
 function buildHeaderSnippet(endpointBase: string): string {
-  return `<link rel="preconnect" href="${endpointBase}">
+  return `<!-- assess360 connector ${CONNECTOR_VERSION} — paste the LATEST copy from your admin -->
+<link rel="preconnect" href="${endpointBase}">
 <script>
 (function () {
+  console.log("[assess360] connector ${CONNECTOR_VERSION} active");
   var ENDPOINT_BASE = "${endpointBase}";
   var t = new URLSearchParams(location.search).get("t");
   if (!t) return;
@@ -101,7 +105,8 @@ function buildHeaderSnippet(endpointBase: string): string {
 
 function buildBodySnippet(): string {
   // Blank until the connector injects the saved AI statement (with its CTA).
-  return `<div id="assess360-results" style="display:none">
+  return `<!-- assess360 results ${CONNECTOR_VERSION} -->
+<div id="assess360-results" style="display:none">
   <p id="ai-statement"></p>
 </div>`;
 }

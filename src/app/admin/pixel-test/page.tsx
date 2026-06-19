@@ -1,4 +1,5 @@
 import { PixelTester } from "@/features/events/components/pixel-tester";
+import { CapiTester } from "@/features/events/components/capi-tester";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,8 @@ export default function PixelTestPage() {
       </div>
 
       <PixelTester />
+
+      <CapiTester />
 
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-[var(--muted-foreground)]">
         <strong className="text-[var(--foreground)]">Testing only.</strong> Events go to the
