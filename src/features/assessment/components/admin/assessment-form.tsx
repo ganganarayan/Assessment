@@ -325,15 +325,15 @@ export function AssessmentForm({
                 id="tokenTtl"
                 type="number"
                 min={60}
-                max={86400}
+                max={7776000}
                 className="w-40"
                 value={values.tokenTtlSeconds ?? ""}
                 onChange={(e) =>
                   set("tokenTtlSeconds", e.target.value === "" ? undefined : Number(e.target.value))
                 }
-                placeholder="3600"
+                placeholder="2592000"
               />
-              <p className="text-xs text-[var(--muted-foreground)]">Default 3600 (1 hour) if blank.</p>
+              <p className="text-xs text-[var(--muted-foreground)]">Default 30 days (2592000s) if blank. Keep it long so emailed/revisited result links don&apos;t expire.</p>
             </div>
           </div>
 

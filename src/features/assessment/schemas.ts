@@ -49,7 +49,7 @@ export const assessmentSchema = z.object({
     .min(1, "Destination page URL is required.")
     .url("Enter a valid URL.")
     .startsWith("https://", "Destination URL must use https://"),
-  tokenTtlSeconds: z.coerce.number().int().min(60).max(86400).optional(),
+  tokenTtlSeconds: z.coerce.number().int().min(60).max(7776000).optional(), // up to 90 days
 }).superRefine((d, ctx) => {
   // A lockout can only be enforced if the identifying field is always captured.
   if (d.retakePolicy === "UNLIMITED") return;

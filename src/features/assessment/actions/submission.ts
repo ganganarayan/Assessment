@@ -28,8 +28,11 @@ import { generatePersonalStatement } from "@/lib/ai/generate";
 import { buildResultSnapshot, mapCategoryResult } from "@/lib/result/snapshot";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 
-/** The ONE system-level fallback for the result-token TTL (overridable per assessment). */
-const DEFAULT_RESULT_TOKEN_TTL_SECONDS = 3600;
+/** The ONE system-level fallback for the result-token TTL (overridable per
+ *  assessment). 30 days — long enough that revisits and the emailed result link
+ *  (clicked hours/days later) still resolve; the token is a high-entropy,
+ *  per-submission id behind which only that person's own result sits. */
+const DEFAULT_RESULT_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
 /** Destination URL the respondent lands on; falls back to the internal result page. */
 function buildResultUrl(
