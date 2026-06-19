@@ -1,0 +1,111 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/db/prisma";
+import { requireSuperAdmin } from "@/lib/auth/guards";
+import { categoryBandSchema, type CategoryBandInput } from "@/features/assessment/schemas";
+import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
+
+/**
+ * Per-category evaluation bands (CategoryResultBand). The chosen LEVEL is stored
+ * as the band `label` (what the destination page shows as the category band);
+ * the suggestion is stored as `meaning`. Ranges must not overlap within a
+ * category. Mirrors actions/result-band.ts. Super-admin only.
+ */
+
+async function assessmentIdForCategory(categoryId: string): Promise<string | null> {
+  const cat = await prisma.category.findUnique({
+    where: { id: categoryId },
+    select: { assessmentId: true },
+  });
+  return cat?.assessmentId ?? null;
+}
+
+export async function createCategoryBand(
+  input: CategoryBandInput,
+): Promise<ActionResult<{ id: string }>> {
+  await requireSuperAdmin();
+  const parsed = categoryBandSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const d = parsed.data;
+
+  const assessmentId = await assessmentIdForCategory(d.categoryId);
+  if (!assessmentId) return { ok: false, error: "Category not found." };
+
+  const others = await prisma.categoryResultBand.findMany({
+    where: { categoryId: d.categoryId },
+    select: { minScore: true, maxScore: true },
+  });
+  if (others.some((b) => d.minScore <= b.maxScore && d.maxScore >= b.minScore)) {
+    return { ok: false, error: "This range overlaps an existing band for this category." };
+  }
+
+  const count = await prisma.categoryResultBand.count({ where: { categoryId: d.categoryId } });
+  const created = await prisma.categoryResultBand.create({
+    data: {
+      categoryId: d.categoryId,
+      label: d.level,
+      meaning: nullifyEmpty(d.suggestion),
+      minScore: d.minScore,
+      maxScore: d.maxScore,
+      displayOrder: count,
+    },
+    select: { id: true },
+  });
+
+  revalidatePath(`/admin/assessments/${assessmentId}`);
+  return { ok: true, data: { id: created.id } };
+}
+
+export async function updateCategoryBand(
+  id: string,
+  input: CategoryBandInput,
+): Promise<ActionResult> {
+  await requireSuperAdmin();
+  const parsed = categoryBandSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const d = parsed.data;
+
+  const current = await prisma.categoryResultBand.findUnique({
+    where: { id },
+    select: { categoryId: true },
+  });
+  if (!current) return { ok: false, error: "Band not found." };
+
+  const others = await prisma.categoryResultBand.findMany({
+    where: { categoryId: current.categoryId, NOT: { id } },
+    select: { minScore: true, maxScore: true },
+  });
+  if (others.some((b) => d.minScore <= b.maxScore && d.maxScore >= b.minScore)) {
+    return { ok: false, error: "This range overlaps an existing band for this category." };
+  }
+
+  await prisma.categoryResultBand.update({
+    where: { id },
+    data: {
+      label: d.level,
+      meaning: nullifyEmpty(d.suggestion),
+      minScore: d.minScore,
+      maxScore: d.maxScore,
+    },
+  });
+
+  const assessmentId = await assessmentIdForCategory(current.categoryId);
+  if (assessmentId) revalidatePath(`/admin/assessments/${assessmentId}`);
+  return { ok: true };
+}
+
+export async function deleteCategoryBand(id: string): Promise<ActionResult> {
+  await requireSuperAdmin();
+  const band = await prisma.categoryResultBand.delete({
+    where: { id },
+    select: { categoryId: true },
+  });
+  const assessmentId = await assessmentIdForCategory(band.categoryId);
+  if (assessmentId) revalidatePath(`/admin/assessments/${assessmentId}`);
+  return { ok: true };
+}

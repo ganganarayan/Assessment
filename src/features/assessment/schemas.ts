@@ -109,6 +109,26 @@ export const resultBandSchema = z
   });
 export type ResultBandInput = z.infer<typeof resultBandSchema>;
 
+/**
+ * Per-category evaluation band. Mirrors the overall result band but for a single
+ * category: a LOW/MEDIUM/HIGH/CRITICAL level (stored as the category band label)
+ * + an editable suggestion (stored as `meaning`), matched against the category's
+ * own score PERCENTAGE (0–100).
+ */
+export const categoryBandSchema = z
+  .object({
+    categoryId: z.string().min(1, "Pick a category."),
+    level: bandLevelSchema,
+    suggestion: z.string().max(2000).optional().or(z.literal("")),
+    minScore: z.coerce.number().min(0).max(100),
+    maxScore: z.coerce.number().min(0).max(100),
+  })
+  .refine((b) => b.maxScore >= b.minScore, {
+    message: "Max % must be greater than or equal to min %.",
+    path: ["maxScore"],
+  });
+export type CategoryBandInput = z.infer<typeof categoryBandSchema>;
+
 /** Reorder payload: an ordered list of ids. */
 export const reorderSchema = z.object({
   ids: z.array(z.string().min(1)).min(1),

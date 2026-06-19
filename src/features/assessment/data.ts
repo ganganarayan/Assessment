@@ -23,6 +23,7 @@ export async function getAssessmentById(id: string) {
             orderBy: { displayOrder: "asc" },
             include: { options: { orderBy: { displayOrder: "asc" } } },
           },
+          bands: { orderBy: { displayOrder: "asc" } },
         },
       },
       resultBands: { orderBy: { displayOrder: "asc" } },

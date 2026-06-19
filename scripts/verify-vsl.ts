@@ -56,11 +56,14 @@ console.log("VSL / token feature verification\n");
     max: 60,
     scorePercent: 78,
     resultBand: "Balanced",
+    resultSuggestion: "Keep it up.",
     categories: [{ name: "Sleep", score: 10, max: 12, band: "Strong", meaning: "good" }],
   });
   const keys = Object.keys(snap).sort().join(",");
-  expect("snapshot top keys", keys === "categories,customerId,max,resultBand,scorePercent,scoreRaw", keys);
+  expect("snapshot top keys", keys === "categories,customerId,max,resultBand,resultSuggestion,scorePercent,scoreRaw", keys);
   expect("snapshot values", snap.scorePercent === 78 && snap.scoreRaw === 47 && snap.max === 60 && snap.customerId === "K7M2P9QX");
+  expect("snapshot resultSuggestion", snap.resultSuggestion === "Keep it up.");
+  expect("resultSuggestion defaults null", buildResultSnapshot({ customerId: "X", scoreRaw: 0, max: 0, scorePercent: 0, resultBand: null, categories: [] }).resultSuggestion === null);
 }
 
 // (d) Read outcome: 404 / 410 / 200.

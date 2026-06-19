@@ -95,6 +95,7 @@ function buildHeaderSnippet(endpointBase: string): string {
   function inject(d) {
     setText(document.getElementById("band-score"), d.scorePercent);
     setText(document.getElementById("band-overall"), d.resultBand);
+    setText(document.getElementById("band-suggestion"), d.resultSuggestion);
     (d.categories || []).forEach(function (c) {
       document.querySelectorAll('[data-cat="' + esc(c.name) + '"]').forEach(function (el) {
         var f = el.getAttribute("data-field");
@@ -142,6 +143,7 @@ function buildBodySnippet(categories: string[]): string {
   <div id="eval-state">Evaluating your results…</div>
 
   <p>Overall: <span id="band-overall"></span> (<span id="band-score"></span>%)</p>
+  <p id="band-suggestion"></p>
 
 ${cats}
 </div>`;

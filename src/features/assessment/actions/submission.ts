@@ -492,6 +492,7 @@ export async function completeSubmission(
     max: maxScore,
     scorePercent: Math.round(percentage),
     resultBand: band?.title ?? null,
+    resultSuggestion: band?.description ?? null,
     categories: categoryResults,
   });
   const resultUrl = buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, token);

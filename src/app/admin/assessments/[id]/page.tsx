@@ -6,6 +6,7 @@ import { ConnectDestination } from "@/features/assessment/components/admin/conne
 import { CategoriesManager } from "@/features/assessment/components/admin/categories-manager";
 import { env } from "@/lib/env";
 import { ResultBandsManager } from "@/features/assessment/components/admin/result-bands-manager";
+import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { Badge } from "@/components/ui/badge";
 
@@ -65,6 +66,19 @@ export default async function EditAssessmentPage({
     maxScore: b.maxScore,
   }));
 
+  const categoryOptions = a.categories.map((c) => ({ id: c.id, name: c.name }));
+  const categoryBands = a.categories.flatMap((c) =>
+    c.bands.map((b) => ({
+      id: b.id,
+      categoryId: c.id,
+      categoryName: c.name,
+      level: b.label,
+      suggestion: b.meaning,
+      minScore: b.minScore,
+      maxScore: b.maxScore,
+    })),
+  );
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
@@ -112,6 +126,17 @@ export default async function EditAssessmentPage({
           Ranges must not overlap; cover 0–100 with no gaps.
         </p>
         <ResultBandsManager assessmentId={a.id} bands={bands} />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Category Evaluation Bands</h2>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Per-category evaluation shown on the destination page. Pick a category, a
+          level, the <strong>category&apos;s own</strong> score range (its score ÷ its max,
+          0–100), and a suggestion. Ranges must not overlap within a category. Applies to
+          <strong> new submissions</strong> (results are captured at completion).
+        </p>
+        <CategoryBandsManager categories={categoryOptions} bands={categoryBands} />
       </section>
     </div>
   );

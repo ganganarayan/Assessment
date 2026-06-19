@@ -26,6 +26,8 @@ export interface ResultSnapshot {
   scoreRaw: number;
   max: number;
   resultBand: string | null;
+  /** Overall band suggestion/advice text (the matched result band's description). */
+  resultSuggestion: string | null;
   categories: CategoryResultEntry[];
 }
 
@@ -51,6 +53,7 @@ export function buildResultSnapshot(args: {
   max: number;
   scorePercent: number;
   resultBand: string | null;
+  resultSuggestion?: string | null;
   categories: CategoryResultEntry[];
 }): ResultSnapshot {
   return {
@@ -59,6 +62,7 @@ export function buildResultSnapshot(args: {
     scoreRaw: args.scoreRaw,
     max: args.max,
     resultBand: args.resultBand,
+    resultSuggestion: args.resultSuggestion ?? null,
     categories: args.categories,
   };
 }

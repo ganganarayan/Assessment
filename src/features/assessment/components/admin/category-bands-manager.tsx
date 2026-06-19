@@ -3,11 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  createResultBand,
-  updateResultBand,
-  deleteResultBand,
-} from "@/features/assessment/actions/result-band";
-import type { ResultBandInput } from "@/features/assessment/schemas";
+  createCategoryBand,
+  updateCategoryBand,
+  deleteCategoryBand,
+} from "@/features/assessment/actions/category-band";
+import type { CategoryBandInput } from "@/features/assessment/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,31 +16,48 @@ import { Badge } from "@/components/ui/badge";
 
 type Level = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 const LEVELS: Level[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+const asLevel = (s: string): Level => (LEVELS.includes(s as Level) ? (s as Level) : "LOW");
 
-export interface BandData {
+export interface CategoryOption {
   id: string;
-  level: Level;
-  title: string;
-  description: string | null;
+  name: string;
+}
+export interface CategoryBandData {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  level: string; // stored label; one of LEVELS in practice
+  suggestion: string | null;
   minScore: number;
   maxScore: number;
 }
 
-export function ResultBandsManager({
-  assessmentId,
+const SELECT_CLASS =
+  "h-10 rounded-md border bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
+
+export function CategoryBandsManager({
+  categories,
   bands,
 }: {
-  assessmentId: string;
-  bands: BandData[];
+  categories: CategoryOption[];
+  bands: CategoryBandData[];
 }) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
+  if (categories.length === 0) {
+    return (
+      <p className="text-sm text-[var(--muted-foreground)]">
+        Add at least one category above, then you can define its evaluation bands here.
+      </p>
+    );
+  }
+
   function remove(id: string) {
-    if (!confirm("Delete this result band?")) return;
+    if (!confirm("Delete this category band?")) return;
     start(async () => {
-      await deleteResultBand(id);
+      await deleteCategoryBand(id);
       router.refresh();
     });
   }
@@ -51,7 +68,7 @@ export function ResultBandsManager({
         editingId === b.id ? (
           <BandForm
             key={b.id}
-            assessmentId={assessmentId}
+            categories={categories}
             bandId={b.id}
             initial={b}
             onDone={() => {
@@ -67,14 +84,14 @@ export function ResultBandsManager({
           >
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
+                <span className="font-medium">{b.categoryName}</span>
                 <Badge variant="outline">{b.level}</Badge>
-                <span className="font-medium">{b.title}</span>
                 <span className="text-xs text-[var(--muted-foreground)]">
                   {b.minScore}–{b.maxScore}%
                 </span>
               </div>
-              {b.description ? (
-                <span className="text-xs text-[var(--muted-foreground)]">{b.description}</span>
+              {b.suggestion ? (
+                <span className="text-xs text-[var(--muted-foreground)]">{b.suggestion}</span>
               ) : null}
             </div>
             <div className="flex shrink-0 gap-1">
@@ -86,7 +103,7 @@ export function ResultBandsManager({
       )}
 
       <BandForm
-        assessmentId={assessmentId}
+        categories={categories}
         onDone={() => router.refresh()}
         onCancel={() => {}}
         addMode
@@ -96,23 +113,24 @@ export function ResultBandsManager({
 }
 
 function BandForm({
-  assessmentId,
+  categories,
   bandId,
   initial,
   onDone,
   onCancel,
   addMode,
 }: {
-  assessmentId: string;
+  categories: CategoryOption[];
   bandId?: string;
-  initial?: BandData;
+  initial?: CategoryBandData;
   onDone: () => void;
   onCancel: () => void;
   addMode?: boolean;
 }) {
-  const [level, setLevel] = useState<Level>(initial?.level ?? "LOW");
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
+  const firstCategoryId = categories[0]?.id ?? "";
+  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? firstCategoryId);
+  const [level, setLevel] = useState<Level>(asLevel(initial?.level ?? "LOW"));
+  const [suggestion, setSuggestion] = useState(initial?.suggestion ?? "");
   const [minScore, setMinScore] = useState(String(initial?.minScore ?? 0));
   const [maxScore, setMaxScore] = useState(String(initial?.maxScore ?? 0));
   const [error, setError] = useState<string | null>(null);
@@ -120,25 +138,24 @@ function BandForm({
 
   function submit() {
     setError(null);
-    const input: ResultBandInput = {
+    const input: CategoryBandInput = {
+      categoryId,
       level,
-      title,
-      description,
+      suggestion,
       minScore: Number(minScore),
       maxScore: Number(maxScore),
     };
     start(async () => {
       const res = bandId
-        ? await updateResultBand(bandId, input)
-        : await createResultBand(assessmentId, input);
+        ? await updateCategoryBand(bandId, input)
+        : await createCategoryBand(input);
       if (!res.ok) {
         setError(res.error);
         return;
       }
       if (addMode) {
         setLevel("LOW");
-        setTitle("");
-        setDescription("");
+        setSuggestion("");
         setMinScore("0");
         setMaxScore("0");
       }
@@ -148,15 +165,24 @@ function BandForm({
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-dashed p-3">
-      {addMode ? <p className="text-sm font-medium">Add result band</p> : null}
+      {addMode ? <p className="text-sm font-medium">Add category band</p> : null}
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
-          <Label>Level</Label>
+          <Label>Category</Label>
           <select
-            className="h-10 rounded-md border border-cyan-500 bg-transparent px-3 text-sm focus:bg-white focus:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
-            value={level}
-            onChange={(e) => setLevel(e.target.value as Level)}
+            className={SELECT_CLASS}
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            disabled={!addMode}
           >
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label>Level</Label>
+          <select className={SELECT_CLASS} value={level} onChange={(e) => setLevel(e.target.value as Level)}>
             {LEVELS.map((l) => (
               <option key={l} value={l}>{l}</option>
             ))}
@@ -172,16 +198,12 @@ function BandForm({
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <Label>Result title</Label>
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-      </div>
-      <div className="flex flex-col gap-1">
-        <Label>Suggestion / description (shown on the destination page)</Label>
-        <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+        <Label>Suggestion (shown on the destination page for this category)</Label>
+        <Textarea value={suggestion} onChange={(e) => setSuggestion(e.target.value)} />
       </div>
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex gap-2">
-        <Button size="sm" onClick={submit} disabled={pending || title.trim() === ""}>
+        <Button size="sm" onClick={submit} disabled={pending || categoryId === ""}>
           {pending ? "Saving…" : bandId ? "Save" : "Add band"}
         </Button>
         {!addMode ? (
