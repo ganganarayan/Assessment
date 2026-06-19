@@ -15,6 +15,7 @@ export function buildStatementMessages(input: StatementInput): { system: string;
     `Write in second person and address them by their first name.`,
     `Based ONLY on the scores provided, describe — with empathy and specificity — what they are most likely experiencing day to day.`,
     `Sound like a perceptive, caring human mentor, NOT an AI: natural and warm, no jargon, no bullet points, no headings, and do NOT quote the raw numbers or percentages back.`,
+    `Do NOT use em dashes (—) or en dashes (–) — use commas, "and", or short sentences instead. Avoid punctuation patterns that read as AI-written.`,
     `Write ${WORDS_MIN}–${WORDS_MAX} words, easy to read, in flowing prose.`,
     `Use the overall band and any guidance to understand the direction of the scores (for example, higher scores may mean more struggle, not less).`,
     `Finish with one or two sentences that gently but compellingly encourage them to watch the video all the way to the end, because it speaks directly to what they are going through.`,
@@ -36,4 +37,17 @@ export function buildStatementMessages(input: StatementInput): { system: string;
   ].join("\n");
 
   return { system, user };
+}
+
+/**
+ * Strip the AI "tells" from a statement: replace em/en dashes with commas and
+ * tidy spacing, so the copy reads human-written. Pure (testable).
+ */
+export function humanizeStatement(text: string): string {
+  return text
+    .replace(/\s*[—–]\s*/g, ", ") // em/en dash -> comma
+    .replace(/,\s*,/g, ", ") // collapse accidental double commas
+    .replace(/\s+([,.;:!?])/g, "$1") // no space before punctuation
+    .replace(/ {2,}/g, " ") // collapse runs of spaces
+    .trim();
 }

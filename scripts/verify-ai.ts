@@ -6,7 +6,7 @@
  *   npx tsx scripts/verify-ai.ts
  */
 import { encryptWithSecret, decryptWithSecret, isEncrypted } from "../src/lib/crypto";
-import { buildStatementMessages } from "../src/lib/ai/prompt";
+import { buildStatementMessages, humanizeStatement } from "../src/lib/ai/prompt";
 import { DEFAULT_MODEL, isAiProvider } from "../src/lib/ai/types";
 
 let failures = 0;
@@ -81,6 +81,16 @@ console.log("AI feature verification\n");
   });
   expect("null name -> 'there'", user.includes("First name: there"));
   expect("no categories -> (none)", user.includes("(none)"));
+}
+
+// (e) humanizeStatement: em/en dashes -> commas, no AI tells.
+{
+  expect("em dash -> comma", humanizeStatement("world — a sense") === "world, a sense");
+  expect("no-space dash -> comma", humanizeStatement("a—b") === "a, b");
+  expect("en dash -> comma", humanizeStatement("x – y") === "x, y");
+  expect("no double commas", humanizeStatement("a, — b") === "a, b");
+  expect("no leftover em dash", humanizeStatement("p — q — r").indexOf("—") === -1);
+  expect("plain text untouched", humanizeStatement("Hello there.") === "Hello there.");
 }
 
 console.log(`\n${failures === 0 ? "ALL PASSED" : `${failures} FAILED`}\n`);

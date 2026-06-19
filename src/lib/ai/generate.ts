@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { decryptWithSecret } from "@/lib/crypto";
-import { buildStatementMessages } from "@/lib/ai/prompt";
+import { buildStatementMessages, humanizeStatement } from "@/lib/ai/prompt";
 import { DEFAULT_MODEL, isAiProvider, type AiConfig, type StatementInput } from "@/lib/ai/types";
 
 /**
@@ -65,9 +65,13 @@ export async function generatePersonalStatement(input: StatementInput): Promise<
 }
 
 async function callProvider(cfg: AiConfig, system: string, user: string): Promise<string | null> {
-  if (cfg.provider === "claude") return callClaude(cfg, system, user);
-  if (cfg.provider === "openai") return callOpenAI(cfg, system, user);
-  return callGemini(cfg, system, user);
+  const text =
+    cfg.provider === "claude"
+      ? await callClaude(cfg, system, user)
+      : cfg.provider === "openai"
+        ? await callOpenAI(cfg, system, user)
+        : await callGemini(cfg, system, user);
+  return text ? humanizeStatement(text) : text;
 }
 
 /**

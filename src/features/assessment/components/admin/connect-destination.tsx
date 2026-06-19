@@ -111,6 +111,7 @@ function buildHeadSnippet(endpointBase: string): string {
 function buildBodySnippet(): string {
   // Class-based (NOT id) so the page builder never renames it on duplicate paste.
   // Invisible until the head script fills it.
+  // font-size 1.2rem (your "12") reads well on desktop; edit it here to taste.
   return `<!-- assess360 results ${CONNECTOR_VERSION} — paste in body, above your video -->
-<div class="assess360-ai-statement" style="white-space:pre-line"></div>`;
+<div class="assess360-ai-statement" style="white-space:pre-line;font-size:1.2rem;line-height:1.6"></div>`;
 }
