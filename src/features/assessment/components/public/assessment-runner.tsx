@@ -325,13 +325,7 @@ export function AssessmentRunner({
   }
 
   if (step === "evaluating") {
-    return (
-      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--muted)] border-t-[var(--primary)]" />
-        <p className="text-lg font-medium">Analyzing your results…</p>
-        <p className="text-sm text-[var(--muted-foreground)]">Creating your personalized summary.</p>
-      </div>
-    );
+    return <EvaluatingCountdown />;
   }
 
   if (step === "redirecting" && redirectUrl) {
@@ -387,6 +381,32 @@ export function AssessmentRunner({
       <Button size="lg" onClick={submitAnswers} disabled={pending}>
         {pending ? "Submitting…" : "Submit"}
       </Button>
+    </div>
+  );
+}
+
+/**
+ * "Analyzing…" countdown from 10 shown WHILE the server scores + generates the AI
+ * statement. It's cosmetic: the actual redirect is driven by completeSubmission
+ * resolving (the statement is stored by then), so we stop and move on the moment
+ * the response arrives — counting past 0 just shows "Almost ready…".
+ */
+function EvaluatingCountdown() {
+  const [n, setN] = useState(10);
+  useEffect(() => {
+    if (n <= 0) return;
+    const t = setTimeout(() => setN((x) => x - 1), 1000);
+    return () => clearTimeout(t);
+  }, [n]);
+  return (
+    <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
+      <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--muted)] border-t-[var(--primary)]" />
+      <p className="text-lg font-medium">Analyzing your results…</p>
+      {n > 0 ? (
+        <p className="text-4xl font-bold tabular-nums">{n}</p>
+      ) : (
+        <p className="text-sm text-[var(--muted-foreground)]">Almost ready…</p>
+      )}
     </div>
   );
 }

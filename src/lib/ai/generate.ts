@@ -12,7 +12,9 @@ import { DEFAULT_MODEL, isAiProvider, type AiConfig, type StatementInput } from 
  * is never broken. The API key is decrypted here and never leaves the server.
  */
 
-const TIMEOUT_MS = 12_000;
+// Generous: a 100–150 word Sonnet completion can run ~9–13s, and the funnel
+// shows a 10s "Analyzing…" countdown, so allow headroom before failing soft.
+const TIMEOUT_MS = 20_000;
 const MAX_TOKENS = 400;
 
 async function readAiConfig(requireEnabled: boolean): Promise<AiConfig | null> {
