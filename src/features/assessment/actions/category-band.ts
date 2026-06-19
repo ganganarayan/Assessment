@@ -34,6 +34,15 @@ export async function createCategoryBand(
   const assessmentId = await assessmentIdForCategory(d.categoryId);
   if (!assessmentId) return { ok: false, error: "Category not found." };
 
+  // One band per level per category.
+  const dupLevel = await prisma.categoryResultBand.findFirst({
+    where: { categoryId: d.categoryId, label: d.level },
+    select: { id: true },
+  });
+  if (dupLevel) {
+    return { ok: false, error: `Level ${d.level} is already set for this category.` };
+  }
+
   const others = await prisma.categoryResultBand.findMany({
     where: { categoryId: d.categoryId },
     select: { minScore: true, maxScore: true },
@@ -75,6 +84,15 @@ export async function updateCategoryBand(
     select: { categoryId: true },
   });
   if (!current) return { ok: false, error: "Band not found." };
+
+  // One band per level per category (excluding this band).
+  const dupLevel = await prisma.categoryResultBand.findFirst({
+    where: { categoryId: current.categoryId, label: d.level, NOT: { id } },
+    select: { id: true },
+  });
+  if (dupLevel) {
+    return { ok: false, error: `Level ${d.level} is already set for this category.` };
+  }
 
   const others = await prisma.categoryResultBand.findMany({
     where: { categoryId: current.categoryId, NOT: { id } },

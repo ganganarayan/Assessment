@@ -142,7 +142,7 @@ function buildBodySnippet(categories: string[]): string {
   return `<div id="assess360-results">
   <div id="eval-state">Evaluating your results…</div>
 
-  <p>Overall: <span id="band-overall"></span> (<span id="band-score"></span>%)</p>
+  <p>Overall: <span id="band-overall"></span></p>
   <p id="band-suggestion"></p>
 
 ${cats}

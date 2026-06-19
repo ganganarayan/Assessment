@@ -18,6 +18,19 @@ type Level = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 const LEVELS: Level[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 const asLevel = (s: string): Level => (LEVELS.includes(s as Level) ? (s as Level) : "LOW");
 
+/**
+ * Default suggestion text per level so the admin can pick a level and tweak,
+ * rather than typing from scratch. Auto-filled only while the box is empty or
+ * still holds one of these defaults (a manual edit is never overwritten).
+ */
+const DEFAULT_SUGGESTIONS: Record<Level, string> = {
+  LOW: "This area is a clear strength — keep doing what's working here.",
+  MEDIUM: "This area is steady, with room to grow.",
+  HIGH: "This area needs attention soon.",
+  CRITICAL: "This area needs urgent focus.",
+};
+const DEFAULT_VALUES = new Set<string>(Object.values(DEFAULT_SUGGESTIONS));
+
 export interface CategoryOption {
   id: string;
   name: string;
@@ -33,7 +46,17 @@ export interface CategoryBandData {
 }
 
 const SELECT_CLASS =
-  "h-10 rounded-md border bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
+  "h-10 rounded-md border bg-[var(--background)] px-3 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60";
+
+/** Levels still free for a category (excluding the band being edited, if any). */
+function freeLevels(bands: CategoryBandData[], categoryId: string, excludeId?: string): Level[] {
+  const used = new Set(
+    bands
+      .filter((b) => b.categoryId === categoryId && b.id !== excludeId)
+      .map((b) => asLevel(b.level)),
+  );
+  return LEVELS.filter((l) => !used.has(l));
+}
 
 export function CategoryBandsManager({
   categories,
@@ -69,6 +92,7 @@ export function CategoryBandsManager({
           <BandForm
             key={b.id}
             categories={categories}
+            bands={bands}
             bandId={b.id}
             initial={b}
             onDone={() => {
@@ -102,18 +126,14 @@ export function CategoryBandsManager({
         ),
       )}
 
-      <BandForm
-        categories={categories}
-        onDone={() => router.refresh()}
-        onCancel={() => {}}
-        addMode
-      />
+      <BandForm categories={categories} bands={bands} onDone={() => router.refresh()} onCancel={() => {}} addMode />
     </div>
   );
 }
 
 function BandForm({
   categories,
+  bands,
   bandId,
   initial,
   onDone,
@@ -121,6 +141,7 @@ function BandForm({
   addMode,
 }: {
   categories: CategoryOption[];
+  bands: CategoryBandData[];
   bandId?: string;
   initial?: CategoryBandData;
   onDone: () => void;
@@ -128,13 +149,41 @@ function BandForm({
   addMode?: boolean;
 }) {
   const firstCategoryId = categories[0]?.id ?? "";
-  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? firstCategoryId);
-  const [level, setLevel] = useState<Level>(asLevel(initial?.level ?? "LOW"));
-  const [suggestion, setSuggestion] = useState(initial?.suggestion ?? "");
+  const initialCategoryId = initial?.categoryId ?? firstCategoryId;
+  const initialFree = freeLevels(bands, initialCategoryId, bandId);
+  const initialLevel = asLevel(initial?.level ?? initialFree[0] ?? "LOW");
+
+  const [categoryId, setCategoryId] = useState(initialCategoryId);
+  const [level, setLevel] = useState<Level>(initialLevel);
+  const [suggestion, setSuggestion] = useState(
+    initial?.suggestion ?? (addMode ? DEFAULT_SUGGESTIONS[initialLevel] : ""),
+  );
   const [minScore, setMinScore] = useState(String(initial?.minScore ?? 0));
   const [maxScore, setMaxScore] = useState(String(initial?.maxScore ?? 0));
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+
+  const available = freeLevels(bands, categoryId, bandId);
+  const noneLeft = available.length === 0;
+
+  /** Fill the suggestion with the level's default — unless the admin typed their own. */
+  function autofill(next: Level) {
+    setSuggestion((prev) =>
+      prev.trim() === "" || DEFAULT_VALUES.has(prev.trim()) ? DEFAULT_SUGGESTIONS[next] : prev,
+    );
+  }
+
+  function onCategoryChange(nextCat: string) {
+    setCategoryId(nextCat);
+    const nextLevel = freeLevels(bands, nextCat, bandId)[0] ?? "LOW";
+    setLevel(nextLevel);
+    autofill(nextLevel);
+  }
+
+  function onLevelChange(next: Level) {
+    setLevel(next);
+    autofill(next);
+  }
 
   function submit() {
     setError(null);
@@ -154,14 +203,21 @@ function BandForm({
         return;
       }
       if (addMode) {
-        setLevel("LOW");
-        setSuggestion("");
+        // advance to the next free level for the same category (if any)
+        const stillFree = freeLevels(bands, categoryId, bandId).filter((l) => l !== level);
+        const nextLevel = stillFree[0] ?? "LOW";
+        setLevel(nextLevel);
+        setSuggestion(DEFAULT_SUGGESTIONS[nextLevel]);
         setMinScore("0");
         setMaxScore("0");
       }
       onDone();
     });
   }
+
+  // Levels offered: the free ones, plus this band's own level when editing.
+  const levelOptions =
+    bandId && !available.includes(level) ? [level, ...available] : available;
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-dashed p-3">
@@ -172,7 +228,7 @@ function BandForm({
           <select
             className={SELECT_CLASS}
             value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
+            onChange={(e) => onCategoryChange(e.target.value)}
             disabled={!addMode}
           >
             {categories.map((c) => (
@@ -182,8 +238,13 @@ function BandForm({
         </div>
         <div className="flex flex-col gap-1">
           <Label>Level</Label>
-          <select className={SELECT_CLASS} value={level} onChange={(e) => setLevel(e.target.value as Level)}>
-            {LEVELS.map((l) => (
+          <select
+            className={SELECT_CLASS}
+            value={level}
+            onChange={(e) => onLevelChange(e.target.value as Level)}
+            disabled={addMode && noneLeft}
+          >
+            {levelOptions.map((l) => (
               <option key={l} value={l}>{l}</option>
             ))}
           </select>
@@ -201,9 +262,14 @@ function BandForm({
         <Label>Suggestion (shown on the destination page for this category)</Label>
         <Textarea value={suggestion} onChange={(e) => setSuggestion(e.target.value)} />
       </div>
+      {addMode && noneLeft ? (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          All four levels are already set for this category. Pick another category, or edit/delete an existing band.
+        </p>
+      ) : null}
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex gap-2">
-        <Button size="sm" onClick={submit} disabled={pending || categoryId === ""}>
+        <Button size="sm" onClick={submit} disabled={pending || categoryId === "" || (addMode && noneLeft)}>
           {pending ? "Saving…" : bandId ? "Save" : "Add band"}
         </Button>
         {!addMode ? (
