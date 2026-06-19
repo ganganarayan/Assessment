@@ -49,12 +49,52 @@ export async function generatePersonalStatement(input: StatementInput): Promise<
       ...input,
       guidance: input.guidance ?? cfg.guidance,
     });
-    if (cfg.provider === "claude") return await callClaude(cfg, system, user);
-    if (cfg.provider === "openai") return await callOpenAI(cfg, system, user);
-    return await callGemini(cfg, system, user);
+    return await callProvider(cfg, system, user);
   } catch (e) {
     console.error("[ai] generation error:", e instanceof Error ? e.message : String(e));
     return null;
+  }
+}
+
+async function callProvider(cfg: AiConfig, system: string, user: string): Promise<string | null> {
+  if (cfg.provider === "claude") return callClaude(cfg, system, user);
+  if (cfg.provider === "openai") return callOpenAI(cfg, system, user);
+  return callGemini(cfg, system, user);
+}
+
+/**
+ * Admin "Test connection": runs the configured provider against sample data and
+ * SURFACES the error/latency (unlike generatePersonalStatement, which swallows).
+ */
+export async function testStatement(): Promise<{
+  ok: boolean;
+  ms: number;
+  text?: string;
+  error?: string;
+}> {
+  const cfg = await getAiConfig();
+  if (!cfg) {
+    return { ok: false, ms: 0, error: "AI is disabled or no API key is saved. Save a key and enable AI first." };
+  }
+  const { system, user } = buildStatementMessages({
+    firstName: "Alex",
+    assessmentTitle: "Sample Assessment",
+    scoreRaw: 45,
+    max: 60,
+    percentage: 75,
+    band: "Unstable",
+    categories: [
+      { name: "Inner Pressure & Mental Burden", score: 9, max: 12 },
+      { name: "Relationships & Presence", score: 10, max: 12 },
+    ],
+    guidance: cfg.guidance,
+  });
+  const t0 = Date.now();
+  try {
+    const text = await callProvider(cfg, system, user);
+    return { ok: true, ms: Date.now() - t0, text: text ?? "(model returned an empty response)" };
+  } catch (e) {
+    return { ok: false, ms: Date.now() - t0, error: e instanceof Error ? e.message : String(e) };
   }
 }
 
@@ -79,10 +119,7 @@ async function callClaude(cfg: AiConfig, system: string, user: string): Promise<
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (!res.ok) {
-    console.error("[ai] claude", res.status, (await res.text()).slice(0, 300));
-    return null;
-  }
+  if (!res.ok) throw new Error(`Claude ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = (await res.json()) as { content?: { type?: string; text?: string }[] };
   const text = data.content?.find((b) => b.type === "text")?.text ?? data.content?.[0]?.text;
   return clean(text);
@@ -102,10 +139,7 @@ async function callOpenAI(cfg: AiConfig, system: string, user: string): Promise<
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (!res.ok) {
-    console.error("[ai] openai", res.status, (await res.text()).slice(0, 300));
-    return null;
-  }
+  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   return clean(data.choices?.[0]?.message?.content);
 }
@@ -125,10 +159,7 @@ async function callGemini(cfg: AiConfig, system: string, user: string): Promise<
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (!res.ok) {
-    console.error("[ai] gemini", res.status, (await res.text()).slice(0, 300));
-    return null;
-  }
+  if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
   };

@@ -45,7 +45,7 @@ export interface PublicAssessment {
   categories: PublicCategory[];
 }
 
-type Step = "intro" | "lead" | "questions" | "locked" | "redirecting";
+type Step = "intro" | "lead" | "questions" | "locked" | "evaluating" | "redirecting";
 
 interface Lockout {
   policy: "DELAYED" | "NEVER";
@@ -150,9 +150,13 @@ export function AssessmentRunner({
       })),
     };
     start(async () => {
+      // Show the spinner while the server scores AND generates the AI statement,
+      // then redirect as soon as it's ready (the statement is stored pre-redirect).
+      setStep("evaluating");
       const res = await completeSubmission(submissionId, payload);
       if (!res.ok) {
         setError(res.error);
+        setStep("questions");
         return;
       }
       // Meta Pixel: assessment finished (custom event) — fire before the
@@ -320,6 +324,16 @@ export function AssessmentRunner({
     );
   }
 
+  if (step === "evaluating") {
+    return (
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--muted)] border-t-[var(--primary)]" />
+        <p className="text-lg font-medium">Analyzing your results…</p>
+        <p className="text-sm text-[var(--muted-foreground)]">Creating your personalized summary.</p>
+      </div>
+    );
+  }
+
   if (step === "redirecting" && redirectUrl) {
     return <CountdownRedirect url={redirectUrl} />;
   }
@@ -378,11 +392,12 @@ export function AssessmentRunner({
 }
 
 /**
- * 5-second "evaluating…" countdown, then a hard redirect to the destination URL
- * (the customer's page with ?t=token, or the internal result page as fallback).
+ * Brief "results ready" pause (lets the browser pixel flush) then a hard redirect
+ * to the destination URL. The AI statement is already generated + stored by now
+ * (during the "Analyzing…" step), so this stays short.
  */
 function CountdownRedirect({ url }: { url: string }) {
-  const [n, setN] = useState(5);
+  const [n, setN] = useState(2);
   useEffect(() => {
     if (n <= 0) {
       window.location.replace(url);

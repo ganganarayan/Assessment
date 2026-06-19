@@ -7,6 +7,7 @@ import { requireSuperAdmin } from "@/lib/auth/guards";
 import { env } from "@/lib/env";
 import { encryptWithSecret, decryptWithSecret } from "@/lib/crypto";
 import { isAiProvider, type AiProvider } from "@/lib/ai/types";
+import { testStatement } from "@/lib/ai/generate";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 const schema = z.object({
@@ -79,4 +80,10 @@ export async function updateAiSettings(input: AiSettingsInput): Promise<ActionRe
   });
   revalidatePath("/admin/ai");
   return { ok: true };
+}
+
+/** Run the saved AI config against sample data; surfaces latency + any error. */
+export async function testAi(): Promise<{ ok: boolean; ms: number; text?: string; error?: string }> {
+  await requireSuperAdmin();
+  return testStatement();
 }

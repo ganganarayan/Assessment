@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   updateAiSettings,
+  testAi,
   type AiSettingsView,
 } from "@/features/admin/actions/ai-settings";
 import { AI_PROVIDERS, DEFAULT_MODEL, type AiProvider } from "@/lib/ai/types";
@@ -29,7 +30,9 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
   const [guidance, setGuidance] = useState(initial.guidance);
   const [apiKey, setApiKey] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [test, setTest] = useState<{ ok: boolean; ms: number; text?: string; error?: string } | null>(null);
   const [pending, start] = useTransition();
+  const [testing, startTest] = useTransition();
 
   function save() {
     setMsg(null);
@@ -42,6 +45,13 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
       setApiKey(""); // never keep the secret in component state after save
       setMsg({ ok: true, text: "Saved." });
       router.refresh();
+    });
+  }
+
+  function runTest() {
+    setTest(null);
+    startTest(async () => {
+      setTest(await testAi());
     });
   }
 
@@ -113,11 +123,30 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
         <p className={`text-sm ${msg.ok ? "text-green-600" : "text-red-500"}`}>{msg.text}</p>
       ) : null}
 
-      <div>
+      <div className="flex items-center gap-2">
         <Button onClick={save} disabled={pending}>
           {pending ? "Saving…" : "Save AI settings"}
         </Button>
+        <Button variant="outline" onClick={runTest} disabled={testing}>
+          {testing ? "Testing…" : "Test connection"}
+        </Button>
       </div>
+
+      {test ? (
+        <div className="rounded-md border p-3 text-sm">
+          {test.ok ? (
+            <>
+              <p className="font-medium text-green-600">Worked in {test.ms} ms — sample output:</p>
+              <p className="mt-1 whitespace-pre-wrap text-[var(--foreground)]">{test.text}</p>
+            </>
+          ) : (
+            <p className="text-red-500">Failed{test.ms ? ` after ${test.ms} ms` : ""}: {test.error}</p>
+          )}
+          <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+            Save your settings first — Test uses the saved config.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
