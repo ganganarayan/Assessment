@@ -3,11 +3,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
+const CONNECTOR_VERSION = "v4";
+
 /**
- * Generates the copy-paste snippet a customer adds to their destination page so
- * it shows the Assess360 AI result statement. The block is BLANK until results
- * load (so the page builder shows nothing), then the connector pulls the stored
- * statement (which already includes the watch-the-video CTA) and reveals it.
+ * Generates a SINGLE self-contained block the customer pastes above their video.
+ * It is one piece on purpose: the old two-part (head + body) split kept getting
+ * mismatched on the destination page. This block has its own empty target div
+ * (invisible until filled — no display:none) plus an inline script that reads the
+ * ?t token, fetches /api/r/:token, and injects the saved AI statement.
  */
 export function ConnectDestination({
   targetUrl,
@@ -25,19 +28,16 @@ export function ConnectDestination({
     );
   }
 
-  const base = endpointBase.replace(/\/+$/, "");
-  const partA = buildHeaderSnippet(base);
-  const partB = buildBodySnippet();
+  const snippet = buildSnippet(endpointBase.replace(/\/+$/, ""));
 
   return (
     <div className="flex flex-col gap-4">
       <ol className="list-decimal pl-5 text-sm text-[var(--muted-foreground)]">
-        <li>Paste <strong>Part A</strong> into your page&apos;s <span className="font-mono">&lt;head&gt;</span>.</li>
-        <li>Paste <strong>Part B</strong> directly <strong>above your video</strong>. It stays blank until the result loads, then shows the personalized message.</li>
-        <li>Put your video (and anything else) below Part B.</li>
+        <li>Paste this <strong>one block</strong> on your destination page, right <strong>above your video</strong>.</li>
+        <li>That&apos;s it — no <span className="font-mono">&lt;head&gt;</span> edit, no second snippet.</li>
+        <li>It stays blank until a result loads. To confirm it&apos;s the latest, open your page&apos;s browser Console — you should see <span className="font-mono">[assess360] connector {CONNECTOR_VERSION} active</span>.</li>
       </ol>
-      <CodeBlock title="Part A — paste in page header" code={partA} />
-      <CodeBlock title="Part B — paste above your video" code={partB} />
+      <CodeBlock title={`Paste above your video (connector ${CONNECTOR_VERSION})`} code={snippet} />
     </div>
   );
 }
@@ -68,45 +68,32 @@ function CodeBlock({ title, code }: { title: string; code: string }) {
   );
 }
 
-const CONNECTOR_VERSION = "v3";
-
-function buildHeaderSnippet(endpointBase: string): string {
-  return `<!-- assess360 connector ${CONNECTOR_VERSION} — paste the LATEST copy from your admin -->
-<link rel="preconnect" href="${endpointBase}">
+function buildSnippet(endpointBase: string): string {
+  return `<!-- assess360 ${CONNECTOR_VERSION} — paste this whole block above your video -->
+<div id="ai-statement" style="white-space:pre-line"></div>
 <script>
 (function () {
   console.log("[assess360] connector ${CONNECTOR_VERSION} active");
   var ENDPOINT_BASE = "${endpointBase}";
   var t = new URLSearchParams(location.search).get("t");
-  if (!t) return;
+  if (!t) return; // blank in the page builder (no token)
   var attempts = 0;
   function load() {
     return fetch(ENDPOINT_BASE + "/api/r/" + encodeURIComponent(t))
       .then(function (r) { if (!r.ok) throw new Error("status " + r.status); return r.json(); })
       .catch(function (e) {
-        if (attempts++ < 3) return new Promise(function (res) { setTimeout(res, 600); }).then(load);
+        if (attempts++ < 4) return new Promise(function (res) { setTimeout(res, 800); }).then(load);
         throw e;
       });
   }
   function show(d) {
     var stmt = d.aiStatement || d.resultSuggestion || d.resultBand;
-    if (stmt == null) return; // nothing to show -> stays blank
     var el = document.getElementById("ai-statement");
-    var box = document.getElementById("assess360-results");
-    if (el) el.textContent = String(stmt);
-    if (box) box.style.display = "";
+    if (el && stmt != null) el.textContent = String(stmt);
   }
-  function onReady() { load().then(show).catch(function () {}); }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", onReady);
-  else onReady();
+  function go() { load().then(show).catch(function () {}); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", go);
+  else go();
 })();
 </script>`;
-}
-
-function buildBodySnippet(): string {
-  // Blank until the connector injects the saved AI statement (with its CTA).
-  return `<!-- assess360 results ${CONNECTOR_VERSION} -->
-<div id="assess360-results" style="display:none">
-  <p id="ai-statement"></p>
-</div>`;
 }
