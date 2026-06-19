@@ -10,3 +10,6 @@ nixPkgs = ["nodejs_22"]
 # --include=dev flag has highest precedence and overrides NODE_ENV / npm config.
 [phases.install]
 cmds = ["npm ci --include=dev"]
+
+# ci: 2026-06-19 — force a fresh staging snapshot (Railway staging had been
+# rebuilding a stale pinned snapshot instead of the latest branch HEAD).
