@@ -3,14 +3,16 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const CONNECTOR_VERSION = "v4";
+const CONNECTOR_VERSION = "v5";
 
 /**
- * Generates a SINGLE self-contained block the customer pastes above their video.
- * It is one piece on purpose: the old two-part (head + body) split kept getting
- * mismatched on the destination page. This block has its own empty target div
- * (invisible until filled — no display:none) plus an inline script that reads the
- * ?t token, fetches /api/r/:token, and injects the saved AI statement.
+ * Two snippets, because the customer's page builder runs scripts ONLY in the
+ * <head> and the body accepts HTML only:
+ *   - Part A (HEAD): the connector <script> — reads ?t, fetches /api/r/:token,
+ *     and fills #ai-statement (waits for DOMContentLoaded so the body exists).
+ *   - Part B (BODY): a plain empty <div id="ai-statement"> — invisible until the
+ *     head script fills it. No display:none / no reveal step, so the two pieces
+ *     can't get out of sync.
  */
 export function ConnectDestination({
   targetUrl,
@@ -28,16 +30,19 @@ export function ConnectDestination({
     );
   }
 
-  const snippet = buildSnippet(endpointBase.replace(/\/+$/, ""));
+  const base = endpointBase.replace(/\/+$/, "");
+  const partA = buildHeadSnippet(base);
+  const partB = buildBodySnippet();
 
   return (
     <div className="flex flex-col gap-4">
       <ol className="list-decimal pl-5 text-sm text-[var(--muted-foreground)]">
-        <li>Paste this <strong>one block</strong> on your destination page, right <strong>above your video</strong>.</li>
-        <li>That&apos;s it — no <span className="font-mono">&lt;head&gt;</span> edit, no second snippet.</li>
-        <li>It stays blank until a result loads. To confirm it&apos;s the latest, open your page&apos;s browser Console — you should see <span className="font-mono">[assess360] connector {CONNECTOR_VERSION} active</span>.</li>
+        <li>Paste <strong>Part A</strong> in the page&apos;s <span className="font-mono">&lt;head&gt;</span> (head/custom-code section — this is where scripts run).</li>
+        <li>Paste <strong>Part B</strong> in the page <strong>body, right above your video</strong> (it&apos;s plain HTML).</li>
+        <li>Both stay blank until a result loads. To confirm, open the page&apos;s browser Console — you should see <span className="font-mono">[assess360] connector {CONNECTOR_VERSION} active</span>. Re-copy <strong>both</strong> whenever you change settings.</li>
       </ol>
-      <CodeBlock title={`Paste above your video (connector ${CONNECTOR_VERSION})`} code={snippet} />
+      <CodeBlock title={`Part A — paste in <head> (connector ${CONNECTOR_VERSION})`} code={partA} />
+      <CodeBlock title="Part B — paste in body, above your video" code={partB} />
     </div>
   );
 }
@@ -68,15 +73,15 @@ function CodeBlock({ title, code }: { title: string; code: string }) {
   );
 }
 
-function buildSnippet(endpointBase: string): string {
-  return `<!-- assess360 ${CONNECTOR_VERSION} — paste this whole block above your video -->
-<div id="ai-statement" style="white-space:pre-line"></div>
+function buildHeadSnippet(endpointBase: string): string {
+  return `<!-- assess360 connector ${CONNECTOR_VERSION} — paste in the page HEAD -->
+<link rel="preconnect" href="${endpointBase}">
 <script>
 (function () {
   console.log("[assess360] connector ${CONNECTOR_VERSION} active");
   var ENDPOINT_BASE = "${endpointBase}";
   var t = new URLSearchParams(location.search).get("t");
-  if (!t) return; // blank in the page builder (no token)
+  if (!t) return;
   var attempts = 0;
   function load() {
     return fetch(ENDPOINT_BASE + "/api/r/" + encodeURIComponent(t))
@@ -96,4 +101,10 @@ function buildSnippet(endpointBase: string): string {
   else go();
 })();
 </script>`;
+}
+
+function buildBodySnippet(): string {
+  // Plain HTML for the body — invisible until the head script fills it.
+  return `<!-- assess360 results ${CONNECTOR_VERSION} — paste in body, above your video -->
+<div id="ai-statement" style="white-space:pre-line"></div>`;
 }
