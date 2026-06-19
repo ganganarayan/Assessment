@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const CONNECTOR_VERSION = "v5";
+const CONNECTOR_VERSION = "v6";
 
 /**
  * Two snippets, because the customer's page builder runs scripts ONLY in the
@@ -94,7 +94,8 @@ function buildHeadSnippet(endpointBase: string): string {
   function show(d) {
     var stmt = d.aiStatement || d.resultSuggestion || d.resultBand;
     var el = document.getElementById("ai-statement");
-    if (el && stmt != null) el.textContent = String(stmt);
+    if (!el) { console.warn('[assess360] Part B missing — paste <div id="ai-statement"></div> in the page body'); return; }
+    if (stmt != null) el.textContent = String(stmt);
   }
   function go() { load().then(show).catch(function () {}); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", go);

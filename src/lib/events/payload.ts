@@ -127,6 +127,7 @@ export function buildEnvelope(
 
   const envelope: EventEnvelope = {
     event: EVENT_NAME[type],
+    event_type: EVENT_NAME[type].replace(/\./g, "_"), // assessment.completed -> assessment_completed
     timestamp: input.timestamp ?? new Date().toISOString(),
     source: "assess360",
     tenant: input.tenant ?? null,
@@ -149,10 +150,15 @@ export function buildEnvelope(
   // (both use Math.round(percentage)); metadata.score keeps the precise value.
   const pctRounded = score && score.percentage != null ? Math.round(score.percentage) : null;
   envelope["contact.customer_id"] = input.customerId ?? null;
-  envelope["contact.score"] = pctRounded; // kept for back-compat
-  envelope["contact.scorePercent"] = pctRounded;
-  envelope["contact.scoreRaw"] = score?.total ?? null;
-  envelope["contact.max"] = score?.max ?? null;
+  // snake_case fields (the CRM maps these); camelCase kept for back-compat.
+  envelope["contact.assessment_score"] = pctRounded;
+  envelope["contact.score_percent"] = pctRounded;
+  envelope["contact.score_raw"] = score?.total ?? null;
+  envelope["contact.score_max"] = score?.max ?? null;
+  envelope["contact.score"] = pctRounded; // back-compat
+  envelope["contact.scorePercent"] = pctRounded; // back-compat
+  envelope["contact.scoreRaw"] = score?.total ?? null; // back-compat
+  envelope["contact.max"] = score?.max ?? null; // back-compat
   envelope["contact.result_band"] = band?.level ?? null;
   envelope["contact.result_url"] = (m.resultUrl as string | null) ?? null;
   envelope["contact.ai_statement"] = input.aiStatement ?? null;

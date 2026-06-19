@@ -130,6 +130,7 @@ export interface AssessmentMetadata {
  */
 export interface EventEnvelope {
   event: string; // dotted name, e.g. "assessment.completed"
+  event_type: string; // underscore name, e.g. "assessment_completed" (CRM-friendly)
   timestamp: string; // ISO timestamp
   source: "assess360";
   tenant: PayloadTenant | null;

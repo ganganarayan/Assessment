@@ -149,10 +149,10 @@ export function AssessmentRunner({
         optionId,
       })),
     };
+    // Switch to the countdown IMMEDIATELY (outside the transition) so it renders
+    // from 10, while the server scores + generates the AI statement.
+    setStep("evaluating");
     start(async () => {
-      // Show the spinner while the server scores AND generates the AI statement,
-      // then redirect as soon as it's ready (the statement is stored pre-redirect).
-      setStep("evaluating");
       const res = await completeSubmission(submissionId, payload);
       if (!res.ok) {
         setError(res.error);

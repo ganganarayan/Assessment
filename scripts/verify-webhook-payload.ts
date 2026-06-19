@@ -37,6 +37,7 @@ const keysEq = (obj: object, expected: string[]) => {
 
 const TOP_FIXED = [
   "event",
+  "event_type",
   "timestamp",
   "source",
   "tenant",
@@ -58,6 +59,10 @@ const CONTACT_FIELDS = [
   "contact.result_band",
   "contact.result_url",
   "contact.customer_id",
+  "contact.assessment_score",
+  "contact.score_percent",
+  "contact.score_raw",
+  "contact.score_max",
   "contact.scorePercent",
   "contact.scoreRaw",
   "contact.max",
@@ -93,6 +98,7 @@ for (const type of ACTIVE_EVENT_TYPES) {
 
   expect(`${name} · top-level keys`, keysEq(env, TOP), JSON.stringify(Object.keys(env)));
   expect(`${name} · source`, env.source === "assess360");
+  expect(`${name} · event_type underscore`, env.event_type === name.replace(/\./g, "_"), String(env.event_type));
   expect(`${name} · submission.id`, env.submission?.id === SID);
   expect(`${name} · tenant`, env.tenant?.slug === "acme");
   expect(`${name} · contact_name`, env.contact_name === "Ganesh Kumar", String(env.contact_name));
@@ -109,6 +115,9 @@ for (const type of ACTIVE_EVENT_TYPES) {
     expect(`${name} · score`, JSON.stringify(meta.score) === JSON.stringify({ total: 42, max: 60, percentage: 70 }));
     expect(`${name} · resultBand`, (meta.resultBand as { level: string }).level === "HIGH");
     expect(`${name} · contact.score`, env["contact.score"] === 70, String(env["contact.score"]));
+    expect(`${name} · contact.score_percent`, env["contact.score_percent"] === 70);
+    expect(`${name} · contact.assessment_score`, env["contact.assessment_score"] === 70);
+    expect(`${name} · contact.score_raw`, env["contact.score_raw"] === 42);
     expect(`${name} · contact.result_band`, env["contact.result_band"] === "HIGH");
     expect(`${name} · contact.result_url`, env["contact.result_url"] === `${BASE}/a/${SLUG}/r/${SID}`);
   } else {
