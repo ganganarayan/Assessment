@@ -275,8 +275,21 @@ model PageView {
   visitorId    String
   createdAt    DateTime @default(now())
 
+  // Marketing attribution captured at page-view time (before any lead exists),
+  // so traffic-source counts populate even with zero opt-ins.
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
+  fbclid      String?
+  gclid       String?
+
   @@index([assessmentId])
   @@index([visitorId])
+  @@index([createdAt])
+  @@index([utmSource])
+  @@index([utmCampaign])
   @@map("page_view")
 }
 

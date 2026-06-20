@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 import { generateId } from "@/lib/ids";
 import { rateLimit } from "@/lib/rate-limit";
+import { normalizeAttribution } from "@/lib/events/payload";
 
 const VISITOR_COOKIE = "a360_vid";
 
@@ -18,7 +19,10 @@ const VISITOR_COOKIE = "a360_vid";
  * unique count or bloat the table. The cookie is only set after the slug
  * resolves to a PUBLISHED assessment, so unknown slugs can't seed cookies.
  */
-export async function recordOptinView(slug: string): Promise<void> {
+export async function recordOptinView(
+  slug: string,
+  attribution?: Record<string, string>,
+): Promise<void> {
   try {
     // Global write ceiling — blunts bulk inflation regardless of cookie/IP spoofing.
     if (!rateLimit("pv:global", 5000)) return;
@@ -29,13 +33,26 @@ export async function recordOptinView(slug: string): Promise<void> {
     });
     if (!a) return;
 
+    // Sanitize UTMs (known keys, trimmed, length-capped) so the traffic source
+    // is captured on the page view itself — before any lead exists.
+    const attr = normalizeAttribution(attribution);
+    const utm = {
+      utmSource: attr?.utm_source ?? null,
+      utmMedium: attr?.utm_medium ?? null,
+      utmCampaign: attr?.utm_campaign ?? null,
+      utmTerm: attr?.utm_term ?? null,
+      utmContent: attr?.utm_content ?? null,
+      fbclid: attr?.fbclid ?? null,
+      gclid: attr?.gclid ?? null,
+    };
+
     const c = await cookies();
     const existing = c.get(VISITOR_COOKIE)?.value;
 
     if (existing) {
       // Warm visitor: bound replays per visitor (normal refreshes stay well under).
       if (!rateLimit(`pv:vid:${existing}`, 10)) return;
-      await prisma.pageView.create({ data: { assessmentId: a.id, visitorId: existing } });
+      await prisma.pageView.create({ data: { assessmentId: a.id, visitorId: existing, ...utm } });
       return;
     }
 
@@ -51,7 +68,7 @@ export async function recordOptinView(slug: string): Promise<void> {
       sameSite: "lax",
       path: "/",
     });
-    await prisma.pageView.create({ data: { assessmentId: a.id, visitorId: vid } });
+    await prisma.pageView.create({ data: { assessmentId: a.id, visitorId: vid, ...utm } });
   } catch {
     // never surface analytics failures to the visitor
   }

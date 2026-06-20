@@ -89,7 +89,11 @@ export function AssessmentRunner({
 
   // Record the opt-in page view once per load (skip admin preview).
   useEffect(() => {
-    if (!preview) void recordOptinView(assessment.slug).catch(() => {});
+    if (!preview) void recordOptinView(assessment.slug, attribution).catch(() => {});
+    // Fire once per page load. attribution is read at mount (the URL is fixed for
+    // the load); it's intentionally NOT a dep so a new object reference from a
+    // re-render can't re-fire and double-count the view.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preview, assessment.slug]);
 
   const questions = assessment.categories.flatMap((c) => c.questions);

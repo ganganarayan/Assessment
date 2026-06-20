@@ -38,6 +38,83 @@ export async function getAnalyticsStats(range?: { from?: string; to?: string }) 
   };
 }
 
+export interface UtmBreakdownRow {
+  source: string | null;
+  medium: string | null;
+  campaign: string | null;
+  term: string | null;
+  content: string | null;
+  views: number;
+}
+
+/** Page-view counts grouped by UTM combination (traffic source), in range. */
+export async function getUtmBreakdown(range?: { from?: string; to?: string }): Promise<UtmBreakdownRow[]> {
+  const where = createdAtScope(range);
+  const grouped = await prisma.pageView.groupBy({
+    by: ["utmSource", "utmMedium", "utmCampaign", "utmTerm", "utmContent"],
+    where,
+    _count: { id: true },
+    orderBy: { _count: { id: "desc" } },
+    take: 200,
+  });
+  return grouped.map((g) => ({
+    source: g.utmSource,
+    medium: g.utmMedium,
+    campaign: g.utmCampaign,
+    term: g.utmTerm,
+    content: g.utmContent,
+    views: g._count.id,
+  }));
+}
+
+export interface PageViewLogRow {
+  id: string;
+  createdAt: string;
+  source: string | null;
+  medium: string | null;
+  campaign: string | null;
+  term: string | null;
+  content: string | null;
+  fbclid: string | null;
+  gclid: string | null;
+}
+
+/** Recent page views (one row per visit, no lead data) for the live log. */
+export async function listPageViews(opts: {
+  from?: string;
+  to?: string;
+  limit?: number;
+}): Promise<PageViewLogRow[]> {
+  const where = createdAtScope({ from: opts.from, to: opts.to });
+  const rows = await prisma.pageView.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: opts.limit ?? 100,
+    select: {
+      id: true,
+      createdAt: true,
+      utmSource: true,
+      utmMedium: true,
+      utmCampaign: true,
+      utmTerm: true,
+      utmContent: true,
+      fbclid: true,
+      gclid: true,
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    createdAt: r.createdAt.toISOString(),
+    source: r.utmSource,
+    medium: r.utmMedium,
+    campaign: r.utmCampaign,
+    term: r.utmTerm,
+    content: r.utmContent,
+    fbclid: r.fbclid,
+    gclid: r.gclid,
+  }));
+}
+
 export interface ContactRow {
   id: string;
   createdAt: string;
