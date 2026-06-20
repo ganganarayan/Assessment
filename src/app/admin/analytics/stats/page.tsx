@@ -1,6 +1,6 @@
 import { getAnalyticsStats } from "@/features/admin/data/analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ResetStatsButton } from "@/features/admin/components/reset-stats-button";
+import { ClearDataButton } from "@/features/admin/components/clear-data-button";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +32,7 @@ export default async function StatsPage({
           <h1 className="text-2xl font-bold tracking-tight">Stats</h1>
           <p className="text-sm text-[var(--muted-foreground)]">{note}</p>
         </div>
-        <ResetStatsButton />
+        <ClearDataButton />
       </div>
 
       <DateRangeFilter basePath="/admin/analytics/stats" from={sp.from} to={sp.to} />
