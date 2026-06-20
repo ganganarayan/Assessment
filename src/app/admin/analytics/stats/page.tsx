@@ -1,5 +1,7 @@
 import { getAnalyticsStats } from "@/features/admin/data/analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ResetStatsButton } from "@/features/admin/components/reset-stats-button";
+import { formatIST } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +17,16 @@ export default async function StatsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Stats</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">
-          Funnel numbers across all assessments.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Stats</h1>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            {s.since
+              ? `Counting since ${formatIST(s.since)} IST.`
+              : "Funnel numbers across all assessments."}
+          </p>
+        </div>
+        <ResetStatsButton />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((it) => (

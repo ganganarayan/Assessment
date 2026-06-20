@@ -613,6 +613,10 @@ model AppSetting {
   aiApiKeyEnc String?
   aiGuidance  String?
 
+  // Analytics baseline. When set, the Stats + Contacts pages count only
+  // records at/after this instant (a non-destructive "reset to 0").
+  statsResetAt DateTime?
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

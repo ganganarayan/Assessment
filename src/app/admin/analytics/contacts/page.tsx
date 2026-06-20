@@ -1,4 +1,5 @@
 import { listContacts } from "@/features/admin/data/analytics";
+import { formatIST } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +14,6 @@ const UTM = [
 ] as const;
 
 const tick = (v: boolean) => (v ? "✓" : "—");
-// UTC, to match the format used on the Submissions page.
-const fmt = (iso: string) => new Date(iso).toISOString().slice(0, 16).replace("T", " ");
 
 export default async function ContactsPage({
   searchParams,
@@ -43,7 +42,7 @@ export default async function ContactsPage({
             <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
               <tr>
                 <th className="px-3 py-1.5">Contact</th>
-                <th className="whitespace-nowrap px-3 py-1.5">Opt-in date</th>
+                <th className="whitespace-nowrap px-3 py-1.5">Opt-in date (IST)</th>
                 <th className="px-3 py-1.5 text-center">Opt-in</th>
                 <th className="px-3 py-1.5 text-center">Completed</th>
                 <th className="px-3 py-1.5 text-center">VSL</th>
@@ -65,7 +64,7 @@ export default async function ContactsPage({
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
-                    {fmt(r.createdAt)}
+                    {formatIST(r.createdAt)}
                   </td>
                   <td className="px-3 py-2 text-center text-green-600">✓</td>
                   <td className="px-3 py-2 text-center">{tick(r.completed)}</td>
