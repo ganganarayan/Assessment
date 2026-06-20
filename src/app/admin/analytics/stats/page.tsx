@@ -1,12 +1,18 @@
 import { getAnalyticsStats } from "@/features/admin/data/analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResetStatsButton } from "@/features/admin/components/reset-stats-button";
+import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { formatIST } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
-export default async function StatsPage() {
-  const s = await getAnalyticsStats();
+export default async function StatsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const sp = await searchParams;
+  const s = await getAnalyticsStats({ from: sp.from, to: sp.to });
   const items = [
     { label: "Opt-in page views", value: s.totalViews },
     { label: "Unique opt-in views", value: s.uniqueViews },
@@ -15,19 +21,24 @@ export default async function StatsPage() {
     { label: "VSL loads (result shown)", value: s.vslLoads },
   ];
 
+  const note =
+    sp.from || sp.to
+      ? `Showing ${sp.from ?? "start"} → ${sp.to ?? "today"} (IST).`
+      : s.since
+        ? `Counting since ${formatIST(s.since)} IST.`
+        : "Funnel numbers across all assessments.";
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Stats</h1>
-          <p className="text-sm text-[var(--muted-foreground)]">
-            {s.since
-              ? `Counting since ${formatIST(s.since)} IST.`
-              : "Funnel numbers across all assessments."}
-          </p>
+          <p className="text-sm text-[var(--muted-foreground)]">{note}</p>
         </div>
         <ResetStatsButton />
       </div>
+
+      <DateRangeFilter basePath="/admin/analytics/stats" from={sp.from} to={sp.to} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((it) => (
           <Card key={it.label}>

@@ -1,4 +1,5 @@
 import { listContacts } from "@/features/admin/data/analytics";
+import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { formatIST } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
@@ -18,24 +19,43 @@ const tick = (v: boolean) => (v ? "✓" : "—");
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; from?: string; to?: string }>;
 }) {
   const sp = await searchParams;
   const requested = Math.max(1, Number(sp.page ?? "1") || 1);
   const pageSize = 50;
-  const { rows, total, page, pages } = await listContacts({ page: requested, pageSize });
+  const { rows, total, page, pages } = await listContacts({
+    page: requested,
+    pageSize,
+    from: sp.from,
+    to: sp.to,
+  });
+
+  // Pagination links must keep the active date range.
+  const pageHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (sp.from) params.set("from", sp.from);
+    if (sp.to) params.set("to", sp.to);
+    params.set("page", String(p));
+    return `?${params.toString()}`;
+  };
+  const rangeNote = sp.from || sp.to ? ` (${sp.from ?? "start"} → ${sp.to ?? "today"} IST)` : "";
 
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Contacts</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          {total.toLocaleString()} opt-ins. Ticks = opted in · completed · VSL loaded (result shown).
+          {total.toLocaleString()} opt-ins{rangeNote}. Ticks = opted in · completed · VSL loaded (result shown).
         </p>
       </div>
 
+      <DateRangeFilter basePath="/admin/analytics/contacts" from={sp.from} to={sp.to} />
+
       {rows.length === 0 ? (
-        <p className="text-sm text-[var(--muted-foreground)]">No contacts yet.</p>
+        <p className="text-sm text-[var(--muted-foreground)]">
+          {sp.from || sp.to ? "No contacts in this date range." : "No contacts yet."}
+        </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
@@ -83,9 +103,9 @@ export default async function ContactsPage({
 
       {pages > 1 ? (
         <div className="flex items-center gap-4 text-sm">
-          {page > 1 ? <a className="underline" href={`?page=${page - 1}`}>← Prev</a> : <span />}
+          {page > 1 ? <a className="underline" href={pageHref(page - 1)}>← Prev</a> : <span />}
           <span className="text-[var(--muted-foreground)]">Page {page} of {pages}</span>
-          {page < pages ? <a className="underline" href={`?page=${page + 1}`}>Next →</a> : null}
+          {page < pages ? <a className="underline" href={pageHref(page + 1)}>Next →</a> : null}
         </div>
       ) : null}
     </div>

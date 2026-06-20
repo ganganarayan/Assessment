@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { normalizeAttribution } from "@/lib/events/payload";
+import { istDateRangeToUtc } from "@/lib/date";
 import type { PayloadAttribution } from "@/features/events/types";
 
 /** The analytics baseline: counts include only records at/after this instant. */
@@ -12,10 +13,28 @@ async function statsSince(): Promise<Date | null> {
   return s?.statsResetAt ?? null;
 }
 
+const laterOf = (a: Date | null, b: Date | null): Date | null =>
+  !a ? b : !b ? a : a.getTime() >= b.getTime() ? a : b;
+
+/**
+ * A Prisma `where` fragment scoping `createdAt`. The reset baseline is a
+ * persistent floor; the picked date range narrows within it (lower bound = the
+ * later of the two). Returns `{}` when neither is set.
+ */
+function createdAtScope(
+  since: Date | null,
+  range?: { from?: string; to?: string },
+): Record<string, unknown> {
+  const { gte, lte } = istDateRangeToUtc(range?.from, range?.to);
+  const lower = laterOf(since, gte);
+  if (!lower && !lte) return {};
+  return { createdAt: { ...(lower ? { gte: lower } : {}), ...(lte ? { lte } : {}) } };
+}
+
 /** Aggregate funnel numbers for the Stats page (global, across all assessments). */
-export async function getAnalyticsStats() {
+export async function getAnalyticsStats(range?: { from?: string; to?: string }) {
   const since = await statsSince();
-  const createdSince = since ? { createdAt: { gte: since } } : {};
+  const createdSince = createdAtScope(since, range);
 
   const [totalViews, uniqueVisitors, optins, completed, vslLoads] = await Promise.all([
     prisma.pageView.count({ where: createdSince }),
@@ -54,9 +73,11 @@ export interface ContactRow {
 export async function listContacts(opts: {
   page: number;
   pageSize: number;
+  from?: string;
+  to?: string;
 }): Promise<{ rows: ContactRow[]; total: number; page: number; pages: number }> {
   const since = await statsSince();
-  const where = since ? { createdAt: { gte: since } } : {};
+  const where = createdAtScope(since, { from: opts.from, to: opts.to });
 
   // Count first so an out-of-range ?page= is clamped to the last real page
   // (avoids a nonsensical "Page 9999 of 3" pager and a wasted skip past the end).
