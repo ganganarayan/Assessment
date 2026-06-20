@@ -13,3 +13,4 @@ cmds = ["npm ci --include=dev"]
 
 # ci: 2026-06-19 — force a fresh staging snapshot (Railway staging had been
 # rebuilding a stale pinned snapshot instead of the latest branch HEAD).
+# ci: 2026-06-20 — re-trigger: staging did not pick up 254fbb7 / 32f2697.
