@@ -7,6 +7,7 @@
  */
 import { encryptWithSecret, decryptWithSecret, isEncrypted } from "../src/lib/crypto";
 import { buildStatementMessages, humanizeStatement } from "../src/lib/ai/prompt";
+import { PROMPT_VERSIONS } from "../src/lib/ai/prompt-versions";
 import { DEFAULT_MODEL, isAiProvider } from "../src/lib/ai/types";
 
 let failures = 0;
@@ -44,7 +45,7 @@ console.log("AI feature verification\n");
 
 // (c) Prompt builder: raw scores only, name, band, word target + CTA.
 {
-  const { system, user } = buildStatementMessages({
+  const sample = {
     firstName: "Ganesh",
     assessmentTitle: "Executive Emotional Stability Assessment",
     scoreRaw: 45,
@@ -56,16 +57,22 @@ console.log("AI feature verification\n");
       { name: "Relationships & Presence", score: 10, max: 12 },
     ],
     guidance: "Higher scores mean more strain.",
-  });
+  };
+  const { user } = buildStatementMessages(sample);
   expect("user has first name", user.includes("Ganesh"));
   expect("user has overall score", user.includes("45/60") && user.includes("75%"));
   expect("user has band (direction)", user.includes("Unstable"));
   expect("user has raw category score", user.includes("Inner Pressure & Mental Burden: 9/12"));
   expect("user has guidance", user.includes("Higher scores mean more strain."));
-  expect("system sets 100-150 words", system.includes("100") && system.includes("150"));
-  expect("system asks to address by name", /name/i.test(system));
-  expect("system pulls to watch the video", /video/i.test(system) && /end/i.test(system));
-  expect("system says not AI", /not an ai/i.test(system));
+
+  // Invariants EVERY prompt version must satisfy.
+  for (const v of PROMPT_VERSIONS) {
+    const { system } = buildStatementMessages(sample, v.id);
+    expect(`[${v.id}] sets 100-150 words`, system.includes("100") && system.includes("150"));
+    expect(`[${v.id}] addresses by name`, /name/i.test(system));
+    expect(`[${v.id}] pulls to watch the video to the end`, /video/i.test(system) && /end/i.test(system));
+    expect(`[${v.id}] human tone, not an AI`, /not an ai/i.test(system));
+  }
 }
 
 // (d) Missing name falls back gracefully.

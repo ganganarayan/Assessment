@@ -20,6 +20,8 @@ export interface AiConfig {
   model: string;
   apiKey: string;
   guidance: string | null;
+  /** Active prompt version id (see prompt-versions.ts); null => default. */
+  promptVersion: string | null;
 }
 
 /** The raw signals passed to the model — RAW SCORES ONLY, no admin interpretation. */

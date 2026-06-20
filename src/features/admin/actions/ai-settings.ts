@@ -8,6 +8,13 @@ import { env } from "@/lib/env";
 import { encryptWithSecret, decryptWithSecret } from "@/lib/crypto";
 import { isAiProvider, type AiProvider } from "@/lib/ai/types";
 import { testStatement } from "@/lib/ai/generate";
+import { buildStatementMessages } from "@/lib/ai/prompt";
+import {
+  PROMPT_VERSIONS,
+  PREVIEW_SAMPLE,
+  SAMPLE_EASY_READ,
+  getPromptVersion,
+} from "@/lib/ai/prompt-versions";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 const schema = z.object({
@@ -15,10 +22,20 @@ const schema = z.object({
   provider: z.enum(["claude", "openai", "gemini"]),
   model: z.string().max(120).optional().or(z.literal("")),
   guidance: z.string().max(2000).optional().or(z.literal("")),
+  promptVersion: z.string().max(60).optional().or(z.literal("")),
   // Blank = keep the existing key (never round-trips the secret to the client).
   apiKey: z.string().max(400).optional().or(z.literal("")),
 });
 export type AiSettingsInput = z.infer<typeof schema>;
+
+export interface PromptVersionView {
+  id: string;
+  label: string;
+  description: string;
+  /** The system prompt rendered against the sample, for display. */
+  system: string;
+  active: boolean;
+}
 
 export interface AiSettingsView {
   enabled: boolean;
@@ -27,6 +44,10 @@ export interface AiSettingsView {
   guidance: string;
   hasKey: boolean;
   keyLast4: string | null;
+  promptVersion: string;
+  versions: PromptVersionView[];
+  sampleName: string;
+  sampleEasyRead: string;
 }
 
 export async function getAiSettings(): Promise<AiSettingsView> {
@@ -37,6 +58,15 @@ export async function getAiSettings(): Promise<AiSettingsView> {
     const dec = decryptWithSecret(s.aiApiKeyEnc, env.BETTER_AUTH_SECRET);
     keyLast4 = dec ? dec.slice(-4) : null;
   }
+  const active = getPromptVersion(s?.aiPromptVersion).id;
+  const versions: PromptVersionView[] = PROMPT_VERSIONS.map((v) => ({
+    id: v.id,
+    label: v.label,
+    description: v.description,
+    system: buildStatementMessages(PREVIEW_SAMPLE, v.id).system,
+    active: v.id === active,
+  }));
+
   return {
     enabled: s?.aiEnabled ?? false,
     provider: s?.aiProvider && isAiProvider(s.aiProvider) ? s.aiProvider : "claude",
@@ -44,6 +74,10 @@ export async function getAiSettings(): Promise<AiSettingsView> {
     guidance: s?.aiGuidance ?? "",
     hasKey: Boolean(s?.aiApiKeyEnc),
     keyLast4,
+    promptVersion: active,
+    versions,
+    sampleName: PREVIEW_SAMPLE.firstName ?? "Sample",
+    sampleEasyRead: SAMPLE_EASY_READ,
   };
 }
 
@@ -65,11 +99,18 @@ export async function updateAiSettings(input: AiSettingsInput): Promise<ActionRe
     return { ok: false, error: "Add an API key before enabling AI." };
   }
 
+  // Only persist a known version id; anything else falls back to the default.
+  const version =
+    d.promptVersion && PROMPT_VERSIONS.some((v) => v.id === d.promptVersion)
+      ? d.promptVersion
+      : null;
+
   const data = {
     aiEnabled: d.enabled,
     aiProvider: d.provider,
     aiModel: d.model && d.model.trim() ? d.model.trim() : null,
     aiGuidance: d.guidance && d.guidance.trim() ? d.guidance.trim() : null,
+    aiPromptVersion: version,
     ...(newKey ? { aiApiKeyEnc: encryptWithSecret(newKey, env.BETTER_AUTH_SECRET) } : {}),
   };
 
@@ -82,8 +123,11 @@ export async function updateAiSettings(input: AiSettingsInput): Promise<ActionRe
   return { ok: true };
 }
 
-/** Run the saved AI config against sample data; surfaces latency + any error. */
-export async function testAi(): Promise<{ ok: boolean; ms: number; text?: string; error?: string }> {
+/** Run the saved AI config against the sample; surfaces latency + any error.
+ *  Pass a versionId to preview a specific prompt version (else the active one). */
+export async function testAi(
+  versionId?: string,
+): Promise<{ ok: boolean; ms: number; text?: string; error?: string }> {
   await requireSuperAdmin();
-  return testStatement();
+  return testStatement(versionId);
 }

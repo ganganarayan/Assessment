@@ -625,6 +625,9 @@ model AppSetting {
   aiModel     String?
   aiApiKeyEnc String?
   aiGuidance  String?
+  // Active result-statement prompt version (see lib/ai/prompt-versions). Null =>
+  // the code default. Lets the owner A/B the wording without a deploy.
+  aiPromptVersion String?
 
   // Analytics baseline. When set, the Stats + Contacts pages count only
   // records at/after this instant (a non-destructive "reset to 0").

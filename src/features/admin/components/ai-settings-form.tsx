@@ -28,6 +28,7 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
   const [provider, setProvider] = useState<AiProvider>(initial.provider);
   const [model, setModel] = useState(initial.model);
   const [guidance, setGuidance] = useState(initial.guidance);
+  const [promptVersion, setPromptVersion] = useState(initial.promptVersion);
   const [apiKey, setApiKey] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [test, setTest] = useState<{ ok: boolean; ms: number; text?: string; error?: string } | null>(null);
@@ -37,7 +38,7 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
   function save() {
     setMsg(null);
     start(async () => {
-      const res = await updateAiSettings({ enabled, provider, model, guidance, apiKey });
+      const res = await updateAiSettings({ enabled, provider, model, guidance, promptVersion, apiKey });
       if (!res.ok) {
         setMsg({ ok: false, text: res.error });
         return;
@@ -102,6 +103,24 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
         />
         <p className="text-xs text-[var(--muted-foreground)]">
           Stored encrypted at rest and never shown again. Leave blank to keep the current key.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="ai-version">Result style (what respondents see)</Label>
+        <select
+          id="ai-version"
+          className={SELECT_CLASS}
+          value={promptVersion}
+          onChange={(e) => setPromptVersion(e.target.value)}
+        >
+          {initial.versions.map((v) => (
+            <option key={v.id} value={v.id}>{v.label}</option>
+          ))}
+        </select>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Which prompt version real respondents get. Compare versions in the studio below, then keep
+          the winner.
         </p>
       </div>
 

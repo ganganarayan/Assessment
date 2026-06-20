@@ -1,26 +1,21 @@
 import type { StatementInput } from "@/lib/ai/types";
+import { getPromptVersion } from "@/lib/ai/prompt-versions";
 
 /**
  * Builds the system + user messages for the personalized result statement. PURE
  * (no env, no I/O) so it is unit-testable. We pass RAW scores only — the model
- * does its own interpretation; we never send the admin's per-category bands.
+ * does its own interpretation; we never send the admin's per-category bands. The
+ * SYSTEM prompt comes from the selected version (see prompt-versions.ts).
  */
 
 const WORDS_MIN = 100;
 const WORDS_MAX = 150;
 
-export function buildStatementMessages(input: StatementInput): { system: string; user: string } {
-  const system = [
-    `You are writing a short, warm, personal message to someone who just completed "${input.assessmentTitle}".`,
-    `Write in second person and address them by their first name.`,
-    `Based ONLY on the scores provided, describe — with empathy and specificity — what they are most likely experiencing day to day.`,
-    `Sound like a perceptive, caring human mentor, NOT an AI: natural and warm, no jargon, no bullet points, no headings, and do NOT quote the raw numbers or percentages back.`,
-    `Do NOT use em dashes (—) or en dashes (–) — use commas, "and", or short sentences instead. Avoid punctuation patterns that read as AI-written.`,
-    `Write ${WORDS_MIN}–${WORDS_MAX} words, easy to read, in flowing prose.`,
-    `Use the overall band and any guidance to understand the direction of the scores (for example, higher scores may mean more struggle, not less).`,
-    `Finish with one or two sentences that gently but compellingly encourage them to watch the video all the way to the end, because it speaks directly to what they are going through.`,
-    `Output only the message text — no preamble, no quotes around it.`,
-  ].join(" ");
+export function buildStatementMessages(
+  input: StatementInput,
+  versionId?: string | null,
+): { system: string; user: string } {
+  const system = getPromptVersion(versionId).buildSystem(input, { min: WORDS_MIN, max: WORDS_MAX });
 
   const cats = input.categories
     .map((c) => `- ${c.name}: ${c.score}/${c.max}`)

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { decryptWithSecret } from "@/lib/crypto";
 import { buildStatementMessages, humanizeStatement } from "@/lib/ai/prompt";
+import { PREVIEW_SAMPLE } from "@/lib/ai/prompt-versions";
 import { DEFAULT_MODEL, isAiProvider, type AiConfig, type StatementInput } from "@/lib/ai/types";
 
 /**
@@ -30,6 +31,7 @@ async function readAiConfig(requireEnabled: boolean): Promise<AiConfig | null> {
       model: s.aiModel?.trim() || DEFAULT_MODEL[s.aiProvider],
       apiKey,
       guidance: s.aiGuidance ?? null,
+      promptVersion: s.aiPromptVersion ?? null,
     };
   } catch (e) {
     // Fail-soft at the source: a DB blip here must never break the caller.
@@ -53,10 +55,10 @@ export async function generatePersonalStatement(input: StatementInput): Promise<
   try {
     const cfg = await getAiConfig();
     if (!cfg) return null;
-    const { system, user } = buildStatementMessages({
-      ...input,
-      guidance: input.guidance ?? cfg.guidance,
-    });
+    const { system, user } = buildStatementMessages(
+      { ...input, guidance: input.guidance ?? cfg.guidance },
+      cfg.promptVersion,
+    );
     return await callProvider(cfg, system, user);
   } catch (e) {
     console.error("[ai] generation error:", e instanceof Error ? e.message : String(e));
@@ -75,10 +77,12 @@ async function callProvider(cfg: AiConfig, system: string, user: string): Promis
 }
 
 /**
- * Admin "Test connection": runs the configured provider against sample data and
- * SURFACES the error/latency (unlike generatePersonalStatement, which swallows).
+ * Admin preview/test: runs the configured provider against the Swannik sample
+ * and SURFACES the error/latency (unlike generatePersonalStatement, which
+ * swallows). `versionId` lets the dashboard compare prompt versions; omitted =
+ * the active version.
  */
-export async function testStatement(): Promise<{
+export async function testStatement(versionId?: string): Promise<{
   ok: boolean;
   ms: number;
   text?: string;
@@ -89,19 +93,10 @@ export async function testStatement(): Promise<{
   if (!cfg) {
     return { ok: false, ms: 0, error: "No API key saved (or it couldn't be read). Save a provider + key first." };
   }
-  const { system, user } = buildStatementMessages({
-    firstName: "Alex",
-    assessmentTitle: "Sample Assessment",
-    scoreRaw: 45,
-    max: 60,
-    percentage: 75,
-    band: "Unstable",
-    categories: [
-      { name: "Inner Pressure & Mental Burden", score: 9, max: 12 },
-      { name: "Relationships & Presence", score: 10, max: 12 },
-    ],
-    guidance: cfg.guidance,
-  });
+  const { system, user } = buildStatementMessages(
+    { ...PREVIEW_SAMPLE, guidance: cfg.guidance },
+    versionId ?? cfg.promptVersion,
+  );
   const t0 = Date.now();
   try {
     const text = await callProvider(cfg, system, user);

@@ -1,5 +1,6 @@
 import { getAiSettings } from "@/features/admin/actions/ai-settings";
 import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
+import { StatementStudio } from "@/features/admin/components/statement-studio";
 import {
   Card,
   CardContent,
@@ -35,6 +36,24 @@ export default async function AiSettingsPage() {
         </CardHeader>
         <CardContent>
           <AiSettingsForm initial={settings} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Statement studio</CardTitle>
+          <CardDescription>
+            Preview the framed result and compare prompt versions on a sample respondent. Keep
+            versions side by side while you decide; once you pick a winner, the others can be
+            removed.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <StatementStudio
+            versions={settings.versions}
+            sampleName={settings.sampleName}
+            sampleEasyRead={settings.sampleEasyRead}
+          />
         </CardContent>
       </Card>
     </div>
