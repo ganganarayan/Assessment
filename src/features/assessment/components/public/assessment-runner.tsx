@@ -6,6 +6,7 @@ import {
   completeSubmission,
   requestPreviousResults,
 } from "@/features/assessment/actions/submission";
+import { recordOptinView } from "@/features/assessment/actions/track";
 import type { LeadInput } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { Button } from "@/components/ui/button";
@@ -85,6 +86,11 @@ export function AssessmentRunner({
   const [lockout, setLockout] = useState<Lockout | null>(null);
   const [emailSent, setEmailSent] = useState(false);
   const [pending, start] = useTransition();
+
+  // Record the opt-in page view once per load (skip admin preview).
+  useEffect(() => {
+    if (!preview) void recordOptinView(assessment.slug).catch(() => {});
+  }, [preview, assessment.slug]);
 
   const questions = assessment.categories.flatMap((c) => c.questions);
   const requiredUnanswered = questions.filter(

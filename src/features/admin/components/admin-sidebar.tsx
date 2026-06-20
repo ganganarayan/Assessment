@@ -21,6 +21,13 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
     ],
   },
   {
+    section: "Analytics",
+    items: [
+      { href: "/admin/analytics/stats", label: "Stats" },
+      { href: "/admin/analytics/contacts", label: "Contacts" },
+    ],
+  },
+  {
     section: "Automation",
     items: [
       { href: "/admin/webhooks", label: "Webhooks" },

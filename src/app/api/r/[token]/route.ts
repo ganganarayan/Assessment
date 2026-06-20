@@ -71,6 +71,15 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
   const headers = corsHeaders(origin, sub?.assessment.targetOrigin ?? null);
 
   const outcome = readResult(sub, Date.now());
+
+  // Analytics: stamp the first successful fetch = the VSL page pulled the result.
+  // Fire-and-forget; never delays or fails the read.
+  if (outcome.status === 200) {
+    void prisma.submission
+      .updateMany({ where: { resultToken: token, resultFetchedAt: null }, data: { resultFetchedAt: new Date() } })
+      .catch(() => {});
+  }
+
   return NextResponse.json(outcome.body, {
     status: outcome.status,
     headers: outcome.status === 200 ? { ...headers, "Cache-Control": "no-store" } : headers,

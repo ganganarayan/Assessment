@@ -256,10 +256,28 @@ model Assessment {
   categories  Category[]
   resultBands ResultBand[]
   submissions Submission[]
+  pageViews   PageView[]
 
   @@index([tenantId])
   @@index([status])
   @@map("assessment")
+}
+
+// ---------------------------------------------------------------------------
+// PageView — one row per opt-in (public assessment) page load, for analytics.
+// visitorId comes from a long-lived cookie so "unique" = distinct visitors.
+// ---------------------------------------------------------------------------
+
+model PageView {
+  id           String   @id @default(cuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  visitorId    String
+  createdAt    DateTime @default(now())
+
+  @@index([assessmentId])
+  @@index([visitorId])
+  @@map("page_view")
 }
 
 // ---------------------------------------------------------------------------
@@ -417,7 +435,8 @@ model Submission {
   startedAt      DateTime  @default(now())
   completedAt    DateTime?
   abandonedAt    DateTime? // set by the abandonment sweep when STARTED past the delay
-  resultViewedAt DateTime? // set once when the result page is first viewed
+  resultViewedAt DateTime? // set once when the internal result page is first viewed
+  resultFetchedAt DateTime? // set on first /api/r read = the VSL page pulled the result
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
