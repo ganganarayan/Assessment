@@ -6,11 +6,11 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireSuperAdmin();
+  const user = await requireSuperAdmin();
 
   return (
     <div className="md:flex md:min-h-screen">
-      <AdminSidebar />
+      <AdminSidebar user={{ name: user.name, email: user.email }} />
       <main className="min-w-0 flex-1">
         <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">{children}</div>
       </main>

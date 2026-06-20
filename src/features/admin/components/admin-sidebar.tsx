@@ -11,6 +11,9 @@ interface NavItem {
   href: string;
   label: string;
 }
+interface AdminSidebarProps {
+  user: { name: string; email: string };
+}
 const NAV: { section: string | null; items: NavItem[] }[] = [
   { section: null, items: [{ href: "/admin", label: "Dashboard" }] },
   {
@@ -44,7 +47,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
   },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ user }: AdminSidebarProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -97,6 +100,17 @@ export function AdminSidebar() {
             ))}
           </nav>
           <div className="border-t pt-3">
+            <div className="mb-3 px-2">
+              <p className="truncate text-sm font-medium" title={user.name}>
+                {user.name}
+              </p>
+              <p
+                className="truncate text-xs text-[var(--muted-foreground)]"
+                title={user.email}
+              >
+                {user.email}
+              </p>
+            </div>
             <SignOutButton />
           </div>
         </div>
