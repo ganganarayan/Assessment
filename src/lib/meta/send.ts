@@ -60,7 +60,7 @@ export async function testCapi(testEventCode?: string): Promise<{
         eventTimeMs: Date.now(),
         eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/diagnostic`,
         user: { email: "capi-test@assess360.local" },
-        customData: { content_name: "CAPI diagnostic" },
+        customData: { content_name: "CAPI diagnostic", assessment_name: "CAPI diagnostic" },
       }),
     ],
     ...(code ? { test_event_code: code } : {}),

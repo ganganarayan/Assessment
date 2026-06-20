@@ -123,7 +123,7 @@ async function fireRegistration(
         lastName: lead.lastName,
         ...ctx,
       },
-      customData: { content_name: assessment.title },
+      customData: { content_name: assessment.title, assessment_name: assessment.title },
     }).catch(() => {});
   }
   return eventId;
@@ -649,7 +649,7 @@ export async function completeSubmission(
         lastName: full?.leadLastName ?? null,
         ...ctx,
       },
-      customData: { content_name: assessment.title },
+      customData: { content_name: assessment.title, assessment_name: assessment.title },
     }).catch(() => {});
   }
 
