@@ -4,48 +4,30 @@ import { normalizeAttribution } from "@/lib/events/payload";
 import { istDateRangeToUtc } from "@/lib/date";
 import type { PayloadAttribution } from "@/features/events/types";
 
-/** The analytics baseline: counts include only records at/after this instant. */
-async function statsSince(): Promise<Date | null> {
-  const s = await prisma.appSetting.findUnique({
-    where: { id: "singleton" },
-    select: { statsResetAt: true },
-  });
-  return s?.statsResetAt ?? null;
-}
-
-const laterOf = (a: Date | null, b: Date | null): Date | null =>
-  !a ? b : !b ? a : a.getTime() >= b.getTime() ? a : b;
-
 /**
- * A Prisma `where` fragment scoping `createdAt`. The reset baseline is a
- * persistent floor; the picked date range narrows within it (lower bound = the
- * later of the two). Returns `{}` when neither is set.
+ * A Prisma `where` fragment scoping `createdAt` to the selected date range.
+ * No range selected => `{}` => ALL records, all time (the default view).
  */
-function createdAtScope(
-  since: Date | null,
-  range?: { from?: string; to?: string },
-): Record<string, unknown> {
+function createdAtScope(range?: { from?: string; to?: string }): Record<string, unknown> {
   const { gte, lte } = istDateRangeToUtc(range?.from, range?.to);
-  const lower = laterOf(since, gte);
-  if (!lower && !lte) return {};
-  return { createdAt: { ...(lower ? { gte: lower } : {}), ...(lte ? { lte } : {}) } };
+  if (!gte && !lte) return {};
+  return { createdAt: { ...(gte ? { gte } : {}), ...(lte ? { lte } : {}) } };
 }
 
 /** Aggregate funnel numbers for the Stats page (global, across all assessments). */
 export async function getAnalyticsStats(range?: { from?: string; to?: string }) {
-  const since = await statsSince();
-  const createdSince = createdAtScope(since, range);
+  const scope = createdAtScope(range);
 
   const [totalViews, uniqueVisitors, optins, completed, vslLoads] = await Promise.all([
-    prisma.pageView.count({ where: createdSince }),
-    // distinct visitorId rows; length = unique views (no raw SQL, honours the baseline).
-    prisma.pageView.findMany({ where: createdSince, select: { visitorId: true }, distinct: ["visitorId"] }),
+    prisma.pageView.count({ where: scope }),
+    // distinct visitorId rows; length = unique views (no raw SQL).
+    prisma.pageView.findMany({ where: scope, select: { visitorId: true }, distinct: ["visitorId"] }),
     // "Opted in" = submission rows. Equals distinct people for the common config
     // (a required, unique identifier such as email); UNLIMITED-retake or
     // no-identifier assessments may count repeat attempts by the same person.
-    prisma.submission.count({ where: createdSince }),
-    prisma.submission.count({ where: { ...createdSince, status: "COMPLETED" } }),
-    prisma.submission.count({ where: { ...createdSince, resultFetchedAt: { not: null } } }),
+    prisma.submission.count({ where: scope }),
+    prisma.submission.count({ where: { ...scope, status: "COMPLETED" } }),
+    prisma.submission.count({ where: { ...scope, resultFetchedAt: { not: null } } }),
   ]);
   return {
     totalViews,
@@ -53,7 +35,6 @@ export async function getAnalyticsStats(range?: { from?: string; to?: string }) 
     optins,
     completed,
     vslLoads,
-    since,
   };
 }
 
@@ -76,8 +57,7 @@ export async function listContacts(opts: {
   from?: string;
   to?: string;
 }): Promise<{ rows: ContactRow[]; total: number; page: number; pages: number }> {
-  const since = await statsSince();
-  const where = createdAtScope(since, { from: opts.from, to: opts.to });
+  const where = createdAtScope({ from: opts.from, to: opts.to });
 
   // Count first so an out-of-range ?page= is clamped to the last real page
   // (avoids a nonsensical "Page 9999 of 3" pager and a wasted skip past the end).

@@ -2,7 +2,6 @@ import { getAnalyticsStats } from "@/features/admin/data/analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResetStatsButton } from "@/features/admin/components/reset-stats-button";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
-import { formatIST } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
@@ -24,9 +23,7 @@ export default async function StatsPage({
   const note =
     sp.from || sp.to
       ? `Showing ${sp.from ?? "start"} → ${sp.to ?? "today"} (IST).`
-      : s.since
-        ? `Counting since ${formatIST(s.since)} IST.`
-        : "Funnel numbers across all assessments.";
+      : "Funnel numbers across all assessments (all time).";
 
   return (
     <div className="flex flex-col gap-6">
