@@ -1,21 +1,9 @@
 import { listContacts } from "@/features/admin/data/analytics";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
-import { formatIST } from "@/lib/date";
+import { ContactsTable } from "@/features/admin/components/contacts-table";
 
 export const dynamic = "force-dynamic";
-
-const UTM = [
-  "utm_source",
-  "utm_medium",
-  "utm_campaign",
-  "utm_term",
-  "utm_content",
-  "fbclid",
-  "gclid",
-] as const;
-
-const tick = (v: boolean) => (v ? "✓" : "—");
 
 export default async function ContactsPage({
   searchParams,
@@ -75,48 +63,7 @@ export default async function ContactsPage({
           {sp.from || sp.to ? "No contacts in this date range." : "No contacts yet."}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
-              <tr>
-                <th className="px-3 py-1.5">Contact</th>
-                <th className="whitespace-nowrap px-3 py-1.5">Opt-in date (IST)</th>
-                <th className="px-3 py-1.5 text-center">Opt-in</th>
-                <th className="px-3 py-1.5 text-center">Completed</th>
-                <th className="px-3 py-1.5 text-center">VSL</th>
-                {UTM.map((u) => (
-                  <th key={u} className="whitespace-nowrap px-3 py-1.5">{u}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-col">
-                      <span className="font-medium">
-                        {[r.firstName, r.lastName].filter(Boolean).join(" ") || "—"}
-                      </span>
-                      <span className="text-xs text-[var(--muted-foreground)]">{r.email ?? "—"}</span>
-                      <span className="text-xs text-[var(--muted-foreground)]">{r.mobile ?? "—"}</span>
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
-                    {formatIST(r.createdAt)}
-                  </td>
-                  <td className="px-3 py-2 text-center text-green-600">✓</td>
-                  <td className="px-3 py-2 text-center">{tick(r.completed)}</td>
-                  <td className="px-3 py-2 text-center">{tick(r.vslLoaded)}</td>
-                  {UTM.map((u) => (
-                    <td key={u} className="whitespace-nowrap px-3 py-2 text-xs">
-                      {r.attribution?.[u] ?? "—"}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ContactsTable rows={rows} />
       )}
 
       {pages > 1 ? (

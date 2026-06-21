@@ -175,8 +175,11 @@ export function AssessmentRunner({
         pixelTrackCustom("AssessmentCompleted", { content_name: assessment.title }, res.data.eventId);
       }
       // Keep the one spinner up while the pixel beacon flushes, then go — no
-      // second countdown, no flicker.
-      const url = res.data?.resultUrl ?? `/a/${assessment.slug}/r/${submissionId}`;
+      // second countdown, no flicker. Append event=1 so the destination's VSL-view
+      // pixel fires ONCE on this post-completion redirect; the link saved to the
+      // CRM stays without it, so later email/WhatsApp opens don't re-fire.
+      const base = res.data?.resultUrl ?? `/a/${assessment.slug}/r/${submissionId}`;
+      const url = base + (base.includes("?") ? "&" : "?") + "event=1";
       await new Promise((r) => setTimeout(r, 1200));
       window.location.replace(url);
     });
