@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { normalizeAttribution } from "@/lib/events/payload";
-import { istDateRangeToUtc } from "@/lib/date";
+import { istDateRangeToUtc, formatIST } from "@/lib/date";
 import type { PayloadAttribution } from "@/features/events/types";
 
 /**
@@ -125,6 +125,68 @@ export interface ContactRow {
   completed: boolean;
   vslLoaded: boolean;
   attribution: PayloadAttribution | null;
+}
+
+export interface ContactExportRow {
+  optInDateIST: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  completed: boolean;
+  vslLoaded: boolean;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_term: string | null;
+  utm_content: string | null;
+  fbclid: string | null;
+  gclid: string | null;
+}
+
+/** Safety cap so an export can never try to materialize an unbounded result. */
+export const EXPORT_CAP = 100_000;
+
+/** ALL contacts matching the date range (no pagination), flattened for export. */
+export async function listContactsForExport(range?: {
+  from?: string;
+  to?: string;
+}): Promise<ContactExportRow[]> {
+  const where = createdAtScope(range);
+  const rows = await prisma.submission.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: EXPORT_CAP,
+    select: {
+      createdAt: true,
+      leadFirstName: true,
+      leadLastName: true,
+      leadEmail: true,
+      leadMobile: true,
+      status: true,
+      resultFetchedAt: true,
+      attribution: true,
+    },
+  });
+  return rows.map((r) => {
+    const a = normalizeAttribution(r.attribution);
+    return {
+      optInDateIST: formatIST(r.createdAt),
+      firstName: r.leadFirstName ?? "",
+      lastName: r.leadLastName ?? "",
+      email: r.leadEmail ?? "",
+      phone: r.leadMobile ?? "",
+      completed: r.status === "COMPLETED",
+      vslLoaded: r.resultFetchedAt !== null,
+      utm_source: a?.utm_source ?? null,
+      utm_medium: a?.utm_medium ?? null,
+      utm_campaign: a?.utm_campaign ?? null,
+      utm_term: a?.utm_term ?? null,
+      utm_content: a?.utm_content ?? null,
+      fbclid: a?.fbclid ?? null,
+      gclid: a?.gclid ?? null,
+    };
+  });
 }
 
 /** One row per submission (= one opt-in contact) for the Contacts page. */

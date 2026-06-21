@@ -1,5 +1,6 @@
 import { listContacts } from "@/features/admin/data/analytics";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
+import { ContactsToolbar } from "@/features/admin/components/contacts-toolbar";
 import { formatIST } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
@@ -43,11 +44,14 @@ export default async function ContactsPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Contacts</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">
-          {total.toLocaleString()} opt-ins{rangeNote}. Ticks = opted in · completed · VSL loaded (result shown).
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Contacts</h1>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            {total.toLocaleString()} opt-ins{rangeNote}. Ticks = opted in · completed · VSL loaded (result shown).
+          </p>
+        </div>
+        <ContactsToolbar from={sp.from} to={sp.to} />
       </div>
 
       <DateRangeFilter basePath="/admin/analytics/contacts" from={sp.from} to={sp.to} />
