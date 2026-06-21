@@ -66,6 +66,12 @@ export default async function EditAssessmentPage({
     maxScore: b.maxScore,
   }));
 
+  // Overall band level -> your word (e.g. LOW -> "Stable"); used by the connector
+  // to translate per-category levels into your words on the destination page.
+  const bandWords: Record<string, string> = Object.fromEntries(
+    a.resultBands.map((b) => [b.level, b.title]),
+  );
+
   const categoryOptions = a.categories.map((c) => ({ id: c.id, name: c.name }));
   const categoryBands = a.categories.flatMap((c) =>
     c.bands.map((b) => ({
@@ -106,7 +112,7 @@ export default async function EditAssessmentPage({
         <p className="text-xs text-[var(--muted-foreground)]">
           Paste a URL above (Destination page), save, then copy this connector into your page.
         </p>
-        <ConnectDestination targetUrl={a.targetUrl} endpointBase={env.NEXT_PUBLIC_APP_URL} />
+        <ConnectDestination targetUrl={a.targetUrl} endpointBase={env.NEXT_PUBLIC_APP_URL} bandWords={bandWords} />
       </section>
 
       <section className="flex flex-col gap-3">

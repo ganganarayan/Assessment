@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const CONNECTOR_VERSION = "v10";
+const CONNECTOR_VERSION = "v11";
 
 /**
  * Two snippets, because the customer's page builder runs scripts ONLY in the
@@ -17,9 +17,13 @@ const CONNECTOR_VERSION = "v10";
 export function ConnectDestination({
   targetUrl,
   endpointBase,
+  bandWords,
 }: {
   targetUrl: string | null;
   endpointBase: string;
+  /** Overall band level -> your word (e.g. LOW -> "Stable"), to translate the
+   *  per-category levels into your words on the destination page. */
+  bandWords: Record<string, string>;
 }) {
   if (!targetUrl) {
     return (
@@ -31,7 +35,7 @@ export function ConnectDestination({
   }
 
   const base = endpointBase.replace(/\/+$/, "");
-  const partA = buildHeadSnippet(base);
+  const partA = buildHeadSnippet(base, bandWords);
   const partB = buildBodySnippet();
   const partC = buildScoreSnippet();
 
@@ -77,13 +81,16 @@ function CodeBlock({ title, code }: { title: string; code: string }) {
   );
 }
 
-function buildHeadSnippet(endpointBase: string): string {
-  return `<!-- assess360 connector ${CONNECTOR_VERSION} — paste in the page HEAD -->
+function buildHeadSnippet(endpointBase: string, bandWords: Record<string, string>): string {
+  const wordsJson = JSON.stringify(bandWords).replace(/</g, "\\u003c");
+  return `<h2 style="font-size:1.8rem;font-weight:800;text-align:center;margin:0 0 14px">Please Read Carefully</h2>
+<!-- assess360 connector ${CONNECTOR_VERSION} — paste in the page HEAD -->
 <link rel="preconnect" href="${endpointBase}">
 <script>
 (function () {
   console.log("[assess360] connector ${CONNECTOR_VERSION} active");
   var ENDPOINT_BASE = "${endpointBase}";
+  var BANDWORDS = ${wordsJson}; // band level -> your word (Stable/Overwhelmed/...)
   var t = new URLSearchParams(location.search).get("t");
   if (!t) return;
   var attempts = 0;
@@ -100,6 +107,8 @@ function buildHeadSnippet(endpointBase: string): string {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
     });
   }
+  // Translate a band level (LOW/MEDIUM/...) into your word; pass through if already a word.
+  function word(b) { return b ? (BANDWORDS[b] || b) : ""; }
   function fillStatement(d) {
     var stmt = d.aiStatement || d.resultSuggestion || d.resultBand;
     if (stmt == null) return;
@@ -111,9 +120,8 @@ function buildHeadSnippet(endpointBase: string): string {
   function fillScore(d) {
     var box = document.querySelectorAll(".assess360-score");
     if (!box.length || d.scoreRaw == null || d.max == null) return;
-    var band = d.resultBand
-      ? (d.resultBandLevel ? d.resultBand + " (" + d.resultBandLevel + ")" : d.resultBand)
-      : (d.resultBandLevel || "");
+    // Your word for the overall band (no LOW/MEDIUM levels shown).
+    var band = d.resultBand || word(d.resultBandLevel);
     // One block: overall on top, then ONE line per category.
     var html =
       '<div class="assess360-score-total" style="font-size:1.2rem;font-weight:700;margin:0 0 .6rem">' +
@@ -124,10 +132,11 @@ function buildHeadSnippet(endpointBase: string): string {
       html += '<div class="assess360-score-categories">';
       for (var i = 0; i < cats.length; i++) {
         var c = cats[i];
+        var w = word(c.band); // your word, not LOW/MEDIUM
         html +=
           '<div class="assess360-score-row" style="padding:.35rem 0;border-bottom:1px solid rgba(127,127,127,.2)">' +
           esc(c.name) + ": " + c.score + " / " + c.max +
-          (c.band ? " (" + esc(c.band) + ")" : "") + "</div>";
+          (w ? " (" + esc(w) + ")" : "") + "</div>";
       }
       html += "</div>";
     }
@@ -162,5 +171,6 @@ function buildScoreSnippet(): string {
   // (no extra request). Put it below the video and CTA. Style .assess360-score,
   // .assess360-score-total, .assess360-score-row in your page CSS to taste.
   return `<!-- assess360 score ${CONNECTOR_VERSION} — paste in body, below your video + CTA -->
+<h2 style="font-size:1.5rem;font-weight:700;text-align:center;margin:0 0 12px">Your Assessment Numbers Below</h2>
 <div class="assess360-score" style="font-size:1.05rem;line-height:1.6"></div>`;
 }
