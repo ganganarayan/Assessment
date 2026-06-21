@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const CONNECTOR_VERSION = "v8";
+const CONNECTOR_VERSION = "v9";
 
 /**
  * Two snippets, because the customer's page builder runs scripts ONLY in the
@@ -33,17 +33,20 @@ export function ConnectDestination({
   const base = endpointBase.replace(/\/+$/, "");
   const partA = buildHeadSnippet(base);
   const partB = buildBodySnippet();
+  const partC = buildScoreSnippet();
 
   return (
     <div className="flex flex-col gap-4">
       <ol className="list-decimal pl-5 text-sm text-[var(--muted-foreground)]">
         <li><strong>First remove any old assess360 code</strong> from the page (old <span className="font-mono">id=&quot;ai-statement&quot;</span> / <span className="font-mono">assess360-results</span> blocks and any <span className="font-mono">{"{%contact.ai_statement%}"}</span> tag) — duplicate pastes get auto-renamed by the builder and break it.</li>
         <li>Paste <strong>Part A</strong> in the page&apos;s <span className="font-mono">&lt;head&gt;</span> (where scripts run).</li>
-        <li>Paste <strong>Part B</strong> in the page <strong>body, right above your video</strong> (plain HTML; it uses a class, not an id, so it survives re-pastes).</li>
-        <li>Stays blank until a result loads. Console should show <span className="font-mono">[assess360] connector {CONNECTOR_VERSION} active</span>.</li>
+        <li>Paste <strong>Part B</strong> in the page <strong>body, right above your video</strong> (the AI message).</li>
+        <li>Paste <strong>Part C</strong> in the page <strong>body, below your video and CTA button</strong> (the score + category breakdown).</li>
+        <li>All parts use classes (not ids), so they survive re-pastes. One fetch fills both B and C — no extra latency. Console shows <span className="font-mono">[assess360] connector {CONNECTOR_VERSION} active</span>.</li>
       </ol>
       <CodeBlock title={`Part A — paste in <head> (connector ${CONNECTOR_VERSION})`} code={partA} />
       <CodeBlock title="Part B — paste in body, above your video" code={partB} />
+      <CodeBlock title="Part C — paste in body, below your video + CTA" code={partC} />
     </div>
   );
 }
@@ -92,14 +95,51 @@ function buildHeadSnippet(endpointBase: string): string {
         throw e;
       });
   }
-  function show(d) {
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+  function fillStatement(d) {
     var stmt = d.aiStatement || d.resultSuggestion || d.resultBand;
     if (stmt == null) return;
     // Target a CLASS (builders don't rename duplicate classes) + any id starting
     // with "ai-statement" (builders auto-suffix duplicate ids to -2, -3, ...).
     var els = document.querySelectorAll('.assess360-ai-statement, [id^="ai-statement"]');
-    if (!els.length) { console.warn('[assess360] target missing — paste the body snippet (div.assess360-ai-statement) above your video'); return; }
     for (var i = 0; i < els.length; i++) els[i].textContent = String(stmt);
+  }
+  function fillScore(d) {
+    var box = document.querySelectorAll(".assess360-score");
+    if (!box.length || d.scoreRaw == null || d.max == null) return;
+    var band = d.resultBand
+      ? (d.resultBandLevel ? d.resultBand + " (" + d.resultBandLevel + ")" : d.resultBand)
+      : (d.resultBandLevel || "");
+    var html =
+      '<div class="assess360-score-total" style="font-size:1.25rem;font-weight:700;margin:0 0 .6rem">' +
+      "Your score: " + d.scoreRaw + " / " + d.max + " (" + d.scorePercent + "%)" +
+      (band ? " — " + esc(band) : "") + "</div>";
+    var cats = d.categories || [];
+    if (cats.length) {
+      html += '<div class="assess360-score-categories">';
+      for (var i = 0; i < cats.length; i++) {
+        var c = cats[i];
+        html +=
+          '<div class="assess360-score-row" style="display:flex;justify-content:space-between;gap:1rem;padding:.45rem 0;border-bottom:1px solid rgba(127,127,127,.25)">' +
+          "<span>" + esc(c.name) + (c.band ? " — " + esc(c.band) : "") + "</span>" +
+          '<span style="font-weight:600;white-space:nowrap">' + c.score + " / " + c.max + "</span></div>";
+      }
+      html += "</div>";
+    }
+    for (var j = 0; j < box.length; j++) box[j].innerHTML = html;
+  }
+  function show(d) {
+    var hasStmt = document.querySelectorAll('.assess360-ai-statement, [id^="ai-statement"]').length;
+    var hasScore = document.querySelectorAll(".assess360-score").length;
+    if (!hasStmt && !hasScore) {
+      console.warn("[assess360] no targets found — paste Part B (above video) and/or Part C (below video)");
+    }
+    fillStatement(d);
+    fillScore(d);
   }
   function go() { load().then(show).catch(function () {}); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", go);
@@ -114,4 +154,12 @@ function buildBodySnippet(): string {
   // font-size 1.2rem (your "12") reads well on desktop; edit it here to taste.
   return `<!-- assess360 results ${CONNECTOR_VERSION} — paste in body, above your video -->
 <div class="assess360-ai-statement" style="white-space:pre-line;font-size:1.2rem;line-height:1.6"></div>`;
+}
+
+function buildScoreSnippet(): string {
+  // Class-based placeholder filled by the head script from the SAME single fetch
+  // (no extra request). Put it below the video and CTA. Style .assess360-score,
+  // .assess360-score-total, .assess360-score-row in your page CSS to taste.
+  return `<!-- assess360 score ${CONNECTOR_VERSION} — paste in body, below your video + CTA -->
+<div class="assess360-score" style="font-size:1.05rem;line-height:1.6"></div>`;
 }
