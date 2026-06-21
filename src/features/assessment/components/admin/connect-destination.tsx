@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const CONNECTOR_VERSION = "v11";
+const CONNECTOR_VERSION = "v12";
 
 /**
  * Two snippets, because the customer's page builder runs scripts ONLY in the
@@ -83,8 +83,7 @@ function CodeBlock({ title, code }: { title: string; code: string }) {
 
 function buildHeadSnippet(endpointBase: string, bandWords: Record<string, string>): string {
   const wordsJson = JSON.stringify(bandWords).replace(/</g, "\\u003c");
-  return `<h2 style="font-size:1.8rem;font-weight:800;text-align:center;margin:0 0 14px">Please Read Carefully</h2>
-<!-- assess360 connector ${CONNECTOR_VERSION} — paste in the page HEAD -->
+  return `<!-- assess360 connector ${CONNECTOR_VERSION} — paste in the page HEAD -->
 <link rel="preconnect" href="${endpointBase}">
 <script>
 (function () {
@@ -163,6 +162,7 @@ function buildBodySnippet(): string {
   // Invisible until the head script fills it.
   // font-size 1.2rem (your "12") reads well on desktop; edit it here to taste.
   return `<!-- assess360 results ${CONNECTOR_VERSION} — paste in body, above your video -->
+<h2 style="font-size:1.8rem;font-weight:800;text-align:center;margin:0 0 14px">Please Read Carefully</h2>
 <div class="assess360-ai-statement" style="white-space:pre-line;font-size:1.2rem;line-height:1.6"></div>`;
 }
 
