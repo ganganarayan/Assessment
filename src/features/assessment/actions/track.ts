@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { generateId } from "@/lib/ids";
 import { rateLimit } from "@/lib/rate-limit";
 import { normalizeAttribution } from "@/lib/events/payload";
+import { ATTR_COOKIE } from "@/lib/attribution";
 
 const VISITOR_COOKIE = "a360_vid";
 
@@ -33,9 +34,22 @@ export async function recordOptinView(
     });
     if (!a) return;
 
+    const c = await cookies();
+
     // Sanitize UTMs (known keys, trimmed, length-capped) so the traffic source
-    // is captured on the page view itself — before any lead exists.
-    const attr = normalizeAttribution(attribution);
+    // is captured on the page view itself, before any lead exists. Prefer the
+    // URL params; fall back to the saved attribution cookie set in middleware.
+    let attr = normalizeAttribution(attribution);
+    if (!attr) {
+      const raw = c.get(ATTR_COOKIE)?.value;
+      if (raw) {
+        try {
+          attr = normalizeAttribution(JSON.parse(raw));
+        } catch {
+          // ignore malformed cookie
+        }
+      }
+    }
     const utm = {
       utmSource: attr?.utm_source ?? null,
       utmMedium: attr?.utm_medium ?? null,
@@ -46,7 +60,6 @@ export async function recordOptinView(
       gclid: attr?.gclid ?? null,
     };
 
-    const c = await cookies();
     const existing = c.get(VISITOR_COOKIE)?.value;
 
     if (existing) {

@@ -1,6 +1,8 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
+import { ATTR_COOKIE } from "@/lib/attribution";
 import {
   leadSchema,
   answersSchema,
@@ -134,6 +136,16 @@ async function fireRegistration(
  * create the record immediately (status STARTED), and return its id so the
  * respondent can continue into the questions.
  */
+/** Read the saved attribution cookie (set in middleware, last-touch); null if absent/bad. */
+async function readAttributionCookie() {
+  try {
+    const raw = (await cookies()).get(ATTR_COOKIE)?.value;
+    return raw ? normalizeAttribution(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function startSubmission(
   slug: string,
   lead: LeadInput,
@@ -184,7 +196,10 @@ export async function startSubmission(
     return { ok: false, error: "Mobile number is required." };
 
   // Sanitize untrusted attribution from the landing URL (known keys, capped).
-  const attr = normalizeAttribution(attribution);
+  // Fall back to the saved attribution cookie (set in middleware) when this
+  // opt-in URL carried none — e.g. the visitor landed with UTMs, then navigated.
+  let attr = normalizeAttribution(attribution);
+  if (!attr) attr = await readAttributionCookie();
   const identifierValue = normalizeIdentifier(assessment.uniqueIdentifier, { email, mobile });
   const leadFields = { firstName, lastName, email, mobile };
   // Mint the customerId once (8 chars; the @unique index is the collision backstop).

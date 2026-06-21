@@ -1,34 +1,12 @@
 import { notFound } from "next/navigation";
 import { getPublishedAssessmentBySlug } from "@/features/assessment/data";
+import { pickAttribution } from "@/lib/attribution";
 import {
   AssessmentRunner,
   type PublicAssessment,
 } from "@/features/assessment/components/public/assessment-runner";
 
 export const dynamic = "force-dynamic";
-
-/** UTM + click-id params captured from the landing URL. */
-const ATTRIBUTION_KEYS = [
-  "utm_source",
-  "utm_medium",
-  "utm_campaign",
-  "utm_term",
-  "utm_content",
-  "fbclid",
-  "gclid",
-] as const;
-
-function pickAttribution(
-  sp: Record<string, string | string[] | undefined>,
-): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const key of ATTRIBUTION_KEYS) {
-    const raw = sp[key];
-    const value = Array.isArray(raw) ? raw[0] : raw;
-    if (typeof value === "string" && value.trim()) out[key] = value;
-  }
-  return out;
-}
 
 export default async function PublicAssessmentPage({
   params,
@@ -39,7 +17,10 @@ export default async function PublicAssessmentPage({
 }) {
   const { slug } = await params;
   const sp = await searchParams;
-  const attribution = pickAttribution(sp);
+  const attribution = pickAttribution((k) => {
+    const v = sp[k];
+    return Array.isArray(v) ? v[0] : v;
+  });
   const preview = sp.preview === "1"; // admin-only bypass; verified server-side
   const a = await getPublishedAssessmentBySlug(slug);
   if (!a) notFound();

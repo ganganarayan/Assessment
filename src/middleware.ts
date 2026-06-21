@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 import { resolveTenantFromHost } from "@/lib/tenant/resolve";
 import { TENANT_HEADERS } from "@/lib/tenant/constants";
+import { ATTR_COOKIE, pickAttribution } from "@/lib/attribution";
 
 /**
  * Multi-tenant + auth edge middleware.
@@ -44,7 +45,22 @@ export function middleware(request: NextRequest) {
   requestHeaders.set(TENANT_HEADERS.source, source);
   requestHeaders.set(TENANT_HEADERS.host, host);
 
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
+
+  // Marketing attribution (last-touch): whenever a visitor hits any app page
+  // with UTM/click-id params, persist the latest set so it survives navigation
+  // to the opt-in. The funnel reads this cookie when the opt-in URL has none.
+  const attr = pickAttribution((k) => nextUrl.searchParams.get(k));
+  if (Object.keys(attr).length > 0) {
+    res.cookies.set(ATTR_COOKIE, JSON.stringify(attr), {
+      maxAge: 60 * 60 * 24 * 90, // 90 days
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+    });
+  }
+
+  return res;
 }
 
 export const config = {
