@@ -523,9 +523,10 @@ export async function completeSubmission(
     };
   }
 
-  // AI personalized statement (RAW scores only — no per-category interpretation).
-  // Fail-soft: null when AI is off/slow/errors, and the page falls back to the
-  // static suggestion. Generated once and stored on the submission/snapshot.
+  // AI personalized statement. Feeds the overall band (level + title) and the
+  // per-category bands so the message uses the assessment's own words. Fail-soft:
+  // null when AI is off/slow/errors; the page falls back to the static
+  // suggestion. The default version is mirrored into the snapshot below.
   const aiStatement = await generatePersonalStatement({
     firstName: submission.leadFirstName,
     assessmentTitle: assessment.title,
@@ -533,11 +534,8 @@ export async function completeSubmission(
     max: maxScore,
     percentage: Math.round(percentage),
     band: band?.title ?? null,
-    categories: categoryScores.map((cs) => ({
-      name: categoryById.get(cs.categoryId)?.name ?? "",
-      score: cs.score,
-      max: cs.maxScore,
-    })),
+    bandLevel: band?.level ?? null,
+    categories: categoryResults,
   });
 
   const snapshot = buildResultSnapshot({
@@ -546,6 +544,7 @@ export async function completeSubmission(
     max: maxScore,
     scorePercent: Math.round(percentage),
     resultBand: band?.title ?? null,
+    resultBandLevel: band?.level ?? null,
     resultSuggestion: band?.description ?? null,
     aiStatement,
     categories: categoryResults,

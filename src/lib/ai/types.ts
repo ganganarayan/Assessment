@@ -24,16 +24,20 @@ export interface AiConfig {
   promptVersion: string | null;
 }
 
-/** The raw signals passed to the model — RAW SCORES ONLY, no admin interpretation. */
+/** The signals passed to the model for one personalized statement. */
 export interface StatementInput {
   firstName: string | null;
   assessmentTitle: string;
   scoreRaw: number;
   max: number;
   percentage: number;
-  /** Overall band word (e.g. "Unstable") — anchors the scoring direction. */
+  /** Overall band TITLE (e.g. "Unstable"). */
   band: string | null;
-  categories: { name: string; score: number; max: number }[];
+  /** Overall band LEVEL (LOW/MEDIUM/HIGH/CRITICAL) — used verbatim in the message. */
+  bandLevel?: string | null;
+  categories: { name: string; score: number; max: number; band?: string | null; meaning?: string | null }[];
   /** Admin-set tone / scoring-direction note (optional). */
   guidance?: string | null;
+  /** Admin's free-text correction/steering for a regenerate (overrides defaults). */
+  instruction?: string | null;
 }

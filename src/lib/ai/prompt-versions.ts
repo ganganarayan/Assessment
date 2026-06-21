@@ -71,11 +71,12 @@ export const PREVIEW_SAMPLE: StatementInput = {
   scoreRaw: 52,
   max: 60,
   percentage: 87,
-  band: "High Strain",
+  band: "Unstable",
+  bandLevel: "CRITICAL",
   categories: [
-    { name: "Inner Pressure & Mental Burden", score: 11, max: 12 },
-    { name: "Relationships & Presence", score: 10, max: 12 },
-    { name: "Drive vs. Fulfilment", score: 9, max: 12 },
+    { name: "Inner Pressure & Mental Burden", score: 11, max: 12, band: "Critical" },
+    { name: "Relationships & Presence", score: 10, max: 12, band: "High" },
+    { name: "Drive vs. Fulfilment", score: 9, max: 12, band: "High" },
   ],
   guidance: null,
 };

@@ -465,6 +465,7 @@ model Submission {
 
   answers        SubmissionAnswer[]
   categoryScores SubmissionCategoryScore[]
+  aiStatements   AiStatement[]
 
   @@index([assessmentId])
   @@index([leadEmail])
@@ -472,6 +473,28 @@ model Submission {
   @@index([status, startedAt]) // abandonment sweep
   @@index([assessmentId, identifierValue, status]) // retake lockout + trend
   @@map("submission")
+}
+
+// ---------------------------------------------------------------------------
+// AiStatement — versioned personalized messages for a submission. Many per
+// submission; the one with isDefault=true is mirrored into resultSnapshot
+// .aiStatement and is what the VSL serves. source: "ai" (model) | "manual"
+// (admin-written). Nothing is auto-deleted.
+// ---------------------------------------------------------------------------
+
+model AiStatement {
+  id            String   @id @default(cuid())
+  submissionId  String
+  submission    Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  text          String
+  source        String   @default("ai") // "ai" | "manual"
+  instruction   String? // admin steering (source=ai); null for manual / original
+  promptVersion String? // base prompt version id (source=ai)
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([submissionId])
+  @@map("ai_statement")
 }
 
 // ---------------------------------------------------------------------------

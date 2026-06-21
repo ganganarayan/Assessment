@@ -4,6 +4,8 @@ import { markResultViewed } from "@/features/events/record";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
+import { getAiStatements } from "@/features/admin/data/ai-statements";
+import { AiStatementManager } from "@/features/admin/components/ai-statement-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -43,6 +45,7 @@ export default async function ResultPage({
 
   // ---- Admin review: full result ------------------------------------------
   if (isOwner && submission.status === "COMPLETED" && snap) {
+    const aiRows = await getAiStatements(submissionId);
     return (
       <main className="mx-auto w-full max-w-2xl px-4 py-10">
         <div className="flex flex-col gap-6">
@@ -54,14 +57,7 @@ export default async function ResultPage({
             </p>
           </div>
 
-          {snap.aiStatement ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Personalized message</CardTitle>
-              </CardHeader>
-              <CardContent className="whitespace-pre-line text-sm">{snap.aiStatement}</CardContent>
-            </Card>
-          ) : null}
+          <AiStatementManager slug={slug} submissionId={submissionId} rows={aiRows} />
 
           <Card>
             <CardHeader>

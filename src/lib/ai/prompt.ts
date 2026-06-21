@@ -3,9 +3,9 @@ import { getPromptVersion } from "@/lib/ai/prompt-versions";
 
 /**
  * Builds the system + user messages for the personalized result statement. PURE
- * (no env, no I/O) so it is unit-testable. We pass RAW scores only — the model
- * does its own interpretation; we never send the admin's per-category bands. The
- * SYSTEM prompt comes from the selected version (see prompt-versions.ts).
+ * (no env, no I/O) so it is unit-testable. The SYSTEM prompt comes from the
+ * selected version (see prompt-versions.ts); a shared suffix tells the model to
+ * use the assessment's own band words and to obey the admin's correction.
  */
 
 const WORDS_MIN = 100;
@@ -15,17 +15,31 @@ export function buildStatementMessages(
   input: StatementInput,
   versionId?: string | null,
 ): { system: string; user: string } {
-  const system = getPromptVersion(versionId).buildSystem(input, { min: WORDS_MIN, max: WORDS_MAX });
+  const base = getPromptVersion(versionId).buildSystem(input, { min: WORDS_MIN, max: WORDS_MAX });
+
+  // Use the assessment's OWN words so messages reflect each person's real result
+  // and read differently person to person (not the same "you carry a lot").
+  const bandLine =
+    `This person's overall result is level ${input.bandLevel ?? "(none)"}` +
+    `${input.band ? ` (${input.band})` : ""}. Use the assessment's own band words naturally where they fit, ` +
+    `the overall level/title and any high or critical category bands, so the message reflects THEIR actual result. ` +
+    `Do not force a word that does not fit, and never quote the raw numbers.`;
+
+  const instr = input.instruction?.trim()
+    ? `EDITOR INSTRUCTION (follow it exactly; it overrides the style defaults where they conflict): ${input.instruction.trim()}`
+    : "";
+
+  const system = [base, bandLine, instr].filter(Boolean).join(" ");
 
   const cats = input.categories
-    .map((c) => `- ${c.name}: ${c.score}/${c.max}`)
+    .map((c) => `- ${c.name}: ${c.score}/${c.max}${c.band ? ` — band: ${c.band}` : ""}`)
     .join("\n");
 
   const user = [
     `First name: ${input.firstName?.trim() || "there"}`,
     `Assessment: ${input.assessmentTitle}`,
     `Overall score: ${input.scoreRaw}/${input.max} (${input.percentage}%)`,
-    `Overall band: ${input.band ?? "(none)"}`,
+    `Overall band: ${input.band ?? "(none)"} (level: ${input.bandLevel ?? "(none)"})`,
     `Category scores:`,
     cats || "(none)",
     `Guidance: ${input.guidance?.trim() || "(none)"}`,

@@ -26,6 +26,8 @@ export interface ResultSnapshot {
   scoreRaw: number;
   max: number;
   resultBand: string | null;
+  /** Overall band LEVEL (LOW/MEDIUM/HIGH/CRITICAL); optional for old snapshots. */
+  resultBandLevel?: string | null;
   /** Overall band suggestion/advice text (the matched result band's description). */
   resultSuggestion: string | null;
   /** AI-generated personalized statement (null when AI is off/unavailable). */
@@ -55,6 +57,7 @@ export function buildResultSnapshot(args: {
   max: number;
   scorePercent: number;
   resultBand: string | null;
+  resultBandLevel?: string | null;
   resultSuggestion?: string | null;
   aiStatement?: string | null;
   categories: CategoryResultEntry[];
@@ -65,6 +68,7 @@ export function buildResultSnapshot(args: {
     scoreRaw: args.scoreRaw,
     max: args.max,
     resultBand: args.resultBand,
+    resultBandLevel: args.resultBandLevel ?? null,
     resultSuggestion: args.resultSuggestion ?? null,
     aiStatement: args.aiStatement ?? null,
     categories: args.categories,
