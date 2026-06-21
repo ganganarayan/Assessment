@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { listContactsForExport, EXPORT_CAP, type ContactExportRow } from "@/features/admin/data/analytics";
+import { toCsv, type CsvColumn } from "@/lib/csv";
 import { formatIST } from "@/lib/date";
 
 /**
@@ -10,7 +11,7 @@ import { formatIST } from "@/lib/date";
  */
 export const dynamic = "force-dynamic";
 
-const HEADERS: { key: keyof ContactExportRow; label: string }[] = [
+const COLUMNS: CsvColumn<ContactExportRow>[] = [
   { key: "optInDateIST", label: "Opt-in date (IST)" },
   { key: "firstName", label: "First name" },
   { key: "lastName", label: "Last name" },
@@ -26,22 +27,6 @@ const HEADERS: { key: keyof ContactExportRow; label: string }[] = [
   { key: "fbclid", label: "fbclid" },
   { key: "gclid", label: "gclid" },
 ];
-
-/** Quote per RFC 4180 and neutralize CSV/formula injection (=,+,-,@,tab). */
-function csvCell(value: string | boolean | null): string {
-  let s = value === null || value === undefined ? "" : typeof value === "boolean" ? (value ? "Yes" : "No") : String(value);
-  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-function toCsv(rows: ContactExportRow[]): string {
-  const lines = [HEADERS.map((h) => csvCell(h.label)).join(",")];
-  for (const r of rows) {
-    lines.push(HEADERS.map((h) => csvCell(r[h.key])).join(","));
-  }
-  // UTF-8 BOM so Excel reads non-ASCII names correctly.
-  return "﻿" + lines.join("\r\n");
-}
 
 export async function GET(req: Request) {
   await requireSuperAdmin();
@@ -73,7 +58,7 @@ export async function GET(req: Request) {
     });
   }
 
-  return new NextResponse(toCsv(rows), {
+  return new NextResponse(toCsv(rows, COLUMNS), {
     headers: {
       "content-type": "text/csv; charset=utf-8",
       "content-disposition": `attachment; filename="contacts-${stamp}.csv"`,

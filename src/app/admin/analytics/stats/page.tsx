@@ -5,6 +5,7 @@ import {
 } from "@/features/admin/data/analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
+import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import { formatIST } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
@@ -37,11 +38,39 @@ export default async function StatsPage({
       ? `Showing ${sp.from ?? "start"} → ${sp.to ?? "today"} (IST).`
       : "Funnel numbers across all assessments (all time).";
 
+  const exportHref = (dataset: string, format: string) => {
+    const p = new URLSearchParams();
+    if (sp.from) p.set("from", sp.from);
+    if (sp.to) p.set("to", sp.to);
+    p.set("dataset", dataset);
+    p.set("format", format);
+    return `/api/admin/stats/export?${p.toString()}`;
+  };
+  const exportGroups = [
+    {
+      label: "Traffic by UTM",
+      items: [
+        { label: "CSV", href: exportHref("utm", "csv") },
+        { label: "JSON", href: exportHref("utm", "json") },
+      ],
+    },
+    {
+      label: "Page-view log",
+      items: [
+        { label: "CSV", href: exportHref("pageviews", "csv") },
+        { label: "JSON", href: exportHref("pageviews", "json") },
+      ],
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Stats</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">{note}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Stats</h1>
+          <p className="text-sm text-[var(--muted-foreground)]">{note}</p>
+        </div>
+        <AnalyticsToolbar exportGroups={exportGroups} />
       </div>
 
       <DateRangeFilter basePath="/admin/analytics/stats" from={sp.from} to={sp.to} />

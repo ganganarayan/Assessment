@@ -1,6 +1,6 @@
 import { listContacts } from "@/features/admin/data/analytics";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
-import { ContactsToolbar } from "@/features/admin/components/contacts-toolbar";
+import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import { formatIST } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +42,20 @@ export default async function ContactsPage({
   };
   const rangeNote = sp.from || sp.to ? ` (${sp.from ?? "start"} → ${sp.to ?? "today"} IST)` : "";
 
+  const exportHref = (format: string) => {
+    const p = new URLSearchParams();
+    if (sp.from) p.set("from", sp.from);
+    if (sp.to) p.set("to", sp.to);
+    p.set("format", format);
+    return `/api/admin/contacts/export?${p.toString()}`;
+  };
+  const exportGroups = [
+    { items: [
+      { label: "CSV", href: exportHref("csv") },
+      { label: "JSON", href: exportHref("json") },
+    ] },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
@@ -51,7 +65,7 @@ export default async function ContactsPage({
             {total.toLocaleString()} opt-ins{rangeNote}. Ticks = opted in · completed · VSL loaded (result shown).
           </p>
         </div>
-        <ContactsToolbar from={sp.from} to={sp.to} />
+        <AnalyticsToolbar exportGroups={exportGroups} />
       </div>
 
       <DateRangeFilter basePath="/admin/analytics/contacts" from={sp.from} to={sp.to} />
