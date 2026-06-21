@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const CONNECTOR_VERSION = "v9";
+const CONNECTOR_VERSION = "v10";
 
 /**
  * Two snippets, because the customer's page builder runs scripts ONLY in the
@@ -114,9 +114,10 @@ function buildHeadSnippet(endpointBase: string): string {
     var band = d.resultBand
       ? (d.resultBandLevel ? d.resultBand + " (" + d.resultBandLevel + ")" : d.resultBand)
       : (d.resultBandLevel || "");
+    // One block: overall on top, then ONE line per category.
     var html =
-      '<div class="assess360-score-total" style="font-size:1.25rem;font-weight:700;margin:0 0 .6rem">' +
-      "Your score: " + d.scoreRaw + " / " + d.max + " (" + d.scorePercent + "%)" +
+      '<div class="assess360-score-total" style="font-size:1.2rem;font-weight:700;margin:0 0 .6rem">' +
+      "Overall: " + d.scoreRaw + " / " + d.max + " (" + d.scorePercent + "%)" +
       (band ? " — " + esc(band) : "") + "</div>";
     var cats = d.categories || [];
     if (cats.length) {
@@ -124,9 +125,9 @@ function buildHeadSnippet(endpointBase: string): string {
       for (var i = 0; i < cats.length; i++) {
         var c = cats[i];
         html +=
-          '<div class="assess360-score-row" style="display:flex;justify-content:space-between;gap:1rem;padding:.45rem 0;border-bottom:1px solid rgba(127,127,127,.25)">' +
-          "<span>" + esc(c.name) + (c.band ? " — " + esc(c.band) : "") + "</span>" +
-          '<span style="font-weight:600;white-space:nowrap">' + c.score + " / " + c.max + "</span></div>";
+          '<div class="assess360-score-row" style="padding:.35rem 0;border-bottom:1px solid rgba(127,127,127,.2)">' +
+          esc(c.name) + ": " + c.score + " / " + c.max +
+          (c.band ? " (" + esc(c.band) + ")" : "") + "</div>";
       }
       html += "</div>";
     }
