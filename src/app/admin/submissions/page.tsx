@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listSubmissions } from "@/features/assessment/data";
+import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
@@ -8,12 +9,28 @@ function fmt(d: Date) {
   return new Date(d).toISOString().slice(0, 16).replace("T", " ");
 }
 
+const EXPORT_GROUPS = [
+  {
+    items: [
+      { label: "CSV", href: "/api/admin/submissions/export?format=csv" },
+      { label: "JSON", href: "/api/admin/submissions/export?format=json" },
+    ],
+  },
+];
+
 export default async function SubmissionsPage() {
   const submissions = await listSubmissions();
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
+        <AnalyticsToolbar exportGroups={EXPORT_GROUPS} />
+      </div>
+      <p className="-mt-4 text-xs text-[var(--muted-foreground)]">
+        Export includes every submission with its score, overall band, UTMs, category results, and
+        all AI-message versions. The table below shows the latest 100.
+      </p>
 
       {submissions.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions yet.</p>
