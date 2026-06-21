@@ -177,10 +177,58 @@ export function buildEnvelope(
   return envelope;
 }
 
+/* ------------------------------------------------------ per-event shaping --- */
+
+/** Recursively drop null/undefined/empty-string values (and emptied objects);
+ *  arrays are kept as-is. Used so `lead.created` carries only available data. */
+function compact(v: unknown): unknown {
+  if (Array.isArray(v)) return v;
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      if (val === null || val === undefined) continue;
+      if (typeof val === "string" && val.trim() === "") continue;
+      const c = compact(val);
+      if (
+        c !== null &&
+        typeof c === "object" &&
+        !Array.isArray(c) &&
+        Object.keys(c as object).length === 0
+      ) {
+        continue; // drop objects that became empty after compaction
+      }
+      out[k] = c;
+    }
+    return out;
+  }
+  return v;
+}
+
+/**
+ * Shape the canonical envelope per event for delivery (and preview):
+ *  - assessment.started: ONLY `event_type` + whichever of name/email/phone are present.
+ *  - lead.created: the full envelope with every null/empty value dropped.
+ *  - everything else (incl. assessment.completed): unchanged.
+ */
+export function shapePayload(type: EventType, env: EventEnvelope): Record<string, unknown> {
+  if (type === EventType.ASSESSMENT_STARTED) {
+    const out: Record<string, unknown> = { event_type: env.event_type };
+    if (env.contact_name) out.contact_name = env.contact_name;
+    if (env.contact_email) out.contact_email = env.contact_email;
+    if (env.contact_phone) out.contact_phone = env.contact_phone;
+    return out;
+  }
+  if (type === EventType.LEAD_CREATED) {
+    return compact(env) as Record<string, unknown>;
+  }
+  return env as unknown as Record<string, unknown>;
+}
+
 /* --------------------------------------------------- preview sample data --- */
 
-/** A representative payload for the config-screen preview (read-only). */
-export function buildSamplePayload(eventName: string, baseUrl: string): EventEnvelope | null {
+/** A representative payload for the config-screen preview (read-only). Shaped
+ *  per event, so the preview matches exactly what is delivered. */
+export function buildSamplePayload(eventName: string, baseUrl: string): Record<string, unknown> | null {
   const type = NAME_TO_TYPE[eventName];
   if (type === undefined) return null;
 
@@ -190,7 +238,7 @@ export function buildSamplePayload(eventName: string, baseUrl: string): EventEnv
     type === EventType.RESULT_GENERATED ||
     type === EventType.RESULT_LINK_REQUESTED;
 
-  return buildEnvelope(
+  const envelope = buildEnvelope(
     type,
     {
       timestamp: "2026-01-01T12:00:00.000Z",
@@ -215,4 +263,5 @@ export function buildSamplePayload(eventName: string, baseUrl: string): EventEnv
     },
     baseUrl,
   );
+  return shapePayload(type, envelope);
 }

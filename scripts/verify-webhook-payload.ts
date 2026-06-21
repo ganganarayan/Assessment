@@ -11,6 +11,7 @@ import { EventType } from "@prisma/client";
 import {
   buildEnvelope,
   buildSamplePayload,
+  shapePayload,
   normalizeAttribution,
 } from "../src/lib/events/payload";
 import { ACTIVE_EVENT_TYPES, EVENT_NAME, type EmitInput } from "../src/features/events/types";
@@ -130,7 +131,12 @@ for (const type of ACTIVE_EVENT_TYPES) {
   }
 
   const sample = buildSamplePayload(name, BASE);
-  expect(`${name} · sample built`, sample !== null && keysEq(sample, TOP));
+  if (type === EventType.ASSESSMENT_STARTED || type === EventType.LEAD_CREATED) {
+    // These are shaped (minimal / null-dropped); just confirm a payload is built.
+    expect(`${name} · sample built (shaped)`, sample !== null);
+  } else {
+    expect(`${name} · sample built`, sample !== null && keysEq(sample, TOP));
+  }
 }
 
 // contact_name composition.
@@ -192,6 +198,44 @@ for (const type of ACTIVE_EVENT_TYPES) {
     BASE,
   );
   expect("scorePercent rounds 66.67 -> 67", env["contact.scorePercent"] === 67);
+}
+
+// Per-event payload shaping (lead.created drops nulls; assessment.started minimal).
+{
+  const lead = { firstName: "Ganesh", lastName: "Kumar", email: "g@x.com", mobile: "+919999999999" };
+  const asm = { id: "a1", slug: SLUG, title: "X" };
+
+  const started = shapePayload(
+    EventType.ASSESSMENT_STARTED,
+    buildEnvelope(EventType.ASSESSMENT_STARTED, { submissionId: SID, assessment: asm, lead, attribution: { utm_source: "fb" } }, BASE),
+  );
+  expect("started: exactly 4 keys", keysEq(started, ["event_type", "contact_name", "contact_email", "contact_phone"]), JSON.stringify(Object.keys(started)));
+  expect("started: event_type", started.event_type === "assessment_started");
+  expect("started: nothing else", !("contact.utm_source" in started) && !("metadata" in started) && !("event" in started) && !("timestamp" in started) && !("submission" in started));
+  const startedNoPhone = shapePayload(
+    EventType.ASSESSMENT_STARTED,
+    buildEnvelope(EventType.ASSESSMENT_STARTED, { submissionId: SID, assessment: asm, lead: { firstName: "A", email: "a@x.com" } }, BASE),
+  );
+  expect("started: drops null phone", !("contact_phone" in startedNoPhone) && startedNoPhone.contact_email === "a@x.com");
+
+  const led = shapePayload(
+    EventType.LEAD_CREATED,
+    buildEnvelope(EventType.LEAD_CREATED, { submissionId: SID, customerId: "K7", assessment: asm, lead, attribution: { utm_source: "fb" } }, BASE),
+  );
+  expect("lead: keeps contact_name", led.contact_name === "Ganesh Kumar");
+  expect("lead: keeps utm_source", led["contact.utm_source"] === "fb");
+  expect("lead: keeps customer_id", led["contact.customer_id"] === "K7");
+  expect("lead: drops null utm_term", !("contact.utm_term" in led));
+  expect("lead: drops null score/result_url/ai", !("contact.score" in led) && !("contact.result_url" in led) && !("contact.ai_statement" in led));
+  const ledMeta = led.metadata as Record<string, unknown> | undefined;
+  expect("lead: metadata keeps assessmentUrl", !!ledMeta && ledMeta.assessmentUrl === `${BASE}/a/${SLUG}`);
+  expect("lead: metadata drops null score/resultUrl", !!ledMeta && !("score" in ledMeta) && !("resultUrl" in ledMeta));
+
+  const completed = shapePayload(
+    EventType.ASSESSMENT_COMPLETED,
+    buildEnvelope(EventType.ASSESSMENT_COMPLETED, { submissionId: SID, assessment: asm, lead, score: { total: 42, max: 60, percentage: 70 }, resultBand: { level: "HIGH", title: "High" } }, BASE),
+  );
+  expect("completed: unchanged full keys", keysEq(completed, TOP), JSON.stringify(Object.keys(completed)));
 }
 
 // Unknown event → no sample (preview guards).
