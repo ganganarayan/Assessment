@@ -42,7 +42,7 @@ export function ContactsToolbar({ from, to }: { from?: string; to?: string }) {
   return (
     <div className="flex items-center gap-2">
       <div className="relative" ref={wrapRef}>
-        <Button variant="outline" size="sm" onClick={() => setOpen((o) => !o)}>
+        <Button size="sm" onClick={() => setOpen((o) => !o)}>
           Export
           <span className="ml-1 text-xs">▾</span>
         </Button>
@@ -59,7 +59,6 @@ export function ContactsToolbar({ from, to }: { from?: string; to?: string }) {
       </div>
 
       <Button
-        variant="outline"
         size="sm"
         disabled={pending}
         onClick={() => start(() => router.refresh())}
