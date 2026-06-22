@@ -205,11 +205,8 @@ export function AssessmentRunner({
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold tracking-tight">{assessment.title}</h1>
           {assessment.description ? (
-            <p className="text-[var(--muted-foreground)]">{assessment.description}</p>
-          ) : null}
-          {assessment.estimatedMinutes ? (
-            <p className="text-sm text-[var(--muted-foreground)]">
-              Estimated time: {assessment.estimatedMinutes} min
+            <p className="whitespace-pre-line text-[var(--muted-foreground)]">
+              {assessment.description}
             </p>
           ) : null}
         </div>
