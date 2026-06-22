@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { getAiStatements } from "@/features/admin/data/ai-statements";
+import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
 import { AiStatementManager } from "@/features/admin/components/ai-statement-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,8 @@ export default async function ResultPage({
   // ---- Admin review: full result ------------------------------------------
   if (isOwner && submission.status === "COMPLETED" && snap) {
     const aiRows = await getAiStatements(submissionId);
+    const breakdown = await getSubmissionQuestionBreakdown(submissionId);
+    const questionsByCategory = new Map(breakdown.map((b) => [b.name, b.questions]));
     return (
       <main className="mx-auto w-full max-w-2xl px-4 py-10">
         <div className="flex flex-col gap-6">
@@ -79,22 +82,49 @@ export default async function ResultPage({
               <CardHeader>
                 <CardTitle className="text-lg">Category breakdown</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col gap-2 text-sm">
-                {snap.categories.map((c, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between gap-3 border-b pb-2 last:border-0 last:pb-0"
-                  >
-                    <span>
-                      {c.name}
-                      {c.band ? ` — ${c.band}` : ""}
-                      {c.meaning ? `: ${c.meaning}` : ""}
-                    </span>
-                    <span className="shrink-0 font-medium">
-                      {c.score} / {c.max}
-                    </span>
-                  </div>
-                ))}
+              <CardContent className="flex flex-col gap-4 text-sm">
+                {snap.categories.map((c, i) => {
+                  const qs = questionsByCategory.get(c.name) ?? [];
+                  return (
+                    <div
+                      key={i}
+                      className="flex flex-col gap-1 border-b pb-3 last:border-0 last:pb-0"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-medium">
+                          {c.name}
+                          {c.band ? ` — ${c.band}` : ""}
+                        </span>
+                        <span className="shrink-0 font-medium">
+                          {c.score} / {c.max}
+                        </span>
+                      </div>
+                      {c.meaning ? (
+                        <p className="text-xs text-[var(--muted-foreground)]">{c.meaning}</p>
+                      ) : null}
+                      {qs.length > 0 ? (
+                        <ul className="mt-1 flex flex-col gap-1.5">
+                          {qs.map((q, j) => (
+                            <li
+                              key={j}
+                              className="flex items-start justify-between gap-3 text-xs text-[var(--muted-foreground)]"
+                            >
+                              <span>
+                                {q.text}
+                                {q.answer ? (
+                                  <span className="text-[var(--foreground)]"> — {q.answer}</span>
+                                ) : null}
+                              </span>
+                              <span className="shrink-0 tabular-nums">
+                                {q.score} / {q.max}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </CardContent>
             </Card>
           ) : null}

@@ -8,8 +8,8 @@ import { getPromptVersion } from "@/lib/ai/prompt-versions";
  * use the assessment's own band words and to obey the admin's correction.
  */
 
-const WORDS_MIN = 100;
-const WORDS_MAX = 150;
+const WORDS_MIN = 120;
+const WORDS_MAX = 180;
 
 export function buildStatementMessages(
   input: StatementInput,
@@ -31,8 +31,20 @@ export function buildStatementMessages(
 
   const system = [base, bandLine, instr].filter(Boolean).join(" ");
 
+  // Each category line, then the answered questions behind it (text + the option
+  // they chose + the points it scored). The per-question signal is what lets the
+  // model say what the result MEANS instead of rewording the totals.
   const cats = input.categories
-    .map((c) => `- ${c.name}: ${c.score}/${c.max}${c.band ? ` — band: ${c.band}` : ""}`)
+    .map((c) => {
+      const head = `- ${c.name}: ${c.score}/${c.max}${c.band ? ` — band: ${c.band}` : ""}`;
+      const qs = (c.questions ?? [])
+        .map(
+          (q) =>
+            `    • ${q.text}${q.answer ? ` → answered "${q.answer}"` : ""} (${q.score}/${q.max})`,
+        )
+        .join("\n");
+      return qs ? `${head}\n${qs}` : head;
+    })
     .join("\n");
 
   const user = [
@@ -40,7 +52,7 @@ export function buildStatementMessages(
     `Assessment: ${input.assessmentTitle}`,
     `Overall score: ${input.scoreRaw}/${input.max} (${input.percentage}%)`,
     `Overall band: ${input.band ?? "(none)"} (level: ${input.bandLevel ?? "(none)"})`,
-    `Category scores:`,
+    `Categories, their bands, and the questions behind each (with the answer chosen):`,
     cats || "(none)",
     `Guidance: ${input.guidance?.trim() || "(none)"}`,
   ].join("\n");

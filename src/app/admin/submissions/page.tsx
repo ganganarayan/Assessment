@@ -1,13 +1,10 @@
 import Link from "next/link";
 import { listSubmissions } from "@/features/assessment/data";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
+import { formatIST } from "@/lib/date";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
-
-function fmt(d: Date) {
-  return new Date(d).toISOString().slice(0, 16).replace("T", " ");
-}
 
 const EXPORT_GROUPS = [
   {
@@ -39,7 +36,7 @@ export default async function SubmissionsPage() {
           <table className="w-full text-sm">
             <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
               <tr>
-                <th className="px-3 py-2">Date</th>
+                <th className="px-3 py-2">Date (IST)</th>
                 <th className="px-3 py-2">Assessment</th>
                 <th className="px-3 py-2">Lead</th>
                 <th className="px-3 py-2">Score</th>
@@ -51,7 +48,7 @@ export default async function SubmissionsPage() {
             <tbody className="divide-y">
               {submissions.map((s) => (
                 <tr key={s.id}>
-                  <td className="whitespace-nowrap px-3 py-2 text-xs">{fmt(s.createdAt)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-xs">{formatIST(s.createdAt)}</td>
                   <td className="px-3 py-2">{s.assessment.title}</td>
                   <td className="px-3 py-2">
                     <div className="flex flex-col">

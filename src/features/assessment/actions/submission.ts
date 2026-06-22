@@ -28,6 +28,7 @@ import { sendCapiEvent, isCapiConfigured } from "@/lib/meta/send";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { generatePersonalStatement } from "@/lib/ai/generate";
 import { buildResultSnapshot, mapCategoryResult } from "@/lib/result/snapshot";
+import { buildCategoryQuestionBreakdown, type ChosenAnswer } from "@/lib/result/questions";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 
 /** The ONE system-level fallback for the result-token TTL (overridable per
@@ -429,9 +430,10 @@ export async function completeSubmission(
           questions: {
             select: {
               id: true,
+              text: true,
               weight: true,
               required: true,
-              options: { select: { id: true, value: true } },
+              options: { select: { id: true, value: true, label: true } },
             },
           },
           bands: {
@@ -501,6 +503,24 @@ export async function completeSubmission(
     return mapCategoryResult(cat?.name ?? "", cs.score, cs.maxScore, cat?.bands ?? []);
   });
 
+  // Per-question detail (question text + the option they chose + weighted score),
+  // grouped by category, so the AI can derive MEANING rather than reword totals.
+  // The snapshot/webhook category shape (categoryResults) is left unchanged.
+  const answerForBreakdown = new Map<string, ChosenAnswer>();
+  for (const [qid, value] of answerValueByQuestionId) {
+    answerForBreakdown.set(qid, { value, optionId: optionByQuestionId.get(qid) as string });
+  }
+  const questionsByCategory = new Map(
+    buildCategoryQuestionBreakdown(assessment.categories, answerForBreakdown).map((b) => [
+      b.name,
+      b.questions,
+    ]),
+  );
+  const aiCategories = categoryResults.map((c) => ({
+    ...c,
+    questions: questionsByCategory.get(c.name) ?? [],
+  }));
+
   // Opaque public ids + denormalized read-endpoint snapshot + destination URL.
   const customerId = submission.customerId ?? generateCustomerId();
   const token = generateToken();
@@ -535,7 +555,7 @@ export async function completeSubmission(
     percentage: Math.round(percentage),
     band: band?.title ?? null,
     bandLevel: band?.level ?? null,
-    categories: categoryResults,
+    categories: aiCategories,
   });
 
   const snapshot = buildResultSnapshot({

@@ -7,6 +7,7 @@ import { requireSuperAdmin } from "@/lib/auth/guards";
 import { generatePersonalStatement } from "@/lib/ai/generate";
 import { type StatementInput } from "@/lib/ai/types";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
+import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /** One versioned message for a submission (for the result-page manager). */
@@ -49,6 +50,11 @@ export async function regenerateAiStatement(
     return { ok: false, error: "This submission has no usable result yet." };
   }
 
+  // Pull the per-question detail (text + chosen answer + score) live from the
+  // stored answers so a regenerate gets the same MEANING signal as completion.
+  const breakdown = await getSubmissionQuestionBreakdown(submissionId);
+  const questionsByCategory = new Map(breakdown.map((b) => [b.name, b.questions]));
+
   const input: StatementInput = {
     firstName: sub.leadFirstName,
     assessmentTitle: sub.assessment.title,
@@ -63,6 +69,7 @@ export async function regenerateAiStatement(
       max: c.max,
       band: c.band,
       meaning: c.meaning,
+      questions: questionsByCategory.get(c.name) ?? [],
     })),
     instruction: instr || null,
   };

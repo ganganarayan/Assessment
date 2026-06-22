@@ -35,7 +35,15 @@ export interface StatementInput {
   band: string | null;
   /** Overall band LEVEL (LOW/MEDIUM/HIGH/CRITICAL) — used verbatim in the message. */
   bandLevel?: string | null;
-  categories: { name: string; score: number; max: number; band?: string | null; meaning?: string | null }[];
+  categories: {
+    name: string;
+    score: number;
+    max: number;
+    band?: string | null;
+    meaning?: string | null;
+    /** The answered questions behind this category (text + chosen answer + score). */
+    questions?: { text: string; answer?: string | null; score: number; max: number }[];
+  }[];
   /** Admin-set tone / scoring-direction note (optional). */
   guidance?: string | null;
   /** Admin's free-text correction/steering for a regenerate (overrides defaults). */
