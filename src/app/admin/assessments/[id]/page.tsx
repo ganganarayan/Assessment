@@ -7,6 +7,7 @@ import { CategoriesManager } from "@/features/assessment/components/admin/catego
 import { env } from "@/lib/env";
 import { ResultBandsManager } from "@/features/assessment/components/admin/result-bands-manager";
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
+import { BandRecompute } from "@/features/assessment/components/admin/band-recompute";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { Badge } from "@/components/ui/badge";
 
@@ -141,6 +142,7 @@ export default async function EditAssessmentPage({
           <strong> new submissions</strong> (results are captured at completion).
         </p>
         <CategoryBandsManager categories={categoryOptions} bands={categoryBands} />
+        <BandRecompute assessmentId={a.id} />
       </section>
     </div>
   );
