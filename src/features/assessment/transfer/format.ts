@@ -61,6 +61,8 @@ export const CSV_COLUMNS = [
   "email_required",
   "collect_mobile",
   "mobile_required",
+  "collect_profession",
+  "profession_required",
   "category_index",
   "category_name",
   "category_description",
@@ -107,6 +109,8 @@ export function bodiesToCsv(bodies: AssessmentBodyExport[]): string {
         email_required: a.emailRequired,
         collect_mobile: a.collectMobile,
         mobile_required: a.mobileRequired,
+        collect_profession: a.collectProfession,
+        profession_required: a.professionRequired,
       }),
     );
 
@@ -219,6 +223,8 @@ interface Acc {
   emailRequired: boolean;
   collectMobile: boolean;
   mobileRequired: boolean;
+  collectProfession: boolean;
+  professionRequired: boolean;
   categories: AccCategory[];
   bands: AccBand[];
 }
@@ -264,6 +270,8 @@ export function csvToDocument(
         emailRequired: true,
         collectMobile: true,
         mobileRequired: false,
+        collectProfession: true,
+        professionRequired: true,
         categories: [],
         bands: [],
       };
@@ -306,6 +314,8 @@ export function csvToDocument(
       acc.emailRequired = toBool(cell(row, "email_required"), true);
       acc.collectMobile = toBool(cell(row, "collect_mobile"), true);
       acc.mobileRequired = toBool(cell(row, "mobile_required"), false);
+      acc.collectProfession = toBool(cell(row, "collect_profession"), true);
+      acc.professionRequired = toBool(cell(row, "profession_required"), true);
     } else if (type === "CATEGORY") {
       recognized += 1;
       const c = ensureCat(acc, toInt(cell(row, "category_index")));
@@ -360,6 +370,8 @@ export function csvToDocument(
     emailRequired: acc.emailRequired,
     collectMobile: acc.collectMobile,
     mobileRequired: acc.mobileRequired,
+    collectProfession: acc.collectProfession,
+    professionRequired: acc.professionRequired,
     categories: compact(acc.categories).map((c, ci) => ({
       name: c.name,
       description: c.description,

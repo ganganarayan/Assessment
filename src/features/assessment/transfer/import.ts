@@ -52,6 +52,8 @@ function createData(
     emailRequired: body.emailRequired,
     collectMobile: body.collectMobile,
     mobileRequired: body.mobileRequired,
+    collectProfession: body.collectProfession,
+    professionRequired: body.professionRequired,
     status: "DRAFT",
     ...(userId ? { createdBy: { connect: { id: userId } } } : {}),
     categories: {

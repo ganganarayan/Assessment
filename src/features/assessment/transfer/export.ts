@@ -42,6 +42,8 @@ async function buildAssessmentBody(
     emailRequired: a.emailRequired,
     collectMobile: a.collectMobile,
     mobileRequired: a.mobileRequired,
+    collectProfession: a.collectProfession,
+    professionRequired: a.professionRequired,
     categories: a.categories.map((c, ci) => ({
       name: c.name,
       description: c.description,

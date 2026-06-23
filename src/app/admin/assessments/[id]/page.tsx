@@ -36,6 +36,8 @@ export default async function EditAssessmentPage({
     emailRequired: a.emailRequired,
     collectMobile: a.collectMobile,
     mobileRequired: a.mobileRequired,
+    collectProfession: a.collectProfession,
+    professionRequired: a.professionRequired,
     retakePolicy: a.retakePolicy,
     retakeDays: a.retakeDays,
     uniqueIdentifier: a.uniqueIdentifier,

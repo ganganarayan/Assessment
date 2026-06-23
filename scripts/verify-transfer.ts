@@ -52,6 +52,8 @@ const adversarial: AssessmentBodyExport = {
   emailRequired: false, // non-default
   collectMobile: true,
   mobileRequired: true, // non-default
+  collectProfession: false, // non-default (defaults to true)
+  professionRequired: false, // non-default (defaults to true)
   categories: [
     {
       name: "General", // duplicate name #1
@@ -149,6 +151,42 @@ roundTrip("multi-assessment", [adversarial, second]);
   const c = parseDocument("﻿" + bodiesToCsv([second]), "csv");
   if (c.ok && c.data.assessments.length === 1) ok("BOM · CSV");
   else fail("BOM · CSV", c.ok ? "wrong count" : c.errors.join("; "));
+}
+
+// Backward compat: a pre-profession export (no collect_profession keys) imports
+// and defaults both to true (so old files still round-trip cleanly).
+{
+  const legacy = {
+    schemaVersion: 1,
+    assessments: [
+      {
+        title: "Legacy",
+        slug: "legacy-noprof",
+        description: null,
+        coverImageUrl: null,
+        estimatedMinutes: null,
+        thankYouMessage: null,
+        collectFirstName: true,
+        firstNameRequired: false,
+        collectLastName: true,
+        lastNameRequired: false,
+        collectEmail: true,
+        emailRequired: true,
+        collectMobile: true,
+        mobileRequired: false,
+        categories: [],
+        resultBands: [],
+      },
+    ],
+  };
+  const r = parseDocument(JSON.stringify(legacy), "json");
+  if (
+    r.ok &&
+    r.data.assessments[0]?.collectProfession === true &&
+    r.data.assessments[0]?.professionRequired === true
+  )
+    ok("legacy file · profession defaults true");
+  else fail("legacy file · profession defaults true", r.ok ? "wrong default" : r.errors.join("; "));
 }
 
 // Legacy single-assessment shape -> friendly error

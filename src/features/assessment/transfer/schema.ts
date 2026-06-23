@@ -60,6 +60,9 @@ export const assessmentBodyExport = z.object({
   emailRequired: z.boolean(),
   collectMobile: z.boolean(),
   mobileRequired: z.boolean(),
+  // Added later; default true so pre-existing export files still import cleanly.
+  collectProfession: z.boolean().default(true),
+  professionRequired: z.boolean().default(true),
   categories: z.array(categoryExport),
   resultBands: z.array(resultBandExport),
 });

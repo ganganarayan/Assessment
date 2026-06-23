@@ -26,6 +26,7 @@ const LEAD_FIELDS = [
   { collect: "collectLastName", required: "lastNameRequired", label: "Last name" },
   { collect: "collectEmail", required: "emailRequired", label: "Email" },
   { collect: "collectMobile", required: "mobileRequired", label: "Mobile" },
+  { collect: "collectProfession", required: "professionRequired", label: "Profession" },
 ] as const;
 
 function slugify(s: string) {
@@ -51,6 +52,8 @@ const DEFAULTS: AssessmentFormValues = {
   emailRequired: true,
   collectMobile: true,
   mobileRequired: false,
+  collectProfession: true,
+  professionRequired: true,
   retakePolicy: "DELAYED",
   retakeDays: 15,
   uniqueIdentifier: "EMAIL",

@@ -27,6 +27,8 @@ export const assessmentSchema = z.object({
   emailRequired: z.boolean().default(true),
   collectMobile: z.boolean().default(true),
   mobileRequired: z.boolean().default(false),
+  collectProfession: z.boolean().default(true),
+  professionRequired: z.boolean().default(true),
   // Retake lockout config.
   retakePolicy: z.enum(["DELAYED", "NEVER", "UNLIMITED"]).default("DELAYED"),
   retakeDays: z.coerce

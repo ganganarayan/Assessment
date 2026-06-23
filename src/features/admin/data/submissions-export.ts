@@ -31,6 +31,7 @@ export interface SubmissionExportRow {
   lastName: string | null;
   email: string | null;
   phone: string | null;
+  profession: string | null;
   scoreRaw: number | null;
   max: number | null;
   scorePercent: number | null;
@@ -63,6 +64,7 @@ export async function listSubmissionsForExport(): Promise<SubmissionExportRow[]>
       leadLastName: true,
       leadEmail: true,
       leadMobile: true,
+      leadProfession: true,
       totalScore: true,
       maxScore: true,
       attribution: true,
@@ -112,6 +114,7 @@ export async function listSubmissionsForExport(): Promise<SubmissionExportRow[]>
       lastName: s.leadLastName,
       email: s.leadEmail,
       phone: s.leadMobile,
+      profession: s.leadProfession,
       scoreRaw: snap?.scoreRaw ?? s.totalScore ?? null,
       max: snap?.max ?? s.maxScore ?? null,
       scorePercent: snap?.scorePercent ?? null,
