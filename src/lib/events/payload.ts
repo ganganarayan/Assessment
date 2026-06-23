@@ -166,7 +166,7 @@ export function buildEnvelope(
   // Profession (the opt-in dropdown), as the CRM custom field the user maps it to.
   // Emitted ONLY on lead.created (the contact-creation event); other events omit it.
   if (type === EventType.LEAD_CREATED) {
-    envelope["contact.what_do_azmfiy"] = lead.profession ?? null;
+    envelope["contact.assess_profession"] = lead.profession ?? null;
   }
 
   // Per-category bands as flat contact custom fields (keyed by exact category
