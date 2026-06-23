@@ -30,6 +30,96 @@ export async function aiRerunCount(assessmentId: string): Promise<ActionResult<{
   return { ok: true, data: { total } };
 }
 
+export interface AiSample {
+  customerId: string | null;
+  firstName: string | null;
+  scorePercent: number;
+  band: string | null;
+  text: string | null;
+}
+
+/**
+ * Generate sample statements for a few REAL contacts spanning different overall
+ * bands, using the current bands + active prompt — WITHOUT saving anything (no
+ * version created, no default changed, nothing dirtied). Lets the owner judge the
+ * prompt on real data and tweak it before committing to the full (billable) run.
+ */
+export async function previewAiSamples(
+  assessmentId: string,
+  count = 4,
+): Promise<ActionResult<{ samples: AiSample[] }>> {
+  await requireSuperAdmin();
+
+  const subs = await prisma.submission.findMany({
+    where: { assessmentId, status: "COMPLETED" },
+    orderBy: { createdAt: "desc" },
+    take: 60,
+    select: {
+      id: true,
+      customerId: true,
+      leadFirstName: true,
+      resultSnapshot: true,
+      assessment: { select: { title: true } },
+    },
+  });
+
+  // Pick a spread: one contact per distinct overall band first, then fill.
+  const picked: typeof subs = [];
+  const seenBands = new Set<string>();
+  for (const s of subs) {
+    const snap = (s.resultSnapshot ?? null) as ResultSnapshot | null;
+    if (!snap) continue;
+    const band = snap.resultBand ?? "(none)";
+    if (seenBands.has(band)) continue;
+    seenBands.add(band);
+    picked.push(s);
+    if (picked.length >= count) break;
+  }
+  if (picked.length < count) {
+    for (const s of subs) {
+      if (picked.some((p) => p.id === s.id)) continue;
+      if (!s.resultSnapshot) continue;
+      picked.push(s);
+      if (picked.length >= count) break;
+    }
+  }
+
+  const samples = await Promise.all(
+    picked.map(async (s): Promise<AiSample> => {
+      const snap = s.resultSnapshot as unknown as ResultSnapshot;
+      const breakdown = await getSubmissionQuestionBreakdown(s.id);
+      const qByCat = new Map(breakdown.map((b) => [b.name, b.questions]));
+      const input: StatementInput = {
+        firstName: s.leadFirstName,
+        assessmentTitle: s.assessment.title,
+        scoreRaw: snap.scoreRaw,
+        max: snap.max,
+        percentage: snap.scorePercent,
+        band: snap.resultBand,
+        bandLevel: snap.resultBandLevel ?? null,
+        categories: snap.categories.map((c) => ({
+          name: c.name,
+          score: c.score,
+          max: c.max,
+          band: c.band,
+          meaning: c.meaning,
+          questions: qByCat.get(c.name) ?? [],
+        })),
+      };
+      const text = await generatePersonalStatement(input);
+      return {
+        customerId: s.customerId,
+        firstName: s.leadFirstName,
+        scorePercent: snap.scorePercent,
+        band: snap.resultBand,
+        text,
+      };
+    }),
+  );
+
+  return { ok: true, data: { samples } };
+}
+
 /**
  * Regenerate the AI statement for one round (BATCH submissions, in parallel),
  * starting at `offset`. Each new message is written as that contact's DEFAULT

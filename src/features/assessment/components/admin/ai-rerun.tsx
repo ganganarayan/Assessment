@@ -3,7 +3,12 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { aiRerunCount, regenerateAiBatch } from "@/features/admin/actions/ai-rerun";
+import {
+  aiRerunCount,
+  regenerateAiBatch,
+  previewAiSamples,
+  type AiSample,
+} from "@/features/admin/actions/ai-rerun";
 
 /**
  * Super-admin: regenerate AI statements for all completed contacts using the
@@ -21,7 +26,21 @@ export function AiRerun({ assessmentId }: { assessmentId: string }) {
   const [finished, setFinished] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [samples, setSamples] = useState<AiSample[] | null>(null);
   const stopRef = useRef(false);
+
+  const sample = async () => {
+    setErr(null);
+    setBusy(true);
+    setSamples(null);
+    const r = await previewAiSamples(assessmentId, 4);
+    setBusy(false);
+    if (!r.ok) {
+      setErr(r.error);
+      return;
+    }
+    setSamples(r.data?.samples ?? []);
+  };
 
   const preview = async () => {
     setErr(null);
@@ -100,6 +119,9 @@ export function AiRerun({ assessmentId }: { assessmentId: string }) {
         <Button variant="outline" disabled={running || busy} onClick={preview}>
           {busy ? "Working…" : "Preview (count)"}
         </Button>
+        <Button variant="outline" disabled={running || busy} onClick={sample}>
+          {busy ? "Working…" : "Preview sample (not saved)"}
+        </Button>
         <Button disabled={running || busy} onClick={run}>
           {running ? "Regenerating…" : "Run AI re-run"}
         </Button>
@@ -127,6 +149,25 @@ export function AiRerun({ assessmentId }: { assessmentId: string }) {
               contacts just get refreshed again).
             </p>
           ) : null}
+        </div>
+      ) : null}
+
+      {samples ? (
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-[var(--muted-foreground)]">
+            {samples.length} sample{samples.length === 1 ? "" : "s"} generated from real contacts (nothing saved). If
+            you want changes, tell me how to tweak the prompt and I&apos;ll redeploy, then re-sample.
+          </p>
+          {samples.map((s, i) => (
+            <div key={i} className="rounded border p-3 text-sm">
+              <p className="mb-1 text-xs font-medium text-[var(--muted-foreground)]">
+                <span className="font-mono">{s.customerId ?? "—"}</span>
+                {s.firstName ? ` · ${s.firstName}` : ""} · {s.scorePercent}%
+                {s.band ? ` · ${s.band}` : ""}
+              </p>
+              <p className="whitespace-pre-line">{s.text ?? "(no response — is AI enabled?)"}</p>
+            </div>
+          ))}
         </div>
       ) : null}
     </div>
