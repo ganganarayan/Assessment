@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { questionSchema, reorderSchema, type QuestionInput } from "@/features/assessment/schemas";
@@ -67,25 +68,49 @@ export async function updateQuestion(
   });
   if (!question) return { ok: false, error: "Question not found." };
 
-  // Replace options wholesale (simplest correct approach for MVP).
-  await prisma.$transaction([
-    prisma.option.deleteMany({ where: { questionId: id } }),
+  // Reconcile options IN PLACE — never wholesale-delete. Past respondents'
+  // answers (SubmissionAnswer) reference Option rows with onDelete: Cascade, so
+  // deleting an option silently destroys every historical answer to this question
+  // (the score snapshot is denormalized so totals survive, but the per-question
+  // answer record is lost). Updating existing options by position preserves their
+  // ids, so historical answers stay intact. Editing an option's value only
+  // affects FUTURE submissions; past answers keep their stored value.
+  const existing = await prisma.option.findMany({
+    where: { questionId: id },
+    orderBy: { displayOrder: "asc" },
+    select: { id: true },
+  });
+
+  const ops: Prisma.PrismaPromise<unknown>[] = [];
+  d.options.forEach((o, index) => {
+    const ex = existing[index];
+    if (ex) {
+      ops.push(
+        prisma.option.update({
+          where: { id: ex.id },
+          data: { label: o.label, value: o.value, displayOrder: index },
+        }),
+      );
+    } else {
+      ops.push(
+        prisma.option.create({
+          data: { questionId: id, label: o.label, value: o.value, displayOrder: index },
+        }),
+      );
+    }
+  });
+  // Only remove genuinely surplus options (when the count was reduced).
+  if (existing.length > d.options.length) {
+    const surplus = existing.slice(d.options.length).map((e) => e.id);
+    ops.push(prisma.option.deleteMany({ where: { id: { in: surplus } } }));
+  }
+  ops.push(
     prisma.question.update({
       where: { id },
-      data: {
-        text: d.text,
-        weight: d.weight,
-        required: d.required,
-        options: {
-          create: d.options.map((o, index) => ({
-            label: o.label,
-            value: o.value,
-            displayOrder: index,
-          })),
-        },
-      },
+      data: { text: d.text, weight: d.weight, required: d.required },
     }),
-  ]);
+  );
+  await prisma.$transaction(ops);
 
   revalidatePath(`/admin/assessments/${question.category.assessmentId}`);
   return { ok: true };
