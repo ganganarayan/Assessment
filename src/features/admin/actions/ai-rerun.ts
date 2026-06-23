@@ -33,6 +33,7 @@ export async function aiRerunCount(assessmentId: string): Promise<ActionResult<{
 export interface AiSample {
   customerId: string | null;
   firstName: string | null;
+  profession: string | null;
   scorePercent: number;
   band: string | null;
   text: string | null;
@@ -58,20 +59,21 @@ export async function previewAiSamples(
       id: true,
       customerId: true,
       leadFirstName: true,
+      leadProfession: true,
       resultSnapshot: true,
       assessment: { select: { title: true } },
     },
   });
 
-  // Pick a spread: one contact per distinct overall band first, then fill.
+  // Pick a spread: one contact per distinct PROFESSION first (so the
+  // profession-driven difference is visible), then fill with the rest.
   const picked: typeof subs = [];
-  const seenBands = new Set<string>();
+  const seenProf = new Set<string>();
   for (const s of subs) {
-    const snap = (s.resultSnapshot ?? null) as ResultSnapshot | null;
-    if (!snap) continue;
-    const band = snap.resultBand ?? "(none)";
-    if (seenBands.has(band)) continue;
-    seenBands.add(band);
+    if (!s.resultSnapshot) continue;
+    const prof = s.leadProfession ?? "(none)";
+    if (seenProf.has(prof)) continue;
+    seenProf.add(prof);
     picked.push(s);
     if (picked.length >= count) break;
   }
@@ -91,6 +93,7 @@ export async function previewAiSamples(
       const qByCat = new Map(breakdown.map((b) => [b.name, b.questions]));
       const input: StatementInput = {
         firstName: s.leadFirstName,
+        profession: s.leadProfession,
         assessmentTitle: s.assessment.title,
         scoreRaw: snap.scoreRaw,
         max: snap.max,
@@ -110,6 +113,7 @@ export async function previewAiSamples(
       return {
         customerId: s.customerId,
         firstName: s.leadFirstName,
+        profession: s.leadProfession,
         scorePercent: snap.scorePercent,
         band: snap.resultBand,
         text,
@@ -145,6 +149,7 @@ export async function regenerateAiBatch(
     select: {
       id: true,
       leadFirstName: true,
+      leadProfession: true,
       resultSnapshot: true,
       assessment: { select: { title: true } },
     },
@@ -164,6 +169,7 @@ export async function regenerateAiBatch(
       const qByCat = new Map(breakdown.map((b) => [b.name, b.questions]));
       const input: StatementInput = {
         firstName: s.leadFirstName,
+        profession: s.leadProfession,
         assessmentTitle: s.assessment.title,
         scoreRaw: snap.scoreRaw,
         max: snap.max,

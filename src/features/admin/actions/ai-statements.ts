@@ -41,6 +41,7 @@ export async function regenerateAiStatement(
     where: { id: submissionId },
     select: {
       leadFirstName: true,
+      leadProfession: true,
       resultSnapshot: true,
       assessment: { select: { title: true } },
     },
@@ -57,6 +58,7 @@ export async function regenerateAiStatement(
 
   const input: StatementInput = {
     firstName: sub.leadFirstName,
+    profession: sub.leadProfession,
     assessmentTitle: sub.assessment.title,
     scoreRaw: snap.scoreRaw,
     max: snap.max,

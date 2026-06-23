@@ -27,6 +27,8 @@ export interface AiConfig {
 /** The signals passed to the model for one personalized statement. */
 export interface StatementInput {
   firstName: string | null;
+  /** The respondent's profession (sets the lens/direction of the message). */
+  profession?: string | null;
   assessmentTitle: string;
   scoreRaw: number;
   max: number;

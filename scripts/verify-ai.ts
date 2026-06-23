@@ -49,6 +49,7 @@ console.log("AI feature verification\n");
 {
   const sample = {
     firstName: "Ganesh",
+    profession: "Doctor",
     assessmentTitle: "Executive Emotional Stability Assessment",
     scoreRaw: 45,
     max: 60,
@@ -62,10 +63,15 @@ console.log("AI feature verification\n");
   };
   const { user } = buildStatementMessages(sample);
   expect("user has first name", user.includes("Ganesh"));
+  expect("user has profession", user.includes("Profession: Doctor"));
   expect("user has overall score", user.includes("45/60") && user.includes("75%"));
   expect("user has band (direction)", user.includes("Unstable"));
   expect("user has raw category score", user.includes("Inner Pressure & Mental Burden: 9/12"));
   expect("user has guidance", user.includes("Higher scores mean more strain."));
+  // The active (default) prompt must steer by profession + not manufacture a name.
+  const { system: activeSys } = buildStatementMessages(sample);
+  expect("active prompt uses profession", /profession/i.test(activeSys));
+  expect("active prompt forbids inventing a name", /do not invent/i.test(activeSys));
 
   // Invariants EVERY prompt version must satisfy.
   for (const v of PROMPT_VERSIONS) {

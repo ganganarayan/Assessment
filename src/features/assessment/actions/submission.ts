@@ -410,6 +410,7 @@ export async function completeSubmission(
       customerId: true,
       resultToken: true,
       leadFirstName: true,
+      leadProfession: true,
       assessment: { select: { slug: true, targetUrl: true } },
     },
   });
@@ -560,6 +561,7 @@ export async function completeSubmission(
   // suggestion. The default version is mirrored into the snapshot below.
   const aiStatement = await generatePersonalStatement({
     firstName: submission.leadFirstName,
+    profession: submission.leadProfession,
     assessmentTitle: assessment.title,
     scoreRaw: totalScore,
     max: maxScore,

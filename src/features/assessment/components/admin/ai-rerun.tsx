@@ -162,7 +162,8 @@ export function AiRerun({ assessmentId }: { assessmentId: string }) {
             <div key={i} className="rounded border p-3 text-sm">
               <p className="mb-1 text-xs font-medium text-[var(--muted-foreground)]">
                 <span className="font-mono">{s.customerId ?? "—"}</span>
-                {s.firstName ? ` · ${s.firstName}` : ""} · {s.scorePercent}%
+                {s.firstName ? ` · ${s.firstName}` : ""}
+                {` · ${s.profession ?? "no profession"}`} · {s.scorePercent}%
                 {s.band ? ` · ${s.band}` : ""}
               </p>
               <p className="whitespace-pre-line">{s.text ?? "(no response — is AI enabled?)"}</p>

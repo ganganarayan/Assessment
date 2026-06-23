@@ -49,6 +49,7 @@ export function buildStatementMessages(
 
   const user = [
     `First name: ${input.firstName?.trim() || "there"}`,
+    `Profession: ${input.profession?.trim() || "(not given)"}`,
     `Assessment: ${input.assessmentTitle}`,
     `Overall score: ${input.scoreRaw}/${input.max} (${input.percentage}%)`,
     `Overall band: ${input.band ?? "(none)"} (level: ${input.bandLevel ?? "(none)"})`,
