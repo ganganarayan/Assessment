@@ -81,6 +81,8 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                 <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all" />
               </th>
               <th className="px-3 py-1.5">Contact</th>
+              <th className="whitespace-nowrap px-3 py-1.5">Customer ID</th>
+              <th className="whitespace-nowrap px-3 py-1.5">Result token (URL)</th>
               <th className="whitespace-nowrap px-3 py-1.5">Opt-in date (IST)</th>
               <th className="px-3 py-1.5 text-center">Opt-in</th>
               <th className="px-3 py-1.5 text-center">Completed</th>
@@ -111,6 +113,8 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                     <span className="text-xs text-[var(--muted-foreground)]">{r.profession ?? "—"}</span>
                   </div>
                 </td>
+                <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{r.customerId ?? "—"}</td>
+                <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{r.resultToken ?? "—"}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
                   {formatIST(r.createdAt)}
                 </td>

@@ -123,6 +123,10 @@ export interface ContactRow {
   email: string | null;
   mobile: string | null;
   profession: string | null;
+  /** Stable 8-char id (also sent to the CRM as contact.customer_id). */
+  customerId: string | null;
+  /** 16-char result token — the t= value in the post-assessment URL. */
+  resultToken: string | null;
   completed: boolean;
   vslLoaded: boolean;
   attribution: PayloadAttribution | null;
@@ -135,6 +139,8 @@ export interface ContactExportRow {
   email: string;
   phone: string;
   profession: string;
+  customerId: string;
+  resultToken: string;
   completed: boolean;
   vslLoaded: boolean;
   utm_source: string | null;
@@ -166,6 +172,8 @@ export async function listContactsForExport(range?: {
       leadEmail: true,
       leadMobile: true,
       leadProfession: true,
+      customerId: true,
+      resultToken: true,
       status: true,
       resultFetchedAt: true,
       attribution: true,
@@ -180,6 +188,8 @@ export async function listContactsForExport(range?: {
       email: r.leadEmail ?? "",
       phone: r.leadMobile ?? "",
       profession: r.leadProfession ?? "",
+      customerId: r.customerId ?? "",
+      resultToken: r.resultToken ?? "",
       completed: r.status === "COMPLETED",
       vslLoaded: r.resultFetchedAt !== null,
       utm_source: a?.utm_source ?? null,
@@ -221,6 +231,8 @@ export async function listContacts(opts: {
       leadEmail: true,
       leadMobile: true,
       leadProfession: true,
+      customerId: true,
+      resultToken: true,
       status: true,
       resultFetchedAt: true,
       attribution: true,
@@ -239,6 +251,8 @@ export async function listContacts(opts: {
       email: r.leadEmail,
       mobile: r.leadMobile,
       profession: r.leadProfession,
+      customerId: r.customerId,
+      resultToken: r.resultToken,
       completed: r.status === "COMPLETED",
       vslLoaded: r.resultFetchedAt !== null,
       attribution: normalizeAttribution(r.attribution),
