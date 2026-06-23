@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 import { ResultBandsManager } from "@/features/assessment/components/admin/result-bands-manager";
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
 import { BandRecompute } from "@/features/assessment/components/admin/band-recompute";
+import { AiRerun } from "@/features/assessment/components/admin/ai-rerun";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { Badge } from "@/components/ui/badge";
 
@@ -143,6 +144,15 @@ export default async function EditAssessmentPage({
         </p>
         <CategoryBandsManager categories={categoryOptions} bands={categoryBands} />
         <BandRecompute assessmentId={a.id} />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">AI messages (existing contacts)</h2>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Regenerate the AI message for every completed contact using their current bands + the
+          active prompt. Run this after the band recompute above.
+        </p>
+        <AiRerun assessmentId={a.id} />
       </section>
     </div>
   );
