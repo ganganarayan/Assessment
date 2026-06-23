@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 import { ResultBandsManager } from "@/features/assessment/components/admin/result-bands-manager";
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
 import { BandRecompute } from "@/features/assessment/components/admin/band-recompute";
+import { ReconstructAnswers } from "@/features/assessment/components/admin/reconstruct-answers";
 import { AiRerun } from "@/features/assessment/components/admin/ai-rerun";
 import { CrmResend } from "@/features/assessment/components/admin/crm-resend";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
@@ -145,6 +146,7 @@ export default async function EditAssessmentPage({
         </p>
         <CategoryBandsManager categories={categoryOptions} bands={categoryBands} />
         <BandRecompute assessmentId={a.id} />
+        <ReconstructAnswers assessmentId={a.id} />
       </section>
 
       <section className="flex flex-col gap-3">
