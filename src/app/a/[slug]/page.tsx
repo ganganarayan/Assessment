@@ -42,6 +42,8 @@ export default async function PublicAssessmentPage({
     emailRequired: a.emailRequired,
     collectMobile: a.collectMobile,
     mobileRequired: a.mobileRequired,
+    collectProfession: a.collectProfession,
+    professionRequired: a.professionRequired,
     categories: a.categories.map((c) => ({
       id: c.id,
       name: c.name,

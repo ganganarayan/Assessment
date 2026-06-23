@@ -6,6 +6,7 @@ import { ATTR_COOKIE } from "@/lib/attribution";
 import {
   leadSchema,
   answersSchema,
+  isProfession,
   type LeadInput,
   type AnswersInput,
 } from "@/features/assessment/schemas";
@@ -78,7 +79,7 @@ async function emitStart(
   assessment: StartAssessment,
   submissionId: string,
   customerId: string,
-  lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null },
+  lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null; profession: string | null },
   attr: ReturnType<typeof normalizeAttribution>,
 ) {
   const base: EmitInput = {
@@ -104,7 +105,7 @@ async function fireRegistration(
   assessment: StartAssessment,
   submissionId: string,
   customerId: string,
-  lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null },
+  lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null; profession: string | null },
   attr: ReturnType<typeof normalizeAttribution>,
 ): Promise<string> {
   await emitStart(assessment, submissionId, customerId, lead, attr);
@@ -169,6 +170,8 @@ export async function startSubmission(
       emailRequired: true,
       collectMobile: true,
       mobileRequired: true,
+      collectProfession: true,
+      professionRequired: true,
       retakePolicy: true,
       retakeDays: true,
       uniqueIdentifier: true,
@@ -186,6 +189,7 @@ export async function startSubmission(
   const lastName = nullifyEmpty(d.lastName);
   const email = nullifyEmpty(d.email);
   const mobile = nullifyEmpty(d.mobile);
+  const profession = nullifyEmpty(d.profession);
 
   if (assessment.collectFirstName && assessment.firstNameRequired && !firstName)
     return { ok: false, error: "First name is required." };
@@ -195,6 +199,12 @@ export async function startSubmission(
     return { ok: false, error: "Email is required." };
   if (assessment.collectMobile && assessment.mobileRequired && !mobile)
     return { ok: false, error: "Mobile number is required." };
+  if (assessment.collectProfession && assessment.professionRequired && !profession)
+    return { ok: false, error: "Profession is required." };
+  // Membership check: the value must be one of our options (guards a direct POST
+  // bypassing the dropdown). An empty/optional value is allowed through above.
+  if (profession && !isProfession(profession))
+    return { ok: false, error: "Please select a valid profession." };
 
   // Sanitize untrusted attribution from the landing URL (known keys, capped).
   // Fall back to the saved attribution cookie (set in middleware) when this
@@ -202,7 +212,7 @@ export async function startSubmission(
   let attr = normalizeAttribution(attribution);
   if (!attr) attr = await readAttributionCookie();
   const identifierValue = normalizeIdentifier(assessment.uniqueIdentifier, { email, mobile });
-  const leadFields = { firstName, lastName, email, mobile };
+  const leadFields = { firstName, lastName, email, mobile, profession };
   // Mint the customerId once (8 chars; the @unique index is the collision backstop).
   const newCustomerId = generateCustomerId();
 
@@ -222,6 +232,7 @@ export async function startSubmission(
     leadLastName: assessment.collectLastName ? lastName : null,
     leadEmail: assessment.collectEmail ? email : null,
     leadMobile: assessment.collectMobile ? mobile : null,
+    leadProfession: assessment.collectProfession ? profession : null,
     identifierValue,
     ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
   };

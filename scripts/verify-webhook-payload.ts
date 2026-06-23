@@ -97,7 +97,14 @@ for (const type of ACTIVE_EVENT_TYPES) {
   const env = buildEnvelope(type, input, BASE);
   const meta = env.metadata as Record<string, unknown>;
 
-  expect(`${name} · top-level keys`, keysEq(env, TOP), JSON.stringify(Object.keys(env)));
+  // lead.created carries one extra contact custom field (profession); other events do not.
+  const expectedTop = type === EventType.LEAD_CREATED ? [...TOP, "contact.what_do_azmfiy"] : TOP;
+  expect(`${name} · top-level keys`, keysEq(env, expectedTop), JSON.stringify(Object.keys(env)));
+  if (type === EventType.LEAD_CREATED) {
+    expect(`${name} · has contact.what_do_azmfiy`, "contact.what_do_azmfiy" in env);
+  } else {
+    expect(`${name} · no contact.what_do_azmfiy`, !("contact.what_do_azmfiy" in env));
+  }
   expect(`${name} · source`, env.source === "assess360");
   expect(`${name} · event_type underscore`, env.event_type === name.replace(/\./g, "_"), String(env.event_type));
   expect(`${name} · submission.id`, env.submission?.id === SID);
@@ -145,6 +152,19 @@ for (const type of ACTIVE_EVENT_TYPES) {
   expect("contact_name from single field", solo.contact_name === "Solo");
   const none = buildEnvelope(EventType.LEAD_CREATED, { submissionId: SID, lead: {} }, BASE);
   expect("contact_name empty -> null", none.contact_name === null && none.contact_email === null);
+}
+
+// Profession → contact.what_do_azmfiy, lead.created ONLY.
+{
+  const leadProf = { firstName: "G", profession: "Business Owner" };
+  const led = buildEnvelope(EventType.LEAD_CREATED, { submissionId: SID, lead: leadProf }, BASE);
+  expect("lead.created carries profession value", led["contact.what_do_azmfiy"] === "Business Owner");
+  const ledNull = buildEnvelope(EventType.LEAD_CREATED, { submissionId: SID, lead: { firstName: "G" } }, BASE);
+  expect("lead.created profession null when absent", ledNull["contact.what_do_azmfiy"] === null);
+  const comp = buildEnvelope(EventType.ASSESSMENT_COMPLETED, { submissionId: SID, lead: leadProf }, BASE);
+  expect("completed omits profession field", !("contact.what_do_azmfiy" in comp));
+  const started = buildEnvelope(EventType.ASSESSMENT_STARTED, { submissionId: SID, lead: leadProf }, BASE);
+  expect("started omits profession field", !("contact.what_do_azmfiy" in started));
 }
 
 // normalizeAttribution: known keys only, trims, junk dropped, all-empty -> null.
@@ -227,6 +247,12 @@ for (const type of ACTIVE_EVENT_TYPES) {
   expect("lead: keeps customer_id", led["contact.customer_id"] === "K7");
   expect("lead: drops null utm_term", !("contact.utm_term" in led));
   expect("lead: drops null score/result_url/ai", !("contact.score" in led) && !("contact.result_url" in led) && !("contact.ai_statement" in led));
+  expect("lead: drops null profession", !("contact.what_do_azmfiy" in led));
+  const ledProf = shapePayload(
+    EventType.LEAD_CREATED,
+    buildEnvelope(EventType.LEAD_CREATED, { submissionId: SID, customerId: "K7", assessment: asm, lead: { ...lead, profession: "Business Owner" } }, BASE),
+  );
+  expect("lead: keeps profession when present", ledProf["contact.what_do_azmfiy"] === "Business Owner");
   const ledMeta = led.metadata as Record<string, unknown> | undefined;
   expect("lead: metadata keeps assessmentUrl", !!ledMeta && ledMeta.assessmentUrl === `${BASE}/a/${SLUG}`);
   expect("lead: metadata drops null score/resultUrl", !!ledMeta && !("score" in ledMeta) && !("resultUrl" in ledMeta));

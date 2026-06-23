@@ -28,6 +28,7 @@ const NULL_LEAD: PayloadLead = {
   lastName: null,
   email: null,
   mobile: null,
+  profession: null,
 };
 const NULL_ATTRIBUTION: PayloadAttribution = {
   utm_source: null,
@@ -162,6 +163,11 @@ export function buildEnvelope(
   envelope["contact.result_band"] = band?.level ?? null;
   envelope["contact.result_url"] = (m.resultUrl as string | null) ?? null;
   envelope["contact.ai_statement"] = input.aiStatement ?? null;
+  // Profession (the opt-in dropdown), as the CRM custom field the user maps it to.
+  // Emitted ONLY on lead.created (the contact-creation event); other events omit it.
+  if (type === EventType.LEAD_CREATED) {
+    envelope["contact.what_do_azmfiy"] = lead.profession ?? null;
+  }
 
   // Per-category bands as flat contact custom fields (keyed by exact category
   // name), so the CRM can map e.g. `contact.Sleep & Mental Recovery band`.
@@ -250,7 +256,7 @@ export function buildSamplePayload(eventName: string, baseUrl: string): Record<s
         slug: "emotional-stability-assessment",
         title: "Emotional Stability Assessment",
       },
-      lead: { firstName: "Ganesh", lastName: "Kumar", email: "ganesh@example.com", mobile: "+919999999999" },
+      lead: { firstName: "Ganesh", lastName: "Kumar", email: "ganesh@example.com", mobile: "+919999999999", profession: "Business Owner" },
       attribution: {
         utm_source: "fb",
         utm_medium: "Facebook_Mobile_Feed",

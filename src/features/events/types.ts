@@ -77,6 +77,8 @@ export interface PayloadLead {
   lastName: string | null;
   email: string | null;
   mobile: string | null;
+  /** Chosen profession; emitted as contact.what_do_azmfiy on lead.created only. */
+  profession: string | null;
 }
 /** Marketing attribution captured from the landing URL. Keys always present. */
 export interface PayloadAttribution {

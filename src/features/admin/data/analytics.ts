@@ -122,6 +122,7 @@ export interface ContactRow {
   lastName: string | null;
   email: string | null;
   mobile: string | null;
+  profession: string | null;
   completed: boolean;
   vslLoaded: boolean;
   attribution: PayloadAttribution | null;
@@ -133,6 +134,7 @@ export interface ContactExportRow {
   lastName: string;
   email: string;
   phone: string;
+  profession: string;
   completed: boolean;
   vslLoaded: boolean;
   utm_source: string | null;
@@ -163,6 +165,7 @@ export async function listContactsForExport(range?: {
       leadLastName: true,
       leadEmail: true,
       leadMobile: true,
+      leadProfession: true,
       status: true,
       resultFetchedAt: true,
       attribution: true,
@@ -176,6 +179,7 @@ export async function listContactsForExport(range?: {
       lastName: r.leadLastName ?? "",
       email: r.leadEmail ?? "",
       phone: r.leadMobile ?? "",
+      profession: r.leadProfession ?? "",
       completed: r.status === "COMPLETED",
       vslLoaded: r.resultFetchedAt !== null,
       utm_source: a?.utm_source ?? null,
@@ -216,6 +220,7 @@ export async function listContacts(opts: {
       leadLastName: true,
       leadEmail: true,
       leadMobile: true,
+      leadProfession: true,
       status: true,
       resultFetchedAt: true,
       attribution: true,
@@ -233,6 +238,7 @@ export async function listContacts(opts: {
       lastName: r.leadLastName,
       email: r.leadEmail,
       mobile: r.leadMobile,
+      profession: r.leadProfession,
       completed: r.status === "COMPLETED",
       vslLoaded: r.resultFetchedAt !== null,
       attribution: normalizeAttribution(r.attribution),

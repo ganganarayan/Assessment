@@ -108,6 +108,7 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                     </span>
                     <span className="text-xs text-[var(--muted-foreground)]">{r.email ?? "—"}</span>
                     <span className="text-xs text-[var(--muted-foreground)]">{r.mobile ?? "—"}</span>
+                    <span className="text-xs text-[var(--muted-foreground)]">{r.profession ?? "—"}</span>
                   </div>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">

@@ -226,6 +226,8 @@ model Assessment {
   emailRequired     Boolean @default(true)
   collectMobile     Boolean @default(true)
   mobileRequired    Boolean @default(false)
+  collectProfession  Boolean @default(true)
+  professionRequired Boolean @default(true)
 
   // Retake lockout: how often a respondent (keyed by uniqueIdentifier) may
   // retake. DELAYED uses retakeDays; NEVER = once; UNLIMITED = no throttle.
@@ -416,10 +418,11 @@ model Submission {
   id     String           @id @default(cuid())
   status SubmissionStatus @default(STARTED)
 
-  leadFirstName String?
-  leadLastName  String?
-  leadEmail     String?
-  leadMobile    String?
+  leadFirstName  String?
+  leadLastName   String?
+  leadEmail      String?
+  leadMobile     String?
+  leadProfession String?
 
   // Marketing attribution captured from the landing URL (utm_*, fbclid, gclid).
   // Stored as JSON so new click-id params need no schema change.

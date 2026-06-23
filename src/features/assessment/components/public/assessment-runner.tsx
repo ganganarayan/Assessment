@@ -7,7 +7,7 @@ import {
   requestPreviousResults,
 } from "@/features/assessment/actions/submission";
 import { recordOptinView } from "@/features/assessment/actions/track";
-import type { LeadInput } from "@/features/assessment/schemas";
+import { type LeadInput, PROFESSION_OPTIONS } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,8 @@ export interface PublicAssessment {
   emailRequired: boolean;
   collectMobile: boolean;
   mobileRequired: boolean;
+  collectProfession: boolean;
+  professionRequired: boolean;
   categories: PublicCategory[];
 }
 
@@ -80,6 +82,7 @@ export function AssessmentRunner({
     lastName: "",
     email: "",
     mobile: "",
+    profession: "",
   });
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -227,7 +230,8 @@ export function AssessmentRunner({
       assessment.collectFirstName ||
       assessment.collectLastName ||
       assessment.collectEmail ||
-      assessment.collectMobile;
+      assessment.collectMobile ||
+      assessment.collectProfession;
     return (
       <form onSubmit={submitLead} className="flex flex-col gap-4">
         <h2 className="text-xl font-semibold">A few details</h2>
@@ -267,6 +271,16 @@ export function AssessmentRunner({
             required={assessment.mobileRequired}
             value={lead.mobile ?? ""}
             onChange={(v) => setLead((l) => ({ ...l, mobile: v }))}
+          />
+        ) : null}
+        {assessment.collectProfession ? (
+          <SelectField
+            label="Profession"
+            required={assessment.professionRequired}
+            value={lead.profession ?? ""}
+            options={PROFESSION_OPTIONS}
+            placeholder="Select your profession"
+            onChange={(v) => setLead((l) => ({ ...l, profession: v }))}
           />
         ) : null}
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
@@ -443,6 +457,47 @@ function Field({
         required={required}
         onChange={(e) => onChange(e.target.value)}
       />
+    </div>
+  );
+}
+
+/** Native <select> styled to match Input (dependency-free, mobile-first). The
+ *  required empty option keeps the browser's "please select" validation honest. */
+function SelectField({
+  label,
+  value,
+  onChange,
+  required,
+  options,
+  placeholder = "Select…",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+  options: readonly string[];
+  placeholder?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label>
+        {label} {required ? <span className="text-red-500">*</span> : null}
+      </Label>
+      <select
+        value={value}
+        required={required}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex h-10 w-full rounded-md border border-cyan-500 bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <option value="" disabled={required}>
+          {placeholder}
+        </option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

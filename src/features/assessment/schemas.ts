@@ -134,6 +134,29 @@ export const reorderSchema = z.object({
   ids: z.array(z.string().min(1)).min(1),
 });
 
+/** Profession choices for the opt-in dropdown. The chosen LABEL is stored and
+ * sent to the CRM verbatim, so this list is the single source of truth (form +
+ * server-side membership check). */
+export const PROFESSION_OPTIONS = [
+  "Senior Management",
+  "Middle Management",
+  "Working Professional",
+  "Employee",
+  "Self Employed",
+  "Business Owner",
+  "Entrepreneur",
+  "Doctor",
+  "Lawyer",
+  "Student",
+  "Home Maker (House Wife)",
+  "Unemployed",
+  "Retired",
+] as const;
+export type Profession = (typeof PROFESSION_OPTIONS)[number];
+export function isProfession(v: string): v is Profession {
+  return (PROFESSION_OPTIONS as readonly string[]).includes(v);
+}
+
 /** Lead capture (public). Field-level requiredness is enforced per-assessment
  * config in the server action, so all fields are optional here. */
 export const leadSchema = z.object({
@@ -141,6 +164,7 @@ export const leadSchema = z.object({
   lastName: z.string().max(120).optional().or(z.literal("")),
   email: z.string().email("Enter a valid email.").optional().or(z.literal("")),
   mobile: z.string().max(40).optional().or(z.literal("")),
+  profession: z.string().max(120).optional().or(z.literal("")),
 });
 export type LeadInput = z.infer<typeof leadSchema>;
 
