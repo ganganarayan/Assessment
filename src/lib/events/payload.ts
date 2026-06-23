@@ -163,6 +163,10 @@ export function buildEnvelope(
   envelope["contact.result_band"] = band?.level ?? null;
   envelope["contact.result_url"] = (m.resultUrl as string | null) ?? null;
   envelope["contact.ai_statement"] = input.aiStatement ?? null;
+  // Event name as a contact custom field, so the CRM can match every event
+  // uniformly on contact.event_type (lead_created / assessment_started /
+  // assessment_completed / …). The score_updated resend overrides this in the sender.
+  envelope["contact.event_type"] = envelope.event_type;
   // Profession (the opt-in dropdown), as the CRM custom field the user maps it to.
   // Emitted ONLY on lead.created (the contact-creation event); other events omit it.
   if (type === EventType.LEAD_CREATED) {
@@ -218,7 +222,10 @@ function compact(v: unknown): unknown {
  */
 export function shapePayload(type: EventType, env: EventEnvelope): Record<string, unknown> {
   if (type === EventType.ASSESSMENT_STARTED) {
-    const out: Record<string, unknown> = { event_type: env.event_type };
+    const out: Record<string, unknown> = {
+      event_type: env.event_type,
+      "contact.event_type": env["contact.event_type"],
+    };
     if (env.contact_name) out.contact_name = env.contact_name;
     if (env.contact_email) out.contact_email = env.contact_email;
     if (env.contact_phone) out.contact_phone = env.contact_phone;

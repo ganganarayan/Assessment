@@ -68,6 +68,7 @@ const CONTACT_FIELDS = [
   "contact.scoreRaw",
   "contact.max",
   "contact.ai_statement",
+  "contact.event_type",
 ];
 const TOP = [...TOP_FIXED, ...CONTACT_FIELDS];
 const META = ["assessmentId", "assessmentTitle", "assessmentSlug", "assessmentUrl", "resultUrl", "score", "resultBand", "categories"];
@@ -107,6 +108,7 @@ for (const type of ACTIVE_EVENT_TYPES) {
   }
   expect(`${name} · source`, env.source === "assess360");
   expect(`${name} · event_type underscore`, env.event_type === name.replace(/\./g, "_"), String(env.event_type));
+  expect(`${name} · contact.event_type`, env["contact.event_type"] === name.replace(/\./g, "_"), String(env["contact.event_type"]));
   expect(`${name} · submission.id`, env.submission?.id === SID);
   expect(`${name} · tenant`, env.tenant?.slug === "acme");
   expect(`${name} · contact_name`, env.contact_name === "Ganesh Kumar", String(env.contact_name));
@@ -229,8 +231,9 @@ for (const type of ACTIVE_EVENT_TYPES) {
     EventType.ASSESSMENT_STARTED,
     buildEnvelope(EventType.ASSESSMENT_STARTED, { submissionId: SID, assessment: asm, lead, attribution: { utm_source: "fb" } }, BASE),
   );
-  expect("started: exactly 4 keys", keysEq(started, ["event_type", "contact_name", "contact_email", "contact_phone"]), JSON.stringify(Object.keys(started)));
+  expect("started: exactly 5 keys", keysEq(started, ["event_type", "contact.event_type", "contact_name", "contact_email", "contact_phone"]), JSON.stringify(Object.keys(started)));
   expect("started: event_type", started.event_type === "assessment_started");
+  expect("started: contact.event_type", started["contact.event_type"] === "assessment_started");
   expect("started: nothing else", !("contact.utm_source" in started) && !("metadata" in started) && !("event" in started) && !("timestamp" in started) && !("submission" in started));
   const startedNoPhone = shapePayload(
     EventType.ASSESSMENT_STARTED,
@@ -243,6 +246,7 @@ for (const type of ACTIVE_EVENT_TYPES) {
     buildEnvelope(EventType.LEAD_CREATED, { submissionId: SID, customerId: "K7", assessment: asm, lead, attribution: { utm_source: "fb" } }, BASE),
   );
   expect("lead: keeps contact_name", led.contact_name === "Ganesh Kumar");
+  expect("lead: contact.event_type", led["contact.event_type"] === "lead_created");
   expect("lead: keeps utm_source", led["contact.utm_source"] === "fb");
   expect("lead: keeps customer_id", led["contact.customer_id"] === "K7");
   expect("lead: drops null utm_term", !("contact.utm_term" in led));
@@ -262,6 +266,7 @@ for (const type of ACTIVE_EVENT_TYPES) {
     buildEnvelope(EventType.ASSESSMENT_COMPLETED, { submissionId: SID, assessment: asm, lead, score: { total: 42, max: 60, percentage: 70 }, resultBand: { level: "HIGH", title: "High" } }, BASE),
   );
   expect("completed: unchanged full keys", keysEq(completed, TOP), JSON.stringify(Object.keys(completed)));
+  expect("completed: contact.event_type", completed["contact.event_type"] === "assessment_completed");
 }
 
 // Unknown event → no sample (preview guards).
