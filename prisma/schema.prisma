@@ -448,6 +448,15 @@ model Submission {
   totalScore Float?
   maxScore   Float?
 
+  // CRM "score_updated" resend queue. crmDirty = data changed in-app (band
+  // recompute / AI re-run) and not yet pushed; the drip sends dirty rows one at a
+  // time and clears the flag. crmAttempts caps retries; crmSentAt/crmLastError
+  // record the last outcome.
+  crmDirty     Boolean   @default(false)
+  crmSentAt    DateTime?
+  crmAttempts  Int       @default(0)
+  crmLastError String?
+
   startedAt      DateTime  @default(now())
   completedAt    DateTime?
   abandonedAt    DateTime? // set by the abandonment sweep when STARTED past the delay
@@ -475,6 +484,7 @@ model Submission {
   @@index([createdAt])
   @@index([status, startedAt]) // abandonment sweep
   @@index([assessmentId, identifierValue, status]) // retake lockout + trend
+  @@index([crmDirty]) // CRM resend drip queue
   @@map("submission")
 }
 
@@ -658,6 +668,11 @@ model AppSetting {
   // Analytics baseline. When set, the Stats + Contacts pages count only
   // records at/after this instant (a non-destructive "reset to 0").
   statsResetAt DateTime?
+
+  // CRM "score_updated" resend: the destination endpoint (separate from the
+  // configured webhooks) and a persisted "drip is active" flag for status/resume.
+  crmResendUrl  String?
+  crmDripActive Boolean @default(false)
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt

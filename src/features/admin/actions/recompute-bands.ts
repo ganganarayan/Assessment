@@ -144,6 +144,7 @@ export async function recomputeBands(
           data: {
             resultSnapshot: u.snapshot as unknown as Prisma.InputJsonValue,
             resultBandId: u.resultBandId,
+            crmDirty: true, // data changed -> queue for CRM resend
           },
         }),
       ),

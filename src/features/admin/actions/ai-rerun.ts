@@ -104,7 +104,11 @@ export async function regenerateAiBatch(
           const merged: ResultSnapshot = { ...snap, aiStatement: text };
           await tx.submission.update({
             where: { id: s.id },
-            data: { aiStatement: text, resultSnapshot: merged as unknown as Prisma.InputJsonValue },
+            data: {
+              aiStatement: text,
+              resultSnapshot: merged as unknown as Prisma.InputJsonValue,
+              crmDirty: true, // AI message changed -> queue for CRM resend
+            },
           });
         });
         succeeded += 1;

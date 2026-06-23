@@ -9,6 +9,7 @@ import { ResultBandsManager } from "@/features/assessment/components/admin/resul
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
 import { BandRecompute } from "@/features/assessment/components/admin/band-recompute";
 import { AiRerun } from "@/features/assessment/components/admin/ai-rerun";
+import { CrmResend } from "@/features/assessment/components/admin/crm-resend";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { Badge } from "@/components/ui/badge";
 
@@ -153,6 +154,15 @@ export default async function EditAssessmentPage({
           active prompt. Run this after the band recompute above.
         </p>
         <AiRerun assessmentId={a.id} />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">CRM resend</h2>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Push the updated bands + AI messages to your CRM as <code>score_updated</code>, one contact
+          every random 120–180s. Only contacts whose data changed are sent.
+        </p>
+        <CrmResend />
       </section>
     </div>
   );
