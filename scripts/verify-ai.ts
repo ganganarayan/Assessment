@@ -76,7 +76,7 @@ console.log("AI feature verification\n");
   // Invariants EVERY prompt version must satisfy.
   for (const v of PROMPT_VERSIONS) {
     const { system } = buildStatementMessages(sample, v.id);
-    expect(`[${v.id}] sets 170-240 words`, system.includes("170") && system.includes("240"));
+    expect(`[${v.id}] sets 200-280 words`, system.includes("200") && system.includes("280"));
     expect(`[${v.id}] addresses by name`, /name/i.test(system));
     expect(`[${v.id}] points to the training video`, /video/i.test(system) || /training/i.test(system));
     expect(`[${v.id}] human tone, not an AI`, /not an ai/i.test(system));
