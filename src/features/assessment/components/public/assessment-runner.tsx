@@ -48,7 +48,7 @@ export interface PublicAssessment {
   categories: PublicCategory[];
 }
 
-type Step = "intro" | "lead" | "questions" | "locked" | "evaluating";
+type Step = "intro" | "questions" | "locked" | "evaluating";
 
 interface Lockout {
   policy: "DELAYED" | "NEVER";
@@ -196,7 +196,9 @@ export function AssessmentRunner({
           ? `Please answer honestly in one sitting. Once you submit, you won't be able to retake this assessment for ${assessment.retakeDays} day${assessment.retakeDays === 1 ? "" : "s"}.`
           : null;
     return (
-      <div className="flex flex-col gap-6">
+      // Landing page + opt-in form on ONE screen (no separate "Start" step): the
+      // headline/description show, with the lead form directly below.
+      <form onSubmit={submitLead} className="flex flex-col gap-6">
         {assessment.coverImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -218,74 +220,56 @@ export function AssessmentRunner({
             {retakeNotice}
           </p>
         ) : null}
-        <Button size="lg" onClick={() => setStep("lead")}>
-          Start
-        </Button>
-      </div>
-    );
-  }
 
-  if (step === "lead") {
-    const anyLead =
-      assessment.collectFirstName ||
-      assessment.collectLastName ||
-      assessment.collectEmail ||
-      assessment.collectMobile ||
-      assessment.collectProfession;
-    return (
-      <form onSubmit={submitLead} className="flex flex-col gap-4">
-        <h2 className="text-xl font-semibold">A few details</h2>
-        {!anyLead ? (
-          <p className="text-sm text-[var(--muted-foreground)]">
-            No details required — continue to the questions.
-          </p>
-        ) : null}
-        {assessment.collectFirstName ? (
-          <Field
-            label="First name"
-            required={assessment.firstNameRequired}
-            value={lead.firstName ?? ""}
-            onChange={(v) => setLead((l) => ({ ...l, firstName: v }))}
-          />
-        ) : null}
-        {assessment.collectLastName ? (
-          <Field
-            label="Last name"
-            required={assessment.lastNameRequired}
-            value={lead.lastName ?? ""}
-            onChange={(v) => setLead((l) => ({ ...l, lastName: v }))}
-          />
-        ) : null}
-        {assessment.collectEmail ? (
-          <Field
-            label="Email"
-            type="email"
-            required={assessment.emailRequired}
-            value={lead.email ?? ""}
-            onChange={(v) => setLead((l) => ({ ...l, email: v }))}
-          />
-        ) : null}
-        {assessment.collectMobile ? (
-          <Field
-            label="Mobile"
-            required={assessment.mobileRequired}
-            value={lead.mobile ?? ""}
-            onChange={(v) => setLead((l) => ({ ...l, mobile: v }))}
-          />
-        ) : null}
-        {assessment.collectProfession ? (
-          <SelectField
-            label="Profession"
-            required={assessment.professionRequired}
-            value={lead.profession ?? ""}
-            options={PROFESSION_OPTIONS}
-            placeholder="Select your profession"
-            onChange={(v) => setLead((l) => ({ ...l, profession: v }))}
-          />
-        ) : null}
+        <div className="flex flex-col gap-4">
+          {assessment.collectFirstName ? (
+            <Field
+              label="First name"
+              required={assessment.firstNameRequired}
+              value={lead.firstName ?? ""}
+              onChange={(v) => setLead((l) => ({ ...l, firstName: v }))}
+            />
+          ) : null}
+          {assessment.collectLastName ? (
+            <Field
+              label="Last name"
+              required={assessment.lastNameRequired}
+              value={lead.lastName ?? ""}
+              onChange={(v) => setLead((l) => ({ ...l, lastName: v }))}
+            />
+          ) : null}
+          {assessment.collectEmail ? (
+            <Field
+              label="Email"
+              type="email"
+              required={assessment.emailRequired}
+              value={lead.email ?? ""}
+              onChange={(v) => setLead((l) => ({ ...l, email: v }))}
+            />
+          ) : null}
+          {assessment.collectMobile ? (
+            <Field
+              label="Mobile"
+              required={assessment.mobileRequired}
+              value={lead.mobile ?? ""}
+              onChange={(v) => setLead((l) => ({ ...l, mobile: v }))}
+            />
+          ) : null}
+          {assessment.collectProfession ? (
+            <SelectField
+              label="Profession"
+              required={assessment.professionRequired}
+              value={lead.profession ?? ""}
+              options={PROFESSION_OPTIONS}
+              placeholder="Select your profession"
+              onChange={(v) => setLead((l) => ({ ...l, profession: v }))}
+            />
+          ) : null}
+        </div>
+
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
-        <Button type="submit" disabled={pending}>
-          {pending ? "Starting…" : "Continue"}
+        <Button size="lg" type="submit" disabled={pending}>
+          {pending ? "Starting…" : "Start"}
         </Button>
       </form>
     );
