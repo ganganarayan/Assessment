@@ -30,7 +30,9 @@ async function loop(): Promise<void> {
   try {
     while (running) {
       const next = await prisma.submission.findFirst({
-        where: { crmDirty: true, crmAttempts: { lt: MAX_ATTEMPTS } },
+        // Only COMPLETED contacts are ever sent (belt-and-braces: crmDirty is only
+        // set on completed rows, and this filter guarantees it).
+        where: { crmDirty: true, crmAttempts: { lt: MAX_ATTEMPTS }, status: "COMPLETED" },
         orderBy: { createdAt: "asc" },
         select: { id: true },
       });
