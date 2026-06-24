@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { decryptWithSecret } from "@/lib/crypto";
 import { buildStatementMessages, humanizeStatement } from "@/lib/ai/prompt";
+import { applyCrisisLine } from "@/lib/ai/crisis";
 import { PREVIEW_SAMPLE } from "@/lib/ai/prompt-versions";
 import { DEFAULT_MODEL, isAiProvider, type AiConfig, type StatementInput } from "@/lib/ai/types";
 
@@ -55,11 +56,11 @@ export async function generatePersonalStatement(input: StatementInput): Promise<
   try {
     const cfg = await getAiConfig();
     if (!cfg) return null;
-    const { system, user } = buildStatementMessages(
-      { ...input, guidance: input.guidance ?? cfg.guidance },
-      cfg.promptVersion,
-    );
-    return await callProvider(cfg, system, user);
+    const merged = { ...input, guidance: input.guidance ?? cfg.guidance };
+    const { system, user } = buildStatementMessages(merged, cfg.promptVersion);
+    const text = await callProvider(cfg, system, user);
+    // Crisis line is injected AFTER humanize so its em dash + phone number stay verbatim.
+    return text ? applyCrisisLine(text, merged.bandLevel, merged.percentage) : text;
   } catch (e) {
     console.error("[ai] generation error:", e instanceof Error ? e.message : String(e));
     return null;
@@ -99,7 +100,8 @@ export async function testStatement(versionId?: string): Promise<{
   );
   const t0 = Date.now();
   try {
-    const text = await callProvider(cfg, system, user);
+    const raw = await callProvider(cfg, system, user);
+    const text = raw ? applyCrisisLine(raw, PREVIEW_SAMPLE.bandLevel, PREVIEW_SAMPLE.percentage) : raw;
     return { ok: true, ms: Date.now() - t0, text: text ?? "(model returned an empty response)" };
   } catch (e) {
     return { ok: false, ms: Date.now() - t0, error: e instanceof Error ? e.message : String(e) };

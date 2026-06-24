@@ -10,6 +10,7 @@ import { encryptWithSecret, decryptWithSecret, isEncrypted } from "../src/lib/cr
 import { buildStatementMessages, humanizeStatement } from "../src/lib/ai/prompt";
 import { PROMPT_VERSIONS } from "../src/lib/ai/prompt-versions";
 import { buildCategoryQuestionBreakdown } from "../src/lib/result/questions";
+import { applyCrisisLine, CRISIS_LINE, CRISIS_TOKEN } from "../src/lib/ai/crisis";
 import { DEFAULT_MODEL, isAiProvider } from "../src/lib/ai/types";
 
 let failures = 0;
@@ -133,6 +134,38 @@ console.log("AI feature verification\n");
   expect("breakdown excludes unanswered question", bd[0]?.questions.length === 2);
   expect("breakdown weighted score/max", bd[0]?.questions[1]?.score === 6 && bd[0]?.questions[1]?.max === 6);
   expect("breakdown resolves chosen answer label", bd[0]?.questions[0]?.answer === "High");
+}
+
+// (c4) Crisis-care line: top band (CRITICAL) + 90%+ only; verbatim; else stripped.
+{
+  const withToken = `Body. ${CRISIS_TOKEN} Then the close.`;
+  const top = applyCrisisLine(withToken, "CRITICAL", 92);
+  expect("crisis: token -> verbatim line at CRITICAL 92", top.includes(CRISIS_LINE));
+  expect("crisis: phone number preserved", top.includes("14416"));
+  expect("crisis: em dash preserved (not humanized)", top.includes("reach out — in India"));
+  expect("crisis: token consumed", !top.includes(CRISIS_TOKEN));
+  expect(
+    "crisis: appended when token missing",
+    applyCrisisLine("No token in here.", "CRITICAL", 95).endsWith(CRISIS_LINE),
+  );
+  // Non-qualifying: stripped, never shown.
+  const c89 = applyCrisisLine(withToken, "CRITICAL", 89);
+  expect("crisis: stripped at CRITICAL 89", !c89.includes("14416") && !c89.includes(CRISIS_TOKEN));
+  expect("crisis: stripped at HIGH 95", !applyCrisisLine(withToken, "HIGH", 95).includes("14416"));
+  expect("crisis: untouched low band, no token", applyCrisisLine("Plain text.", "LOW", 20) === "Plain text.");
+  // The active prompt instructs the crisis token + 90 threshold.
+  const { system } = buildStatementMessages({
+    firstName: "X",
+    profession: "Doctor",
+    assessmentTitle: "Executive Emotional Stability Assessment",
+    scoreRaw: 1,
+    max: 2,
+    percentage: 50,
+    band: null,
+    categories: [],
+  });
+  expect("active prompt references crisis token", system.includes(CRISIS_TOKEN));
+  expect("active prompt sets 90% threshold", system.includes("90"));
 }
 
 // (d) Missing name falls back gracefully.
