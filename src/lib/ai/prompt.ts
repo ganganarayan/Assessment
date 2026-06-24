@@ -8,8 +8,8 @@ import { getPromptVersion } from "@/lib/ai/prompt-versions";
  * use the assessment's own band words and to obey the admin's correction.
  */
 
-const WORDS_MIN = 150;
-const WORDS_MAX = 210;
+const WORDS_MIN = 170;
+const WORDS_MAX = 240;
 
 export function buildStatementMessages(
   input: StatementInput,
