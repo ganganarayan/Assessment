@@ -74,7 +74,12 @@ type StartAssessment = {
   tenant: { id: string; slug: string; name: string } | null;
 };
 
-/** Fire lead.created + assessment.started for a freshly created submission. */
+/** Delay before assessment.started so the CRM creates the contact from
+ *  lead.created first, then started UPDATES it (matched by customer_id / email)
+ *  instead of both racing in at the same instant and creating a duplicate. */
+const ASSESSMENT_STARTED_DELAY_MS = 30_000;
+
+/** Fire lead.created now + assessment.started shortly after (see above). */
 async function emitStart(
   assessment: StartAssessment,
   submissionId: string,
@@ -91,7 +96,12 @@ async function emitStart(
     attribution: attr ?? undefined,
   };
   await emitEvent(EventType.LEAD_CREATED, base);
-  await emitEvent(EventType.ASSESSMENT_STARTED, base);
+  // Non-blocking: scheduled in the persistent server; the user response is not
+  // delayed. Keep the real start time on the event despite the send delay.
+  const startedInput: EmitInput = { ...base, timestamp: new Date().toISOString() };
+  setTimeout(() => {
+    void emitEvent(EventType.ASSESSMENT_STARTED, startedInput).catch(() => {});
+  }, ASSESSMENT_STARTED_DELAY_MS);
 }
 
 /**

@@ -229,17 +229,19 @@ for (const type of ACTIVE_EVENT_TYPES) {
 
   const started = shapePayload(
     EventType.ASSESSMENT_STARTED,
-    buildEnvelope(EventType.ASSESSMENT_STARTED, { submissionId: SID, assessment: asm, lead, attribution: { utm_source: "fb" } }, BASE),
+    buildEnvelope(EventType.ASSESSMENT_STARTED, { submissionId: SID, customerId: "K7", assessment: asm, lead, attribution: { utm_source: "fb" } }, BASE),
   );
-  expect("started: exactly 5 keys", keysEq(started, ["event_type", "contact.event_type", "contact_name", "contact_email", "contact_phone"]), JSON.stringify(Object.keys(started)));
+  expect("started: exactly 6 keys", keysEq(started, ["event_type", "contact.event_type", "contact_name", "contact_email", "contact_phone", "contact.customer_id"]), JSON.stringify(Object.keys(started)));
   expect("started: event_type", started.event_type === "assessment_started");
   expect("started: contact.event_type", started["contact.event_type"] === "assessment_started");
+  expect("started: customer_id merge key", started["contact.customer_id"] === "K7");
   expect("started: nothing else", !("contact.utm_source" in started) && !("metadata" in started) && !("event" in started) && !("timestamp" in started) && !("submission" in started));
   const startedNoPhone = shapePayload(
     EventType.ASSESSMENT_STARTED,
     buildEnvelope(EventType.ASSESSMENT_STARTED, { submissionId: SID, assessment: asm, lead: { firstName: "A", email: "a@x.com" } }, BASE),
   );
   expect("started: drops null phone", !("contact_phone" in startedNoPhone) && startedNoPhone.contact_email === "a@x.com");
+  expect("started: no customer_id when absent", !("contact.customer_id" in startedNoPhone));
 
   const led = shapePayload(
     EventType.LEAD_CREATED,

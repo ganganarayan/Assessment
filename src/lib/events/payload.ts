@@ -229,6 +229,9 @@ export function shapePayload(type: EventType, env: EventEnvelope): Record<string
     if (env.contact_name) out.contact_name = env.contact_name;
     if (env.contact_email) out.contact_email = env.contact_email;
     if (env.contact_phone) out.contact_phone = env.contact_phone;
+    // Stable merge key so the CRM updates the SAME contact lead.created made
+    // (rather than creating a duplicate), matching it by customer_id / email.
+    if (env["contact.customer_id"]) out["contact.customer_id"] = env["contact.customer_id"];
     return out;
   }
   if (type === EventType.LEAD_CREATED) {
