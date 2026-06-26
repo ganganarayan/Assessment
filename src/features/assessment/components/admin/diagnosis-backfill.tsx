@@ -209,7 +209,7 @@ export function DiagnosisBackfill({ assessmentId }: { assessmentId: string }) {
           {busy ? "Working…" : "Preview (count)"}
         </Button>
         <Button disabled={running || busy || !savedUrl} onClick={run}>
-          {running ? "Sending…" : "Send diagnosis to all"}
+          {running ? "Sending…" : "Send diagnosis to all contacts"}
         </Button>
         {running ? (
           <Button variant="outline" onClick={stop} className="border-red-500 text-red-600 hover:bg-red-500/10">
