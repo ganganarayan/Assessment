@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { markResultViewed } from "@/features/events/record";
@@ -51,6 +52,12 @@ export default async function ResultPage({
     const questionsByCategory = new Map(breakdown.map((b) => [b.name, b.questions]));
     return (
       <main className="mx-auto w-full max-w-2xl px-4 py-10">
+        <Link
+          href="/admin/submissions"
+          className="sticky top-3 z-10 mb-4 inline-flex w-fit items-center gap-1 rounded-md border bg-[var(--background)] px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-[var(--muted)]"
+        >
+          ← Back
+        </Link>
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-1">
             <p className="text-sm text-[var(--muted-foreground)]">{submission.assessment.title}</p>
