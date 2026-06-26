@@ -183,6 +183,70 @@ export interface DiagnosisBatchResult {
   nextOffset: number;
 }
 
+/** Current diagnosis endpoint URL (so the panel can prefill it). */
+export async function getDiagnosisUrl(): Promise<ActionResult<{ url: string | null }>> {
+  await requireSuperAdmin();
+  const setting = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: { crmDiagnosisUrl: true },
+  });
+  return { ok: true, data: { url: setting?.crmDiagnosisUrl ?? null } };
+}
+
+/** Save the diagnosis automation endpoint (distinct from the score endpoint). */
+export async function setCrmDiagnosisUrl(url: string): Promise<ActionResult> {
+  await requireSuperAdmin();
+  const u = (url ?? "").trim();
+  if (u && !/^https?:\/\//i.test(u)) return { ok: false, error: "Enter a valid http(s) URL." };
+  await prisma.appSetting.upsert({
+    where: { id: "singleton" },
+    update: { crmDiagnosisUrl: u || null },
+    create: { id: "singleton", crmDiagnosisUrl: u || null },
+  });
+  return { ok: true };
+}
+
+/**
+ * One-off TEST diagnosis send: posts the exact minimal backfill payload
+ * (contact_email + contact.event_type=diagnosis_update + contact.assessment_diagnosis)
+ * with the values you type, to the diagnosis endpoint. Confirm routing/field
+ * mapping before the full backfill.
+ */
+export async function sendTestDiagnosis(input: {
+  email: string;
+  diagnosis: string;
+}): Promise<ActionResult<{ status: number; body: string }>> {
+  await requireSuperAdmin();
+  const setting = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: { crmDiagnosisUrl: true },
+  });
+  const url = setting?.crmDiagnosisUrl?.trim();
+  if (!url) return { ok: false, error: "Set the diagnosis endpoint URL first." };
+  const email = input.email?.trim();
+  const diagnosis = input.diagnosis?.trim();
+  if (!email || !diagnosis) return { ok: false, error: "Enter a test email and diagnosis." };
+
+  const payload: Record<string, unknown> = {
+    contact_email: email,
+    "contact.event_type": "diagnosis_update",
+    "contact.assessment_diagnosis": diagnosis,
+  };
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15_000),
+    });
+    const body = (await res.text()).slice(0, 500);
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}: ${body}` };
+    return { ok: true, data: { status: res.status, body } };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 /** Count of completed contacts with an email (the diagnosis-backfill target set). */
 export async function diagnosisBackfillCount(assessmentId: string): Promise<ActionResult<{ total: number }>> {
   await requireSuperAdmin();

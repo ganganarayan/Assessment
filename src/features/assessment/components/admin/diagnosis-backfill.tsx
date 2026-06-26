@@ -1,15 +1,37 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { diagnosisBackfillCount, diagnosisBackfillBatch } from "@/features/admin/actions/crm-resend";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  getDiagnosisUrl,
+  setCrmDiagnosisUrl,
+  sendTestDiagnosis,
+  diagnosisBackfillCount,
+  diagnosisBackfillBatch,
+} from "@/features/admin/actions/crm-resend";
 
 /**
  * One-time backfill: send each existing contact's diagnosis (overall band word) to
- * the CRM as a minimal {email + contact.assessment_diagnosis} update. Client-driven
- * with a small gap so it's gentle on the CRM; keep the page open until it finishes.
+ * the CRM as a minimal {email + contact.assessment_diagnosis} update. Posts to its
+ * OWN endpoint (the diagnosis_update automation) — never the score_updated one.
+ * Client-driven with a small gap; keep the page open until it finishes.
  */
 export function DiagnosisBackfill({ assessmentId }: { assessmentId: string }) {
+  const [url, setUrl] = useState("");
+  const [savedUrl, setSavedUrl] = useState<string | null>(null);
+  const [cfgMsg, setCfgMsg] = useState<string | null>(null);
+  const [cfgErr, setCfgErr] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  // Test send.
+  const [tEmail, setTEmail] = useState("");
+  const [tDiag, setTDiag] = useState("");
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testErr, setTestErr] = useState<string | null>(null);
+
+  // Bulk run.
   const [total, setTotal] = useState<number | null>(null);
   const [done, setDone] = useState(0);
   const [succeeded, setSucceeded] = useState(0);
@@ -23,6 +45,41 @@ export function DiagnosisBackfill({ assessmentId }: { assessmentId: string }) {
 
   const GAP_MS = 2000; // pause between rounds (gentle on the CRM)
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  useEffect(() => {
+    void (async () => {
+      const r = await getDiagnosisUrl();
+      if (r.ok && r.data) {
+        setSavedUrl(r.data.url);
+        if (r.data.url) setUrl(r.data.url);
+      }
+    })();
+  }, []);
+
+  const saveUrl = () =>
+    start(async () => {
+      setCfgErr(null);
+      setCfgMsg(null);
+      const r = await setCrmDiagnosisUrl(url);
+      if (!r.ok) {
+        setCfgErr(r.error);
+        return;
+      }
+      setSavedUrl(url.trim() || null);
+      setCfgMsg("Diagnosis endpoint saved.");
+    });
+
+  const doTest = () =>
+    start(async () => {
+      setTestErr(null);
+      setTestResult(null);
+      const r = await sendTestDiagnosis({ email: tEmail, diagnosis: tDiag });
+      if (!r.ok) {
+        setTestErr(r.error);
+        return;
+      }
+      setTestResult(`Sent. HTTP ${r.data?.status}. Response: ${r.data?.body || "(empty)"}`);
+    });
 
   const preview = async () => {
     setErr(null);
@@ -42,9 +99,13 @@ export function DiagnosisBackfill({ assessmentId }: { assessmentId: string }) {
   };
 
   const run = async () => {
+    if (!savedUrl) {
+      setErr("Set + save the diagnosis endpoint URL first.");
+      return;
+    }
     if (
       !confirm(
-        "Send the diagnosis (overall band word) to the CRM for ALL completed contacts?\n\nMinimal payload (email + contact.assessment_diagnosis, tagged diagnosis_update). Keep this page open until it finishes. Make sure your CRM 'diagnosis_update' automation only updates the field.",
+        "Send the diagnosis (overall band word) to the CRM for ALL completed contacts?\n\nMinimal payload (email + contact.assessment_diagnosis, tagged diagnosis_update), posted to the diagnosis endpoint above. Keep this page open until it finishes. Make sure that automation only updates the field (no WhatsApp).",
       )
     )
       return;
@@ -97,16 +158,53 @@ export function DiagnosisBackfill({ assessmentId }: { assessmentId: string }) {
     <div className="flex flex-col gap-3 rounded-lg border p-4">
       <p className="text-sm font-medium">Backfill diagnosis to CRM (all contacts)</p>
       <p className="text-xs text-[var(--muted-foreground)]">
-        Sends every completed contact&apos;s diagnosis (the overall band word) to the CRM endpoint as
-        a minimal <code>email + contact.assessment_diagnosis</code> update, tagged{" "}
-        <code>contact.event_type = diagnosis_update</code>. Your CRM matches by email and fills the
-        field. Runs in the background of this page; keep it open until it finishes.
+        Sends every completed contact&apos;s diagnosis (the overall band word) to the CRM as a minimal{" "}
+        <code>contact_email + contact.assessment_diagnosis</code> update, tagged{" "}
+        <code>contact.event_type = diagnosis_update</code>. Posts to the{" "}
+        <strong>diagnosis endpoint below</strong> — a separate automation from the score_updated drip,
+        so it never triggers WhatsApp. Your CRM matches by email and fills the field.
       </p>
+
+      <div className="flex flex-col gap-2">
+        <Label>Diagnosis CRM endpoint URL (separate from the score endpoint)</Label>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            value={url}
+            placeholder="https://login.applygitawisdom.com/api/automations/.../execute"
+            onChange={(e) => setUrl(e.target.value)}
+          />
+          <Button variant="outline" disabled={pending} onClick={saveUrl}>
+            Save URL
+          </Button>
+        </div>
+        {cfgMsg ? <p className="text-xs text-green-600">{cfgMsg}</p> : null}
+        {cfgErr ? <p className="text-sm text-red-500">{cfgErr}</p> : null}
+      </div>
+
+      <div className="flex flex-col gap-2 rounded-md border border-dashed p-3">
+        <p className="text-xs font-medium">Test send (one contact, to the diagnosis endpoint above)</p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input placeholder="Email" value={tEmail} onChange={(e) => setTEmail(e.target.value)} />
+          <Input
+            placeholder="Diagnosis (e.g. Critical)"
+            value={tDiag}
+            onChange={(e) => setTDiag(e.target.value)}
+          />
+        </div>
+        <div>
+          <Button variant="outline" disabled={pending} onClick={doTest}>
+            {pending ? "Sending…" : "Send test"}
+          </Button>
+        </div>
+        {testResult ? <p className="text-xs text-green-600">{testResult}</p> : null}
+        {testErr ? <p className="text-sm text-red-500">{testErr}</p> : null}
+      </div>
+
       <div className="flex flex-wrap gap-3">
         <Button variant="outline" disabled={running || busy} onClick={preview}>
           {busy ? "Working…" : "Preview (count)"}
         </Button>
-        <Button disabled={running || busy} onClick={run}>
+        <Button disabled={running || busy || !savedUrl} onClick={run}>
           {running ? "Sending…" : "Send diagnosis to all"}
         </Button>
         {running ? (
@@ -115,6 +213,9 @@ export function DiagnosisBackfill({ assessmentId }: { assessmentId: string }) {
           </Button>
         ) : null}
       </div>
+      {!savedUrl ? (
+        <p className="text-xs text-amber-600">Set + save the diagnosis endpoint URL to enable sending.</p>
+      ) : null}
       {err ? <p className="text-sm text-red-500">{err}</p> : null}
       {total !== null ? (
         <p className="text-sm">

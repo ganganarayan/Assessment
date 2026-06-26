@@ -122,10 +122,12 @@ export async function sendDiagnosisUpdate(
 ): Promise<{ ok: boolean; status?: number; error?: string; skipped?: boolean }> {
   const setting = await prisma.appSetting.findUnique({
     where: { id: "singleton" },
-    select: { crmResendUrl: true },
+    select: { crmDiagnosisUrl: true },
   });
-  const url = setting?.crmResendUrl?.trim();
-  if (!url) return { ok: false, error: "No CRM resend URL configured." };
+  // The diagnosis automation's OWN endpoint — never crmResendUrl (the WhatsApp-
+  // firing score_updated automation). Refuse rather than fall back to it.
+  const url = setting?.crmDiagnosisUrl?.trim();
+  if (!url) return { ok: false, error: "No diagnosis CRM URL configured." };
 
   const s = await prisma.submission.findUnique({
     where: { id: submissionId },

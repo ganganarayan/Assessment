@@ -679,6 +679,12 @@ model AppSetting {
   crmResendUrl  String?
   crmDripActive Boolean @default(false)
 
+  // CRM "diagnosis_update" backfill: its OWN automation endpoint, distinct from
+  // crmResendUrl (which is the WhatsApp-firing score_updated automation). The
+  // diagnosis bulk-send refuses to run until this is set, so it can never hit
+  // the score automation by accident.
+  crmDiagnosisUrl String?
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
