@@ -29,12 +29,18 @@ export async function getCrmResendStatus(): Promise<ActionResult<CrmResendStatus
     where: { id: "singleton" },
     select: { crmResendUrl: true, crmDripActive: true },
   });
-  const [pending, failed, sent] = await Promise.all([
+  const [queuedPending, candidatePending, failed, sent] = await Promise.all([
+    // Frozen into the active batch and still to send (what the running drip sends).
+    prisma.submission.count({ where: { status: "COMPLETED", crmDirty: true, crmQueuedAt: { not: null }, crmAttempts: { lt: MAX_ATTEMPTS } } }),
+    // Dirty + sendable (the set that would be frozen on the next Start).
     prisma.submission.count({ where: { status: "COMPLETED", crmDirty: true, crmAttempts: { lt: MAX_ATTEMPTS } } }),
     prisma.submission.count({ where: { status: "COMPLETED", crmDirty: true, crmAttempts: { gte: MAX_ATTEMPTS } } }),
     prisma.submission.count({ where: { status: "COMPLETED", crmDirty: false, crmSentAt: { not: null } } }),
   ]);
   const running = isDripRunning();
+  // While a batch is active, show what it will actually send; otherwise show the
+  // candidates that the next Start will freeze. Keeps "pending" honest vs the drip.
+  const pending = queuedPending > 0 ? queuedPending : candidatePending;
   return {
     ok: true,
     data: {
@@ -43,9 +49,9 @@ export async function getCrmResendStatus(): Promise<ActionResult<CrmResendStatus
       pending,
       sent,
       failed,
-      // Persisted intent says active, but this process isn't running it (restart) and
-      // there's still work left -> the admin should click Start to resume.
-      needsResume: !!setting?.crmDripActive && !running && pending > 0,
+      // A frozen batch remains but this process isn't running it (deploy/restart);
+      // it auto-resumes on boot, but surface a hint in case the admin is watching.
+      needsResume: !!setting?.crmDripActive && !running && queuedPending > 0,
     },
   };
 }
@@ -69,6 +75,22 @@ export async function startCrmResend(): Promise<ActionResult> {
     select: { crmResendUrl: true },
   });
   if (!setting?.crmResendUrl) return { ok: false, error: "Set the CRM endpoint URL first." };
+
+  // Freeze the batch: if nothing is already queued, snapshot the contacts pending
+  // RIGHT NOW into this run (set crmQueuedAt). The drip only sends queued rows, so
+  // exactly today's pending set is sent, never contacts dirtied later, and never
+  // the already-sent ones (crmDirty is false on those). If a batch is already
+  // queued (e.g. resuming after a deploy), leave it as-is and just continue.
+  const alreadyQueued = await prisma.submission.count({
+    where: { status: "COMPLETED", crmDirty: true, crmQueuedAt: { not: null }, crmAttempts: { lt: MAX_ATTEMPTS } },
+  });
+  if (alreadyQueued === 0) {
+    await prisma.submission.updateMany({
+      where: { status: "COMPLETED", crmDirty: true, crmAttempts: { lt: MAX_ATTEMPTS } },
+      data: { crmQueuedAt: new Date() },
+    });
+  }
+
   await startDrip();
   return { ok: true };
 }
@@ -140,12 +162,14 @@ export async function sendTestCrm(input: {
   }
 }
 
-/** Reset the retry counter on failed rows so the next run attempts them again. */
+/** Reset failed rows and RE-QUEUE them (the drip cleared crmQueuedAt when they
+ *  exhausted retries), so a running batch picks them up again, or the next Start
+ *  includes them. */
 export async function retryFailedCrmResend(): Promise<ActionResult> {
   await requireSuperAdmin();
   await prisma.submission.updateMany({
-    where: { crmDirty: true, crmAttempts: { gte: MAX_ATTEMPTS } },
-    data: { crmAttempts: 0, crmLastError: null },
+    where: { status: "COMPLETED", crmDirty: true, crmAttempts: { gte: MAX_ATTEMPTS } },
+    data: { crmAttempts: 0, crmLastError: null, crmQueuedAt: new Date() },
   });
   return { ok: true };
 }

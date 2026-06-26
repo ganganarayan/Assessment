@@ -17,7 +17,7 @@ import {
 
 /**
  * Super-admin: configure + drive the CRM "score_updated" resend drip. Sends each
- * changed contact to the endpoint, one every random 120–180s, in the background.
+ * changed contact to the endpoint, one every random 10-12 minutes, in the background.
  */
 export function CrmResend() {
   const [status, setStatus] = useState<CrmResendStatus | null>(null);
@@ -94,7 +94,7 @@ export function CrmResend() {
     start(async () => {
       if (
         !confirm(
-          "Start sending changed contacts to the CRM endpoint?\n\nOne send every random 120–180s in the background (you can close this page). Make sure your bands + AI messages are final.",
+          "Start sending the contacts pending right now to the CRM endpoint?\n\nOne send every random 10-12 minutes, in the background (you can close the page, and it resumes after a deploy). Only the currently-pending set is sent. Make sure your bands + AI messages are final.",
         )
       )
         return;
@@ -130,7 +130,7 @@ export function CrmResend() {
       <p className="text-sm font-medium">CRM resend (score_updated)</p>
       <p className="text-xs text-[var(--muted-foreground)]">
         Sends each contact whose data changed in-app (band recompute / AI re-run) to the endpoint
-        below as <code>contact.event_type = score_updated</code>, one every random 120–180s, in the
+        below as <code>contact.event_type = score_updated</code>, one every random 10-12 minutes, in the
         background. Run this only when bands + AI messages are final.
       </p>
 

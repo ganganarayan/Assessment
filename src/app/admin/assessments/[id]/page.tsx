@@ -162,7 +162,7 @@ export default async function EditAssessmentPage({
         <h2 className="text-lg font-semibold">CRM resend</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
           Push the updated bands + AI messages to your CRM as <code>score_updated</code>, one contact
-          every random 120–180s. Only contacts whose data changed are sent.
+          every random 10–12 minutes. Only the contacts pending when you press Start are sent.
         </p>
         <CrmResend />
       </section>

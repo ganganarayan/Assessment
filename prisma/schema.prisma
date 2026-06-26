@@ -456,6 +456,10 @@ model Submission {
   crmSentAt    DateTime?
   crmAttempts  Int       @default(0)
   crmLastError String?
+  // Set when a contact is FROZEN into the current resend batch (at Start). The
+  // drip sends only queued rows, so a batch sends exactly the set pending when it
+  // started — never contacts dirtied later. Cleared on successful send.
+  crmQueuedAt  DateTime?
 
   startedAt      DateTime  @default(now())
   completedAt    DateTime?
