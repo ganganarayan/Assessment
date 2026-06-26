@@ -177,6 +177,18 @@ for (const type of ACTIVE_EVENT_TYPES) {
     norm !== null && norm.utm_source === "fb" && norm.gclid === null && !("junk" in norm),
   );
   expect("normalizeAttribution empty -> null", normalizeAttribution({}) === null);
+  // Unresolved ad macros are dropped (not stored as junk attribution).
+  expect(
+    "normalizeAttribution drops {{macros}}",
+    normalizeAttribution({ utm_source: "{{site_source_name}}", utm_campaign: "{{campaign.name}}" }) === null,
+  );
+  expect(
+    "normalizeAttribution keeps real, drops macro",
+    (() => {
+      const n = normalizeAttribution({ utm_source: "ig", utm_campaign: "{{campaign.name}}" });
+      return n?.utm_source === "ig" && n?.utm_campaign === null;
+    })(),
+  );
   expect("normalizeAttribution non-object -> null", normalizeAttribution("nope") === null);
   expect("normalizeAttribution caps length", (normalizeAttribution({ utm_campaign: "a".repeat(999) })?.utm_campaign ?? "").length === 512);
 }
