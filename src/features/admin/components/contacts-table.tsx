@@ -120,7 +120,7 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                 </td>
                 <td className="px-3 py-2 text-center text-green-600">✓</td>
                 <td className="px-3 py-2 text-center">{tick(r.completed)}</td>
-                <td className="px-3 py-2 text-center">{tick(r.vslLoaded)}</td>
+                <td className="px-3 py-2 text-center tabular-nums">{r.vslLoads}</td>
                 {UTM.map((u) => (
                   <td key={u} className="whitespace-nowrap px-3 py-2 text-xs">
                     {r.attribution?.[u] ?? "—"}

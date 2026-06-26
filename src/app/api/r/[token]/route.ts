@@ -72,9 +72,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
 
   const outcome = readResult(sub, Date.now());
 
-  // Analytics: stamp the first successful fetch = the VSL page pulled the result.
-  // Fire-and-forget; never delays or fails the read.
+  // Analytics: count EVERY successful fetch (one per VSL page load) and stamp the
+  // first one. Fire-and-forget; never delays or fails the read.
   if (outcome.status === 200) {
+    void prisma.submission
+      .updateMany({ where: { resultToken: token }, data: { resultFetchCount: { increment: 1 } } })
+      .catch(() => {});
     void prisma.submission
       .updateMany({ where: { resultToken: token, resultFetchedAt: null }, data: { resultFetchedAt: new Date() } })
       .catch(() => {});

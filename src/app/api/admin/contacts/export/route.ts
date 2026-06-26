@@ -21,7 +21,7 @@ const COLUMNS: CsvColumn<ContactExportRow>[] = [
   { key: "customerId", label: "Customer ID" },
   { key: "resultToken", label: "Result token" },
   { key: "completed", label: "Completed" },
-  { key: "vslLoaded", label: "VSL loaded" },
+  { key: "vslLoads", label: "VSL loads" },
   { key: "utm_source", label: "utm_source" },
   { key: "utm_medium", label: "utm_medium" },
   { key: "utm_campaign", label: "utm_campaign" },

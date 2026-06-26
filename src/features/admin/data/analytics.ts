@@ -128,7 +128,8 @@ export interface ContactRow {
   /** 16-char result token — the t= value in the post-assessment URL. */
   resultToken: string | null;
   completed: boolean;
-  vslLoaded: boolean;
+  /** Total VSL page loads for this contact (0 = never loaded). */
+  vslLoads: number;
   attribution: PayloadAttribution | null;
 }
 
@@ -142,7 +143,7 @@ export interface ContactExportRow {
   customerId: string;
   resultToken: string;
   completed: boolean;
-  vslLoaded: boolean;
+  vslLoads: number;
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
@@ -175,7 +176,7 @@ export async function listContactsForExport(range?: {
       customerId: true,
       resultToken: true,
       status: true,
-      resultFetchedAt: true,
+      resultFetchCount: true,
       attribution: true,
     },
   });
@@ -191,7 +192,7 @@ export async function listContactsForExport(range?: {
       customerId: r.customerId ?? "",
       resultToken: r.resultToken ?? "",
       completed: r.status === "COMPLETED",
-      vslLoaded: r.resultFetchedAt !== null,
+      vslLoads: r.resultFetchCount,
       utm_source: a?.utm_source ?? null,
       utm_medium: a?.utm_medium ?? null,
       utm_campaign: a?.utm_campaign ?? null,
@@ -234,7 +235,7 @@ export async function listContacts(opts: {
       customerId: true,
       resultToken: true,
       status: true,
-      resultFetchedAt: true,
+      resultFetchCount: true,
       attribution: true,
     },
   });
@@ -254,7 +255,7 @@ export async function listContacts(opts: {
       customerId: r.customerId,
       resultToken: r.resultToken,
       completed: r.status === "COMPLETED",
-      vslLoaded: r.resultFetchedAt !== null,
+      vslLoads: r.resultFetchCount,
       attribution: normalizeAttribution(r.attribution),
     })),
   };
