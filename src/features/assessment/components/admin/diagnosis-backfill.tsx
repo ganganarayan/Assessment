@@ -26,7 +26,9 @@ export function DiagnosisBackfill({ assessmentId }: { assessmentId: string }) {
   const [pending, start] = useTransition();
 
   // Test send.
+  const [tName, setTName] = useState("");
   const [tEmail, setTEmail] = useState("");
+  const [tPhone, setTPhone] = useState("");
   const [tDiag, setTDiag] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testErr, setTestErr] = useState<string | null>(null);
@@ -73,7 +75,7 @@ export function DiagnosisBackfill({ assessmentId }: { assessmentId: string }) {
     start(async () => {
       setTestErr(null);
       setTestResult(null);
-      const r = await sendTestDiagnosis({ email: tEmail, diagnosis: tDiag });
+      const r = await sendTestDiagnosis({ name: tName, email: tEmail, phone: tPhone, diagnosis: tDiag });
       if (!r.ok) {
         setTestErr(r.error);
         return;
@@ -158,9 +160,9 @@ export function DiagnosisBackfill({ assessmentId }: { assessmentId: string }) {
     <div className="flex flex-col gap-3 rounded-lg border p-4">
       <p className="text-sm font-medium">Backfill diagnosis to CRM (all contacts)</p>
       <p className="text-xs text-[var(--muted-foreground)]">
-        Sends every completed contact&apos;s diagnosis (the overall band word) to the CRM as a minimal{" "}
-        <code>contact_email + contact.assessment_diagnosis</code> update, tagged{" "}
-        <code>contact.event_type = diagnosis_update</code>. Posts to the{" "}
+        Sends every completed contact&apos;s diagnosis (the overall band word) to the CRM as a{" "}
+        <code>contact_name + contact_email + contact_phone + contact.assessment_diagnosis</code> update,
+        tagged <code>contact.event_type = diagnosis_update</code>. Posts to the{" "}
         <strong>diagnosis endpoint below</strong> — a separate automation from the score_updated drip,
         so it never triggers WhatsApp. Your CRM matches by email and fills the field.
       </p>
@@ -184,7 +186,9 @@ export function DiagnosisBackfill({ assessmentId }: { assessmentId: string }) {
       <div className="flex flex-col gap-2 rounded-md border border-dashed p-3">
         <p className="text-xs font-medium">Test send (one contact, to the diagnosis endpoint above)</p>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <Input placeholder="Name" value={tName} onChange={(e) => setTName(e.target.value)} />
           <Input placeholder="Email" value={tEmail} onChange={(e) => setTEmail(e.target.value)} />
+          <Input placeholder="Phone" value={tPhone} onChange={(e) => setTPhone(e.target.value)} />
           <Input
             placeholder="Diagnosis (e.g. Critical)"
             value={tDiag}

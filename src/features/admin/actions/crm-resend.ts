@@ -213,7 +213,9 @@ export async function setCrmDiagnosisUrl(url: string): Promise<ActionResult> {
  * mapping before the full backfill.
  */
 export async function sendTestDiagnosis(input: {
+  name: string;
   email: string;
+  phone: string;
   diagnosis: string;
 }): Promise<ActionResult<{ status: number; body: string }>> {
   await requireSuperAdmin();
@@ -223,12 +225,19 @@ export async function sendTestDiagnosis(input: {
   });
   const url = setting?.crmDiagnosisUrl?.trim();
   if (!url) return { ok: false, error: "Set the diagnosis endpoint URL first." };
-  const email = input.email?.trim();
+  const name = input.name?.trim() || null;
+  const email = input.email?.trim() || null;
+  const phone = input.phone?.trim() || null;
   const diagnosis = input.diagnosis?.trim();
-  if (!email || !diagnosis) return { ok: false, error: "Enter a test email and diagnosis." };
+  if (!diagnosis) return { ok: false, error: "Enter a test diagnosis." };
+  // Mirror the CRM's requirement: name + at least one of email/phone.
+  if (!name) return { ok: false, error: "Enter a name (the CRM requires contact_name)." };
+  if (!email && !phone) return { ok: false, error: "Enter an email or phone." };
 
   const payload: Record<string, unknown> = {
+    contact_name: name,
     contact_email: email,
+    contact_phone: phone,
     "contact.event_type": "diagnosis_update",
     "contact.assessment_diagnosis": diagnosis,
   };

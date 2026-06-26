@@ -131,16 +131,28 @@ export async function sendDiagnosisUpdate(
 
   const s = await prisma.submission.findUnique({
     where: { id: submissionId },
-    select: { leadEmail: true, resultSnapshot: true, resultBand: { select: { title: true } } },
+    select: {
+      leadFirstName: true,
+      leadLastName: true,
+      leadEmail: true,
+      leadMobile: true,
+      resultSnapshot: true,
+      resultBand: { select: { title: true } },
+    },
   });
   if (!s) return { ok: false, error: "Submission not found." };
   const snap = (s.resultSnapshot ?? null) as ResultSnapshot | null;
   const diagnosis = snap?.resultBand ?? s.resultBand?.title ?? null;
   const email = s.leadEmail?.trim() || null;
-  if (!email || !diagnosis) return { ok: false, skipped: true, error: "No email or diagnosis." };
+  const phone = s.leadMobile?.trim() || null;
+  const name = [s.leadFirstName, s.leadLastName].map((p) => p?.trim() ?? "").filter(Boolean).join(" ") || null;
+  if (!diagnosis || (!email && !phone)) return { ok: false, skipped: true, error: "No diagnosis or no email/phone." };
 
+  // The CRM requires contact_name + at least one of email/phone, so send all three.
   const payload: Record<string, unknown> = {
+    contact_name: name,
     contact_email: email,
+    contact_phone: phone,
     "contact.event_type": "diagnosis_update",
     "contact.assessment_diagnosis": diagnosis,
   };
