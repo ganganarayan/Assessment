@@ -1,58 +1,109 @@
 "use server";
 
-import { EventType } from "@prisma/client";
+import { EventType, CrmSendKind, CrmSendStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { requireSuperAdmin } from "@/lib/auth/guards";
-import { startDrip, stopDrip, isDripRunning } from "@/lib/crm/drip";
-import { sendDiagnosisUpdate } from "@/lib/crm/send";
+import { startWorker, stopWorker, isWorkerRunning } from "@/lib/crm/drip";
+import { enqueueScore, enqueueCustom } from "@/lib/crm/enqueue";
 import { buildEnvelope, shapePayload } from "@/lib/events/payload";
+import { buildCustomPayload, isCustomFieldKey, type CustomFieldData } from "@/lib/crm/custom-fields";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 const MAX_ATTEMPTS = 3;
+const TEST_TIMEOUT = 15_000;
 
-export interface CrmResendStatus {
-  url: string | null;
-  running: boolean;
-  /** Changed-but-not-yet-sent (will be sent on the next run). */
-  pending: number;
-  /** Successfully pushed (and not dirtied again since). */
-  sent: number;
-  /** Gave up after repeated failures (still dirty, needs attention). */
-  failed: number;
-  /** A run was active but the process restarted (deploy) — click Start to resume. */
-  needsResume: boolean;
+/* --------------------------------------------------- shared counts + pending --- */
+
+async function kindCounts(kind: CrmSendKind): Promise<{ pending: number; sent: number; failed: number }> {
+  const [pending, sending, sent, failed] = await Promise.all([
+    prisma.crmSendQueue.count({ where: { kind, status: "PENDING", attempts: { lt: MAX_ATTEMPTS } } }),
+    prisma.crmSendQueue.count({ where: { kind, status: "SENDING" } }),
+    prisma.crmSendQueue.count({ where: { kind, status: "SENT" } }),
+    prisma.crmSendQueue.count({ where: { kind, status: "FAILED" } }),
+  ]);
+  return { pending: pending + sending, sent, failed };
 }
 
-export async function getCrmResendStatus(): Promise<ActionResult<CrmResendStatus>> {
-  await requireSuperAdmin();
-  const setting = await prisma.appSetting.findUnique({
-    where: { id: "singleton" },
-    select: { crmResendUrl: true, crmDripActive: true },
-  });
-  const [queuedPending, candidatePending, failed, sent] = await Promise.all([
-    // Frozen into the active batch and still to send (what the running drip sends).
-    prisma.submission.count({ where: { status: "COMPLETED", crmDirty: true, crmQueuedAt: { not: null }, crmAttempts: { lt: MAX_ATTEMPTS } } }),
-    // Dirty + sendable (the set that would be frozen on the next Start).
-    prisma.submission.count({ where: { status: "COMPLETED", crmDirty: true, crmAttempts: { lt: MAX_ATTEMPTS } } }),
-    prisma.submission.count({ where: { status: "COMPLETED", crmDirty: true, crmAttempts: { gte: MAX_ATTEMPTS } } }),
-    prisma.submission.count({ where: { status: "COMPLETED", crmDirty: false, crmSentAt: { not: null } } }),
+export interface CrmPendingRow {
+  id: string;
+  kind: CrmSendKind;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  queuedAt: string;
+}
+export interface CrmPending {
+  count: number;
+  rows: CrmPendingRow[];
+}
+
+async function listPending(kind: CrmSendKind): Promise<CrmPending> {
+  const where = { kind, status: { in: [CrmSendStatus.PENDING, CrmSendStatus.SENDING] } };
+  const [count, rows] = await Promise.all([
+    prisma.crmSendQueue.count({ where }),
+    prisma.crmSendQueue.findMany({
+      where,
+      orderBy: { queuedAt: "asc" },
+      take: 500,
+      select: { id: true, kind: true, contactName: true, contactEmail: true, contactPhone: true, queuedAt: true },
+    }),
   ]);
-  const running = isDripRunning();
-  // While a batch is active, show what it will actually send; otherwise show the
-  // candidates that the next Start will freeze. Keeps "pending" honest vs the drip.
-  const pending = queuedPending > 0 ? queuedPending : candidatePending;
+  return { count, rows: rows.map((r) => ({ ...r, queuedAt: r.queuedAt.toISOString() })) };
+}
+
+function validSchedule(startHour: number, endHour: number, delayMin: number, delayMax: number): string | null {
+  for (const [label, v] of [["Start", startHour], ["End", endHour]] as const) {
+    if (!Number.isInteger(v) || v < 0 || v > 23) return `${label} hour must be a whole number 0-23.`;
+  }
+  if (!Number.isInteger(delayMin) || delayMin < 1) return "Min delay must be at least 1 minute.";
+  if (!Number.isInteger(delayMax) || delayMax < delayMin) return "Max delay must be ≥ min delay.";
+  return null;
+}
+
+/* ------------------------------------------------------------------ SCORE send --- */
+
+export interface ScoreStatus {
+  url: string | null;
+  running: boolean;
+  pending: number;
+  sent: number;
+  failed: number;
+  needsResume: boolean;
+  startHour: number;
+  endHour: number;
+  delayMin: number;
+  delayMax: number;
+}
+
+export async function getScoreStatus(): Promise<ActionResult<ScoreStatus>> {
+  await requireSuperAdmin();
+  const s = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: {
+      crmResendUrl: true,
+      crmDripActive: true,
+      crmScoreStartHour: true,
+      crmScoreEndHour: true,
+      crmScoreDelayMin: true,
+      crmScoreDelayMax: true,
+    },
+  });
+  const c = await kindCounts(CrmSendKind.SCORE);
+  const running = isWorkerRunning(CrmSendKind.SCORE);
   return {
     ok: true,
     data: {
-      url: setting?.crmResendUrl ?? null,
+      url: s?.crmResendUrl ?? null,
       running,
-      pending,
-      sent,
-      failed,
-      // A frozen batch remains but this process isn't running it (deploy/restart);
-      // it auto-resumes on boot, but surface a hint in case the admin is watching.
-      needsResume: !!setting?.crmDripActive && !running && queuedPending > 0,
+      pending: c.pending,
+      sent: c.sent,
+      failed: c.failed,
+      needsResume: !!s?.crmDripActive && !running && c.pending > 0,
+      startHour: s?.crmScoreStartHour ?? 9,
+      endHour: s?.crmScoreEndHour ?? 21,
+      delayMin: s?.crmScoreDelayMin ?? 10,
+      delayMax: s?.crmScoreDelayMax ?? 12,
     },
   };
 }
@@ -69,43 +120,55 @@ export async function setCrmResendUrl(url: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function startCrmResend(): Promise<ActionResult> {
+export async function setScoreSchedule(input: {
+  startHour: number;
+  endHour: number;
+  delayMin: number;
+  delayMax: number;
+}): Promise<ActionResult> {
   await requireSuperAdmin();
-  const setting = await prisma.appSetting.findUnique({
+  const err = validSchedule(input.startHour, input.endHour, input.delayMin, input.delayMax);
+  if (err) return { ok: false, error: err };
+  await prisma.appSetting.upsert({
     where: { id: "singleton" },
-    select: { crmResendUrl: true },
+    update: { crmScoreStartHour: input.startHour, crmScoreEndHour: input.endHour, crmScoreDelayMin: input.delayMin, crmScoreDelayMax: input.delayMax },
+    create: { id: "singleton", crmScoreStartHour: input.startHour, crmScoreEndHour: input.endHour, crmScoreDelayMin: input.delayMin, crmScoreDelayMax: input.delayMax },
   });
-  if (!setting?.crmResendUrl) return { ok: false, error: "Set the CRM endpoint URL first." };
-
-  // Freeze the batch: if nothing is already queued, snapshot the contacts pending
-  // RIGHT NOW into this run (set crmQueuedAt). The drip only sends queued rows, so
-  // exactly today's pending set is sent, never contacts dirtied later, and never
-  // the already-sent ones (crmDirty is false on those). If a batch is already
-  // queued (e.g. resuming after a deploy), leave it as-is and just continue.
-  const alreadyQueued = await prisma.submission.count({
-    where: { status: "COMPLETED", crmDirty: true, crmQueuedAt: { not: null }, crmAttempts: { lt: MAX_ATTEMPTS } },
-  });
-  if (alreadyQueued === 0) {
-    await prisma.submission.updateMany({
-      where: { status: "COMPLETED", crmDirty: true, crmAttempts: { lt: MAX_ATTEMPTS } },
-      data: { crmQueuedAt: new Date() },
-    });
-  }
-
-  await startDrip();
   return { ok: true };
 }
 
-export async function stopCrmResend(): Promise<ActionResult> {
+export async function startScore(): Promise<ActionResult<{ enqueued: number }>> {
   await requireSuperAdmin();
-  stopDrip();
+  const s = await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { crmResendUrl: true } });
+  if (!s?.crmResendUrl) return { ok: false, error: "Set the score endpoint URL first." };
+  const enqueued = await enqueueScore();
+  await startWorker(CrmSendKind.SCORE);
+  return { ok: true, data: { enqueued } };
+}
+
+export async function stopScore(): Promise<ActionResult> {
+  await requireSuperAdmin();
+  await stopWorker(CrmSendKind.SCORE);
   return { ok: true };
+}
+
+export async function retryFailedScore(): Promise<ActionResult> {
+  await requireSuperAdmin();
+  await prisma.crmSendQueue.updateMany({
+    where: { kind: CrmSendKind.SCORE, status: "FAILED" },
+    data: { status: "PENDING", attempts: 0, lastError: null },
+  });
+  return { ok: true };
+}
+
+export async function listScorePending(): Promise<ActionResult<CrmPending>> {
+  await requireSuperAdmin();
+  return { ok: true, data: await listPending(CrmSendKind.SCORE) };
 }
 
 /**
- * One-off TEST send to the configured CRM endpoint, using the exact same
- * score_updated payload shape as the real drip but with the values you type in.
- * Lets you confirm the endpoint + field mapping before the full run.
+ * One-off TEST score send to the configured endpoint, using the exact
+ * score_updated payload shape with the values you type.
  */
 export async function sendTestCrm(input: {
   name: string;
@@ -114,30 +177,17 @@ export async function sendTestCrm(input: {
   message: string;
 }): Promise<ActionResult<{ status: number; body: string }>> {
   await requireSuperAdmin();
-  const setting = await prisma.appSetting.findUnique({
-    where: { id: "singleton" },
-    select: { crmResendUrl: true },
-  });
+  const setting = await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { crmResendUrl: true } });
   const url = setting?.crmResendUrl?.trim();
-  if (!url) return { ok: false, error: "Set the CRM endpoint URL first." };
+  if (!url) return { ok: false, error: "Set the score endpoint URL first." };
 
   const envelope = buildEnvelope(
     EventType.ASSESSMENT_COMPLETED,
     {
       submissionId: "test_send",
       customerId: "TESTSEND",
-      assessment: {
-        id: "test",
-        slug: "executive-emotional-stability-assessment",
-        title: "Executive Emotional Stability Assessment",
-      },
-      lead: {
-        firstName: input.name?.trim() || null,
-        lastName: null,
-        email: input.email?.trim() || null,
-        mobile: input.phone?.trim() || null,
-        profession: "Test",
-      },
+      assessment: { id: "test", slug: "executive-emotional-stability-assessment", title: "Executive Emotional Stability Assessment" },
+      lead: { firstName: input.name?.trim() || null, lastName: null, email: input.email?.trim() || null, mobile: input.phone?.trim() || null, profession: "Test" },
       score: { total: 46, max: 60, percentage: 77 },
       resultBand: { level: "CRITICAL", title: "Critical" },
       categories: null,
@@ -149,12 +199,7 @@ export async function sendTestCrm(input: {
   payload["contact.event_type"] = "score_updated";
 
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(15_000),
-    });
+    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(TEST_TIMEOUT) });
     const body = (await res.text()).slice(0, 500);
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}: ${body}` };
     return { ok: true, data: { status: res.status, body } };
@@ -163,37 +208,62 @@ export async function sendTestCrm(input: {
   }
 }
 
-/* ----------------------------------------- diagnosis backfill (all contacts) --- */
+/* ----------------------------------------------------------------- CUSTOM send --- */
 
-/** How many per round the client-driven diagnosis backfill sends. */
-const DIAGNOSIS_BATCH = 2;
-const diagnosisWhere = (assessmentId: string) => ({
-  assessmentId,
-  status: "COMPLETED" as const,
-  leadEmail: { not: null },
-});
-
-export interface DiagnosisBatchResult {
-  total: number;
-  scanned: number;
-  succeeded: number;
+export interface CustomConfig {
+  url: string | null;
+  name: string;
+  eventType: string;
+  fields: string[];
+  startHour: number;
+  endHour: number;
+  delayMin: number;
+  delayMax: number;
+  running: boolean;
+  pending: number;
+  sent: number;
   failed: number;
-  skipped: number;
-  done: boolean;
-  nextOffset: number;
+  needsResume: boolean;
 }
 
-/** Current diagnosis endpoint URL (so the panel can prefill it). */
-export async function getDiagnosisUrl(): Promise<ActionResult<{ url: string | null }>> {
+export async function getCustomConfig(): Promise<ActionResult<CustomConfig>> {
   await requireSuperAdmin();
-  const setting = await prisma.appSetting.findUnique({
+  const s = await prisma.appSetting.findUnique({
     where: { id: "singleton" },
-    select: { crmDiagnosisUrl: true },
+    select: {
+      crmDiagnosisUrl: true,
+      crmCustomName: true,
+      crmCustomEventType: true,
+      crmCustomFields: true,
+      crmCustomStartHour: true,
+      crmCustomEndHour: true,
+      crmCustomDelayMin: true,
+      crmCustomDelayMax: true,
+      crmCustomActive: true,
+    },
   });
-  return { ok: true, data: { url: setting?.crmDiagnosisUrl ?? null } };
+  const c = await kindCounts(CrmSendKind.CUSTOM);
+  const running = isWorkerRunning(CrmSendKind.CUSTOM);
+  return {
+    ok: true,
+    data: {
+      url: s?.crmDiagnosisUrl ?? null,
+      name: s?.crmCustomName ?? "Diagnosis",
+      eventType: s?.crmCustomEventType ?? "diagnosis_update",
+      fields: s?.crmCustomFields ?? [],
+      startHour: s?.crmCustomStartHour ?? 9,
+      endHour: s?.crmCustomEndHour ?? 21,
+      delayMin: s?.crmCustomDelayMin ?? 10,
+      delayMax: s?.crmCustomDelayMax ?? 12,
+      running,
+      pending: c.pending,
+      sent: c.sent,
+      failed: c.failed,
+      needsResume: !!s?.crmCustomActive && !running && c.pending > 0,
+    },
+  };
 }
 
-/** Save the diagnosis automation endpoint (distinct from the score endpoint). */
 export async function setCrmDiagnosisUrl(url: string): Promise<ActionResult> {
   await requireSuperAdmin();
   const u = (url ?? "").trim();
@@ -206,111 +276,94 @@ export async function setCrmDiagnosisUrl(url: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+export async function setCustomConfig(input: {
+  name: string;
+  eventType: string;
+  fields: string[];
+  startHour: number;
+  endHour: number;
+  delayMin: number;
+  delayMax: number;
+}): Promise<ActionResult> {
+  await requireSuperAdmin();
+  const err = validSchedule(input.startHour, input.endHour, input.delayMin, input.delayMax);
+  if (err) return { ok: false, error: err };
+  const name = input.name?.trim() || "Diagnosis";
+  const eventType = input.eventType?.trim() || "diagnosis_update";
+  const fields = (input.fields ?? []).filter(isCustomFieldKey);
+  const data = { crmCustomName: name, crmCustomEventType: eventType, crmCustomFields: fields, crmCustomStartHour: input.startHour, crmCustomEndHour: input.endHour, crmCustomDelayMin: input.delayMin, crmCustomDelayMax: input.delayMax };
+  await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
+  return { ok: true };
+}
+
+export async function startCustom(assessmentId: string): Promise<ActionResult<{ enqueued: number }>> {
+  await requireSuperAdmin();
+  const s = await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { crmDiagnosisUrl: true } });
+  if (!s?.crmDiagnosisUrl) return { ok: false, error: "Set the endpoint URL first." };
+  const enqueued = await enqueueCustom(assessmentId);
+  await startWorker(CrmSendKind.CUSTOM);
+  return { ok: true, data: { enqueued } };
+}
+
+export async function stopCustom(): Promise<ActionResult> {
+  await requireSuperAdmin();
+  await stopWorker(CrmSendKind.CUSTOM);
+  return { ok: true };
+}
+
+export async function retryFailedCustom(): Promise<ActionResult> {
+  await requireSuperAdmin();
+  await prisma.crmSendQueue.updateMany({
+    where: { kind: CrmSendKind.CUSTOM, status: "FAILED" },
+    data: { status: "PENDING", attempts: 0, lastError: null },
+  });
+  return { ok: true };
+}
+
+export async function listCustomPending(): Promise<ActionResult<CrmPending>> {
+  await requireSuperAdmin();
+  return { ok: true, data: await listPending(CrmSendKind.CUSTOM) };
+}
+
 /**
- * One-off TEST diagnosis send: posts the exact minimal backfill payload
- * (contact_email + contact.event_type=diagnosis_update + contact.assessment_diagnosis)
- * with the values you type, to the diagnosis endpoint. Confirm routing/field
- * mapping before the full backfill.
+ * TEST custom send: builds the payload from the SAVED config (selected fields +
+ * event_type) with the test contact you type and sample values for data fields.
  */
-export async function sendTestDiagnosis(input: {
+export async function sendTestCustom(input: {
   name: string;
   email: string;
   phone: string;
-  diagnosis: string;
 }): Promise<ActionResult<{ status: number; body: string }>> {
   await requireSuperAdmin();
-  const setting = await prisma.appSetting.findUnique({
+  const s = await prisma.appSetting.findUnique({
     where: { id: "singleton" },
-    select: { crmDiagnosisUrl: true },
+    select: { crmDiagnosisUrl: true, crmCustomEventType: true, crmCustomFields: true },
   });
-  const url = setting?.crmDiagnosisUrl?.trim();
-  if (!url) return { ok: false, error: "Set the diagnosis endpoint URL first." };
-  const name = input.name?.trim() || null;
-  const email = input.email?.trim() || null;
-  const phone = input.phone?.trim() || null;
-  const diagnosis = input.diagnosis?.trim();
-  if (!diagnosis) return { ok: false, error: "Enter a test diagnosis." };
-  // Mirror the CRM's requirement: name + at least one of email/phone.
-  if (!name) return { ok: false, error: "Enter a name (the CRM requires contact_name)." };
-  if (!email && !phone) return { ok: false, error: "Enter an email or phone." };
+  const url = s?.crmDiagnosisUrl?.trim();
+  if (!s || !url) return { ok: false, error: "Set the endpoint URL first." };
 
-  const payload: Record<string, unknown> = {
-    contact_name: name,
-    contact_email: email,
-    contact_phone: phone,
-    "contact.event_type": "diagnosis_update",
-    "contact.assessment_diagnosis": diagnosis,
+  const data: CustomFieldData = {
+    name: input.name?.trim() || null,
+    email: input.email?.trim() || null,
+    phone: input.phone?.trim() || null,
+    diagnosis: "Critical",
+    scorePercent: 77,
+    bandLevel: "CRITICAL",
+    scoreRaw: 46,
+    scoreMax: 60,
+    customerId: "TESTSEND",
+    resultUrl: `${env.NEXT_PUBLIC_APP_URL}/a/test/r/test_send`,
+    aiStatement: "Test statement.",
+    profession: "Test",
   };
+  const payload = buildCustomPayload(s.crmCustomFields, s.crmCustomEventType, data);
+
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(15_000),
-    });
+    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(TEST_TIMEOUT) });
     const body = (await res.text()).slice(0, 500);
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}: ${body}` };
     return { ok: true, data: { status: res.status, body } };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
-}
-
-/** Count of completed contacts with an email (the diagnosis-backfill target set). */
-export async function diagnosisBackfillCount(assessmentId: string): Promise<ActionResult<{ total: number }>> {
-  await requireSuperAdmin();
-  const total = await prisma.submission.count({ where: diagnosisWhere(assessmentId) });
-  return { ok: true, data: { total } };
-}
-
-/**
- * Send the diagnosis (overall band word) for ALL completed contacts of this
- * assessment to the CRM, one round at a time (client-driven). Each send is a
- * minimal {email + contact.assessment_diagnosis} payload tagged
- * contact.event_type=diagnosis_update. Ordered oldest-first; the client repeats
- * with nextOffset until done.
- */
-export async function diagnosisBackfillBatch(
-  assessmentId: string,
-  offset: number,
-): Promise<ActionResult<DiagnosisBatchResult>> {
-  await requireSuperAdmin();
-  const total = await prisma.submission.count({ where: diagnosisWhere(assessmentId) });
-  const subs = await prisma.submission.findMany({
-    where: diagnosisWhere(assessmentId),
-    orderBy: { createdAt: "asc" },
-    skip: Math.max(0, offset),
-    take: DIAGNOSIS_BATCH,
-    select: { id: true },
-  });
-
-  let succeeded = 0;
-  let failed = 0;
-  let skipped = 0;
-  await Promise.all(
-    subs.map(async (s) => {
-      const r = await sendDiagnosisUpdate(s.id);
-      if (r.ok) succeeded += 1;
-      else if (r.skipped) skipped += 1;
-      else failed += 1;
-    }),
-  );
-
-  const nextOffset = offset + subs.length;
-  return {
-    ok: true,
-    data: { total, scanned: subs.length, succeeded, failed, skipped, done: subs.length === 0 || nextOffset >= total, nextOffset },
-  };
-}
-
-/** Reset failed rows and RE-QUEUE them (the drip cleared crmQueuedAt when they
- *  exhausted retries), so a running batch picks them up again, or the next Start
- *  includes them. */
-export async function retryFailedCrmResend(): Promise<ActionResult> {
-  await requireSuperAdmin();
-  await prisma.submission.updateMany({
-    where: { status: "COMPLETED", crmDirty: true, crmAttempts: { gte: MAX_ATTEMPTS } },
-    data: { crmAttempts: 0, crmLastError: null, crmQueuedAt: new Date() },
-  });
-  return { ok: true };
 }

@@ -4,30 +4,34 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { HourSelect, CrmPendingList } from "@/features/assessment/components/admin/crm-controls";
+import { CUSTOM_FIELD_KEYS, CUSTOM_FIELD_LABELS } from "@/lib/crm/custom-fields";
 import {
-  getScoreStatus,
-  setCrmResendUrl,
-  setScoreSchedule,
-  startScore,
-  stopScore,
-  retryFailedScore,
-  listScorePending,
-  sendTestCrm,
-  type ScoreStatus,
+  getCustomConfig,
+  setCrmDiagnosisUrl,
+  setCustomConfig,
+  startCustom,
+  stopCustom,
+  retryFailedCustom,
+  listCustomPending,
+  sendTestCustom,
+  type CustomConfig,
   type CrmPending,
 } from "@/features/admin/actions/crm-resend";
 
 /**
- * Super-admin: the SCORE (score_updated) background sender. Sends each changed
- * contact to the endpoint inside a daily IST window, one every random min-max
- * minutes, in the background (survives page close + deploys). Fires WhatsApp.
+ * The generic CUSTOM CRM sender (was "Diagnosis"). Fully configurable: editable
+ * name (logged), endpoint, event_type routing value, which payload fields to send
+ * (checkboxes), daily IST window + random delay. Runs in the background; sends to
+ * every completed contact of this assessment when Started.
  */
-export function CrmResend() {
-  const [status, setStatus] = useState<ScoreStatus | null>(null);
+export function CustomSender({ assessmentId }: { assessmentId: string }) {
+  const [cfg, setCfg] = useState<CustomConfig | null>(null);
   const [pendingQ, setPendingQ] = useState<CrmPending>({ count: 0, rows: [] });
+  const [name, setName] = useState("Diagnosis");
   const [url, setUrl] = useState("");
+  const [eventType, setEventType] = useState("diagnosis_update");
+  const [fields, setFields] = useState<string[]>([]);
   const [startHour, setStartHour] = useState(9);
   const [endHour, setEndHour] = useState(21);
   const [delayMin, setDelayMin] = useState(10);
@@ -41,16 +45,18 @@ export function CrmResend() {
   const [tName, setTName] = useState("");
   const [tEmail, setTEmail] = useState("");
   const [tPhone, setTPhone] = useState("");
-  const [tMsg, setTMsg] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testErr, setTestErr] = useState<string | null>(null);
 
   const refresh = async () => {
-    const [r, p] = await Promise.all([getScoreStatus(), listScorePending()]);
+    const [r, p] = await Promise.all([getCustomConfig(), listCustomPending()]);
     if (r.ok && r.data) {
-      setStatus(r.data);
+      setCfg(r.data);
       if (!seeded) {
+        setName(r.data.name);
         if (r.data.url) setUrl(r.data.url);
+        setEventType(r.data.eventType);
+        setFields(r.data.fields);
         setStartHour(r.data.startHour);
         setEndHour(r.data.endHour);
         setDelayMin(r.data.delayMin);
@@ -67,9 +73,9 @@ export function CrmResend() {
   }, []);
 
   useEffect(() => {
-    if (status?.running && !pollRef.current) {
+    if (cfg?.running && !pollRef.current) {
       pollRef.current = setInterval(() => void refresh(), 5000);
-    } else if (!status?.running && pollRef.current) {
+    } else if (!cfg?.running && pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
     }
@@ -80,34 +86,37 @@ export function CrmResend() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status?.running]);
+  }, [cfg?.running]);
+
+  const toggleField = (k: string) =>
+    setFields((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
 
   const saveUrl = () =>
     start(async () => {
       setErr(null);
       setMsg(null);
-      const r = await setCrmResendUrl(url);
+      const r = await setCrmDiagnosisUrl(url);
       if (!r.ok) return setErr(r.error);
       setMsg("Endpoint saved.");
       await refresh();
     });
 
-  const saveSchedule = () =>
+  const saveSettings = () =>
     start(async () => {
       setErr(null);
       setMsg(null);
-      const r = await setScoreSchedule({ startHour, endHour, delayMin, delayMax });
+      const r = await setCustomConfig({ name, eventType, fields, startHour, endHour, delayMin, delayMax });
       if (!r.ok) return setErr(r.error);
-      setMsg("Schedule saved.");
+      setMsg("Settings saved.");
       await refresh();
     });
 
   const doStart = () =>
     start(async () => {
-      if (!confirm("Start sending changed contacts to the CRM (score_updated)?\n\nRuns in the background inside your daily window, one every random delay. You can close the page; it resumes after a deploy.")) return;
+      if (!confirm(`Start the "${name}" send to ALL completed contacts of this assessment?\n\nRuns in the background inside your daily window, one every random delay. You can close the page; it resumes after a deploy.`)) return;
       setErr(null);
       setMsg(null);
-      const r = await startScore();
+      const r = await startCustom(assessmentId);
       if (!r.ok) return setErr(r.error);
       setMsg(`Started. ${r.data?.enqueued ?? 0} queued this run.`);
       await refresh();
@@ -116,7 +125,7 @@ export function CrmResend() {
   const doStop = () =>
     start(async () => {
       setErr(null);
-      await stopScore();
+      await stopCustom();
       setMsg("Stop requested (takes effect after the current send).");
       await refresh();
     });
@@ -124,7 +133,7 @@ export function CrmResend() {
   const doRetry = () =>
     start(async () => {
       setErr(null);
-      await retryFailedScore();
+      await retryFailedCustom();
       setMsg("Failed rows re-queued.");
       await refresh();
     });
@@ -133,31 +142,56 @@ export function CrmResend() {
     start(async () => {
       setTestErr(null);
       setTestResult(null);
-      const r = await sendTestCrm({ name: tName, email: tEmail, phone: tPhone, message: tMsg });
+      const r = await sendTestCustom({ name: tName, email: tEmail, phone: tPhone });
       if (!r.ok) return setTestErr(r.error);
       setTestResult(`Sent. HTTP ${r.data?.status}. Response: ${r.data?.body || "(empty)"}`);
     });
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border p-4">
-      <p className="text-sm font-medium">Score sender (score_updated)</p>
+      <p className="text-sm font-medium">Custom CRM sender</p>
       <p className="text-xs text-[var(--muted-foreground)]">
-        Sends each contact whose data changed in-app (band recompute / AI re-run) as{" "}
-        <code>contact.event_type = score_updated</code>, in the background, inside the daily IST window
-        below, one every random delay. Fires WhatsApp — keep the gap generous.
+        A fully configurable background send to every completed contact: pick the name (shown in the
+        log), endpoint, <code>contact.event_type</code> value, and exactly which payload fields go.
+        Runs inside the daily IST window, one every random delay. Separate from the score sender — never
+        touches the WhatsApp endpoint.
       </p>
 
-      <div className="flex flex-col gap-2">
-        <Label>Score endpoint URL</Label>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-1 flex-col gap-1">
+          <Label>Name (logged)</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Diagnosis" />
+        </div>
+        <div className="flex flex-1 flex-col gap-1">
+          <Label>Event type (routing key)</Label>
+          <Input value={eventType} onChange={(e) => setEventType(e.target.value)} placeholder="diagnosis_update" />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <Label>Endpoint URL</Label>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Input value={url} placeholder="https://login.applygitawisdom.com/api/automations/.../execute" onChange={(e) => setUrl(e.target.value)} />
+          <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://login.applygitawisdom.com/api/automations/.../execute" />
           <Button variant="outline" disabled={pending} onClick={saveUrl}>
             Save URL
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
+        <Label>Payload fields to include</Label>
+        <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+          {CUSTOM_FIELD_KEYS.map((k) => (
+            <label key={k} className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={fields.includes(k)} onChange={() => toggleField(k)} />
+              <span>{CUSTOM_FIELD_LABELS[k]}</span>
+              <code className="text-xs text-[var(--muted-foreground)]">{k}</code>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1">
         <Label>Daily window (IST) &amp; delay</Label>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-[var(--muted-foreground)]">From</span>
@@ -169,20 +203,22 @@ export function CrmResend() {
           <span className="text-[var(--muted-foreground)]">to</span>
           <Input type="number" min={1} value={delayMax} onChange={(e) => setDelayMax(Number(e.target.value))} className="w-20" aria-label="Max delay minutes" />
           <span className="text-[var(--muted-foreground)]">min</span>
-          <Button variant="outline" disabled={pending} onClick={saveSchedule}>
-            Save schedule
-          </Button>
         </div>
       </div>
 
+      <div>
+        <Button variant="outline" disabled={pending} onClick={saveSettings}>
+          Save settings
+        </Button>
+      </div>
+
       <div className="flex flex-col gap-2 rounded-md border border-dashed p-3">
-        <p className="text-xs font-medium">Test send (one contact, to the endpoint above)</p>
+        <p className="text-xs font-medium">Test send (uses saved fields + this contact)</p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input placeholder="Name" value={tName} onChange={(e) => setTName(e.target.value)} />
           <Input placeholder="Email" value={tEmail} onChange={(e) => setTEmail(e.target.value)} />
           <Input placeholder="Phone" value={tPhone} onChange={(e) => setTPhone(e.target.value)} />
         </div>
-        <Textarea placeholder="Message (AI statement)" value={tMsg} onChange={(e) => setTMsg(e.target.value)} rows={3} />
         <div>
           <Button variant="outline" disabled={pending} onClick={doTest}>
             {pending ? "Sending…" : "Send test"}
@@ -193,33 +229,33 @@ export function CrmResend() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        {status?.running ? (
+        {cfg?.running ? (
           <Button variant="outline" disabled={pending} onClick={doStop} className="border-red-500 text-red-600 hover:bg-red-500/10">
             Stop
           </Button>
         ) : (
-          <Button disabled={pending || !status?.url} onClick={doStart}>
+          <Button disabled={pending || !cfg?.url} onClick={doStart}>
             Start sending
           </Button>
         )}
         <Button variant="outline" disabled={pending} onClick={() => void refresh()}>
           Refresh
         </Button>
-        {status && status.failed > 0 ? (
+        {cfg && cfg.failed > 0 ? (
           <Button variant="outline" disabled={pending} onClick={doRetry}>
-            Retry failed ({status.failed})
+            Retry failed ({cfg.failed})
           </Button>
         ) : null}
       </div>
 
-      {status ? (
+      {cfg ? (
         <p className="text-sm">
-          {status.running ? <strong>Running… </strong> : null}
-          Pending {status.pending} · Sent {status.sent} · Failed {status.failed}
-          {!status.url ? " · (set the endpoint URL to enable)" : ""}
+          {cfg.running ? <strong>Running… </strong> : null}
+          Pending {cfg.pending} · Sent {cfg.sent} · Failed {cfg.failed}
+          {!cfg.url ? " · (set the endpoint URL to enable)" : ""}
         </p>
       ) : null}
-      {status?.needsResume ? (
+      {cfg?.needsResume ? (
         <p className="text-xs text-amber-600">A run was interrupted (likely a deploy). Click <strong>Start sending</strong> to resume.</p>
       ) : null}
 

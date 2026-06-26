@@ -11,7 +11,7 @@ import { BandRecompute } from "@/features/assessment/components/admin/band-recom
 import { ReconstructAnswers } from "@/features/assessment/components/admin/reconstruct-answers";
 import { AiRerun } from "@/features/assessment/components/admin/ai-rerun";
 import { CrmResend } from "@/features/assessment/components/admin/crm-resend";
-import { DiagnosisBackfill } from "@/features/assessment/components/admin/diagnosis-backfill";
+import { CustomSender } from "@/features/assessment/components/admin/custom-sender";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { Badge } from "@/components/ui/badge";
 
@@ -160,13 +160,15 @@ export default async function EditAssessmentPage({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">CRM resend</h2>
+        <h2 className="text-lg font-semibold">CRM senders</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
-          Push the updated bands + AI messages to your CRM as <code>score_updated</code>, one contact
-          every random 10–12 minutes. Only the contacts pending when you press Start are sent.
+          Background senders to your CRM. Each runs server-side inside its own daily IST window, one
+          contact every random delay — survives page close and deploys. Every send is logged under{" "}
+          <a href="/admin/webhook-logs?view=crm" className="underline">Webhook Logs → CRM sends</a>.
+          Lifecycle webhooks (opt-in / started / completed) still fire immediately.
         </p>
         <CrmResend />
-        <DiagnosisBackfill assessmentId={a.id} />
+        <CustomSender assessmentId={a.id} />
       </section>
     </div>
   );

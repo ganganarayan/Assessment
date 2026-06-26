@@ -110,6 +110,62 @@ export async function listEventActivity(opts: {
   return { rows, total };
 }
 
+/**
+ * CRM send log: WebhookLog rows written by the SCORE/CUSTOM senders (eventName
+ * prefixed "crm:"). Mapped onto EventActivityRow so the same expandable table
+ * renders them — Name (the sender's editable name), Webhook, full Payload, status.
+ * Not retryable from here (re-send via the CRM panel's Retry/Start).
+ */
+export async function listCrmSendLogs(opts: {
+  page: number;
+  pageSize: number;
+}): Promise<{ rows: EventActivityRow[]; total: number }> {
+  const where = { eventName: { startsWith: "crm:" } };
+  const [logs, total] = await Promise.all([
+    prisma.webhookLog.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (opts.page - 1) * opts.pageSize,
+      take: opts.pageSize,
+      select: {
+        id: true,
+        eventName: true,
+        endpoint: true,
+        payload: true,
+        responseStatus: true,
+        responseBody: true,
+        error: true,
+        attemptCount: true,
+        success: true,
+        createdAt: true,
+        submissionId: true,
+      },
+    }),
+    prisma.webhookLog.count({ where }),
+  ]);
+
+  const rows: EventActivityRow[] = logs.map((l) => {
+    const payload = (l.payload ?? {}) as Record<string, unknown>;
+    const email = typeof payload["contact_email"] === "string" ? (payload["contact_email"] as string) : null;
+    return {
+      id: l.id,
+      eventName: l.eventName.replace(/^crm:/, ""), // display the sender's name
+      createdAt: l.createdAt.toISOString(),
+      submissionId: l.submissionId,
+      leadEmail: email,
+      payload: JSON.stringify(l.payload, null, 2),
+      endpoint: l.endpoint,
+      deliveryStatus: l.success ? "delivered" : "failed",
+      responseStatus: l.responseStatus,
+      attemptCount: l.attemptCount,
+      responseBody: l.responseBody,
+      error: l.error,
+      canRetry: false,
+    };
+  });
+  return { rows, total };
+}
+
 export async function getAppSetting() {
   return prisma.appSetting.findUnique({ where: { id: "singleton" } });
 }
