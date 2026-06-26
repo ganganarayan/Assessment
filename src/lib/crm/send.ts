@@ -138,7 +138,6 @@ export async function sendDiagnosisUpdate(
   if (!email || !diagnosis) return { ok: false, skipped: true, error: "No email or diagnosis." };
 
   const payload: Record<string, unknown> = {
-    event_type: "diagnosis_update",
     contact_email: email,
     "contact.event_type": "diagnosis_update",
     "contact.assessment_diagnosis": diagnosis,
