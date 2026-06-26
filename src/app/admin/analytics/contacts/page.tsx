@@ -12,7 +12,9 @@ export default async function ContactsPage({
 }) {
   const sp = await searchParams;
   const requested = Math.max(1, Number(sp.page ?? "1") || 1);
-  const pageSize = 50;
+  // Load all (within the date range) so the live search box can match across every
+  // contact, not just one page. Pagination below collapses to a single page.
+  const pageSize = 100_000;
   const { rows, total, page, pages } = await listContacts({
     page: requested,
     pageSize,

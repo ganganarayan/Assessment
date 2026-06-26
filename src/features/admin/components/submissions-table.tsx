@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { formatIST } from "@/lib/date";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 export interface SubmissionRow {
   id: string;
@@ -27,12 +28,25 @@ type SortKey = "date" | "lead" | "score" | "result" | "status";
  *  click-to-sort columns (toggles asc/desc, applied within each group). */
 export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
+  const [query, setQuery] = useState("");
 
   const toggle = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
   const arrow = (key: SortKey) => (sort.key === key ? (sort.dir === "asc" ? " ↑" : " ↓") : "");
 
   const groups = useMemo(() => {
+    // Live substring search: any contiguous run of the typed letters, anywhere in
+    // name / email / phone / profession / assessment / result (case-insensitive).
+    const q = query.trim().toLowerCase();
+    const matches = (r: SubmissionRow) =>
+      !q ||
+      [r.firstName, r.lastName, r.email, r.mobile, r.profession, r.assessmentTitle, r.bandTitle]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
+    const visible = rows.filter(matches);
+
     const name = (r: SubmissionRow) => [r.firstName, r.lastName].filter(Boolean).join(" ").toLowerCase();
     const val = (r: SubmissionRow): string | number => {
       switch (sort.key) {
@@ -52,14 +66,14 @@ export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
     };
 
     const m = new Map<string, SubmissionRow[]>();
-    for (const r of rows) {
+    for (const r of visible) {
       const arr = m.get(r.assessmentTitle) ?? [];
       arr.push(r);
       m.set(r.assessmentTitle, arr);
     }
     for (const arr of m.values()) arr.sort(cmp);
     return Array.from(m.entries());
-  }, [rows, sort]);
+  }, [rows, sort, query]);
 
   const Th = ({ k, label, className = "" }: { k: SortKey; label: string; className?: string }) => (
     <th
@@ -73,6 +87,17 @@ export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <Input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search name, email, phone, profession, assessment…"
+        className="max-w-md"
+        aria-label="Search submissions"
+      />
+      {groups.length === 0 ? (
+        <p className="text-sm text-[var(--muted-foreground)]">No submissions match “{query}”.</p>
+      ) : null}
       {groups.map(([title, subs]) => (
         <div key={title} className="flex flex-col gap-2">
           <h2 className="text-lg font-semibold">

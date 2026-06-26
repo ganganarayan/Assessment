@@ -17,7 +17,8 @@ const EXPORT_GROUPS = [
 ];
 
 export default async function SubmissionsPage() {
-  const submissions = await listSubmissions();
+  // Load all so the live search box can match across every submission, not just a page.
+  const submissions = await listSubmissions(100_000);
   const rows: SubmissionRow[] = submissions.map((s) => ({
     id: s.id,
     slug: s.assessment.slug,
@@ -41,8 +42,9 @@ export default async function SubmissionsPage() {
         <AnalyticsToolbar exportGroups={EXPORT_GROUPS} />
       </div>
       <p className="-mt-4 text-xs text-[var(--muted-foreground)]">
-        Grouped by assessment. Click a column heading to sort. Export includes every submission with
-        its score, overall band, UTMs, category results, and all AI-message versions. Shows the latest 100.
+        Grouped by assessment. Type to search across all submissions; click a column heading to sort.
+        Export includes every submission with its score, overall band, UTMs, category results, and all
+        AI-message versions.
       </p>
 
       {rows.length === 0 ? (

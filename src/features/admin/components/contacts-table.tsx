@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { formatIST } from "@/lib/date";
 import { deleteSubmissions } from "@/features/admin/actions/submissions";
 import { type ContactRow } from "@/features/admin/data/analytics";
@@ -26,8 +27,23 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
   const [pending, start] = useTransition();
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [msg, setMsg] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
-  const allSelected = rows.length > 0 && rows.every((r) => sel.has(r.id));
+  // Live substring search: any contiguous run of the typed letters, anywhere in
+  // name / email / phone / profession / customer id / token (case-insensitive).
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) =>
+      [r.firstName, r.lastName, r.email, r.mobile, r.profession, r.customerId, r.resultToken]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [rows, query]);
+
+  const allSelected = visible.length > 0 && visible.every((r) => sel.has(r.id));
   const toggle = (id: string) =>
     setSel((s) => {
       const n = new Set(s);
@@ -35,7 +51,18 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
       else n.add(id);
       return n;
     });
-  const toggleAll = () => setSel(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
+  const toggleAll = () =>
+    setSel((s) => {
+      if (allSelected) {
+        // Deselect only the rows currently shown; keep any off-screen selections.
+        const n = new Set(s);
+        for (const r of visible) n.delete(r.id);
+        return n;
+      }
+      const n = new Set(s);
+      for (const r of visible) n.add(r.id);
+      return n;
+    });
 
   const onDelete = () => {
     const ids = [...sel];
@@ -60,6 +87,14 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
 
   return (
     <div className="flex flex-col gap-2">
+      <Input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search name, email, phone, profession, customer ID…"
+        className="max-w-md"
+        aria-label="Search contacts"
+      />
       <div className="flex items-center gap-3">
         <Button
           size="sm"
@@ -70,6 +105,9 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
         >
           {pending ? "Deleting…" : `Delete selected${sel.size ? ` (${sel.size})` : ""}`}
         </Button>
+        <span className="text-xs text-[var(--muted-foreground)]">
+          {query ? `${visible.length} of ${rows.length}` : `${rows.length}`} shown
+        </span>
         {msg ? <span className="text-sm text-red-500">{msg}</span> : null}
       </div>
 
@@ -93,7 +131,14 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {rows.map((r) => (
+            {visible.length === 0 ? (
+              <tr>
+                <td colSpan={8 + UTM.length} className="px-3 py-6 text-center text-sm text-[var(--muted-foreground)]">
+                  No contacts match “{query}”.
+                </td>
+              </tr>
+            ) : null}
+            {visible.map((r) => (
               <tr key={r.id} className={sel.has(r.id) ? "bg-red-500/5" : ""}>
                 <td className="px-3 py-2">
                   <input
