@@ -109,3 +109,53 @@ export async function sendScoreUpdate(
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
+
+/**
+ * Minimal CRM update used by the diagnosis backfill: posts ONLY the contact's
+ * email + their assessment diagnosis (the overall band word) to the configured
+ * endpoint, tagged contact.event_type=diagnosis_update so the CRM can route it to
+ * a field-update automation. Lets the CRM populate the diagnosis on existing
+ * contacts (matched by email). Returns {ok:false,...} for missing email/diagnosis.
+ */
+export async function sendDiagnosisUpdate(
+  submissionId: string,
+): Promise<{ ok: boolean; status?: number; error?: string; skipped?: boolean }> {
+  const setting = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: { crmResendUrl: true },
+  });
+  const url = setting?.crmResendUrl?.trim();
+  if (!url) return { ok: false, error: "No CRM resend URL configured." };
+
+  const s = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    select: { leadEmail: true, resultSnapshot: true, resultBand: { select: { title: true } } },
+  });
+  if (!s) return { ok: false, error: "Submission not found." };
+  const snap = (s.resultSnapshot ?? null) as ResultSnapshot | null;
+  const diagnosis = snap?.resultBand ?? s.resultBand?.title ?? null;
+  const email = s.leadEmail?.trim() || null;
+  if (!email || !diagnosis) return { ok: false, skipped: true, error: "No email or diagnosis." };
+
+  const payload: Record<string, unknown> = {
+    event_type: "diagnosis_update",
+    contact_email: email,
+    "contact.event_type": "diagnosis_update",
+    "contact.assessment_diagnosis": diagnosis,
+  };
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      return { ok: false, status: res.status, error: `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}` };
+    }
+    return { ok: true, status: res.status };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}

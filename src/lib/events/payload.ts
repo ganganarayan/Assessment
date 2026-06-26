@@ -146,7 +146,7 @@ export function buildEnvelope(
   // Result fields as flat contact custom fields too (null on non-scored events).
   const m = envelope.metadata as Record<string, unknown>;
   const score = m.score as { percentage?: number; total?: number; max?: number } | null;
-  const band = m.resultBand as { level?: string } | null;
+  const band = m.resultBand as { level?: string; title?: string } | null;
   // Round percentage so the webhook agrees with the read endpoint / connector
   // (both use Math.round(percentage)); metadata.score keeps the precise value.
   const pctRounded = score && score.percentage != null ? Math.round(score.percentage) : null;
@@ -161,6 +161,9 @@ export function buildEnvelope(
   envelope["contact.scoreRaw"] = score?.total ?? null; // back-compat
   envelope["contact.max"] = score?.max ?? null; // back-compat
   envelope["contact.result_band"] = band?.level ?? null;
+  // The human band word shown in the Result column (Critical / Strained / etc.) —
+  // the contact's diagnosis. result_band keeps the LEVEL; this is the title.
+  envelope["contact.assessment_diagnosis"] = band?.title ?? null;
   envelope["contact.result_url"] = (m.resultUrl as string | null) ?? null;
   envelope["contact.ai_statement"] = input.aiStatement ?? null;
   // Event name as a contact custom field, so the CRM can match every event

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { startDrip, stopDrip, isDripRunning } from "@/lib/crm/drip";
+import { sendDiagnosisUpdate } from "@/lib/crm/send";
 import { buildEnvelope, shapePayload } from "@/lib/events/payload";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
@@ -160,6 +161,73 @@ export async function sendTestCrm(input: {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/* ----------------------------------------- diagnosis backfill (all contacts) --- */
+
+/** How many per round the client-driven diagnosis backfill sends. */
+const DIAGNOSIS_BATCH = 2;
+const diagnosisWhere = (assessmentId: string) => ({
+  assessmentId,
+  status: "COMPLETED" as const,
+  leadEmail: { not: null },
+});
+
+export interface DiagnosisBatchResult {
+  total: number;
+  scanned: number;
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  done: boolean;
+  nextOffset: number;
+}
+
+/** Count of completed contacts with an email (the diagnosis-backfill target set). */
+export async function diagnosisBackfillCount(assessmentId: string): Promise<ActionResult<{ total: number }>> {
+  await requireSuperAdmin();
+  const total = await prisma.submission.count({ where: diagnosisWhere(assessmentId) });
+  return { ok: true, data: { total } };
+}
+
+/**
+ * Send the diagnosis (overall band word) for ALL completed contacts of this
+ * assessment to the CRM, one round at a time (client-driven). Each send is a
+ * minimal {email + contact.assessment_diagnosis} payload tagged
+ * contact.event_type=diagnosis_update. Ordered oldest-first; the client repeats
+ * with nextOffset until done.
+ */
+export async function diagnosisBackfillBatch(
+  assessmentId: string,
+  offset: number,
+): Promise<ActionResult<DiagnosisBatchResult>> {
+  await requireSuperAdmin();
+  const total = await prisma.submission.count({ where: diagnosisWhere(assessmentId) });
+  const subs = await prisma.submission.findMany({
+    where: diagnosisWhere(assessmentId),
+    orderBy: { createdAt: "asc" },
+    skip: Math.max(0, offset),
+    take: DIAGNOSIS_BATCH,
+    select: { id: true },
+  });
+
+  let succeeded = 0;
+  let failed = 0;
+  let skipped = 0;
+  await Promise.all(
+    subs.map(async (s) => {
+      const r = await sendDiagnosisUpdate(s.id);
+      if (r.ok) succeeded += 1;
+      else if (r.skipped) skipped += 1;
+      else failed += 1;
+    }),
+  );
+
+  const nextOffset = offset + subs.length;
+  return {
+    ok: true,
+    data: { total, scanned: subs.length, succeeded, failed, skipped, done: subs.length === 0 || nextOffset >= total, nextOffset },
+  };
 }
 
 /** Reset failed rows and RE-QUEUE them (the drip cleared crmQueuedAt when they

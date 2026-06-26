@@ -11,6 +11,7 @@ import { BandRecompute } from "@/features/assessment/components/admin/band-recom
 import { ReconstructAnswers } from "@/features/assessment/components/admin/reconstruct-answers";
 import { AiRerun } from "@/features/assessment/components/admin/ai-rerun";
 import { CrmResend } from "@/features/assessment/components/admin/crm-resend";
+import { DiagnosisBackfill } from "@/features/assessment/components/admin/diagnosis-backfill";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { Badge } from "@/components/ui/badge";
 
@@ -165,6 +166,7 @@ export default async function EditAssessmentPage({
           every random 10–12 minutes. Only the contacts pending when you press Start are sent.
         </p>
         <CrmResend />
+        <DiagnosisBackfill assessmentId={a.id} />
       </section>
     </div>
   );

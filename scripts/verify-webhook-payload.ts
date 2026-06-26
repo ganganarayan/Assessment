@@ -58,6 +58,7 @@ const CONTACT_FIELDS = [
   "contact.gclid",
   "contact.score",
   "contact.result_band",
+  "contact.assessment_diagnosis",
   "contact.result_url",
   "contact.customer_id",
   "contact.assessment_score",
@@ -129,6 +130,7 @@ for (const type of ACTIVE_EVENT_TYPES) {
     expect(`${name} · contact.assessment_score`, env["contact.assessment_score"] === 70);
     expect(`${name} · contact.score_raw`, env["contact.score_raw"] === 42);
     expect(`${name} · contact.result_band`, env["contact.result_band"] === "HIGH");
+    expect(`${name} · contact.assessment_diagnosis`, env["contact.assessment_diagnosis"] === "High Emotional Load");
     expect(`${name} · contact.result_url`, env["contact.result_url"] === `${BASE}/a/${SLUG}/r/${SID}`);
   } else {
     expect(`${name} · resultUrl null`, meta.resultUrl === null);
@@ -136,6 +138,7 @@ for (const type of ACTIVE_EVENT_TYPES) {
     expect(`${name} · resultBand null`, meta.resultBand === null);
     expect(`${name} · contact.score null`, env["contact.score"] === null);
     expect(`${name} · contact.result_band null`, env["contact.result_band"] === null);
+    expect(`${name} · contact.assessment_diagnosis null`, env["contact.assessment_diagnosis"] === null);
     expect(`${name} · contact.result_url null`, env["contact.result_url"] === null);
   }
 
