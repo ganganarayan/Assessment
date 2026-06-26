@@ -52,11 +52,7 @@ export function normalizeAttribution(input: unknown): PayloadAttribution | null 
   for (const key of Object.keys(NULL_ATTRIBUTION) as (keyof PayloadAttribution)[]) {
     const v = src[key];
     const s = typeof v === "string" ? v.trim().slice(0, 512) : "";
-    // Drop unresolved ad-platform macros, e.g. Meta's "{{site_source_name}}",
-    // "{{campaign.name}}", "{{ad.name}}" — these come through when the click
-    // bypassed the platform's substitution (preview/organic/in-review) and are
-    // junk, not real attribution. Treat them as no value.
-    if (s && !/\{\{.*?\}\}/.test(s)) {
+    if (s) {
       out[key] = s;
       any = true;
     }
