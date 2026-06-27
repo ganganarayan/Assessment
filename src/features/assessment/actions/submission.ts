@@ -28,6 +28,10 @@ import { randomUUID } from "crypto";
 import { sendCapiEvent, isCapiConfigured } from "@/lib/meta/send";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { generatePersonalStatement } from "@/lib/ai/generate";
+import { isRazorpayConfigured, createOrder } from "@/lib/payments/razorpay";
+import { type PaymentCheckout } from "@/lib/payments/types";
+
+const PAYMENT_BUSINESS_NAME = "Assess360";
 import { buildResultSnapshot, mapCategoryResult } from "@/lib/result/snapshot";
 import { buildCategoryQuestionBreakdown, type ChosenAnswer } from "@/lib/result/questions";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
@@ -57,15 +61,8 @@ function buildResultUrl(
   return `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}`;
 }
 
-/** When paid mode is on, the URL the submit redirects to instead of the VSL: the
- *  payment link with ?t=<token> appended (so the post-payment page can unlock the
- *  results). Returns undefined when paid mode is off or no payment URL is set. */
-function buildPaymentUrl(
-  paidMode: boolean,
-  paymentUrl: string | null,
-  token: string | null,
-): string | undefined {
-  if (!paidMode || !paymentUrl) return undefined;
+/** Append ?t=<token> to a static payment link so the post-payment page can unlock. */
+function withToken(paymentUrl: string, token: string | null): string {
   if (!token) return paymentUrl;
   try {
     const u = new URL(paymentUrl);
@@ -74,6 +71,51 @@ function buildPaymentUrl(
   } catch {
     return paymentUrl;
   }
+}
+
+/**
+ * What a paid submit should do INSTEAD of going to the destination/VSL. Razorpay
+ * Checkout (a created Order + prefilled customer) when configured + a price is set —
+ * the client opens the payment UI directly and Razorpay redirects to /api/payments/
+ * verify on success. Otherwise the static payment link (with ?t=<token>). Both empty
+ * when paid mode is off, or when paid is on but no method is usable (the caller must
+ * then NOT fall through to the free VSL — see the runner).
+ */
+async function resolvePaidCheckout(opts: {
+  paidMode: boolean;
+  paymentUrl: string | null;
+  paymentAmount: number | null;
+  submissionId: string;
+  token: string | null;
+  customer: { name: string | null; email: string | null; phone: string | null };
+}): Promise<{ payment?: PaymentCheckout; paymentRedirectUrl?: string }> {
+  if (!opts.paidMode) return {};
+
+  if (isRazorpayConfigured() && env.RAZORPAY_KEY_ID && opts.paymentAmount && opts.paymentAmount > 0) {
+    try {
+      const order = await createOrder({
+        amountPaise: opts.paymentAmount * 100,
+        currency: "INR",
+        notes: { submissionId: opts.submissionId, purpose: "assessment_unlock" },
+      });
+      const payment: PaymentCheckout = {
+        keyId: env.RAZORPAY_KEY_ID,
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        name: PAYMENT_BUSINESS_NAME,
+        description: "Assessment results + consultation",
+        prefill: { name: opts.customer.name, email: opts.customer.email, contact: opts.customer.phone },
+        callbackUrl: `${env.NEXT_PUBLIC_APP_URL}/api/payments/verify?submission=${encodeURIComponent(opts.submissionId)}`,
+        notes: { submissionId: opts.submissionId },
+      };
+      return { payment };
+    } catch {
+      // Razorpay failed — fall back to the static link (if any) below.
+    }
+  }
+
+  return opts.paymentUrl ? { paymentRedirectUrl: withToken(opts.paymentUrl, opts.token) } : {};
 }
 
 
@@ -423,7 +465,17 @@ export async function requestPreviousResults(
 export async function completeSubmission(
   submissionId: string,
   input: AnswersInput,
-): Promise<ActionResult<{ submissionId: string; resultUrl: string; paymentUrl?: string; eventId?: string }>> {
+): Promise<
+  ActionResult<{
+    submissionId: string;
+    // Omitted on PAID exits so the token-bearing VSL url never reaches the client
+    // before payment — the verify route reveals it only after a verified payment.
+    resultUrl?: string;
+    payment?: PaymentCheckout;
+    paymentRedirectUrl?: string;
+    eventId?: string;
+  }>
+> {
   const parsed = answersSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid answers." };
@@ -439,11 +491,22 @@ export async function completeSubmission(
       customerId: true,
       resultToken: true,
       leadFirstName: true,
+      leadLastName: true,
+      leadEmail: true,
+      leadMobile: true,
       leadProfession: true,
-      assessment: { select: { slug: true, targetUrl: true, paidMode: true, paymentUrl: true } },
+      assessment: { select: { slug: true, targetUrl: true, paidMode: true, paymentUrl: true, paymentAmount: true } },
     },
   });
   if (!submission) return { ok: false, error: "Submission not found." };
+
+  // Customer details for the Razorpay payment link (used by all paid paths).
+  const customer = {
+    name: [submission.leadFirstName, submission.leadLastName].map((s) => s?.trim() ?? "").filter(Boolean).join(" ") || null,
+    email: submission.leadEmail,
+    phone: submission.leadMobile,
+  };
+
   if (submission.status === "COMPLETED") {
     const resultUrl = buildResultUrl(
       submission.assessment.targetUrl,
@@ -451,12 +514,16 @@ export async function completeSubmission(
       submissionId,
       submission.resultToken,
     );
-    const paymentUrl = buildPaymentUrl(
-      submission.assessment.paidMode,
-      submission.assessment.paymentUrl,
-      submission.resultToken,
-    );
-    return { ok: true, data: { submissionId, resultUrl, paymentUrl } };
+    const paid = await resolvePaidCheckout({
+      paidMode: submission.assessment.paidMode,
+      paymentUrl: submission.assessment.paymentUrl,
+      paymentAmount: submission.assessment.paymentAmount,
+      submissionId,
+      token: submission.resultToken,
+      customer,
+    });
+    const paidExit = !!(paid.payment || paid.paymentRedirectUrl);
+    return { ok: true, data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid } };
   }
 
   const assessment = await prisma.assessment.findUnique({
@@ -470,6 +537,7 @@ export async function completeSubmission(
       tokenTtlSeconds: true,
       paidMode: true,
       paymentUrl: true,
+      paymentAmount: true,
       tenant: { select: { id: true, slug: true, name: true } },
       categories: {
         select: {
@@ -582,13 +650,19 @@ export async function completeSubmission(
     select: { status: true, resultToken: true },
   });
   if (recheck?.status === "COMPLETED") {
+    const paid = await resolvePaidCheckout({
+      paidMode: assessment.paidMode,
+      paymentUrl: assessment.paymentUrl,
+      paymentAmount: assessment.paymentAmount,
+      submissionId,
+      token: recheck.resultToken,
+      customer,
+    });
+    const paidExit = !!(paid.payment || paid.paymentRedirectUrl);
+    const resultUrl = buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, recheck.resultToken);
     return {
       ok: true,
-      data: {
-        submissionId,
-        resultUrl: buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, recheck.resultToken),
-        paymentUrl: buildPaymentUrl(assessment.paidMode, assessment.paymentUrl, recheck.resultToken),
-      },
+      data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid },
     };
   }
 
@@ -670,13 +744,19 @@ export async function completeSubmission(
       where: { id: submissionId },
       select: { resultToken: true },
     });
+    const paid = await resolvePaidCheckout({
+      paidMode: assessment.paidMode,
+      paymentUrl: assessment.paymentUrl,
+      paymentAmount: assessment.paymentAmount,
+      submissionId,
+      token: existing?.resultToken ?? null,
+      customer,
+    });
+    const paidExit = !!(paid.payment || paid.paymentRedirectUrl);
+    const resultUrl = buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, existing?.resultToken ?? null);
     return {
       ok: true,
-      data: {
-        submissionId,
-        resultUrl: buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, existing?.resultToken ?? null),
-        paymentUrl: buildPaymentUrl(assessment.paidMode, assessment.paymentUrl, existing?.resultToken ?? null),
-      },
+      data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid },
     };
   }
 
@@ -738,6 +818,15 @@ export async function completeSubmission(
     }).catch(() => {});
   }
 
-  const paymentUrl = buildPaymentUrl(assessment.paidMode, assessment.paymentUrl, token);
-  return { ok: true, data: { submissionId, resultUrl, paymentUrl, eventId } };
+  const paid = await resolvePaidCheckout({
+    paidMode: assessment.paidMode,
+    paymentUrl: assessment.paymentUrl,
+    paymentAmount: assessment.paymentAmount,
+    submissionId,
+    token,
+    customer,
+  });
+  // On a PAID exit, omit the token-bearing resultUrl from the client response.
+  const paidExit = !!(paid.payment || paid.paymentRedirectUrl);
+  return { ok: true, data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid, eventId } };
 }

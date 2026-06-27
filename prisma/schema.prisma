@@ -253,6 +253,7 @@ model Assessment {
   paymentUrl         String?
   paymentHeadline    String?
   paymentButtonLabel String?
+  paymentAmount      Int? // price in INR rupees (e.g. 199); ×100 = paise for Razorpay
 
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
@@ -702,6 +703,36 @@ model CrmSendQueue {
   @@unique([kind, submissionId])
   @@index([kind, status, queuedAt])
   @@map("crm_send_queue")
+}
+
+// ---------------------------------------------------------------------------
+// Payment — one row per recorded payment (forward-compatible across use cases).
+// NOW: purpose="assessment_unlock" (pay to see results), tied to a submission.
+// LATER (SaaS tiers): purpose="subscription" with plan="starter"/"pro". The same
+// table + webhook handle both. No FK to submission — payment history must persist.
+// ---------------------------------------------------------------------------
+
+model Payment {
+  id                String   @id @default(cuid())
+  provider          String   @default("razorpay")
+  providerPaymentId String?  @unique // razorpay payment id — dedups webhook retries
+  providerOrderId   String?
+  providerLinkId    String? // razorpay payment_link id
+  purpose           String // "assessment_unlock" | (future) "subscription"
+  plan              String? // future: "starter" | "pro"
+  submissionId      String?
+  amount            Int? // paise
+  currency          String   @default("INR")
+  status            String // "paid" | "captured" | …
+  method            String? // card / upi / netbanking / …
+  event             String? // razorpay event that recorded it
+  notes             Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([submissionId])
+  @@index([purpose])
+  @@map("payment")
 }
 
 // ---------------------------------------------------------------------------

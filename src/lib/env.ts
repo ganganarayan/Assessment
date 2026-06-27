@@ -31,6 +31,16 @@ const serverSchema = z.object({
   META_DATASET_ID: z.string().min(1).optional(),
   META_GRAPH_API_VERSION: z.string().min(1).default("v21.0"),
   META_CAPI_TEST_EVENT_CODE: z.string().min(1).optional(),
+
+  // Razorpay payments. ALL optional: when the keys are unset, the payment module
+  // is a no-op and paid assessments fall back to the static payment link. Set on
+  // Railway per-env (rzp_test_… on staging, rzp_live_… on prod).
+  RAZORPAY_KEY_ID: z.string().min(1).optional(),
+  RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
+  // Reserved for the future Starter/Pro tiers — leave unset for now.
+  RAZORPAY_PLAN_ID_STARTER: z.string().min(1).optional(),
+  RAZORPAY_PLAN_ID_PRO: z.string().min(1).optional(),
 });
 
 const publicSchema = z.object({

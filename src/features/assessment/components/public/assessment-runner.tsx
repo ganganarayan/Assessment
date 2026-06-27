@@ -7,6 +7,7 @@ import {
   requestPreviousResults,
 } from "@/features/assessment/actions/submission";
 import { recordOptinView } from "@/features/assessment/actions/track";
+import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
 import { type LeadInput, PROFESSION_OPTIONS } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { Button } from "@/components/ui/button";
@@ -180,12 +181,33 @@ export function AssessmentRunner({
       if (res.data?.eventId) {
         pixelTrackCustom("AssessmentCompleted", { content_name: assessment.title }, res.data.eventId);
       }
-      // Paid mode: redirect to the payment page instead of the VSL/result (results
-      // are already stored; after paying, the provider sends them to the VSL with
-      // the token). No event=1 — the VSL-view pixel fires post-payment, not here.
-      if (res.data?.paymentUrl) {
+      // Paid mode: take payment instead of going to the VSL/result (results are
+      // already stored; after paying, the user lands on the VSL with the token).
+      // Razorpay Checkout opens with the lead's details prefilled — no form to fill;
+      // on success Razorpay redirects to /api/payments/verify which sends them on.
+      if (res.data?.payment) {
+        try {
+          await openRazorpayCheckout(res.data.payment, () => {
+            setError("Payment was cancelled. Tap Submit to try again.");
+            setStep("questions");
+          });
+        } catch {
+          setError("We couldn't load the payment screen. Please tap Submit again.");
+          setStep("questions");
+        }
+        return; // Checkout navigates away on success (redirect: true).
+      }
+      // Fallback: a static payment link (Razorpay not configured) with the token.
+      if (res.data?.paymentRedirectUrl) {
         await new Promise((r) => setTimeout(r, 1200));
-        window.location.replace(res.data.paymentUrl);
+        window.location.replace(res.data.paymentRedirectUrl);
+        return;
+      }
+      // Paid mode but no payment method available: do NOT fall through to the free
+      // VSL. Show an error so the user can retry.
+      if (assessment.paidMode) {
+        setError("We couldn't start the payment just now. Please tap Submit again.");
+        setStep("questions");
         return;
       }
       // Keep the one spinner up while the pixel beacon flushes, then go — no

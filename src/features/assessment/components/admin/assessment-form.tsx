@@ -64,6 +64,7 @@ const DEFAULTS: AssessmentFormValues = {
   paymentUrl: "",
   paymentHeadline: "",
   paymentButtonLabel: "",
+  paymentAmount: undefined,
 };
 
 export function AssessmentForm({
@@ -364,9 +365,26 @@ export function AssessmentForm({
             {values.paidMode ? (
               <div className="flex flex-col gap-3 border-l-2 pl-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="paymentUrl">
-                    Payment link URL <span className="text-red-500">*</span>
-                  </Label>
+                  <Label htmlFor="paymentAmount">Price (₹)</Label>
+                  <Input
+                    id="paymentAmount"
+                    type="number"
+                    min={1}
+                    className="w-40"
+                    value={values.paymentAmount ?? ""}
+                    onChange={(e) =>
+                      set("paymentAmount", e.target.value === "" ? undefined : Number(e.target.value))
+                    }
+                    placeholder="199"
+                  />
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    When Razorpay is configured, submit creates a payment link for this amount and
+                    redirects to it; after paying, the user lands on your destination page with the
+                    token. If Razorpay isn&apos;t set, the static link below is used instead.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="paymentUrl">Static payment link URL (fallback)</Label>
                   <Input
                     id="paymentUrl"
                     value={values.paymentUrl ?? ""}

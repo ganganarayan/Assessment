@@ -49,6 +49,7 @@ export async function createAssessment(
       paymentUrl: nullifyEmpty(d.paymentUrl),
       paymentHeadline: nullifyEmpty(d.paymentHeadline),
       paymentButtonLabel: nullifyEmpty(d.paymentButtonLabel),
+      paymentAmount: d.paymentAmount ?? null,
       createdById: user.id,
     },
   });
@@ -103,6 +104,7 @@ export async function updateAssessment(
       paymentUrl: nullifyEmpty(d.paymentUrl),
       paymentHeadline: nullifyEmpty(d.paymentHeadline),
       paymentButtonLabel: nullifyEmpty(d.paymentButtonLabel),
+      paymentAmount: d.paymentAmount ?? null,
     },
   });
 

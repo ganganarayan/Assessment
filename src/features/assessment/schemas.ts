@@ -57,12 +57,14 @@ export const assessmentSchema = z.object({
   paymentUrl: z.string().url("Enter a valid payment URL.").optional().or(z.literal("")),
   paymentHeadline: z.string().max(2000).optional().or(z.literal("")),
   paymentButtonLabel: z.string().max(200).optional().or(z.literal("")),
+  // Price in INR rupees for the Razorpay payment link (e.g. 199).
+  paymentAmount: z.coerce.number().int().min(1).max(1000000).optional(),
 }).superRefine((d, ctx) => {
-  if (d.paidMode && !d.paymentUrl) {
+  if (d.paidMode && !d.paymentAmount && !d.paymentUrl) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ["paymentUrl"],
-      message: "Payment URL is required when paid mode is on.",
+      path: ["paymentAmount"],
+      message: "Set a price (₹) or a payment link when paid mode is on.",
     });
   }
   // A lockout can only be enforced if the identifying field is always captured.
