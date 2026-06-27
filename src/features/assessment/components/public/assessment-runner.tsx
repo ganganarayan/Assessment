@@ -49,6 +49,7 @@ export interface PublicAssessment {
   paidMode: boolean;
   paymentHeadline: string | null;
   paymentButtonLabel: string | null;
+  paymentIntroText: string | null;
   categories: PublicCategory[];
 }
 
@@ -300,6 +301,11 @@ export function AssessmentRunner({
           ) : null}
         </div>
 
+        {assessment.paidMode && assessment.paymentIntroText ? (
+          <div className="rounded-lg border border-green-600/40 bg-green-600/10 px-4 py-3 text-center text-sm font-medium whitespace-pre-line">
+            {assessment.paymentIntroText}
+          </div>
+        ) : null}
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         <Button size="lg" type="submit" disabled={pending}>
           {pending ? "Starting…" : "Start"}

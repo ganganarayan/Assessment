@@ -51,6 +51,7 @@ export async function createAssessment(
       paymentButtonLabel: nullifyEmpty(d.paymentButtonLabel),
       paymentAmount: d.paymentAmount ?? null,
       paymentEventName: (d.paymentEventName?.trim() || "Purchase121"),
+      paymentIntroText: nullifyEmpty(d.paymentIntroText),
       createdById: user.id,
     },
   });
@@ -107,6 +108,7 @@ export async function updateAssessment(
       paymentButtonLabel: nullifyEmpty(d.paymentButtonLabel),
       paymentAmount: d.paymentAmount ?? null,
       paymentEventName: (d.paymentEventName?.trim() || "Purchase121"),
+      paymentIntroText: nullifyEmpty(d.paymentIntroText),
     },
   });
 

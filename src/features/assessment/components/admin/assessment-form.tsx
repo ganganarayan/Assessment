@@ -66,6 +66,7 @@ const DEFAULTS: AssessmentFormValues = {
   paymentButtonLabel: "",
   paymentAmount: undefined,
   paymentEventName: "Purchase121",
+  paymentIntroText: "",
 };
 
 export function AssessmentForm({
@@ -406,6 +407,18 @@ export function AssessmentForm({
                     onChange={(e) => set("paymentUrl", e.target.value)}
                     placeholder="https://your-payment-page.com/pay"
                   />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="paymentIntroText">Payment notice (opt-in form, above Start)</Label>
+                  <Textarea
+                    id="paymentIntroText"
+                    value={values.paymentIntroText ?? ""}
+                    onChange={(e) => set("paymentIntroText", e.target.value)}
+                    placeholder="After the assessment, unlock your score + a 1-on-1 consultation with GND for ₹199."
+                  />
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Shown on the opt-in form before they start — so the payment is no surprise.
+                  </p>
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="paymentHeadline">Headline (shown on the submit screen)</Label>

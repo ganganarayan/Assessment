@@ -47,6 +47,7 @@ export default async function PublicAssessmentPage({
     paidMode: a.paidMode,
     paymentHeadline: a.paymentHeadline,
     paymentButtonLabel: a.paymentButtonLabel,
+    paymentIntroText: a.paymentIntroText,
     categories: a.categories.map((c) => ({
       id: c.id,
       name: c.name,

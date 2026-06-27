@@ -61,6 +61,8 @@ export const assessmentSchema = z.object({
   paymentAmount: z.coerce.number().int().min(1).max(1000000).optional(),
   // Meta event fired on a verified paid unlock (default Purchase121).
   paymentEventName: z.string().max(80).optional().or(z.literal("")),
+  // Payment notice on the opt-in form (above Start), paid mode only.
+  paymentIntroText: z.string().max(2000).optional().or(z.literal("")),
 }).superRefine((d, ctx) => {
   if (d.paidMode && !d.paymentAmount && !d.paymentUrl) {
     ctx.addIssue({

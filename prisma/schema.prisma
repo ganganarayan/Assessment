@@ -258,6 +258,9 @@ model Assessment {
   // deduped by the Razorpay payment id). Custom + price-independent so it survives
   // price changes (₹199→₹299…). Default "Purchase121".
   paymentEventName   String  @default("Purchase121")
+  // Payment notice shown on the opt-in/lead form, above the Start button (paid
+  // mode only) — sets the expectation up front so there are no surprises.
+  paymentIntroText   String?
 
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
