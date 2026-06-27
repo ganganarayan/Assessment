@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const CONNECTOR_VERSION = "v13";
+const CONNECTOR_VERSION = "v14";
 
 /**
  * Two snippets, because the customer's page builder runs scripts ONLY in the
@@ -141,9 +141,10 @@ function buildHeadSnippet(endpointBase: string, bandWords: Record<string, string
     }
     for (var j = 0; j < box.length; j++) box[j].innerHTML = html;
   }
-  // Browser Purchase pixel — fires ONLY on the post-payment landing (event=1),
+  // Browser conversion pixel — fires ONLY on the post-payment landing (event=1),
   // once, with eventID = the Razorpay payment id so Meta dedups it against the
-  // server-side CAPI Purchase. Needs the Meta Pixel base code (fbq) on this page.
+  // server-side CAPI event. The event NAME (e.g. Purchase121) comes from the app,
+  // value-independent. Needs the Meta Pixel base code (fbq) on this page.
   function firePurchase(d) {
     if (!d.purchase || !d.purchase.eventId) return;
     if (new URLSearchParams(location.search).get("event") !== "1") return;
@@ -152,7 +153,7 @@ function buildHeadSnippet(endpointBase: string, bandWords: Record<string, string
     window.__assess360_purchase_fired = true;
     var cd = { currency: d.purchase.currency || "INR" };
     if (d.purchase.value != null) cd.value = d.purchase.value;
-    window.fbq("track", "Purchase", cd, { eventID: d.purchase.eventId });
+    window.fbq("trackCustom", d.purchase.eventName || "Purchase121", cd, { eventID: d.purchase.eventId });
   }
   function show(d) {
     var hasStmt = document.querySelectorAll('.assess360-ai-statement, [id^="ai-statement"]').length;

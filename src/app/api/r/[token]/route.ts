@@ -44,7 +44,7 @@ async function lookup(token: string) {
       id: true,
       resultSnapshot: true,
       resultTokenExpiresAt: true,
-      assessment: { select: { targetOrigin: true } },
+      assessment: { select: { targetOrigin: true, paymentEventName: true } },
     },
   });
 }
@@ -96,8 +96,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
       .updateMany({ where: { resultToken: token, resultFetchedAt: null }, data: { resultFetchedAt: new Date() } })
       .catch(() => {});
     // Attach the payment id (if paid) so the destination page can fire the browser
-    // Purchase pixel with the matching event_id (deduped vs the server CAPI event).
-    const purchase = await purchaseFor(sub.id);
+    // pixel with the matching event_id + event name (deduped vs the server CAPI event).
+    const pf = await purchaseFor(sub.id);
+    const purchase = pf ? { ...pf, eventName: sub.assessment.paymentEventName || "Purchase121" } : null;
     body = { ...(outcome.body as Record<string, unknown>), purchase };
   }
 

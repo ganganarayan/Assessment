@@ -49,6 +49,7 @@ export default async function EditAssessmentPage({
     paymentHeadline: a.paymentHeadline ?? "",
     paymentButtonLabel: a.paymentButtonLabel ?? "",
     paymentAmount: a.paymentAmount ?? undefined,
+    paymentEventName: a.paymentEventName ?? "Purchase121",
   };
 
   const categories = a.categories.map((c) => ({

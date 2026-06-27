@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       leadLastName: true,
       leadEmail: true,
       leadMobile: true,
-      assessment: { select: { slug: true, targetUrl: true, paymentAmount: true } },
+      assessment: { select: { slug: true, targetUrl: true, paymentAmount: true, paymentEventName: true } },
     },
   });
   if (!s || !s.assessment) return failed;
@@ -91,7 +91,7 @@ export async function POST(req: Request) {
   if (isCapiConfigured()) {
     const ctx = await getMetaRequestContext();
     void sendCapiEvent({
-      eventName: "Purchase",
+      eventName: s.assessment.paymentEventName || "Purchase121",
       eventId: paymentId,
       eventTimeMs: Date.now(),
       eventSourceUrl: dest,

@@ -65,6 +65,7 @@ const DEFAULTS: AssessmentFormValues = {
   paymentHeadline: "",
   paymentButtonLabel: "",
   paymentAmount: undefined,
+  paymentEventName: "Purchase121",
 };
 
 export function AssessmentForm({
@@ -378,9 +379,23 @@ export function AssessmentForm({
                     placeholder="199"
                   />
                   <p className="text-xs text-[var(--muted-foreground)]">
-                    When Razorpay is configured, submit creates a payment link for this amount and
-                    redirects to it; after paying, the user lands on your destination page with the
-                    token. If Razorpay isn&apos;t set, the static link below is used instead.
+                    When Razorpay is configured, submit opens Razorpay Checkout (prefilled) for this
+                    amount; after paying, the user lands on your destination page with the token. If
+                    Razorpay isn&apos;t set, the static link below is used instead.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="paymentEventName">Meta conversion event name</Label>
+                  <Input
+                    id="paymentEventName"
+                    className="w-60"
+                    value={values.paymentEventName ?? ""}
+                    onChange={(e) => set("paymentEventName", e.target.value)}
+                    placeholder="Purchase121"
+                  />
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Fired to Meta (CAPI + browser pixel, deduped) on a verified payment, with value +
+                    currency. Custom + price-independent — keep it stable as you change the price.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">

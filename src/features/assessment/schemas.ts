@@ -59,6 +59,8 @@ export const assessmentSchema = z.object({
   paymentButtonLabel: z.string().max(200).optional().or(z.literal("")),
   // Price in INR rupees for the Razorpay payment link (e.g. 199).
   paymentAmount: z.coerce.number().int().min(1).max(1000000).optional(),
+  // Meta event fired on a verified paid unlock (default Purchase121).
+  paymentEventName: z.string().max(80).optional().or(z.literal("")),
 }).superRefine((d, ctx) => {
   if (d.paidMode && !d.paymentAmount && !d.paymentUrl) {
     ctx.addIssue({

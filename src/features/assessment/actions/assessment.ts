@@ -50,6 +50,7 @@ export async function createAssessment(
       paymentHeadline: nullifyEmpty(d.paymentHeadline),
       paymentButtonLabel: nullifyEmpty(d.paymentButtonLabel),
       paymentAmount: d.paymentAmount ?? null,
+      paymentEventName: (d.paymentEventName?.trim() || "Purchase121"),
       createdById: user.id,
     },
   });
@@ -105,6 +106,7 @@ export async function updateAssessment(
       paymentHeadline: nullifyEmpty(d.paymentHeadline),
       paymentButtonLabel: nullifyEmpty(d.paymentButtonLabel),
       paymentAmount: d.paymentAmount ?? null,
+      paymentEventName: (d.paymentEventName?.trim() || "Purchase121"),
     },
   });
 

@@ -254,6 +254,10 @@ model Assessment {
   paymentHeadline    String?
   paymentButtonLabel String?
   paymentAmount      Int? // price in INR rupees (e.g. 199); ×100 = paise for Razorpay
+  // Meta event name fired on a verified paid unlock (server CAPI + browser pixel,
+  // deduped by the Razorpay payment id). Custom + price-independent so it survives
+  // price changes (₹199→₹299…). Default "Purchase121".
+  paymentEventName   String  @default("Purchase121")
 
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
