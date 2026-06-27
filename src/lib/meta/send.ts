@@ -31,7 +31,7 @@ export function isCapiConfigured(): boolean {
  * for "is the app's event reaching Meta" — unlike sendCapiEvent it surfaces the
  * status + body instead of swallowing.
  */
-export async function testCapi(testEventCode?: string): Promise<{
+export async function testCapi(testEventCode?: string, eventNameInput?: string): Promise<{
   ok: boolean;
   eventName: string;
   datasetId?: string;
@@ -39,7 +39,7 @@ export async function testCapi(testEventCode?: string): Promise<{
   response?: string;
   error?: string;
 }> {
-  const eventName = "AssessmentCompleted";
+  const eventName = (eventNameInput && eventNameInput.trim()) || "AssessmentCompleted";
   const cfg = getConfig();
   if (!cfg) {
     return {
@@ -60,7 +60,8 @@ export async function testCapi(testEventCode?: string): Promise<{
         eventTimeMs: Date.now(),
         eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/diagnostic`,
         user: { email: "capi-test@assess360.local" },
-        customData: { content_name: "CAPI diagnostic", assessment_name: "CAPI diagnostic" },
+        // value + currency so a Purchase-style custom event (e.g. Purchase121) is realistic.
+        customData: { content_name: eventName, value: 1, currency: "INR" },
       }),
     ],
     ...(code ? { test_event_code: code } : {}),

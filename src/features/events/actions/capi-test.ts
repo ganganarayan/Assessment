@@ -3,9 +3,9 @@
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { testCapi } from "@/lib/meta/send";
 
-/** Super-admin diagnostic: fire a server-side AssessmentCompleted to Meta CAPI
- *  and return Meta's real response. */
-export async function testMetaCapi(testEventCode?: string) {
+/** Super-admin diagnostic: fire a server-side CAPI event (any name, default
+ *  AssessmentCompleted) to Meta and return Meta's real response. */
+export async function testMetaCapi(testEventCode?: string, eventName?: string) {
   await requireSuperAdmin();
-  return testCapi(testEventCode);
+  return testCapi(testEventCode, eventName);
 }
