@@ -33,6 +33,8 @@ interface FlatRow {
   percent: string | number;
   overallBand: string;
   overallLevel: string;
+  paidAmount: string | number;
+  paidAt: string;
   utm_source: string;
   utm_medium: string;
   utm_campaign: string;
@@ -62,6 +64,8 @@ const COLUMNS: CsvColumn<FlatRow>[] = [
   { key: "percent", label: "Percent" },
   { key: "overallBand", label: "Overall band" },
   { key: "overallLevel", label: "Overall level" },
+  { key: "paidAmount", label: "Paid amount (₹)" },
+  { key: "paidAt", label: "Paid at (IST)" },
   { key: "utm_source", label: "utm_source" },
   { key: "utm_medium", label: "utm_medium" },
   { key: "utm_campaign", label: "utm_campaign" },
@@ -92,6 +96,8 @@ function flatten(r: SubmissionExportRow): FlatRow {
     percent: r.scorePercent ?? "",
     overallBand: r.overallBand ?? "",
     overallLevel: r.overallBandLevel ?? "",
+    paidAmount: r.paidAmount ?? "",
+    paidAt: r.paidAtIST ?? "",
     utm_source: r.utm_source ?? "",
     utm_medium: r.utm_medium ?? "",
     utm_campaign: r.utm_campaign ?? "",

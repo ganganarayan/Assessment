@@ -1,4 +1,5 @@
 import { listSubmissions } from "@/features/assessment/data";
+import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import {
   SubmissionsTable,
@@ -19,21 +20,27 @@ const EXPORT_GROUPS = [
 export default async function SubmissionsPage() {
   // Load all so the live search box can match across every submission, not just a page.
   const submissions = await listSubmissions(100_000);
-  const rows: SubmissionRow[] = submissions.map((s) => ({
-    id: s.id,
-    slug: s.assessment.slug,
-    assessmentTitle: s.assessment.title,
-    createdAt: s.createdAt.toISOString(),
-    firstName: s.leadFirstName,
-    lastName: s.leadLastName,
-    email: s.leadEmail,
-    mobile: s.leadMobile,
-    profession: s.leadProfession,
-    totalScore: s.totalScore,
-    maxScore: s.maxScore,
-    bandTitle: s.resultBand?.title ?? null,
-    status: s.status,
-  }));
+  const paid = await getPaidBySubmission(submissions.map((s) => s.id));
+  const rows: SubmissionRow[] = submissions.map((s) => {
+    const p = paid.get(s.id);
+    return {
+      id: s.id,
+      slug: s.assessment.slug,
+      assessmentTitle: s.assessment.title,
+      createdAt: s.createdAt.toISOString(),
+      firstName: s.leadFirstName,
+      lastName: s.leadLastName,
+      email: s.leadEmail,
+      mobile: s.leadMobile,
+      profession: s.leadProfession,
+      totalScore: s.totalScore,
+      maxScore: s.maxScore,
+      bandTitle: s.resultBand?.title ?? null,
+      status: s.status,
+      paidAmount: p?.amount ?? null,
+      paidAt: p?.at ?? null,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">

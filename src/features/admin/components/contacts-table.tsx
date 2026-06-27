@@ -124,6 +124,7 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
               <th className="whitespace-nowrap px-3 py-1.5">Opt-in date (IST)</th>
               <th className="px-3 py-1.5 text-center">Opt-in</th>
               <th className="px-3 py-1.5 text-center">Completed</th>
+              <th className="whitespace-nowrap px-3 py-1.5 text-center">Paid</th>
               <th className="px-3 py-1.5 text-center">VSL</th>
               {UTM.map((u) => (
                 <th key={u} className="whitespace-nowrap px-3 py-1.5">{u}</th>
@@ -133,7 +134,7 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
           <tbody className="divide-y">
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={8 + UTM.length} className="px-3 py-6 text-center text-sm text-[var(--muted-foreground)]">
+                <td colSpan={9 + UTM.length} className="px-3 py-6 text-center text-sm text-[var(--muted-foreground)]">
                   No contacts match “{query}”.
                 </td>
               </tr>
@@ -165,6 +166,18 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                 </td>
                 <td className="px-3 py-2 text-center text-green-600">✓</td>
                 <td className="px-3 py-2 text-center">{tick(r.completed)}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-center">
+                  {r.paidAmount != null ? (
+                    <div className="flex flex-col items-center">
+                      <span className="font-medium text-green-600 tabular-nums">₹{r.paidAmount}</span>
+                      {r.paidAt ? (
+                        <span className="text-[10px] text-[var(--muted-foreground)]">{formatIST(r.paidAt)}</span>
+                      ) : null}
+                    </div>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td className="px-3 py-2 text-center tabular-nums">{r.vslLoads}</td>
                 {UTM.map((u) => (
                   <td key={u} className="whitespace-nowrap px-3 py-2 text-xs">

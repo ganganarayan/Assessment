@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { istDateRangeToUtc, formatIST } from "@/lib/date";
+import { getPaidBySubmission } from "@/features/admin/data/payments";
 import type { PayloadAttribution } from "@/features/events/types";
 
 /**
@@ -128,6 +129,9 @@ export interface ContactRow {
   /** 16-char result token — the t= value in the post-assessment URL. */
   resultToken: string | null;
   completed: boolean;
+  /** Captured payment (paid step comes before VSL load). null = not paid. */
+  paidAmount: number | null;
+  paidAt: string | null;
   /** Total VSL page loads for this contact (0 = never loaded). */
   vslLoads: number;
   attribution: PayloadAttribution | null;
@@ -143,6 +147,8 @@ export interface ContactExportRow {
   customerId: string;
   resultToken: string;
   completed: boolean;
+  paidAmount: number | null;
+  paidAtIST: string;
   vslLoads: number;
   utm_source: string | null;
   utm_medium: string | null;
@@ -167,6 +173,7 @@ export async function listContactsForExport(range?: {
     orderBy: { createdAt: "desc" },
     take: EXPORT_CAP,
     select: {
+      id: true,
       createdAt: true,
       leadFirstName: true,
       leadLastName: true,
@@ -180,8 +187,10 @@ export async function listContactsForExport(range?: {
       attribution: true,
     },
   });
+  const paid = await getPaidBySubmission(rows.map((r) => r.id));
   return rows.map((r) => {
     const a = normalizeAttribution(r.attribution);
+    const p = paid.get(r.id);
     return {
       optInDateIST: formatIST(r.createdAt),
       firstName: r.leadFirstName ?? "",
@@ -192,6 +201,8 @@ export async function listContactsForExport(range?: {
       customerId: r.customerId ?? "",
       resultToken: r.resultToken ?? "",
       completed: r.status === "COMPLETED",
+      paidAmount: p?.amount ?? null,
+      paidAtIST: p?.at ? formatIST(new Date(p.at)) : "",
       vslLoads: r.resultFetchCount,
       utm_source: a?.utm_source ?? null,
       utm_medium: a?.utm_medium ?? null,
@@ -240,23 +251,30 @@ export async function listContacts(opts: {
     },
   });
 
+  const paid = await getPaidBySubmission(rows.map((r) => r.id));
+
   return {
     total,
     page,
     pages,
-    rows: rows.map((r) => ({
-      id: r.id,
-      createdAt: r.createdAt.toISOString(),
-      firstName: r.leadFirstName,
-      lastName: r.leadLastName,
-      email: r.leadEmail,
-      mobile: r.leadMobile,
-      profession: r.leadProfession,
-      customerId: r.customerId,
-      resultToken: r.resultToken,
-      completed: r.status === "COMPLETED",
-      vslLoads: r.resultFetchCount,
-      attribution: normalizeAttribution(r.attribution),
-    })),
+    rows: rows.map((r) => {
+      const p = paid.get(r.id);
+      return {
+        id: r.id,
+        createdAt: r.createdAt.toISOString(),
+        firstName: r.leadFirstName,
+        lastName: r.leadLastName,
+        email: r.leadEmail,
+        mobile: r.leadMobile,
+        profession: r.leadProfession,
+        customerId: r.customerId,
+        resultToken: r.resultToken,
+        completed: r.status === "COMPLETED",
+        paidAmount: p?.amount ?? null,
+        paidAt: p?.at ?? null,
+        vslLoads: r.resultFetchCount,
+        attribution: normalizeAttribution(r.attribution),
+      };
+    }),
   };
 }

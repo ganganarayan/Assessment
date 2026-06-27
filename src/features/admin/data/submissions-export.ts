@@ -4,6 +4,7 @@ import { formatIST } from "@/lib/date";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { EXPORT_CAP } from "@/features/admin/data/analytics";
+import { getPaidBySubmission } from "@/features/admin/data/payments";
 
 export interface SubmissionExportCategory {
   name: string;
@@ -37,6 +38,8 @@ export interface SubmissionExportRow {
   scorePercent: number | null;
   overallBand: string | null;
   overallBandLevel: string | null;
+  paidAmount: number | null;
+  paidAtIST: string | null;
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
@@ -78,9 +81,12 @@ export async function listSubmissionsForExport(): Promise<SubmissionExportRow[]>
     },
   });
 
+  const paid = await getPaidBySubmission(subs.map((s) => s.id));
+
   return subs.map((s) => {
     const snap = (s.resultSnapshot ?? null) as ResultSnapshot | null;
     const a = normalizeAttribution(s.attribution);
+    const p = paid.get(s.id);
     const categories: SubmissionExportCategory[] = (snap?.categories ?? []).map((c) => ({
       name: c.name,
       score: c.score,
@@ -120,6 +126,8 @@ export async function listSubmissionsForExport(): Promise<SubmissionExportRow[]>
       scorePercent: snap?.scorePercent ?? null,
       overallBand: s.resultBand?.title ?? snap?.resultBand ?? null,
       overallBandLevel: s.resultBand?.level ?? snap?.resultBandLevel ?? null,
+      paidAmount: p?.amount ?? null,
+      paidAtIST: p?.at ? formatIST(new Date(p.at)) : null,
       utm_source: a?.utm_source ?? null,
       utm_medium: a?.utm_medium ?? null,
       utm_campaign: a?.utm_campaign ?? null,

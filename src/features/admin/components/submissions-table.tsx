@@ -20,6 +20,8 @@ export interface SubmissionRow {
   maxScore: number | null;
   bandTitle: string | null;
   status: string;
+  paidAmount: number | null;
+  paidAt: string | null;
 }
 
 type SortKey = "date" | "lead" | "score" | "result" | "status";
@@ -113,6 +115,7 @@ export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
                   <Th k="score" label="Score" />
                   <Th k="result" label="Result" />
                   <Th k="status" label="Status" />
+                  <th className="whitespace-nowrap px-3 py-2">Paid</th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
@@ -137,6 +140,18 @@ export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
                     <td className="px-3 py-2">{s.bandTitle ?? "—"}</td>
                     <td className="px-3 py-2">
                       <Badge variant={s.status === "COMPLETED" ? "success" : "muted"}>{s.status}</Badge>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      {s.paidAmount != null ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium text-green-600 tabular-nums">₹{s.paidAmount}</span>
+                          {s.paidAt ? (
+                            <span className="text-[10px] text-[var(--muted-foreground)]">{formatIST(s.paidAt)}</span>
+                          ) : null}
+                        </div>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="px-3 py-2 text-right">
                       {s.status === "COMPLETED" ? (
