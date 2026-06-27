@@ -28,6 +28,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
     items: [
       { href: "/admin/analytics/stats", label: "Stats" },
       { href: "/admin/analytics/contacts", label: "Contacts" },
+      { href: "/admin/data-window", label: "Data window" },
     ],
   },
   {

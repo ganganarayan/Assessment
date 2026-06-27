@@ -3,21 +3,22 @@ import { prisma } from "@/lib/db/prisma";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { istDateRangeToUtc, formatIST } from "@/lib/date";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
+import { getStatsFloor, floorCreatedAt } from "@/lib/stats-floor";
 import type { PayloadAttribution } from "@/features/events/types";
 
 /**
- * A Prisma `where` fragment scoping `createdAt` to the selected date range.
- * No range selected => `{}` => ALL records, all time (the default view).
+ * A Prisma `where` fragment scoping `createdAt` to the selected date range AND
+ * the reporting start floor (AppSetting.statsResetAt) — the effective lower bound
+ * is the later of the two. No range + no floor => `{}` => ALL records, all time.
  */
-function createdAtScope(range?: { from?: string; to?: string }): Record<string, unknown> {
+async function createdAtScope(range?: { from?: string; to?: string }): Promise<Record<string, unknown>> {
   const { gte, lte } = istDateRangeToUtc(range?.from, range?.to);
-  if (!gte && !lte) return {};
-  return { createdAt: { ...(gte ? { gte } : {}), ...(lte ? { lte } : {}) } };
+  return floorCreatedAt(await getStatsFloor(), gte, lte);
 }
 
 /** Aggregate funnel numbers for the Stats page (global, across all assessments). */
 export async function getAnalyticsStats(range?: { from?: string; to?: string }) {
-  const scope = createdAtScope(range);
+  const scope = await createdAtScope(range);
 
   const [totalViews, uniqueVisitors, optins, completed, vslLoads] = await Promise.all([
     prisma.pageView.count({ where: scope }),
@@ -50,7 +51,7 @@ export interface UtmBreakdownRow {
 
 /** Page-view counts grouped by UTM combination (traffic source), in range. */
 export async function getUtmBreakdown(range?: { from?: string; to?: string }): Promise<UtmBreakdownRow[]> {
-  const where = createdAtScope(range);
+  const where = await createdAtScope(range);
   const grouped = await prisma.pageView.groupBy({
     by: ["utmSource", "utmMedium", "utmCampaign", "utmTerm", "utmContent"],
     where,
@@ -86,7 +87,7 @@ export async function listPageViews(opts: {
   to?: string;
   limit?: number;
 }): Promise<PageViewLogRow[]> {
-  const where = createdAtScope({ from: opts.from, to: opts.to });
+  const where = await createdAtScope({ from: opts.from, to: opts.to });
   const rows = await prisma.pageView.findMany({
     where,
     orderBy: { createdAt: "desc" },
@@ -167,7 +168,7 @@ export async function listContactsForExport(range?: {
   from?: string;
   to?: string;
 }): Promise<ContactExportRow[]> {
-  const where = createdAtScope(range);
+  const where = await createdAtScope(range);
   const rows = await prisma.submission.findMany({
     where,
     orderBy: { createdAt: "desc" },
@@ -222,7 +223,7 @@ export async function listContacts(opts: {
   from?: string;
   to?: string;
 }): Promise<{ rows: ContactRow[]; total: number; page: number; pages: number }> {
-  const where = createdAtScope({ from: opts.from, to: opts.to });
+  const where = await createdAtScope({ from: opts.from, to: opts.to });
 
   // Count first so an out-of-range ?page= is clamped to the last real page
   // (avoids a nonsensical "Page 9999 of 3" pager and a wasted skip past the end).

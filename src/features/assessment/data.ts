@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
+import { getStatsFloor } from "@/lib/stats-floor";
 
 /** Query helpers for admin pages and the public flow. UI-agnostic. */
 
@@ -52,7 +53,9 @@ export async function getPublishedAssessmentBySlug(slug: string) {
 }
 
 export async function listSubmissions(take = 100) {
+  const floor = await getStatsFloor();
   return prisma.submission.findMany({
+    where: floor ? { createdAt: { gte: floor } } : {},
     orderBy: { createdAt: "desc" },
     take,
     include: {
@@ -74,10 +77,14 @@ export async function getSubmissionResult(submissionId: string) {
 }
 
 export async function getDashboardCounts() {
+  const floor = await getStatsFloor();
+  const completedWhere = floor
+    ? { status: "COMPLETED" as const, createdAt: { gte: floor } }
+    : { status: "COMPLETED" as const };
   const [assessments, published, submissions] = await Promise.all([
     prisma.assessment.count(),
     prisma.assessment.count({ where: { status: "PUBLISHED" } }),
-    prisma.submission.count({ where: { status: "COMPLETED" } }),
+    prisma.submission.count({ where: completedWhere }),
   ]);
   return { assessments, published, submissions };
 }

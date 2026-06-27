@@ -5,6 +5,7 @@ import { normalizeAttribution } from "@/lib/events/payload";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { EXPORT_CAP } from "@/features/admin/data/analytics";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
+import { getStatsFloor } from "@/lib/stats-floor";
 
 export interface SubmissionExportCategory {
   name: string;
@@ -54,7 +55,9 @@ export interface SubmissionExportRow {
 /** ALL submissions with their full results (categories + every AI version),
  *  newest first, for the Submissions export. */
 export async function listSubmissionsForExport(): Promise<SubmissionExportRow[]> {
+  const floor = await getStatsFloor();
   const subs = await prisma.submission.findMany({
+    where: floor ? { createdAt: { gte: floor } } : {},
     orderBy: { createdAt: "desc" },
     take: EXPORT_CAP,
     select: {
