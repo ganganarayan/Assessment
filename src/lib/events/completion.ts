@@ -74,11 +74,14 @@ export async function loadCompletionInput(submissionId: string): Promise<EmitInp
  * is rolled back so a retry can re-emit.
  */
 export async function emitCompletedPaid(submissionId: string): Promise<void> {
+  // Key on completedAt (ever completed) + completedPaidAt null, NOT on the live
+  // status — a re-completion may have transiently flipped status to STARTED, and
+  // the payment must still be recorded.
   const claim = await prisma.submission.updateMany({
-    where: { id: submissionId, status: "COMPLETED", completedPaidAt: null },
+    where: { id: submissionId, completedAt: { not: null }, completedPaidAt: null },
     data: { completedPaidAt: new Date() },
   });
-  if (claim.count === 0) return; // already emitted, or not completed yet
+  if (claim.count === 0) return; // already emitted, or never completed
   try {
     const input = await loadCompletionInput(submissionId);
     if (input) await emitEvent(EventType.ASSESSMENT_COMPLETED_PAID, input);

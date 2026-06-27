@@ -120,13 +120,44 @@ async function resolvePaidCheckout(opts: {
 
 
 export type StartResult =
-  | { status: "started"; submissionId: string; eventId?: string }
+  | { status: "started"; submissionId: string; eventId?: string; answers?: Record<string, string> }
   | {
       status: "locked";
       policy: "DELAYED" | "NEVER";
       lastCompletedAt: string | null;
       nextAvailableAt: string | null; // null = never (NEVER policy)
     };
+
+/** Load a resuming respondent's prior answers (questionId -> optionId): the live
+ *  autosaved draft, else their final answers (a completed-but-unpaid resume). */
+async function loadResumeAnswers(submissionId: string): Promise<Record<string, string>> {
+  const s = await prisma.submission.findUnique({ where: { id: submissionId }, select: { draftAnswers: true } });
+  const draft = (s?.draftAnswers ?? null) as Record<string, unknown> | null;
+  if (draft && typeof draft === "object") {
+    const out: Record<string, string> = {};
+    for (const [q, o] of Object.entries(draft)) if (typeof o === "string") out[q] = o;
+    if (Object.keys(out).length) return out;
+  }
+  const ans = await prisma.submissionAnswer.findMany({ where: { submissionId }, select: { questionId: true, optionId: true } });
+  const out: Record<string, string> = {};
+  for (const a of ans) out[a.questionId] = a.optionId;
+  return out;
+}
+
+/** Autosave in-progress answers so a returning unpaid respondent resumes where
+ *  they left off. No-op once paid (the submission is frozen). Public (keyed by id). */
+export async function saveDraftAnswers(
+  submissionId: string,
+  answers: { questionId: string; optionId: string }[],
+): Promise<ActionResult> {
+  const sub = await prisma.submission.findUnique({ where: { id: submissionId }, select: { completedPaidAt: true } });
+  if (!sub) return { ok: false, error: "Not found." };
+  if (sub.completedPaidAt) return { ok: true }; // paid -> frozen
+  const map: Record<string, string> = {};
+  for (const a of answers ?? []) if (a?.questionId && a?.optionId) map[a.questionId] = a.optionId;
+  await prisma.submission.update({ where: { id: submissionId }, data: { draftAnswers: map as unknown as Prisma.InputJsonValue } });
+  return { ok: true };
+}
 
 type StartAssessment = {
   id: string;
@@ -235,6 +266,7 @@ export async function startSubmission(
       retakePolicy: true,
       retakeDays: true,
       uniqueIdentifier: true,
+      paidMode: true,
     },
   });
   if (!assessment) return { ok: false, error: "Assessment not available." };
@@ -306,26 +338,46 @@ export async function startSubmission(
   // (Set retakePolicy=UNLIMITED to allow free retakes; ?preview=1 as owner bypasses.)
   if (!adminPreview && assessment.retakePolicy !== "UNLIMITED" && identifierValue) {
     const policy = assessment.retakePolicy as "DELAYED" | "NEVER";
+    // Paid assessments lock on PAYMENT (completedPaidAt), not mere completion —
+    // so an unpaid completer can return, resume, edit, and pay. Free assessments
+    // lock on completion as before.
+    const paidMode = assessment.paidMode;
     const outcome = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${assessment.id}:${identifierValue}`}, 0))`;
-      const last = await tx.submission.findFirst({
-        where: { assessmentId: assessment.id, identifierValue, status: "COMPLETED" },
-        orderBy: { completedAt: "desc" },
-        select: { completedAt: true },
-      });
-      const verdict = evaluateLockout(policy, assessment.retakeDays, last?.completedAt ?? null, new Date());
+      const last = paidMode
+        ? await tx.submission.findFirst({
+            where: { assessmentId: assessment.id, identifierValue, completedPaidAt: { not: null } },
+            orderBy: { completedPaidAt: "desc" },
+            select: { completedPaidAt: true },
+          })
+        : await tx.submission.findFirst({
+            where: { assessmentId: assessment.id, identifierValue, status: "COMPLETED" },
+            orderBy: { completedAt: "desc" },
+            select: { completedAt: true },
+          });
+      const lockAt = paidMode
+        ? (last as { completedPaidAt: Date | null } | null)?.completedPaidAt ?? null
+        : (last as { completedAt: Date | null } | null)?.completedAt ?? null;
+      const verdict = evaluateLockout(policy, assessment.retakeDays, lockAt, new Date());
       if (verdict.locked) {
-        return {
-          kind: "locked" as const,
-          lastCompletedAt: last?.completedAt ?? null,
-          nextAvailableAt: verdict.nextAvailableAt,
-        };
+        return { kind: "locked" as const, lastCompletedAt: lockAt, nextAvailableAt: verdict.nextAvailableAt };
       }
-      // Resume an in-flight attempt (STARTED, including ABANDONED) until it is
-      // completed — refresh its lead snapshot so the latest entered details win.
-      // Keep the existing customerId (mint one only if the row predates it).
+      // Resume the latest UNPAID attempt. Paid mode: a STARTED row OR a completed-
+      // but-unpaid one (so they edit + pay). Free mode: STARTED only. Refresh the
+      // lead snapshot WITHOUT touching status (a completed-unpaid stays completed
+      // until they re-submit). Keep the existing customerId.
+      const leadUpdate = {
+        leadFirstName: submissionData.leadFirstName,
+        leadLastName: submissionData.leadLastName,
+        leadEmail: submissionData.leadEmail,
+        leadMobile: submissionData.leadMobile,
+        leadProfession: submissionData.leadProfession,
+        ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
+      };
       const inflight = await tx.submission.findFirst({
-        where: { assessmentId: assessment.id, identifierValue, status: "STARTED" },
+        where: paidMode
+          ? { assessmentId: assessment.id, identifierValue, completedPaidAt: null, status: { in: ["STARTED", "COMPLETED"] } }
+          : { assessmentId: assessment.id, identifierValue, status: "STARTED" },
         orderBy: { startedAt: "desc" },
         select: { id: true, customerId: true },
       });
@@ -333,7 +385,7 @@ export async function startSubmission(
         const customerId = inflight.customerId ?? newCustomerId;
         await tx.submission.update({
           where: { id: inflight.id },
-          data: inflight.customerId ? submissionData : { ...submissionData, customerId },
+          data: inflight.customerId ? leadUpdate : { ...leadUpdate, customerId },
         });
         return { kind: "reused" as const, submissionId: inflight.id, customerId };
       }
@@ -359,9 +411,15 @@ export async function startSubmission(
     if (outcome.kind === "created") {
       eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr);
     }
+    const answers = outcome.kind === "reused" ? await loadResumeAnswers(outcome.submissionId) : undefined;
     return {
       ok: true,
-      data: { status: "started", submissionId: outcome.submissionId, ...(eventId ? { eventId } : {}) },
+      data: {
+        status: "started",
+        submissionId: outcome.submissionId,
+        ...(eventId ? { eventId } : {}),
+        ...(answers && Object.keys(answers).length ? { answers } : {}),
+      },
     };
   }
 
@@ -475,6 +533,7 @@ export async function completeSubmission(
     select: {
       id: true,
       status: true,
+      completedPaidAt: true,
       assessmentId: true,
       attribution: true,
       customerId: true,
@@ -496,13 +555,11 @@ export async function completeSubmission(
     phone: submission.leadMobile,
   };
 
-  if (submission.status === "COMPLETED") {
-    const resultUrl = buildResultUrl(
-      submission.assessment.targetUrl,
-      submission.assessment.slug,
-      submissionId,
-      submission.resultToken,
-    );
+  // Already completed: a PAID one (or any free-mode one) returns its existing
+  // result/checkout. A paid-mode completion that is NOT yet paid is re-doable
+  // (edit until pay): reset it to STARTED so the scoring flow below re-runs.
+  const returnCompleted = async () => {
+    const resultUrl = buildResultUrl(submission.assessment.targetUrl, submission.assessment.slug, submissionId, submission.resultToken);
     const paid = await resolvePaidCheckout({
       paidMode: submission.assessment.paidMode,
       paymentUrl: submission.assessment.paymentUrl,
@@ -512,7 +569,27 @@ export async function completeSubmission(
       customer,
     });
     const paidExit = !!(paid.payment || paid.paymentRedirectUrl);
-    return { ok: true, data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid } };
+    return { ok: true as const, data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid } };
+  };
+  if (submission.status === "COMPLETED") {
+    if (submission.completedPaidAt || !submission.assessment.paidMode) {
+      return returnCompleted(); // paid (or free) — locked, no redo
+    }
+    // Payment table is the source of truth (a capture may be recorded before
+    // completedPaidAt is set): if paid, never re-score — return the existing result.
+    const paidRow = await prisma.payment.findFirst({
+      where: { submissionId, purpose: "assessment_unlock", status: "captured" },
+      select: { id: true },
+    });
+    if (paidRow) return returnCompleted();
+    // Unpaid paid-mode re-completion: reset to STARTED (clear the unpaid guard) so
+    // the normal STARTED->COMPLETED scoring re-runs. If it got paid meanwhile, the
+    // CAS misses and we return the existing result instead of re-scoring.
+    const reset = await prisma.submission.updateMany({
+      where: { id: submissionId, status: "COMPLETED", completedPaidAt: null },
+      data: { status: "STARTED", completedUnpaidAt: null },
+    });
+    if (reset.count === 0) return returnCompleted();
   }
 
   const assessment = await prisma.assessment.findUnique({
@@ -628,7 +705,9 @@ export async function completeSubmission(
 
   // Opaque public ids + denormalized read-endpoint snapshot + destination URL.
   const customerId = submission.customerId ?? generateCustomerId();
-  const token = generateToken();
+  // Preserve the existing result token across a re-completion so links already
+  // issued (emailed nudge / static pay link) keep working; mint one only if none.
+  const token = submission.resultToken ?? generateToken();
   const ttl = assessment.tokenTtlSeconds ?? DEFAULT_RESULT_TOKEN_TTL_SECONDS;
   const expiresAt = new Date(Date.now() + ttl * 1000);
   // Guard the billable, multi-second AI call: if a concurrent writer already

@@ -5,6 +5,7 @@ import {
   startSubmission,
   completeSubmission,
   requestPreviousResults,
+  saveDraftAnswers,
 } from "@/features/assessment/actions/submission";
 import { recordOptinView } from "@/features/assessment/actions/track";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
@@ -104,6 +105,20 @@ export function AssessmentRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preview, assessment.slug]);
 
+  // Autosave progress (debounced) so a returning unpaid respondent resumes where
+  // they left off. Only while answering, only once they've picked something.
+  useEffect(() => {
+    if (preview || step !== "questions" || !submissionId) return;
+    if (Object.keys(answers).length === 0) return;
+    const t = setTimeout(() => {
+      void saveDraftAnswers(
+        submissionId,
+        Object.entries(answers).map(([questionId, optionId]) => ({ questionId, optionId })),
+      ).catch(() => {});
+    }, 800);
+    return () => clearTimeout(t);
+  }, [answers, submissionId, step, preview]);
+
   const questions = assessment.categories.flatMap((c) => c.questions);
   const requiredUnanswered = questions.filter(
     (q) => q.required && !answers[q.id],
@@ -134,6 +149,10 @@ export function AssessmentRunner({
         pixelTrack("CompleteRegistration", { content_name: assessment.title }, res.data.eventId);
       }
       setSubmissionId(res.data?.submissionId ?? null);
+      // Resume: pre-fill answers they saved/submitted before (editable until paid).
+      if (res.data?.status === "started" && res.data.answers) {
+        setAnswers(res.data.answers);
+      }
       setStep("questions");
     });
   }
