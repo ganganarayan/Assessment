@@ -41,11 +41,24 @@ async function lookup(token: string) {
   return prisma.submission.findUnique({
     where: { resultToken: token },
     select: {
+      id: true,
       resultSnapshot: true,
       resultTokenExpiresAt: true,
       assessment: { select: { targetOrigin: true } },
     },
   });
+}
+
+/** The captured payment for a submission, shaped for the connector's browser
+ *  Purchase pixel (deduped server-side via the same event_id). Null when unpaid. */
+async function purchaseFor(submissionId: string): Promise<{ eventId: string; value: number | null; currency: string } | null> {
+  const p = await prisma.payment.findFirst({
+    where: { submissionId, purpose: "assessment_unlock", status: "captured", providerPaymentId: { not: null } },
+    orderBy: { createdAt: "desc" },
+    select: { providerPaymentId: true, amount: true, currency: true },
+  });
+  if (!p?.providerPaymentId) return null;
+  return { eventId: p.providerPaymentId, value: p.amount != null ? p.amount / 100 : null, currency: p.currency };
 }
 
 export async function OPTIONS(req: Request, ctx: { params: Promise<{ token: string }> }) {
@@ -74,16 +87,21 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
 
   // Analytics: count EVERY successful fetch (one per VSL page load) and stamp the
   // first one. Fire-and-forget; never delays or fails the read.
-  if (outcome.status === 200) {
+  let body = outcome.body;
+  if (outcome.status === 200 && sub) {
     void prisma.submission
       .updateMany({ where: { resultToken: token }, data: { resultFetchCount: { increment: 1 } } })
       .catch(() => {});
     void prisma.submission
       .updateMany({ where: { resultToken: token, resultFetchedAt: null }, data: { resultFetchedAt: new Date() } })
       .catch(() => {});
+    // Attach the payment id (if paid) so the destination page can fire the browser
+    // Purchase pixel with the matching event_id (deduped vs the server CAPI event).
+    const purchase = await purchaseFor(sub.id);
+    body = { ...(outcome.body as Record<string, unknown>), purchase };
   }
 
-  return NextResponse.json(outcome.body, {
+  return NextResponse.json(body, {
     status: outcome.status,
     headers: outcome.status === 200 ? { ...headers, "Cache-Control": "no-store" } : headers,
   });
