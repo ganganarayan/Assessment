@@ -15,9 +15,11 @@ export const RESERVED_EXTERNAL_EVENTS = [
 
 /** Enum value -> public dotted event name used in payloads, logs, and UI. */
 export const EVENT_NAME: Record<EventType, string> = {
-  [EventType.LEAD_CREATED]: "lead.created",
-  [EventType.ASSESSMENT_STARTED]: "assessment.started",
-  [EventType.ASSESSMENT_COMPLETED]: "assessment.completed",
+  [EventType.LEAD_CREATED]: "optin", // merged opt-in (was lead.created + assessment.started)
+  [EventType.ASSESSMENT_STARTED]: "assessment.started", // legacy; no longer emitted
+  [EventType.ASSESSMENT_COMPLETED]: "assessment.completed", // free assessments only
+  [EventType.ASSESSMENT_COMPLETED_PAID]: "completed_paid", // paid mode, on payment
+  [EventType.ASSESSMENT_COMPLETED_UNPAID]: "completed_unpaid", // paid mode, unpaid after 30 min
   [EventType.RESULT_GENERATED]: "result.generated",
   [EventType.RESULT_VIEWED]: "result.viewed",
   [EventType.ASSESSMENT_ABANDONED]: "assessment.abandoned",
@@ -34,6 +36,8 @@ export const ALL_EVENT_TYPES: EventType[] = [
   EventType.LEAD_CREATED,
   EventType.ASSESSMENT_STARTED,
   EventType.ASSESSMENT_COMPLETED,
+  EventType.ASSESSMENT_COMPLETED_PAID,
+  EventType.ASSESSMENT_COMPLETED_UNPAID,
   EventType.RESULT_GENERATED,
   EventType.RESULT_VIEWED,
   EventType.ASSESSMENT_ABANDONED,
@@ -48,9 +52,10 @@ export const ALL_EVENT_TYPES: EventType[] = [
  * async result/report-ready step.
  */
 export const ACTIVE_EVENT_TYPES: EventType[] = [
-  EventType.LEAD_CREATED,
-  EventType.ASSESSMENT_STARTED,
-  EventType.ASSESSMENT_COMPLETED,
+  EventType.LEAD_CREATED, // optin
+  EventType.ASSESSMENT_COMPLETED, // free assessments
+  EventType.ASSESSMENT_COMPLETED_PAID, // paid mode, on payment
+  EventType.ASSESSMENT_COMPLETED_UNPAID, // paid mode, unpaid 30-min sweep
   EventType.RESULT_VIEWED,
   EventType.ASSESSMENT_ABANDONED,
   EventType.RESULT_LINK_REQUESTED,

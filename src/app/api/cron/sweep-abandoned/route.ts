@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { sweepAbandoned } from "@/lib/events/abandoned";
+import { sweepCompletedUnpaid } from "@/lib/events/unpaid";
 
 /**
- * Abandonment sweep trigger (HTTP). Protected by CRON_SECRET.
+ * Sweep trigger (HTTP). Protected by CRON_SECRET. Runs BOTH sweeps:
+ *   - abandoned (started, never completed past the delay)
+ *   - completed_unpaid (completed, no payment after 30 min)
  *   POST /api/cron/sweep-abandoned   Authorization: Bearer <CRON_SECRET>
  *
- * Primary scheduling is Railway Cron running `scripts/sweep-abandoned.ts`; this
- * route exists for manual runs / external schedulers. Fail-closed if no secret.
+ * Primary scheduling is Railway Cron running `scripts/sweep-abandoned.ts`. Run it
+ * every ~10 min so the 30-min unpaid nudge fires close to on time. Fail-closed
+ * if no secret.
  */
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -17,6 +21,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const result = await sweepAbandoned();
-  return NextResponse.json({ ok: true, ...result });
+  const [abandoned, unpaid] = await Promise.all([sweepAbandoned(), sweepCompletedUnpaid()]);
+  return NextResponse.json({ ok: true, abandoned, unpaid });
 }

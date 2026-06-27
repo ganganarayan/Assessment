@@ -135,12 +135,8 @@ type StartAssessment = {
   tenant: { id: string; slug: string; name: string } | null;
 };
 
-/** Delay before assessment.started so the CRM creates the contact from
- *  lead.created first, then started UPDATES it (matched by customer_id / email)
- *  instead of both racing in at the same instant and creating a duplicate. */
-const ASSESSMENT_STARTED_DELAY_MS = 30_000;
-
-/** Fire lead.created now + assessment.started shortly after (see above). */
+/** Fire the single opt-in event (LEAD_CREATED -> "optin"). The old separate
+ *  assessment.started event is merged into this one — only one webhook now. */
 async function emitStart(
   assessment: StartAssessment,
   submissionId: string,
@@ -148,21 +144,14 @@ async function emitStart(
   lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null; profession: string | null },
   attr: ReturnType<typeof normalizeAttribution>,
 ) {
-  const base: EmitInput = {
+  await emitEvent(EventType.LEAD_CREATED, {
     submissionId,
     customerId,
     tenant: assessment.tenant,
     assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
     lead,
     attribution: attr ?? undefined,
-  };
-  await emitEvent(EventType.LEAD_CREATED, base);
-  // Non-blocking: scheduled in the persistent server; the user response is not
-  // delayed. Keep the real start time on the event despite the send delay.
-  const startedInput: EmitInput = { ...base, timestamp: new Date().toISOString() };
-  setTimeout(() => {
-    void emitEvent(EventType.ASSESSMENT_STARTED, startedInput).catch(() => {});
-  }, ASSESSMENT_STARTED_DELAY_MS);
+  });
 }
 
 /**
@@ -777,24 +766,29 @@ export async function completeSubmission(
     },
   });
 
-  await emitEvent(EventType.ASSESSMENT_COMPLETED, {
-    submissionId,
-    customerId,
-    tenant: assessment.tenant,
-    assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
-    lead: {
-      firstName: full?.leadFirstName ?? null,
-      lastName: full?.leadLastName ?? null,
-      email: full?.leadEmail ?? null,
-      mobile: full?.leadMobile ?? null,
-    },
-    score: { total: totalScore, max: maxScore, percentage },
-    resultBand: band ? { level: band.level, title: band.title } : null,
-    categories: categoryResults,
-    resultUrl,
-    aiStatement,
-    attribution: normalizeAttribution(submission.attribution) ?? undefined,
-  } satisfies EmitInput);
+  // Paid assessments split completion into completed_paid (on payment) and
+  // completed_unpaid (sweep, 30 min unpaid) — so do NOT fire assessment.completed
+  // here. Free assessments keep firing it at completion as before.
+  if (!assessment.paidMode) {
+    await emitEvent(EventType.ASSESSMENT_COMPLETED, {
+      submissionId,
+      customerId,
+      tenant: assessment.tenant,
+      assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
+      lead: {
+        firstName: full?.leadFirstName ?? null,
+        lastName: full?.leadLastName ?? null,
+        email: full?.leadEmail ?? null,
+        mobile: full?.leadMobile ?? null,
+      },
+      score: { total: totalScore, max: maxScore, percentage },
+      resultBand: band ? { level: band.level, title: band.title } : null,
+      categories: categoryResults,
+      resultUrl,
+      aiStatement,
+      attribution: normalizeAttribution(submission.attribution) ?? undefined,
+    } satisfies EmitInput);
+  }
 
   // Server-side Meta CAPI (AssessmentCompleted). Runs ONLY for the winning
   // writer (exactly-once); the returned eventId dedups the browser pixel.

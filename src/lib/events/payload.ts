@@ -103,6 +103,8 @@ const METADATA_BUILDERS: Partial<Record<EventType, MetadataBuilder>> = {
   [EventType.LEAD_CREATED]: assessmentMetadata,
   [EventType.ASSESSMENT_STARTED]: assessmentMetadata,
   [EventType.ASSESSMENT_COMPLETED]: assessmentMetadata,
+  [EventType.ASSESSMENT_COMPLETED_PAID]: assessmentMetadata,
+  [EventType.ASSESSMENT_COMPLETED_UNPAID]: assessmentMetadata,
   [EventType.RESULT_GENERATED]: assessmentMetadata,
   [EventType.RESULT_VIEWED]: assessmentMetadata,
   [EventType.ASSESSMENT_ABANDONED]: assessmentMetadata,
@@ -253,6 +255,8 @@ export function buildSamplePayload(eventName: string, baseUrl: string): Record<s
 
   const scored =
     type === EventType.ASSESSMENT_COMPLETED ||
+    type === EventType.ASSESSMENT_COMPLETED_PAID ||
+    type === EventType.ASSESSMENT_COMPLETED_UNPAID ||
     type === EventType.RESULT_VIEWED ||
     type === EventType.RESULT_GENERATED ||
     type === EventType.RESULT_LINK_REQUESTED;

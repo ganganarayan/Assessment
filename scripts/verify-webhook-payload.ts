@@ -251,7 +251,7 @@ for (const type of ACTIVE_EVENT_TYPES) {
     buildEnvelope(EventType.LEAD_CREATED, { submissionId: SID, customerId: "K7", assessment: asm, lead, attribution: { utm_source: "fb" } }, BASE),
   );
   expect("lead: keeps contact_name", led.contact_name === "Ganesh Kumar");
-  expect("lead: contact.event_type", led["contact.event_type"] === "lead_created");
+  expect("lead: contact.event_type", led["contact.event_type"] === "optin");
   expect("lead: keeps utm_source", led["contact.utm_source"] === "fb");
   expect("lead: keeps customer_id", led["contact.customer_id"] === "K7");
   expect("lead: drops null utm_term", !("contact.utm_term" in led));
@@ -272,6 +272,21 @@ for (const type of ACTIVE_EVENT_TYPES) {
   );
   expect("completed: unchanged full keys", keysEq(completed, TOP), JSON.stringify(Object.keys(completed)));
   expect("completed: contact.event_type", completed["contact.event_type"] === "assessment_completed");
+
+  // Paid/unpaid completion events: full scored shape + their exact event_type.
+  for (const [t, ev] of [
+    [EventType.ASSESSMENT_COMPLETED_PAID, "completed_paid"],
+    [EventType.ASSESSMENT_COMPLETED_UNPAID, "completed_unpaid"],
+  ] as const) {
+    const out = shapePayload(
+      t,
+      buildEnvelope(t, { submissionId: SID, customerId: "K7", assessment: asm, lead, score: { total: 46, max: 60, percentage: 77 }, resultBand: { level: "HIGH", title: "High Emotional Load" } }, BASE),
+    );
+    expect(`${ev}: contact.event_type`, out["contact.event_type"] === ev);
+    expect(`${ev}: keeps score`, out["contact.assessment_score"] === 77);
+    expect(`${ev}: keeps diagnosis`, out["contact.assessment_diagnosis"] === "High Emotional Load");
+    expect(`${ev}: full keys`, keysEq(out, TOP));
+  }
 }
 
 // Unknown event → no sample (preview guards).

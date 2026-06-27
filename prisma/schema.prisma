@@ -482,6 +482,12 @@ model Submission {
   startedAt      DateTime  @default(now())
   completedAt    DateTime?
   abandonedAt    DateTime? // set by the abandonment sweep when STARTED past the delay
+  // Paid-mode pipeline guards (compare-and-swap so each event fires once):
+  completedPaidAt   DateTime? // set when completed_paid fired (payment verified)
+  completedUnpaidAt DateTime? // set when completed_unpaid fired (sweep, 30 min unpaid)
+  // Autosaved in-progress answers (questionId -> optionId) so a returning unpaid
+  // respondent resumes + edits where they left off, until they pay.
+  draftAnswers      Json?
   resultViewedAt DateTime? // set once when the internal result page is first viewed
   resultFetchedAt DateTime? // set on first /api/r read = the VSL page pulled the result
   resultFetchCount Int @default(0) // total /api/r reads = how many times the VSL loaded
@@ -587,9 +593,11 @@ model SubmissionCategoryScore {
 // are owned by other systems and may be POSTed in later via a reserved ingest
 // API — they are intentionally NOT part of this enum.
 enum EventType {
-  LEAD_CREATED // lead.created
-  ASSESSMENT_STARTED // assessment.started
-  ASSESSMENT_COMPLETED // assessment.completed
+  LEAD_CREATED // optin (merged opt-in; was lead.created + assessment.started)
+  ASSESSMENT_STARTED // assessment.started (legacy; no longer emitted)
+  ASSESSMENT_COMPLETED // assessment.completed (free assessments only)
+  ASSESSMENT_COMPLETED_PAID // completed_paid (paid mode, on payment)
+  ASSESSMENT_COMPLETED_UNPAID // completed_unpaid (paid mode, completed + no payment after 30 min)
   RESULT_GENERATED // result.generated
   RESULT_VIEWED // result.viewed
   ASSESSMENT_ABANDONED // assessment.abandoned

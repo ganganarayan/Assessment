@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 import { verifyPaymentSignature } from "@/lib/payments/razorpay";
 import { sendCapiEvent, isCapiConfigured } from "@/lib/meta/send";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
+import { emitCompletedPaid } from "@/lib/events/completion";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +82,9 @@ export async function POST(req: Request) {
       update: { submissionId, providerOrderId: orderId, status: "captured", amount: amountRupees != null ? amountRupees * 100 : undefined },
     })
     .catch(() => {});
+
+  // CRM "completed_paid" event (once) — the paid pipeline.
+  await emitCompletedPaid(submissionId);
 
   const dest = vslUrl(s.assessment.targetUrl, s.assessment.slug, submissionId, s.resultToken);
   const finalUrl = dest + (dest.includes("?") ? "&" : "?") + "event=1";
