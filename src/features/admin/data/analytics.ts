@@ -20,7 +20,7 @@ async function createdAtScope(range?: { from?: string; to?: string }): Promise<R
 export async function getAnalyticsStats(range?: { from?: string; to?: string }) {
   const scope = await createdAtScope(range);
 
-  const [totalViews, uniqueVisitors, optins, completed, vslLoads] = await Promise.all([
+  const [totalViews, uniqueVisitors, optins, completed, vslLoads, paidAgg] = await Promise.all([
     prisma.pageView.count({ where: scope }),
     // distinct visitorId rows; length = unique views (no raw SQL).
     prisma.pageView.findMany({ where: scope, select: { visitorId: true }, distinct: ["visitorId"] }),
@@ -30,6 +30,12 @@ export async function getAnalyticsStats(range?: { from?: string; to?: string }) 
     prisma.submission.count({ where: scope }),
     prisma.submission.count({ where: { ...scope, status: "COMPLETED" } }),
     prisma.submission.count({ where: { ...scope, resultFetchedAt: { not: null } } }),
+    // Captured payments (count + total ₹) in the same window.
+    prisma.payment.aggregate({
+      where: { ...scope, purpose: "assessment_unlock", status: "captured" },
+      _count: { _all: true },
+      _sum: { amount: true },
+    }),
   ]);
   return {
     totalViews,
@@ -37,6 +43,8 @@ export async function getAnalyticsStats(range?: { from?: string; to?: string }) 
     optins,
     completed,
     vslLoads,
+    paidCount: paidAgg._count._all,
+    paidAmount: (paidAgg._sum.amount ?? 0) / 100, // paise -> rupees
   };
 }
 

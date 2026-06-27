@@ -88,6 +88,15 @@ export default async function StatsPage({
             </CardContent>
           </Card>
         ))}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-[var(--muted-foreground)]">Paid</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold tabular-nums text-green-600">{s.paidCount.toLocaleString()}</p>
+            <p className="text-sm text-[var(--muted-foreground)]">₹{s.paidAmount.toLocaleString()} total</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Traffic by UTM — how many page views came from which source. */}
