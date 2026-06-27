@@ -42,6 +42,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
     section: null,
     items: [
       { href: "/admin/ai", label: "AI" },
+      { href: "/admin/operations", label: "Operations" },
       { href: "/admin/settings", label: "Settings" },
     ],
   },

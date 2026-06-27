@@ -7,11 +7,6 @@ import { CategoriesManager } from "@/features/assessment/components/admin/catego
 import { env } from "@/lib/env";
 import { ResultBandsManager } from "@/features/assessment/components/admin/result-bands-manager";
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
-import { BandRecompute } from "@/features/assessment/components/admin/band-recompute";
-import { ReconstructAnswers } from "@/features/assessment/components/admin/reconstruct-answers";
-import { AiRerun } from "@/features/assessment/components/admin/ai-rerun";
-import { CrmResend } from "@/features/assessment/components/admin/crm-resend";
-import { CustomSender } from "@/features/assessment/components/admin/custom-sender";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { Badge } from "@/components/ui/badge";
 
@@ -150,30 +145,12 @@ export default async function EditAssessmentPage({
           <strong> new submissions</strong> (results are captured at completion).
         </p>
         <CategoryBandsManager categories={categoryOptions} bands={categoryBands} />
-        <BandRecompute assessmentId={a.id} />
-        <ReconstructAnswers assessmentId={a.id} />
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">AI messages (existing contacts)</h2>
-        <p className="text-xs text-[var(--muted-foreground)]">
-          Regenerate the AI message for every completed contact using their current bands + the
-          active prompt. Run this after the band recompute above.
-        </p>
-        <AiRerun assessmentId={a.id} />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">CRM senders</h2>
-        <p className="text-xs text-[var(--muted-foreground)]">
-          Background senders to your CRM. Each runs server-side inside its own daily IST window, one
-          contact every random delay — survives page close and deploys. Every send is logged under{" "}
-          <a href="/admin/webhook-logs?view=crm" className="underline">Webhook Logs → CRM sends</a>.
-          Lifecycle webhooks (opt-in / started / completed) still fire immediately.
-        </p>
-        <CrmResend />
-        <CustomSender assessmentId={a.id} />
-      </section>
+      <p className="text-xs text-[var(--muted-foreground)]">
+        Data maintenance for existing contacts (band recompute, answer recovery, AI re-run) and the CRM
+        senders now live under <a href="/admin/operations" className="underline">Operations</a>.
+      </p>
     </div>
   );
 }
