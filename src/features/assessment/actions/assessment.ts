@@ -45,6 +45,10 @@ export async function createAssessment(
       targetUrl: nullifyEmpty(d.targetUrl),
       targetOrigin: originOf(nullifyEmpty(d.targetUrl)),
       tokenTtlSeconds: d.tokenTtlSeconds ?? null,
+      paidMode: d.paidMode,
+      paymentUrl: nullifyEmpty(d.paymentUrl),
+      paymentHeadline: nullifyEmpty(d.paymentHeadline),
+      paymentButtonLabel: nullifyEmpty(d.paymentButtonLabel),
       createdById: user.id,
     },
   });
@@ -95,6 +99,10 @@ export async function updateAssessment(
       targetUrl: nullifyEmpty(d.targetUrl),
       targetOrigin: originOf(nullifyEmpty(d.targetUrl)),
       tokenTtlSeconds: d.tokenTtlSeconds ?? null,
+      paidMode: d.paidMode,
+      paymentUrl: nullifyEmpty(d.paymentUrl),
+      paymentHeadline: nullifyEmpty(d.paymentHeadline),
+      paymentButtonLabel: nullifyEmpty(d.paymentButtonLabel),
     },
   });
 

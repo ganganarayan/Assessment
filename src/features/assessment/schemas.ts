@@ -52,7 +52,19 @@ export const assessmentSchema = z.object({
     .url("Enter a valid URL.")
     .startsWith("https://", "Destination URL must use https://"),
   tokenTtlSeconds: z.coerce.number().int().min(60).max(7776000).optional(), // up to 90 days
+  // Pay-to-unlock. paidMode on => submit redirects to paymentUrl instead of the VSL.
+  paidMode: z.boolean().default(false),
+  paymentUrl: z.string().url("Enter a valid payment URL.").optional().or(z.literal("")),
+  paymentHeadline: z.string().max(2000).optional().or(z.literal("")),
+  paymentButtonLabel: z.string().max(200).optional().or(z.literal("")),
 }).superRefine((d, ctx) => {
+  if (d.paidMode && !d.paymentUrl) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["paymentUrl"],
+      message: "Payment URL is required when paid mode is on.",
+    });
+  }
   // A lockout can only be enforced if the identifying field is always captured.
   if (d.retakePolicy === "UNLIMITED") return;
   if (d.uniqueIdentifier === "EMAIL" && !(d.collectEmail && d.emailRequired)) {

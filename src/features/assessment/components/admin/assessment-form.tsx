@@ -60,6 +60,10 @@ const DEFAULTS: AssessmentFormValues = {
   trainingUrl: "",
   targetUrl: "",
   tokenTtlSeconds: undefined,
+  paidMode: false,
+  paymentUrl: "",
+  paymentHeadline: "",
+  paymentButtonLabel: "",
 };
 
 export function AssessmentForm({
@@ -338,6 +342,58 @@ export function AssessmentForm({
               />
               <p className="text-xs text-[var(--muted-foreground)]">Default 30 days (2592000s) if blank. Keep it long so emailed/revisited result links don&apos;t expire.</p>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-3 rounded-lg border p-4">
+            <p className="text-sm font-medium">Pay to unlock results</p>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={values.paidMode}
+                onChange={(e) => set("paidMode", e.target.checked)}
+              />
+              Require payment to see results
+            </label>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              When on, submitting the assessment stores the results and redirects to your payment link
+              (with <span className="font-mono">?t=&lt;token&gt;</span>) instead of the destination page.
+              After paying, send the user from your payment provider to the destination page (it carries
+              the token) where the results + your calendar button show. When off, submit goes straight to
+              the destination page.
+            </p>
+            {values.paidMode ? (
+              <div className="flex flex-col gap-3 border-l-2 pl-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="paymentUrl">
+                    Payment link URL <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="paymentUrl"
+                    value={values.paymentUrl ?? ""}
+                    onChange={(e) => set("paymentUrl", e.target.value)}
+                    placeholder="https://your-payment-page.com/pay"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="paymentHeadline">Headline (shown on the submit screen)</Label>
+                  <Textarea
+                    id="paymentHeadline"
+                    value={values.paymentHeadline ?? ""}
+                    onChange={(e) => set("paymentHeadline", e.target.value)}
+                    placeholder="See your score + a 1-on-1 consultation with GND for ₹199 only."
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="paymentButtonLabel">Submit button text (nudge)</Label>
+                  <Input
+                    id="paymentButtonLabel"
+                    value={values.paymentButtonLabel ?? ""}
+                    onChange={(e) => set("paymentButtonLabel", e.target.value)}
+                    placeholder="Pay ₹199 to unlock your results & book your call"
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {error ? (

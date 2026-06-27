@@ -57,6 +57,25 @@ function buildResultUrl(
   return `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}`;
 }
 
+/** When paid mode is on, the URL the submit redirects to instead of the VSL: the
+ *  payment link with ?t=<token> appended (so the post-payment page can unlock the
+ *  results). Returns undefined when paid mode is off or no payment URL is set. */
+function buildPaymentUrl(
+  paidMode: boolean,
+  paymentUrl: string | null,
+  token: string | null,
+): string | undefined {
+  if (!paidMode || !paymentUrl) return undefined;
+  if (!token) return paymentUrl;
+  try {
+    const u = new URL(paymentUrl);
+    u.searchParams.set("t", token);
+    return u.toString();
+  } catch {
+    return paymentUrl;
+  }
+}
+
 
 export type StartResult =
   | { status: "started"; submissionId: string; eventId?: string }
@@ -404,7 +423,7 @@ export async function requestPreviousResults(
 export async function completeSubmission(
   submissionId: string,
   input: AnswersInput,
-): Promise<ActionResult<{ submissionId: string; resultUrl: string; eventId?: string }>> {
+): Promise<ActionResult<{ submissionId: string; resultUrl: string; paymentUrl?: string; eventId?: string }>> {
   const parsed = answersSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid answers." };
@@ -421,7 +440,7 @@ export async function completeSubmission(
       resultToken: true,
       leadFirstName: true,
       leadProfession: true,
-      assessment: { select: { slug: true, targetUrl: true } },
+      assessment: { select: { slug: true, targetUrl: true, paidMode: true, paymentUrl: true } },
     },
   });
   if (!submission) return { ok: false, error: "Submission not found." };
@@ -432,7 +451,12 @@ export async function completeSubmission(
       submissionId,
       submission.resultToken,
     );
-    return { ok: true, data: { submissionId, resultUrl } };
+    const paymentUrl = buildPaymentUrl(
+      submission.assessment.paidMode,
+      submission.assessment.paymentUrl,
+      submission.resultToken,
+    );
+    return { ok: true, data: { submissionId, resultUrl, paymentUrl } };
   }
 
   const assessment = await prisma.assessment.findUnique({
@@ -444,6 +468,8 @@ export async function completeSubmission(
       status: true,
       targetUrl: true,
       tokenTtlSeconds: true,
+      paidMode: true,
+      paymentUrl: true,
       tenant: { select: { id: true, slug: true, name: true } },
       categories: {
         select: {
@@ -561,6 +587,7 @@ export async function completeSubmission(
       data: {
         submissionId,
         resultUrl: buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, recheck.resultToken),
+        paymentUrl: buildPaymentUrl(assessment.paidMode, assessment.paymentUrl, recheck.resultToken),
       },
     };
   }
@@ -648,6 +675,7 @@ export async function completeSubmission(
       data: {
         submissionId,
         resultUrl: buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, existing?.resultToken ?? null),
+        paymentUrl: buildPaymentUrl(assessment.paidMode, assessment.paymentUrl, existing?.resultToken ?? null),
       },
     };
   }
@@ -710,5 +738,6 @@ export async function completeSubmission(
     }).catch(() => {});
   }
 
-  return { ok: true, data: { submissionId, resultUrl, eventId } };
+  const paymentUrl = buildPaymentUrl(assessment.paidMode, assessment.paymentUrl, token);
+  return { ok: true, data: { submissionId, resultUrl, paymentUrl, eventId } };
 }

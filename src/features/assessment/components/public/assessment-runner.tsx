@@ -45,6 +45,9 @@ export interface PublicAssessment {
   mobileRequired: boolean;
   collectProfession: boolean;
   professionRequired: boolean;
+  paidMode: boolean;
+  paymentHeadline: string | null;
+  paymentButtonLabel: string | null;
   categories: PublicCategory[];
 }
 
@@ -176,6 +179,14 @@ export function AssessmentRunner({
       // then). The eventId dedups against the server-side CAPI event.
       if (res.data?.eventId) {
         pixelTrackCustom("AssessmentCompleted", { content_name: assessment.title }, res.data.eventId);
+      }
+      // Paid mode: redirect to the payment page instead of the VSL/result (results
+      // are already stored; after paying, the provider sends them to the VSL with
+      // the token). No event=1 — the VSL-view pixel fires post-payment, not here.
+      if (res.data?.paymentUrl) {
+        await new Promise((r) => setTimeout(r, 1200));
+        window.location.replace(res.data.paymentUrl);
+        return;
       }
       // Keep the one spinner up while the pixel beacon flushes, then go — no
       // second countdown, no flicker. Append event=1 so the destination's VSL-view
@@ -383,9 +394,18 @@ export function AssessmentRunner({
           ))}
         </div>
       ))}
+      {assessment.paidMode && assessment.paymentHeadline ? (
+        <p className="whitespace-pre-line text-center text-lg font-semibold">
+          {assessment.paymentHeadline}
+        </p>
+      ) : null}
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <Button size="lg" onClick={submitAnswers} disabled={pending}>
-        {pending ? "Submitting…" : "Submit"}
+        {pending
+          ? "Submitting…"
+          : assessment.paidMode && assessment.paymentButtonLabel
+            ? assessment.paymentButtonLabel
+            : "Submit"}
       </Button>
     </div>
   );

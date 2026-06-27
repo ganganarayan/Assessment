@@ -244,6 +244,16 @@ model Assessment {
   targetOrigin    String? // scheme://host[:port], derived from targetUrl
   tokenTtlSeconds Int? // result-token TTL; null => system default
 
+  // Pay-to-unlock. When paidMode is on, submitting the assessment stores results
+  // then redirects to paymentUrl (with ?t=<token>) INSTEAD of the destination/VSL;
+  // the submit screen shows paymentHeadline + the paymentButtonLabel nudge. Off =>
+  // normal destination redirect. After paying, the provider sends the user to the
+  // destination/VSL (carrying the token) where results + the calendar button show.
+  paidMode           Boolean @default(false)
+  paymentUrl         String?
+  paymentHeadline    String?
+  paymentButtonLabel String?
+
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

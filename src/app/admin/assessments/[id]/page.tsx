@@ -49,6 +49,10 @@ export default async function EditAssessmentPage({
     trainingUrl: a.trainingUrl ?? "",
     targetUrl: a.targetUrl ?? "",
     tokenTtlSeconds: a.tokenTtlSeconds ?? undefined,
+    paidMode: a.paidMode,
+    paymentUrl: a.paymentUrl ?? "",
+    paymentHeadline: a.paymentHeadline ?? "",
+    paymentButtonLabel: a.paymentButtonLabel ?? "",
   };
 
   const categories = a.categories.map((c) => ({
