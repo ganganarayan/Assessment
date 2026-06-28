@@ -70,9 +70,15 @@ export function PurchaseRecovery({ purchases }: { purchases: RecentPurchase[] })
                     </td>
                     <td className="px-3 py-1.5 text-right">
                       <div className="flex flex-col items-end gap-1">
-                        <Button size="sm" variant="outline" disabled={pendingId === p.submissionId} onClick={() => send(p.submissionId)}>
-                          {pendingId === p.submissionId ? "Sending…" : "Send to Meta"}
-                        </Button>
+                        {p.metaConversionAt || r?.ok ? (
+                          <Button size="sm" variant="outline" disabled title="Already sent — no action needed">
+                            Sent ✓
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" disabled={pendingId === p.submissionId} onClick={() => send(p.submissionId)}>
+                            {pendingId === p.submissionId ? "Sending…" : "Send to Meta"}
+                          </Button>
+                        )}
                         {r ? (
                           <span className={r.ok ? "text-xs text-green-600" : "text-xs text-red-500"}>
                             {r.ok ? `✓ accepted (HTTP ${r.status})` : `✗ ${r.error ?? `HTTP ${r.status}`}`}

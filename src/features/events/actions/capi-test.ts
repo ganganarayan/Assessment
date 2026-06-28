@@ -43,11 +43,21 @@ export async function resendPurchaseToMeta(submissionId: string): Promise<{
   const p = await prisma.payment.findFirst({
     where: { submissionId, purpose: "assessment_unlock", status: { in: ["captured", "paid"] }, providerPaymentId: { not: null } },
     orderBy: { createdAt: "desc" },
-    select: { providerPaymentId: true, amount: true, currency: true, createdAt: true },
+    select: { providerPaymentId: true, amount: true, currency: true, createdAt: true, metaConversionAt: true },
   });
   if (!p?.providerPaymentId) return { ok: false, error: "No captured payment found for this submission." };
 
   const eventName = s.assessment.paymentEventName || "Purchase121";
+  // Backstop: never re-send an already-confirmed conversion (avoids any mishap even
+  // if the UI is bypassed). Meta would dedup anyway, but we refuse outright.
+  if (p.metaConversionAt) {
+    return {
+      ok: false,
+      error: `Already sent to Meta on ${p.metaConversionAt.toISOString().slice(0, 16).replace("T", " ")} — no action needed.`,
+      eventName,
+      eventId: p.providerPaymentId,
+    };
+  }
   const amountRupees = s.assessment.paymentAmount ?? (p.amount != null ? p.amount / 100 : null);
   const base = s.assessment.targetUrl && s.resultToken
     ? (() => {
