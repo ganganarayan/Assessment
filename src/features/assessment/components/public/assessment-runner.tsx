@@ -8,7 +8,11 @@ import {
   saveDraftAnswers,
 } from "@/features/assessment/actions/submission";
 import { recordOptinView } from "@/features/assessment/actions/track";
+import { getResultForPages, type PageResultData } from "@/features/assessment/actions/pages";
+import { type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
+import { type PaymentCheckout } from "@/lib/payments/types";
+import { ResultPages } from "@/features/assessment/components/public/result-pages";
 import { type LeadInput, PROFESSION_OPTIONS } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { Button } from "@/components/ui/button";
@@ -52,9 +56,10 @@ export interface PublicAssessment {
   paymentButtonLabel: string | null;
   paymentIntroText: string | null;
   categories: PublicCategory[];
+  pages: AssessmentPageData[];
 }
 
-type Step = "intro" | "questions" | "locked" | "evaluating";
+type Step = "intro" | "questions" | "locked" | "evaluating" | "resultPages";
 
 interface Lockout {
   policy: "DELAYED" | "NEVER";
@@ -93,6 +98,14 @@ export function AssessmentRunner({
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [lockout, setLockout] = useState<Lockout | null>(null);
+  // Page-builder (page 2) state: the result for dynamic blocks + the deferred
+  // payment (the pay button block triggers it) + a free-flow destination.
+  const [pageResult, setPageResult] = useState<PageResultData | null>(null);
+  const [pagePayment, setPagePayment] = useState<PaymentCheckout | null>(null);
+  const [pagePaymentUrl, setPagePaymentUrl] = useState<string | null>(null);
+  const [pageResultDest, setPageResultDest] = useState<string | null>(null);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [payPending, setPayPending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [pending, start] = useTransition();
 
@@ -201,6 +214,27 @@ export function AssessmentRunner({
       if (res.data?.eventId) {
         pixelTrackCustom("AssessmentCompleted", { content_name: assessment.title }, res.data.eventId);
       }
+      // Page builder: if pages are configured, show them (results teaser + the pay
+      // button block) instead of going straight to payment/VSL. Defer the payment
+      // (the pay button triggers it) + fetch the result for the dynamic blocks.
+      if (assessment.pages.length > 0) {
+        // Paid mode must have a payment method; never show page 2 with a free
+        // fallback (that would unlock the paid result for free).
+        if (assessment.paidMode && !res.data?.payment && !res.data?.paymentRedirectUrl) {
+          setError("We couldn't start the payment just now. Please tap Submit again.");
+          setStep("questions");
+          return;
+        }
+        setPagePayment(res.data?.payment ?? null);
+        setPagePaymentUrl(res.data?.paymentRedirectUrl ?? null);
+        // Free fallback destination only — in paid mode the button pays, never
+        // redirects to the (free) result.
+        setPageResultDest(assessment.paidMode ? null : (res.data?.resultUrl ?? null));
+        const r = await getResultForPages(submissionId);
+        if (r.ok && r.data) setPageResult(r.data);
+        setStep("resultPages");
+        return;
+      }
       // Paid mode: take payment instead of going to the VSL/result (results are
       // already stored; after paying, the user lands on the VSL with the token).
       // Razorpay Checkout opens with the lead's details prefilled — no form to fill;
@@ -239,6 +273,49 @@ export function AssessmentRunner({
       await new Promise((r) => setTimeout(r, 1200));
       window.location.replace(url);
     });
+  }
+
+  // Pay button on a result page: open the deferred payment (or fall back to the
+  // free VSL when no payment is configured).
+  function payFromPage() {
+    setPayError(null);
+    if (pagePayment) {
+      setPayPending(true);
+      openRazorpayCheckout(pagePayment, () => {
+        setPayError("Payment was cancelled. Tap the button to try again.");
+        setPayPending(false);
+      }).catch(() => {
+        setPayError("We couldn't load the payment screen. Please try again.");
+        setPayPending(false);
+      });
+      return;
+    }
+    if (pagePaymentUrl) {
+      window.location.replace(pagePaymentUrl);
+      return;
+    }
+    // Paid mode with no payment method available: do NOT fall through to the free
+    // result — surface an error so they can retry.
+    if (assessment.paidMode) {
+      setPayError("We couldn't start the payment just now. Please try again.");
+      return;
+    }
+    if (pageResultDest) {
+      const u = pageResultDest + (pageResultDest.includes("?") ? "&" : "?") + "event=1";
+      window.location.replace(u);
+    }
+  }
+
+  if (step === "resultPages") {
+    return (
+      <ResultPages
+        pages={assessment.pages}
+        result={pageResult ?? { overallBandTitle: null, overallBandLevel: null, categories: [] }}
+        onPay={payFromPage}
+        payPending={payPending}
+        payError={payError}
+      />
+    );
   }
 
   if (step === "intro") {
@@ -450,8 +527,8 @@ export function AssessmentRunner({
       <Button size="lg" onClick={submitAnswers} disabled={pending}>
         {pending
           ? "Submitting…"
-          : assessment.paidMode && assessment.paymentButtonLabel
-            ? assessment.paymentButtonLabel
+          : assessment.pages.length === 0 && assessment.paidMode && assessment.paymentButtonLabel
+            ? assessment.paymentButtonLabel // legacy: pay on submit when no result page
             : "Submit"}
       </Button>
     </div>

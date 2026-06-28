@@ -8,6 +8,8 @@ import { env } from "@/lib/env";
 import { ResultBandsManager } from "@/features/assessment/components/admin/result-bands-manager";
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
+import { PagesBuilder } from "@/features/assessment/components/admin/pages-builder";
+import { type BlockType } from "@/features/assessment/pages/blocks";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +83,18 @@ export default async function EditAssessmentPage({
     a.resultBands.map((b) => [b.level, b.title]),
   );
 
+  const initialPages = a.pages.map((p) => ({
+    id: p.id,
+    order: p.order,
+    title: p.title,
+    blocks: p.blocks.map((b) => ({
+      id: b.id,
+      type: b.type as BlockType,
+      order: b.order,
+      config: (b.config ?? {}) as Record<string, unknown>,
+    })),
+  }));
+
   const categoryOptions = a.categories.map((c) => ({ id: c.id, name: c.name }));
   const categoryBands = a.categories.flatMap((c) =>
     c.bands.map((b) => ({
@@ -148,6 +162,17 @@ export default async function EditAssessmentPage({
           <strong> new submissions</strong> (results are captured at completion).
         </p>
         <CategoryBandsManager categories={categoryOptions} bands={categoryBands} />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Result Pages (after the assessment)</h2>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Pages shown after the questions, in order. Add blocks — text/write-up, video embed,
+          payment button, and dynamic blocks (overall band, a per-band sentence, and the category
+          breakdown with <strong>scores blurred</strong> until payment). When at least one page exists,
+          the assessment ends with <strong>Submit</strong> and payment moves here.
+        </p>
+        <PagesBuilder assessmentId={a.id} initialPages={initialPages} bandTitles={bandWords} />
       </section>
 
       <p className="text-xs text-[var(--muted-foreground)]">

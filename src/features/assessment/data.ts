@@ -28,6 +28,7 @@ export async function getAssessmentById(id: string) {
         },
       },
       resultBands: { orderBy: { displayOrder: "asc" } },
+      pages: { orderBy: { order: "asc" }, include: { blocks: { orderBy: { order: "asc" } } } },
       _count: { select: { submissions: true } },
     },
   });
@@ -48,6 +49,7 @@ export async function getPublishedAssessmentBySlug(slug: string) {
         },
       },
       resultBands: { orderBy: { displayOrder: "asc" } },
+      pages: { orderBy: { order: "asc" }, include: { blocks: { orderBy: { order: "asc" } } } },
     },
   });
 }

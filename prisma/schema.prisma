@@ -277,10 +277,48 @@ model Assessment {
   resultBands ResultBand[]
   submissions Submission[]
   pageViews   PageView[]
+  pages       AssessmentPage[]
 
   @@index([tenantId])
   @@index([status])
   @@map("assessment")
+}
+
+// ---------------------------------------------------------------------------
+// AssessmentPage / PageBlock — the post-assessment page builder. Pages render in
+// order after the questions; each holds ordered, typed blocks whose `config` is
+// type-specific JSON (so new block types never change the schema). See
+// features/assessment/pages/blocks.ts for the block vocabulary.
+// ---------------------------------------------------------------------------
+
+model AssessmentPage {
+  id           String   @id @default(cuid())
+  assessmentId String
+  order        Int      @default(0)
+  title        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assessment Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  blocks     PageBlock[]
+
+  @@index([assessmentId, order])
+  @@map("assessment_page")
+}
+
+model PageBlock {
+  id        String   @id @default(cuid())
+  pageId    String
+  order     Int      @default(0)
+  type      String // see BlockType in features/assessment/pages/blocks.ts
+  config    Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  page AssessmentPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, order])
+  @@map("page_block")
 }
 
 // ---------------------------------------------------------------------------
