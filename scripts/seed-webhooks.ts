@@ -30,6 +30,7 @@ async function main() {
 
   await prisma.webhook.create({
     data: {
+      eventType: "ASSESSMENT_COMPLETED",
       name: "assessment.completed",
       url,
       status: "ACTIVE",

@@ -67,5 +67,12 @@ export async function deliverWebhook(args: DeliverArgs): Promise<DeliverResult> 
     select: { id: true },
   });
 
+  // Stamp the first successful delivery → from here the name/url are locked.
+  if (success && args.webhookId) {
+    await prisma.webhook
+      .updateMany({ where: { id: args.webhookId, firstDeliveredAt: null }, data: { firstDeliveredAt: new Date() } })
+      .catch(() => {});
+  }
+
   return { success, responseStatus, logId: log.id };
 }

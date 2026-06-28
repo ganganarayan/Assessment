@@ -79,7 +79,7 @@ async function main() {
     await prisma.webhook.upsert({
       where: { name: "assessment.completed" },
       update: { url: receiverUrl, secret: testSecret, status: "ACTIVE" },
-      create: { name: "assessment.completed", url: receiverUrl, secret: testSecret, status: "ACTIVE" },
+      create: { eventType: "ASSESSMENT_COMPLETED", name: "assessment.completed", url: receiverUrl, secret: testSecret, status: "ACTIVE" },
     });
     line(`\n(temporarily pointed assessment.completed -> ${receiverUrl})`);
 

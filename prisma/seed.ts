@@ -101,6 +101,7 @@ async function main() {
       where: { name: "assessment.completed" },
       update: {},
       create: {
+        eventType: "ASSESSMENT_COMPLETED",
         name: "assessment.completed",
         url: process.env.CRM_WEBHOOK_URL,
         status: "ACTIVE",

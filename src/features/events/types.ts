@@ -69,6 +69,26 @@ export const ACTIVE_EVENT_TYPES: EventType[] = [
  */
 export const EMITTED_EVENT_NAMES: string[] = ACTIVE_EVENT_TYPES.map((t) => EVENT_NAME[t]);
 
+/** Human label for each trigger, shown in the webhook trigger dropdown. */
+export const EVENT_LABEL: Partial<Record<EventType, string>> = {
+  [EventType.LEAD_CREATED]: "Opt-in (lead created)",
+  [EventType.ASSESSMENT_COMPLETED]: "Completed — free assessment",
+  [EventType.ASSESSMENT_COMPLETED_PAID]: "Completed — paid (on payment)",
+  [EventType.ASSESSMENT_COMPLETED_UNPAID]: "Completed — unpaid (after 30 min)",
+  [EventType.RESULT_VIEWED]: "Result viewed",
+  [EventType.ASSESSMENT_ABANDONED]: "Abandoned",
+  [EventType.RESULT_LINK_REQUESTED]: "Result link requested",
+};
+
+/** Suggested default delivered name per trigger (the canonical event name). */
+export const DEFAULT_EVENT_NAME: Partial<Record<EventType, string>> = Object.fromEntries(
+  ACTIVE_EVENT_TYPES.map((t) => [t, EVENT_NAME[t]]),
+) as Partial<Record<EventType, string>>;
+
+/** Free-form delivered-name rule: lowercase letters/digits in dotted OR underscore
+ *  segments — no binding to one separator. e.g. optin, completed_paid, lead.created. */
+export const WEBHOOK_NAME_REGEX = /^[a-z0-9]+([._][a-z0-9]+)*$/;
+
 /* ---------------------------------------------------- canonical payload ---- */
 
 export interface PayloadTenant {
@@ -176,11 +196,15 @@ export interface EmitInput {
 /** A webhook row enriched with usage stats (for the Webhooks page). */
 export interface WebhookRow {
   id: string;
-  name: string;
+  eventType: string; // the trigger (EventType)
+  eventLabel: string; // friendly trigger label
+  name: string; // delivered event name (free format)
   url: string;
   status: "ACTIVE" | "INACTIVE";
   logCount: number;
   lastFired: string | null;
+  /** True once a successful delivery has occurred — name/url are then frozen. */
+  locked: boolean;
 }
 
 /**

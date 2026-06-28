@@ -706,15 +706,24 @@ enum WebhookStatus {
 }
 
 model Webhook {
-  id        String        @id @default(cuid())
-  name      String        @unique // event name, immutable + unique
+  id String @id @default(cuid())
+  // The internal event that TRIGGERS this webhook (delivery matches on this, not
+  // on name) — so the name is free for the CRM. Many webhooks may share a trigger.
+  eventType EventType
+  // The delivered event identifier (free format: lowercase, "." or "_"). Becomes
+  // event / event_type / contact.event_type in the payload. Editable only until
+  // the first successful delivery (then frozen to protect a working CRM mapping).
+  name      String        @unique
   url       String
   status    WebhookStatus @default(ACTIVE)
   secret    String // HMAC-SHA256 signing secret for X-Assess-Signature
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  // Set on the first successful (2xx) delivery; once set, name/url are locked.
+  firstDeliveredAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([status])
+  @@index([eventType, status])
   @@map("webhook")
 }
 

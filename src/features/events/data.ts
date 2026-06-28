@@ -1,30 +1,35 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
+import { EVENT_LABEL } from "@/features/events/types";
 import type { WebhookRow, EventActivityRow } from "@/features/events/types";
 
-/** Webhooks split into active/inactive, enriched with event log count + last fired. */
+/** Webhooks split into active/inactive, enriched with delivery count + last fired
+ *  (counted PER WEBHOOK by webhookId, since names are now free/per-CRM). */
 export async function getWebhooks(): Promise<{
   active: WebhookRow[];
   inactive: WebhookRow[];
 }> {
   const [webhooks, counts] = await Promise.all([
     prisma.webhook.findMany({ orderBy: { name: "asc" } }),
-    prisma.eventLog.groupBy({
-      by: ["name"],
+    prisma.webhookLog.groupBy({
+      by: ["webhookId"],
       _count: { _all: true },
       _max: { createdAt: true },
     }),
   ]);
-  const byName = new Map(counts.map((c) => [c.name, c]));
+  const byId = new Map(counts.map((c) => [c.webhookId, c]));
   const rows: WebhookRow[] = webhooks.map((w) => {
-    const c = byName.get(w.name);
+    const c = byId.get(w.id);
     return {
       id: w.id,
+      eventType: w.eventType,
+      eventLabel: EVENT_LABEL[w.eventType] ?? w.eventType,
       name: w.name,
       url: w.url,
       status: w.status,
       logCount: c?._count._all ?? 0,
       lastFired: c?._max.createdAt ? c._max.createdAt.toISOString() : null,
+      locked: w.firstDeliveredAt !== null,
     };
   });
   return {
@@ -42,13 +47,14 @@ export async function listEventActivity(opts: {
   page: number;
   pageSize: number;
 }): Promise<{ rows: EventActivityRow[]; total: number }> {
-  const [events, total, activeWebhooks] = await Promise.all([
+  const [events, total, allWebhooks] = await Promise.all([
     prisma.eventLog.findMany({
       orderBy: { createdAt: "desc" },
       skip: (opts.page - 1) * opts.pageSize,
       take: opts.pageSize,
       select: {
         id: true,
+        type: true,
         name: true,
         createdAt: true,
         submissionId: true,
@@ -57,9 +63,13 @@ export async function listEventActivity(opts: {
       },
     }),
     prisma.eventLog.count(),
-    prisma.webhook.findMany({ where: { status: "ACTIVE" }, select: { name: true } }),
+    prisma.webhook.findMany({ select: { id: true, name: true, eventType: true, status: true } }),
   ]);
-  const activeNames = new Set(activeWebhooks.map((w) => w.name));
+  // Names/types are decoupled, so join EventLog <-> WebhookLog by event TYPE, not
+  // name. Resolve each delivery's type via its webhook (by id, name fallback).
+  const webhookTypeById = new Map(allWebhooks.map((w) => [w.id, w.eventType as string]));
+  const webhookTypeByName = new Map(allWebhooks.map((w) => [w.name, w.eventType as string]));
+  const activeTypes = new Set(allWebhooks.filter((w) => w.status === "ACTIVE").map((w) => w.eventType as string));
 
   const subIds = events
     .map((e) => e.submissionId)
@@ -70,6 +80,7 @@ export async function listEventActivity(opts: {
         orderBy: { createdAt: "desc" },
         select: {
           eventName: true,
+          webhookId: true,
           submissionId: true,
           endpoint: true,
           success: true,
@@ -80,15 +91,22 @@ export async function listEventActivity(opts: {
         },
       })
     : [];
-  // Latest delivery per submission+event (deliveries are ordered desc).
+  // Latest delivery per submission+eventType (deliveries are ordered desc).
   const delMap = new Map<string, (typeof deliveries)[number]>();
   for (const d of deliveries) {
-    const key = `${d.submissionId}|${d.eventName}`;
-    if (!delMap.has(key)) delMap.set(key, d);
+    const t =
+      (d.webhookId ? webhookTypeById.get(d.webhookId) : undefined) ??
+      webhookTypeByName.get(d.eventName);
+    if (!t) continue; // crm: sends and orphaned logs are not event deliveries
+    const key = `${d.submissionId}|${t}`;
+    // One row per event in this view. With >1 webhook per trigger (multi-CRM),
+    // keep the latest, but let a FAILED delivery win so a failure is never masked.
+    const existing = delMap.get(key);
+    if (!existing || (existing.success && !d.success)) delMap.set(key, d);
   }
 
   const rows: EventActivityRow[] = events.map((e) => {
-    const d = e.submissionId ? delMap.get(`${e.submissionId}|${e.name}`) : undefined;
+    const d = e.submissionId ? delMap.get(`${e.submissionId}|${e.type}`) : undefined;
     const deliveryStatus = d ? (d.success ? "delivered" : "failed") : "none";
     return {
       id: e.id,
@@ -103,7 +121,7 @@ export async function listEventActivity(opts: {
       attemptCount: d?.attemptCount ?? 0,
       responseBody: d?.responseBody ?? null,
       error: d?.error ?? null,
-      canRetry: activeNames.has(e.name) && deliveryStatus !== "delivered",
+      canRetry: activeTypes.has(e.type) && deliveryStatus !== "delivered",
     };
   });
 

@@ -245,6 +245,22 @@ export function shapePayload(type: EventType, env: EventEnvelope): Record<string
   return env as unknown as Record<string, unknown>;
 }
 
+/**
+ * Override a shaped payload's delivered identifier with a webhook's chosen name.
+ * `event` (verbatim) + `event_type`/`contact.event_type` (dots normalized to
+ * underscores, the stable CRM key). Lets each webhook deliver under its own name.
+ */
+export function withDeliveredName(
+  payload: Record<string, unknown>,
+  name: string,
+): Record<string, unknown> {
+  const eventType = name.replace(/\./g, "_");
+  const out: Record<string, unknown> = { ...payload, event_type: eventType };
+  if ("event" in out) out.event = name;
+  if ("contact.event_type" in out) out["contact.event_type"] = eventType;
+  return out;
+}
+
 /* --------------------------------------------------- preview sample data --- */
 
 /** A representative payload for the config-screen preview (read-only). Shaped

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { deliverWebhook } from "@/lib/webhooks/dispatch";
 import { EVENT_NAME, type EmitInput } from "@/features/events/types";
-import { buildEnvelope, shapePayload } from "@/lib/events/payload";
+import { buildEnvelope, shapePayload, withDeliveredName } from "@/lib/events/payload";
 
 /**
  * Central event service.
@@ -37,18 +37,22 @@ export async function emitEvent(type: EventType, input: EmitInput): Promise<void
     },
   });
 
-  // 2) Deliver to the ACTIVE webhook for this event name — fully non-blocking.
+  // 2) Deliver to EVERY ACTIVE webhook whose trigger is this event — non-blocking.
+  //    Each delivers under its own configured name (any CRM, many CRMs per event).
   void (async () => {
-    const webhook = await prisma.webhook.findUnique({ where: { name } });
-    if (!webhook || webhook.status !== "ACTIVE") return;
-    await deliverWebhook({
-      webhookId: webhook.id,
-      url: webhook.url,
-      secret: webhook.secret,
-      eventName: name,
-      body: JSON.stringify(payload),
-      submissionId: input.submissionId ?? null,
-    });
+    const webhooks = await prisma.webhook.findMany({ where: { eventType: type, status: "ACTIVE" } });
+    await Promise.all(
+      webhooks.map((webhook) =>
+        deliverWebhook({
+          webhookId: webhook.id,
+          url: webhook.url,
+          secret: webhook.secret,
+          eventName: webhook.name,
+          body: JSON.stringify(withDeliveredName(payload, webhook.name)),
+          submissionId: input.submissionId ?? null,
+        }),
+      ),
+    );
   })().catch(() => {
     // Delivery failures are recorded in WebhookLog; never surface to the user.
   });
