@@ -13,6 +13,7 @@ import {
   startCustom,
   previewCustomCount,
   stopCustom,
+  clearCustomPending,
   retryFailedCustom,
   listCustomPending,
   sendTestCustom,
@@ -141,6 +142,18 @@ export function CustomSender({ assessmentId }: { assessmentId: string }) {
       setErr(null);
       await stopCustom();
       setMsg("Stop requested (takes effect after the current send).");
+      await refresh();
+    });
+
+  const doClear = () =>
+    start(async () => {
+      if (!confirm("Discard ALL pending contacts in this queue (a leftover/previous run)? Nothing is sent. You can then Start a fresh scope.")) return;
+      setErr(null);
+      setMsg(null);
+      setPreviewMsg(null);
+      const r = await clearCustomPending();
+      if (!r.ok) return setErr(r.error);
+      setMsg(`Cleared ${r.data?.cleared ?? 0} pending.`);
       await refresh();
     });
 
@@ -274,6 +287,11 @@ export function CustomSender({ assessmentId }: { assessmentId: string }) {
         <Button variant="outline" disabled={pending} onClick={() => void refresh()}>
           Refresh
         </Button>
+        {cfg && cfg.pending > 0 ? (
+          <Button variant="outline" disabled={pending} onClick={doClear} className="border-red-500 text-red-600 hover:bg-red-500/10">
+            Clear pending ({cfg.pending})
+          </Button>
+        ) : null}
         {cfg && cfg.failed > 0 ? (
           <Button variant="outline" disabled={pending} onClick={doRetry}>
             Retry failed ({cfg.failed})

@@ -323,6 +323,17 @@ export async function stopCustom(): Promise<ActionResult> {
   return { ok: true };
 }
 
+/** Empty the CUSTOM queue (everything not mid-send) — discard a stale/leftover run
+ *  so the next Start queues only the chosen scope. */
+export async function clearCustomPending(): Promise<ActionResult<{ cleared: number }>> {
+  await requireSuperAdmin();
+  await stopWorker(CrmSendKind.CUSTOM);
+  const res = await prisma.crmSendQueue.deleteMany({
+    where: { kind: CrmSendKind.CUSTOM, status: { not: CrmSendStatus.SENDING } },
+  });
+  return { ok: true, data: { cleared: res.count } };
+}
+
 export async function retryFailedCustom(): Promise<ActionResult> {
   await requireSuperAdmin();
   await prisma.crmSendQueue.updateMany({
