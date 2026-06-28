@@ -11,6 +11,7 @@ import {
   setCrmDiagnosisUrl,
   setCustomConfig,
   startCustom,
+  previewCustomCount,
   stopCustom,
   retryFailedCustom,
   listCustomPending,
@@ -43,6 +44,7 @@ export function CustomSender({ assessmentId }: { assessmentId: string }) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [scope, setScope] = useState<"all" | "paid">("all");
+  const [previewMsg, setPreviewMsg] = useState<string | null>(null);
   const [tName, setTName] = useState("");
   const [tEmail, setTEmail] = useState("");
   const [tPhone, setTPhone] = useState("");
@@ -122,6 +124,16 @@ export function CustomSender({ assessmentId }: { assessmentId: string }) {
       if (!r.ok) return setErr(r.error);
       setMsg(`Started. ${r.data?.enqueued ?? 0} queued this run.`);
       await refresh();
+    });
+
+  const doPreview = () =>
+    start(async () => {
+      setErr(null);
+      setPreviewMsg(null);
+      const r = await previewCustomCount(assessmentId, scope);
+      if (!r.ok) return setErr(r.error);
+      const who = scope === "paid" ? "paid buyer(s)" : "completed contact(s)";
+      setPreviewMsg(`${r.data?.count ?? 0} ${who} match this selection (nothing sent).`);
     });
 
   const doStop = () =>
@@ -236,7 +248,10 @@ export function CustomSender({ assessmentId }: { assessmentId: string }) {
           <select
             id="custom-scope"
             value={scope}
-            onChange={(e) => setScope(e.target.value as "all" | "paid")}
+            onChange={(e) => {
+              setScope(e.target.value as "all" | "paid");
+              setPreviewMsg(null); // stale once the scope changes
+            }}
             disabled={cfg?.running || pending}
             className="h-9 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
           >
@@ -244,6 +259,9 @@ export function CustomSender({ assessmentId }: { assessmentId: string }) {
             <option value="paid">Paid only (captured payment)</option>
           </select>
         </div>
+        <Button variant="outline" disabled={pending} onClick={doPreview}>
+          Preview count
+        </Button>
         {cfg?.running ? (
           <Button variant="outline" disabled={pending} onClick={doStop} className="border-red-500 text-red-600 hover:bg-red-500/10">
             Stop
@@ -276,6 +294,7 @@ export function CustomSender({ assessmentId }: { assessmentId: string }) {
 
       <CrmPendingList rows={pendingQ.rows} count={pendingQ.count} />
 
+      {previewMsg ? <p className="text-sm font-medium text-[var(--foreground)]">🔎 {previewMsg}</p> : null}
       {msg ? <p className="text-xs text-green-600">{msg}</p> : null}
       {err ? <p className="text-sm text-red-500">{err}</p> : null}
     </div>

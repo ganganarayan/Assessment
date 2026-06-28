@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { startWorker, stopWorker, isWorkerRunning } from "@/lib/crm/drip";
-import { enqueueScore, enqueueCustom, type CustomScope } from "@/lib/crm/enqueue";
+import { enqueueScore, enqueueCustom, countCustomTargets, type CustomScope } from "@/lib/crm/enqueue";
 import { buildEnvelope, shapePayload } from "@/lib/events/payload";
 import { buildCustomPayload, isCustomFieldKey, type CustomFieldData } from "@/lib/crm/custom-fields";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -306,6 +306,15 @@ export async function startCustom(
   const enqueued = await enqueueCustom(assessmentId, scope);
   await startWorker(CrmSendKind.CUSTOM);
   return { ok: true, data: { enqueued } };
+}
+
+/** Count how many contacts the given scope would queue — preview before sending. */
+export async function previewCustomCount(
+  assessmentId: string,
+  scope: CustomScope = "all",
+): Promise<ActionResult<{ count: number }>> {
+  await requireSuperAdmin();
+  return { ok: true, data: { count: await countCustomTargets(assessmentId, scope) } };
 }
 
 export async function stopCustom(): Promise<ActionResult> {
