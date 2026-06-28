@@ -42,6 +42,7 @@ export function CustomSender({ assessmentId }: { assessmentId: string }) {
   const [pending, start] = useTransition();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const [scope, setScope] = useState<"all" | "paid">("all");
   const [tName, setTName] = useState("");
   const [tEmail, setTEmail] = useState("");
   const [tPhone, setTPhone] = useState("");
@@ -113,10 +114,11 @@ export function CustomSender({ assessmentId }: { assessmentId: string }) {
 
   const doStart = () =>
     start(async () => {
-      if (!confirm(`Start the "${name}" send to ALL completed contacts of this assessment?\n\nRuns in the background inside your daily window, one every random delay. You can close the page; it resumes after a deploy.`)) return;
+      const who = scope === "paid" ? "only PAID contacts (with a captured payment)" : "ALL completed contacts";
+      if (!confirm(`Start the "${name}" send to ${who} of this assessment?\n\nRuns in the background inside your daily window, one every random delay. You can close the page; it resumes after a deploy.`)) return;
       setErr(null);
       setMsg(null);
-      const r = await startCustom(assessmentId);
+      const r = await startCustom(assessmentId, scope);
       if (!r.ok) return setErr(r.error);
       setMsg(`Started. ${r.data?.enqueued ?? 0} queued this run.`);
       await refresh();
@@ -229,6 +231,19 @@ export function CustomSender({ assessmentId }: { assessmentId: string }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 text-sm">
+          <Label htmlFor="custom-scope">Send to</Label>
+          <select
+            id="custom-scope"
+            value={scope}
+            onChange={(e) => setScope(e.target.value as "all" | "paid")}
+            disabled={cfg?.running || pending}
+            className="h-9 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+          >
+            <option value="all">All completed contacts</option>
+            <option value="paid">Paid only (captured payment)</option>
+          </select>
+        </div>
         {cfg?.running ? (
           <Button variant="outline" disabled={pending} onClick={doStop} className="border-red-500 text-red-600 hover:bg-red-500/10">
             Stop

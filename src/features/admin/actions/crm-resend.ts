@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { startWorker, stopWorker, isWorkerRunning } from "@/lib/crm/drip";
-import { enqueueScore, enqueueCustom } from "@/lib/crm/enqueue";
+import { enqueueScore, enqueueCustom, type CustomScope } from "@/lib/crm/enqueue";
 import { buildEnvelope, shapePayload } from "@/lib/events/payload";
 import { buildCustomPayload, isCustomFieldKey, type CustomFieldData } from "@/lib/crm/custom-fields";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -296,11 +296,14 @@ export async function setCustomConfig(input: {
   return { ok: true };
 }
 
-export async function startCustom(assessmentId: string): Promise<ActionResult<{ enqueued: number }>> {
+export async function startCustom(
+  assessmentId: string,
+  scope: CustomScope = "all",
+): Promise<ActionResult<{ enqueued: number }>> {
   await requireSuperAdmin();
   const s = await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { crmDiagnosisUrl: true } });
   if (!s?.crmDiagnosisUrl) return { ok: false, error: "Set the endpoint URL first." };
-  const enqueued = await enqueueCustom(assessmentId);
+  const enqueued = await enqueueCustom(assessmentId, scope);
   await startWorker(CrmSendKind.CUSTOM);
   return { ok: true, data: { enqueued } };
 }
