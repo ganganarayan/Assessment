@@ -15,7 +15,6 @@ import {
 import {
   addPage,
   deletePage,
-  movePage,
   updatePageTitle,
   addBlock,
   updateBlockConfig,
@@ -136,8 +135,6 @@ export function PagesBuilder({
               onBlur={(e) => run(() => updatePageTitle(page.id, e.target.value))}
             />
             <div className="ml-auto flex gap-1">
-              <Button size="sm" variant="outline" disabled={pending || pi === 0} onClick={() => run(() => movePage(page.id, "up"))}>↑</Button>
-              <Button size="sm" variant="outline" disabled={pending || pi === pages.length - 1} onClick={() => run(() => movePage(page.id, "down"))}>↓</Button>
               <Button size="sm" variant="outline" disabled={pending} onClick={() => { if (confirm("Delete this page and its blocks?")) run(() => deletePage(page.id)); }} className="border-red-500 text-red-600 hover:bg-red-500/10">Delete page</Button>
             </div>
           </div>
@@ -162,11 +159,13 @@ export function PagesBuilder({
         </div>
       ))}
 
-      <div>
-        <Button disabled={pending} onClick={() => run(() => addPage(assessmentId))}>
-          + Add page
-        </Button>
-      </div>
+      {pages.length === 0 ? (
+        <div>
+          <Button disabled={pending} onClick={() => run(() => addPage(assessmentId))}>
+            + Add results page
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

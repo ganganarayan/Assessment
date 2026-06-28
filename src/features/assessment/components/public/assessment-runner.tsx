@@ -52,6 +52,7 @@ export interface PublicAssessment {
   collectProfession: boolean;
   professionRequired: boolean;
   paidMode: boolean;
+  questionDisplayMode: "ALL" | "CATEGORY" | "SINGLE";
   paymentHeadline: string | null;
   paymentButtonLabel: string | null;
   paymentIntroText: string | null;
@@ -98,6 +99,7 @@ export function AssessmentRunner({
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [lockout, setLockout] = useState<Lockout | null>(null);
+  const [screenIndex, setScreenIndex] = useState(0); // current question page (paginated modes)
   // Page-builder (page 2) state: the result for dynamic blocks + the deferred
   // payment (the pay button block triggers it) + a free-flow destination.
   const [pageResult, setPageResult] = useState<PageResultData | null>(null);
@@ -166,6 +168,7 @@ export function AssessmentRunner({
       if (res.data?.status === "started" && res.data.answers) {
         setAnswers(res.data.answers);
       }
+      setScreenIndex(0); // start at the first question page
       setStep("questions");
     });
   }
@@ -199,7 +202,7 @@ export function AssessmentRunner({
       })),
     };
     // Switch to the countdown IMMEDIATELY (outside the transition) so it renders
-    // from 10, while the server scores + generates the AI statement.
+    // from 3, while the server scores + generates the AI statement.
     setStep("evaluating");
     start(async () => {
       const res = await completeSubmission(submissionId, payload);
@@ -473,12 +476,46 @@ export function AssessmentRunner({
     return <EvaluatingCountdown />;
   }
 
-  // step === "questions"
+  // step === "questions" — paginate the questions by the display mode.
   const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(" ");
   const leadContact = [lead.email, lead.mobile].filter(Boolean).join(" · ");
+
+  type QGroup = { cat: (typeof assessment.categories)[number]; qs: (typeof assessment.categories)[number]["questions"] };
+  const screens: QGroup[][] =
+    assessment.questionDisplayMode === "CATEGORY"
+      ? assessment.categories.map((c) => [{ cat: c, qs: c.questions }])
+      : assessment.questionDisplayMode === "SINGLE"
+        ? assessment.categories.flatMap((c) => c.questions.map((q) => [{ cat: c, qs: [q] }]))
+        : [assessment.categories.map((c) => ({ cat: c, qs: c.questions }))];
+  const lastIdx = Math.max(0, screens.length - 1);
+  const idx = Math.min(screenIndex, lastIdx);
+  const isLast = idx >= lastIdx;
+  const current = screens[idx] ?? [];
+  const currentRequiredLeft = current.flatMap((g) => g.qs).filter((q) => q.required && !answers[q.id]).length;
+
+  const goNext = () => {
+    if (currentRequiredLeft > 0) {
+      setError(`Please answer all required questions (${currentRequiredLeft} left).`);
+      return;
+    }
+    setError(null);
+    setScreenIndex((i) => Math.min(i + 1, lastIdx));
+  };
+  const goBack = () => {
+    setError(null);
+    setScreenIndex((i) => Math.max(i - 1, 0));
+  };
+
   return (
     <div className="flex flex-col gap-8">
-      <h2 className="text-xl font-semibold">{assessment.title}</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-xl font-semibold">{assessment.title}</h2>
+        {screens.length > 1 ? (
+          <span className="shrink-0 text-xs text-[var(--muted-foreground)]">
+            Step {idx + 1} of {screens.length}
+          </span>
+        ) : null}
+      </div>
       {leadName || leadContact ? (
         <div className="rounded-lg border bg-[var(--muted)] px-4 py-2 text-sm">
           {leadName ? <span className="font-medium">{leadName}</span> : null}
@@ -486,15 +523,15 @@ export function AssessmentRunner({
           {leadContact ? <span className="text-[var(--muted-foreground)]">{leadContact}</span> : null}
         </div>
       ) : null}
-      {assessment.categories.map((c) => (
-        <div key={c.id} className="flex flex-col gap-4">
+      {current.map((g) => (
+        <div key={`${g.cat.id}-${g.qs[0]?.id ?? ""}`} className="flex flex-col gap-4">
           <div>
-            <h3 className="font-semibold">{c.name}</h3>
-            {c.description ? (
-              <p className="text-sm text-[var(--muted-foreground)]">{c.description}</p>
+            <h3 className="font-semibold">{g.cat.name}</h3>
+            {g.cat.description && assessment.questionDisplayMode !== "SINGLE" ? (
+              <p className="text-sm text-[var(--muted-foreground)]">{g.cat.description}</p>
             ) : null}
           </div>
-          {c.questions.map((q) => (
+          {g.qs.map((q) => (
             <fieldset key={q.id} className="flex flex-col gap-2 rounded-lg border p-4">
               <legend className="px-1 text-sm font-medium">
                 {q.text} {q.required ? <span className="text-red-500">*</span> : null}
@@ -506,9 +543,7 @@ export function AssessmentRunner({
                       type="radio"
                       name={q.id}
                       checked={answers[q.id] === o.id}
-                      onChange={() =>
-                        setAnswers((a) => ({ ...a, [q.id]: o.id }))
-                      }
+                      onChange={() => setAnswers((a) => ({ ...a, [q.id]: o.id }))}
                     />
                     {o.label}
                   </label>
@@ -518,19 +553,32 @@ export function AssessmentRunner({
           ))}
         </div>
       ))}
-      {assessment.paidMode && assessment.paymentHeadline ? (
-        <p className="whitespace-pre-line text-center text-lg font-semibold">
-          {assessment.paymentHeadline}
-        </p>
+      {isLast && assessment.paidMode && assessment.paymentHeadline ? (
+        <p className="whitespace-pre-line text-center text-lg font-semibold">{assessment.paymentHeadline}</p>
       ) : null}
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
-      <Button size="lg" onClick={submitAnswers} disabled={pending}>
-        {pending
-          ? "Submitting…"
-          : assessment.pages.length === 0 && assessment.paidMode && assessment.paymentButtonLabel
-            ? assessment.paymentButtonLabel // legacy: pay on submit when no result page
-            : "Submit"}
-      </Button>
+      <div className="flex items-center justify-between gap-3">
+        {idx > 0 ? (
+          <Button size="lg" variant="outline" onClick={goBack} disabled={pending}>
+            Back
+          </Button>
+        ) : (
+          <span />
+        )}
+        {isLast ? (
+          <Button size="lg" onClick={submitAnswers} disabled={pending}>
+            {pending
+              ? "Submitting…"
+              : assessment.pages.length === 0 && assessment.paidMode && assessment.paymentButtonLabel
+                ? assessment.paymentButtonLabel // legacy: pay on submit when no result page
+                : "Submit"}
+          </Button>
+        ) : (
+          <Button size="lg" onClick={goNext} disabled={pending}>
+            Next
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -542,7 +590,7 @@ export function AssessmentRunner({
  * completeSubmission resolving; past 0 it shows a check.
  */
 function EvaluatingCountdown() {
-  const [n, setN] = useState(10);
+  const [n, setN] = useState(3);
   useEffect(() => {
     if (n <= 0) return;
     const t = setTimeout(() => setN((x) => x - 1), 1000);

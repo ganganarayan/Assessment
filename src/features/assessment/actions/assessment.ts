@@ -45,7 +45,11 @@ export async function createAssessment(
       targetUrl: nullifyEmpty(d.targetUrl),
       targetOrigin: originOf(nullifyEmpty(d.targetUrl)),
       tokenTtlSeconds: d.tokenTtlSeconds ?? null,
-      paidMode: d.paidMode,
+      questionDisplayMode: d.questionDisplayMode,
+      // nextStep is the source of truth; keep the legacy paidMode boolean in sync
+      // so existing payment/event/runner logic keeps working unchanged.
+      nextStep: d.nextStep,
+      paidMode: d.nextStep === "PAYMENT",
       paymentUrl: nullifyEmpty(d.paymentUrl),
       paymentHeadline: nullifyEmpty(d.paymentHeadline),
       paymentButtonLabel: nullifyEmpty(d.paymentButtonLabel),
@@ -102,7 +106,11 @@ export async function updateAssessment(
       targetUrl: nullifyEmpty(d.targetUrl),
       targetOrigin: originOf(nullifyEmpty(d.targetUrl)),
       tokenTtlSeconds: d.tokenTtlSeconds ?? null,
-      paidMode: d.paidMode,
+      questionDisplayMode: d.questionDisplayMode,
+      // nextStep is the source of truth; keep the legacy paidMode boolean in sync
+      // so existing payment/event/runner logic keeps working unchanged.
+      nextStep: d.nextStep,
+      paidMode: d.nextStep === "PAYMENT",
       paymentUrl: nullifyEmpty(d.paymentUrl),
       paymentHeadline: nullifyEmpty(d.paymentHeadline),
       paymentButtonLabel: nullifyEmpty(d.paymentButtonLabel),

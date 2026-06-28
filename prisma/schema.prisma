@@ -203,6 +203,20 @@ enum UniqueIdentifier {
   MOBILE
 }
 
+// How the assessment's questions are shown to the respondent.
+enum QuestionDisplayMode {
+  ALL // every question on one page
+  CATEGORY // one page per category
+  SINGLE // one question per page (with its category name)
+}
+
+// The step the flow moves to after the Results page. Explicit binding — every
+// flow must resolve to one. paidMode is kept in sync (PAYMENT => paidMode on).
+enum NextStep {
+  PAYMENT // take payment (Razorpay), then the destination
+  DESTINATION // go straight to the destination/VSL (no payment)
+}
+
 // ---------------------------------------------------------------------------
 // Assessment — the top-level container. Public at /a/[slug] when PUBLISHED.
 // ---------------------------------------------------------------------------
@@ -236,6 +250,14 @@ model Assessment {
   uniqueIdentifier UniqueIdentifier @default(EMAIL)
   // Optional VSL/training link shown on the retake-lockout screen.
   trainingUrl      String?
+
+  // How questions are paginated for the respondent (one page / per category / one
+  // question at a time).
+  questionDisplayMode QuestionDisplayMode @default(ALL)
+  // Explicit "next step" after the Results page. Source of truth for the flow;
+  // paidMode below is kept in sync (PAYMENT => paidMode true) so existing payment,
+  // event, and runner logic keeps working unchanged.
+  nextStep            NextStep           @default(DESTINATION)
 
   // Destination page the respondent lands on after completing (with ?t=<token>).
   // Its ORIGIN (derived on save) is what authorizes the public read endpoint's

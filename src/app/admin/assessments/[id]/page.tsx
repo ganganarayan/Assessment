@@ -9,6 +9,7 @@ import { ResultBandsManager } from "@/features/assessment/components/admin/resul
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { PagesBuilder } from "@/features/assessment/components/admin/pages-builder";
+import { BuilderTabs } from "@/features/assessment/components/admin/builder-tabs";
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
 import { Badge } from "@/components/ui/badge";
 
@@ -46,7 +47,8 @@ export default async function EditAssessmentPage({
     trainingUrl: a.trainingUrl ?? "",
     targetUrl: a.targetUrl ?? "",
     tokenTtlSeconds: a.tokenTtlSeconds ?? undefined,
-    paidMode: a.paidMode,
+    questionDisplayMode: a.questionDisplayMode,
+    nextStep: a.nextStep,
     paymentUrl: a.paymentUrl ?? "",
     paymentHeadline: a.paymentHeadline ?? "",
     paymentButtonLabel: a.paymentButtonLabel ?? "",
@@ -112,26 +114,8 @@ export default async function EditAssessmentPage({
     })),
   );
 
-  return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-3">
-        <Link href="/admin/assessments" className="text-sm underline">
-          ← Assessments
-        </Link>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">{a.title}</h1>
-            <Badge variant={a.status === "PUBLISHED" ? "success" : "muted"}>
-              {a.status}
-            </Badge>
-          </div>
-          <AssessmentRowActions id={a.id} slug={a.slug} published={a.status === "PUBLISHED"} />
-        </div>
-        <p className="text-xs text-[var(--muted-foreground)]">
-          Public URL: <span className="font-mono">/a/{a.slug}</span>
-        </p>
-      </div>
-
+  const assessmentTab = (
+    <>
       <AssessmentForm mode="edit" id={a.id} initial={initial} />
 
       <section className="flex flex-col gap-3">
@@ -168,27 +152,59 @@ export default async function EditAssessmentPage({
         <CategoryBandsManager categories={categoryOptions} bands={categoryBands} />
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Result Pages (after the assessment)</h2>
-        <p className="text-xs text-[var(--muted-foreground)]">
-          Pages shown after the questions, in order. Add blocks — text/write-up, video embed,
-          payment button, and dynamic blocks (overall band, a per-band sentence, and the category
-          breakdown with <strong>scores blurred</strong> until payment). When at least one page exists,
-          the assessment ends with <strong>Submit</strong> and payment moves here.
-        </p>
-        <PagesBuilder
-          assessmentId={a.id}
-          initialPages={initialPages}
-          bandTitles={bandWords}
-          initialDirty={initialDirty}
-          lastPublishedAt={a.pagesPublishedAt ? a.pagesPublishedAt.toISOString() : null}
-        />
-      </section>
-
       <p className="text-xs text-[var(--muted-foreground)]">
         Data maintenance for existing contacts (band recompute, answer recovery, AI re-run) and the CRM
         senders now live under <a href="/admin/operations" className="underline">Operations</a>.
       </p>
+    </>
+  );
+
+  const resultsTab = (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-lg font-semibold">Results page</h2>
+      <p className="text-xs text-[var(--muted-foreground)]">
+        The single page shown after the questions. Add blocks — text/write-up, video embed,
+        payment button, and dynamic blocks (overall band, a per-band sentence, and the category
+        breakdown with <strong>scores blurred</strong> until payment). Edits auto-save as a draft;
+        click <strong>Publish</strong> to make them live. The step after this page (Payment or
+        Destination) is set under <em>Assessment → Next step after results</em>.
+      </p>
+      <PagesBuilder
+        assessmentId={a.id}
+        initialPages={initialPages}
+        bandTitles={bandWords}
+        initialDirty={initialDirty}
+        lastPublishedAt={a.pagesPublishedAt ? a.pagesPublishedAt.toISOString() : null}
+      />
+    </section>
+  );
+
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-3">
+        <Link href="/admin/assessment-builder" className="text-sm underline">
+          ← Assessment Builder
+        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">{a.title}</h1>
+            <Badge variant={a.status === "PUBLISHED" ? "success" : "muted"}>
+              {a.status}
+            </Badge>
+          </div>
+          <AssessmentRowActions id={a.id} slug={a.slug} published={a.status === "PUBLISHED"} />
+        </div>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Public URL: <span className="font-mono">/a/{a.slug}</span>
+        </p>
+      </div>
+
+      <BuilderTabs
+        tabs={[
+          { key: "assessment", label: "Assessment", content: assessmentTab },
+          { key: "results", label: "Results", content: resultsTab },
+        ]}
+      />
     </div>
   );
 }

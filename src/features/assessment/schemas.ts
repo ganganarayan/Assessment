@@ -52,8 +52,12 @@ export const assessmentSchema = z.object({
     .url("Enter a valid URL.")
     .startsWith("https://", "Destination URL must use https://"),
   tokenTtlSeconds: z.coerce.number().int().min(60).max(7776000).optional(), // up to 90 days
-  // Pay-to-unlock. paidMode on => submit redirects to paymentUrl instead of the VSL.
-  paidMode: z.boolean().default(false),
+  // How the questions are paginated for the respondent.
+  questionDisplayMode: z.enum(["ALL", "CATEGORY", "SINGLE"]).default("ALL"),
+  // Explicit next step after the Results page. PAYMENT => take payment then go to
+  // the destination; DESTINATION => straight to the destination/VSL. The save
+  // action derives the legacy paidMode boolean from this.
+  nextStep: z.enum(["PAYMENT", "DESTINATION"]).default("DESTINATION"),
   paymentUrl: z.string().url("Enter a valid payment URL.").optional().or(z.literal("")),
   paymentHeadline: z.string().max(2000).optional().or(z.literal("")),
   paymentButtonLabel: z.string().max(200).optional().or(z.literal("")),
@@ -64,11 +68,11 @@ export const assessmentSchema = z.object({
   // Payment notice on the opt-in form (above Start), paid mode only.
   paymentIntroText: z.string().max(2000).optional().or(z.literal("")),
 }).superRefine((d, ctx) => {
-  if (d.paidMode && !d.paymentAmount && !d.paymentUrl) {
+  if (d.nextStep === "PAYMENT" && !d.paymentAmount && !d.paymentUrl) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["paymentAmount"],
-      message: "Set a price (₹) or a payment link when paid mode is on.",
+      message: "Set a price (₹) or a payment link when the next step is Payment.",
     });
   }
   // A lockout can only be enforced if the identifying field is always captured.

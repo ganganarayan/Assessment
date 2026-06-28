@@ -2,79 +2,58 @@ import Link from "next/link";
 import { listAssessments } from "@/features/assessment/data";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 
 export const dynamic = "force-dynamic";
 
+/** Assessments: the PUBLISHED (live) assessments only — an overview with public
+ *  links. Editing/creating lives in the Assessment Builder. */
 export default async function AssessmentsPage() {
-  const assessments = await listAssessments();
+  const all = await listAssessments();
+  const published = all.filter((a) => a.status === "PUBLISHED");
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold tracking-tight">Assessments</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href="/admin/import" className={buttonVariants({ variant: "outline" })}>
-            Import
-          </Link>
-          <details className="relative">
-            <summary
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "cursor-pointer list-none",
-              )}
-            >
-              Export All ▼
-            </summary>
-            <div className="absolute right-0 z-10 mt-1 flex w-40 flex-col rounded-md border bg-[var(--background)] p-1 text-sm shadow">
-              <a href="/api/admin/assessments/export-all?format=json" className="rounded px-2 py-1.5 hover:bg-[var(--muted)]">
-                JSON
-              </a>
-              <a href="/api/admin/assessments/export-all?format=csv" className="rounded px-2 py-1.5 hover:bg-[var(--muted)]">
-                CSV
-              </a>
-            </div>
-          </details>
-          <Link href="/admin/assessments/new" className={buttonVariants()}>
-            New assessment
-          </Link>
-        </div>
+        <Link href="/admin/assessment-builder" className={buttonVariants({ variant: "outline" })}>
+          Open Assessment Builder
+        </Link>
       </div>
 
-      {assessments.length === 0 ? (
+      {published.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">
-          No assessments yet. Create your first one.
+          No published assessments yet. Build and publish one in the{" "}
+          <Link href="/admin/assessment-builder" className="underline">Assessment Builder</Link>.
         </p>
       ) : (
         <div className="flex flex-col divide-y rounded-lg border">
-          {assessments.map((a) => (
-            <div
-              key={a.id}
-              className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
+          {published.map((a) => (
+            <div key={a.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
-                  <Link
-                    href={`/admin/assessments/${a.id}`}
-                    className="font-medium hover:underline"
-                  >
-                    {a.title}
-                  </Link>
-                  <Badge variant={a.status === "PUBLISHED" ? "success" : "muted"}>
-                    {a.status}
-                  </Badge>
+                  <span className="font-medium">{a.title}</span>
+                  <Badge variant="success">LIVE</Badge>
                 </div>
                 <p className="text-xs text-[var(--muted-foreground)]">
-                  /a/{a.slug} · {a._count.categories} categories ·{" "}
-                  {a._count.submissions} submissions
+                  /a/{a.slug} · {a._count.categories} categories · {a._count.submissions} submissions
                 </p>
               </div>
-              <AssessmentRowActions
-                id={a.id}
-                slug={a.slug}
-                published={a.status === "PUBLISHED"}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <a
+                  href={`/a/${a.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  View public page
+                </a>
+                <Link
+                  href={`/admin/assessments/${a.id}`}
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  Open in builder
+                </Link>
+              </div>
             </div>
           ))}
         </div>

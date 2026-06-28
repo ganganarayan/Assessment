@@ -46,6 +46,7 @@ export default async function PublicAssessmentPage({
     collectProfession: a.collectProfession,
     professionRequired: a.professionRequired,
     paidMode: a.paidMode,
+    questionDisplayMode: a.questionDisplayMode,
     paymentHeadline: a.paymentHeadline,
     paymentButtonLabel: a.paymentButtonLabel,
     paymentIntroText: a.paymentIntroText,
