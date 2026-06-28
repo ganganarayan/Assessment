@@ -9,7 +9,7 @@ import { ResultBandsManager } from "@/features/assessment/components/admin/resul
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { PagesBuilder } from "@/features/assessment/components/admin/pages-builder";
-import { BuilderTabs } from "@/features/assessment/components/admin/builder-tabs";
+import { BuilderTabPanels } from "@/features/assessment/components/admin/builder-tab-panels";
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
 import { Badge } from "@/components/ui/badge";
 
@@ -199,10 +199,10 @@ export default async function EditAssessmentPage({
         </p>
       </div>
 
-      <BuilderTabs
+      <BuilderTabPanels
         tabs={[
-          { key: "assessment", label: "Assessment", content: assessmentTab },
-          { key: "results", label: "Results", content: resultsTab },
+          { key: "assessment", content: assessmentTab },
+          { key: "results", content: resultsTab },
         ]}
       />
     </div>

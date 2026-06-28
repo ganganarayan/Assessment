@@ -6,6 +6,13 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
+import { useBuilderTab, BUILDER_TABS } from "@/features/admin/components/builder-tab-context";
+
+const BUILDER_HREF = "/admin/assessment-builder";
+/** True on an assessment editor page (/admin/assessments/<id>, not the list/new). */
+function isAssessmentEditor(pathname: string) {
+  return /^\/admin\/assessments\/[^/]+$/.test(pathname) && !pathname.endsWith("/new");
+}
 
 interface NavItem {
   href: string;
@@ -53,9 +60,17 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
 export function AdminSidebar({ user }: AdminSidebarProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const tab = useBuilderTab();
+  const editing = isAssessmentEditor(pathname);
 
-  const isActive = (href: string) =>
-    href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+  const isActive = (href: string) => {
+    if (href === "/admin") return pathname === "/admin";
+    // The editor + create live under /admin/assessments/* and belong to the builder.
+    if (href === BUILDER_HREF) return pathname.startsWith(BUILDER_HREF) || pathname.startsWith("/admin/assessments/");
+    // "Assessments" (published list) is the exact path only — not the editor.
+    if (href === "/admin/assessments") return pathname === "/admin/assessments";
+    return pathname.startsWith(href);
+  };
 
   return (
     <>
@@ -87,17 +102,40 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                   </p>
                 ) : null}
                 {group.items.map((it) => (
-                  <Link
-                    key={it.href}
-                    href={it.href}
-                    onClick={() => setOpen(false)}
-                    className={cn(
-                      "rounded-md px-2 py-1.5 hover:bg-[var(--muted)]",
-                      isActive(it.href) && "bg-[var(--muted)] font-medium",
-                    )}
-                  >
-                    {it.label}
-                  </Link>
+                  <div key={it.href} className="flex flex-col">
+                    <Link
+                      href={it.href}
+                      onClick={() => setOpen(false)}
+                      className={cn(
+                        "rounded-md px-2 py-1.5 hover:bg-[var(--muted)]",
+                        isActive(it.href) && "bg-[var(--muted)] font-medium",
+                      )}
+                    >
+                      {it.label}
+                    </Link>
+                    {/* While editing an assessment, the builder's tabs live here as
+                        a branch under "Assessment Builder" (no wasted in-page rail). */}
+                    {it.href === BUILDER_HREF && editing ? (
+                      <div className="mt-1 ml-3 flex flex-col gap-1 border-l pl-2">
+                        {BUILDER_TABS.map((t) => (
+                          <button
+                            key={t.key}
+                            type="button"
+                            onClick={() => {
+                              tab?.setActive(t.key);
+                              setOpen(false);
+                            }}
+                            className={cn(
+                              "rounded-md px-2 py-1 text-left text-sm hover:bg-[var(--muted)]",
+                              (tab?.active ?? "assessment") === t.key && "bg-[var(--muted)] font-medium",
+                            )}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                 ))}
               </div>
             ))}
