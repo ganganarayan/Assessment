@@ -114,7 +114,7 @@ export function CustomSender({ assessmentId }: { assessmentId: string }) {
 
   const doStart = () =>
     start(async () => {
-      const who = scope === "paid" ? "every PAID buyer (captured payment, across all assessments)" : "ALL completed contacts of this assessment";
+      const who = scope === "paid" ? "only PAID contacts (with a captured payment)" : "ALL completed contacts";
       if (!confirm(`Start the "${name}" send to ${who} of this assessment?\n\nRuns in the background inside your daily window, one every random delay. You can close the page; it resumes after a deploy.`)) return;
       setErr(null);
       setMsg(null);
@@ -240,8 +240,8 @@ export function CustomSender({ assessmentId }: { assessmentId: string }) {
             disabled={cfg?.running || pending}
             className="h-9 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
           >
-            <option value="all">All completed contacts (this assessment)</option>
-            <option value="paid">Paid buyers only (all assessments)</option>
+            <option value="all">All completed contacts</option>
+            <option value="paid">Paid only (captured payment)</option>
           </select>
         </div>
         {cfg?.running ? (
