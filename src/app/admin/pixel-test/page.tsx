@@ -1,9 +1,12 @@
 import { PixelTester } from "@/features/events/components/pixel-tester";
 import { CapiTester } from "@/features/events/components/capi-tester";
+import { PurchaseRecovery } from "@/features/events/components/purchase-recovery";
+import { listRecentPurchases } from "@/features/events/data";
 
 export const dynamic = "force-dynamic";
 
-export default function PixelTestPage() {
+export default async function PixelTestPage() {
+  const purchases = await listRecentPurchases();
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -20,6 +23,8 @@ export default function PixelTestPage() {
       <PixelTester />
 
       <CapiTester />
+
+      <PurchaseRecovery purchases={purchases} />
 
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-[var(--muted-foreground)]">
         <strong className="text-[var(--foreground)]">Testing only.</strong> Events go to the

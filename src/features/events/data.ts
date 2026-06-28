@@ -187,3 +187,39 @@ export async function listCrmSendLogs(opts: {
 export async function getAppSetting() {
   return prisma.appSetting.findUnique({ where: { id: "singleton" } });
 }
+
+export interface RecentPurchase {
+  submissionId: string;
+  paymentId: string;
+  amountRupees: number | null;
+  email: string | null;
+  createdAt: string;
+}
+
+/** Recent captured assessment-unlock payments, for the "re-send conversion to
+ *  Meta" recovery tool (e.g. sales whose buyer never returned so CAPI never fired). */
+export async function listRecentPurchases(take = 25): Promise<RecentPurchase[]> {
+  const payments = await prisma.payment.findMany({
+    where: {
+      purpose: "assessment_unlock",
+      status: { in: ["captured", "paid"] },
+      providerPaymentId: { not: null },
+      submissionId: { not: null },
+    },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: { providerPaymentId: true, amount: true, createdAt: true, submissionId: true },
+  });
+  const subIds = payments.map((p) => p.submissionId).filter((s): s is string => Boolean(s));
+  const subs = subIds.length
+    ? await prisma.submission.findMany({ where: { id: { in: subIds } }, select: { id: true, leadEmail: true } })
+    : [];
+  const emailById = new Map(subs.map((s) => [s.id, s.leadEmail]));
+  return payments.map((p) => ({
+    submissionId: p.submissionId as string,
+    paymentId: p.providerPaymentId as string,
+    amountRupees: p.amount != null ? p.amount / 100 : null,
+    email: emailById.get(p.submissionId as string) ?? null,
+    createdAt: p.createdAt.toISOString(),
+  }));
+}

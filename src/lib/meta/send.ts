@@ -91,6 +91,36 @@ export async function testCapi(testEventCode?: string, eventNameInput?: string):
   }
 }
 
+/**
+ * Like sendCapiEvent but RETURNS Meta's real response (status + body) and never
+ * applies a test code — for the admin "re-send a real purchase" recovery tool, so
+ * the operator can see the conversion was accepted (events_received: 1).
+ */
+export async function sendCapiEventVerbose(input: CapiEventInput): Promise<{
+  ok: boolean;
+  status?: number;
+  response?: string;
+  error?: string;
+}> {
+  const cfg = getConfig();
+  if (!cfg) {
+    return { ok: false, error: "META_CAPI_ACCESS_TOKEN (and a dataset/pixel id) is NOT set on this environment." };
+  }
+  const body = JSON.stringify({ data: [buildCapiEvent(input)] }); // real conversion — no test code
+  const url = `https://graph.facebook.com/${cfg.version}/${cfg.datasetId}/events?access_token=${encodeURIComponent(cfg.accessToken)}`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+      signal: AbortSignal.timeout(8_000),
+    });
+    return { ok: res.ok, status: res.status, response: (await res.text()).slice(0, 800) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 export async function sendCapiEvent(input: CapiEventInput): Promise<void> {
   const cfg = getConfig();
   if (!cfg) return; // inert until configured
