@@ -818,6 +818,9 @@ model Payment {
   method            String? // card / upi / netbanking / …
   event             String? // razorpay event that recorded it
   notes             Json?
+  // Set when the Meta Purchase conversion (CAPI) was confirmed sent for this
+  // payment — null = never fired. Authoritative answer to "did Meta get this sale".
+  metaConversionAt  DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

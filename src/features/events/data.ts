@@ -194,6 +194,8 @@ export interface RecentPurchase {
   amountRupees: number | null;
   email: string | null;
   createdAt: string;
+  recordedVia: string | null; // the razorpay event that recorded it
+  metaConversionAt: string | null; // when Meta got the conversion (null = never)
 }
 
 /** Recent captured assessment-unlock payments, for the "re-send conversion to
@@ -208,7 +210,7 @@ export async function listRecentPurchases(take = 25): Promise<RecentPurchase[]> 
     },
     orderBy: { createdAt: "desc" },
     take,
-    select: { providerPaymentId: true, amount: true, createdAt: true, submissionId: true },
+    select: { providerPaymentId: true, amount: true, createdAt: true, submissionId: true, event: true, metaConversionAt: true },
   });
   const subIds = payments.map((p) => p.submissionId).filter((s): s is string => Boolean(s));
   const subs = subIds.length
@@ -221,5 +223,7 @@ export async function listRecentPurchases(take = 25): Promise<RecentPurchase[]> 
     amountRupees: p.amount != null ? p.amount / 100 : null,
     email: emailById.get(p.submissionId as string) ?? null,
     createdAt: p.createdAt.toISOString(),
+    recordedVia: p.event ?? null,
+    metaConversionAt: p.metaConversionAt ? p.metaConversionAt.toISOString() : null,
   }));
 }

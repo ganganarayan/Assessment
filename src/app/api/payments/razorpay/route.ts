@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { verifyWebhookSignature, isWebhookSignatureVerified } from "@/lib/payments/razorpay";
-import { sendCapiEvent, isCapiConfigured } from "@/lib/meta/send";
+import { sendCapiEventVerbose, isCapiConfigured } from "@/lib/meta/send";
 import { emitCompletedPaid } from "@/lib/events/completion";
 
 export const dynamic = "force-dynamic";
@@ -47,14 +47,19 @@ async function fireConversionFromWebhook(submissionId: string, paymentId: string
   if (!s?.assessment) return;
   const amountRupees = s.assessment.paymentAmount ?? (amountPaise != null ? amountPaise / 100 : null);
   const dest = vslUrl(s.assessment.targetUrl, s.assessment.slug, submissionId, s.resultToken);
-  await sendCapiEvent({
+  const r = await sendCapiEventVerbose({
     eventName: s.assessment.paymentEventName || "Purchase121",
     eventId: paymentId,
     eventTimeMs: Date.now(),
     eventSourceUrl: dest,
     user: { email: s.leadEmail, phone: s.leadMobile, firstName: s.leadFirstName, lastName: s.leadLastName },
     customData: amountRupees != null ? { value: amountRupees, currency: "INR" } : { currency: "INR" },
-  }).catch(() => {});
+  });
+  if (r.ok) {
+    await prisma.payment
+      .updateMany({ where: { providerPaymentId: paymentId, metaConversionAt: null }, data: { metaConversionAt: new Date() } })
+      .catch(() => {});
+  }
 }
 
 /**
@@ -151,7 +156,9 @@ export async function POST(req: Request) {
   // browser: fire the Meta conversion + completed_paid here (deduped/CAS-guarded).
   if (created && verified && purpose === "assessment_unlock" && status === "captured") {
     if (submissionId) {
-      await fireConversionFromWebhook(submissionId, providerPaymentId, amount);
+      // Fire-and-forget so the webhook responds fast (the persistent server keeps
+      // the promise alive); the conversion + completed_paid run in the background.
+      void fireConversionFromWebhook(submissionId, providerPaymentId, amount).catch(() => {});
     } else {
       // Recorded but unlinkable — no submission to fire the conversion against.
       console.error(`[razorpay-webhook] captured payment ${providerPaymentId} has no submissionId in notes; conversion not fired.`);

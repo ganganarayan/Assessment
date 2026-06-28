@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { verifyPaymentSignature } from "@/lib/payments/razorpay";
-import { sendCapiEvent, isCapiConfigured } from "@/lib/meta/send";
+import { sendCapiEventVerbose, isCapiConfigured } from "@/lib/meta/send";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { emitCompletedPaid } from "@/lib/events/completion";
 
@@ -94,14 +94,21 @@ export async function POST(req: Request) {
   // verify POST carries the buyer's cookies/IP/UA, so match quality is strong.
   if (isCapiConfigured()) {
     const ctx = await getMetaRequestContext();
-    void sendCapiEvent({
-      eventName: s.assessment.paymentEventName || "Purchase121",
-      eventId: paymentId,
-      eventTimeMs: Date.now(),
-      eventSourceUrl: dest,
-      user: { email: s.leadEmail, phone: s.leadMobile, firstName: s.leadFirstName, lastName: s.leadLastName, ...ctx },
-      customData: amountRupees != null ? { value: amountRupees, currency: "INR" } : { currency: "INR" },
-    }).catch(() => {});
+    void (async () => {
+      const r = await sendCapiEventVerbose({
+        eventName: s.assessment.paymentEventName || "Purchase121",
+        eventId: paymentId,
+        eventTimeMs: Date.now(),
+        eventSourceUrl: dest,
+        user: { email: s.leadEmail, phone: s.leadMobile, firstName: s.leadFirstName, lastName: s.leadLastName, ...ctx },
+        customData: amountRupees != null ? { value: amountRupees, currency: "INR" } : { currency: "INR" },
+      });
+      if (r.ok) {
+        await prisma.payment
+          .updateMany({ where: { providerPaymentId: paymentId, metaConversionAt: null }, data: { metaConversionAt: new Date() } })
+          .catch(() => {});
+      }
+    })().catch(() => {});
   }
 
   return NextResponse.redirect(finalUrl, 303);

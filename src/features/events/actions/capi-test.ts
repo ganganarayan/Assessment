@@ -69,5 +69,10 @@ export async function resendPurchaseToMeta(submissionId: string): Promise<{
     user: { email: s.leadEmail, phone: s.leadMobile, firstName: s.leadFirstName, lastName: s.leadLastName },
     customData: amountRupees != null ? { value: amountRupees, currency: p.currency || "INR" } : { currency: p.currency || "INR" },
   });
+  if (r.ok) {
+    await prisma.payment
+      .updateMany({ where: { providerPaymentId: p.providerPaymentId, metaConversionAt: null }, data: { metaConversionAt: new Date() } })
+      .catch(() => {});
+  }
   return { ...r, eventName, eventId: p.providerPaymentId };
 }
