@@ -21,6 +21,7 @@ import {
   updateBlockConfig,
   deleteBlock,
   moveBlock,
+  publishPages,
 } from "@/features/assessment/actions/pages";
 
 /**
@@ -32,13 +33,20 @@ export function PagesBuilder({
   assessmentId,
   initialPages,
   bandTitles,
+  initialDirty,
+  lastPublishedAt,
 }: {
   assessmentId: string;
   initialPages: AssessmentPageData[];
   bandTitles: Record<string, string>; // level -> your word (Stable / Overwhelmed / …)
+  initialDirty: boolean;
+  lastPublishedAt: string | null;
 }) {
   const [pages, setPages] = useState<AssessmentPageData[]>(initialPages);
   const [pending, start] = useTransition();
+  // Draft auto-saves; "dirty" = draft differs from the published (live) version.
+  const [dirtyPub, setDirtyPub] = useState(initialDirty);
+  const [publishedAt, setPublishedAt] = useState<string | null>(lastPublishedAt);
   // Block configs being typed but not yet saved. When any action returns the fresh
   // list, we overlay these so an in-progress edit in another block isn't wiped.
   const dirty = useRef<Record<string, Record<string, unknown>>>({});
@@ -57,7 +65,19 @@ export function PagesBuilder({
   const run = (fn: () => Promise<{ ok: boolean; data?: AssessmentPageData[]; error?: string }>) =>
     start(async () => {
       const r = await fn();
-      if (r.ok && r.data) applyServer(r.data);
+      if (r.ok && r.data) {
+        applyServer(r.data);
+        setDirtyPub(true); // draft changed; needs Publish to go live
+      }
+    });
+
+  const publish = () =>
+    start(async () => {
+      const r = await publishPages(assessmentId);
+      if (r.ok && r.data) {
+        setDirtyPub(false);
+        setPublishedAt(r.data.publishedAt);
+      }
     });
 
   const setBlockLocal = (blockId: string, config: Record<string, unknown>) => {
@@ -69,7 +89,10 @@ export function PagesBuilder({
     start(async () => {
       const r = await updateBlockConfig(blockId, config);
       delete dirty.current[blockId]; // saved — let server state win from here
-      if (r.ok && r.data) applyServer(r.data);
+      if (r.ok && r.data) {
+        applyServer(r.data);
+        setDirtyPub(true);
+      }
     });
 
   const setPageTitleLocal = (pageId: string, title: string) =>
@@ -77,6 +100,23 @@ export function PagesBuilder({
 
   return (
     <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-[var(--muted)]/30 p-3">
+        <div className="flex flex-col">
+          <span className="text-sm font-medium">
+            {dirtyPub ? "Draft has unpublished changes" : "Published — live version is up to date"}
+          </span>
+          <span className="text-xs text-[var(--muted-foreground)]">
+            {pending ? "Saving draft…" : "Edits auto-save as a draft. Click Publish to make them live."}
+            {publishedAt ? ` · Last published ${new Date(publishedAt).toLocaleString()}` : " · Never published"}
+          </span>
+        </div>
+        <div className="ml-auto">
+          <Button disabled={pending || !dirtyPub} onClick={publish}>
+            {dirtyPub ? "Publish changes" : "Published ✓"}
+          </Button>
+        </div>
+      </div>
+
       {pages.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">
           No pages yet. Add a page to show a results step after the assessment (overall band, a

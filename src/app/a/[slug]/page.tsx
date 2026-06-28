@@ -5,6 +5,7 @@ import {
   AssessmentRunner,
   type PublicAssessment,
 } from "@/features/assessment/components/public/assessment-runner";
+import { readPublishedPages } from "@/features/assessment/pages/blocks";
 
 export const dynamic = "force-dynamic";
 
@@ -48,17 +49,8 @@ export default async function PublicAssessmentPage({
     paymentHeadline: a.paymentHeadline,
     paymentButtonLabel: a.paymentButtonLabel,
     paymentIntroText: a.paymentIntroText,
-    pages: a.pages.map((p) => ({
-      id: p.id,
-      order: p.order,
-      title: p.title,
-      blocks: p.blocks.map((b) => ({
-        id: b.id,
-        type: b.type as import("@/features/assessment/pages/blocks").BlockType,
-        order: b.order,
-        config: (b.config ?? {}) as Record<string, unknown>,
-      })),
-    })),
+    // Public renders ONLY the published snapshot (never the draft rows).
+    pages: readPublishedPages(a.publishedPages),
     categories: a.categories.map((c) => ({
       id: c.id,
       name: c.name,

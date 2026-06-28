@@ -262,6 +262,13 @@ model Assessment {
   // mode only) — sets the expectation up front so there are no surprises.
   paymentIntroText   String?
 
+  // Published snapshot of the result-page builder (array of AssessmentPageData).
+  // The relational AssessmentPage/PageBlock rows are the editable DRAFT; the public
+  // renders ONLY this snapshot, so unpublished edits never go live. Null = no pages
+  // published yet (old flow: straight to payment/VSL).
+  publishedPages   Json?
+  pagesPublishedAt DateTime?
+
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

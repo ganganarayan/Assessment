@@ -49,7 +49,9 @@ export async function getPublishedAssessmentBySlug(slug: string) {
         },
       },
       resultBands: { orderBy: { displayOrder: "asc" } },
-      pages: { orderBy: { order: "asc" }, include: { blocks: { orderBy: { order: "asc" } } } },
+      // NOTE: the public renders Assessment.publishedPages (a scalar JSON snapshot,
+      // auto-selected here), NOT the editable draft rows — so unpublished page edits
+      // never go live.
     },
   });
 }

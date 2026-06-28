@@ -9,7 +9,7 @@ import { ResultBandsManager } from "@/features/assessment/components/admin/resul
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { PagesBuilder } from "@/features/assessment/components/admin/pages-builder";
-import { type BlockType } from "@/features/assessment/pages/blocks";
+import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
@@ -95,6 +95,10 @@ export default async function EditAssessmentPage({
     })),
   }));
 
+  // Draft (rows) vs published snapshot: drives the "unpublished changes" badge.
+  const publishedPages = readPublishedPages(a.publishedPages);
+  const initialDirty = normalizePages(initialPages) !== normalizePages(publishedPages);
+
   const categoryOptions = a.categories.map((c) => ({ id: c.id, name: c.name }));
   const categoryBands = a.categories.flatMap((c) =>
     c.bands.map((b) => ({
@@ -172,7 +176,13 @@ export default async function EditAssessmentPage({
           breakdown with <strong>scores blurred</strong> until payment). When at least one page exists,
           the assessment ends with <strong>Submit</strong> and payment moves here.
         </p>
-        <PagesBuilder assessmentId={a.id} initialPages={initialPages} bandTitles={bandWords} />
+        <PagesBuilder
+          assessmentId={a.id}
+          initialPages={initialPages}
+          bandTitles={bandWords}
+          initialDirty={initialDirty}
+          lastPublishedAt={a.pagesPublishedAt ? a.pagesPublishedAt.toISOString() : null}
+        />
       </section>
 
       <p className="text-xs text-[var(--muted-foreground)]">

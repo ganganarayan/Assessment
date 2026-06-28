@@ -3,7 +3,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin } from "@/lib/auth/guards";
-import { isBlockType, defaultConfig, type BlockType, type AssessmentPageData } from "@/features/assessment/pages/blocks";
+import { isBlockType, defaultConfig, readPublishedPages, type BlockType, type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
@@ -48,6 +48,25 @@ export async function loadPages(assessmentId: string): Promise<AssessmentPageDat
       config: (b.config ?? {}) as Record<string, unknown>,
     })),
   }));
+}
+
+/** Publish: snapshot the current draft (rows) into Assessment.publishedPages — the
+ *  only thing the public renders. Auto-saved draft edits stay invisible until this. */
+export async function publishPages(assessmentId: string): Promise<ActionResult<{ publishedAt: string }>> {
+  await requireSuperAdmin();
+  const draft = await loadPages(assessmentId);
+  const now = new Date();
+  await prisma.assessment.update({
+    where: { id: assessmentId },
+    data: { publishedPages: draft as unknown as Prisma.InputJsonValue, pagesPublishedAt: now },
+  });
+  return { ok: true, data: { publishedAt: now.toISOString() } };
+}
+
+/** The published snapshot for the public flow (empty if never published). */
+export async function getPublishedPages(assessmentId: string): Promise<AssessmentPageData[]> {
+  const a = await prisma.assessment.findUnique({ where: { id: assessmentId }, select: { publishedPages: true } });
+  return readPublishedPages(a?.publishedPages ?? null);
 }
 
 async function assessmentIdForPage(pageId: string): Promise<string | null> {

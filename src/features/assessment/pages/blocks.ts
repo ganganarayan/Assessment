@@ -71,6 +71,45 @@ export interface AssessmentPageData {
   blocks: PageBlockData[];
 }
 
+/** Stable, id-free serialization of a page tree — used to tell whether the draft
+ *  differs from the published snapshot (so the UI can show "unpublished changes").
+ *  Sorts object keys so config key-order never causes a false difference. */
+export function normalizePages(pages: AssessmentPageData[]): string {
+  const sort = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(sort);
+    if (v && typeof v === "object") {
+      return Object.keys(v as Record<string, unknown>)
+        .sort()
+        .reduce<Record<string, unknown>>((acc, k) => {
+          acc[k] = sort((v as Record<string, unknown>)[k]);
+          return acc;
+        }, {});
+    }
+    return v;
+  };
+  return JSON.stringify(
+    pages.map((p) => ({ title: p.title ?? "", blocks: p.blocks.map((b) => ({ type: b.type, config: sort(b.config ?? {}) })) })),
+  );
+}
+
+/** Coerce a stored publishedPages JSON value into typed page data (defensive). */
+export function readPublishedPages(value: unknown): AssessmentPageData[] {
+  if (!Array.isArray(value)) return [];
+  return (value as AssessmentPageData[]).map((p) => ({
+    id: String(p?.id ?? ""),
+    order: Number(p?.order ?? 0),
+    title: p?.title ?? null,
+    blocks: Array.isArray(p?.blocks)
+      ? p.blocks.map((b) => ({
+          id: String(b?.id ?? ""),
+          type: b?.type as BlockType,
+          order: Number(b?.order ?? 0),
+          config: (b?.config ?? {}) as Record<string, unknown>,
+        }))
+      : [],
+  }));
+}
+
 /** Default config when adding a new block of a type (so the editor has fields). */
 export function defaultConfig(type: BlockType): Record<string, unknown> {
   switch (type) {
