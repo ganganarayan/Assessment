@@ -98,3 +98,20 @@ export function verifyWebhookSignature(rawBody: string, signature: string | null
     return false;
   }
 }
+
+/**
+ * Stricter check: TRUE only when a secret IS configured AND the signature is valid
+ * (unlike verifyWebhookSignature, which is permissive when no secret is set so
+ * payments still record). Use this to gate side effects that an unauthenticated
+ * caller must NEVER trigger — e.g. firing a Meta conversion / CRM event.
+ */
+export function isWebhookSignatureVerified(rawBody: string, signature: string | null): boolean {
+  const secret = env.RAZORPAY_WEBHOOK_SECRET;
+  if (!secret || !signature) return false;
+  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  try {
+    return crypto.timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex"));
+  } catch {
+    return false;
+  }
+}

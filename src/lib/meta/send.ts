@@ -95,9 +95,12 @@ export async function sendCapiEvent(input: CapiEventInput): Promise<void> {
   const cfg = getConfig();
   if (!cfg) return; // inert until configured
 
+  // PRODUCTION path: never attach test_event_code. A lingering
+  // META_CAPI_TEST_EVENT_CODE would otherwise route every real conversion
+  // (Purchase121, AssessmentCompleted…) to Events Manager → Test Events, where
+  // the campaign can't count it. The CAPI Tester uses its own (testCapi) path.
   const body = JSON.stringify({
     data: [buildCapiEvent(input)],
-    ...(cfg.testEventCode ? { test_event_code: cfg.testEventCode } : {}),
   });
 
   const url = `https://graph.facebook.com/${cfg.version}/${cfg.datasetId}/events?access_token=${encodeURIComponent(cfg.accessToken)}`;
