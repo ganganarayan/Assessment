@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { BandRecompute } from "@/features/assessment/components/admin/band-recompute";
 import { ReconstructAnswers } from "@/features/assessment/components/admin/reconstruct-answers";
 import { AiRerun } from "@/features/assessment/components/admin/ai-rerun";
@@ -18,8 +19,31 @@ export interface OpAssessment {
  * SELECTED assessment. The Score sender is global (all changed contacts). Switching
  * the assessment remounts each tool (via key) so its state resets cleanly.
  */
+const DEFAULT_KEY = "assess360.opsDefaultAssessment";
+
 export function OperationsPanel({ assessments }: { assessments: OpAssessment[] }) {
   const [sel, setSel] = useState(assessments[0]?.id ?? "");
+  const [savedDefault, setSavedDefault] = useState(false);
+
+  // Apply the saved default assessment on mount (client-only, so no SSR mismatch).
+  useEffect(() => {
+    try {
+      const d = localStorage.getItem(DEFAULT_KEY);
+      if (d && assessments.some((a) => a.id === d)) setSel(d);
+    } catch {
+      /* localStorage unavailable */
+    }
+  }, [assessments]);
+
+  function setAsDefault() {
+    try {
+      localStorage.setItem(DEFAULT_KEY, sel);
+      setSavedDefault(true);
+      setTimeout(() => setSavedDefault(false), 1500);
+    } catch {
+      /* ignore */
+    }
+  }
 
   if (assessments.length === 0) {
     return <p className="text-sm text-[var(--muted-foreground)]">No assessments yet.</p>;
@@ -31,18 +55,23 @@ export function OperationsPanel({ assessments }: { assessments: OpAssessment[] }
         <label htmlFor="op-assessment" className="text-sm font-medium">
           Assessment
         </label>
-        <select
-          id="op-assessment"
-          value={sel}
-          onChange={(e) => setSel(e.target.value)}
-          className="h-9 w-full max-w-md rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
-        >
-          {assessments.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.title}
-            </option>
-          ))}
-        </select>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            id="op-assessment"
+            value={sel}
+            onChange={(e) => setSel(e.target.value)}
+            className="h-9 w-full max-w-md rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+          >
+            {assessments.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.title}
+              </option>
+            ))}
+          </select>
+          <Button size="sm" variant="outline" onClick={setAsDefault}>
+            {savedDefault ? "Saved ✓" : "Set as default"}
+          </Button>
+        </div>
         <p className="text-xs text-[var(--muted-foreground)]">
           These tools run against the selected assessment (the Score sender is global — every changed
           contact). Switching assessments resets the panels below.

@@ -256,7 +256,12 @@ function Table({
                     <td className="px-3 py-1.5 font-mono text-xs">
                       {r.name} {r.locked ? <span title="Locked after first delivery">🔒</span> : null}
                     </td>
-                    <td className="max-w-xs truncate px-3 py-1.5 text-xs">{r.url}</td>
+                    <td className="px-3 py-1.5 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="max-w-xs truncate">{r.url}</span>
+                        <CopyButton text={r.url} />
+                      </div>
+                    </td>
                     <td className="px-3 py-1.5">
                       <Badge variant={r.status === "ACTIVE" ? "success" : "muted"}>{r.status}</Badge>
                     </td>
@@ -280,5 +285,27 @@ function Table({
         </div>
       )}
     </section>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      title="Copy endpoint URL"
+      onClick={() => {
+        navigator.clipboard?.writeText(text).then(
+          () => {
+            setDone(true);
+            setTimeout(() => setDone(false), 1200);
+          },
+          () => {},
+        );
+      }}
+      className="shrink-0 rounded border px-1.5 py-0.5 text-[11px] hover:bg-[var(--muted)]"
+    >
+      {done ? "Copied ✓" : "Copy"}
+    </button>
   );
 }
