@@ -30,9 +30,11 @@ export async function getAnalyticsStats(range?: { from?: string; to?: string }) 
     prisma.submission.count({ where: scope }),
     prisma.submission.count({ where: { ...scope, status: "COMPLETED" } }),
     prisma.submission.count({ where: { ...scope, resultFetchedAt: { not: null } } }),
-    // Captured payments (count + total ₹) in the same window.
+    // Captured ASSESSMENT payments (count + total ₹) in the same window. Require a
+    // submissionId so unrelated Razorpay payments (other links on the same account,
+    // with no app submissionId) are never counted as assessment sales.
     prisma.payment.aggregate({
-      where: { ...scope, purpose: "assessment_unlock", status: "captured" },
+      where: { ...scope, purpose: "assessment_unlock", status: "captured", submissionId: { not: null } },
       _count: { _all: true },
       _sum: { amount: true },
     }),

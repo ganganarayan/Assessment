@@ -111,10 +111,17 @@ async function resolvePaidCheckout(opts: {
       };
       return { payment };
     } catch {
-      // Razorpay failed — fall back to the static link (if any) below.
+      // Razorpay Checkout (the trackable method — its order carries the submissionId)
+      // failed. Do NOT fall back to a bare static link here: that payment would have
+      // no submissionId, so the webhook would (correctly) ignore it and the sale would
+      // be lost from the stats/CRM/Meta. Return nothing → the runner shows a retry.
+      return {};
     }
   }
 
+  // No Razorpay Checkout configured (no keys/amount): use the static link if set.
+  // NOTE: a fixed static link can't carry a per-buyer submissionId, so those sales
+  // aren't auto-tracked — prefer the Price (Checkout) for tracked paid assessments.
   return opts.paymentUrl ? { paymentRedirectUrl: withToken(opts.paymentUrl, opts.token) } : {};
 }
 

@@ -130,8 +130,20 @@ export async function POST(req: Request) {
   const existing = await prisma.payment.findUnique({ where: { providerPaymentId } });
   if (existing) return NextResponse.json({ ok: true, duplicate: true });
 
+  // ONLY assessment payments belong in this app. The Razorpay account fires
+  // payment.captured for EVERY payment — including unrelated payment links you share
+  // elsewhere — and those carry no app submissionId. Ignore them rather than
+  // mis-recording them as assessment sales (the old code defaulted purpose to
+  // "assessment_unlock", which polluted the Paid stat).
   const submissionId = asStr(notes.submissionId);
-  const purpose = asStr(notes.purpose) ?? "assessment_unlock";
+  if (!submissionId) {
+    return NextResponse.json({ ok: true, ignored: "no submissionId — not an assessment payment" });
+  }
+  const sub = await prisma.submission.findUnique({ where: { id: submissionId }, select: { id: true } });
+  if (!sub) {
+    return NextResponse.json({ ok: true, ignored: "unknown submissionId — not an assessment payment" });
+  }
+  const purpose = asStr(notes.purpose) ?? "assessment_unlock"; // safe now: a real assessment submission
   const status = asStr(payment.status) ?? "captured";
   const amount = asInt(payment.amount);
 
@@ -161,15 +173,10 @@ export async function POST(req: Request) {
 
   // This webhook is the path of record for buyers who never returned to the
   // browser: fire the Meta conversion + completed_paid here (deduped/CAS-guarded).
+  // submissionId is guaranteed valid above. Fire-and-forget so the webhook responds
+  // fast (the persistent server keeps the promise alive).
   if (created && verified && purpose === "assessment_unlock" && status === "captured") {
-    if (submissionId) {
-      // Fire-and-forget so the webhook responds fast (the persistent server keeps
-      // the promise alive); the conversion + completed_paid run in the background.
-      void fireConversionFromWebhook(submissionId, providerPaymentId, amount).catch(() => {});
-    } else {
-      // Recorded but unlinkable — no submission to fire the conversion against.
-      console.error(`[razorpay-webhook] captured payment ${providerPaymentId} has no submissionId in notes; conversion not fired.`);
-    }
+    void fireConversionFromWebhook(submissionId, providerPaymentId, amount).catch(() => {});
   }
 
   return NextResponse.json({ ok: true });
