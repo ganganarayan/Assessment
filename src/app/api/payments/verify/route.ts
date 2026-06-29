@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { verifyPaymentSignature } from "@/lib/payments/razorpay";
 import { sendCapiEventVerbose, isCapiConfigured } from "@/lib/meta/send";
+import { fbcFromFbclid } from "@/lib/meta/capi";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { emitCompletedPaid } from "@/lib/events/completion";
 
@@ -56,6 +57,8 @@ export async function POST(req: Request) {
       leadLastName: true,
       leadEmail: true,
       leadMobile: true,
+      attribution: true,
+      createdAt: true,
       assessment: { select: { slug: true, targetUrl: true, paymentAmount: true, paymentEventName: true } },
     },
   });
@@ -94,13 +97,17 @@ export async function POST(req: Request) {
   // verify POST carries the buyer's cookies/IP/UA, so match quality is strong.
   if (isCapiConfigured()) {
     const ctx = await getMetaRequestContext();
+    // Click id for attribution: prefer the live _fbc cookie; else rebuild it from
+    // the fbclid captured at opt-in (so even a cookie-less return still attributes).
+    const fbclid = (s.attribution as { fbclid?: string } | null)?.fbclid ?? null;
+    const fbc = ctx.fbc ?? fbcFromFbclid(fbclid, s.createdAt.getTime());
     void (async () => {
       const r = await sendCapiEventVerbose({
         eventName: s.assessment.paymentEventName || "Purchase121",
         eventId: paymentId,
         eventTimeMs: Date.now(),
         eventSourceUrl: dest,
-        user: { email: s.leadEmail, phone: s.leadMobile, firstName: s.leadFirstName, lastName: s.leadLastName, ...ctx },
+        user: { email: s.leadEmail, phone: s.leadMobile, firstName: s.leadFirstName, lastName: s.leadLastName, ...ctx, fbc },
         customData: amountRupees != null ? { value: amountRupees, currency: "INR" } : { currency: "INR" },
       });
       if (r.ok) {

@@ -109,6 +109,17 @@ export function resolveCapiConfig(raw: {
   };
 }
 
+/**
+ * Build Meta's `fbc` click id from the `fbclid` captured on the ad-click landing.
+ * Format: fb.1.<creationTimeMs>.<fbclid>. This is what lets Meta ATTRIBUTE a
+ * server-side conversion to the ad click (email/phone alone gets the event
+ * received but not attributed). Returns null when there's no fbclid (organic).
+ */
+export function fbcFromFbclid(fbclid: string | null | undefined, creationTimeMs: number): string | null {
+  if (!fbclid || typeof fbclid !== "string") return null;
+  return `fb.1.${Math.floor(creationTimeMs)}.${fbclid}`;
+}
+
 export function buildCapiEvent(input: CapiEventInput): CapiEventPayload {
   const payload: CapiEventPayload = {
     event_name: input.eventName,

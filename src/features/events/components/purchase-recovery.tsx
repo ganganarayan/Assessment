@@ -16,10 +16,10 @@ export function PurchaseRecovery({ purchases }: { purchases: RecentPurchase[] })
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, start] = useTransition();
 
-  function send(submissionId: string) {
+  function send(submissionId: string, force = false) {
     setPendingId(submissionId);
     start(async () => {
-      const r = await resendPurchaseToMeta(submissionId);
+      const r = await resendPurchaseToMeta(submissionId, force);
       setResults((m) => ({ ...m, [submissionId]: r }));
       setPendingId(null);
       if (r.ok) router.refresh(); // reflect the new "Meta conversion" stamp
@@ -71,11 +71,22 @@ export function PurchaseRecovery({ purchases }: { purchases: RecentPurchase[] })
                     <td className="px-3 py-1.5 text-right">
                       <div className="flex flex-col items-end gap-1">
                         {p.metaConversionAt || r?.ok ? (
-                          <Button size="sm" variant="outline" disabled title="Already sent — no action needed">
-                            Sent ✓
-                          </Button>
+                          <>
+                            <Button size="sm" variant="outline" disabled title="Already sent — no action needed">
+                              Sent ✓
+                            </Button>
+                            <button
+                              type="button"
+                              disabled={pendingId === p.submissionId}
+                              onClick={() => send(p.submissionId, true)}
+                              className="text-xs text-[var(--muted-foreground)] underline disabled:opacity-50"
+                              title="Re-send with the ad-click id attached (for attribution)"
+                            >
+                              {pendingId === p.submissionId ? "…" : "Re-send (with click id)"}
+                            </button>
+                          </>
                         ) : (
-                          <Button size="sm" variant="outline" disabled={pendingId === p.submissionId} onClick={() => send(p.submissionId)}>
+                          <Button size="sm" variant="outline" disabled={pendingId === p.submissionId} onClick={() => send(p.submissionId, false)}>
                             {pendingId === p.submissionId ? "Sending…" : "Send to Meta"}
                           </Button>
                         )}

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { verifyWebhookSignature, isWebhookSignatureVerified } from "@/lib/payments/razorpay";
 import { sendCapiEventVerbose, isCapiConfigured } from "@/lib/meta/send";
+import { fbcFromFbclid } from "@/lib/meta/capi";
 import { emitCompletedPaid } from "@/lib/events/completion";
 
 export const dynamic = "force-dynamic";
@@ -41,18 +42,24 @@ async function fireConversionFromWebhook(submissionId: string, paymentId: string
       leadLastName: true,
       leadEmail: true,
       leadMobile: true,
+      attribution: true,
+      createdAt: true,
       assessment: { select: { slug: true, targetUrl: true, paymentAmount: true, paymentEventName: true } },
     },
   });
   if (!s?.assessment) return;
   const amountRupees = s.assessment.paymentAmount ?? (amountPaise != null ? amountPaise / 100 : null);
   const dest = vslUrl(s.assessment.targetUrl, s.assessment.slug, submissionId, s.resultToken);
+  // The ad-click id (fbc) from the fbclid captured at opt-in — lets Meta ATTRIBUTE
+  // this server conversion to the campaign (email/phone alone gets it received only).
+  const fbclid = (s.attribution as { fbclid?: string } | null)?.fbclid ?? null;
+  const fbc = fbcFromFbclid(fbclid, s.createdAt.getTime());
   const r = await sendCapiEventVerbose({
     eventName: s.assessment.paymentEventName || "Purchase121",
     eventId: paymentId,
     eventTimeMs: Date.now(),
     eventSourceUrl: dest,
-    user: { email: s.leadEmail, phone: s.leadMobile, firstName: s.leadFirstName, lastName: s.leadLastName },
+    user: { email: s.leadEmail, phone: s.leadMobile, firstName: s.leadFirstName, lastName: s.leadLastName, fbc },
     customData: amountRupees != null ? { value: amountRupees, currency: "INR" } : { currency: "INR" },
   });
   if (r.ok) {
