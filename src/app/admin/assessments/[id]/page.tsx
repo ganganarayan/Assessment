@@ -174,6 +174,7 @@ export default async function EditAssessmentPage({
         initialPages={initialPages}
         bandTitles={bandWords}
         initialDirty={initialDirty}
+        initialPublished={publishedPages.length > 0}
         lastPublishedAt={a.pagesPublishedAt ? a.pagesPublishedAt.toISOString() : null}
       />
     </section>

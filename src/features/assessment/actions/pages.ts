@@ -63,6 +63,18 @@ export async function publishPages(assessmentId: string): Promise<ActionResult<{
   return { ok: true, data: { publishedAt: now.toISOString() } };
 }
 
+/** Unpublish: clear the live snapshot so the public flow shows NO results page and
+ *  falls through to the destination (VSL) redirect. Draft rows are kept untouched,
+ *  so Publish later restores the page. */
+export async function unpublishPages(assessmentId: string): Promise<ActionResult> {
+  await requireSuperAdmin();
+  await prisma.assessment.update({
+    where: { id: assessmentId },
+    data: { publishedPages: Prisma.DbNull, pagesPublishedAt: null },
+  });
+  return { ok: true };
+}
+
 /** The published snapshot for the public flow (empty if never published). */
 export async function getPublishedPages(assessmentId: string): Promise<AssessmentPageData[]> {
   const a = await prisma.assessment.findUnique({ where: { id: assessmentId }, select: { publishedPages: true } });

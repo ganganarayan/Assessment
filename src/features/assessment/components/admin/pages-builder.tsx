@@ -21,6 +21,7 @@ import {
   deleteBlock,
   moveBlock,
   publishPages,
+  unpublishPages,
 } from "@/features/assessment/actions/pages";
 
 /**
@@ -33,18 +34,23 @@ export function PagesBuilder({
   initialPages,
   bandTitles,
   initialDirty,
+  initialPublished,
   lastPublishedAt,
 }: {
   assessmentId: string;
   initialPages: AssessmentPageData[];
   bandTitles: Record<string, string>; // level -> your word (Stable / Overwhelmed / …)
   initialDirty: boolean;
+  initialPublished: boolean; // a live snapshot exists (results page is shown publicly)
   lastPublishedAt: string | null;
 }) {
   const [pages, setPages] = useState<AssessmentPageData[]>(initialPages);
   const [pending, start] = useTransition();
   // Draft auto-saves; "dirty" = draft differs from the published (live) version.
   const [dirtyPub, setDirtyPub] = useState(initialDirty);
+  // Whether a live snapshot is up: when false, the public flow shows NO results page
+  // and goes straight to the destination (VSL).
+  const [isLive, setIsLive] = useState(initialPublished);
   const [publishedAt, setPublishedAt] = useState<string | null>(lastPublishedAt);
   // Block configs being typed but not yet saved. When any action returns the fresh
   // list, we overlay these so an in-progress edit in another block isn't wiped.
@@ -75,7 +81,20 @@ export function PagesBuilder({
       const r = await publishPages(assessmentId);
       if (r.ok && r.data) {
         setDirtyPub(false);
+        setIsLive(true);
         setPublishedAt(r.data.publishedAt);
+      }
+    });
+
+  // Take the results page down: clear the live snapshot so visitors skip it and go
+  // straight to the destination (VSL). Draft is kept — Publish restores it.
+  const unpublish = () =>
+    start(async () => {
+      const r = await unpublishPages(assessmentId);
+      if (r.ok) {
+        setIsLive(false);
+        setPublishedAt(null);
+        setDirtyPub(true); // draft now differs from the (empty) live version
       }
     });
 
@@ -102,14 +121,30 @@ export function PagesBuilder({
       <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-[var(--muted)]/30 p-3">
         <div className="flex flex-col">
           <span className="text-sm font-medium">
-            {dirtyPub ? "Draft has unpublished changes" : "Published — live version is up to date"}
+            {!isLive
+              ? "Unpublished — visitors skip this page and go straight to the destination (VSL)"
+              : dirtyPub
+                ? "Draft has unpublished changes"
+                : "Published — live version is up to date"}
           </span>
           <span className="text-xs text-[var(--muted-foreground)]">
             {pending ? "Saving draft…" : "Edits auto-save as a draft. Click Publish to make them live."}
-            {publishedAt ? ` · Last published ${new Date(publishedAt).toLocaleString()}` : " · Never published"}
+            {publishedAt ? ` · Last published ${new Date(publishedAt).toLocaleString()}` : " · Not live"}
           </span>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {isLive ? (
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => {
+                if (confirm("Unpublish the results page? Visitors will skip it and go straight to your destination (VSL). Your draft is kept.")) unpublish();
+              }}
+              className="border-red-500 text-red-600 hover:bg-red-500/10"
+            >
+              Unpublish
+            </Button>
+          ) : null}
           <Button disabled={pending || !dirtyPub} onClick={publish}>
             {dirtyPub ? "Publish changes" : "Published ✓"}
           </Button>
