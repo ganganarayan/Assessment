@@ -852,11 +852,13 @@ export async function completeSubmission(
     },
   });
 
-  // Paid assessments split completion into completed_paid (on payment) and
-  // completed_unpaid (sweep, 30 min unpaid) — so do NOT fire assessment.completed
-  // here. Free assessments keep firing it at completion as before.
+  // Completion without an in-app payment is ONE event: completed_unpaid. Paid mode
+  // fires completed_paid (on payment) + completed_unpaid (30-min sweep); free mode
+  // fires completed_unpaid immediately here. (Legacy: this used to emit the separate
+  // assessment.completed for free mode — unified so every "completed, not purchased"
+  // lead lands on the same CRM webhook regardless of paid/free.)
   if (!assessment.paidMode) {
-    await emitEvent(EventType.ASSESSMENT_COMPLETED, {
+    await emitEvent(EventType.ASSESSMENT_COMPLETED_UNPAID, {
       submissionId,
       customerId,
       tenant: assessment.tenant,

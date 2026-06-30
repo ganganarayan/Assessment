@@ -17,9 +17,9 @@ export const RESERVED_EXTERNAL_EVENTS = [
 export const EVENT_NAME: Record<EventType, string> = {
   [EventType.LEAD_CREATED]: "optin", // merged opt-in (was lead.created + assessment.started)
   [EventType.ASSESSMENT_STARTED]: "assessment.started", // legacy; no longer emitted
-  [EventType.ASSESSMENT_COMPLETED]: "assessment.completed", // free assessments only
+  [EventType.ASSESSMENT_COMPLETED]: "assessment.completed", // legacy; superseded by completed_unpaid
   [EventType.ASSESSMENT_COMPLETED_PAID]: "completed_paid", // paid mode, on payment
-  [EventType.ASSESSMENT_COMPLETED_UNPAID]: "completed_unpaid", // paid mode, unpaid after 30 min
+  [EventType.ASSESSMENT_COMPLETED_UNPAID]: "completed_unpaid", // ALL completions w/o in-app payment (free + paid-unpaid sweep)
   [EventType.RESULT_GENERATED]: "result.generated",
   [EventType.RESULT_VIEWED]: "result.viewed",
   [EventType.ASSESSMENT_ABANDONED]: "assessment.abandoned",
@@ -53,9 +53,10 @@ export const ALL_EVENT_TYPES: EventType[] = [
  */
 export const ACTIVE_EVENT_TYPES: EventType[] = [
   EventType.LEAD_CREATED, // optin
-  EventType.ASSESSMENT_COMPLETED, // free assessments
+  // ASSESSMENT_COMPLETED is intentionally EXCLUDED: free completions now emit
+  // completed_unpaid (unified), so a "Completed — free" trigger would never fire.
   EventType.ASSESSMENT_COMPLETED_PAID, // paid mode, on payment
-  EventType.ASSESSMENT_COMPLETED_UNPAID, // paid mode, unpaid 30-min sweep
+  EventType.ASSESSMENT_COMPLETED_UNPAID, // ALL completions w/o in-app payment (free + paid-unpaid)
   EventType.RESULT_VIEWED,
   EventType.ASSESSMENT_ABANDONED,
   EventType.RESULT_LINK_REQUESTED,
@@ -72,9 +73,9 @@ export const EMITTED_EVENT_NAMES: string[] = ACTIVE_EVENT_TYPES.map((t) => EVENT
 /** Human label for each trigger, shown in the webhook trigger dropdown. */
 export const EVENT_LABEL: Partial<Record<EventType, string>> = {
   [EventType.LEAD_CREATED]: "Opt-in (lead created)",
-  [EventType.ASSESSMENT_COMPLETED]: "Completed — free assessment",
+  [EventType.ASSESSMENT_COMPLETED]: "Completed — free assessment (legacy)",
   [EventType.ASSESSMENT_COMPLETED_PAID]: "Completed — paid (on payment)",
-  [EventType.ASSESSMENT_COMPLETED_UNPAID]: "Completed — unpaid (after 30 min)",
+  [EventType.ASSESSMENT_COMPLETED_UNPAID]: "Completed — no payment (free + unpaid)",
   [EventType.RESULT_VIEWED]: "Result viewed",
   [EventType.ASSESSMENT_ABANDONED]: "Abandoned",
   [EventType.RESULT_LINK_REQUESTED]: "Result link requested",
