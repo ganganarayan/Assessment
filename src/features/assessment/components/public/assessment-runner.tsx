@@ -62,6 +62,10 @@ export interface PublicAssessment {
 
 type Step = "intro" | "questions" | "locked" | "evaluating" | "resultPages";
 
+/** Anticipation countdown shown after Submit before the VSL/destination loads.
+ *  Single source of truth; promote to a per-assessment field if it needs to vary. */
+const VSL_COUNTDOWN_SECONDS = 10;
+
 interface Lockout {
   policy: "DELAYED" | "NEVER";
   lastCompletedAt: string | null;
@@ -106,6 +110,8 @@ export function AssessmentRunner({
   const [pagePayment, setPagePayment] = useState<PaymentCheckout | null>(null);
   const [pagePaymentUrl, setPagePaymentUrl] = useState<string | null>(null);
   const [pageResultDest, setPageResultDest] = useState<string | null>(null);
+  // Destination (VSL) URL the countdown screen redirects to once it elapses.
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
   const [payError, setPayError] = useState<string | null>(null);
   const [payPending, setPayPending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -267,14 +273,15 @@ export function AssessmentRunner({
         setStep("questions");
         return;
       }
-      // Keep the one spinner up while the pixel beacon flushes, then go — no
-      // second countdown, no flicker. Append event=1 so the destination's VSL-view
-      // pixel fires ONCE on this post-completion redirect; the link saved to the
-      // CRM stays without it, so later email/WhatsApp opens don't re-fire.
+      // Hand the destination URL to the countdown screen: it shows a fixed
+      // VSL_COUNTDOWN_SECONDS anticipation timer (started at Submit, overlapping
+      // scoring) and redirects once it elapses AND this URL is ready — guaranteeing
+      // a minimum wait without ever cutting scoring short. Append event=1 so the
+      // destination's VSL-view pixel fires ONCE on this post-completion redirect;
+      // the link saved to the CRM stays without it, so later opens don't re-fire.
       const base = res.data?.resultUrl ?? `/a/${assessment.slug}/r/${submissionId}`;
       const url = base + (base.includes("?") ? "&" : "?") + "event=1";
-      await new Promise((r) => setTimeout(r, 1200));
-      window.location.replace(url);
+      setRedirectUrl(url);
     });
   }
 
@@ -473,7 +480,7 @@ export function AssessmentRunner({
   }
 
   if (step === "evaluating") {
-    return <EvaluatingCountdown />;
+    return <EvaluatingCountdown redirectUrl={redirectUrl} />;
   }
 
   // step === "questions" — paginate the questions by the display mode.
@@ -586,16 +593,23 @@ export function AssessmentRunner({
 /**
  * One big spinner shown from submit until the redirect, with the countdown number
  * centered INSIDE the ring. The number is a separate (non-rotating) layer so it
- * stays upright while the ring spins. Cosmetic: the redirect is driven by
- * completeSubmission resolving; past 0 it shows a check.
+ * stays upright while the ring spins.
+ *
+ * On the destination flow `redirectUrl` is set once scoring resolves; the redirect
+ * fires only after the timer hits 0 AND the URL is ready (minimum wait, never cuts
+ * scoring short). On other flows `redirectUrl` stays null and the parent swaps the
+ * step when ready, so the countdown is purely cosmetic.
  */
-function EvaluatingCountdown() {
-  const [n, setN] = useState(3);
+function EvaluatingCountdown({ redirectUrl }: { redirectUrl: string | null }) {
+  const [n, setN] = useState(VSL_COUNTDOWN_SECONDS);
   useEffect(() => {
     if (n <= 0) return;
     const t = setTimeout(() => setN((x) => x - 1), 1000);
     return () => clearTimeout(t);
   }, [n]);
+  useEffect(() => {
+    if (n <= 0 && redirectUrl) window.location.replace(redirectUrl);
+  }, [n, redirectUrl]);
   return (
     <div className="flex min-h-[55vh] flex-col items-center justify-center gap-6 text-center">
       <div className="relative h-36 w-36">
