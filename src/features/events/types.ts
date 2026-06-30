@@ -16,7 +16,7 @@ export const RESERVED_EXTERNAL_EVENTS = [
 /** Enum value -> public dotted event name used in payloads, logs, and UI. */
 export const EVENT_NAME: Record<EventType, string> = {
   [EventType.LEAD_CREATED]: "optin", // merged opt-in (was lead.created + assessment.started)
-  [EventType.ASSESSMENT_STARTED]: "assessment.started", // legacy; no longer emitted
+  [EventType.ASSESSMENT_STARTED]: "assessment.started", // DROPPED — never emitted; retained only to render historical logs
   [EventType.ASSESSMENT_COMPLETED]: "assessment.completed", // legacy; superseded by completed_unpaid
   [EventType.ASSESSMENT_COMPLETED_PAID]: "completed_paid", // paid mode, on payment
   [EventType.ASSESSMENT_COMPLETED_UNPAID]: "completed_unpaid", // ALL completions w/o in-app payment (free + paid-unpaid sweep)
@@ -31,10 +31,11 @@ export const NAME_TO_TYPE: Record<string, EventType> = Object.fromEntries(
   (Object.entries(EVENT_NAME) as [EventType, string][]).map(([t, n]) => [n, t]),
 );
 
-/** All event types (for name resolution / historical logs). */
+/** All event types (for name resolution / historical logs). ASSESSMENT_STARTED is
+ *  intentionally omitted — it is dropped (never emitted); its EVENT_NAME mapping is
+ *  kept above only so old logs still render a friendly name. */
 export const ALL_EVENT_TYPES: EventType[] = [
   EventType.LEAD_CREATED,
-  EventType.ASSESSMENT_STARTED,
   EventType.ASSESSMENT_COMPLETED,
   EventType.ASSESSMENT_COMPLETED_PAID,
   EventType.ASSESSMENT_COMPLETED_UNPAID,
