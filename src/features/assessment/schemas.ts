@@ -52,6 +52,13 @@ export const assessmentSchema = z.object({
     .url("Enter a valid URL.")
     .startsWith("https://", "Destination URL must use https://"),
   tokenTtlSeconds: z.coerce.number().int().min(60).max(7776000).optional(), // up to 90 days
+  // Anticipation countdown (seconds) before the destination/VSL loads. 0 = instant.
+  vslCountdownSeconds: z.coerce
+    .number()
+    .int("Countdown must be a whole number.")
+    .min(0, "Countdown can't be negative.")
+    .max(120, "Countdown can be at most 120 seconds.")
+    .default(10),
   // How the questions are paginated for the respondent.
   questionDisplayMode: z.enum(["ALL", "CATEGORY", "SINGLE"]).default("ALL"),
   // Explicit next step after the Results page. PAYMENT => take payment then go to

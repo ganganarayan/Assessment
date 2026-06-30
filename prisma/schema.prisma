@@ -265,6 +265,9 @@ model Assessment {
   targetUrl       String?
   targetOrigin    String? // scheme://host[:port], derived from targetUrl
   tokenTtlSeconds Int? // result-token TTL; null => system default
+  // Anticipation countdown (seconds) shown after Submit before the destination/VSL
+  // loads. 0 = redirect immediately. Default 10.
+  vslCountdownSeconds Int @default(10)
 
   // Pay-to-unlock. When paidMode is on, submitting the assessment stores results
   // then redirects to paymentUrl (with ?t=<token>) INSTEAD of the destination/VSL;

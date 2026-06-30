@@ -45,6 +45,7 @@ export async function createAssessment(
       targetUrl: nullifyEmpty(d.targetUrl),
       targetOrigin: originOf(nullifyEmpty(d.targetUrl)),
       tokenTtlSeconds: d.tokenTtlSeconds ?? null,
+      vslCountdownSeconds: d.vslCountdownSeconds,
       questionDisplayMode: d.questionDisplayMode,
       // nextStep is the source of truth; keep the legacy paidMode boolean in sync
       // so existing payment/event/runner logic keeps working unchanged.
@@ -106,6 +107,7 @@ export async function updateAssessment(
       targetUrl: nullifyEmpty(d.targetUrl),
       targetOrigin: originOf(nullifyEmpty(d.targetUrl)),
       tokenTtlSeconds: d.tokenTtlSeconds ?? null,
+      vslCountdownSeconds: d.vslCountdownSeconds,
       questionDisplayMode: d.questionDisplayMode,
       // nextStep is the source of truth; keep the legacy paidMode boolean in sync
       // so existing payment/event/runner logic keeps working unchanged.

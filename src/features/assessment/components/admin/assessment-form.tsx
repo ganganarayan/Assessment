@@ -60,6 +60,7 @@ const DEFAULTS: AssessmentFormValues = {
   trainingUrl: "",
   targetUrl: "",
   tokenTtlSeconds: undefined,
+  vslCountdownSeconds: 10,
   questionDisplayMode: "ALL",
   nextStep: "DESTINATION",
   paymentUrl: "",
@@ -345,6 +346,22 @@ export function AssessmentForm({
                 placeholder="2592000"
               />
               <p className="text-xs text-[var(--muted-foreground)]">Default 30 days (2592000s) if blank. Keep it long so emailed/revisited result links don&apos;t expire.</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="vslCountdown">Countdown before destination (seconds)</Label>
+              <Input
+                id="vslCountdown"
+                type="number"
+                min={0}
+                max={120}
+                className="w-40"
+                value={values.vslCountdownSeconds ?? 10}
+                onChange={(e) =>
+                  set("vslCountdownSeconds", e.target.value === "" ? 0 : Number(e.target.value))
+                }
+                placeholder="10"
+              />
+              <p className="text-xs text-[var(--muted-foreground)]">Anticipation timer shown after Submit before the destination/VSL loads. 0 = redirect immediately. Default 10.</p>
             </div>
           </div>
 

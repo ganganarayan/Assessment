@@ -52,6 +52,8 @@ export interface PublicAssessment {
   collectProfession: boolean;
   professionRequired: boolean;
   paidMode: boolean;
+  /** Anticipation countdown (seconds) after Submit before the destination/VSL loads. */
+  vslCountdownSeconds: number;
   questionDisplayMode: "ALL" | "CATEGORY" | "SINGLE";
   paymentHeadline: string | null;
   paymentButtonLabel: string | null;
@@ -480,7 +482,7 @@ export function AssessmentRunner({
   }
 
   if (step === "evaluating") {
-    return <EvaluatingCountdown redirectUrl={redirectUrl} />;
+    return <EvaluatingCountdown redirectUrl={redirectUrl} seconds={assessment.vslCountdownSeconds} />;
   }
 
   // step === "questions" — paginate the questions by the display mode.
@@ -600,8 +602,10 @@ export function AssessmentRunner({
  * scoring short). On other flows `redirectUrl` stays null and the parent swaps the
  * step when ready, so the countdown is purely cosmetic.
  */
-function EvaluatingCountdown({ redirectUrl }: { redirectUrl: string | null }) {
-  const [n, setN] = useState(VSL_COUNTDOWN_SECONDS);
+function EvaluatingCountdown({ redirectUrl, seconds }: { redirectUrl: string | null; seconds?: number }) {
+  // Per-assessment duration; fall back to the constant for any bad/missing value.
+  const start = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds as number)) : VSL_COUNTDOWN_SECONDS;
+  const [n, setN] = useState(start);
   useEffect(() => {
     if (n <= 0) return;
     const t = setTimeout(() => setN((x) => x - 1), 1000);

@@ -47,6 +47,7 @@ export default async function EditAssessmentPage({
     trainingUrl: a.trainingUrl ?? "",
     targetUrl: a.targetUrl ?? "",
     tokenTtlSeconds: a.tokenTtlSeconds ?? undefined,
+    vslCountdownSeconds: a.vslCountdownSeconds,
     questionDisplayMode: a.questionDisplayMode,
     nextStep: a.nextStep,
     paymentUrl: a.paymentUrl ?? "",
