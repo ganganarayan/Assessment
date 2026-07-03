@@ -26,6 +26,7 @@ import { generateCustomerId, generateToken } from "@/lib/ids";
 import { env } from "@/lib/env";
 import { randomUUID } from "crypto";
 import { sendCapiEvent, isCapiConfigured } from "@/lib/meta/send";
+import { fbcCreationSeconds } from "@/lib/meta/capi";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { generatePersonalStatement } from "@/lib/ai/generate";
 import { isRazorpayConfigured, createOrder } from "@/lib/payments/razorpay";
@@ -315,10 +316,11 @@ export async function startSubmission(
   // the pixel base code sets on page load (before this Start action). fbclidTimestamp
   // anchors fbc reconstruction (fb.1.<ts>.<fbclid>) when the _fbc cookie is absent.
   const metaCtx = await getMetaRequestContext();
-  // Opt-in unix seconds — ALWAYS set (= the opt-in moment). When an fbclid is present
-  // this is the anchor to rebuild fbc as fb.1.<ts>.<fbclid>; otherwise it still records
-  // opt-in time. Exposed as both fbclid_timestamp and optin_timestamp on the endpoint.
-  const fbclidTimestamp = Math.floor(Date.now() / 1000);
+  // fbclid_timestamp (unix seconds), ALWAYS set: prefer the REAL fbc creation time
+  // from the _fbc cookie when the pixel wrote one; else fall back to the opt-in
+  // moment. The anchor to rebuild fbc as fb.1.<ts>.<fbclid>. optin_timestamp is
+  // exposed separately (= startedAt) on the endpoint.
+  const fbclidTimestamp = fbcCreationSeconds(metaCtx.fbc) ?? Math.floor(Date.now() / 1000);
   const identifierValue = normalizeIdentifier(assessment.uniqueIdentifier, { email, mobile });
   const leadFields = { firstName, lastName, email, mobile, profession };
   // Mint the customerId once (8 chars; the @unique index is the collision backstop).

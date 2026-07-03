@@ -120,6 +120,21 @@ export function fbcFromFbclid(fbclid: string | null | undefined, creationTimeMs:
   return `fb.1.${Math.floor(creationTimeMs)}.${fbclid}`;
 }
 
+/**
+ * Extract the REAL creation time (as unix SECONDS) from a browser `_fbc` cookie
+ * `fb.1.<creationTimeMs>.<fbclid>`. This is the authoritative fbclid timestamp
+ * when the pixel wrote _fbc. Returns null when absent/malformed (then the caller
+ * falls back to the opt-in time). Seconds to match the fbclidTimestamp column.
+ */
+export function fbcCreationSeconds(fbc: string | null | undefined): number | null {
+  if (!fbc || typeof fbc !== "string") return null;
+  const parts = fbc.split(".");
+  if (parts.length < 4) return null;
+  const ms = Number(parts[2]);
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  return Math.floor(ms / 1000);
+}
+
 export function buildCapiEvent(input: CapiEventInput): CapiEventPayload {
   const payload: CapiEventPayload = {
     event_name: input.eventName,

@@ -10,6 +10,7 @@ import {
   type MetaMatchRecord,
 } from "../src/lib/meta-match/lookup";
 import { hashApiToken, generateApiToken } from "../src/lib/api-auth/token";
+import { fbcCreationSeconds } from "../src/lib/meta/capi";
 
 let failures = 0;
 function eq(name: string, got: unknown, want: unknown) {
@@ -24,6 +25,11 @@ function eq(name: string, got: unknown, want: unknown) {
 }
 
 // --- normalization ---------------------------------------------------------
+// --- fbc creation time (real fbclid timestamp) -----------------------------
+eq("fbc creation seconds from cookie", fbcCreationSeconds("fb.1.1751541600000.IwAR0xyz"), 1751541600);
+eq("fbc missing -> null (fallback to opt-in)", fbcCreationSeconds(null), null);
+eq("fbc malformed -> null", fbcCreationSeconds("fb.1."), null);
+
 eq("email trims + lowercases", normalizeEmail("  Buyer@Example.COM "), "buyer@example.com");
 eq("email empty -> null", normalizeEmail("   "), null);
 eq("phone digits only", phoneDigits("+91 98765-43210"), "919876543210");
