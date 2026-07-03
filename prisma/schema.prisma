@@ -38,6 +38,7 @@ model Tenant {
   theme       Theme?
   assessments Assessment[]
   submissions Submission[]
+  apiTokens   ApiToken[]
 
   @@index([status])
   @@map("tenant")
@@ -165,6 +166,34 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+// ---------------------------------------------------------------------------
+// ApiToken — scoped, tenant-aware bearer tokens for external data endpoints
+// (the shared auth layer behind /api/meta-match and future consumers like a
+// mentor API). Only the sha256 `tokenHash` is stored; the plaintext is shown to
+// the admin once at mint time. `scope` binds a key to ONE data domain (least
+// privilege): a meta_match key can never read another scope's data. `tenantId`
+// null = platform-owned; set = the key only sees that tenant's rows.
+// ---------------------------------------------------------------------------
+
+model ApiToken {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique // sha256(plaintext); the plaintext is never stored
+  prefix      String // non-secret identifier shown in the admin list, e.g. mm_ABC234
+  scope       String // "meta_match" (future: "gita_mentor", ...)
+  label       String?
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([scope])
+  @@index([tenantId])
+  @@map("api_token")
 }
 
 // ===========================================================================
@@ -515,6 +544,17 @@ model Submission {
   // Marketing attribution captured from the landing URL (utm_*, fbclid, gclid).
   // Stored as JSON so new click-id params need no schema change.
   attribution Json?
+
+  // Meta CAPI match signals, captured server-side at Start (from the request:
+  // ip, UA, and the _fbp/_fbc pixel cookies) and backfilled at Complete if a
+  // cookie was set late. Exposed via /api/meta-match for an external CAPI sender
+  // (n8n). fbclidTimestamp = unix seconds when the fbclid was first recorded, so
+  // fbc can be rebuilt as fb.1.<ts>.<fbclid> when the _fbc cookie is absent.
+  clientIp        String?
+  userAgent       String?
+  fbp             String?
+  fbc             String?
+  fbclidTimestamp Int?
 
   // Normalized retake/dedup key (lowercased email or digits-only mobile),
   // captured at start per the assessment's uniqueIdentifier. Indexed for the

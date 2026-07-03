@@ -45,6 +45,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
       { href: "/admin/webhooks", label: "Webhooks" },
       { href: "/admin/webhook-logs", label: "Webhook Logs" },
       { href: "/admin/pixel-test", label: "Pixel Tester" },
+      { href: "/admin/api-tokens", label: "API Tokens" },
     ],
   },
   {

@@ -310,6 +310,12 @@ export async function startSubmission(
   // opt-in URL carried none — e.g. the visitor landed with UTMs, then navigated.
   let attr = normalizeAttribution(attribution);
   if (!attr) attr = await readAttributionCookie();
+  // Meta match signals for later CAPI attribution (exposed via /api/meta-match).
+  // Captured from THIS request: ip/UA headers + the _fbp/_fbc pixel cookies, which
+  // the pixel base code sets on page load (before this Start action). fbclidTimestamp
+  // anchors fbc reconstruction (fb.1.<ts>.<fbclid>) when the _fbc cookie is absent.
+  const metaCtx = await getMetaRequestContext();
+  const fbclidTimestamp = attr?.fbclid ? Math.floor(Date.now() / 1000) : null;
   const identifierValue = normalizeIdentifier(assessment.uniqueIdentifier, { email, mobile });
   const leadFields = { firstName, lastName, email, mobile, profession };
   // Mint the customerId once (8 chars; the @unique index is the collision backstop).
@@ -333,6 +339,11 @@ export async function startSubmission(
     leadMobile: assessment.collectMobile ? mobile : null,
     leadProfession: assessment.collectProfession ? profession : null,
     identifierValue,
+    clientIp: metaCtx.clientIpAddress,
+    userAgent: metaCtx.clientUserAgent,
+    fbp: metaCtx.fbp,
+    fbc: metaCtx.fbc,
+    fbclidTimestamp,
     ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
   };
 
@@ -550,6 +561,10 @@ export async function completeSubmission(
       leadEmail: true,
       leadMobile: true,
       leadProfession: true,
+      clientIp: true,
+      userAgent: true,
+      fbp: true,
+      fbc: true,
       assessment: { select: { slug: true, targetUrl: true, paidMode: true, paymentUrl: true, paymentAmount: true } },
     },
   });
@@ -898,6 +913,22 @@ export async function completeSubmission(
       },
       customData: { content_name: assessment.title, assessment_name: assessment.title },
     }).catch(() => {});
+  }
+
+  // Backfill Meta match signals if the Start capture missed them (e.g. the _fbp
+  // cookie was written after Start). Best-effort; never delays or fails completion.
+  try {
+    const mctx = await getMetaRequestContext();
+    const patch: Prisma.SubmissionUpdateManyMutationInput = {};
+    if (!submission.clientIp && mctx.clientIpAddress) patch.clientIp = mctx.clientIpAddress;
+    if (!submission.userAgent && mctx.clientUserAgent) patch.userAgent = mctx.clientUserAgent;
+    if (!submission.fbp && mctx.fbp) patch.fbp = mctx.fbp;
+    if (!submission.fbc && mctx.fbc) patch.fbc = mctx.fbc;
+    if (Object.keys(patch).length > 0) {
+      await prisma.submission.updateMany({ where: { id: submissionId }, data: patch });
+    }
+  } catch {
+    /* non-critical enrichment — ignore */
   }
 
   const paid = await resolvePaidCheckout({
