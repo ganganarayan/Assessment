@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { listApiTokens, mintApiToken, revokeApiToken } from "@/features/api-tokens/actions";
-import { API_TOKEN_SCOPES, type ApiTokenRow } from "@/features/api-tokens/scopes";
+import { API_TOKEN_SCOPES, SCOPE_ENDPOINTS, type ApiTokenRow } from "@/features/api-tokens/scopes";
 
 /**
  * Super-admin manager for scoped external API tokens. Mint shows the plaintext
@@ -27,8 +27,6 @@ export function ApiTokensManager({
   const [pending, start] = useTransition();
 
   const base = endpointBase.replace(/\/+$/, "");
-  const lookupUrl = `${base}/api/meta-match?email={{email}}&phone={{phone}}`;
-  const healthUrl = `${base}/api/meta-match/health`;
 
   const refresh = async () => {
     const r = await listApiTokens();
@@ -60,24 +58,34 @@ export function ApiTokensManager({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Endpoint reference */}
-      <div className="flex flex-col gap-2 rounded-lg border p-4 text-sm">
-        <p className="font-medium">Endpoints for n8n</p>
-        <div className="flex flex-col gap-1 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-16 shrink-0 text-[var(--muted-foreground)]">Lookup</span>
-            <code className="min-w-0 flex-1 truncate rounded bg-[var(--muted)] px-2 py-1">{lookupUrl}</code>
-            <Button size="sm" variant="outline" onClick={() => copy(lookupUrl)}>Copy</Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-16 shrink-0 text-[var(--muted-foreground)]">Health</span>
-            <code className="min-w-0 flex-1 truncate rounded bg-[var(--muted)] px-2 py-1">{healthUrl}</code>
-            <Button size="sm" variant="outline" onClick={() => copy(healthUrl)}>Copy</Button>
-          </div>
-        </div>
+      {/* Endpoint reference — one block per scope, so each consumer's URLs are clear. */}
+      <div className="flex flex-col gap-4 rounded-lg border p-4 text-sm">
+        <p className="font-medium">Endpoints</p>
+        {API_TOKEN_SCOPES.map((s) => {
+          const ep = SCOPE_ENDPOINTS[s.value];
+          const lookupUrl = `${base}${ep.lookup}`;
+          const healthUrl = `${base}${ep.health}`;
+          return (
+            <div key={s.value} className="flex flex-col gap-1">
+              <p className="text-xs font-medium">{ep.title} <span className="font-mono text-[var(--muted-foreground)]">({s.value})</span></p>
+              <div className="flex items-center gap-2">
+                <span className="w-16 shrink-0 text-[var(--muted-foreground)]">Lookup</span>
+                <code className="min-w-0 flex-1 truncate rounded bg-[var(--muted)] px-2 py-1 text-xs">{lookupUrl}</code>
+                <Button size="sm" variant="outline" onClick={() => copy(lookupUrl)}>Copy</Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-16 shrink-0 text-[var(--muted-foreground)]">Health</span>
+                <code className="min-w-0 flex-1 truncate rounded bg-[var(--muted)] px-2 py-1 text-xs">{healthUrl}</code>
+                <Button size="sm" variant="outline" onClick={() => copy(healthUrl)}>Copy</Button>
+              </div>
+            </div>
+          );
+        })}
         <p className="text-xs text-[var(--muted-foreground)]">
-          Send the token as <code>Authorization: Bearer &lt;token&gt;</code>. Returns raw
-          match fields (email, phone, fbp, fbc, fbclid + timestamp, ip, UA, utms); hash in n8n before Meta.
+          Send the token as <code>Authorization: Bearer &lt;token&gt;</code>. A key only works for
+          its own scope. <span className="font-mono">meta_match</span> returns raw marketing match
+          fields (hash in n8n before Meta); <span className="font-mono">gita_mentor</span> returns
+          the assessment result snapshot.
         </p>
       </div>
 
