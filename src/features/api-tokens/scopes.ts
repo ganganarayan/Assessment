@@ -21,13 +21,13 @@ export function isApiTokenScope(s: string): s is ApiTokenScope {
 export const SCOPE_ENDPOINTS: Record<ApiTokenScope, { title: string; lookup: string; health: string }> = {
   meta_match: {
     title: "Meta match (n8n)",
-    lookup: "/api/meta-match?email={{email}}&phone={{phone}}",
-    health: "/api/meta-match/health",
+    lookup: "/api/v1/meta-match?email={{email}}&phone={{phone}}",
+    health: "/api/v1/meta-match/health",
   },
   gita_mentor: {
     title: "Gita Mentor",
-    lookup: "/api/mentor?email={{email}}",
-    health: "/api/mentor/health",
+    lookup: "/api/v1/mentor?email={{email}}",
+    health: "/api/v1/mentor/health",
   },
 };
 
