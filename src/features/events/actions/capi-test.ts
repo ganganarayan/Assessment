@@ -5,6 +5,8 @@ import { env } from "@/lib/env";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { testCapi, sendCapiEventVerbose } from "@/lib/meta/send";
 import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
+import { fireCapiLogRow } from "@/lib/meta/capi-log";
+import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /** Super-admin diagnostic: fire a server-side CAPI event (any name, default
  *  AssessmentCompleted) to Meta and return Meta's real response. */
@@ -147,4 +149,61 @@ export async function resendPurchaseByEmail(input: {
     customData: { value: input.amountRupees, currency: "INR" },
   });
   return { ...r, matched: !!s, eventId: paymentId };
+}
+
+/* ------------------------------------------------- CAPI log (auto + manual) --- */
+
+/** Manually fire (or re-fire) a logged capture, optionally overriding the event
+ *  name for that row (e.g. a high-ticket sale). Records Meta's response on the row. */
+export async function fireCapiLog(logId: string, eventNameOverride?: string) {
+  await requireSuperAdmin();
+  return fireCapiLogRow(logId, { auto: false, eventNameOverride });
+}
+
+export interface PurchaseSettingsForm {
+  autoFireAmounts: string; // CSV of rupee amounts
+  highTicketThreshold: number;
+  highTicketEventName: string;
+}
+
+export async function getPurchaseSettingsForm(): Promise<PurchaseSettingsForm> {
+  await requireSuperAdmin();
+  const s = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: { purchaseAutoFireAmounts: true, purchaseHighTicketThreshold: true, purchaseHighTicketEventName: true },
+  });
+  return {
+    autoFireAmounts: s?.purchaseAutoFireAmounts ?? "199,499,999,1000",
+    highTicketThreshold: s?.purchaseHighTicketThreshold ?? 4000,
+    highTicketEventName: s?.purchaseHighTicketEventName ?? "Purchase",
+  };
+}
+
+export async function savePurchaseSettings(form: PurchaseSettingsForm): Promise<ActionResult> {
+  await requireSuperAdmin();
+  const amounts = (form.autoFireAmounts ?? "")
+    .split(",")
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  const threshold = Math.max(0, Math.floor(Number(form.highTicketThreshold) || 0));
+  const eventName = (form.highTicketEventName ?? "").trim();
+  if (!eventName) return { ok: false, error: "High-ticket event name is required." };
+  if (!/^[A-Za-z0-9_]+$/.test(eventName)) {
+    return { ok: false, error: "Event name: letters, digits, underscore only (Meta event name)." };
+  }
+  await prisma.appSetting.upsert({
+    where: { id: "singleton" },
+    update: {
+      purchaseAutoFireAmounts: amounts.join(","),
+      purchaseHighTicketThreshold: threshold,
+      purchaseHighTicketEventName: eventName,
+    },
+    create: {
+      id: "singleton",
+      purchaseAutoFireAmounts: amounts.join(","),
+      purchaseHighTicketThreshold: threshold,
+      purchaseHighTicketEventName: eventName,
+    },
+  });
+  return { ok: true };
 }

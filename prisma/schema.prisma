@@ -879,6 +879,36 @@ model Payment {
 // AppSetting — singleton platform settings (configurable automation knobs).
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// CapiLog — one row per captured Razorpay payment: the record of the Purchase
+// CAPI event (auto-fired for configured amounts, else pending for manual firing)
+// plus Meta's actual response. The audit trail for "what did we send and what did
+// Meta say". Deduped by the Razorpay payment id.
+// ---------------------------------------------------------------------------
+
+model CapiLog {
+  id                String  @id @default(cuid())
+  providerPaymentId String? @unique // razorpay payment id = the Meta event_id
+  email             String?
+  phone             String?
+  name              String?
+  amountPaise       Int?
+  currency          String  @default("INR")
+  eventName         String // Purchase, or the high-ticket event name
+  matched           Boolean @default(false) // attribution found from a submission
+  autoFired         Boolean @default(false) // fired automatically (vs manual)
+  status            String  @default("pending") // pending | sent | failed
+  httpStatus        Int?
+  response          String? // Meta's response body (truncated) or the error
+  submissionId      String?
+  firedAt           DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("capi_log")
+}
+
 model AppSetting {
   id                  String   @id @default("singleton")
   abandonedAfterHours Int      @default(24)
@@ -897,6 +927,14 @@ model AppSetting {
   // Analytics baseline. When set, the Stats + Contacts pages count only
   // records at/after this instant (a non-destructive "reset to 0").
   statsResetAt DateTime?
+
+  // Purchase CAPI: captured amounts (₹, CSV) that AUTO-FIRE the Purchase event on
+  // payment.captured. Every other captured amount is logged as "pending" for manual
+  // firing. Amounts strictly above the high-ticket threshold fire under a distinct
+  // event name (owner-set) instead of "Purchase".
+  purchaseAutoFireAmounts     String @default("199,499,999,1000")
+  purchaseHighTicketThreshold Int    @default(4000)
+  purchaseHighTicketEventName String @default("Purchase")
 
   // CRM "score_updated" resend: the destination endpoint (separate from the
   // configured webhooks) and a persisted "drip is active" flag for status/resume.

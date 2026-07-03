@@ -2,12 +2,16 @@ import { PixelTester } from "@/features/events/components/pixel-tester";
 import { CapiTester } from "@/features/events/components/capi-tester";
 import { ManualPurchaseResend } from "@/features/events/components/manual-purchase-resend";
 import { PurchaseRecovery } from "@/features/events/components/purchase-recovery";
-import { listRecentPurchases } from "@/features/events/data";
+import { CapiLogPanel } from "@/features/events/components/capi-log-panel";
+import { listRecentPurchases, listCapiLogs } from "@/features/events/data";
+import { getPurchaseSettingsForm } from "@/features/events/actions/capi-test";
 
 export const dynamic = "force-dynamic";
 
 export default async function PixelTestPage() {
   const purchases = await listRecentPurchases();
+  const capiLogs = await listCapiLogs();
+  const purchaseSettings = await getPurchaseSettingsForm();
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -34,6 +38,8 @@ export default async function PixelTestPage() {
         sale twice. Also set the assessment&apos;s <strong>Price (₹) = 199</strong>: the auto-fire on
         external captures only fires when the captured amount equals that price.
       </div>
+
+      <CapiLogPanel initialLogs={capiLogs} initialSettings={purchaseSettings} />
 
       <ManualPurchaseResend />
 

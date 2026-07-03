@@ -227,3 +227,43 @@ export async function listRecentPurchases(take = 25): Promise<RecentPurchase[]> 
     metaConversionAt: p.metaConversionAt ? p.metaConversionAt.toISOString() : null,
   }));
 }
+
+export interface CapiLogRow {
+  id: string;
+  providerPaymentId: string | null;
+  email: string | null;
+  phone: string | null;
+  name: string | null;
+  amountRupees: number | null;
+  currency: string;
+  eventName: string;
+  matched: boolean;
+  autoFired: boolean;
+  status: string; // pending | sent | failed
+  httpStatus: number | null;
+  response: string | null;
+  firedAt: string | null;
+  createdAt: string;
+}
+
+/** Every captured payment's Purchase CAPI record + Meta's response (newest first). */
+export async function listCapiLogs(take = 100): Promise<CapiLogRow[]> {
+  const rows = await prisma.capiLog.findMany({ orderBy: { createdAt: "desc" }, take });
+  return rows.map((r) => ({
+    id: r.id,
+    providerPaymentId: r.providerPaymentId,
+    email: r.email,
+    phone: r.phone,
+    name: r.name,
+    amountRupees: r.amountPaise != null ? r.amountPaise / 100 : null,
+    currency: r.currency,
+    eventName: r.eventName,
+    matched: r.matched,
+    autoFired: r.autoFired,
+    status: r.status,
+    httpStatus: r.httpStatus,
+    response: r.response,
+    firedAt: r.firedAt ? r.firedAt.toISOString() : null,
+    createdAt: r.createdAt.toISOString(),
+  }));
+}
