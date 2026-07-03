@@ -28,6 +28,17 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [msg, setMsg] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyUrl = (id: string, url: string) => {
+    navigator.clipboard
+      ?.writeText(url)
+      .then(() => {
+        setCopiedId(id);
+        setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
+      })
+      .catch(() => {});
+  };
 
   // Live substring search: any contiguous run of the typed letters, anywhere in
   // name / email / phone / profession / customer id / token (case-insensitive).
@@ -120,7 +131,7 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
               </th>
               <th className="px-3 py-1.5">Contact</th>
               <th className="whitespace-nowrap px-3 py-1.5">Customer ID</th>
-              <th className="whitespace-nowrap px-3 py-1.5">Result token (URL)</th>
+              <th className="whitespace-nowrap px-3 py-1.5">Result URL</th>
               <th className="whitespace-nowrap px-3 py-1.5">Opt-in date (IST)</th>
               <th className="px-3 py-1.5 text-center">Opt-in</th>
               <th className="px-3 py-1.5 text-center">Completed</th>
@@ -164,7 +175,25 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                   </div>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{r.customerId ?? "—"}</td>
-                <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{r.resultToken ?? "—"}</td>
+                <td className="px-3 py-2">
+                  {r.resultUrl ? (
+                    <div className="flex items-center gap-2">
+                      <span className="max-w-[240px] truncate font-mono text-xs" title={r.resultUrl}>
+                        {r.resultUrl}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={() => copyUrl(r.id, r.resultUrl as string)}
+                      >
+                        {copiedId === r.id ? "Copied" : "Copy"}
+                      </Button>
+                    </div>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
                   {formatIST(r.createdAt)}
                 </td>

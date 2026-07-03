@@ -1,10 +1,26 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
+import { env } from "@/lib/env";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { istDateRangeToUtc, formatIST } from "@/lib/date";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { getStatsFloor, floorCreatedAt } from "@/lib/stats-floor";
 import type { PayloadAttribution } from "@/features/events/types";
+
+/** The destination URL a contact lands on (targetUrl?t=token), falling back to the
+ *  internal result page. Same rule as the completion/CRM builders. */
+function buildResultUrl(targetUrl: string | null, slug: string, submissionId: string, token: string | null): string {
+  if (targetUrl && token) {
+    try {
+      const u = new URL(targetUrl);
+      u.searchParams.set("t", token);
+      return u.toString();
+    } catch {
+      /* malformed targetUrl — fall back to the internal result page */
+    }
+  }
+  return `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}`;
+}
 
 /**
  * A Prisma `where` fragment scoping `createdAt` to the selected date range AND
@@ -139,6 +155,8 @@ export interface ContactRow {
   customerId: string | null;
   /** 16-char result token — the t= value in the post-assessment URL. */
   resultToken: string | null;
+  /** Full destination URL the contact lands on (targetUrl?t=token). */
+  resultUrl: string | null;
   completed: boolean;
   /** Captured payment (paid step comes before VSL load). null = not paid. */
   paidAmount: number | null;
@@ -209,6 +227,7 @@ export async function listContactsForExport(range?: {
       userAgent: true,
       fbp: true,
       fbclidTimestamp: true,
+      assessment: { select: { slug: true, targetUrl: true } },
     },
   });
   const paid = await getPaidBySubmission(rows.map((r) => r.id));
@@ -280,6 +299,7 @@ export async function listContacts(opts: {
       userAgent: true,
       fbp: true,
       fbclidTimestamp: true,
+      assessment: { select: { slug: true, targetUrl: true } },
     },
   });
 
@@ -301,6 +321,7 @@ export async function listContacts(opts: {
         profession: r.leadProfession,
         customerId: r.customerId,
         resultToken: r.resultToken,
+        resultUrl: buildResultUrl(r.assessment?.targetUrl ?? null, r.assessment?.slug ?? "", r.id, r.resultToken),
         completed: r.status === "COMPLETED",
         paidAmount: p?.amount ?? null,
         paidAt: p?.at ?? null,
