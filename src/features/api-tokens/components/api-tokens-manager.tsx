@@ -4,13 +4,8 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  API_TOKEN_SCOPES,
-  listApiTokens,
-  mintApiToken,
-  revokeApiToken,
-  type ApiTokenRow,
-} from "@/features/api-tokens/actions";
+import { listApiTokens, mintApiToken, revokeApiToken } from "@/features/api-tokens/actions";
+import { API_TOKEN_SCOPES, type ApiTokenRow } from "@/features/api-tokens/scopes";
 
 /**
  * Super-admin manager for scoped external API tokens. Mint shows the plaintext
