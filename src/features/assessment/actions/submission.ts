@@ -315,7 +315,10 @@ export async function startSubmission(
   // the pixel base code sets on page load (before this Start action). fbclidTimestamp
   // anchors fbc reconstruction (fb.1.<ts>.<fbclid>) when the _fbc cookie is absent.
   const metaCtx = await getMetaRequestContext();
-  const fbclidTimestamp = attr?.fbclid ? Math.floor(Date.now() / 1000) : null;
+  // Opt-in unix seconds — ALWAYS set (= the opt-in moment). When an fbclid is present
+  // this is the anchor to rebuild fbc as fb.1.<ts>.<fbclid>; otherwise it still records
+  // opt-in time. Exposed as both fbclid_timestamp and optin_timestamp on the endpoint.
+  const fbclidTimestamp = Math.floor(Date.now() / 1000);
   const identifierValue = normalizeIdentifier(assessment.uniqueIdentifier, { email, mobile });
   const leadFields = { firstName, lastName, email, mobile, profession };
   // Mint the customerId once (8 chars; the @unique index is the collision backstop).

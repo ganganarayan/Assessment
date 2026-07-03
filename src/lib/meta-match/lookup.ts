@@ -32,6 +32,7 @@ export interface MetaMatchRecord {
   fbp: string | null;
   fbc: string | null;
   fbclidTimestamp: number | null;
+  startedAt: Date | null;
   attribution: unknown;
 }
 
@@ -42,6 +43,7 @@ export interface MetaMatchResponse {
   phone: string | null;
   fbclid: string | null;
   fbclid_timestamp: number | null;
+  optin_timestamp: number | null;
   fbp: string | null;
   fbc: string | null;
   client_ip: string | null;
@@ -59,6 +61,7 @@ const NOT_FOUND: MetaMatchResponse = {
   phone: null,
   fbclid: null,
   fbclid_timestamp: null,
+  optin_timestamp: null,
   fbp: null,
   fbc: null,
   client_ip: null,
@@ -80,6 +83,7 @@ export function buildMetaMatchResponse(rec: MetaMatchRecord | null): MetaMatchRe
     phone: rec.leadMobile ?? null,
     fbclid: str(a.fbclid),
     fbclid_timestamp: rec.fbclidTimestamp ?? null,
+    optin_timestamp: rec.startedAt ? Math.floor(rec.startedAt.getTime() / 1000) : null,
     fbp: rec.fbp ?? null,
     fbc: rec.fbc ?? null,
     client_ip: rec.clientIp ?? null,

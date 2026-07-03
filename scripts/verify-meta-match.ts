@@ -32,6 +32,7 @@ eq("phone last10 short kept", phoneLast10("12345"), "12345");
 eq("phone none -> null", phoneLast10("abc"), null);
 
 // --- response shaping ------------------------------------------------------
+const startedAt = new Date("2026-07-01T12:00:00Z");
 const rec: MetaMatchRecord = {
   leadEmail: "buyer@example.com",
   leadMobile: "+919876543210",
@@ -40,6 +41,7 @@ const rec: MetaMatchRecord = {
   fbp: "fb.1.1751020000.1234567890",
   fbc: null,
   fbclidTimestamp: 1751020800,
+  startedAt,
   attribution: { utm_source: "fb", utm_medium: "paid_social", fbclid: "IwAR0xyz", gclid: "" },
 };
 const out = buildMetaMatchResponse(rec);
@@ -48,6 +50,7 @@ eq("email passthrough", out.email, "buyer@example.com");
 eq("phone passthrough", out.phone, "+919876543210");
 eq("fbclid from attribution", out.fbclid, "IwAR0xyz");
 eq("fbclid_timestamp", out.fbclid_timestamp, 1751020800);
+eq("optin_timestamp from startedAt", out.optin_timestamp, Math.floor(startedAt.getTime() / 1000));
 eq("utm_source", out.utm_source, "fb");
 eq("empty utm -> null", out.utm_campaign, null);
 eq("fbc null passthrough", out.fbc, null);
@@ -56,6 +59,7 @@ const notFound = buildMetaMatchResponse(null);
 eq("not found flag", notFound.found, false);
 eq("not found stable shape has email key", Object.prototype.hasOwnProperty.call(notFound, "email"), true);
 eq("not found email null", notFound.email, null);
+eq("not found optin_timestamp null", notFound.optin_timestamp, null);
 
 // --- token hashing ---------------------------------------------------------
 eq("hash deterministic", hashApiToken("mm_ABC234_secret") === hashApiToken("mm_ABC234_secret"), true);

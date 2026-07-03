@@ -129,12 +129,16 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
               {UTM.map((u) => (
                 <th key={u} className="whitespace-nowrap px-3 py-1.5">{u}</th>
               ))}
+              <th className="whitespace-nowrap px-3 py-1.5">fbclid_timestamp</th>
+              <th className="whitespace-nowrap px-3 py-1.5">fbp</th>
+              <th className="whitespace-nowrap px-3 py-1.5">client_ip</th>
+              <th className="whitespace-nowrap px-3 py-1.5">user_agent</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={9 + UTM.length} className="px-3 py-6 text-center text-sm text-[var(--muted-foreground)]">
+                <td colSpan={13 + UTM.length} className="px-3 py-6 text-center text-sm text-[var(--muted-foreground)]">
                   No contacts match “{query}”.
                 </td>
               </tr>
@@ -184,6 +188,10 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                     {r.attribution?.[u] ?? "—"}
                   </td>
                 ))}
+                <td className="whitespace-nowrap px-3 py-2 text-xs tabular-nums">{r.fbclidTimestamp ?? "—"}</td>
+                <td className="max-w-[160px] truncate px-3 py-2 text-xs" title={r.fbp ?? ""}>{r.fbp ?? "—"}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-xs">{r.clientIp ?? "—"}</td>
+                <td className="max-w-[220px] truncate px-3 py-2 text-xs" title={r.userAgent ?? ""}>{r.userAgent ?? "—"}</td>
               </tr>
             ))}
           </tbody>

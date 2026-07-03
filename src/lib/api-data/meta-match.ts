@@ -30,6 +30,7 @@ const SELECT = {
   fbp: true,
   fbc: true,
   fbclidTimestamp: true,
+  startedAt: true,
   attribution: true,
 } as const;
 

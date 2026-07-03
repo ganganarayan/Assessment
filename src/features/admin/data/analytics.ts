@@ -146,6 +146,11 @@ export interface ContactRow {
   /** Total VSL page loads for this contact (0 = never loaded). */
   vslLoads: number;
   attribution: PayloadAttribution | null;
+  /** Meta CAPI match signals captured at opt-in (null for pre-capture contacts). */
+  clientIp: string | null;
+  userAgent: string | null;
+  fbp: string | null;
+  fbclidTimestamp: number | null;
 }
 
 export interface ContactExportRow {
@@ -168,6 +173,10 @@ export interface ContactExportRow {
   utm_content: string | null;
   fbclid: string | null;
   gclid: string | null;
+  fbclid_timestamp: number | null;
+  fbp: string | null;
+  client_ip: string | null;
+  user_agent: string | null;
 }
 
 /** Safety cap so an export can never try to materialize an unbounded result. */
@@ -196,6 +205,10 @@ export async function listContactsForExport(range?: {
       status: true,
       resultFetchCount: true,
       attribution: true,
+      clientIp: true,
+      userAgent: true,
+      fbp: true,
+      fbclidTimestamp: true,
     },
   });
   const paid = await getPaidBySubmission(rows.map((r) => r.id));
@@ -222,6 +235,10 @@ export async function listContactsForExport(range?: {
       utm_content: a?.utm_content ?? null,
       fbclid: a?.fbclid ?? null,
       gclid: a?.gclid ?? null,
+      fbclid_timestamp: r.fbclidTimestamp ?? null,
+      fbp: r.fbp ?? null,
+      client_ip: r.clientIp ?? null,
+      user_agent: r.userAgent ?? null,
     };
   });
 }
@@ -259,6 +276,10 @@ export async function listContacts(opts: {
       status: true,
       resultFetchCount: true,
       attribution: true,
+      clientIp: true,
+      userAgent: true,
+      fbp: true,
+      fbclidTimestamp: true,
     },
   });
 
@@ -285,6 +306,10 @@ export async function listContacts(opts: {
         paidAt: p?.at ?? null,
         vslLoads: r.resultFetchCount,
         attribution: normalizeAttribution(r.attribution),
+        clientIp: r.clientIp,
+        userAgent: r.userAgent,
+        fbp: r.fbp,
+        fbclidTimestamp: r.fbclidTimestamp,
       };
     }),
   };
