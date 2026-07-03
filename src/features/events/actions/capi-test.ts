@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { testCapi, sendCapiEventVerbose } from "@/lib/meta/send";
-import { fbcFromFbclid } from "@/lib/meta/capi";
+import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
 
 /** Super-admin diagnostic: fire a server-side CAPI event (any name, default
  *  AssessmentCompleted) to Meta and return Meta's real response. */
@@ -37,6 +37,11 @@ export async function resendPurchaseToMeta(submissionId: string, force = false):
       leadEmail: true,
       leadMobile: true,
       attribution: true,
+      fbc: true,
+      fbp: true,
+      clientIp: true,
+      userAgent: true,
+      fbclidTimestamp: true,
       createdAt: true,
       assessment: { select: { slug: true, targetUrl: true, paymentAmount: true, paymentEventName: true } },
     },
@@ -73,16 +78,13 @@ export async function resendPurchaseToMeta(submissionId: string, force = false):
         }
       })()
     : `${env.NEXT_PUBLIC_APP_URL}/a/${s.assessment.slug}/r/${submissionId}`;
-  // Ad-click id from the captured fbclid — the signal Meta needs to ATTRIBUTE this.
-  const fbclid = (s.attribution as { fbclid?: string } | null)?.fbclid ?? null;
-  const fbc = fbcFromFbclid(fbclid, s.createdAt.getTime());
-
   const r = await sendCapiEventVerbose({
     eventName,
     eventId: p.providerPaymentId,
     eventTimeMs: p.createdAt.getTime(),
     eventSourceUrl: base,
-    user: { email: s.leadEmail, phone: s.leadMobile, firstName: s.leadFirstName, lastName: s.leadLastName, fbc },
+    // Full match signals (email/phone/name + fbc/fbp/ip/UA).
+    user: buildPurchaseUserData(s),
     customData: amountRupees != null ? { value: amountRupees, currency: p.currency || "INR" } : { currency: p.currency || "INR" },
   });
   if (r.ok) {
@@ -91,4 +93,58 @@ export async function resendPurchaseToMeta(submissionId: string, force = false):
       .catch(() => {});
   }
   return { ...r, eventName, eventId: p.providerPaymentId };
+}
+
+/**
+ * Manual recovery for an EXTERNAL payment (no in-app Payment row): fire the
+ * standard `Purchase` to Meta for a Razorpay payment id + buyer email. Pulls full
+ * attribution from the most recent COMPLETED submission for that email (fbc/fbp/
+ * ip/UA); if none matches it still fires on email+phone alone. event_id = the
+ * payment id, so it dedups against the browser Purchase on the thank-you page.
+ * Returns Meta's actual response. Fire ONCE per payment.
+ */
+export async function resendPurchaseByEmail(input: {
+  paymentId: string;
+  email: string;
+  phone?: string;
+  amountRupees: number;
+}): Promise<{ ok: boolean; status?: number; response?: string; error?: string; matched: boolean; eventId: string }> {
+  await requireSuperAdmin();
+  const paymentId = input.paymentId.trim();
+  const email = input.email.trim().toLowerCase();
+  const phone = (input.phone ?? "").trim() || null;
+  if (!paymentId || !email) return { ok: false, error: "payment_id and email are required.", matched: false, eventId: paymentId };
+
+  const s = await prisma.submission.findFirst({
+    where: { status: "COMPLETED", leadEmail: { equals: email, mode: "insensitive" } },
+    orderBy: { completedAt: "desc" },
+    select: {
+      leadFirstName: true,
+      leadLastName: true,
+      leadEmail: true,
+      leadMobile: true,
+      attribution: true,
+      fbc: true,
+      fbp: true,
+      clientIp: true,
+      userAgent: true,
+      fbclidTimestamp: true,
+      createdAt: true,
+      assessment: { select: { targetUrl: true } },
+    },
+  });
+
+  const user = s
+    ? buildPurchaseUserData(s)
+    : { email, phone };
+
+  const r = await sendCapiEventVerbose({
+    eventName: PURCHASE_EVENT_NAME,
+    eventId: paymentId,
+    eventTimeMs: Date.now(),
+    eventSourceUrl: s?.assessment?.targetUrl ?? env.NEXT_PUBLIC_APP_URL,
+    user,
+    customData: { value: input.amountRupees, currency: "INR" },
+  });
+  return { ...r, matched: !!s, eventId: paymentId };
 }

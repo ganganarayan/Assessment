@@ -1,5 +1,6 @@
 import { PixelTester } from "@/features/events/components/pixel-tester";
 import { CapiTester } from "@/features/events/components/capi-tester";
+import { ManualPurchaseResend } from "@/features/events/components/manual-purchase-resend";
 import { PurchaseRecovery } from "@/features/events/components/purchase-recovery";
 import { listRecentPurchases } from "@/features/events/data";
 
@@ -23,6 +24,8 @@ export default async function PixelTestPage() {
       <PixelTester />
 
       <CapiTester />
+
+      <ManualPurchaseResend />
 
       <PurchaseRecovery purchases={purchases} />
 

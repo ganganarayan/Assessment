@@ -4,8 +4,24 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { verifyWebhookSignature, isWebhookSignatureVerified } from "@/lib/payments/razorpay";
 import { sendCapiEventVerbose, isCapiConfigured } from "@/lib/meta/send";
-import { fbcFromFbclid } from "@/lib/meta/capi";
+import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
 import { emitCompletedPaid } from "@/lib/events/completion";
+
+/** The submission fields a fully-attributed Purchase needs (shared select). */
+const PURCHASE_SELECT = {
+  resultToken: true,
+  leadFirstName: true,
+  leadLastName: true,
+  leadEmail: true,
+  leadMobile: true,
+  attribution: true,
+  fbc: true,
+  fbp: true,
+  clientIp: true,
+  userAgent: true,
+  fbclidTimestamp: true,
+  createdAt: true,
+} as const;
 
 export const dynamic = "force-dynamic";
 
@@ -36,30 +52,18 @@ async function fireConversionFromWebhook(submissionId: string, paymentId: string
   if (!isCapiConfigured()) return;
   const s = await prisma.submission.findUnique({
     where: { id: submissionId },
-    select: {
-      resultToken: true,
-      leadFirstName: true,
-      leadLastName: true,
-      leadEmail: true,
-      leadMobile: true,
-      attribution: true,
-      createdAt: true,
-      assessment: { select: { slug: true, targetUrl: true, paymentAmount: true, paymentEventName: true } },
-    },
+    select: { ...PURCHASE_SELECT, assessment: { select: { slug: true, targetUrl: true, paymentAmount: true, paymentEventName: true } } },
   });
   if (!s?.assessment) return;
   const amountRupees = s.assessment.paymentAmount ?? (amountPaise != null ? amountPaise / 100 : null);
   const dest = vslUrl(s.assessment.targetUrl, s.assessment.slug, submissionId, s.resultToken);
-  // The ad-click id (fbc) from the fbclid captured at opt-in — lets Meta ATTRIBUTE
-  // this server conversion to the campaign (email/phone alone gets it received only).
-  const fbclid = (s.attribution as { fbclid?: string } | null)?.fbclid ?? null;
-  const fbc = fbcFromFbclid(fbclid, s.createdAt.getTime());
   const r = await sendCapiEventVerbose({
     eventName: s.assessment.paymentEventName || "Purchase121",
     eventId: paymentId,
     eventTimeMs: Date.now(),
     eventSourceUrl: dest,
-    user: { email: s.leadEmail, phone: s.leadMobile, firstName: s.leadFirstName, lastName: s.leadLastName, fbc },
+    // Full match signals (email/phone/name + fbc/fbp/ip/UA) — not just fbc.
+    user: buildPurchaseUserData(s),
     customData: amountRupees != null ? { value: amountRupees, currency: "INR" } : { currency: "INR" },
   });
   if (r.ok) {
@@ -67,6 +71,57 @@ async function fireConversionFromWebhook(submissionId: string, paymentId: string
       .updateMany({ where: { providerPaymentId: paymentId, metaConversionAt: null }, data: { metaConversionAt: new Date() } })
       .catch(() => {});
   }
+}
+
+/**
+ * EXTERNAL payment (no app submissionId in the Razorpay notes) matched to a
+ * contact by email — fire the standard `Purchase` with full attribution. Kept
+ * SEPARATE from the in-app path: no completed_paid, no assessment_unlock row, so
+ * it never triggers the /api/r browser-purchase pixel (which uses a different
+ * event name) and can't cause a name-mismatch double-count. Deduped by payment id.
+ */
+async function fireExternalPurchaseCapi(submissionId: string, paymentId: string, amountPaise: number | null) {
+  if (!isCapiConfigured()) return;
+  const s = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    select: { ...PURCHASE_SELECT, assessment: { select: { slug: true, targetUrl: true, paymentAmount: true } } },
+  });
+  if (!s?.assessment) return;
+  const amountRupees = s.assessment.paymentAmount ?? (amountPaise != null ? amountPaise / 100 : null);
+  const dest = vslUrl(s.assessment.targetUrl, s.assessment.slug, submissionId, s.resultToken);
+  const r = await sendCapiEventVerbose({
+    eventName: PURCHASE_EVENT_NAME,
+    eventId: paymentId,
+    eventTimeMs: Date.now(),
+    eventSourceUrl: dest,
+    user: buildPurchaseUserData(s),
+    customData: amountRupees != null ? { value: amountRupees, currency: "INR" } : { currency: "INR" },
+  });
+  if (r.ok) {
+    await prisma.payment
+      .updateMany({ where: { providerPaymentId: paymentId, metaConversionAt: null }, data: { metaConversionAt: new Date() } })
+      .catch(() => {});
+  }
+}
+
+/**
+ * Match an external capture to a contact by email, GUARDED by amount == the
+ * assessment's configured price. Returns the submission id only when both the
+ * email matches a completed submission AND the captured paise equals price×100 —
+ * so unrelated charges (₹5000 etc.) on the same Razorpay account never fire.
+ */
+async function matchExternalPayment(email: string | null, amountPaise: number | null): Promise<string | null> {
+  if (!email || amountPaise == null) return null;
+  const norm = email.trim().toLowerCase();
+  if (!norm) return null;
+  const sub = await prisma.submission.findFirst({
+    where: { status: "COMPLETED", leadEmail: { equals: norm, mode: "insensitive" } },
+    orderBy: { completedAt: "desc" },
+    select: { id: true, assessment: { select: { paymentAmount: true } } },
+  });
+  const priceRupees = sub?.assessment?.paymentAmount ?? null;
+  if (!sub || priceRupees == null || priceRupees * 100 !== amountPaise) return null;
+  return sub.id;
 }
 
 /**
@@ -130,22 +185,53 @@ export async function POST(req: Request) {
   const existing = await prisma.payment.findUnique({ where: { providerPaymentId } });
   if (existing) return NextResponse.json({ ok: true, duplicate: true });
 
-  // ONLY assessment payments belong in this app. The Razorpay account fires
-  // payment.captured for EVERY payment — including unrelated payment links you share
-  // elsewhere — and those carry no app submissionId. Ignore them rather than
-  // mis-recording them as assessment sales (the old code defaulted purpose to
-  // "assessment_unlock", which polluted the Paid stat).
+  const status = asStr(payment.status) ?? "captured";
+  const amount = asInt(payment.amount);
   const submissionId = asStr(notes.submissionId);
+
+  // EXTERNAL payment: no app submissionId (payment taken on the customer's own
+  // page). Match the buyer by email, GUARDED by amount == the assessment price, and
+  // fire the standard `Purchase` CAPI with full attribution. Recorded under a
+  // distinct purpose (external_purchase) purely for retry-dedup — it does NOT count
+  // as an in-app sale or trigger the /api/r purchase pixel. Unrelated charges (no
+  // matching email, or a different amount) are ignored, same as before.
   if (!submissionId) {
-    return NextResponse.json({ ok: true, ignored: "no submissionId — not an assessment payment" });
+    if (!verified || status !== "captured") {
+      return NextResponse.json({ ok: true, ignored: "external: unverified or not captured" });
+    }
+    const matched = await matchExternalPayment(asStr(payment.email), amount);
+    if (!matched) {
+      return NextResponse.json({ ok: true, ignored: "external: no price-matching email submission" });
+    }
+    try {
+      await prisma.payment.create({
+        data: {
+          provider: "razorpay",
+          providerPaymentId,
+          providerOrderId: asStr(payment.order_id),
+          purpose: "external_purchase",
+          submissionId: matched,
+          amount,
+          currency: asStr(payment.currency) ?? "INR",
+          status,
+          method: asStr(payment.method),
+          event,
+          notes: notes as Prisma.InputJsonValue,
+        },
+      });
+    } catch {
+      return NextResponse.json({ ok: true, duplicate: true }); // lost a race
+    }
+    void fireExternalPurchaseCapi(matched, providerPaymentId, amount).catch(() => {});
+    return NextResponse.json({ ok: true, external: true });
   }
+
+  // IN-APP payment: the Razorpay order carried our submissionId.
   const sub = await prisma.submission.findUnique({ where: { id: submissionId }, select: { id: true } });
   if (!sub) {
     return NextResponse.json({ ok: true, ignored: "unknown submissionId — not an assessment payment" });
   }
-  const purpose = asStr(notes.purpose) ?? "assessment_unlock"; // safe now: a real assessment submission
-  const status = asStr(payment.status) ?? "captured";
-  const amount = asInt(payment.amount);
+  const purpose = asStr(notes.purpose) ?? "assessment_unlock";
 
   let created = false;
   try {
