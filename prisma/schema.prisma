@@ -554,7 +554,10 @@ model Submission {
   userAgent       String?
   fbp             String?
   fbc             String?
-  fbclidTimestamp Int?
+  // Unix MILLISECONDS (matches Meta's fbc format fb.1.<ms>.<fbclid> exactly, so no
+  // unit conversion anywhere). Double, because a ms epoch overflows Int4 — the value
+  // is always an integer and is exact in a double well beyond any realistic date.
+  fbclidTimestamp Float?
 
   // Normalized retake/dedup key (lowercased email or digits-only mobile),
   // captured at start per the assessment's uniqueIdentifier. Indexed for the

@@ -83,7 +83,7 @@ export function buildMetaMatchResponse(rec: MetaMatchRecord | null): MetaMatchRe
     phone: rec.leadMobile ?? null,
     fbclid: str(a.fbclid),
     fbclid_timestamp: rec.fbclidTimestamp ?? null,
-    optin_timestamp: rec.startedAt ? Math.floor(rec.startedAt.getTime() / 1000) : null,
+    optin_timestamp: rec.startedAt ? rec.startedAt.getTime() : null,
     fbp: rec.fbp ?? null,
     fbc: rec.fbc ?? null,
     client_ip: rec.clientIp ?? null,

@@ -121,18 +121,19 @@ export function fbcFromFbclid(fbclid: string | null | undefined, creationTimeMs:
 }
 
 /**
- * Extract the REAL creation time (as unix SECONDS) from a browser `_fbc` cookie
- * `fb.1.<creationTimeMs>.<fbclid>`. This is the authoritative fbclid timestamp
- * when the pixel wrote _fbc. Returns null when absent/malformed (then the caller
- * falls back to the opt-in time). Seconds to match the fbclidTimestamp column.
+ * Extract the REAL creation time (as unix MILLISECONDS) from a browser `_fbc`
+ * cookie `fb.1.<creationTimeMs>.<fbclid>`. This is the authoritative fbclid
+ * timestamp when the pixel wrote _fbc. Returns null when absent/malformed (then
+ * the caller falls back to the opt-in time). Milliseconds — same unit as Meta's
+ * fbc format and the fbclidTimestamp column, so nothing needs converting.
  */
-export function fbcCreationSeconds(fbc: string | null | undefined): number | null {
+export function fbcCreationMs(fbc: string | null | undefined): number | null {
   if (!fbc || typeof fbc !== "string") return null;
   const parts = fbc.split(".");
   if (parts.length < 4) return null;
   const ms = Number(parts[2]);
   if (!Number.isFinite(ms) || ms <= 0) return null;
-  return Math.floor(ms / 1000);
+  return Math.floor(ms);
 }
 
 export function buildCapiEvent(input: CapiEventInput): CapiEventPayload {

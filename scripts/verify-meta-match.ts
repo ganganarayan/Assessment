@@ -10,7 +10,7 @@ import {
   type MetaMatchRecord,
 } from "../src/lib/meta-match/lookup";
 import { hashApiToken, generateApiToken } from "../src/lib/api-auth/token";
-import { fbcCreationSeconds } from "../src/lib/meta/capi";
+import { fbcCreationMs } from "../src/lib/meta/capi";
 
 let failures = 0;
 function eq(name: string, got: unknown, want: unknown) {
@@ -25,10 +25,10 @@ function eq(name: string, got: unknown, want: unknown) {
 }
 
 // --- normalization ---------------------------------------------------------
-// --- fbc creation time (real fbclid timestamp) -----------------------------
-eq("fbc creation seconds from cookie", fbcCreationSeconds("fb.1.1751541600000.IwAR0xyz"), 1751541600);
-eq("fbc missing -> null (fallback to opt-in)", fbcCreationSeconds(null), null);
-eq("fbc malformed -> null", fbcCreationSeconds("fb.1."), null);
+// --- fbc creation time (real fbclid timestamp, MILLISECONDS) ---------------
+eq("fbc creation ms from cookie", fbcCreationMs("fb.1.1751541600000.IwAR0xyz"), 1751541600000);
+eq("fbc missing -> null (fallback to opt-in)", fbcCreationMs(null), null);
+eq("fbc malformed -> null", fbcCreationMs("fb.1."), null);
 
 eq("email trims + lowercases", normalizeEmail("  Buyer@Example.COM "), "buyer@example.com");
 eq("email empty -> null", normalizeEmail("   "), null);
@@ -46,7 +46,7 @@ const rec: MetaMatchRecord = {
   userAgent: "Mozilla/5.0",
   fbp: "fb.1.1751020000.1234567890",
   fbc: null,
-  fbclidTimestamp: 1751020800,
+  fbclidTimestamp: 1751020800000,
   startedAt,
   attribution: { utm_source: "fb", utm_medium: "paid_social", fbclid: "IwAR0xyz", gclid: "" },
 };
@@ -55,8 +55,8 @@ eq("found true", out.found, true);
 eq("email passthrough", out.email, "buyer@example.com");
 eq("phone passthrough", out.phone, "+919876543210");
 eq("fbclid from attribution", out.fbclid, "IwAR0xyz");
-eq("fbclid_timestamp", out.fbclid_timestamp, 1751020800);
-eq("optin_timestamp from startedAt", out.optin_timestamp, Math.floor(startedAt.getTime() / 1000));
+eq("fbclid_timestamp (ms passthrough)", out.fbclid_timestamp, 1751020800000);
+eq("optin_timestamp from startedAt (ms)", out.optin_timestamp, startedAt.getTime());
 eq("utm_source", out.utm_source, "fb");
 eq("empty utm -> null", out.utm_campaign, null);
 eq("fbc null passthrough", out.fbc, null);
