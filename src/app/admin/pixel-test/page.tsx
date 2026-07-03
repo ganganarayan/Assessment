@@ -25,6 +25,16 @@ export default async function PixelTestPage() {
 
       <CapiTester />
 
+      <div className="rounded-lg border border-blue-500/40 bg-blue-500/10 p-3 text-xs text-[var(--muted-foreground)]">
+        <strong className="text-[var(--foreground)]">Purchase dedup rule.</strong> This app fires the
+        server <span className="font-mono">Purchase</span> conversion. Your external thank-you page&apos;s
+        browser Purchase pixel <strong>must use the exact same</strong> event name{" "}
+        <span className="font-mono">Purchase</span> <strong>and</strong>{" "}
+        <span className="font-mono">eventID = the Razorpay payment id</span> — otherwise Meta counts the
+        sale twice. Also set the assessment&apos;s <strong>Price (₹) = 199</strong>: the auto-fire on
+        external captures only fires when the captured amount equals that price.
+      </div>
+
       <ManualPurchaseResend />
 
       <PurchaseRecovery purchases={purchases} />
