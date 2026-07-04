@@ -19,9 +19,14 @@ import { DEFAULT_MODEL, isAiProvider, type AiConfig, type StatementInput } from 
 const TIMEOUT_MS = 20_000;
 const MAX_TOKENS = 400;
 
-async function readAiConfig(requireEnabled: boolean): Promise<AiConfig | null> {
+async function readAiConfig(requireEnabled: boolean, tenantId: string | null = null): Promise<AiConfig | null> {
   try {
-    const s = await prisma.appSetting.findUnique({ where: { id: "singleton" } });
+    // Gita/platform (tenantId null) reads the singleton, unchanged. A tenant reads
+    // ONLY its own row — never the singleton — so Gita's API key is never used for,
+    // or exposed to, a tenant. An unconfigured tenant simply gets no AI (returns null).
+    const s = tenantId
+      ? await prisma.appSetting.findUnique({ where: { tenantId } })
+      : await prisma.appSetting.findUnique({ where: { id: "singleton" } });
     if (!s || !s.aiApiKeyEnc || !s.aiProvider) return null;
     if (requireEnabled && !s.aiEnabled) return null;
     if (!isAiProvider(s.aiProvider)) return null;
@@ -41,20 +46,24 @@ async function readAiConfig(requireEnabled: boolean): Promise<AiConfig | null> {
   }
 }
 
-/** Config used to actually GENERATE on the funnel — only when AI is enabled. */
-export async function getAiConfig(): Promise<AiConfig | null> {
-  return readAiConfig(true);
+/** Config used to actually GENERATE on the funnel — only when AI is enabled.
+ *  Pass the owning tenant (null = platform/Gita). */
+export async function getAiConfig(tenantId: string | null = null): Promise<AiConfig | null> {
+  return readAiConfig(true, tenantId);
 }
 
-export async function isAiConfigured(): Promise<boolean> {
-  return (await getAiConfig()) !== null;
+export async function isAiConfigured(tenantId: string | null = null): Promise<boolean> {
+  return (await getAiConfig(tenantId)) !== null;
 }
 
-export async function generatePersonalStatement(input: StatementInput): Promise<string | null> {
+export async function generatePersonalStatement(
+  input: StatementInput,
+  tenantId: string | null = null,
+): Promise<string | null> {
   // Total function: every step (config read, prompt build, provider call) is
   // inside the guard, so this can NEVER throw into completeSubmission.
   try {
-    const cfg = await getAiConfig();
+    const cfg = await getAiConfig(tenantId);
     if (!cfg) return null;
     const merged = { ...input, guidance: input.guidance ?? cfg.guidance };
     const { system, user } = buildStatementMessages(merged, cfg.promptVersion);
@@ -83,14 +92,14 @@ async function callProvider(cfg: AiConfig, system: string, user: string): Promis
  * swallows). `versionId` lets the dashboard compare prompt versions; omitted =
  * the active version.
  */
-export async function testStatement(versionId?: string): Promise<{
+export async function testStatement(versionId?: string, tenantId: string | null = null): Promise<{
   ok: boolean;
   ms: number;
   text?: string;
   error?: string;
 }> {
   // Test ignores the Enable toggle — you test the key/model first, THEN enable.
-  const cfg = await readAiConfig(false);
+  const cfg = await readAiConfig(false, tenantId);
   if (!cfg) {
     return { ok: false, ms: 0, error: "No API key saved (or it couldn't be read). Save a provider + key first." };
   }

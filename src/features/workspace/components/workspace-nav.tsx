@@ -10,6 +10,7 @@ const NAV = [
   { href: "/w/webhooks", label: "Webhooks" },
   { href: "/w/conversions", label: "Conversions" },
   { href: "/w/api", label: "API tokens" },
+  { href: "/w/settings", label: "Settings" },
 ];
 
 export function WorkspaceNav() {

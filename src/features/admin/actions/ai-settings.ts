@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { resolveActingScope, type ActingScope } from "@/lib/tenant/acting";
 import { env } from "@/lib/env";
 import { encryptWithSecret, decryptWithSecret } from "@/lib/crypto";
 import { isAiProvider, type AiProvider } from "@/lib/ai/types";
@@ -50,9 +50,17 @@ export interface AiSettingsView {
   sampleEasyRead: string;
 }
 
+/** The AppSetting row for a scope: the singleton for the platform/super view, or the
+ *  tenant's own row (which may not exist yet → null). A tenant never sees the singleton. */
+async function readScopeSetting(scope: ActingScope) {
+  return scope.tenantId
+    ? prisma.appSetting.findUnique({ where: { tenantId: scope.tenantId } })
+    : prisma.appSetting.findUnique({ where: { id: "singleton" } });
+}
+
 export async function getAiSettings(): Promise<AiSettingsView> {
-  await requireSuperAdmin();
-  const s = await prisma.appSetting.findUnique({ where: { id: "singleton" } });
+  const scope = await resolveActingScope();
+  const s = await readScopeSetting(scope);
   let keyLast4: string | null = null;
   if (s?.aiApiKeyEnc) {
     const dec = decryptWithSecret(s.aiApiKeyEnc, env.BETTER_AUTH_SECRET);
@@ -82,17 +90,15 @@ export async function getAiSettings(): Promise<AiSettingsView> {
 }
 
 export async function updateAiSettings(input: AiSettingsInput): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const scope = await resolveActingScope();
+  if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
   const d = parsed.data;
 
-  const existing = await prisma.appSetting.findUnique({
-    where: { id: "singleton" },
-    select: { aiApiKeyEnc: true },
-  });
+  const existing = await readScopeSetting(scope);
   const newKey = d.apiKey && d.apiKey.trim() ? d.apiKey.trim() : null;
   const willHaveKey = newKey ? true : Boolean(existing?.aiApiKeyEnc);
   if (d.enabled && !willHaveKey) {
@@ -114,12 +120,21 @@ export async function updateAiSettings(input: AiSettingsInput): Promise<ActionRe
     ...(newKey ? { aiApiKeyEnc: encryptWithSecret(newKey, env.BETTER_AUTH_SECRET) } : {}),
   };
 
-  await prisma.appSetting.upsert({
-    where: { id: "singleton" },
-    update: data,
-    create: { id: "singleton", ...data },
-  });
+  if (scope.tenantId) {
+    await prisma.appSetting.upsert({
+      where: { tenantId: scope.tenantId },
+      update: data,
+      create: { tenantId: scope.tenantId, ...data },
+    });
+  } else {
+    await prisma.appSetting.upsert({
+      where: { id: "singleton" },
+      update: data,
+      create: { id: "singleton", ...data },
+    });
+  }
   revalidatePath("/admin/ai");
+  revalidatePath("/w/settings");
   return { ok: true };
 }
 
@@ -128,6 +143,7 @@ export async function updateAiSettings(input: AiSettingsInput): Promise<ActionRe
 export async function testAi(
   versionId?: string,
 ): Promise<{ ok: boolean; ms: number; text?: string; error?: string }> {
-  await requireSuperAdmin();
-  return testStatement(versionId);
+  const scope = await resolveActingScope();
+  if (!scope.isSuper && !scope.tenantId) return { ok: false, ms: 0, error: "No workspace." };
+  return testStatement(versionId, scope.tenantId);
 }

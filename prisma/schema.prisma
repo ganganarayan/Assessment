@@ -43,6 +43,7 @@ model Tenant {
   webhookLogs WebhookLog[]
   payments    Payment[]
   capiLogs    CapiLog[]
+  setting     AppSetting?
 
   @@index([status])
   @@map("tenant")
@@ -943,6 +944,12 @@ model CapiLog {
 
 model AppSetting {
   id                  String   @id @default("singleton")
+  // Owning tenant. The platform/Gita config is the id="singleton" row (tenantId null),
+  // unchanged; each tenant gets ONE additional row. A tenant NEVER reads the singleton
+  // (so Gita's API keys/config stay private) — an unconfigured tenant simply has no AI.
+  tenantId String? @unique
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   abandonedAfterHours Int      @default(24)
 
   // AI personalized-statement config (platform-level). The API key is stored

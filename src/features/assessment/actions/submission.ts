@@ -573,6 +573,7 @@ export async function completeSubmission(
       editToken: true,
       completedPaidAt: true,
       assessmentId: true,
+      tenantId: true,
       attribution: true,
       customerId: true,
       resultToken: true,
@@ -795,7 +796,7 @@ export async function completeSubmission(
     band: band?.title ?? null,
     bandLevel: band?.level ?? null,
     categories: aiCategories,
-  });
+  }, submission.tenantId);
 
   const snapshot = buildResultSnapshot({
     customerId,
