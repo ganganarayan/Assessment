@@ -117,38 +117,30 @@ export async function resendPurchaseByEmail(input: {
   const phone = (input.phone ?? "").trim() || null;
   if (!paymentId || !email) return { ok: false, error: "payment_id and email are required.", matched: false, eventId: paymentId };
 
-  const s = await prisma.submission.findFirst({
-    where: { status: "COMPLETED", leadEmail: { equals: email, mode: "insensitive" } },
-    orderBy: { completedAt: "desc" },
-    select: {
-      leadFirstName: true,
-      leadLastName: true,
-      leadEmail: true,
-      leadMobile: true,
-      attribution: true,
-      fbc: true,
-      fbp: true,
-      clientIp: true,
-      userAgent: true,
-      fbclidTimestamp: true,
-      createdAt: true,
-      assessment: { select: { targetUrl: true } },
-    },
-  });
+  // Record (or reuse) a CapiLog row so the fire is CAS-guarded + logged: a second
+  // click / another operator can't double-send (fireCapiLogRow only fires a row that
+  // is pending|failed, and pulls full attribution by email inside).
+  const existing = await prisma.capiLog.findUnique({ where: { providerPaymentId: paymentId }, select: { id: true } });
+  const rowId =
+    existing?.id ??
+    (
+      await prisma.capiLog.create({
+        data: {
+          providerPaymentId: paymentId,
+          email,
+          phone,
+          amountPaise: Math.round(input.amountRupees * 100),
+          currency: "INR",
+          eventName: PURCHASE_EVENT_NAME,
+          status: "pending",
+        },
+        select: { id: true },
+      })
+    ).id;
 
-  const user = s
-    ? buildPurchaseUserData(s)
-    : { email, phone };
-
-  const r = await sendCapiEventVerbose({
-    eventName: PURCHASE_EVENT_NAME,
-    eventId: paymentId,
-    eventTimeMs: Date.now(),
-    eventSourceUrl: s?.assessment?.targetUrl ?? env.NEXT_PUBLIC_APP_URL,
-    user,
-    customData: { value: input.amountRupees, currency: "INR" },
-  });
-  return { ...r, matched: !!s, eventId: paymentId };
+  const r = await fireCapiLogRow(rowId, { auto: false });
+  const after = await prisma.capiLog.findUnique({ where: { id: rowId }, select: { matched: true } });
+  return { ...r, matched: after?.matched ?? false, eventId: paymentId };
 }
 
 /* ------------------------------------------------- CAPI log (auto + manual) --- */

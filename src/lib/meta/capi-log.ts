@@ -136,6 +136,14 @@ export async function fireCapiLogRow(
   if (!log) return { ok: false, error: "Log row not found." };
   if (!log.providerPaymentId) return { ok: false, error: "No payment id on this row." };
 
+  // CAS claim: only fire a row that is pending or failed. Blocks a double-click, or an
+  // auto+manual race, from POSTing the same Purchase to Meta twice.
+  const claim = await prisma.capiLog.updateMany({
+    where: { id: logId, status: { in: ["pending", "failed"] } },
+    data: { status: "sending" },
+  });
+  if (claim.count === 0) return { ok: false, error: "Already sent or in progress." };
+
   const eventName = opts?.eventNameOverride?.trim() || log.eventName;
 
   if (!isCapiConfigured()) {
@@ -152,7 +160,9 @@ export async function fireCapiLogRow(
   const r = await sendCapiEventVerbose({
     eventName,
     eventId: log.providerPaymentId,
-    eventTimeMs: Date.now(),
+    // The capture time, not "now" — a late auto/manual fire must carry the real
+    // sale time so it stays in Meta's dedup/attribution window.
+    eventTimeMs: log.createdAt.getTime(),
     eventSourceUrl: sub?.assessment?.targetUrl ?? env.NEXT_PUBLIC_APP_URL,
     user,
     customData: amountRupees != null ? { value: amountRupees, currency: log.currency || "INR" } : { currency: log.currency || "INR" },

@@ -143,9 +143,9 @@ function QuestionForm({
   const [text, setText] = useState(initial?.text ?? "");
   const [weight, setWeight] = useState(String(initial?.weight ?? 1));
   const [required, setRequired] = useState(initial?.required ?? true);
-  const [options, setOptions] = useState<{ label: string; value: number }[]>(
-    initial?.options.map((o) => ({ label: o.label, value: o.value })) ??
-      DEFAULT_OPTIONS,
+  const [options, setOptions] = useState<{ uid: string; label: string; value: number }[]>(
+    initial?.options.map((o) => ({ uid: o.id, label: o.label, value: o.value })) ??
+      DEFAULT_OPTIONS.map((o) => ({ uid: crypto.randomUUID(), ...o })),
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -160,7 +160,7 @@ function QuestionForm({
       text,
       weight: Number(weight),
       required,
-      options,
+      options: options.map((o) => ({ label: o.label, value: o.value })),
     };
     start(async () => {
       const res = questionId
@@ -205,7 +205,7 @@ function QuestionForm({
       <div className="flex flex-col gap-2">
         <Label>Options (label · score)</Label>
         {options.map((o, i) => (
-          <div key={i} className="flex items-center gap-2">
+          <div key={o.uid} className="flex items-center gap-2">
             <Input
               value={o.label}
               onChange={(e) => setOption(i, { label: e.target.value })}
@@ -233,7 +233,7 @@ function QuestionForm({
           variant="outline"
           type="button"
           onClick={() =>
-            setOptions((opts) => [...opts, { label: "", value: opts.length + 1 }])
+            setOptions((opts) => [...opts, { uid: crypto.randomUUID(), label: "", value: opts.length + 1 }])
           }
         >
           + Add option
