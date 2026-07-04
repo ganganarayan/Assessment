@@ -7,6 +7,7 @@ import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase"
 /** Submission fields a fully-attributed Purchase needs. */
 const SUB_SELECT = {
   id: true,
+  tenantId: true,
   leadFirstName: true,
   leadLastName: true,
   leadEmail: true,
@@ -109,6 +110,7 @@ export async function recordCapture(input: {
         eventName: plan.eventName,
         matched: !!sub,
         submissionId: sub?.id ?? input.submissionId ?? null,
+        tenantId: sub?.tenantId ?? null,
         status: "pending",
       },
       select: { id: true },

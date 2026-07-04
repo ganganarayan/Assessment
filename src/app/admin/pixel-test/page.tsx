@@ -9,8 +9,9 @@ import { getPurchaseSettingsForm } from "@/features/events/actions/capi-test";
 export const dynamic = "force-dynamic";
 
 export default async function PixelTestPage() {
-  const purchases = await listRecentPurchases();
-  const capiLogs = await listCapiLogs();
+  // /admin pixel tester is the platform/Gita console → null-tenant records.
+  const purchases = await listRecentPurchases(null);
+  const capiLogs = await listCapiLogs(null);
   const purchaseSettings = await getPurchaseSettingsForm();
   return (
     <div className="flex flex-col gap-6">

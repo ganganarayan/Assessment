@@ -204,13 +204,14 @@ export interface RecentPurchase {
 
 /** Recent captured assessment-unlock payments, for the "re-send conversion to
  *  Meta" recovery tool (e.g. sales whose buyer never returned so CAPI never fired). */
-export async function listRecentPurchases(take = 25): Promise<RecentPurchase[]> {
+export async function listRecentPurchases(tenantId: string | null, take = 25): Promise<RecentPurchase[]> {
   const payments = await prisma.payment.findMany({
     where: {
       purpose: "assessment_unlock",
       status: { in: ["captured", "paid"] },
       providerPaymentId: { not: null },
       submissionId: { not: null },
+      tenantId,
     },
     orderBy: { createdAt: "desc" },
     take,
@@ -251,8 +252,8 @@ export interface CapiLogRow {
 }
 
 /** Every captured payment's Purchase CAPI record + Meta's response (newest first). */
-export async function listCapiLogs(take = 100): Promise<CapiLogRow[]> {
-  const rows = await prisma.capiLog.findMany({ orderBy: { createdAt: "desc" }, take });
+export async function listCapiLogs(tenantId: string | null, take = 100): Promise<CapiLogRow[]> {
+  const rows = await prisma.capiLog.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take });
   return rows.map((r) => ({
     id: r.id,
     providerPaymentId: r.providerPaymentId,
