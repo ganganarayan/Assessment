@@ -15,9 +15,12 @@ import { API_TOKEN_SCOPES, SCOPE_ENDPOINTS, type ApiTokenRow } from "@/features/
 export function ApiTokensManager({
   initialTokens,
   endpointBase,
+  tenantId = null,
 }: {
   initialTokens: ApiTokenRow[];
   endpointBase: string;
+  /** The context's tenant (null = platform/admin). Scopes the refresh to the same set. */
+  tenantId?: string | null;
 }) {
   const [tokens, setTokens] = useState<ApiTokenRow[]>(initialTokens);
   const [scope, setScope] = useState<string>(API_TOKEN_SCOPES[0].value);
@@ -29,7 +32,7 @@ export function ApiTokensManager({
   const base = endpointBase.replace(/\/+$/, "");
 
   const refresh = async () => {
-    const r = await listApiTokens();
+    const r = await listApiTokens(tenantId);
     if (r.ok && r.data) setTokens(r.data);
   };
 

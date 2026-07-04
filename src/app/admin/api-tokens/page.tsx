@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 
 export default async function ApiTokensPage() {
   await requireSuperAdmin();
-  const res = await listApiTokens();
+  // /admin is the platform/Gita console → the null-tenant (platform) tokens.
+  const res = await listApiTokens(null);
   const tokens = res.ok && res.data ? res.data : [];
 
   return (
