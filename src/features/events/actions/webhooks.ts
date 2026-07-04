@@ -4,12 +4,18 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { resolveActingScope, tenantScope } from "@/lib/tenant/acting";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { deliverWebhook } from "@/lib/webhooks/dispatch";
 import { generateWebhookSecret } from "@/lib/webhooks/sign";
 import { withDeliveredName } from "@/lib/events/payload";
 import { ACTIVE_EVENT_TYPES, WEBHOOK_NAME_REGEX } from "@/features/events/types";
+
+/** True if the webhook is within the caller's scope (their tenant, or any for super-global). */
+async function ownsWebhook(id: string, scope: Awaited<ReturnType<typeof resolveActingScope>>): Promise<boolean> {
+  const found = await prisma.webhook.findFirst({ where: { id, ...tenantScope(scope) }, select: { id: true } });
+  return !!found;
+}
 
 // Delivered event name: free format — lowercase, dotted OR underscore segments.
 const nameSchema = z
@@ -30,13 +36,15 @@ export async function createWebhook(
   url: string,
   active: boolean,
 ): Promise<ActionResult<{ id: string }>> {
-  await requireSuperAdmin();
+  const scope = await resolveActingScope();
+  if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
   if (!validTrigger(eventType)) return { ok: false, error: "Pick a valid trigger event." };
   const n = nameSchema.safeParse(name);
   if (!n.success) return { ok: false, error: n.error.issues[0]?.message ?? "Invalid event name." };
   const u = urlSchema.safeParse(url);
   if (!u.success) return { ok: false, error: u.error.issues[0]?.message ?? "Invalid URL." };
 
+  // Delivered event name is globally unique (a single shared namespace for now).
   const existing = await prisma.webhook.findUnique({ where: { name: n.data } });
   if (existing) return { ok: false, error: "A webhook with that name already exists." };
 
@@ -47,10 +55,12 @@ export async function createWebhook(
       url: u.data,
       status: active ? "ACTIVE" : "INACTIVE",
       secret: generateWebhookSecret(),
+      tenantId: scope.tenantId,
     },
     select: { id: true },
   });
   revalidatePath("/admin/webhooks");
+  revalidatePath("/w/webhooks");
   return { ok: true, data: { id: created.id } };
 }
 
@@ -64,8 +74,8 @@ export async function editWebhook(
   name: string,
   url: string,
 ): Promise<ActionResult> {
-  await requireSuperAdmin();
-  const wh = await prisma.webhook.findUnique({ where: { id }, select: { firstDeliveredAt: true } });
+  const scope = await resolveActingScope();
+  const wh = await prisma.webhook.findFirst({ where: { id, ...tenantScope(scope) }, select: { firstDeliveredAt: true } });
   if (!wh) return { ok: false, error: "Webhook not found." };
   if (wh.firstDeliveredAt) {
     return { ok: false, error: "This webhook has delivered successfully and is locked. Create a new webhook instead." };
@@ -80,29 +90,36 @@ export async function editWebhook(
 
   await prisma.webhook.update({ where: { id }, data: { name: n.data, url: u.data } });
   revalidatePath("/admin/webhooks");
+  revalidatePath("/w/webhooks");
   return { ok: true };
 }
 
 export async function activateWebhook(id: string): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const scope = await resolveActingScope();
+  if (!(await ownsWebhook(id, scope))) return { ok: false, error: "Webhook not found." };
   await prisma.webhook.update({ where: { id }, data: { status: "ACTIVE" } });
   revalidatePath("/admin/webhooks");
+  revalidatePath("/w/webhooks");
   return { ok: true };
 }
 
 export async function deactivateWebhook(id: string): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const scope = await resolveActingScope();
+  if (!(await ownsWebhook(id, scope))) return { ok: false, error: "Webhook not found." };
   await prisma.webhook.update({ where: { id }, data: { status: "INACTIVE" } });
   revalidatePath("/admin/webhooks");
+  revalidatePath("/w/webhooks");
   return { ok: true };
 }
 
 export async function purgeWebhook(id: string): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const scope = await resolveActingScope();
+  if (!(await ownsWebhook(id, scope))) return { ok: false, error: "Webhook not found." };
   // Permanently removes the webhook config. EventLog/WebhookLog are NOT deleted
   // (no FK to logs), so history is preserved forever.
   await prisma.webhook.delete({ where: { id } });
   revalidatePath("/admin/webhooks");
+  revalidatePath("/w/webhooks");
   return { ok: true };
 }
 
@@ -111,12 +128,21 @@ export async function purgeWebhook(id: string): Promise<ActionResult> {
  * trigger, using the original event payload (each delivered under its own name).
  */
 export async function retryEvent(eventLogId: string): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const scope = await resolveActingScope();
   const ev = await prisma.eventLog.findUnique({ where: { id: eventLogId } });
   if (!ev) return { ok: false, error: "Event not found." };
 
+  // Resolve the event's tenant (via its submission) and gate access: a tenant admin
+  // may only retry their own events; a super admin may retry any.
+  let tenantId: string | null = null;
+  if (ev.submissionId) {
+    const s = await prisma.submission.findUnique({ where: { id: ev.submissionId }, select: { tenantId: true } });
+    tenantId = s?.tenantId ?? null;
+  }
+  if (!scope.isSuper && tenantId !== scope.tenantId) return { ok: false, error: "Event not found." };
+
   const webhooks = await prisma.webhook.findMany({
-    where: { eventType: ev.type, status: "ACTIVE" },
+    where: { eventType: ev.type, status: "ACTIVE", tenantId },
   });
   if (webhooks.length === 0) {
     return { ok: false, error: "Retry needs an active webhook for this event." };
@@ -138,6 +164,7 @@ export async function retryEvent(eventLogId: string): Promise<ActionResult> {
       eventName: webhook.name,
       body: JSON.stringify(withDeliveredName(basePayload, webhook.name)),
       submissionId: ev.submissionId,
+      tenantId,
       attempt: (last?.attemptCount ?? 0) + 1,
     });
   }

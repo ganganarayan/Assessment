@@ -12,6 +12,8 @@ export interface DeliverArgs {
   body: string;
   webhookId?: string | null;
   submissionId?: string | null;
+  /** Owning tenant (null = platform/Gita) — stamped on the log for scoped views. */
+  tenantId?: string | null;
   attempt?: number;
 }
 
@@ -63,6 +65,7 @@ export async function deliverWebhook(args: DeliverArgs): Promise<DeliverResult> 
       success,
       webhookId: args.webhookId ?? null,
       submissionId: args.submissionId ?? null,
+      tenantId: args.tenantId ?? null,
     },
     select: { id: true },
   });

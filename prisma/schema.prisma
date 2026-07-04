@@ -39,6 +39,8 @@ model Tenant {
   assessments Assessment[]
   submissions Submission[]
   apiTokens   ApiToken[]
+  webhooks    Webhook[]
+  webhookLogs WebhookLog[]
 
   @@index([status])
   @@map("tenant")
@@ -737,9 +739,13 @@ model EventLog {
   assessmentId String?
   leadEmail    String?
 
+  // Owning tenant (null = platform/Gita). Scopes the webhook-logs view per tenant.
+  tenantId String?
+
   @@index([type])
   @@index([createdAt])
   @@index([submissionId])
+  @@index([tenantId, createdAt])
   @@map("event_log")
 }
 
@@ -771,8 +777,14 @@ model Webhook {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
+  // Owning tenant. null = platform/Gita (the existing global webhooks). Delivery
+  // fires only to webhooks whose tenantId matches the emitting submission's tenant.
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   @@index([status])
   @@index([eventType, status])
+  @@index([tenantId, eventType, status])
   @@map("webhook")
 }
 
@@ -797,9 +809,14 @@ model WebhookLog {
 
   submissionId String?
 
+  // Owning tenant (denormalized from the webhook/submission) for scoped log views.
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
   @@index([eventName])
   @@index([success])
   @@index([createdAt])
+  @@index([tenantId, createdAt])
   @@map("webhook_log")
 }
 

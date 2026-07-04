@@ -5,12 +5,12 @@ import type { WebhookRow, EventActivityRow } from "@/features/events/types";
 
 /** Webhooks split into active/inactive, enriched with delivery count + last fired
  *  (counted PER WEBHOOK by webhookId, since names are now free/per-CRM). */
-export async function getWebhooks(): Promise<{
+export async function getWebhooks(tenantId: string | null): Promise<{
   active: WebhookRow[];
   inactive: WebhookRow[];
 }> {
   const [webhooks, counts] = await Promise.all([
-    prisma.webhook.findMany({ orderBy: { name: "asc" } }),
+    prisma.webhook.findMany({ where: { tenantId }, orderBy: { name: "asc" } }),
     prisma.webhookLog.groupBy({
       by: ["webhookId"],
       _count: { _all: true },
@@ -46,9 +46,13 @@ export async function getWebhooks(): Promise<{
 export async function listEventActivity(opts: {
   page: number;
   pageSize: number;
+  /** Scope to a tenant's events (null = platform/Gita). */
+  tenantId: string | null;
 }): Promise<{ rows: EventActivityRow[]; total: number }> {
+  const scopeWhere = { tenantId: opts.tenantId };
   const [events, total, allWebhooks] = await Promise.all([
     prisma.eventLog.findMany({
+      where: scopeWhere,
       orderBy: { createdAt: "desc" },
       skip: (opts.page - 1) * opts.pageSize,
       take: opts.pageSize,
@@ -62,8 +66,8 @@ export async function listEventActivity(opts: {
         payload: true,
       },
     }),
-    prisma.eventLog.count(),
-    prisma.webhook.findMany({ select: { id: true, name: true, eventType: true, status: true } }),
+    prisma.eventLog.count({ where: scopeWhere }),
+    prisma.webhook.findMany({ where: { tenantId: opts.tenantId }, select: { id: true, name: true, eventType: true, status: true } }),
   ]);
   // Names/types are decoupled, so join EventLog <-> WebhookLog by event TYPE, not
   // name. Resolve each delivery's type via its webhook (by id, name fallback).
@@ -76,7 +80,7 @@ export async function listEventActivity(opts: {
     .filter((s): s is string => Boolean(s));
   const deliveries = subIds.length
     ? await prisma.webhookLog.findMany({
-        where: { submissionId: { in: subIds } },
+        where: { submissionId: { in: subIds }, tenantId: opts.tenantId },
         orderBy: { createdAt: "desc" },
         select: {
           eventName: true,

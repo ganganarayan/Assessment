@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/w/assessments", label: "Assessments" },
   { href: "/w/contacts", label: "Contacts" },
+  { href: "/w/webhooks", label: "Webhooks" },
 ];
 
 export function WorkspaceNav() {

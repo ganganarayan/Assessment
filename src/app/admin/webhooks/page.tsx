@@ -5,7 +5,8 @@ import { ACTIVE_EVENT_TYPES, EVENT_LABEL, DEFAULT_EVENT_NAME } from "@/features/
 export const dynamic = "force-dynamic";
 
 export default async function WebhooksPage() {
-  const { active, inactive } = await getWebhooks();
+  // /admin is the platform/Gita console → the null-tenant webhooks.
+  const { active, inactive } = await getWebhooks(null);
   // Trigger options: every event the app emits, with a friendly label + a suggested
   // default delivered name. Computed server-side so the client never imports the
   // event registry (which pulls @prisma/client). Multiple webhooks may share a
