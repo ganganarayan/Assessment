@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
 import { categoryBandSchema, type CategoryBandInput } from "@/features/assessment/schemas";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
+import { assessmentInScope } from "@/features/assessment/actions/ownership";
 
 /**
  * Per-category evaluation bands (CategoryResultBand). The chosen LEVEL is stored
@@ -24,7 +24,6 @@ async function assessmentIdForCategory(categoryId: string): Promise<string | nul
 export async function createCategoryBand(
   input: CategoryBandInput,
 ): Promise<ActionResult<{ id: string }>> {
-  await requireSuperAdmin();
   const parsed = categoryBandSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -33,6 +32,9 @@ export async function createCategoryBand(
 
   const assessmentId = await assessmentIdForCategory(d.categoryId);
   if (!assessmentId) return { ok: false, error: "Category not found." };
+  if (!(await assessmentInScope(assessmentId))) {
+    return { ok: false, error: "Not found." };
+  }
 
   // One band per level per category.
   const dupLevel = await prisma.categoryResultBand.findFirst({
@@ -72,7 +74,6 @@ export async function updateCategoryBand(
   id: string,
   input: CategoryBandInput,
 ): Promise<ActionResult> {
-  await requireSuperAdmin();
   const parsed = categoryBandSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -84,6 +85,10 @@ export async function updateCategoryBand(
     select: { categoryId: true },
   });
   if (!current) return { ok: false, error: "Band not found." };
+  const ownAId = await assessmentIdForCategory(current.categoryId);
+  if (!ownAId || !(await assessmentInScope(ownAId))) {
+    return { ok: false, error: "Not found." };
+  }
 
   // One band per level per category (excluding this band).
   const dupLevel = await prisma.categoryResultBand.findFirst({
@@ -118,12 +123,16 @@ export async function updateCategoryBand(
 }
 
 export async function deleteCategoryBand(id: string): Promise<ActionResult> {
-  await requireSuperAdmin();
-  const band = await prisma.categoryResultBand.delete({
+  const current = await prisma.categoryResultBand.findUnique({
     where: { id },
     select: { categoryId: true },
   });
-  const assessmentId = await assessmentIdForCategory(band.categoryId);
-  if (assessmentId) revalidatePath(`/admin/assessments/${assessmentId}`);
+  if (!current) return { ok: false, error: "Band not found." };
+  const assessmentId = await assessmentIdForCategory(current.categoryId);
+  if (!assessmentId || !(await assessmentInScope(assessmentId))) {
+    return { ok: false, error: "Not found." };
+  }
+  await prisma.categoryResultBand.delete({ where: { id } });
+  revalidatePath(`/admin/assessments/${assessmentId}`);
   return { ok: true };
 }

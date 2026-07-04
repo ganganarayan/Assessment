@@ -2,15 +2,31 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { resolveActingScope, tenantScope } from "@/lib/tenant/acting";
 import { assessmentSchema, type AssessmentInput } from "@/features/assessment/schemas";
 import { originOf } from "@/lib/result/cors";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 
+/** Verify an assessment is owned by the caller's scope (tenant, or any for super-global).
+ *  Returns false if it doesn't exist or belongs to a different tenant. */
+async function ownsAssessment(
+  id: string,
+  scope: Awaited<ReturnType<typeof resolveActingScope>>,
+): Promise<boolean> {
+  const found = await prisma.assessment.findFirst({
+    where: { id, ...tenantScope(scope) },
+    select: { id: true },
+  });
+  return !!found;
+}
+
 export async function createAssessment(
   input: AssessmentInput,
 ): Promise<ActionResult<{ id: string }>> {
-  const user = await requireSuperAdmin();
+  const scope = await resolveActingScope();
+  if (!scope.isSuper && !scope.tenantId) {
+    return { ok: false, error: "No workspace." };
+  }
   const parsed = assessmentSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -57,11 +73,13 @@ export async function createAssessment(
       paymentAmount: d.paymentAmount ?? null,
       paymentEventName: (d.paymentEventName?.trim() || "Purchase121"),
       paymentIntroText: nullifyEmpty(d.paymentIntroText),
-      createdById: user.id,
+      createdById: scope.user.id,
+      tenantId: scope.tenantId,
     },
   });
 
   revalidatePath("/admin/assessments");
+  revalidatePath("/w/assessments");
   return { ok: true, data: { id: created.id } };
 }
 
@@ -69,7 +87,10 @@ export async function updateAssessment(
   id: string,
   input: AssessmentInput,
 ): Promise<ActionResult<{ id: string }>> {
-  await requireSuperAdmin();
+  const scope = await resolveActingScope();
+  if (!(await ownsAssessment(id, scope))) {
+    return { ok: false, error: "Not found." };
+  }
   const parsed = assessmentSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -124,13 +145,18 @@ export async function updateAssessment(
 
   revalidatePath("/admin/assessments");
   revalidatePath(`/admin/assessments/${id}`);
+  revalidatePath("/w/assessments");
   return { ok: true, data: { id } };
 }
 
 export async function deleteAssessment(id: string): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const scope = await resolveActingScope();
+  if (!(await ownsAssessment(id, scope))) {
+    return { ok: false, error: "Not found." };
+  }
   await prisma.assessment.delete({ where: { id } });
   revalidatePath("/admin/assessments");
+  revalidatePath("/w/assessments");
   return { ok: true };
 }
 
@@ -138,7 +164,10 @@ export async function setAssessmentStatus(
   id: string,
   publish: boolean,
 ): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const scope = await resolveActingScope();
+  if (!(await ownsAssessment(id, scope))) {
+    return { ok: false, error: "Not found." };
+  }
   await prisma.assessment.update({
     where: { id },
     data: {
@@ -148,5 +177,6 @@ export async function setAssessmentStatus(
   });
   revalidatePath("/admin/assessments");
   revalidatePath(`/admin/assessments/${id}`);
+  revalidatePath("/w/assessments");
   return { ok: true };
 }

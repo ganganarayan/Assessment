@@ -2,15 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
 import { resultBandSchema, type ResultBandInput } from "@/features/assessment/schemas";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
+import { assessmentInScope } from "@/features/assessment/actions/ownership";
 
 export async function createResultBand(
   assessmentId: string,
   input: ResultBandInput,
 ): Promise<ActionResult<{ id: string }>> {
-  await requireSuperAdmin();
+  if (!(await assessmentInScope(assessmentId))) {
+    return { ok: false, error: "Not found." };
+  }
   const parsed = resultBandSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -46,7 +48,6 @@ export async function updateResultBand(
   id: string,
   input: ResultBandInput,
 ): Promise<ActionResult> {
-  await requireSuperAdmin();
   const parsed = resultBandSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -58,6 +59,9 @@ export async function updateResultBand(
     select: { assessmentId: true },
   });
   if (!current) return { ok: false, error: "Result band not found." };
+  if (!(await assessmentInScope(current.assessmentId))) {
+    return { ok: false, error: "Not found." };
+  }
 
   const others = await prisma.resultBand.findMany({
     where: { assessmentId: current.assessmentId, NOT: { id } },
@@ -84,11 +88,15 @@ export async function updateResultBand(
 }
 
 export async function deleteResultBand(id: string): Promise<ActionResult> {
-  await requireSuperAdmin();
-  const band = await prisma.resultBand.delete({
+  const current = await prisma.resultBand.findUnique({
     where: { id },
     select: { assessmentId: true },
   });
-  revalidatePath(`/admin/assessments/${band.assessmentId}`);
+  if (!current) return { ok: false, error: "Result band not found." };
+  if (!(await assessmentInScope(current.assessmentId))) {
+    return { ok: false, error: "Not found." };
+  }
+  await prisma.resultBand.delete({ where: { id } });
+  revalidatePath(`/admin/assessments/${current.assessmentId}`);
   return { ok: true };
 }

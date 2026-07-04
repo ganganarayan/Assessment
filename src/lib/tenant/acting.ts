@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { prisma } from "@/lib/db/prisma";
 import { requireUser, isSuperAdmin, type AuthUser } from "@/lib/auth/guards";
 import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
 
@@ -24,4 +25,40 @@ export async function resolveActingTenant(): Promise<ActingTenant> {
     return { user, tenantId: acting, impersonating: !!acting };
   }
   return { user, tenantId: user.tenantId ?? null, impersonating: false };
+}
+
+export interface ActingScope {
+  user: AuthUser;
+  /** Tenant to scope writes/reads to. null = super-admin global (edit anything). */
+  tenantId: string | null;
+  isSuper: boolean;
+}
+
+/**
+ * Resolve the caller's write/read scope for shared admin actions used by BOTH the
+ * super-admin console (/admin) and a tenant workspace (/w):
+ *  - Super admin, not impersonating → { tenantId: null, isSuper: true } = global.
+ *  - Super admin, impersonating a tenant → that tenant, scoped.
+ *  - Tenant admin → their own tenant (read fresh from DB; session copy can be stale).
+ * Use tenantScope(scope) to turn it into a Prisma where-fragment.
+ */
+export async function resolveActingScope(): Promise<ActingScope> {
+  const user = await requireUser();
+  if (isSuperAdmin(user)) {
+    const acting = (await cookies()).get(ACTING_TENANT_COOKIE)?.value || null;
+    return { user, tenantId: acting, isSuper: true };
+  }
+  const fresh = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { tenantId: true },
+  });
+  return { user, tenantId: fresh?.tenantId ?? null, isSuper: false };
+}
+
+/** Prisma where-fragment for a scope: filter by tenant, or {} for super-global.
+ *  Throws for a non-super caller with no tenant (they own nothing). */
+export function tenantScope(scope: ActingScope): { tenantId?: string } {
+  if (scope.tenantId) return { tenantId: scope.tenantId };
+  if (scope.isSuper) return {};
+  throw new Error("No workspace: caller has no tenant scope.");
 }

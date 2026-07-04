@@ -75,10 +75,14 @@ export function AssessmentForm({
   mode,
   id,
   initial,
+  basePath = "/admin/assessments",
 }: {
   mode: "create" | "edit";
   id?: string;
   initial?: AssessmentFormValues;
+  /** Where to send the user after create (edit stays in place). The tenant
+   *  workspace passes /w/assessments so it never links into the admin console. */
+  basePath?: string;
 }) {
   const router = useRouter();
   const [values, setValues] = useState<AssessmentFormValues>(
@@ -108,7 +112,7 @@ export function AssessmentForm({
         return;
       }
       if (mode === "create" && res.data) {
-        router.push(`/admin/assessments/${res.data.id}`);
+        router.push(`${basePath}/${res.data.id}`);
       } else {
         router.refresh();
       }

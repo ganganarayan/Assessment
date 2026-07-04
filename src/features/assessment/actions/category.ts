@@ -2,15 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
 import { categorySchema, reorderSchema, type CategoryInput } from "@/features/assessment/schemas";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
+import { assessmentInScope } from "@/features/assessment/actions/ownership";
 
 export async function createCategory(
   assessmentId: string,
   input: CategoryInput,
 ): Promise<ActionResult<{ id: string }>> {
-  await requireSuperAdmin();
+  if (!(await assessmentInScope(assessmentId))) {
+    return { ok: false, error: "Not found." };
+  }
   const parsed = categorySchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -42,7 +44,6 @@ export async function updateCategory(
   id: string,
   input: CategoryInput,
 ): Promise<ActionResult> {
-  await requireSuperAdmin();
   const parsed = categorySchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -53,6 +54,9 @@ export async function updateCategory(
     select: { assessmentId: true },
   });
   if (!current) return { ok: false, error: "Category not found." };
+  if (!(await assessmentInScope(current.assessmentId))) {
+    return { ok: false, error: "Not found." };
+  }
   const dup = await prisma.category.findFirst({
     where: { assessmentId: current.assessmentId, name: parsed.data.name, NOT: { id } },
     select: { id: true },
@@ -73,12 +77,16 @@ export async function updateCategory(
 }
 
 export async function deleteCategory(id: string): Promise<ActionResult> {
-  await requireSuperAdmin();
-  const category = await prisma.category.delete({
+  const current = await prisma.category.findUnique({
     where: { id },
     select: { assessmentId: true },
   });
-  revalidatePath(`/admin/assessments/${category.assessmentId}`);
+  if (!current) return { ok: false, error: "Category not found." };
+  if (!(await assessmentInScope(current.assessmentId))) {
+    return { ok: false, error: "Not found." };
+  }
+  await prisma.category.delete({ where: { id } });
+  revalidatePath(`/admin/assessments/${current.assessmentId}`);
   return { ok: true };
 }
 
@@ -87,14 +95,18 @@ export async function reorderCategories(
   assessmentId: string,
   ids: string[],
 ): Promise<ActionResult> {
-  await requireSuperAdmin();
+  if (!(await assessmentInScope(assessmentId))) {
+    return { ok: false, error: "Not found." };
+  }
   const parsed = reorderSchema.safeParse({ ids });
   if (!parsed.success) return { ok: false, error: "Invalid order." };
 
   await prisma.$transaction(
+    // Constrain each update to THIS assessment so ids smuggled in from another
+    // tenant's assessment match nothing and are silently ignored.
     parsed.data.ids.map((id, index) =>
-      prisma.category.update({
-        where: { id },
+      prisma.category.updateMany({
+        where: { id, assessmentId },
         data: { displayOrder: index },
       }),
     ),
