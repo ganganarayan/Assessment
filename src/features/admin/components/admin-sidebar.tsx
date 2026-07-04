@@ -22,6 +22,7 @@ interface AdminSidebarProps {
   user: { name: string; email: string };
 }
 const NAV: { section: string | null; items: NavItem[] }[] = [
+  { section: null, items: [{ href: "/platform", label: "Platform (tenants)" }] },
   { section: null, items: [{ href: "/admin", label: "Dashboard" }] },
   {
     section: null,
