@@ -21,7 +21,10 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
   const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
 
   const candidates = await prisma.submission.findMany({
-    where: { status: "STARTED", abandonedAt: null, startedAt: { lt: cutoff } },
+    // completedAt: null excludes ever-completed submissions — a paid-mode respondent
+    // who completed then returned to edit is reset to STARTED (keeping the old
+    // startedAt), and must NOT be swept as abandoned / nurtured as a lost lead.
+    where: { status: "STARTED", abandonedAt: null, completedAt: null, startedAt: { lt: cutoff } },
     select: {
       id: true,
       assessmentId: true,

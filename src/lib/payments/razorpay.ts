@@ -48,6 +48,23 @@ export interface OrderResult {
   currency: string;
 }
 
+export interface FetchedOrder {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  notes?: Record<string, string> | null;
+}
+
+/**
+ * Fetch an order by id — used to BIND a Checkout return to the order's OWN
+ * submission + amount (from its notes), so a valid signed payment triple can't be
+ * replayed against an arbitrary `?submission=` to unlock someone else's result.
+ */
+export async function fetchOrder(orderId: string): Promise<FetchedOrder> {
+  return razorpayRequest<FetchedOrder>("GET", `/orders/${encodeURIComponent(orderId)}`);
+}
+
 /**
  * Create a Razorpay Order. The client opens Razorpay Checkout against this order
  * with the lead's details PREFILLED (so the customer isn't asked to type anything),
@@ -84,12 +101,16 @@ export function verifyPaymentSignature(orderId: string, paymentId: string, signa
 
 /**
  * Verify a Razorpay webhook signature (HMAC-SHA256 of the raw body with the
- * webhook secret). When no secret is configured, returns true (verification off)
- * — mirrors VidaPulse so the endpoint works before the secret is set.
+ * webhook secret). FAIL-CLOSED: when no secret is configured we reject — a public
+ * money endpoint must never accept unauthenticated POSTs. Set RAZORPAY_WEBHOOK_SECRET
+ * on every environment where the webhook is live.
  */
 export function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
   const secret = env.RAZORPAY_WEBHOOK_SECRET;
-  if (!secret) return true;
+  if (!secret) {
+    console.error("[razorpay] webhook rejected: RAZORPAY_WEBHOOK_SECRET not set");
+    return false;
+  }
   if (!signature) return false;
   const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
   try {

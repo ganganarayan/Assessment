@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { isOriginAllowed } from "@/lib/result/cors";
 import { readResult } from "@/lib/result/read";
 import { rateLimit } from "@/lib/rate-limit";
+import { loadPurchaseSettings, resolvePurchasePlan } from "@/lib/meta/capi-log";
 
 /**
  * Public, latency-critical read endpoint the customer's destination page calls:
@@ -96,9 +97,15 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
       .updateMany({ where: { resultToken: token, resultFetchedAt: null }, data: { resultFetchedAt: new Date() } })
       .catch(() => {});
     // Attach the payment id (if paid) so the destination page can fire the browser
-    // pixel with the matching event_id + event name (deduped vs the server CAPI event).
+    // pixel with the matching event_id + event name. The browser Purchase MUST use the
+    // SAME name the server CAPI auto-fires (Meta dedups on name+event_id) — so resolve
+    // it from the same settings-driven plan, not the legacy per-assessment name.
     const pf = await purchaseFor(sub.id);
-    const purchase = pf ? { ...pf, eventName: sub.assessment.paymentEventName || "Purchase121" } : null;
+    let purchase: { eventId: string; value: number | null; currency: string; eventName: string } | null = null;
+    if (pf) {
+      const { eventName } = resolvePurchasePlan(pf.value, await loadPurchaseSettings());
+      purchase = { ...pf, eventName };
+    }
     body = { ...(outcome.body as Record<string, unknown>), purchase };
   }
 

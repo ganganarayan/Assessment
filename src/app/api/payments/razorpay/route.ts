@@ -63,14 +63,20 @@ export async function POST(req: Request) {
   const providerPaymentId = asStr(payment.id);
   if (!providerPaymentId) return NextResponse.json({ ok: true, warning: "no payment id" });
 
-  const status = asStr(payment.status) ?? "captured";
+  const rawStatus = asStr(payment.status) ?? "captured";
   const amount = asInt(payment.amount);
   const currency = asStr(payment.currency) ?? "INR";
   const submissionId = asStr(notes.submissionId);
 
-  // Only genuinely-signed, captured payments produce a conversion / sale.
-  if (!verified || status !== "captured") {
-    return NextResponse.json({ ok: true, ignored: "unverified or not captured" });
+  // A settled one-time payment is "captured" (order/checkout) or "paid" (payment link).
+  // Store the CANONICAL "captured" so consumers that filter on "captured" alone don't
+  // miss link sales — a "paid" row would otherwise vanish from revenue AND get the
+  // unpaid-dunning nudge fired at a paying customer.
+  const settled = rawStatus === "captured" || rawStatus === "paid";
+  const status = "captured";
+
+  if (!verified || !settled) {
+    return NextResponse.json({ ok: true, ignored: "unverified or not settled" });
   }
 
   // 1) Record EVERY captured payment in the CAPI log; auto-fire per the amount rules
@@ -108,10 +114,14 @@ export async function POST(req: Request) {
             notes: notes as Prisma.InputJsonValue,
           },
         });
-        if (purpose === "assessment_unlock") void emitCompletedPaid(submissionId).catch(() => {});
       } catch {
-        // Payment row already exists (Razorpay retry / verify path) — don't re-fire.
+        // Payment row already exists (Razorpay retry / verify path) — dedup on the
+        // unique providerPaymentId.
       }
+      // Fire completed_paid regardless of who inserted the Payment row — its own
+      // completedPaidAt CAS makes it exactly-once, so a create collision (verify
+      // already recorded the sale) can never SKIP the CRM paid event.
+      if (purpose === "assessment_unlock") void emitCompletedPaid(submissionId).catch(() => {});
     }
   }
 

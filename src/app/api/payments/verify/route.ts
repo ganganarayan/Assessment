@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
-import { verifyPaymentSignature } from "@/lib/payments/razorpay";
+import { verifyPaymentSignature, fetchOrder } from "@/lib/payments/razorpay";
 import { recordCapture } from "@/lib/meta/capi-log";
 import { emitCompletedPaid } from "@/lib/events/completion";
 
@@ -30,7 +30,6 @@ function vslUrl(targetUrl: string | null, slug: string, submissionId: string, to
 
 export async function POST(req: Request) {
   const url = new URL(req.url);
-  const submissionId = url.searchParams.get("submission");
   const failed = NextResponse.redirect(`${env.NEXT_PUBLIC_APP_URL}/?payment=failed`, 303);
 
   let form: FormData;
@@ -43,9 +42,22 @@ export async function POST(req: Request) {
   const orderId = String(form.get("razorpay_order_id") ?? "");
   const signature = String(form.get("razorpay_signature") ?? "");
 
-  if (!submissionId || !verifyPaymentSignature(orderId, paymentId, signature)) {
+  if (!verifyPaymentSignature(orderId, paymentId, signature)) return failed;
+
+  // Derive the submission to unlock from the ORDER's own notes (set at order
+  // creation) — NEVER from the client-supplied ?submission=. Otherwise one valid
+  // signed (order,payment,signature) triple could be replayed against an arbitrary
+  // submission id to reveal someone else's result token.
+  let order;
+  try {
+    order = await fetchOrder(orderId);
+  } catch {
     return failed;
   }
+  const submissionId = order.notes?.submissionId ?? null;
+  if (!submissionId) return failed;
+  const claimed = url.searchParams.get("submission");
+  if (claimed && claimed !== submissionId) return failed; // defense in depth
 
   const s = await prisma.submission.findUnique({
     where: { id: submissionId },
@@ -62,7 +74,11 @@ export async function POST(req: Request) {
   });
   if (!s || !s.assessment) return failed;
 
-  const amountRupees = s.assessment.paymentAmount ?? null;
+  // A cheaper order must not unlock a costlier assessment.
+  if (s.assessment.paymentAmount != null && order.amount !== s.assessment.paymentAmount * 100) {
+    return failed;
+  }
+  const amountRupees = s.assessment.paymentAmount ?? (order.amount != null ? order.amount / 100 : null);
 
   // Record the payment (authoritative — has the submission link). Dedup/idempotent.
   await prisma.payment
