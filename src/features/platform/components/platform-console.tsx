@@ -10,6 +10,7 @@ import {
   listUsers,
   assignUserToTenant,
   setUserSuperAdmin,
+  deleteUser,
   enterTenant,
   type TenantRow,
   type PlatformUserRow,
@@ -23,9 +24,11 @@ import {
 export function PlatformConsole({
   initialTenants,
   initialUsers,
+  currentUserId,
 }: {
   initialTenants: TenantRow[];
   initialUsers: PlatformUserRow[];
+  currentUserId: string;
 }) {
   const [tenants, setTenants] = useState<TenantRow[]>(initialTenants);
   const [users, setUsers] = useState<PlatformUserRow[]>(initialUsers);
@@ -61,9 +64,17 @@ export function PlatformConsole({
 
   const toggleSuper = (u: PlatformUserRow) =>
     start(async () => {
-      const makeSuper = u.role !== "SUPER_ADMIN";
+      const makeSuper = !u.isSuper;
       if (!confirm(makeSuper ? `Make ${u.email} a platform super-admin?` : `Remove super-admin from ${u.email}?`)) return;
       const r = await setUserSuperAdmin(u.id, makeSuper);
+      if (!r.ok) setError(r.error);
+      await refresh();
+    });
+
+  const del = (u: PlatformUserRow) =>
+    start(async () => {
+      if (!confirm(`Delete the login ${u.email}? This removes their account and sign-in access.`)) return;
+      const r = await deleteUser(u.id);
       if (!r.ok) setError(r.error);
       await refresh();
     });
@@ -139,48 +150,58 @@ export function PlatformConsole({
             <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
               <tr>
                 <th className="px-3 py-1.5">User</th>
-                <th className="px-3 py-1.5">Role</th>
-                <th className="px-3 py-1.5">Tenant</th>
+                <th className="px-3 py-1.5">Access</th>
                 <th className="px-3 py-1.5" />
               </tr>
             </thead>
             <tbody className="divide-y">
-              {users.map((u) => {
-                const isSuper = u.role === "SUPER_ADMIN";
-                return (
-                  <tr key={u.id}>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-col">
-                        <span className="font-medium">{u.name}</span>
-                        <span className="text-xs text-[var(--muted-foreground)]">{u.email}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">{isSuper ? <span className="font-medium text-green-600">Super admin</span> : "Admin"}</td>
-                    <td className="px-3 py-2">
-                      {isSuper ? (
-                        <span className="text-xs text-[var(--muted-foreground)]">— (platform)</span>
-                      ) : (
-                        <select
-                          value={u.tenantId ?? ""}
-                          disabled={pending}
-                          onChange={(e) => assign(u.id, e.target.value)}
-                          className="h-8 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
-                        >
-                          <option value="">— unassigned</option>
-                          {tenants.map((t) => (
-                            <option key={t.id} value={t.id}>{t.name}</option>
-                          ))}
-                        </select>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td className="px-3 py-2">
+                    <div className="flex flex-col">
+                      <span className="font-medium">{u.name}</span>
+                      <span className="text-xs text-[var(--muted-foreground)]">{u.email}</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2">
+                    {u.isSuper ? (
+                      <span className="font-medium text-green-600">Super admin{u.isOwner ? " (owner)" : ""}</span>
+                    ) : (
+                      <select
+                        value={u.tenantId ?? ""}
+                        disabled={pending}
+                        onChange={(e) => assign(u.id, e.target.value)}
+                        className="h-8 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+                      >
+                        <option value="">Unassigned (Admin)</option>
+                        {tenants.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name} (Admin)</option>
+                        ))}
+                      </select>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <div className="flex justify-end gap-2">
+                      {u.isOwner ? null : (
+                        <Button size="sm" variant="outline" disabled={pending} onClick={() => toggleSuper(u)}>
+                          {u.isSuper ? "Remove super-admin" : "Make super-admin"}
+                        </Button>
                       )}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <Button size="sm" variant="outline" disabled={pending} onClick={() => toggleSuper(u)}>
-                        {isSuper ? "Remove super-admin" : "Make super-admin"}
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
+                      {!u.isOwner && u.id !== currentUserId ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={pending}
+                          onClick={() => del(u)}
+                          className="border-red-500 text-red-600 hover:bg-red-500/10"
+                        >
+                          Delete
+                        </Button>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

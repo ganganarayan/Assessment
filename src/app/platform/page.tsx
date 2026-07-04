@@ -7,7 +7,7 @@ import { SignOutButton } from "@/features/auth/components/sign-out-button";
 export const dynamic = "force-dynamic";
 
 export default async function PlatformPage() {
-  await requireSuperAdmin();
+  const me = await requireSuperAdmin();
   const [t, u] = await Promise.all([listTenants(), listUsers()]);
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
@@ -29,6 +29,7 @@ export default async function PlatformPage() {
       <PlatformConsole
         initialTenants={t.ok && t.data ? t.data : []}
         initialUsers={u.ok && u.data ? u.data : []}
+        currentUserId={me.id}
       />
     </main>
   );
