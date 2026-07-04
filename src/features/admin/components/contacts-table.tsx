@@ -177,19 +177,18 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                 <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{r.customerId ?? "—"}</td>
                 <td className="px-3 py-2 align-top">
                   {r.resultUrl ? (
-                    <div className="flex max-w-[150px] flex-col gap-1">
-                      <span className="break-all font-mono text-xs" title={r.resultUrl}>
+                    <div className="flex w-[200px] items-start gap-2">
+                      <span className="min-w-0 flex-1 break-all font-mono text-[11px] leading-snug" title={r.resultUrl}>
                         {r.resultUrl}
                       </span>
-                      <div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => copyUrl(r.id, r.resultUrl as string)}
-                        >
-                          {copiedId === r.id ? "Copied" : "Copy"}
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 shrink-0 px-2"
+                        onClick={() => copyUrl(r.id, r.resultUrl as string)}
+                      >
+                        {copiedId === r.id ? "Copied" : "Copy"}
+                      </Button>
                     </div>
                   ) : (
                     "—"
