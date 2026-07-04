@@ -128,7 +128,7 @@ async function resolvePaidCheckout(opts: {
 
 
 export type StartResult =
-  | { status: "started"; submissionId: string; eventId?: string; answers?: Record<string, string> }
+  | { status: "started"; submissionId: string; editToken: string; eventId?: string; answers?: Record<string, string> }
   | {
       status: "locked";
       policy: "DELAYED" | "NEVER";
@@ -157,9 +157,13 @@ async function loadResumeAnswers(submissionId: string): Promise<Record<string, s
 export async function saveDraftAnswers(
   submissionId: string,
   answers: { questionId: string; optionId: string }[],
+  editToken?: string,
 ): Promise<ActionResult> {
-  const sub = await prisma.submission.findUnique({ where: { id: submissionId }, select: { completedPaidAt: true } });
+  const sub = await prisma.submission.findUnique({ where: { id: submissionId }, select: { completedPaidAt: true, editToken: true } });
   if (!sub) return { ok: false, error: "Not found." };
+  // Ownership: a submission with an edit token requires it (legacy null-token rows,
+  // created before this shipped, are allowed through).
+  if (sub.editToken && sub.editToken !== editToken) return { ok: false, error: "Not authorized." };
   if (sub.completedPaidAt) return { ok: true }; // paid -> frozen
   const map: Record<string, string> = {};
   for (const a of answers ?? []) if (a?.questionId && a?.optionId) map[a.questionId] = a.optionId;
@@ -325,6 +329,8 @@ export async function startSubmission(
   const leadFields = { firstName, lastName, email, mobile, profession };
   // Mint the customerId once (8 chars; the @unique index is the collision backstop).
   const newCustomerId = generateCustomerId();
+  // Unguessable edit token — returned at Start, required to save drafts / complete.
+  const newEditToken = generateToken();
 
   // Admin preview/testing bypasses the lockout — ONLY when the ?preview=1 flag is
   // set AND the caller is the authenticated platform owner (never the flag alone).
@@ -344,6 +350,7 @@ export async function startSubmission(
     leadMobile: assessment.collectMobile ? mobile : null,
     leadProfession: assessment.collectProfession ? profession : null,
     identifierValue,
+    editToken: newEditToken,
     clientIp: metaCtx.clientIpAddress,
     userAgent: metaCtx.clientUserAgent,
     fbp: metaCtx.fbp,
@@ -402,21 +409,26 @@ export async function startSubmission(
           ? { assessmentId: assessment.id, identifierValue, completedPaidAt: null, status: { in: ["STARTED", "COMPLETED"] } }
           : { assessmentId: assessment.id, identifierValue, status: "STARTED" },
         orderBy: { startedAt: "desc" },
-        select: { id: true, customerId: true },
+        select: { id: true, customerId: true, editToken: true },
       });
       if (inflight) {
         const customerId = inflight.customerId ?? newCustomerId;
+        const editToken = inflight.editToken ?? newEditToken; // resume with the same token
         await tx.submission.update({
           where: { id: inflight.id },
-          data: inflight.customerId ? leadUpdate : { ...leadUpdate, customerId },
+          data: {
+            ...leadUpdate,
+            ...(inflight.customerId ? {} : { customerId }),
+            ...(inflight.editToken ? {} : { editToken }),
+          },
         });
-        return { kind: "reused" as const, submissionId: inflight.id, customerId };
+        return { kind: "reused" as const, submissionId: inflight.id, customerId, editToken };
       }
       const created = await tx.submission.create({
         data: { ...submissionData, customerId: newCustomerId },
         select: { id: true },
       });
-      return { kind: "created" as const, submissionId: created.id, customerId: newCustomerId };
+      return { kind: "created" as const, submissionId: created.id, customerId: newCustomerId, editToken: newEditToken };
     });
 
     if (outcome.kind === "locked") {
@@ -440,6 +452,7 @@ export async function startSubmission(
       data: {
         status: "started",
         submissionId: outcome.submissionId,
+        editToken: outcome.editToken,
         ...(eventId ? { eventId } : {}),
         ...(answers && Object.keys(answers).length ? { answers } : {}),
       },
@@ -452,7 +465,7 @@ export async function startSubmission(
     select: { id: true },
   });
   const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr);
-  return { ok: true, data: { status: "started", submissionId: created.id, eventId } };
+  return { ok: true, data: { status: "started", submissionId: created.id, editToken: newEditToken, eventId } };
 }
 
 /**
@@ -535,6 +548,7 @@ export async function requestPreviousResults(
 export async function completeSubmission(
   submissionId: string,
   input: AnswersInput,
+  editToken?: string,
 ): Promise<
   ActionResult<{
     submissionId: string;
@@ -556,6 +570,7 @@ export async function completeSubmission(
     select: {
       id: true,
       status: true,
+      editToken: true,
       completedPaidAt: true,
       assessmentId: true,
       attribution: true,
@@ -574,6 +589,11 @@ export async function completeSubmission(
     },
   });
   if (!submission) return { ok: false, error: "Submission not found." };
+  // Ownership: a submission with an edit token requires it (legacy null-token rows
+  // are allowed through).
+  if (submission.editToken && submission.editToken !== editToken) {
+    return { ok: false, error: "Not authorized." };
+  }
 
   // Customer details for the Razorpay payment link (used by all paid paths).
   const customer = {

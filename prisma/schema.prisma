@@ -570,6 +570,9 @@ model Submission {
   // payload, computed once at completion for a fast, join-free GET /api/r/:token.
   customerId           String?   @unique
   resultToken          String?   @unique
+  // Unguessable capability returned to the client at Start; required to save drafts
+  // or complete, so those write actions can't be driven by guessing the submission id.
+  editToken            String?
   resultTokenExpiresAt DateTime?
   resultSnapshot       Json?
 

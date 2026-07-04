@@ -95,6 +95,9 @@ export function AssessmentRunner({
 }) {
   const [step, setStep] = useState<Step>("intro");
   const [submissionId, setSubmissionId] = useState<string | null>(null);
+  // Unguessable capability returned at Start; sent with draft-save + complete so those
+  // writes can't be driven by guessing the submission id.
+  const [editToken, setEditToken] = useState<string | null>(null);
   const [lead, setLead] = useState<LeadInput>({
     firstName: "",
     lastName: "",
@@ -137,10 +140,11 @@ export function AssessmentRunner({
       void saveDraftAnswers(
         submissionId,
         Object.entries(answers).map(([questionId, optionId]) => ({ questionId, optionId })),
+        editToken ?? undefined,
       ).catch(() => {});
     }, 800);
     return () => clearTimeout(t);
-  }, [answers, submissionId, step, preview]);
+  }, [answers, submissionId, step, preview, editToken]);
 
   const questions = assessment.categories.flatMap((c) => c.questions);
   const requiredUnanswered = questions.filter(
@@ -172,6 +176,7 @@ export function AssessmentRunner({
         pixelTrack("CompleteRegistration", { content_name: assessment.title }, res.data.eventId);
       }
       setSubmissionId(res.data?.submissionId ?? null);
+      setEditToken(res.data?.status === "started" ? res.data.editToken : null);
       // Resume: pre-fill answers they saved/submitted before (editable until paid).
       if (res.data?.status === "started" && res.data.answers) {
         setAnswers(res.data.answers);
@@ -213,7 +218,7 @@ export function AssessmentRunner({
     // from 3, while the server scores + generates the AI statement.
     setStep("evaluating");
     start(async () => {
-      const res = await completeSubmission(submissionId, payload);
+      const res = await completeSubmission(submissionId, payload, editToken ?? undefined);
       if (!res.ok) {
         setError(res.error);
         setStep("questions");
