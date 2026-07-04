@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth/guards";
 import { isPlatformOwner } from "@/lib/auth/platform";
+import { prisma } from "@/lib/db/prisma";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -16,6 +17,9 @@ export default async function DashboardPage() {
   // MVP: platform owner is identified by email, not the DB role.
   const isSuperAdmin = isPlatformOwner(user.email);
   const roleLabel = isSuperAdmin ? "Super Admin" : "Admin";
+  const tenant = user.tenantId
+    ? await prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { name: true, slug: true } })
+    : null;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-6 py-12">
@@ -61,14 +65,24 @@ export default async function DashboardPage() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Admin</CardTitle>
+            <CardTitle>{tenant ? `Workspace: ${tenant.name}` : "Workspace"}</CardTitle>
             <CardDescription>
-              Build and manage assessments for your workspace (coming in Phase 2).
+              {tenant
+                ? "Your tenant is provisioned. Your isolated assessment builder is being finalized and will appear here shortly."
+                : "You're not assigned to a tenant yet. The platform owner will assign you one."}
             </CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-[var(--muted-foreground)]">
-            Your access is scoped to tenant{" "}
-            <span className="font-mono">{user.tenantId ?? "unassigned"}</span>.
+            {tenant ? (
+              <>
+                Everything you build — assessments, leads, webhooks, APIs — stays private to{" "}
+                <span className="font-mono">{tenant.slug}</span> and can&apos;t be seen by any other tenant.
+              </>
+            ) : (
+              <>
+                Tenant: <span className="font-mono">unassigned</span>.
+              </>
+            )}
           </CardContent>
         </Card>
       )}
