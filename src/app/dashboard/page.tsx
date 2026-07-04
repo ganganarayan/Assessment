@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth/guards";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { prisma } from "@/lib/db/prisma";
+import { ProvisionWorkspaceButton } from "@/features/platform/components/provision-workspace-button";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -17,8 +18,14 @@ export default async function DashboardPage() {
   // MVP: platform owner is identified by email, not the DB role.
   const isSuperAdmin = isPlatformOwner(user.email);
   const roleLabel = isSuperAdmin ? "Super Admin" : "Admin";
-  const tenant = user.tenantId
-    ? await prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { name: true, slug: true } })
+  // Read the live tenant from the DB — the session copy of tenantId can be stale
+  // right after self-provisioning (before the next login refreshes the session).
+  const dbUser = isSuperAdmin
+    ? null
+    : await prisma.user.findUnique({ where: { id: user.id }, select: { tenantId: true } });
+  const tenantId = dbUser?.tenantId ?? (isSuperAdmin ? null : user.tenantId ?? null);
+  const tenant = tenantId
+    ? await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, slug: true } })
     : null;
 
   return (
@@ -69,19 +76,17 @@ export default async function DashboardPage() {
             <CardDescription>
               {tenant
                 ? "Your tenant is provisioned. Your isolated assessment builder is being finalized and will appear here shortly."
-                : "You're not assigned to a tenant yet. The platform owner will assign you one."}
+                : "You don't have a workspace yet — create one to start building assessments. Everything in it stays private to you."}
             </CardDescription>
           </CardHeader>
-          <CardContent className="text-sm text-[var(--muted-foreground)]">
+          <CardContent className="flex flex-col gap-3 text-sm text-[var(--muted-foreground)]">
             {tenant ? (
-              <>
+              <span>
                 Everything you build — assessments, leads, webhooks, APIs — stays private to{" "}
                 <span className="font-mono">{tenant.slug}</span> and can&apos;t be seen by any other tenant.
-              </>
+              </span>
             ) : (
-              <>
-                Tenant: <span className="font-mono">unassigned</span>.
-              </>
+              <ProvisionWorkspaceButton />
             )}
           </CardContent>
         </Card>

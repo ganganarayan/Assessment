@@ -27,6 +27,34 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   emailAndPassword: {
     enabled: true,
+    // requireEmailVerification stays OFF for now (no mail system yet) so signup logs
+    // in directly. Flip to true once EMAIL_VERIFY_WEBHOOK_URL is live to enforce it.
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    // Delegate the actual email to the owner's CRM: POST the verification link to a
+    // configurable webhook (their automation sends the email; the user clicks it and
+    // Better Auth verifies + redirects). No-op until EMAIL_VERIFY_WEBHOOK_URL is set.
+    sendVerificationEmail: async ({ user, url, token }) => {
+      const hook = env.EMAIL_VERIFY_WEBHOOK_URL;
+      if (!hook) return;
+      try {
+        await fetch(hook, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            type: "email_verification",
+            email: user.email,
+            name: user.name,
+            verify_url: url,
+            token,
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+      } catch (e) {
+        console.error("[auth] email-verify webhook failed:", e instanceof Error ? e.message : String(e));
+      }
+    },
   },
   user: {
     additionalFields: {
