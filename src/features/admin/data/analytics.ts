@@ -268,8 +268,13 @@ export async function listContacts(opts: {
   pageSize: number;
   from?: string;
   to?: string;
+  /** Scope to a single tenant's leads (the workspace). Omit for the global view. */
+  tenantId?: string;
 }): Promise<{ rows: ContactRow[]; total: number; page: number; pages: number }> {
-  const where = await createdAtScope({ from: opts.from, to: opts.to });
+  const where = {
+    ...(await createdAtScope({ from: opts.from, to: opts.to })),
+    ...(opts.tenantId ? { tenantId: opts.tenantId } : {}),
+  };
 
   // Count first so an out-of-range ?page= is clamped to the last real page
   // (avoids a nonsensical "Page 9999 of 3" pager and a wasted skip past the end).

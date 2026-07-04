@@ -4,8 +4,11 @@ import { getStatsFloor } from "@/lib/stats-floor";
 
 /** Query helpers for admin pages and the public flow. UI-agnostic. */
 
-export async function listAssessments() {
+/** List assessments. Pass tenantId to scope to a single tenant's workspace; omit
+ *  for the super-admin global view. */
+export async function listAssessments(tenantId?: string) {
   return prisma.assessment.findMany({
+    where: tenantId ? { tenantId } : {},
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { categories: true, submissions: true } },

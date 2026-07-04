@@ -1,7 +1,10 @@
 import "server-only";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
+import { prisma } from "@/lib/db/prisma";
 import { isPlatformOwner } from "@/lib/auth/platform";
+import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
 
 /** The session user shape we rely on (Better Auth surfaces role + tenantId). */
 export interface AuthUser {
@@ -34,9 +37,9 @@ export function isSuperAdmin(user: { role?: string | null; email: string }): boo
  */
 export async function requireSuperAdmin(): Promise<AuthUser> {
   const user = await requireUser();
-  // Non-super users land on the info dashboard until their tenant workspace exists
-  // (Stage 3). NOTE: /admin stays super-admin-only until the isolation pass is done.
-  if (!isSuperAdmin(user)) redirect("/dashboard");
+  // Non-super users belong in their tenant workspace (/w); if they have no tenant,
+  // /w bounces them to /dashboard to self-provision.
+  if (!isSuperAdmin(user)) redirect("/w");
   return user;
 }
 
@@ -51,4 +54,24 @@ export async function requireTenantAdmin(): Promise<{ user: AuthUser; tenantId: 
   const tenantId = user.tenantId ?? null;
   if (!tenantId) redirect("/dashboard");
   return { user, tenantId };
+}
+
+/**
+ * Guard for the /w tenant workspace: always resolves a CONCRETE acting tenant.
+ *  - Tenant admin → their own tenant (read fresh from DB, since the session copy can
+ *    be stale right after self-provisioning).
+ *  - Super admin → the tenant they've "entered" (impersonation); if none, back to the
+ *    platform console to pick one.
+ * Every /w data query scopes by the returned tenantId.
+ */
+export async function requireWorkspace(): Promise<{ user: AuthUser; tenantId: string; impersonating: boolean }> {
+  const user = await requireUser();
+  if (isSuperAdmin(user)) {
+    const acting = (await cookies()).get(ACTING_TENANT_COOKIE)?.value || null;
+    if (!acting) redirect("/platform");
+    return { user, tenantId: acting, impersonating: true };
+  }
+  const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { tenantId: true } });
+  if (!fresh?.tenantId) redirect("/dashboard");
+  return { user, tenantId: fresh.tenantId, impersonating: false };
 }

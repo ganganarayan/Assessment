@@ -81,10 +81,15 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm text-[var(--muted-foreground)]">
             {tenant ? (
-              <span>
-                Everything you build — assessments, leads, webhooks, APIs — stays private to{" "}
-                <span className="font-mono">{tenant.slug}</span> and can&apos;t be seen by any other tenant.
-              </span>
+              <>
+                <span>
+                  Everything you build — assessments, leads, webhooks, APIs — stays private to{" "}
+                  <span className="font-mono">{tenant.slug}</span> and can&apos;t be seen by any other tenant.
+                </span>
+                <Link href="/w" className={buttonVariants({ size: "sm" })}>
+                  Open my workspace →
+                </Link>
+              </>
             ) : (
               <ProvisionWorkspaceButton />
             )}

@@ -9,3 +9,6 @@ export const TENANT_HEADERS = {
 } as const;
 
 export type TenantSource = "subdomain" | "custom-domain" | "root";
+
+/** Cookie holding the tenant a super admin has "entered" (impersonation). */
+export const ACTING_TENANT_COOKIE = "acting_tenant";
