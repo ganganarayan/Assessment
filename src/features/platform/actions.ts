@@ -1,11 +1,31 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin } from "@/lib/auth/guards";
+import { ACTING_TENANT_COOKIE } from "@/lib/tenant/acting";
 import { slugSchema } from "@/features/assessment/schemas";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+
+/** Super admin "enters" a tenant to operate its workspace as that tenant. */
+export async function enterTenant(tenantId: string): Promise<void> {
+  await requireSuperAdmin();
+  const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+  if (t) {
+    (await cookies()).set(ACTING_TENANT_COOKIE, tenantId, { httpOnly: true, sameSite: "lax", path: "/" });
+  }
+  redirect("/admin");
+}
+
+/** Leave impersonation and return to the platform console. */
+export async function exitTenant(): Promise<void> {
+  await requireSuperAdmin();
+  (await cookies()).delete(ACTING_TENANT_COOKIE);
+  redirect("/platform");
+}
 
 /** Platform-owner (super-admin) tenant + user management. Stage 1: create tenants,
  *  assign existing logins to a tenant as its admin, promote/demote super admins.

@@ -10,6 +10,7 @@ import {
   listUsers,
   assignUserToTenant,
   setUserSuperAdmin,
+  enterTenant,
   type TenantRow,
   type PlatformUserRow,
 } from "@/features/platform/actions";
@@ -99,11 +100,12 @@ export function PlatformConsole({
                 <th className="px-3 py-1.5 text-center">Assessments</th>
                 <th className="px-3 py-1.5 text-center">Submissions</th>
                 <th className="px-3 py-1.5">Status</th>
+                <th className="px-3 py-1.5" />
               </tr>
             </thead>
             <tbody className="divide-y">
               {tenants.length === 0 ? (
-                <tr><td colSpan={6} className="px-3 py-4 text-center text-[var(--muted-foreground)]">No tenants yet.</td></tr>
+                <tr><td colSpan={7} className="px-3 py-4 text-center text-[var(--muted-foreground)]">No tenants yet.</td></tr>
               ) : (
                 tenants.map((t) => (
                   <tr key={t.id}>
@@ -113,6 +115,11 @@ export function PlatformConsole({
                     <td className="px-3 py-2 text-center tabular-nums">{t.assessmentCount}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.submissionCount}</td>
                     <td className="px-3 py-2">{t.status}</td>
+                    <td className="px-3 py-2 text-right">
+                      <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => { await enterTenant(t.id); })}>
+                        Enter →
+                      </Button>
+                    </td>
                   </tr>
                 ))
               )}
