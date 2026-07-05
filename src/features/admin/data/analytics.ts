@@ -27,14 +27,24 @@ function buildResultUrl(targetUrl: string | null, slug: string, submissionId: st
  * the reporting start floor (AppSetting.statsResetAt) — the effective lower bound
  * is the later of the two. No range + no floor => `{}` => ALL records, all time.
  */
-async function createdAtScope(range?: { from?: string; to?: string }): Promise<Record<string, unknown>> {
+/**
+ * `where` fragment scoping createdAt to the range + reporting floor AND to a tenant.
+ * The stats-floor "reset to 0" is a platform/Gita setting, so it is applied ONLY to
+ * the platform view (tenantId null) — a tenant sees all of its own records. The
+ * returned fragment always pins `tenantId`, so every report is tenant-isolated.
+ */
+async function createdAtScope(
+  range?: { from?: string; to?: string },
+  tenantId: string | null = null,
+): Promise<Record<string, unknown>> {
   const { gte, lte } = istDateRangeToUtc(range?.from, range?.to);
-  return floorCreatedAt(await getStatsFloor(), gte, lte);
+  const floor = tenantId ? null : await getStatsFloor();
+  return { ...floorCreatedAt(floor, gte, lte), tenantId };
 }
 
-/** Aggregate funnel numbers for the Stats page (global, across all assessments). */
-export async function getAnalyticsStats(range?: { from?: string; to?: string }) {
-  const scope = await createdAtScope(range);
+/** Aggregate funnel numbers for the Stats page. Pass tenantId to scope to a workspace. */
+export async function getAnalyticsStats(range?: { from?: string; to?: string }, tenantId: string | null = null) {
+  const scope = await createdAtScope(range, tenantId);
 
   const [totalViews, uniqueVisitors, optins, completed, vslLoads, paidAgg] = await Promise.all([
     prisma.pageView.count({ where: scope }),
@@ -76,8 +86,8 @@ export interface UtmBreakdownRow {
 }
 
 /** Page-view counts grouped by UTM combination (traffic source), in range. */
-export async function getUtmBreakdown(range?: { from?: string; to?: string }): Promise<UtmBreakdownRow[]> {
-  const where = await createdAtScope(range);
+export async function getUtmBreakdown(range?: { from?: string; to?: string }, tenantId: string | null = null): Promise<UtmBreakdownRow[]> {
+  const where = await createdAtScope(range, tenantId);
   const grouped = await prisma.pageView.groupBy({
     by: ["utmSource", "utmMedium", "utmCampaign", "utmTerm", "utmContent"],
     where,
@@ -112,8 +122,9 @@ export async function listPageViews(opts: {
   from?: string;
   to?: string;
   limit?: number;
+  tenantId?: string | null;
 }): Promise<PageViewLogRow[]> {
-  const where = await createdAtScope({ from: opts.from, to: opts.to });
+  const where = await createdAtScope({ from: opts.from, to: opts.to }, opts.tenantId ?? null);
   const rows = await prisma.pageView.findMany({
     where,
     orderBy: { createdAt: "desc" },
@@ -204,8 +215,8 @@ export const EXPORT_CAP = 100_000;
 export async function listContactsForExport(range?: {
   from?: string;
   to?: string;
-}): Promise<ContactExportRow[]> {
-  const where = await createdAtScope(range);
+}, tenantId: string | null = null): Promise<ContactExportRow[]> {
+  const where = await createdAtScope(range, tenantId);
   const rows = await prisma.submission.findMany({
     where,
     orderBy: { createdAt: "desc" },
@@ -268,13 +279,11 @@ export async function listContacts(opts: {
   pageSize: number;
   from?: string;
   to?: string;
-  /** Scope to a single tenant's leads (the workspace). Omit for the global view. */
-  tenantId?: string;
+  /** Scope to a single tenant's leads (the workspace); null = platform/Gita. */
+  tenantId?: string | null;
 }): Promise<{ rows: ContactRow[]; total: number; page: number; pages: number }> {
-  const where = {
-    ...(await createdAtScope({ from: opts.from, to: opts.to })),
-    ...(opts.tenantId ? { tenantId: opts.tenantId } : {}),
-  };
+  // createdAtScope pins tenantId (and skips the Gita floor for tenants).
+  const where = await createdAtScope({ from: opts.from, to: opts.to }, opts.tenantId ?? null);
 
   // Count first so an out-of-range ?page= is clamped to the last real page
   // (avoids a nonsensical "Page 9999 of 3" pager and a wasted skip past the end).

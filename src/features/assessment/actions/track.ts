@@ -30,7 +30,7 @@ export async function recordOptinView(
 
     const a = await prisma.assessment.findFirst({
       where: { slug, status: "PUBLISHED" },
-      select: { id: true },
+      select: { id: true, tenantId: true },
     });
     if (!a) return;
 
@@ -65,7 +65,7 @@ export async function recordOptinView(
     if (existing) {
       // Warm visitor: bound replays per visitor (normal refreshes stay well under).
       if (!rateLimit(`pv:vid:${existing}`, 10)) return;
-      await prisma.pageView.create({ data: { assessmentId: a.id, visitorId: existing, ...utm } });
+      await prisma.pageView.create({ data: { assessmentId: a.id, tenantId: a.tenantId, visitorId: existing, ...utm } });
       return;
     }
 
@@ -81,7 +81,7 @@ export async function recordOptinView(
       sameSite: "lax",
       path: "/",
     });
-    await prisma.pageView.create({ data: { assessmentId: a.id, visitorId: vid, ...utm } });
+    await prisma.pageView.create({ data: { assessmentId: a.id, tenantId: a.tenantId, visitorId: vid, ...utm } });
   } catch {
     // never surface analytics failures to the visitor
   }

@@ -16,14 +16,21 @@ export function ApiTokensManager({
   initialTokens,
   endpointBase,
   tenantId = null,
+  allowedScopes,
 }: {
   initialTokens: ApiTokenRow[];
   endpointBase: string;
   /** The context's tenant (null = platform/admin). Scopes the refresh to the same set. */
   tenantId?: string | null;
+  /** Restrict which scopes are shown/mintable. Omit = all. Tenants get only meta_match
+   *  (gita_mentor is the platform's own product, not a tenant feature). */
+  allowedScopes?: readonly string[];
 }) {
+  const scopes = allowedScopes
+    ? API_TOKEN_SCOPES.filter((s) => allowedScopes.includes(s.value))
+    : API_TOKEN_SCOPES;
   const [tokens, setTokens] = useState<ApiTokenRow[]>(initialTokens);
-  const [scope, setScope] = useState<string>(API_TOKEN_SCOPES[0].value);
+  const [scope, setScope] = useState<string>(scopes[0]?.value ?? API_TOKEN_SCOPES[0].value);
   const [label, setLabel] = useState("");
   const [minted, setMinted] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +71,7 @@ export function ApiTokensManager({
       {/* Endpoint reference — one block per scope, so each consumer's URLs are clear. */}
       <div className="flex flex-col gap-4 rounded-lg border p-4 text-sm">
         <p className="font-medium">Endpoints</p>
-        {API_TOKEN_SCOPES.map((s) => {
+        {scopes.map((s) => {
           const ep = SCOPE_ENDPOINTS[s.value];
           const lookupUrl = `${base}${ep.lookup}`;
           const healthUrl = `${base}${ep.health}`;
@@ -103,7 +110,7 @@ export function ApiTokensManager({
               onChange={(e) => setScope(e.target.value)}
               className="h-10 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
             >
-              {API_TOKEN_SCOPES.map((s) => (
+              {scopes.map((s) => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>

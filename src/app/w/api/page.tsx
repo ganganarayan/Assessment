@@ -20,7 +20,12 @@ export default async function WorkspaceApiTokensPage() {
           hashed (the plaintext is shown once at generation).
         </p>
       </div>
-      <ApiTokensManager initialTokens={tokens} endpointBase={env.NEXT_PUBLIC_APP_URL} tenantId={tenantId} />
+      <ApiTokensManager
+        initialTokens={tokens}
+        endpointBase={env.NEXT_PUBLIC_APP_URL}
+        tenantId={tenantId}
+        allowedScopes={["meta_match"]}
+      />
     </div>
   );
 }

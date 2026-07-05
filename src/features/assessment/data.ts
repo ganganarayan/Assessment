@@ -59,10 +59,15 @@ export async function getPublishedAssessmentBySlug(slug: string) {
   });
 }
 
-export async function listSubmissions(take = 100) {
-  const floor = await getStatsFloor();
+export async function listSubmissions(take = 100, tenantId: string | null = null) {
+  // The stats-floor "reset to 0" baseline is the platform/Gita setting — apply it
+  // only to the platform view, never to a tenant's own submissions.
+  const floor = tenantId ? null : await getStatsFloor();
   return prisma.submission.findMany({
-    where: floor ? { createdAt: { gte: floor } } : {},
+    where: {
+      ...(floor ? { createdAt: { gte: floor } } : {}),
+      tenantId,
+    },
     orderBy: { createdAt: "desc" },
     take,
     include: {
