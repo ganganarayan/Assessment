@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listEventActivity, listCrmSendLogs } from "@/features/events/data";
 import { WebhookLogsTable } from "@/features/events/components/webhook-logs-table";
 import { buttonVariants } from "@/components/ui/button";
+import { actingTenantId } from "@/lib/tenant/acting";
 
 export const dynamic = "force-dynamic";
 const PAGE_SIZE = 50;
@@ -18,7 +19,7 @@ export default async function WebhookLogsPage({
   const { rows, total } =
     view === "crm"
       ? await listCrmSendLogs({ page, pageSize: PAGE_SIZE })
-      : await listEventActivity({ page, pageSize: PAGE_SIZE, tenantId: null });
+      : await listEventActivity({ page, pageSize: PAGE_SIZE, tenantId: await actingTenantId() });
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const tab = (key: "lifecycle" | "crm", label: string) => (

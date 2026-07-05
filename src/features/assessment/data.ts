@@ -4,11 +4,11 @@ import { getStatsFloor } from "@/lib/stats-floor";
 
 /** Query helpers for admin pages and the public flow. UI-agnostic. */
 
-/** List assessments. Pass tenantId to scope to a single tenant's workspace; omit
- *  for the super-admin global view. */
-export async function listAssessments(tenantId?: string) {
+/** List assessments for a scope. tenantId null = platform/Gita (null-tenant rows);
+ *  a tenant id = that workspace. Always filters — never returns cross-tenant rows. */
+export async function listAssessments(tenantId: string | null) {
   return prisma.assessment.findMany({
-    where: tenantId ? { tenantId } : {},
+    where: { tenantId },
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { categories: true, submissions: true } },
@@ -88,14 +88,17 @@ export async function getSubmissionResult(submissionId: string) {
   });
 }
 
-export async function getDashboardCounts() {
-  const floor = await getStatsFloor();
-  const completedWhere = floor
-    ? { status: "COMPLETED" as const, createdAt: { gte: floor } }
-    : { status: "COMPLETED" as const };
+export async function getDashboardCounts(tenantId: string | null = null) {
+  // The stats-floor "reset to 0" is a platform/Gita setting — never apply it to a tenant.
+  const floor = tenantId ? null : await getStatsFloor();
+  const completedWhere = {
+    status: "COMPLETED" as const,
+    tenantId,
+    ...(floor ? { createdAt: { gte: floor } } : {}),
+  };
   const [assessments, published, submissions] = await Promise.all([
-    prisma.assessment.count(),
-    prisma.assessment.count({ where: { status: "PUBLISHED" } }),
+    prisma.assessment.count({ where: { tenantId } }),
+    prisma.assessment.count({ where: { tenantId, status: "PUBLISHED" } }),
     prisma.submission.count({ where: completedWhere }),
   ]);
   return { assessments, published, submissions };

@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/db/prisma";
 import { OperationsPanel } from "@/features/assessment/components/admin/operations-panel";
+import { actingTenantId } from "@/lib/tenant/acting";
 
 export const dynamic = "force-dynamic";
 
 export default async function OperationsPage() {
+  // Scope the pickable assessments to the entered tenant (null = platform/Gita).
   const assessments = await prisma.assessment.findMany({
+    where: { tenantId: await actingTenantId() },
     orderBy: { createdAt: "asc" },
     select: { id: true, title: true },
   });

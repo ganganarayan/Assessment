@@ -2,6 +2,7 @@ import { listContacts } from "@/features/admin/data/analytics";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import { ContactsTable } from "@/features/admin/components/contacts-table";
+import { actingTenantId } from "@/lib/tenant/acting";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export default async function ContactsPage({
     pageSize,
     from: sp.from,
     to: sp.to,
+    tenantId: await actingTenantId(),
   });
 
   // Pagination links must keep the active date range.

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listAssessments } from "@/features/assessment/data";
+import { actingTenantId } from "@/lib/tenant/acting";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 /** Assessments: the PUBLISHED (live) assessments only — an overview with public
  *  links. Editing/creating lives in the Assessment Builder. */
 export default async function AssessmentsPage() {
-  const all = await listAssessments();
+  const all = await listAssessments(await actingTenantId());
   const published = all.filter((a) => a.status === "PUBLISHED");
 
   return (

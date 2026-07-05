@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import { formatIST } from "@/lib/date";
+import { actingTenantId } from "@/lib/tenant/acting";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +20,11 @@ export default async function StatsPage({
 }) {
   const sp = await searchParams;
   const range = { from: sp.from, to: sp.to };
+  const t = await actingTenantId();
   const [s, utm, log] = await Promise.all([
-    getAnalyticsStats(range),
-    getUtmBreakdown(range),
-    listPageViews({ ...range, limit: 100 }),
+    getAnalyticsStats(range, t),
+    getUtmBreakdown(range, t),
+    listPageViews({ ...range, limit: 100, tenantId: t }),
   ]);
 
   const items = [

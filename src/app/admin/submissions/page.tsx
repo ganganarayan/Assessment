@@ -1,4 +1,5 @@
 import { listSubmissions } from "@/features/assessment/data";
+import { actingTenantId } from "@/lib/tenant/acting";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import {
@@ -19,7 +20,7 @@ const EXPORT_GROUPS = [
 
 export default async function SubmissionsPage() {
   // Load all so the live search box can match across every submission, not just a page.
-  const submissions = await listSubmissions(100_000);
+  const submissions = await listSubmissions(100_000, await actingTenantId());
   const paid = await getPaidBySubmission(submissions.map((s) => s.id));
   const rows: SubmissionRow[] = submissions.map((s) => {
     const p = paid.get(s.id);

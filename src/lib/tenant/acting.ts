@@ -27,6 +27,16 @@ export async function resolveActingTenant(): Promise<ActingTenant> {
   return { user, tenantId: user.tenantId ?? null, impersonating: false };
 }
 
+/**
+ * The tenant an /admin page should scope its data to: the tenant a super admin has
+ * "entered" (impersonation), or null = the platform/Gita view when not impersonating.
+ * Every /admin data read passes this so entering a tenant shows ONLY that tenant's
+ * data (no super-admin data bleeds through impersonation).
+ */
+export async function actingTenantId(): Promise<string | null> {
+  return (await resolveActingTenant()).tenantId;
+}
+
 export interface ActingScope {
   user: AuthUser;
   /** Tenant to scope writes/reads to. null = super-admin global (edit anything). */

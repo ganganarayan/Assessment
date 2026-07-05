@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listAssessments } from "@/features/assessment/data";
+import { actingTenantId } from "@/lib/tenant/acting";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 /** Assessment Builder: every assessment (draft + published). Click one to open it
  *  in the builder (Assessment + Results pages). Create / import / export live here. */
 export default async function AssessmentBuilderPage() {
-  const assessments = await listAssessments();
+  const assessments = await listAssessments(await actingTenantId());
 
   return (
     <div className="flex flex-col gap-6">

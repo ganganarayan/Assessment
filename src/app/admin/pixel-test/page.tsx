@@ -5,13 +5,15 @@ import { PurchaseRecovery } from "@/features/events/components/purchase-recovery
 import { CapiLogPanel } from "@/features/events/components/capi-log-panel";
 import { listRecentPurchases, listCapiLogs } from "@/features/events/data";
 import { getPurchaseSettingsForm } from "@/features/events/actions/capi-test";
+import { actingTenantId } from "@/lib/tenant/acting";
 
 export const dynamic = "force-dynamic";
 
 export default async function PixelTestPage() {
-  // /admin pixel tester is the platform/Gita console → null-tenant records.
-  const purchases = await listRecentPurchases(null);
-  const capiLogs = await listCapiLogs(null);
+  // Scope to the entered tenant when impersonating; null = platform/Gita.
+  const t = await actingTenantId();
+  const purchases = await listRecentPurchases(t);
+  const capiLogs = await listCapiLogs(t);
   const purchaseSettings = await getPurchaseSettingsForm();
   return (
     <div className="flex flex-col gap-6">

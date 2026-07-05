@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getDashboardCounts } from "@/features/assessment/data";
+import { actingTenantId } from "@/lib/tenant/acting";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -11,7 +12,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
-  const counts = await getDashboardCounts();
+  const counts = await getDashboardCounts(await actingTenantId());
 
   return (
     <div className="flex flex-col gap-6">
