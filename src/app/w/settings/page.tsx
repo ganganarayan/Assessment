@@ -1,6 +1,8 @@
 import { requireWorkspace } from "@/lib/auth/guards";
 import { getAiSettings } from "@/features/admin/actions/ai-settings";
+import { getIntegrationSettings } from "@/features/workspace/actions/integrations";
 import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
+import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
 import { StatementStudio } from "@/features/admin/components/statement-studio";
 import {
   Card,
@@ -20,6 +22,7 @@ export const dynamic = "force-dynamic";
 export default async function WorkspaceSettingsPage() {
   await requireWorkspace();
   const settings = await getAiSettings();
+  const integrations = await getIntegrationSettings();
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,6 +45,19 @@ export default async function WorkspaceSettingsPage() {
         </CardHeader>
         <CardContent>
           <AiSettingsForm initial={settings} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ads &amp; payments</CardTitle>
+          <CardDescription>
+            Your own Meta Pixel + Conversions API token and Razorpay keys. Stored encrypted and
+            scoped to this workspace.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <IntegrationSettingsForm initial={integrations} />
         </CardContent>
       </Card>
 
