@@ -54,6 +54,9 @@ const DEFAULTS: AssessmentFormValues = {
   mobileRequired: false,
   collectProfession: true,
   professionRequired: true,
+  professionOptions: [],
+  introNotice: "",
+  startButtonLabel: "",
   retakePolicy: "DELAYED",
   retakeDays: 15,
   uniqueIdentifier: "EMAIL",
@@ -103,10 +106,15 @@ export function AssessmentForm({
     e.preventDefault();
     setError(null);
     start(async () => {
+      // Clean the profession options (drop blank lines) before validation.
+      const payload = {
+        ...values,
+        professionOptions: values.professionOptions.map((s) => s.trim()).filter(Boolean),
+      };
       const res =
         mode === "create"
-          ? await createAssessment(values)
-          : await updateAssessment(id as string, values);
+          ? await createAssessment(payload)
+          : await updateAssessment(id as string, payload);
       if (!res.ok) {
         setError(res.error);
         return;
@@ -225,6 +233,53 @@ export function AssessmentForm({
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="flex flex-col gap-4 rounded-lg border p-4">
+            <p className="text-sm font-medium">Opt-in screen copy</p>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="introNotice">Intro notice</Label>
+              <Textarea
+                id="introNotice"
+                rows={2}
+                placeholder="Leave blank to auto-show the retake message (e.g. “…can't retake for 15 days”)."
+                value={values.introNotice ?? ""}
+                onChange={(e) => set("introNotice", e.target.value)}
+              />
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Shown in the amber box above the form. If set, it <strong>replaces</strong> the
+                automatic retake message.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="startButtonLabel">Start button text</Label>
+              <Input
+                id="startButtonLabel"
+                className="max-w-xs"
+                placeholder="Start"
+                value={values.startButtonLabel ?? ""}
+                onChange={(e) => set("startButtonLabel", e.target.value)}
+              />
+            </div>
+
+            {values.collectProfession ? (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="professionOptions">Profession dropdown options</Label>
+                <Textarea
+                  id="professionOptions"
+                  rows={6}
+                  placeholder={"One per line. Leave blank to use the built-in list.\nSenior Management\nBusiness Owner\nDoctor"}
+                  value={(values.professionOptions ?? []).join("\n")}
+                  onChange={(e) => set("professionOptions", e.target.value.split("\n"))}
+                />
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  One option per line. Blank = the built-in 13 professions. The exact label is
+                  stored and sent to your CRM.
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-3 rounded-lg border p-4">

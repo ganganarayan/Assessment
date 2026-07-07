@@ -29,6 +29,12 @@ export const assessmentSchema = z.object({
   mobileRequired: z.boolean().default(false),
   collectProfession: z.boolean().default(true),
   professionRequired: z.boolean().default(true),
+  // Custom profession dropdown options (trimmed, non-empty, deduped). Empty = the
+  // built-in default list.
+  professionOptions: z.array(z.string().trim().min(1).max(120)).max(100).default([]),
+  // Editable opt-in copy. Blank = default behavior.
+  introNotice: z.string().max(2000).optional().or(z.literal("")),
+  startButtonLabel: z.string().max(120).optional().or(z.literal("")),
   // Retake lockout config.
   retakePolicy: z.enum(["DELAYED", "NEVER", "UNLIMITED"]).default("DELAYED"),
   retakeDays: z.coerce
@@ -186,6 +192,12 @@ export const PROFESSION_OPTIONS = [
 export type Profession = (typeof PROFESSION_OPTIONS)[number];
 export function isProfession(v: string): v is Profession {
   return (PROFESSION_OPTIONS as readonly string[]).includes(v);
+}
+
+/** The profession options for an assessment: its custom list, else the built-in
+ *  default. Single source of truth for the dropdown AND the server membership check. */
+export function professionOptionsFor(custom: readonly string[] | null | undefined): readonly string[] {
+  return custom && custom.length > 0 ? custom : PROFESSION_OPTIONS;
 }
 
 /** Lead capture (public). Field-level requiredness is enforced per-assessment

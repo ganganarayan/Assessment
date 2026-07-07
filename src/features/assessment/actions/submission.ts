@@ -6,7 +6,7 @@ import { ATTR_COOKIE } from "@/lib/attribution";
 import {
   leadSchema,
   answersSchema,
-  isProfession,
+  professionOptionsFor,
   type LeadInput,
   type AnswersInput,
 } from "@/features/assessment/schemas";
@@ -275,6 +275,7 @@ export async function startSubmission(
       mobileRequired: true,
       collectProfession: true,
       professionRequired: true,
+      professionOptions: true,
       retakePolicy: true,
       retakeDays: true,
       uniqueIdentifier: true,
@@ -305,9 +306,10 @@ export async function startSubmission(
     return { ok: false, error: "Mobile number is required." };
   if (assessment.collectProfession && assessment.professionRequired && !profession)
     return { ok: false, error: "Profession is required." };
-  // Membership check: the value must be one of our options (guards a direct POST
-  // bypassing the dropdown). An empty/optional value is allowed through above.
-  if (profession && !isProfession(profession))
+  // Membership check: the value must be one of THIS assessment's options (custom
+  // list, else the default) — guards a direct POST bypassing the dropdown. An
+  // empty/optional value is allowed through above.
+  if (profession && !professionOptionsFor(assessment.professionOptions).includes(profession))
     return { ok: false, error: "Please select a valid profession." };
 
   // Sanitize untrusted attribution from the landing URL (known keys, capped).

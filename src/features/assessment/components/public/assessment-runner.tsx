@@ -13,7 +13,7 @@ import { type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
 import { type PaymentCheckout } from "@/lib/payments/types";
 import { ResultPages } from "@/features/assessment/components/public/result-pages";
-import { type LeadInput, PROFESSION_OPTIONS } from "@/features/assessment/schemas";
+import { type LeadInput, professionOptionsFor } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +51,9 @@ export interface PublicAssessment {
   mobileRequired: boolean;
   collectProfession: boolean;
   professionRequired: boolean;
+  professionOptions: string[];
+  introNotice: string | null;
+  startButtonLabel: string | null;
   paidMode: boolean;
   /** Anticipation countdown (seconds) after Submit before the destination/VSL loads. */
   vslCountdownSeconds: number;
@@ -336,12 +339,15 @@ export function AssessmentRunner({
   }
 
   if (step === "intro") {
+    // A custom introNotice overrides the auto retake message entirely.
     const retakeNotice =
-      assessment.retakePolicy === "NEVER"
-        ? "Please answer honestly — this assessment can be taken only once."
-        : assessment.retakePolicy === "DELAYED"
-          ? `Please answer honestly in one sitting. Once you submit, you won't be able to retake this assessment for ${assessment.retakeDays} day${assessment.retakeDays === 1 ? "" : "s"}.`
-          : null;
+      assessment.introNotice && assessment.introNotice.trim()
+        ? assessment.introNotice
+        : assessment.retakePolicy === "NEVER"
+          ? "Please answer honestly — this assessment can be taken only once."
+          : assessment.retakePolicy === "DELAYED"
+            ? `Please answer honestly in one sitting. Once you submit, you won't be able to retake this assessment for ${assessment.retakeDays} day${assessment.retakeDays === 1 ? "" : "s"}.`
+            : null;
     return (
       // Landing page + opt-in form on ONE screen (no separate "Start" step): the
       // headline/description show, with the lead form directly below.
@@ -407,7 +413,7 @@ export function AssessmentRunner({
               label="Profession"
               required={assessment.professionRequired}
               value={lead.profession ?? ""}
-              options={PROFESSION_OPTIONS}
+              options={professionOptionsFor(assessment.professionOptions)}
               placeholder="Select your profession"
               onChange={(v) => setLead((l) => ({ ...l, profession: v }))}
             />
@@ -421,7 +427,7 @@ export function AssessmentRunner({
         ) : null}
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         <Button size="lg" type="submit" disabled={pending}>
-          {pending ? "Starting…" : "Start"}
+          {pending ? "Starting…" : assessment.startButtonLabel?.trim() || "Start"}
         </Button>
       </form>
     );

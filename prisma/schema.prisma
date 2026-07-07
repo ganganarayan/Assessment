@@ -276,6 +276,14 @@ model Assessment {
   mobileRequired    Boolean @default(false)
   collectProfession  Boolean @default(true)
   professionRequired Boolean @default(true)
+  // Custom profession dropdown options. Empty = the built-in default list.
+  professionOptions  String[] @default([])
+
+  // Editable intro copy. introNotice overrides the auto retake message on the
+  // opt-in screen (null = the computed message). startButtonLabel overrides the
+  // opt-in button text (null/empty = "Start").
+  introNotice      String?
+  startButtonLabel String?
 
   // Retake lockout: how often a respondent (keyed by uniqueIdentifier) may
   // retake. DELAYED uses retakeDays; NEVER = once; UNLIMITED = no throttle.
