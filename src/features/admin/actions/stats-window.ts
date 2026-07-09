@@ -1,13 +1,24 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin } from "@/lib/auth/guards";
+import { resolveActingScope, tenantScope } from "@/lib/tenant/acting";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /** Stored UTC instant -> IST datetime-local value "YYYY-MM-DDTHH:mm" for the input. */
 function toIstLocalInput(d: Date | null): string {
   if (!d) return "";
   return new Date(d.getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 16);
+}
+
+/** Parse an IST datetime-local ("YYYY-MM-DDTHH:mm") to a UTC Date; ""/null => null. */
+function parseIstLocal(istLocal: string | null): Date | null | "invalid" {
+  const v = (istLocal ?? "").trim();
+  if (!v) return null;
+  const withSeconds = v.length === 16 ? `${v}:00` : v;
+  const d = new Date(`${withSeconds}+05:30`);
+  return Number.isNaN(d.getTime()) ? "invalid" : d;
 }
 
 export async function getStatsWindow(): Promise<
@@ -33,18 +44,48 @@ export async function getStatsWindow(): Promise<
  */
 export async function setStatsWindow(istLocal: string | null): Promise<ActionResult> {
   await requireSuperAdmin();
-  let value: Date | null = null;
-  const v = (istLocal ?? "").trim();
-  if (v) {
-    const withSeconds = v.length === 16 ? `${v}:00` : v;
-    const d = new Date(`${withSeconds}+05:30`);
-    if (Number.isNaN(d.getTime())) return { ok: false, error: "Enter a valid date and time." };
-    value = d;
-  }
+  const parsed = parseIstLocal(istLocal);
+  if (parsed === "invalid") return { ok: false, error: "Enter a valid date and time." };
   await prisma.appSetting.upsert({
     where: { id: "singleton" },
-    update: { statsResetAt: value },
-    create: { id: "singleton", statsResetAt: value },
+    update: { statsResetAt: parsed },
+    create: { id: "singleton", statsResetAt: parsed },
   });
+  return { ok: true };
+}
+
+/** Per-assessment reporting window (its own Data window). Scoped + ownership-checked. */
+export async function getAssessmentStatsWindow(
+  assessmentId: string,
+): Promise<ActionResult<{ startAtInput: string; startAtIso: string | null }>> {
+  const scope = await resolveActingScope();
+  const a = await prisma.assessment.findFirst({
+    where: { id: assessmentId, ...tenantScope(scope) },
+    select: { statsResetAt: true },
+  });
+  if (!a) return { ok: false, error: "Not found." };
+  return {
+    ok: true,
+    data: {
+      startAtInput: toIstLocalInput(a.statsResetAt ?? null),
+      startAtIso: a.statsResetAt?.toISOString() ?? null,
+    },
+  };
+}
+
+export async function setAssessmentStatsWindow(
+  assessmentId: string,
+  istLocal: string | null,
+): Promise<ActionResult> {
+  const scope = await resolveActingScope();
+  const owned = await prisma.assessment.findFirst({
+    where: { id: assessmentId, ...tenantScope(scope) },
+    select: { id: true },
+  });
+  if (!owned) return { ok: false, error: "Not found." };
+  const parsed = parseIstLocal(istLocal);
+  if (parsed === "invalid") return { ok: false, error: "Enter a valid date and time." };
+  await prisma.assessment.update({ where: { id: assessmentId }, data: { statsResetAt: parsed } });
+  revalidatePath("/admin/data-window");
   return { ok: true };
 }

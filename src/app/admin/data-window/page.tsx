@@ -1,10 +1,22 @@
-import { getStatsWindow } from "@/features/admin/actions/stats-window";
+import { getStatsWindow, getAssessmentStatsWindow } from "@/features/admin/actions/stats-window";
 import { StatsWindowForm } from "@/features/admin/components/stats-window-form";
+import { AssessmentScopeBar } from "@/features/admin/components/assessment-scope-bar";
+import { getAssessmentForAnalytics } from "@/features/assessment/data";
+import { actingTenantId } from "@/lib/tenant/acting";
 
 export const dynamic = "force-dynamic";
 
-export default async function DataWindowPage() {
-  const r = await getStatsWindow();
+export default async function DataWindowPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ assessment?: string }>;
+}) {
+  const sp = await searchParams;
+  const scoped = sp.assessment
+    ? await getAssessmentForAnalytics(sp.assessment, await actingTenantId())
+    : null;
+
+  const r = scoped ? await getAssessmentStatsWindow(scoped.id) : await getStatsWindow();
   const startAtInput = r.ok ? (r.data?.startAtInput ?? "") : "";
   const startAtIso = r.ok ? (r.data?.startAtIso ?? null) : null;
 
@@ -13,12 +25,19 @@ export default async function DataWindowPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Data window</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Pick the date your reporting starts from. The Dashboard, Stats, Contacts, and Submissions
-          then show only data from then onward — a clean slate without deleting anything. Clear it to
-          see all your historical data again.
+          Pick the date your reporting starts from. The Stats, Contacts, and Submissions
+          {scoped ? " for this assessment" : " (and Dashboard)"} then show only data from then
+          onward — a clean slate without deleting anything. Clear it to see all history again.
         </p>
       </div>
-      <StatsWindowForm startAtInput={startAtInput} startAtIso={startAtIso} />
+      {scoped ? (
+        <AssessmentScopeBar assessmentTitle={scoped.title} allHref="/admin/data-window" />
+      ) : null}
+      <StatsWindowForm
+        startAtInput={startAtInput}
+        startAtIso={startAtIso}
+        assessmentId={scoped?.id}
+      />
     </div>
   );
 }

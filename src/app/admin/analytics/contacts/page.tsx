@@ -1,7 +1,9 @@
 import { listContacts } from "@/features/admin/data/analytics";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
+import { AssessmentScopeBar } from "@/features/admin/components/assessment-scope-bar";
 import { ContactsTable } from "@/features/admin/components/contacts-table";
+import { getAssessmentForAnalytics } from "@/features/assessment/data";
 import { actingTenantId } from "@/lib/tenant/acting";
 
 export const dynamic = "force-dynamic";
@@ -9,10 +11,12 @@ export const dynamic = "force-dynamic";
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ page?: string; from?: string; to?: string; assessment?: string }>;
 }) {
   const sp = await searchParams;
   const requested = Math.max(1, Number(sp.page ?? "1") || 1);
+  const t = await actingTenantId();
+  const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, t) : null;
   // Load all (within the date range) so the live search box can match across every
   // contact, not just one page. Pagination below collapses to a single page.
   const pageSize = 100_000;
@@ -21,14 +25,16 @@ export default async function ContactsPage({
     pageSize,
     from: sp.from,
     to: sp.to,
-    tenantId: await actingTenantId(),
+    tenantId: t,
+    ...(scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {}),
   });
 
-  // Pagination links must keep the active date range.
+  // Pagination links must keep the active date range + assessment scope.
   const pageHref = (p: number) => {
     const params = new URLSearchParams();
     if (sp.from) params.set("from", sp.from);
     if (sp.to) params.set("to", sp.to);
+    if (scoped) params.set("assessment", scoped.id);
     params.set("page", String(p));
     return `?${params.toString()}`;
   };
@@ -57,10 +63,19 @@ export default async function ContactsPage({
             {total.toLocaleString()} opt-ins{rangeNote}. Ticks = opted in · completed · VSL loaded (result shown).
           </p>
         </div>
-        <AnalyticsToolbar exportGroups={exportGroups} />
+        {scoped ? null : <AnalyticsToolbar exportGroups={exportGroups} />}
       </div>
 
-      <DateRangeFilter basePath="/admin/analytics/contacts" from={sp.from} to={sp.to} />
+      {scoped ? (
+        <AssessmentScopeBar assessmentTitle={scoped.title} allHref="/admin/analytics/contacts" />
+      ) : null}
+
+      <DateRangeFilter
+        basePath="/admin/analytics/contacts"
+        from={sp.from}
+        to={sp.to}
+        extraQuery={scoped ? { assessment: scoped.id } : undefined}
+      />
 
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">

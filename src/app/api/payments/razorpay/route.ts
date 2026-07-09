@@ -93,7 +93,7 @@ export async function POST(req: Request) {
   // 2) IN-APP sale bookkeeping: the Razorpay order carried our submissionId, so
   //    record the Payment + fire completed_paid for the CRM. CAPI is handled above.
   if (submissionId) {
-    const sub = await prisma.submission.findUnique({ where: { id: submissionId }, select: { id: true, tenantId: true } });
+    const sub = await prisma.submission.findUnique({ where: { id: submissionId }, select: { id: true, tenantId: true, assessmentId: true } });
     if (sub) {
       const purpose = asStr(notes.purpose) ?? "assessment_unlock";
       try {
@@ -113,6 +113,7 @@ export async function POST(req: Request) {
             event,
             notes: notes as Prisma.InputJsonValue,
             tenantId: sub.tenantId,
+            assessmentId: sub.assessmentId,
           },
         });
       } catch {

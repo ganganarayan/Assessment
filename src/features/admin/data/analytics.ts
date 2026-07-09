@@ -33,18 +33,36 @@ function buildResultUrl(targetUrl: string | null, slug: string, submissionId: st
  * the platform view (tenantId null) — a tenant sees all of its own records. The
  * returned fragment always pins `tenantId`, so every report is tenant-isolated.
  */
+/** Optional per-assessment scoping. When assessmentId is set, `floor` is that
+ *  assessment's own reporting window (its statsResetAt) — passed explicitly so the
+ *  global stats-floor is not applied on top. */
+export interface AssessmentScope {
+  assessmentId?: string | null;
+  floor?: Date | null;
+}
+
 async function createdAtScope(
   range?: { from?: string; to?: string },
   tenantId: string | null = null,
+  opts?: AssessmentScope,
 ): Promise<Record<string, unknown>> {
   const { gte, lte } = istDateRangeToUtc(range?.from, range?.to);
-  const floor = tenantId ? null : await getStatsFloor();
-  return { ...floorCreatedAt(floor, gte, lte), tenantId };
+  // An assessment-scoped view passes its own floor; otherwise the platform floor
+  // applies to the global (null-tenant) view and none to a tenant view.
+  const floor = opts && "floor" in opts ? opts.floor ?? null : tenantId ? null : await getStatsFloor();
+  const where: Record<string, unknown> = { ...floorCreatedAt(floor, gte, lte), tenantId };
+  if (opts?.assessmentId) where.assessmentId = opts.assessmentId;
+  return where;
 }
 
-/** Aggregate funnel numbers for the Stats page. Pass tenantId to scope to a workspace. */
-export async function getAnalyticsStats(range?: { from?: string; to?: string }, tenantId: string | null = null) {
-  const scope = await createdAtScope(range, tenantId);
+/** Aggregate funnel numbers for the Stats page. Pass tenantId to scope to a
+ *  workspace, and opts.assessmentId to scope to a single assessment. */
+export async function getAnalyticsStats(
+  range?: { from?: string; to?: string },
+  tenantId: string | null = null,
+  opts?: AssessmentScope,
+) {
+  const scope = await createdAtScope(range, tenantId, opts);
 
   const [totalViews, uniqueVisitors, optins, completed, vslLoads, paidAgg] = await Promise.all([
     prisma.pageView.count({ where: scope }),
@@ -86,8 +104,8 @@ export interface UtmBreakdownRow {
 }
 
 /** Page-view counts grouped by UTM combination (traffic source), in range. */
-export async function getUtmBreakdown(range?: { from?: string; to?: string }, tenantId: string | null = null): Promise<UtmBreakdownRow[]> {
-  const where = await createdAtScope(range, tenantId);
+export async function getUtmBreakdown(range?: { from?: string; to?: string }, tenantId: string | null = null, opts?: AssessmentScope): Promise<UtmBreakdownRow[]> {
+  const where = await createdAtScope(range, tenantId, opts);
   const grouped = await prisma.pageView.groupBy({
     by: ["utmSource", "utmMedium", "utmCampaign", "utmTerm", "utmContent"],
     where,
@@ -123,8 +141,13 @@ export async function listPageViews(opts: {
   to?: string;
   limit?: number;
   tenantId?: string | null;
+  assessmentId?: string | null;
+  floor?: Date | null;
 }): Promise<PageViewLogRow[]> {
-  const where = await createdAtScope({ from: opts.from, to: opts.to }, opts.tenantId ?? null);
+  const where = await createdAtScope({ from: opts.from, to: opts.to }, opts.tenantId ?? null, {
+    assessmentId: opts.assessmentId,
+    ...("floor" in opts ? { floor: opts.floor } : {}),
+  });
   const rows = await prisma.pageView.findMany({
     where,
     orderBy: { createdAt: "desc" },
@@ -281,9 +304,15 @@ export async function listContacts(opts: {
   to?: string;
   /** Scope to a single tenant's leads (the workspace); null = platform/Gita. */
   tenantId?: string | null;
+  /** Scope to a single assessment (with its own reporting floor). */
+  assessmentId?: string | null;
+  floor?: Date | null;
 }): Promise<{ rows: ContactRow[]; total: number; page: number; pages: number }> {
   // createdAtScope pins tenantId (and skips the Gita floor for tenants).
-  const where = await createdAtScope({ from: opts.from, to: opts.to }, opts.tenantId ?? null);
+  const where = await createdAtScope({ from: opts.from, to: opts.to }, opts.tenantId ?? null, {
+    assessmentId: opts.assessmentId,
+    ...("floor" in opts ? { floor: opts.floor } : {}),
+  });
 
   // Count first so an out-of-range ?page= is clamped to the last real page
   // (avoids a nonsensical "Page 9999 of 3" pager and a wasted skip past the end).

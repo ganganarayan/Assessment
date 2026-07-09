@@ -1,7 +1,8 @@
-import { listSubmissions } from "@/features/assessment/data";
+import { listSubmissions, getAssessmentForAnalytics } from "@/features/assessment/data";
 import { actingTenantId } from "@/lib/tenant/acting";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
+import { AssessmentScopeBar } from "@/features/admin/components/assessment-scope-bar";
 import {
   SubmissionsTable,
   type SubmissionRow,
@@ -18,9 +19,20 @@ const EXPORT_GROUPS = [
   },
 ];
 
-export default async function SubmissionsPage() {
+export default async function SubmissionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ assessment?: string }>;
+}) {
+  const sp = await searchParams;
+  const t = await actingTenantId();
+  const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, t) : null;
   // Load all so the live search box can match across every submission, not just a page.
-  const submissions = await listSubmissions(100_000, await actingTenantId());
+  const submissions = await listSubmissions(
+    100_000,
+    t,
+    scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : undefined,
+  );
   const paid = await getPaidBySubmission(submissions.map((s) => s.id));
   const rows: SubmissionRow[] = submissions.map((s) => {
     const p = paid.get(s.id);
@@ -47,12 +59,13 @@ export default async function SubmissionsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
-        <AnalyticsToolbar exportGroups={EXPORT_GROUPS} />
+        {scoped ? null : <AnalyticsToolbar exportGroups={EXPORT_GROUPS} />}
       </div>
+      {scoped ? (
+        <AssessmentScopeBar assessmentTitle={scoped.title} allHref="/admin/submissions" />
+      ) : null}
       <p className="-mt-4 text-xs text-[var(--muted-foreground)]">
-        Grouped by assessment. Type to search across all submissions; click a column heading to sort.
-        Export includes every submission with its score, overall band, UTMs, category results, and all
-        AI-message versions.
+        Grouped by assessment. Type to search; click a column heading to sort.
       </p>
 
       {rows.length === 0 ? (

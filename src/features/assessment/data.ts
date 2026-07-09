@@ -16,6 +16,16 @@ export async function listAssessments(tenantId: string | null) {
   });
 }
 
+/** Resolve an assessment for the `?assessment=<id>` analytics filter, scoped to the
+ *  acting tenant (null = platform/Gita). Returns null if it doesn't exist or isn't in
+ *  scope — so a bad/foreign id silently falls back to the global view (no leak). */
+export async function getAssessmentForAnalytics(assessmentId: string, tenantId: string | null) {
+  return prisma.assessment.findFirst({
+    where: { id: assessmentId, tenantId },
+    select: { id: true, title: true, slug: true, statsResetAt: true },
+  });
+}
+
 export async function getAssessmentById(id: string) {
   return prisma.assessment.findUnique({
     where: { id },
@@ -59,14 +69,19 @@ export async function getPublishedAssessmentBySlug(slug: string) {
   });
 }
 
-export async function listSubmissions(take = 100, tenantId: string | null = null) {
+export async function listSubmissions(
+  take = 100,
+  tenantId: string | null = null,
+  opts?: { assessmentId?: string | null; floor?: Date | null },
+) {
   // The stats-floor "reset to 0" baseline is the platform/Gita setting — apply it
-  // only to the platform view, never to a tenant's own submissions.
-  const floor = tenantId ? null : await getStatsFloor();
+  // only to the platform view. An assessment-scoped view passes its own floor.
+  const floor = opts && "floor" in opts ? opts.floor ?? null : tenantId ? null : await getStatsFloor();
   return prisma.submission.findMany({
     where: {
       ...(floor ? { createdAt: { gte: floor } } : {}),
       tenantId,
+      ...(opts?.assessmentId ? { assessmentId: opts.assessmentId } : {}),
     },
     orderBy: { createdAt: "desc" },
     take,

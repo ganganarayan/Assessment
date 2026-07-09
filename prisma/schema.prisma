@@ -311,6 +311,11 @@ model Assessment {
   // loads. 0 = redirect immediately. Default 10.
   vslCountdownSeconds Int @default(10)
 
+  // Per-assessment reporting floor ("Data window"). When set, this assessment's own
+  // Stats/Submissions/Contacts count only records at/after this instant. Independent
+  // of the platform-wide AppSetting.statsResetAt used by the global pages.
+  statsResetAt DateTime?
+
   // Pay-to-unlock. When paidMode is on, submitting the assessment stores results
   // then redirects to paymentUrl (with ?t=<token>) INSTEAD of the destination/VSL;
   // the submit screen shows paymentHeadline + the paymentButtonLabel nudge. Off =>
@@ -910,9 +915,13 @@ model Payment {
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
+  // Owning assessment (denormalized from the submission) for per-assessment revenue.
+  assessmentId String?
+
   @@index([submissionId])
   @@index([purpose])
   @@index([tenantId, createdAt])
+  @@index([assessmentId, createdAt])
   @@map("payment")
 }
 

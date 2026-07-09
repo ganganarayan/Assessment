@@ -6,16 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatIST } from "@/lib/date";
-import { setStatsWindow } from "@/features/admin/actions/stats-window";
+import { setStatsWindow, setAssessmentStatsWindow } from "@/features/admin/actions/stats-window";
 
 /** Set/clear the reporting start date (IST). Floors the dashboard, stats, contacts
- *  and submissions to records from this instant onward; clearing shows everything. */
+ *  and submissions to records from this instant onward; clearing shows everything.
+ *  Pass assessmentId to set THAT assessment's own window instead of the global one. */
 export function StatsWindowForm({
   startAtInput,
   startAtIso,
+  assessmentId,
 }: {
   startAtInput: string;
   startAtIso: string | null;
+  assessmentId?: string;
 }) {
   const router = useRouter();
   const [value, setValue] = useState(startAtInput);
@@ -27,7 +30,10 @@ export function StatsWindowForm({
     start(async () => {
       setErr(null);
       setMsg(null);
-      const r = await setStatsWindow(clear ? null : value);
+      const arg = clear ? null : value;
+      const r = assessmentId
+        ? await setAssessmentStatsWindow(assessmentId, arg)
+        : await setStatsWindow(arg);
       if (!r.ok) {
         setErr(r.error);
         return;

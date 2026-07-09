@@ -6,6 +6,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
+import { AssessmentScopeBar } from "@/features/admin/components/assessment-scope-bar";
+import { getAssessmentForAnalytics } from "@/features/assessment/data";
 import { formatIST } from "@/lib/date";
 import { actingTenantId } from "@/lib/tenant/acting";
 
@@ -16,15 +18,18 @@ const dash = (v: string | null) => (v && v.trim() ? v : "—");
 export default async function StatsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; assessment?: string }>;
 }) {
   const sp = await searchParams;
   const range = { from: sp.from, to: sp.to };
   const t = await actingTenantId();
+  const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, t) : null;
+  const aScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : undefined;
+  const pvScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {};
   const [s, utm, log] = await Promise.all([
-    getAnalyticsStats(range, t),
-    getUtmBreakdown(range, t),
-    listPageViews({ ...range, limit: 100, tenantId: t }),
+    getAnalyticsStats(range, t, aScope),
+    getUtmBreakdown(range, t, aScope),
+    listPageViews({ ...range, limit: 100, tenantId: t, ...pvScope }),
   ]);
 
   const items = [
@@ -38,7 +43,9 @@ export default async function StatsPage({
   const note =
     sp.from || sp.to
       ? `Showing ${sp.from ?? "start"} → ${sp.to ?? "today"} (IST).`
-      : "Funnel numbers across all assessments (all time).";
+      : scoped
+        ? "Funnel numbers for this assessment (all time)."
+        : "Funnel numbers across all assessments (all time).";
 
   const exportHref = (dataset: string, format: string) => {
     const p = new URLSearchParams();
@@ -72,10 +79,19 @@ export default async function StatsPage({
           <h1 className="text-2xl font-bold tracking-tight">Stats</h1>
           <p className="text-sm text-[var(--muted-foreground)]">{note}</p>
         </div>
-        <AnalyticsToolbar exportGroups={exportGroups} />
+        {scoped ? null : <AnalyticsToolbar exportGroups={exportGroups} />}
       </div>
 
-      <DateRangeFilter basePath="/admin/analytics/stats" from={sp.from} to={sp.to} />
+      {scoped ? (
+        <AssessmentScopeBar assessmentTitle={scoped.title} allHref="/admin/analytics/stats" />
+      ) : null}
+
+      <DateRangeFilter
+        basePath="/admin/analytics/stats"
+        from={sp.from}
+        to={sp.to}
+        extraQuery={scoped ? { assessment: scoped.id } : undefined}
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((it) => (

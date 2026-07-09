@@ -54,6 +54,18 @@ export default async function AssessmentsPage() {
                 >
                   Open in builder
                 </Link>
+                <Link href={`/admin/analytics/stats?assessment=${a.id}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                  Stats
+                </Link>
+                <Link href={`/admin/submissions?assessment=${a.id}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                  Submissions
+                </Link>
+                <Link href={`/admin/analytics/contacts?assessment=${a.id}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                  Contacts
+                </Link>
+                <Link href={`/admin/data-window?assessment=${a.id}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                  Data window
+                </Link>
               </div>
             </div>
           ))}
