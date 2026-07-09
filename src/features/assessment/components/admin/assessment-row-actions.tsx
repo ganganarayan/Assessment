@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   setAssessmentStatus,
   deleteAssessment,
+  duplicateAssessment,
 } from "@/features/assessment/actions/assessment";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,14 @@ export function AssessmentRowActions({
     });
   }
 
+  function duplicate() {
+    start(async () => {
+      const res = await duplicateAssessment(id);
+      if (res.ok && res.data) router.push(`/admin/assessments/${res.data.id}`);
+      else if (!res.ok) alert(res.error);
+    });
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Link
@@ -52,6 +61,9 @@ export function AssessmentRowActions({
       >
         Preview
       </Link>
+      <Button size="sm" variant="ghost" onClick={duplicate} disabled={pending}>
+        Duplicate
+      </Button>
       <details className="relative">
         <summary
           className={cn(

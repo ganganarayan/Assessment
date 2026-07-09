@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   setAssessmentStatus,
   deleteAssessment,
+  duplicateAssessment,
 } from "@/features/assessment/actions/assessment";
 import { Button, buttonVariants } from "@/components/ui/button";
 
@@ -38,6 +39,14 @@ export function WorkspaceAssessmentActions({
     });
   }
 
+  function duplicate() {
+    start(async () => {
+      const res = await duplicateAssessment(id);
+      if (res.ok && res.data) router.push(`/w/assessments/${res.data.id}`);
+      else if (!res.ok) alert(res.error);
+    });
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Link
@@ -47,6 +56,9 @@ export function WorkspaceAssessmentActions({
       >
         Preview
       </Link>
+      <Button size="sm" variant="ghost" onClick={duplicate} disabled={pending}>
+        Duplicate
+      </Button>
       <Button size="sm" variant="outline" onClick={toggle} disabled={pending}>
         {published ? "Unpublish" : "Publish"}
       </Button>

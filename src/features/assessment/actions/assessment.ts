@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, tenantScope } from "@/lib/tenant/acting";
+import { getAssessmentById } from "@/features/assessment/data";
 import { assessmentSchema, type AssessmentInput } from "@/features/assessment/schemas";
 import { originOf } from "@/lib/result/cors";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
@@ -185,4 +187,133 @@ export async function setAssessmentStatus(
   revalidatePath(`/admin/assessments/${id}`);
   revalidatePath("/w/assessments");
   return { ok: true };
+}
+
+/**
+ * Deep-copy an assessment (all categories → questions → options + category bands,
+ * result bands, and result pages → blocks) into a fresh DRAFT with a unique slug.
+ * Never copies submissions/payments/events — the copy starts clean. Scoped: a tenant
+ * can only duplicate its own; the copy inherits the acting tenant.
+ */
+export async function duplicateAssessment(id: string): Promise<ActionResult<{ id: string }>> {
+  const scope = await resolveActingScope();
+  if (!(await ownsAssessment(id, scope))) return { ok: false, error: "Not found." };
+  const src = await getAssessmentById(id);
+  if (!src) return { ok: false, error: "Not found." };
+
+  // Unique slug: "<slug>-copy", then "-copy-2", "-copy-3", … (slug is globally unique).
+  const base = `${src.slug}-copy`;
+  let slug = base;
+  for (let n = 2; await prisma.assessment.findUnique({ where: { slug }, select: { id: true } }); n++) {
+    slug = `${base}-${n}`;
+  }
+
+  const created = await prisma.assessment.create({
+    data: {
+      title: `${src.title} (Copy)`,
+      slug,
+      status: "DRAFT",
+      publishedAt: null,
+      // The copy is a draft — nothing is live yet. The draft page ROWS are copied
+      // below so it can be edited + published; the live snapshot starts empty.
+      publishedPages: Prisma.DbNull,
+      pagesPublishedAt: null,
+      description: src.description,
+      coverImageUrl: src.coverImageUrl,
+      estimatedMinutes: src.estimatedMinutes,
+      thankYouMessage: src.thankYouMessage,
+      collectFirstName: src.collectFirstName,
+      firstNameRequired: src.firstNameRequired,
+      collectLastName: src.collectLastName,
+      lastNameRequired: src.lastNameRequired,
+      collectEmail: src.collectEmail,
+      emailRequired: src.emailRequired,
+      collectMobile: src.collectMobile,
+      mobileRequired: src.mobileRequired,
+      collectProfession: src.collectProfession,
+      professionRequired: src.professionRequired,
+      professionOptions: src.professionOptions,
+      introNotice: src.introNotice,
+      startButtonLabel: src.startButtonLabel,
+      retakePolicy: src.retakePolicy,
+      retakeDays: src.retakeDays,
+      uniqueIdentifier: src.uniqueIdentifier,
+      trainingUrl: src.trainingUrl,
+      targetUrl: src.targetUrl,
+      targetOrigin: src.targetOrigin,
+      tokenTtlSeconds: src.tokenTtlSeconds,
+      vslCountdownSeconds: src.vslCountdownSeconds,
+      questionDisplayMode: src.questionDisplayMode,
+      nextStep: src.nextStep,
+      paidMode: src.paidMode,
+      paymentUrl: src.paymentUrl,
+      paymentHeadline: src.paymentHeadline,
+      paymentButtonLabel: src.paymentButtonLabel,
+      paymentAmount: src.paymentAmount,
+      paymentEventName: src.paymentEventName,
+      paymentIntroText: src.paymentIntroText,
+      createdById: scope.user.id,
+      tenantId: scope.tenantId,
+      categories: {
+        create: src.categories.map((c) => ({
+          name: c.name,
+          description: c.description,
+          displayOrder: c.displayOrder,
+          questions: {
+            create: c.questions.map((q) => ({
+              text: q.text,
+              weight: q.weight,
+              required: q.required,
+              displayOrder: q.displayOrder,
+              options: {
+                create: q.options.map((o) => ({
+                  label: o.label,
+                  value: o.value,
+                  displayOrder: o.displayOrder,
+                })),
+              },
+            })),
+          },
+          bands: {
+            create: c.bands.map((b) => ({
+              label: b.label,
+              meaning: b.meaning,
+              minScore: b.minScore,
+              maxScore: b.maxScore,
+              displayOrder: b.displayOrder,
+            })),
+          },
+        })),
+      },
+      resultBands: {
+        create: src.resultBands.map((b) => ({
+          level: b.level,
+          title: b.title,
+          description: b.description,
+          minScore: b.minScore,
+          maxScore: b.maxScore,
+          displayOrder: b.displayOrder,
+        })),
+      },
+      pages: {
+        create: src.pages.map((p) => ({
+          order: p.order,
+          title: p.title,
+          blocks: {
+            create: p.blocks.map((bl) => ({
+              type: bl.type,
+              order: bl.order,
+              config: (bl.config ?? {}) as Prisma.InputJsonValue,
+            })),
+          },
+        })),
+      },
+    },
+    select: { id: true },
+  });
+
+  revalidatePath("/admin/assessment-builder");
+  revalidatePath("/admin/assessments");
+  revalidatePath("/w/assessments");
+  return { ok: true, data: { id: created.id } };
 }
