@@ -3,6 +3,8 @@ import { actingTenantId } from "@/lib/tenant/acting";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import { AssessmentScopeBar } from "@/features/admin/components/assessment-scope-bar";
+import { getStatsFloor } from "@/lib/stats-floor";
+import { formatIST } from "@/lib/date";
 import {
   SubmissionsTable,
   type SubmissionRow,
@@ -33,6 +35,8 @@ export default async function SubmissionsPage({
     t,
     scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : undefined,
   );
+  // Effective reporting floor (Data window) actually applied to this list.
+  const effectiveFloor: Date | null = scoped ? scoped.statsResetAt : t ? null : await getStatsFloor();
   const paid = await getPaidBySubmission(submissions.map((s) => s.id));
   const rows: SubmissionRow[] = submissions.map((s) => {
     const p = paid.get(s.id);
@@ -66,6 +70,9 @@ export default async function SubmissionsPage({
       ) : null}
       <p className="-mt-4 text-xs text-[var(--muted-foreground)]">
         Grouped by assessment. Type to search; click a column heading to sort.
+        {effectiveFloor
+          ? ` · Showing from ${formatIST(effectiveFloor.toISOString())} IST (Data window).`
+          : ""}
       </p>
 
       {rows.length === 0 ? (

@@ -4,6 +4,8 @@ import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar"
 import { AssessmentScopeBar } from "@/features/admin/components/assessment-scope-bar";
 import { ContactsTable } from "@/features/admin/components/contacts-table";
 import { getAssessmentForAnalytics } from "@/features/assessment/data";
+import { getStatsFloor } from "@/lib/stats-floor";
+import { formatIST } from "@/lib/date";
 import { actingTenantId } from "@/lib/tenant/acting";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +40,15 @@ export default async function ContactsPage({
     params.set("page", String(p));
     return `?${params.toString()}`;
   };
-  const rangeNote = sp.from || sp.to ? ` (${sp.from ?? "start"} → ${sp.to ?? "today"} IST)` : "";
+  // Effective reporting floor (Data window): the assessment's own when scoped, else the
+  // global one (none while impersonating) — mirrors what listContacts actually applies.
+  const effectiveFloor: Date | null = scoped ? scoped.statsResetAt : t ? null : await getStatsFloor();
+  const rangeNote =
+    sp.from || sp.to
+      ? ` (${sp.from ?? "start"} → ${sp.to ?? "today"} IST)`
+      : effectiveFloor
+        ? ` · from ${formatIST(effectiveFloor.toISOString())} IST (Data window)`
+        : "";
 
   const exportHref = (format: string) => {
     const p = new URLSearchParams();
