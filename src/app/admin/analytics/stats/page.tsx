@@ -9,6 +9,7 @@ import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar"
 import { AssessmentScopeBar } from "@/features/admin/components/assessment-scope-bar";
 import { getAssessmentForAnalytics } from "@/features/assessment/data";
 import { formatIST } from "@/lib/date";
+import { getStatsFloor } from "@/lib/stats-floor";
 import { actingTenantId } from "@/lib/tenant/acting";
 
 export const dynamic = "force-dynamic";
@@ -40,12 +41,16 @@ export default async function StatsPage({
     { label: "VSL loads (result shown)", value: s.vslLoads },
   ];
 
+  // The reporting floor actually applied (mirrors createdAtScope): the assessment's
+  // own Data window when scoped, else the global one (skipped while impersonating).
+  const effectiveFloor: Date | null = scoped ? scoped.statsResetAt : t ? null : await getStatsFloor();
+  const scopeLabel = scoped ? "Funnel numbers for this assessment" : "Funnel numbers across all assessments";
   const note =
     sp.from || sp.to
       ? `Showing ${sp.from ?? "start"} → ${sp.to ?? "today"} (IST).`
-      : scoped
-        ? "Funnel numbers for this assessment (all time)."
-        : "Funnel numbers across all assessments (all time).";
+      : effectiveFloor
+        ? `${scopeLabel} from ${formatIST(effectiveFloor.toISOString())} IST onward (Data window).`
+        : `${scopeLabel} (all time).`;
 
   const exportHref = (dataset: string, format: string) => {
     const p = new URLSearchParams();
