@@ -55,9 +55,10 @@ export interface PromptVersionRow {
  *  own instruction versions (V3+), each with its assembled system prompt for preview. */
 export async function listPromptVersions(tenantId: string | null): Promise<PromptVersionRow[]> {
   const words = await getWordWindow(tenantId);
+  // Newest first, so a version the owner just added is at the TOP of the list.
   const rows = await prisma.aiPromptVersion.findMany({
     where: { tenantId },
-    orderBy: { number: "asc" },
+    orderBy: { number: "desc" },
     select: { id: true, number: true, label: true, instructions: true },
   });
   const builtins: PromptVersionRow[] = PROMPT_VERSIONS.map((v) => ({
@@ -78,7 +79,8 @@ export async function listPromptVersions(tenantId: string | null): Promise<Promp
     instructions: r.instructions,
     system: buildStatementMessages(PREVIEW_SAMPLE, instructionVersion(r), words).system,
   }));
-  return [...builtins, ...custom];
+  // Owner's own versions first (newest at top), built-in references last.
+  return [...custom, ...builtins];
 }
 
 /** The next tenant version number (built-ins occupy 1–2, so tenant versions start at 3). */

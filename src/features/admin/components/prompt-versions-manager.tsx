@@ -49,26 +49,33 @@ export function PromptVersionsManager({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Word window — tenant-wide */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border p-4">
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs">Message length — min words</Label>
-          <Input className="w-28" type="number" value={min} onChange={(e) => setMin(e.target.value)} />
+      {/* Word window — applies to the built-in V1/V2 only */}
+      <div className="flex flex-col gap-2 rounded-lg border p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs">Built-in length — min words</Label>
+            <Input className="w-28" type="number" value={min} onChange={(e) => setMin(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs">max words</Label>
+            <Input className="w-28" type="number" value={max} onChange={(e) => setMax(e.target.value)} />
+          </div>
+          <Button size="sm" variant="outline" onClick={saveWords} disabled={pending}>
+            Save length
+          </Button>
+          {wordMsg ? <span className="text-xs text-[var(--muted-foreground)]">{wordMsg}</span> : null}
         </div>
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs">max words</Label>
-          <Input className="w-28" type="number" value={max} onChange={(e) => setMax(e.target.value)} />
-        </div>
-        <Button size="sm" variant="outline" onClick={saveWords} disabled={pending}>
-          Save length
-        </Button>
-        {wordMsg ? <span className="text-xs text-[var(--muted-foreground)]">{wordMsg}</span> : null}
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Length for the built-in V1/V2 only. Your own versions set their own length inside the
+          instructions (e.g. &ldquo;180&ndash;240 words&rdquo;).
+        </p>
       </div>
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-[var(--muted-foreground)]">
-          Write plain instructions; the app assembles the full system prompt (with the safety
-          crisis line, length, and format). Your instructions are saved as you leave them.
+          Write plain instructions. They become the system prompt <strong>exactly as you write
+          them</strong> — the app only appends one invisible safety line and supplies the scores as
+          data. Nothing is added to your wording.
         </p>
         <Button size="sm" onClick={add} disabled={pending}>
           + Add system prompt version
