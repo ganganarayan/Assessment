@@ -24,7 +24,9 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
             </p>
             <p className="text-xs text-[var(--muted-foreground)]">Your workspace</p>
           </div>
-          <WorkspaceNav />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <WorkspaceNav />
+          </div>
           <div className="mt-auto">
             <SignOutButton />
           </div>

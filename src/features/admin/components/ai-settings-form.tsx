@@ -7,7 +7,7 @@ import {
   testAi,
   type AiSettingsView,
 } from "@/features/admin/actions/ai-settings";
-import { AI_PROVIDERS, DEFAULT_MODEL, type AiProvider } from "@/lib/ai/types";
+import { AI_PROVIDERS, DEFAULT_MODEL, MODELS_BY_PROVIDER, type AiProvider } from "@/lib/ai/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,11 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
   const [enabled, setEnabled] = useState(initial.enabled);
   const [provider, setProvider] = useState<AiProvider>(initial.provider);
   const [model, setModel] = useState(initial.model);
+  // Custom-model mode: on when the saved model isn't one of the curated options.
+  const [customModel, setCustomModel] = useState(
+    initial.model !== "" &&
+      !MODELS_BY_PROVIDER[initial.provider].some((m) => m.value === initial.model),
+  );
   const [guidance, setGuidance] = useState(initial.guidance);
   const [promptVersion, setPromptVersion] = useState(initial.promptVersion);
   const [apiKey, setApiKey] = useState("");
@@ -69,7 +74,12 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
           <select
             className={SELECT_CLASS}
             value={provider}
-            onChange={(e) => setProvider(e.target.value as AiProvider)}
+            onChange={(e) => {
+              // Switching provider resets to that provider's default model.
+              setProvider(e.target.value as AiProvider);
+              setModel("");
+              setCustomModel(false);
+            }}
           >
             {AI_PROVIDERS.map((p) => (
               <option key={p} value={p}>{PROVIDER_LABEL[p]}</option>
@@ -78,12 +88,32 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
         </div>
         <div className="flex flex-1 flex-col gap-1">
           <Label htmlFor="ai-model">Model</Label>
-          <Input
+          <select
             id="ai-model"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            placeholder={DEFAULT_MODEL[provider]}
-          />
+            className={SELECT_CLASS}
+            value={customModel ? "__custom__" : model}
+            onChange={(e) => {
+              if (e.target.value === "__custom__") {
+                setCustomModel(true);
+              } else {
+                setCustomModel(false);
+                setModel(e.target.value);
+              }
+            }}
+          >
+            <option value="">Default ({DEFAULT_MODEL[provider]})</option>
+            {MODELS_BY_PROVIDER[provider].map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+            <option value="__custom__">Custom…</option>
+          </select>
+          {customModel ? (
+            <Input
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              placeholder="Exact model id, e.g. claude-opus-4-8"
+            />
+          ) : null}
         </div>
       </div>
 

@@ -95,7 +95,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
           <Link href="/admin" className="hidden px-2 text-lg font-semibold md:block">
             Assess360
           </Link>
-          <nav className="flex flex-1 flex-col gap-4 text-sm">
+          <nav className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto text-sm">
             {NAV.map((group, i) => (
               <div key={i} className="flex flex-col gap-1">
                 {group.section ? (
