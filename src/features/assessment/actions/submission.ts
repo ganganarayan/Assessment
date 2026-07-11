@@ -588,7 +588,7 @@ export async function completeSubmission(
       userAgent: true,
       fbp: true,
       fbc: true,
-      assessment: { select: { slug: true, targetUrl: true, paidMode: true, paymentUrl: true, paymentAmount: true } },
+      assessment: { select: { slug: true, targetUrl: true, paidMode: true, paymentUrl: true, paymentAmount: true, aiPromptVersionId: true } },
     },
   });
   if (!submission) return { ok: false, error: "Submission not found." };
@@ -798,7 +798,7 @@ export async function completeSubmission(
     band: band?.title ?? null,
     bandLevel: band?.level ?? null,
     categories: aiCategories,
-  }, submission.tenantId);
+  }, submission.tenantId, submission.assessment.aiPromptVersionId);
 
   const snapshot = buildResultSnapshot({
     customerId,

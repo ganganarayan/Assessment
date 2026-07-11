@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireWorkspace } from "@/lib/auth/guards";
 import { getAssessmentById } from "@/features/assessment/data";
+import { listPromptVersions } from "@/lib/ai/versions";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
 import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
 import { CategoriesManager } from "@/features/assessment/components/admin/categories-manager";
@@ -26,6 +27,7 @@ export default async function WorkspaceEditAssessmentPage({
   const a = await getAssessmentById(id);
   // Ownership gate: the assessment must belong to THIS workspace's tenant.
   if (!a || a.tenantId !== tenantId) notFound();
+  const promptVersions = (await listPromptVersions(tenantId)).map((v) => ({ id: v.id, label: v.label }));
 
   const initial: AssessmentFormValues = {
     title: a.title,
@@ -55,6 +57,7 @@ export default async function WorkspaceEditAssessmentPage({
     tokenTtlSeconds: a.tokenTtlSeconds ?? undefined,
     vslCountdownSeconds: a.vslCountdownSeconds,
     questionDisplayMode: a.questionDisplayMode,
+    aiPromptVersionId: a.aiPromptVersionId ?? "",
     nextStep: a.nextStep,
     paymentUrl: a.paymentUrl ?? "",
     paymentHeadline: a.paymentHeadline ?? "",
@@ -120,7 +123,7 @@ export default async function WorkspaceEditAssessmentPage({
 
   const assessmentTab = (
     <>
-      <AssessmentForm mode="edit" id={a.id} initial={initial} basePath="/w/assessments" />
+      <AssessmentForm mode="edit" id={a.id} initial={initial} basePath="/w/assessments" promptVersions={promptVersions} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Connect your destination page</h2>

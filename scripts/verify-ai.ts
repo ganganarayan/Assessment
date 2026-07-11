@@ -8,7 +8,16 @@
  */
 import { encryptWithSecret, decryptWithSecret, isEncrypted } from "../src/lib/crypto";
 import { buildStatementMessages, humanizeStatement } from "../src/lib/ai/prompt";
-import { PROMPT_VERSIONS } from "../src/lib/ai/prompt-versions";
+import { PROMPT_VERSIONS, getPromptVersion, type PromptVersion } from "../src/lib/ai/prompt-versions";
+import type { StatementInput } from "../src/lib/ai/types";
+
+// Shim for the new buildStatementMessages(input, version, words) signature — the
+// script exercises the code versions with the standard word window.
+const VERIFY_WORDS = { min: 200, max: 280 };
+function bsm(input: StatementInput, version?: PromptVersion | string) {
+  const v = typeof version === "string" || version == null ? getPromptVersion(version) : version;
+  return buildStatementMessages(input, v, VERIFY_WORDS);
+}
 import { buildCategoryQuestionBreakdown } from "../src/lib/result/questions";
 import { applyCrisisLine, CRISIS_LINE, CRISIS_TOKEN } from "../src/lib/ai/crisis";
 import { DEFAULT_MODEL, isAiProvider } from "../src/lib/ai/types";
@@ -62,7 +71,7 @@ console.log("AI feature verification\n");
     ],
     guidance: "Higher scores mean more strain.",
   };
-  const { user } = buildStatementMessages(sample);
+  const { user } = bsm(sample);
   expect("user has first name", user.includes("Ganesh"));
   expect("user has profession", user.includes("Profession: Doctor"));
   expect("user has overall score", user.includes("45/60") && user.includes("75%"));
@@ -70,13 +79,13 @@ console.log("AI feature verification\n");
   expect("user has raw category score", user.includes("Inner Pressure & Mental Burden: 9/12"));
   expect("user has guidance", user.includes("Higher scores mean more strain."));
   // The active (default) prompt must steer by profession + not manufacture a name.
-  const { system: activeSys } = buildStatementMessages(sample);
+  const { system: activeSys } = bsm(sample);
   expect("active prompt uses profession", /profession/i.test(activeSys));
   expect("active prompt forbids inventing a name", /do not invent/i.test(activeSys));
 
   // Invariants EVERY prompt version must satisfy.
   for (const v of PROMPT_VERSIONS) {
-    const { system } = buildStatementMessages(sample, v.id);
+    const { system } = bsm(sample, v);
     expect(`[${v.id}] sets 200-280 words`, system.includes("200") && system.includes("280"));
     expect(`[${v.id}] addresses by name`, /name/i.test(system));
     expect(`[${v.id}] points to the training video`, /video/i.test(system) || /training/i.test(system));
@@ -86,7 +95,7 @@ console.log("AI feature verification\n");
 
 // (c2) Per-question detail flows into the user message (the "meaning" signal).
 {
-  const { user } = buildStatementMessages({
+  const { user } = bsm({
     firstName: "Chandini",
     assessmentTitle: "Executive Emotional Stability Assessment",
     scoreRaw: 46,
@@ -154,7 +163,7 @@ console.log("AI feature verification\n");
   expect("crisis: stripped at HIGH 95", !applyCrisisLine(withToken, "HIGH", 95).includes("14416"));
   expect("crisis: untouched low band, no token", applyCrisisLine("Plain text.", "LOW", 20) === "Plain text.");
   // The active prompt instructs the crisis token + 90 threshold.
-  const { system } = buildStatementMessages({
+  const { system } = bsm({
     firstName: "X",
     profession: "Doctor",
     assessmentTitle: "Executive Emotional Stability Assessment",
@@ -170,7 +179,7 @@ console.log("AI feature verification\n");
 
 // (d) Missing name falls back gracefully.
 {
-  const { user } = buildStatementMessages({
+  const { user } = bsm({
     firstName: null,
     assessmentTitle: "X",
     scoreRaw: 1,

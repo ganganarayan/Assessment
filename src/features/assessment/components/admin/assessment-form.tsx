@@ -65,6 +65,7 @@ const DEFAULTS: AssessmentFormValues = {
   tokenTtlSeconds: undefined,
   vslCountdownSeconds: 10,
   questionDisplayMode: "ALL",
+  aiPromptVersionId: "",
   nextStep: "DESTINATION",
   paymentUrl: "",
   paymentHeadline: "",
@@ -79,6 +80,7 @@ export function AssessmentForm({
   id,
   initial,
   basePath = "/admin/assessments",
+  promptVersions = [],
 }: {
   mode: "create" | "edit";
   id?: string;
@@ -86,6 +88,8 @@ export function AssessmentForm({
   /** Where to send the user after create (edit stays in place). The tenant
    *  workspace passes /w/assessments so it never links into the admin console. */
   basePath?: string;
+  /** The tenant's AI instruction versions, for the per-assessment selector. */
+  promptVersions?: { id: string; label: string }[];
 }) {
   const router = useRouter();
   const [values, setValues] = useState<AssessmentFormValues>(
@@ -422,6 +426,24 @@ export function AssessmentForm({
               />
               <p className="text-xs text-[var(--muted-foreground)]">Anticipation timer shown after Submit before the destination/VSL loads. 0 = redirect immediately. Default 10.</p>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2 rounded-lg border p-4">
+            <p className="text-sm font-medium">AI result instructions</p>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Which system-prompt version drives the AI message for THIS assessment. Manage the
+              versions under AI → System prompt versions.
+            </p>
+            <select
+              className="h-10 max-w-md rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+              value={values.aiPromptVersionId ?? ""}
+              onChange={(e) => set("aiPromptVersionId", e.target.value)}
+            >
+              <option value="">Tenant default</option>
+              {promptVersions.map((v) => (
+                <option key={v.id} value={v.id}>{v.label}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex flex-col gap-3 rounded-lg border p-4">

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssessmentById } from "@/features/assessment/data";
+import { listPromptVersions } from "@/lib/ai/versions";
+import { actingTenantId } from "@/lib/tenant/acting";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
 import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
 import { CategoriesManager } from "@/features/assessment/components/admin/categories-manager";
@@ -23,6 +25,7 @@ export default async function EditAssessmentPage({
   const { id } = await params;
   const a = await getAssessmentById(id);
   if (!a) notFound();
+  const promptVersions = (await listPromptVersions(await actingTenantId())).map((v) => ({ id: v.id, label: v.label }));
 
   const initial: AssessmentFormValues = {
     title: a.title,
@@ -52,6 +55,7 @@ export default async function EditAssessmentPage({
     tokenTtlSeconds: a.tokenTtlSeconds ?? undefined,
     vslCountdownSeconds: a.vslCountdownSeconds,
     questionDisplayMode: a.questionDisplayMode,
+    aiPromptVersionId: a.aiPromptVersionId ?? "",
     nextStep: a.nextStep,
     paymentUrl: a.paymentUrl ?? "",
     paymentHeadline: a.paymentHeadline ?? "",
@@ -120,7 +124,7 @@ export default async function EditAssessmentPage({
 
   const assessmentTab = (
     <>
-      <AssessmentForm mode="edit" id={a.id} initial={initial} />
+      <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Connect your destination page</h2>

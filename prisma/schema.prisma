@@ -44,6 +44,7 @@ model Tenant {
   payments    Payment[]
   capiLogs    CapiLog[]
   setting     AppSetting?
+  promptVersions AiPromptVersion[]
 
   @@index([status])
   @@map("tenant")
@@ -315,6 +316,10 @@ model Assessment {
   // Stats/Submissions/Contacts count only records at/after this instant. Independent
   // of the platform-wide AppSetting.statsResetAt used by the global pages.
   statsResetAt DateTime?
+
+  // Which AI result-instructions version drives THIS assessment's statement. Null =>
+  // the tenant default (AppSetting.aiPromptVersion). A built-in code id or AiPromptVersion id.
+  aiPromptVersionId String?
 
   // Pay-to-unlock. When paidMode is on, submitting the assessment stores results
   // then redirects to paymentUrl (with ?t=<token>) INSTEAD of the destination/VSL;
@@ -964,6 +969,27 @@ model CapiLog {
   @@map("capi_log")
 }
 
+// ---------------------------------------------------------------------------
+// AiPromptVersion — a tenant-authored "instructions for the system prompt". The
+// owner writes plain instructions (how to shape the message from the scores); the
+// app assembles the real system prompt = fixed scaffold + these instructions. The
+// built-in code versions (v1-mentor/v2-easy-read) stay in code; DB ones start at V3.
+// ---------------------------------------------------------------------------
+model AiPromptVersion {
+  id           String   @id @default(cuid())
+  tenantId     String? // null = platform/Gita
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  number       Int // display number: V3, V4, … (per tenant, continues past the 2 built-ins)
+  label        String
+  instructions String   @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@map("ai_prompt_version")
+}
+
 model AppSetting {
   id                  String   @id @default("singleton")
   // Owning tenant. The platform/Gita config is the id="singleton" row (tenantId null),
@@ -981,9 +1007,13 @@ model AppSetting {
   aiModel     String?
   aiApiKeyEnc String?
   aiGuidance  String?
-  // Active result-statement prompt version (see lib/ai/prompt-versions). Null =>
-  // the code default. Lets the owner A/B the wording without a deploy.
+  // Default result-statement prompt version — the tenant-wide default that a new
+  // assessment inherits (an assessment can override via Assessment.aiPromptVersionId).
+  // May be a built-in code id ("v1-mentor"/"v2-easy-read") or an AiPromptVersion id.
   aiPromptVersion String?
+  // Tenant-wide word-count window the assembled system prompt asks the model for.
+  aiWordMin Int @default(200)
+  aiWordMax Int @default(280)
 
   // Per-tenant Meta (ads) config. On the singleton these stay null and the code uses
   // the platform env (NEXT_PUBLIC_META_PIXEL_ID / META_CAPI_ACCESS_TOKEN); a tenant

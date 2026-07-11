@@ -67,6 +67,8 @@ export const assessmentSchema = z.object({
     .default(10),
   // How the questions are paginated for the respondent.
   questionDisplayMode: z.enum(["ALL", "CATEGORY", "SINGLE"]).default("ALL"),
+  // Which AI result-instructions version drives this assessment. "" => tenant default.
+  aiPromptVersionId: z.string().max(60).optional().or(z.literal("")),
   // Explicit next step after the Results page. PAYMENT => take payment then go to
   // the destination; DESTINATION => straight to the destination/VSL. The save
   // action derives the legacy paidMode boolean from this.

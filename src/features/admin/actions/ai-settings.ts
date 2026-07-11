@@ -8,13 +8,8 @@ import { env } from "@/lib/env";
 import { encryptWithSecret, decryptWithSecret } from "@/lib/crypto";
 import { isAiProvider, type AiProvider } from "@/lib/ai/types";
 import { testStatement } from "@/lib/ai/generate";
-import { buildStatementMessages } from "@/lib/ai/prompt";
-import {
-  PROMPT_VERSIONS,
-  PREVIEW_SAMPLE,
-  SAMPLE_EASY_READ,
-  getPromptVersion,
-} from "@/lib/ai/prompt-versions";
+import { listPromptVersions } from "@/lib/ai/versions";
+import { PREVIEW_SAMPLE, SAMPLE_EASY_READ, DEFAULT_PROMPT_VERSION } from "@/lib/ai/prompt-versions";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 const schema = z.object({
@@ -30,9 +25,12 @@ export type AiSettingsInput = z.infer<typeof schema>;
 
 export interface PromptVersionView {
   id: string;
+  number: number | null;
   label: string;
   description: string;
-  /** The system prompt rendered against the sample, for display. */
+  builtin: boolean;
+  instructions: string;
+  /** The system prompt assembled against the sample, for display. */
   system: string;
   active: boolean;
 }
@@ -44,7 +42,10 @@ export interface AiSettingsView {
   guidance: string;
   hasKey: boolean;
   keyLast4: string | null;
+  /** The tenant DEFAULT version id (new assessments inherit it). */
   promptVersion: string;
+  wordMin: number;
+  wordMax: number;
   versions: PromptVersionView[];
   sampleName: string;
   sampleEasyRead: string;
@@ -66,14 +67,12 @@ export async function getAiSettings(): Promise<AiSettingsView> {
     const dec = decryptWithSecret(s.aiApiKeyEnc, env.BETTER_AUTH_SECRET);
     keyLast4 = dec ? dec.slice(-4) : null;
   }
-  const active = getPromptVersion(s?.aiPromptVersion).id;
-  const versions: PromptVersionView[] = PROMPT_VERSIONS.map((v) => ({
-    id: v.id,
-    label: v.label,
-    description: v.description,
-    system: buildStatementMessages(PREVIEW_SAMPLE, v.id).system,
-    active: v.id === active,
-  }));
+  // Tenant default version id (falls back to the built-in default when unset/invalid).
+  const rows = await listPromptVersions(scope.tenantId);
+  const active = rows.some((r) => r.id === s?.aiPromptVersion)
+    ? (s?.aiPromptVersion as string)
+    : DEFAULT_PROMPT_VERSION;
+  const versions: PromptVersionView[] = rows.map((r) => ({ ...r, active: r.id === active }));
 
   return {
     enabled: s?.aiEnabled ?? false,
@@ -83,6 +82,8 @@ export async function getAiSettings(): Promise<AiSettingsView> {
     hasKey: Boolean(s?.aiApiKeyEnc),
     keyLast4,
     promptVersion: active,
+    wordMin: s?.aiWordMin ?? 200,
+    wordMax: s?.aiWordMax ?? 280,
     versions,
     sampleName: PREVIEW_SAMPLE.firstName ?? "Sample",
     sampleEasyRead: SAMPLE_EASY_READ,
@@ -105,18 +106,13 @@ export async function updateAiSettings(input: AiSettingsInput): Promise<ActionRe
     return { ok: false, error: "Add an API key before enabling AI." };
   }
 
-  // Only persist a known version id; anything else falls back to the default.
-  const version =
-    d.promptVersion && PROMPT_VERSIONS.some((v) => v.id === d.promptVersion)
-      ? d.promptVersion
-      : null;
-
+  // NOTE: the default prompt version is managed separately (setDefaultPromptVersion),
+  // so this action never touches aiPromptVersion.
   const data = {
     aiEnabled: d.enabled,
     aiProvider: d.provider,
     aiModel: d.model && d.model.trim() ? d.model.trim() : null,
     aiGuidance: d.guidance && d.guidance.trim() ? d.guidance.trim() : null,
-    aiPromptVersion: version,
     ...(newKey ? { aiApiKeyEnc: encryptWithSecret(newKey, env.BETTER_AUTH_SECRET) } : {}),
   };
 

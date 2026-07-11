@@ -1,6 +1,6 @@
 import { getAiSettings } from "@/features/admin/actions/ai-settings";
 import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
-import { StatementStudio } from "@/features/admin/components/statement-studio";
+import { PromptVersionsManager } from "@/features/admin/components/prompt-versions-manager";
 import {
   Card,
   CardContent,
@@ -41,18 +41,19 @@ export default async function AiSettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Statement studio</CardTitle>
+          <CardTitle>System prompt versions</CardTitle>
           <CardDescription>
-            Preview the framed result and compare prompt versions on a sample respondent. Keep
-            versions side by side while you decide; once you pick a winner, the others can be
-            removed.
+            Write plain <strong>instructions</strong> per version (V3, V4…); the app assembles the
+            full system prompt around them. Set one as the tenant default; each assessment can pick
+            its own in the builder. Built-in V1/V2 are read-only references.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <StatementStudio
+          <PromptVersionsManager
             versions={settings.versions}
+            wordMin={settings.wordMin}
+            wordMax={settings.wordMax}
             sampleName={settings.sampleName}
-            sampleEasyRead={settings.sampleEasyRead}
           />
         </CardContent>
       </Card>

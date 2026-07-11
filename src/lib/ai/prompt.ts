@@ -1,21 +1,19 @@
 import type { StatementInput } from "@/lib/ai/types";
-import { getPromptVersion } from "@/lib/ai/prompt-versions";
+import type { PromptVersion } from "@/lib/ai/prompt-versions";
 
 /**
  * Builds the system + user messages for the personalized result statement. PURE
  * (no env, no I/O) so it is unit-testable. The SYSTEM prompt comes from the
- * selected version (see prompt-versions.ts); a shared suffix tells the model to
- * use the assessment's own band words and to obey the admin's correction.
+ * RESOLVED version (built-in code or a tenant's assembled instructions — see
+ * lib/ai/versions.ts) with the tenant's word window; a shared suffix tells the
+ * model to use the assessment's own band words and to obey the admin's correction.
  */
-
-const WORDS_MIN = 200;
-const WORDS_MAX = 280;
-
 export function buildStatementMessages(
   input: StatementInput,
-  versionId?: string | null,
+  version: PromptVersion,
+  words: { min: number; max: number },
 ): { system: string; user: string } {
-  const base = getPromptVersion(versionId).buildSystem(input, { min: WORDS_MIN, max: WORDS_MAX });
+  const base = version.buildSystem(input, words);
 
   // Use the assessment's OWN words so messages reflect each person's real result
   // and read differently person to person (not the same "you carry a lot").

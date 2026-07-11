@@ -5,6 +5,7 @@ import { decryptWithSecret } from "@/lib/crypto";
 import { buildStatementMessages, humanizeStatement } from "@/lib/ai/prompt";
 import { applyCrisisLine } from "@/lib/ai/crisis";
 import { PREVIEW_SAMPLE } from "@/lib/ai/prompt-versions";
+import { resolvePromptVersion, getWordWindow } from "@/lib/ai/versions";
 import { DEFAULT_MODEL, isAiProvider, type AiConfig, type StatementInput } from "@/lib/ai/types";
 
 /**
@@ -59,6 +60,7 @@ export async function isAiConfigured(tenantId: string | null = null): Promise<bo
 export async function generatePersonalStatement(
   input: StatementInput,
   tenantId: string | null = null,
+  versionId?: string | null,
 ): Promise<string | null> {
   // Total function: every step (config read, prompt build, provider call) is
   // inside the guard, so this can NEVER throw into completeSubmission.
@@ -66,7 +68,10 @@ export async function generatePersonalStatement(
     const cfg = await getAiConfig(tenantId);
     if (!cfg) return null;
     const merged = { ...input, guidance: input.guidance ?? cfg.guidance };
-    const { system, user } = buildStatementMessages(merged, cfg.promptVersion);
+    // The assessment's chosen version wins; else the tenant default (cfg.promptVersion).
+    const version = await resolvePromptVersion(versionId ?? cfg.promptVersion, tenantId);
+    const words = await getWordWindow(tenantId);
+    const { system, user } = buildStatementMessages(merged, version, words);
     const text = await callProvider(cfg, system, user);
     // Crisis line is injected AFTER humanize so its em dash + phone number stay verbatim.
     return text ? applyCrisisLine(text, merged.bandLevel, merged.percentage) : text;
@@ -103,9 +108,12 @@ export async function testStatement(versionId?: string, tenantId: string | null 
   if (!cfg) {
     return { ok: false, ms: 0, error: "No API key saved (or it couldn't be read). Save a provider + key first." };
   }
+  const version = await resolvePromptVersion(versionId ?? cfg.promptVersion, tenantId);
+  const words = await getWordWindow(tenantId);
   const { system, user } = buildStatementMessages(
     { ...PREVIEW_SAMPLE, guidance: cfg.guidance },
-    versionId ?? cfg.promptVersion,
+    version,
+    words,
   );
   const t0 = Date.now();
   try {

@@ -3,7 +3,7 @@ import { getAiSettings } from "@/features/admin/actions/ai-settings";
 import { getIntegrationSettings } from "@/features/workspace/actions/integrations";
 import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
-import { StatementStudio } from "@/features/admin/components/statement-studio";
+import { PromptVersionsManager } from "@/features/admin/components/prompt-versions-manager";
 import {
   Card,
   CardContent,
@@ -63,17 +63,18 @@ export default async function WorkspaceSettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Statement studio</CardTitle>
+          <CardTitle>System prompt versions</CardTitle>
           <CardDescription>
-            Preview the framed result and compare prompt versions on a sample respondent
-            using your saved key.
+            Write plain instructions per version; the app assembles the full system prompt around
+            them. Set a default; each assessment can pick its own in the builder.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <StatementStudio
+          <PromptVersionsManager
             versions={settings.versions}
+            wordMin={settings.wordMin}
+            wordMax={settings.wordMax}
             sampleName={settings.sampleName}
-            sampleEasyRead={settings.sampleEasyRead}
           />
         </CardContent>
       </Card>

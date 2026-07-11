@@ -64,6 +64,47 @@ const v2EasyRead: PromptVersion = {
 export const PROMPT_VERSIONS: PromptVersion[] = [v2EasyRead, v1Mentor];
 export const DEFAULT_PROMPT_VERSION = v2EasyRead.id;
 
+/** Fixed crisis-care rule appended to every ASSEMBLED (V3+) system prompt. The
+ *  {{CRISIS_LINE}} token is replaced post-generation (see lib/ai/crisis). */
+const CRISIS_BLOCK =
+  `CRISIS CARE applies ONLY when the overall band is the highest (CRITICAL) AND the overall percentage is 90 or above; for every other band, or below 90 percent, skip this entirely and do not output the token below. When it applies, immediately BEFORE your closing call to action add a brief, warm, non-clinical line of 1 to 2 sentences in the same compassionate voice, VARIED every time and never a canned disclaimer, gently saying that if things feel genuinely unbearable right now, reaching out for immediate human support matters more than any video or call. Immediately after that line, on its own line, output exactly this token and nothing else: {{CRISIS_LINE}} . Do NOT write any phone number or helpline yourself, the token is replaced automatically.`;
+
+/**
+ * Assemble the real system prompt from a tenant's plain INSTRUCTIONS: a fixed
+ * scaffold (role, data-handling rule, crisis token, no-dash, word count, output
+ * format) wraps the owner's content instructions. The score/category DATA is in
+ * the user message (prompt.ts), so instructions never reference numbers.
+ */
+export function assembleSystemFromInstructions(
+  instructions: string,
+  input: StatementInput,
+  w: { min: number; max: number },
+): string {
+  return [
+    `You are writing a short, personal message to someone who just completed "${input.assessmentTitle}". Write in second person and use their first name. They have ALREADY seen their scores, so do NOT quote or reword any numbers, percentages, or points; use each category's score against its max only to judge what is strong versus struggling (a higher share means more struggle). Follow the INSTRUCTIONS below to shape the message.`,
+    `INSTRUCTIONS: ${instructions.trim()}`,
+    CRISIS_BLOCK,
+    `Do NOT use em dashes or en dashes. Use commas, the word and, or full stops.`,
+    `Write about ${w.min} to ${w.max} words.`,
+    `Output only the message text, with no preamble, no quotes around it, and nothing after it.`,
+  ].join(" ");
+}
+
+/** Wrap a stored instruction row as a PromptVersion, so codegen + preview share the
+ *  same assembly path as the built-in code versions. */
+export function instructionVersion(row: {
+  id: string;
+  label: string;
+  instructions: string;
+}): PromptVersion {
+  return {
+    id: row.id,
+    label: row.label,
+    description: "Custom instructions.",
+    buildSystem: (input, w) => assembleSystemFromInstructions(row.instructions, input, w),
+  };
+}
+
 export function getPromptVersion(id?: string | null): PromptVersion {
   return (
     PROMPT_VERSIONS.find((v) => v.id === id) ??
