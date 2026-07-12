@@ -17,8 +17,10 @@ import { DEFAULT_MODEL, isAiProvider, type AiConfig, type StatementInput } from 
 
 // Generous: a 100–150 word Sonnet completion can run ~9–13s, and the funnel
 // shows a 10s "Analyzing…" countdown, so allow headroom before failing soft.
-const TIMEOUT_MS = 20_000;
-const MAX_TOKENS = 400;
+const TIMEOUT_MS = 30_000;
+// Headroom so a message NEVER gets cut mid-word. Length is governed by the
+// instructions (e.g. "180–240 words"), not this ceiling. ~240 words ≈ 330 tokens.
+const MAX_TOKENS = 900;
 
 async function readAiConfig(requireEnabled: boolean, tenantId: string | null = null): Promise<AiConfig | null> {
   try {
@@ -81,15 +83,21 @@ export async function generatePersonalStatementResult(
     if (!cfg) {
       return { text: null, error: "AI is off or no API key is saved for the selected provider. Save the key and enable AI." };
     }
-    const merged = { ...input, guidance: input.guidance ?? cfg.guidance };
     // The assessment's chosen version wins; else the tenant default (cfg.promptVersion).
     const version = await resolvePromptVersion(versionId ?? cfg.promptVersion, tenantId);
     const words = await getWordWindow(tenantId);
+    // Instruction (V3+) versions are self-contained: do NOT fold in the historical
+    // tenant guidance — the owner's instructions are the ONLY steer.
+    const guidance = version.minimal ? (input.guidance ?? null) : (input.guidance ?? cfg.guidance);
+    const merged = { ...input, guidance };
     const { system, user } = buildStatementMessages(merged, version, words);
-    const text = await callProvider(cfg, system, user);
-    if (!text) return { text: null, error: `The ${cfg.provider} model (${cfg.model}) returned an empty response.` };
-    // Crisis line is injected AFTER humanize so its em dash + phone number stay verbatim.
-    return { text: applyCrisisLine(text, merged.bandLevel, merged.percentage), error: null };
+    const raw = await callProvider(cfg, system, user);
+    if (!raw) return { text: null, error: `The ${cfg.provider} model (${cfg.model}) returned an empty response.` };
+    // Instruction versions own their style verbatim (keep em dashes etc.); only the
+    // built-in code versions get the dash-stripping humanizer. Crisis line is applied
+    // AFTER so its em dash + phone number stay intact.
+    const styled = version.minimal ? raw : humanizeStatement(raw);
+    return { text: applyCrisisLine(styled, merged.bandLevel, merged.percentage), error: null };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[ai] generation error:", msg);
@@ -108,13 +116,13 @@ export async function generatePersonalStatement(
 }
 
 async function callProvider(cfg: AiConfig, system: string, user: string): Promise<string | null> {
-  const text =
-    cfg.provider === "claude"
-      ? await callClaude(cfg, system, user)
-      : cfg.provider === "openai"
-        ? await callOpenAI(cfg, system, user)
-        : await callGemini(cfg, system, user);
-  return text ? humanizeStatement(text) : text;
+  // Returns the RAW model text; humanizing (dash-stripping) is applied by the caller
+  // only for built-in code versions, so instruction versions keep their style verbatim.
+  return cfg.provider === "claude"
+    ? callClaude(cfg, system, user)
+    : cfg.provider === "openai"
+      ? callOpenAI(cfg, system, user)
+      : callGemini(cfg, system, user);
 }
 
 /**
@@ -137,14 +145,15 @@ export async function testStatement(versionId?: string, tenantId: string | null 
   const version = await resolvePromptVersion(versionId ?? cfg.promptVersion, tenantId);
   const words = await getWordWindow(tenantId);
   const { system, user } = buildStatementMessages(
-    { ...PREVIEW_SAMPLE, guidance: cfg.guidance },
+    { ...PREVIEW_SAMPLE, guidance: version.minimal ? null : cfg.guidance },
     version,
     words,
   );
   const t0 = Date.now();
   try {
     const raw = await callProvider(cfg, system, user);
-    const text = raw ? applyCrisisLine(raw, PREVIEW_SAMPLE.bandLevel, PREVIEW_SAMPLE.percentage) : raw;
+    const styled = raw ? (version.minimal ? raw : humanizeStatement(raw)) : raw;
+    const text = styled ? applyCrisisLine(styled, PREVIEW_SAMPLE.bandLevel, PREVIEW_SAMPLE.percentage) : styled;
     return { ok: true, ms: Date.now() - t0, text: text ?? "(model returned an empty response)" };
   } catch (e) {
     return { ok: false, ms: Date.now() - t0, error: e instanceof Error ? e.message : String(e) };

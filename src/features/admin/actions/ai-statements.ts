@@ -43,7 +43,8 @@ export async function regenerateAiStatement(
       leadFirstName: true,
       leadProfession: true,
       resultSnapshot: true,
-      assessment: { select: { title: true } },
+      tenantId: true,
+      assessment: { select: { title: true, aiPromptVersionId: true } },
     },
   });
   const snap = (sub?.resultSnapshot ?? null) as ResultSnapshot | null;
@@ -76,7 +77,13 @@ export async function regenerateAiStatement(
     instruction: instr || null,
   };
 
-  const { text, error } = await generatePersonalStatementResult(input);
+  // Use the SAME tenant + assessment version the live funnel uses, so the admin
+  // preview reflects exactly what respondents get (and the per-assessment version).
+  const { text, error } = await generatePersonalStatementResult(
+    input,
+    sub.tenantId,
+    sub.assessment.aiPromptVersionId,
+  );
   if (!text) {
     return { ok: false, error: error ?? "The AI returned nothing. Make sure AI is enabled with a valid key." };
   }
