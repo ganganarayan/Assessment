@@ -18,10 +18,21 @@ const schema = z.object({
   model: z.string().max(120).optional().or(z.literal("")),
   guidance: z.string().max(2000).optional().or(z.literal("")),
   promptVersion: z.string().max(60).optional().or(z.literal("")),
-  // Blank = keep the existing key (never round-trips the secret to the client).
-  apiKey: z.string().max(400).optional().or(z.literal("")),
 });
 export type AiSettingsInput = z.infer<typeof schema>;
+
+/** Encrypted-key column for each provider — keys are stored once, per provider. */
+const KEY_COLUMN: Record<AiProvider, "aiClaudeKeyEnc" | "aiOpenAiKeyEnc" | "aiGeminiKeyEnc"> = {
+  claude: "aiClaudeKeyEnc",
+  openai: "aiOpenAiKeyEnc",
+  gemini: "aiGeminiKeyEnc",
+};
+
+export interface ProviderKeyView {
+  provider: AiProvider;
+  hasKey: boolean;
+  last4: string | null;
+}
 
 export interface PromptVersionView {
   id: string;
@@ -40,8 +51,8 @@ export interface AiSettingsView {
   provider: AiProvider;
   model: string;
   guidance: string;
-  hasKey: boolean;
-  keyLast4: string | null;
+  /** One entry per provider: whether a key is saved + its last 4 chars. */
+  keys: ProviderKeyView[];
   /** The tenant DEFAULT version id (new assessments inherit it). */
   promptVersion: string;
   wordMin: number;
@@ -59,14 +70,30 @@ async function readScopeSetting(scope: ActingScope) {
     : prisma.appSetting.findUnique({ where: { id: "singleton" } });
 }
 
+function keyInfo(enc: string | null | undefined): { hasKey: boolean; last4: string | null } {
+  if (!enc) return { hasKey: false, last4: null };
+  const dec = decryptWithSecret(enc, env.BETTER_AUTH_SECRET);
+  return { hasKey: Boolean(dec), last4: dec ? dec.slice(-4) : null };
+}
+
 export async function getAiSettings(): Promise<AiSettingsView> {
   const scope = await resolveActingScope();
   const s = await readScopeSetting(scope);
-  let keyLast4: string | null = null;
-  if (s?.aiApiKeyEnc) {
-    const dec = decryptWithSecret(s.aiApiKeyEnc, env.BETTER_AUTH_SECRET);
-    keyLast4 = dec ? dec.slice(-4) : null;
-  }
+
+  // Per-provider keys. Fold the legacy single key into the active provider's slot so
+  // pre-migration configs still show a saved key for the provider they were using.
+  const enc: Record<AiProvider, string | null> = {
+    claude: s?.aiClaudeKeyEnc ?? null,
+    openai: s?.aiOpenAiKeyEnc ?? null,
+    gemini: s?.aiGeminiKeyEnc ?? null,
+  };
+  const legacyProvider = s?.aiProvider && isAiProvider(s.aiProvider) ? s.aiProvider : null;
+  if (legacyProvider && !enc[legacyProvider] && s?.aiApiKeyEnc) enc[legacyProvider] = s.aiApiKeyEnc;
+  const keys: ProviderKeyView[] = (["claude", "openai", "gemini"] as AiProvider[]).map((p) => ({
+    provider: p,
+    ...keyInfo(enc[p]),
+  }));
+
   // Tenant default version id (falls back to the built-in default when unset/invalid).
   const rows = await listPromptVersions(scope.tenantId);
   const active = rows.some((r) => r.id === s?.aiPromptVersion)
@@ -79,8 +106,7 @@ export async function getAiSettings(): Promise<AiSettingsView> {
     provider: s?.aiProvider && isAiProvider(s.aiProvider) ? s.aiProvider : "claude",
     model: s?.aiModel ?? "",
     guidance: s?.aiGuidance ?? "",
-    hasKey: Boolean(s?.aiApiKeyEnc),
-    keyLast4,
+    keys,
     promptVersion: active,
     wordMin: s?.aiWordMin ?? 200,
     wordMax: s?.aiWordMax ?? 280,
@@ -88,6 +114,36 @@ export async function getAiSettings(): Promise<AiSettingsView> {
     sampleName: PREVIEW_SAMPLE.firstName ?? "Sample",
     sampleEasyRead: SAMPLE_EASY_READ,
   };
+}
+
+/** Save ONE provider's API key (encrypted), independent of which provider is active.
+ *  Keys are entered once per provider; selecting a provider/model never re-prompts. */
+export async function saveProviderKey(provider: string, key: string): Promise<ActionResult> {
+  const scope = await resolveActingScope();
+  if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
+  if (!isAiProvider(provider)) return { ok: false, error: "Unknown provider." };
+  const k = (key ?? "").trim();
+  if (!k) return { ok: false, error: "Paste the API key first." };
+  if (k.length > 400) return { ok: false, error: "That key looks too long." };
+
+  const column = KEY_COLUMN[provider];
+  const data = { [column]: encryptWithSecret(k, env.BETTER_AUTH_SECRET) };
+  if (scope.tenantId) {
+    await prisma.appSetting.upsert({
+      where: { tenantId: scope.tenantId },
+      update: data,
+      create: { tenantId: scope.tenantId, ...data },
+    });
+  } else {
+    await prisma.appSetting.upsert({
+      where: { id: "singleton" },
+      update: data,
+      create: { id: "singleton", ...data },
+    });
+  }
+  revalidatePath("/admin/ai");
+  revalidatePath("/w/settings");
+  return { ok: true };
 }
 
 export async function updateAiSettings(input: AiSettingsInput): Promise<ActionResult> {
@@ -99,21 +155,21 @@ export async function updateAiSettings(input: AiSettingsInput): Promise<ActionRe
   }
   const d = parsed.data;
 
+  // Enabling requires a key for the SELECTED provider (keys are saved separately).
   const existing = await readScopeSetting(scope);
-  const newKey = d.apiKey && d.apiKey.trim() ? d.apiKey.trim() : null;
-  const willHaveKey = newKey ? true : Boolean(existing?.aiApiKeyEnc);
-  if (d.enabled && !willHaveKey) {
-    return { ok: false, error: "Add an API key before enabling AI." };
+  const selectedEnc = existing?.[KEY_COLUMN[d.provider]] ?? (existing?.aiProvider === d.provider ? existing?.aiApiKeyEnc : null);
+  if (d.enabled && !selectedEnc) {
+    return { ok: false, error: `Save a ${d.provider} API key above before enabling AI.` };
   }
 
   // NOTE: the default prompt version is managed separately (setDefaultPromptVersion),
-  // so this action never touches aiPromptVersion.
+  // and API keys are saved separately (saveProviderKey), so this action touches
+  // neither aiPromptVersion nor any key column.
   const data = {
     aiEnabled: d.enabled,
     aiProvider: d.provider,
     aiModel: d.model && d.model.trim() ? d.model.trim() : null,
     aiGuidance: d.guidance && d.guidance.trim() ? d.guidance.trim() : null,
-    ...(newKey ? { aiApiKeyEnc: encryptWithSecret(newKey, env.BETTER_AUTH_SECRET) } : {}),
   };
 
   if (scope.tenantId) {

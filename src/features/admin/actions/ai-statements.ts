@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin } from "@/lib/auth/guards";
-import { generatePersonalStatement } from "@/lib/ai/generate";
+import { generatePersonalStatementResult } from "@/lib/ai/generate";
 import { type StatementInput } from "@/lib/ai/types";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
@@ -76,9 +76,9 @@ export async function regenerateAiStatement(
     instruction: instr || null,
   };
 
-  const text = await generatePersonalStatement(input);
+  const { text, error } = await generatePersonalStatementResult(input);
   if (!text) {
-    return { ok: false, error: "The AI returned nothing. Make sure AI is enabled with a valid key." };
+    return { ok: false, error: error ?? "The AI returned nothing. Make sure AI is enabled with a valid key." };
   }
   await prisma.aiStatement.create({
     data: { submissionId, text, source: "ai", instruction: instr || null, isDefault: false },

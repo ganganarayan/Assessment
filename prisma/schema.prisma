@@ -1003,9 +1003,16 @@ model AppSetting {
   // AI personalized-statement config (platform-level). The API key is stored
   // ENCRYPTED at rest (see lib/crypto) and never returned to the client.
   aiEnabled   Boolean @default(false)
-  aiProvider  String? // "claude" | "openai" | "gemini"
+  aiProvider  String? // "claude" | "openai" | "gemini" — which provider to USE
   aiModel     String?
+  // Legacy single key (kept for back-compat/fallback). New keys are stored PER
+  // provider below, so switching provider/model never re-prompts or breaks.
   aiApiKeyEnc String?
+  // One ENCRYPTED key per provider, saved once and reused. The active provider
+  // (aiProvider) selects which of these is used at generation time.
+  aiClaudeKeyEnc String?
+  aiOpenAiKeyEnc String?
+  aiGeminiKeyEnc String?
   aiGuidance  String?
   // Default result-statement prompt version — the tenant-wide default that a new
   // assessment inherits (an assessment can override via Assessment.aiPromptVersionId).

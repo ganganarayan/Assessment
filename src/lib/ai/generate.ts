@@ -28,10 +28,19 @@ async function readAiConfig(requireEnabled: boolean, tenantId: string | null = n
     const s = tenantId
       ? await prisma.appSetting.findUnique({ where: { tenantId } })
       : await prisma.appSetting.findUnique({ where: { id: "singleton" } });
-    if (!s || !s.aiApiKeyEnc || !s.aiProvider) return null;
+    if (!s || !s.aiProvider) return null;
     if (requireEnabled && !s.aiEnabled) return null;
     if (!isAiProvider(s.aiProvider)) return null;
-    const apiKey = decryptWithSecret(s.aiApiKeyEnc, env.BETTER_AUTH_SECRET);
+    // Use the key stored for the SELECTED provider; fall back to the legacy single
+    // key so pre-migration configs keep working.
+    const perProvider = {
+      claude: s.aiClaudeKeyEnc,
+      openai: s.aiOpenAiKeyEnc,
+      gemini: s.aiGeminiKeyEnc,
+    }[s.aiProvider];
+    const enc = perProvider ?? s.aiApiKeyEnc;
+    if (!enc) return null;
+    const apiKey = decryptWithSecret(enc, env.BETTER_AUTH_SECRET);
     if (!apiKey) return null;
     return {
       provider: s.aiProvider,
@@ -57,28 +66,45 @@ export async function isAiConfigured(tenantId: string | null = null): Promise<bo
   return (await getAiConfig(tenantId)) !== null;
 }
 
-export async function generatePersonalStatement(
+/**
+ * Detailed generate: returns the text AND the reason it's null, so admin surfaces
+ * (result-page regenerate) can show WHY instead of a generic "returned nothing".
+ * The funnel uses generatePersonalStatement (below), which swallows to null.
+ */
+export async function generatePersonalStatementResult(
   input: StatementInput,
   tenantId: string | null = null,
   versionId?: string | null,
-): Promise<string | null> {
-  // Total function: every step (config read, prompt build, provider call) is
-  // inside the guard, so this can NEVER throw into completeSubmission.
+): Promise<{ text: string | null; error: string | null }> {
   try {
     const cfg = await getAiConfig(tenantId);
-    if (!cfg) return null;
+    if (!cfg) {
+      return { text: null, error: "AI is off or no API key is saved for the selected provider. Save the key and enable AI." };
+    }
     const merged = { ...input, guidance: input.guidance ?? cfg.guidance };
     // The assessment's chosen version wins; else the tenant default (cfg.promptVersion).
     const version = await resolvePromptVersion(versionId ?? cfg.promptVersion, tenantId);
     const words = await getWordWindow(tenantId);
     const { system, user } = buildStatementMessages(merged, version, words);
     const text = await callProvider(cfg, system, user);
+    if (!text) return { text: null, error: `The ${cfg.provider} model (${cfg.model}) returned an empty response.` };
     // Crisis line is injected AFTER humanize so its em dash + phone number stay verbatim.
-    return text ? applyCrisisLine(text, merged.bandLevel, merged.percentage) : text;
+    return { text: applyCrisisLine(text, merged.bandLevel, merged.percentage), error: null };
   } catch (e) {
-    console.error("[ai] generation error:", e instanceof Error ? e.message : String(e));
-    return null;
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[ai] generation error:", msg);
+    return { text: null, error: msg };
   }
+}
+
+export async function generatePersonalStatement(
+  input: StatementInput,
+  tenantId: string | null = null,
+  versionId?: string | null,
+): Promise<string | null> {
+  // Total function: never throws into completeSubmission — swallows to null so the
+  // funnel falls back to the static suggestion.
+  return (await generatePersonalStatementResult(input, tenantId, versionId)).text;
 }
 
 async function callProvider(cfg: AiConfig, system: string, user: string): Promise<string | null> {

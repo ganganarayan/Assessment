@@ -4,8 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   updateAiSettings,
+  saveProviderKey,
   testAi,
   type AiSettingsView,
+  type ProviderKeyView,
 } from "@/features/admin/actions/ai-settings";
 import { AI_PROVIDERS, DEFAULT_MODEL, MODELS_BY_PROVIDER, type AiProvider } from "@/lib/ai/types";
 import { Button } from "@/components/ui/button";
@@ -22,6 +24,54 @@ const PROVIDER_LABEL: Record<AiProvider, string> = {
   gemini: "Google Gemini",
 };
 
+/** One provider's key: saved independently and reused, so switching provider/model
+ *  never re-prompts. */
+function ProviderKeyRow({ info }: { info: ProviderKeyView }) {
+  const router = useRouter();
+  const [val, setVal] = useState("");
+  const [saving, start] = useTransition();
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const save = () =>
+    start(async () => {
+      setMsg(null);
+      const r = await saveProviderKey(info.provider, val);
+      if (r.ok) {
+        setVal("");
+        setMsg("Saved.");
+        router.refresh();
+      } else {
+        setMsg(r.error);
+      }
+    });
+
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-1 flex-col gap-1">
+        <Label className="flex items-center gap-2">
+          {PROVIDER_LABEL[info.provider]} key
+          {info.hasKey ? (
+            <span className="text-xs font-normal text-green-600">saved ••••{info.last4}</span>
+          ) : (
+            <span className="text-xs font-normal text-[var(--muted-foreground)]">not set</span>
+          )}
+        </Label>
+        <Input
+          type="password"
+          autoComplete="off"
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          placeholder={info.hasKey ? "Saved — paste a new key to replace" : "Paste API key"}
+        />
+      </div>
+      <Button size="sm" variant="outline" onClick={save} disabled={saving || !val.trim()}>
+        {saving ? "Saving…" : "Save key"}
+      </Button>
+      {msg ? <span className="text-xs text-[var(--muted-foreground)]">{msg}</span> : null}
+    </div>
+  );
+}
+
 export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
   const router = useRouter();
   const [enabled, setEnabled] = useState(initial.enabled);
@@ -33,21 +83,21 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
       !MODELS_BY_PROVIDER[initial.provider].some((m) => m.value === initial.model),
   );
   const [guidance, setGuidance] = useState(initial.guidance);
-  const [apiKey, setApiKey] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [test, setTest] = useState<{ ok: boolean; ms: number; text?: string; error?: string } | null>(null);
   const [pending, start] = useTransition();
   const [testing, startTest] = useTransition();
 
+  const selectedHasKey = initial.keys.find((k) => k.provider === provider)?.hasKey ?? false;
+
   function save() {
     setMsg(null);
     start(async () => {
-      const res = await updateAiSettings({ enabled, provider, model, guidance, apiKey });
+      const res = await updateAiSettings({ enabled, provider, model, guidance });
       if (!res.ok) {
         setMsg({ ok: false, text: res.error });
         return;
       }
-      setApiKey(""); // never keep the secret in component state after save
       setMsg({ ok: true, text: "Saved." });
       router.refresh();
     });
@@ -61,7 +111,21 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
+      {/* Provider API keys — saved once per provider, reused whenever you select it. */}
+      <div className="flex flex-col gap-3 rounded-lg border p-4">
+        <div>
+          <p className="text-sm font-medium">Provider API keys</p>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Save each key once. Switching provider or model below never asks again — it just uses
+            the saved key. Stored encrypted at rest, never shown again.
+          </p>
+        </div>
+        {initial.keys.map((k) => (
+          <ProviderKeyRow key={k.provider} info={k} />
+        ))}
+      </div>
+
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
         Enable AI personalized statement
@@ -69,12 +133,13 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
-          <Label>Provider</Label>
+          <Label>Provider to use</Label>
           <select
             className={SELECT_CLASS}
             value={provider}
             onChange={(e) => {
-              // Switching provider resets to that provider's default model.
+              // Switching provider resets to that provider's default model. The key is
+              // already saved per provider, so nothing is re-entered.
               setProvider(e.target.value as AiProvider);
               setModel("");
               setCustomModel(false);
@@ -116,24 +181,11 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="ai-key">API key</Label>
-        <Input
-          id="ai-key"
-          type="password"
-          autoComplete="off"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder={
-            initial.hasKey
-              ? `Configured ✓ ••••${initial.keyLast4 ?? ""} — leave blank to keep`
-              : "Paste your provider API key"
-          }
-        />
-        <p className="text-xs text-[var(--muted-foreground)]">
-          Stored encrypted at rest and never shown again. Leave blank to keep the current key.
+      {!selectedHasKey ? (
+        <p className="text-xs text-amber-600">
+          No {PROVIDER_LABEL[provider]} key saved yet — add it above before enabling AI.
         </p>
-      </div>
+      ) : null}
 
       <div className="flex flex-col gap-1">
         <Label htmlFor="ai-guidance">Guidance (optional)</Label>
