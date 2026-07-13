@@ -847,6 +847,37 @@ model WebhookLog {
 }
 
 // ---------------------------------------------------------------------------
+// WebhookDelivery — durable delivery QUEUE (one row per webhook per event). A
+// pending row survives a deploy/restart, so the retry cron (lib/webhooks/retry.ts)
+// can re-attempt with backoff even when the inline first attempt is killed
+// mid-flight. url/secret/body are denormalized so a retry is byte-identical and
+// independent of later webhook edits. WebhookLog remains the per-attempt audit.
+// ---------------------------------------------------------------------------
+
+model WebhookDelivery {
+  id            String    @id @default(cuid())
+  webhookId     String // plain ref (no FK), like WebhookLog
+  eventName     String
+  endpoint      String
+  secret        String
+  body          String    @db.Text // exact JSON string that is signed + sent
+  status        String    @default("pending") // pending | delivered | dead
+  attemptCount  Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) // due time; also the claim lease marker
+  lastStatus    Int?
+  lastError     String?
+  submissionId  String?
+  tenantId      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deliveredAt   DateTime?
+
+  @@index([status, nextAttemptAt])
+  @@index([webhookId])
+  @@map("webhook_delivery")
+}
+
+// ---------------------------------------------------------------------------
 // CrmSendQueue — the throttled background send queue for the SCORE and CUSTOM
 // CRM senders. One row per job. The worker drains PENDING rows of its kind
 // oldest-first, inside a daily IST window, with a random delay between sends.

@@ -1,7 +1,7 @@
 import { Prisma, type EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
-import { deliverWebhook } from "@/lib/webhooks/dispatch";
+import { processDelivery } from "@/lib/webhooks/retry";
 import { EVENT_NAME, type EmitInput } from "@/features/events/types";
 import { buildEnvelope, shapePayload, withDeliveredName } from "@/lib/events/payload";
 
@@ -51,28 +51,35 @@ export async function emitEvent(type: EventType, input: EmitInput): Promise<void
     },
   });
 
-  // 2) Deliver to EVERY ACTIVE webhook whose trigger is this event AND belongs to
-  //    the emitting tenant — non-blocking. The submission is the source of truth for
-  //    the tenant; Gita/platform events resolve to tenantId null and fire to the
-  //    existing (null-tenant) webhooks exactly as before.
-  void (async () => {
-    const webhooks = await prisma.webhook.findMany({
-      where: { eventType: type, status: "ACTIVE", tenantId },
-    });
-    await Promise.all(
-      webhooks.map((webhook) =>
-        deliverWebhook({
+  // 2) ENQUEUE a durable delivery per matching webhook (awaited, so it survives a
+  //    deploy), then fire the first attempt inline — non-blocking. If that inline
+  //    attempt is killed mid-flight, the pending row is retried by the cron
+  //    (lib/webhooks/retry). Tenant scoping is unchanged: Gita/platform events
+  //    resolve to tenantId null and fire to the null-tenant webhooks as before.
+  const webhooks = await prisma.webhook.findMany({
+    where: { eventType: type, status: "ACTIVE", tenantId },
+    select: { id: true, name: true, url: true, secret: true },
+  });
+  if (webhooks.length === 0) return;
+
+  const created = await prisma.$transaction(
+    webhooks.map((webhook) =>
+      prisma.webhookDelivery.create({
+        data: {
           webhookId: webhook.id,
-          url: webhook.url,
-          secret: webhook.secret,
           eventName: webhook.name,
+          endpoint: webhook.url,
+          secret: webhook.secret,
           body: JSON.stringify(withDeliveredName(payload, webhook.name)),
           submissionId: input.submissionId ?? null,
           tenantId,
-        }),
-      ),
-    );
-  })().catch(() => {
-    // Delivery failures are recorded in WebhookLog; never surface to the user.
+        },
+        select: { id: true },
+      }),
+    ),
+  );
+
+  void Promise.all(created.map((d) => processDelivery(d.id))).catch(() => {
+    // Failures are recorded on the delivery row + WebhookLog; the cron retries.
   });
 }
