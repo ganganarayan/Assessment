@@ -23,6 +23,7 @@ import { type EmitInput, type PayloadCategory } from "@/features/events/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { normalizeIdentifier, evaluateLockout } from "@/features/assessment/lockout";
+import { isCrawlerUserAgent } from "@/lib/bots";
 import { generateCustomerId, generateToken } from "@/lib/ids";
 import { env } from "@/lib/env";
 import { randomUUID } from "crypto";
@@ -257,7 +258,14 @@ export async function startSubmission(
   lead: LeadInput,
   attribution?: Record<string, string>,
   preview?: boolean,
+  honeypot?: string,
 ): Promise<ActionResult<StartResult>> {
+  // Bot guard #1 — honeypot: a hidden form field no human fills. If it carries a
+  // value, silently refuse (no submission created) so bot opt-ins never pollute the
+  // funnel. Same generic error a real user would never trigger.
+  if (!preview && honeypot && honeypot.trim()) {
+    return { ok: false, error: "Something went wrong. Please try again." };
+  }
   const assessment = await prisma.assessment.findFirst({
     where: { slug, status: "PUBLISHED" },
     select: {
@@ -323,6 +331,11 @@ export async function startSubmission(
   // the pixel base code sets on page load (before this Start action). fbclidTimestamp
   // anchors fbc reconstruction (fb.1.<ts>.<fbclid>) when the _fbc cookie is absent.
   const metaCtx = await getMetaRequestContext();
+  // Bot guard #2 — known crawlers/scrapers (search + AI bots, HTTP libraries) must
+  // not create submissions. Real browser UAs never match; a match is a confident bot.
+  if (!preview && isCrawlerUserAgent(metaCtx.clientUserAgent)) {
+    return { ok: false, error: "Something went wrong. Please try again." };
+  }
   // fbclid_timestamp (unix MILLISECONDS), ALWAYS set: prefer the REAL fbc creation
   // time from the _fbc cookie when the pixel wrote one; else fall back to the opt-in
   // moment. Same unit as Meta's fbc (fb.1.<ms>.<fbclid>) so n8n uses it verbatim.

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
@@ -21,12 +22,12 @@ export const dynamic = "force-dynamic";
  *  - Everyone else (the public) NEVER sees results here; results are delivered
  *    only via the destination page (token + connector). This is our decision.
  */
-/** One labelled field in the respondent details grid. */
-function Detail({ label, value }: { label: string; value: string | null }) {
+/** One labelled field: label on the left, value to its right on the same line. */
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-[var(--muted-foreground)]">{label}</span>
-      <span className="break-words">{value?.trim() ? value : "—"}</span>
+    <div className="flex items-baseline gap-3">
+      <span className="w-24 shrink-0 text-xs text-[var(--muted-foreground)]">{label}</span>
+      <span className="min-w-0 break-words">{children}</span>
     </div>
   );
 }
@@ -69,42 +70,47 @@ export default async function ResultPage({
     const breakdown = await getSubmissionQuestionBreakdown(submissionId);
     const questionsByCategory = new Map(breakdown.map((b) => [b.name, b.questions]));
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10">
-        <Link
-          href="/admin/submissions"
-          className="sticky top-3 z-10 mb-4 inline-flex w-fit items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-        >
-          ← Back
-        </Link>
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-1">
-            <p className="text-sm text-[var(--muted-foreground)]">{submission.assessment.title}</p>
-            <h1 className="text-3xl font-bold tracking-tight">Result (admin view)</h1>
-            <p className="text-xs text-[var(--muted-foreground)]">
-              Only you (signed-in admin) see this. Respondents never see results on this page.
-            </p>
+      <main className="mx-auto w-full max-w-5xl px-4 pt-6 pb-10">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start gap-4">
+            <Link
+              href="/admin/submissions"
+              className="inline-flex shrink-0 items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+            >
+              ← Back
+            </Link>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm text-[var(--muted-foreground)]">{submission.assessment.title}</p>
+              <h1 className="text-3xl font-bold tracking-tight">Result (admin view)</h1>
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Only you (signed-in admin) see this. Respondents never see results on this page.
+              </p>
+            </div>
           </div>
 
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-lg">Respondent</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-              <Detail label="Name" value={[submission.leadFirstName, submission.leadLastName].filter(Boolean).join(" ") || null} />
-              <Detail label="Email" value={submission.leadEmail} />
-              <Detail label="Phone" value={submission.leadMobile} />
-              <Detail label="Profession" value={submission.leadProfession} />
-              <Detail label="Customer ID" value={submission.customerId} />
-              <div className="flex flex-col gap-0.5 sm:col-span-2">
-                <span className="text-xs text-[var(--muted-foreground)]">Result link</span>
-                {(() => {
-                  const link = resultUrlFor(submission.assessment.targetUrl, slug, submissionId, submission.resultToken);
-                  return (
-                    <a href={link} target="_blank" rel="noreferrer" className="break-all underline">
-                      {link}
-                    </a>
-                  );
-                })()}
+            <CardContent className="grid grid-cols-1 gap-x-10 gap-y-2 text-sm sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Field label="Name">{[submission.leadFirstName, submission.leadLastName].filter(Boolean).join(" ") || "—"}</Field>
+                <Field label="Phone">{submission.leadMobile?.trim() || "—"}</Field>
+                <Field label="Email">{submission.leadEmail?.trim() || "—"}</Field>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Field label="Customer ID">{submission.customerId || "—"}</Field>
+                <Field label="Result link">
+                  {(() => {
+                    const link = resultUrlFor(submission.assessment.targetUrl, slug, submissionId, submission.resultToken);
+                    return (
+                      <a href={link} target="_blank" rel="noreferrer" className="break-all underline">
+                        {link}
+                      </a>
+                    );
+                  })()}
+                </Field>
+                <Field label="Profession">{submission.leadProfession?.trim() || "—"}</Field>
               </div>
             </CardContent>
           </Card>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import {
   startSubmission,
   completeSubmission,
@@ -154,11 +154,17 @@ export function AssessmentRunner({
     (q) => q.required && !answers[q.id],
   ).length;
 
+  // Honeypot input ref — hidden from humans; a filled value marks a bot opt-in.
+  const hpRef = useRef<HTMLInputElement>(null);
+
   function submitLead(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    // Honeypot: hidden field only a bot fills. Its value is passed to the server,
+    // which silently refuses when it is non-empty.
+    const honeypot = hpRef.current?.value ?? "";
     start(async () => {
-      const res = await startSubmission(assessment.slug, lead, attribution, preview);
+      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot);
       if (!res.ok) {
         setError(res.error);
         return;
@@ -352,6 +358,16 @@ export function AssessmentRunner({
       // Landing page + opt-in form on ONE screen (no separate "Start" step): the
       // headline/description show, with the lead form directly below.
       <form onSubmit={submitLead} className="flex flex-col gap-6">
+        {/* Honeypot: off-screen, not a tab stop, ignored by AT — only bots fill it. */}
+        <input
+          ref={hpRef}
+          type="text"
+          name="company_website"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          className="absolute left-[-9999px] h-0 w-0 opacity-0"
+        />
         {assessment.coverImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
