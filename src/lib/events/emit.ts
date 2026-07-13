@@ -56,30 +56,36 @@ export async function emitEvent(type: EventType, input: EmitInput): Promise<void
   //    attempt is killed mid-flight, the pending row is retried by the cron
   //    (lib/webhooks/retry). Tenant scoping is unchanged: Gita/platform events
   //    resolve to tenantId null and fire to the null-tenant webhooks as before.
-  const webhooks = await prisma.webhook.findMany({
-    where: { eventType: type, status: "ACTIVE", tenantId },
-    select: { id: true, name: true, url: true, secret: true },
-  });
-  if (webhooks.length === 0) return;
+  // Wrapped so a delivery-enqueue hiccup can NEVER break the user flow (completion,
+  // opt-in). The EventLog above is the source of truth; a lost enqueue is recoverable.
+  try {
+    const webhooks = await prisma.webhook.findMany({
+      where: { eventType: type, status: "ACTIVE", tenantId },
+      select: { id: true, name: true, url: true, secret: true },
+    });
+    if (webhooks.length === 0) return;
 
-  const created = await prisma.$transaction(
-    webhooks.map((webhook) =>
-      prisma.webhookDelivery.create({
-        data: {
-          webhookId: webhook.id,
-          eventName: webhook.name,
-          endpoint: webhook.url,
-          secret: webhook.secret,
-          body: JSON.stringify(withDeliveredName(payload, webhook.name)),
-          submissionId: input.submissionId ?? null,
-          tenantId,
-        },
-        select: { id: true },
-      }),
-    ),
-  );
+    const created = await prisma.$transaction(
+      webhooks.map((webhook) =>
+        prisma.webhookDelivery.create({
+          data: {
+            webhookId: webhook.id,
+            eventName: webhook.name,
+            endpoint: webhook.url,
+            secret: webhook.secret,
+            body: JSON.stringify(withDeliveredName(payload, webhook.name)),
+            submissionId: input.submissionId ?? null,
+            tenantId,
+          },
+          select: { id: true },
+        }),
+      ),
+    );
 
-  void Promise.all(created.map((d) => processDelivery(d.id))).catch(() => {
-    // Failures are recorded on the delivery row + WebhookLog; the cron retries.
-  });
+    void Promise.all(created.map((d) => processDelivery(d.id))).catch(() => {
+      // Failures are recorded on the delivery row + WebhookLog; the cron retries.
+    });
+  } catch (e) {
+    console.error("[emit] enqueue failed:", e instanceof Error ? e.message : String(e));
+  }
 }
