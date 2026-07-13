@@ -71,14 +71,14 @@ export default async function ResultPage({
     const questionsByCategory = new Map(breakdown.map((b) => [b.name, b.questions]));
     return (
       <main className="mx-auto w-full max-w-5xl px-4 pt-6 pb-10">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-4">
-            <Link
-              href="/admin/submissions"
-              className="inline-flex shrink-0 items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-            >
-              ← Back
-            </Link>
+        <div className="flex gap-4">
+          <Link
+            href="/admin/submissions"
+            className="sticky top-6 inline-flex h-fit shrink-0 items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+          >
+            ← Back
+          </Link>
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
             <div className="flex flex-col gap-1">
               <p className="text-sm text-[var(--muted-foreground)]">{submission.assessment.title}</p>
               <h1 className="text-3xl font-bold tracking-tight">Result (admin view)</h1>
@@ -86,7 +86,6 @@ export default async function ResultPage({
                 Only you (signed-in admin) see this. Respondents never see results on this page.
               </p>
             </div>
-          </div>
 
           <Card>
             <CardHeader className="pb-2 pt-4">
@@ -183,6 +182,7 @@ export default async function ResultPage({
               </CardContent>
             </Card>
           ) : null}
+          </div>
         </div>
       </main>
     );
