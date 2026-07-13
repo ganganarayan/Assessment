@@ -17,6 +17,7 @@ import {
 } from "@/features/assessment/scoring";
 import { EventType, Prisma } from "@prisma/client";
 import { emitEvent } from "@/lib/events/emit";
+import { resultUrlFor } from "@/lib/events/completion";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { type EmitInput, type PayloadCategory } from "@/features/events/types";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -487,6 +488,7 @@ export async function requestPreviousResults(
       id: true,
       slug: true,
       title: true,
+      targetUrl: true,
       uniqueIdentifier: true,
       tenant: { select: { id: true, slug: true, name: true } },
     },
@@ -507,6 +509,7 @@ export async function requestPreviousResults(
     orderBy: { completedAt: "desc" },
     select: {
       id: true,
+      resultToken: true,
       leadFirstName: true,
       leadLastName: true,
       leadEmail: true,
@@ -535,6 +538,9 @@ export async function requestPreviousResults(
       },
       score: { total, max, percentage },
       resultBand: last.resultBand ? { level: last.resultBand.level, title: last.resultBand.title } : null,
+      // Send the SAME token-gated respondent link completion sends (targetUrl?t=token),
+      // never the admin-only /r/ page. This is what the CRM emails to the client.
+      resultUrl: resultUrlFor(assessment.targetUrl, assessment.slug, last.id, last.resultToken),
       attribution: normalizeAttribution(last.attribution) ?? undefined,
     } satisfies EmitInput);
   }

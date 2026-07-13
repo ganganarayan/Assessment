@@ -364,7 +364,12 @@ export async function listContacts(opts: {
         profession: r.leadProfession,
         customerId: r.customerId,
         resultToken: r.resultToken,
-        resultUrl: buildResultUrl(r.assessment?.targetUrl ?? null, r.assessment?.slug ?? "", r.id, r.resultToken),
+        // A result link exists ONLY for a completed submission; a not-taken/started
+        // row stays blank (no misleading link).
+        resultUrl:
+          r.status === "COMPLETED"
+            ? buildResultUrl(r.assessment?.targetUrl ?? null, r.assessment?.slug ?? "", r.id, r.resultToken)
+            : null,
         completed: r.status === "COMPLETED",
         paidAmount: p?.amount ?? null,
         paidAt: p?.at ?? null,

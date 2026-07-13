@@ -7,7 +7,7 @@ import { normalizeAttribution } from "@/lib/events/payload";
 import { type EmitInput } from "@/features/events/types";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 
-function resultUrlFor(targetUrl: string | null, slug: string, submissionId: string, token: string | null): string {
+export function resultUrlFor(targetUrl: string | null, slug: string, submissionId: string, token: string | null): string {
   if (targetUrl && token) {
     try {
       const u = new URL(targetUrl);

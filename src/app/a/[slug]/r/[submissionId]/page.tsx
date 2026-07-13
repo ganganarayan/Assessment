@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { markResultViewed } from "@/features/events/record";
+import { resultUrlFor } from "@/lib/events/completion";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
@@ -20,6 +21,16 @@ export const dynamic = "force-dynamic";
  *  - Everyone else (the public) NEVER sees results here; results are delivered
  *    only via the destination page (token + connector). This is our decision.
  */
+/** One labelled field in the respondent details grid. */
+function Detail({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs text-[var(--muted-foreground)]">{label}</span>
+      <span className="break-words">{value?.trim() ? value : "—"}</span>
+    </div>
+  );
+}
+
 export default async function ResultPage({
   params,
 }: {
@@ -31,7 +42,14 @@ export default async function ResultPage({
     select: {
       status: true,
       resultSnapshot: true,
-      assessment: { select: { slug: true, title: true } },
+      resultToken: true,
+      customerId: true,
+      leadFirstName: true,
+      leadLastName: true,
+      leadEmail: true,
+      leadMobile: true,
+      leadProfession: true,
+      assessment: { select: { slug: true, title: true, targetUrl: true } },
     },
   });
   if (!submission || submission.assessment.slug !== slug) notFound();
@@ -66,6 +84,30 @@ export default async function ResultPage({
               Only you (signed-in admin) see this. Respondents never see results on this page.
             </p>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Respondent</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+              <Detail label="Name" value={[submission.leadFirstName, submission.leadLastName].filter(Boolean).join(" ") || null} />
+              <Detail label="Email" value={submission.leadEmail} />
+              <Detail label="Phone" value={submission.leadMobile} />
+              <Detail label="Profession" value={submission.leadProfession} />
+              <Detail label="Customer ID" value={submission.customerId} />
+              <div className="flex flex-col gap-0.5 sm:col-span-2">
+                <span className="text-xs text-[var(--muted-foreground)]">Result link</span>
+                {(() => {
+                  const link = resultUrlFor(submission.assessment.targetUrl, slug, submissionId, submission.resultToken);
+                  return (
+                    <a href={link} target="_blank" rel="noreferrer" className="break-all underline">
+                      {link}
+                    </a>
+                  );
+                })()}
+              </div>
+            </CardContent>
+          </Card>
 
           <AiStatementManager slug={slug} submissionId={submissionId} rows={aiRows} />
 
