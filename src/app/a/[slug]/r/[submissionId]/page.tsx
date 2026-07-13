@@ -69,7 +69,7 @@ export default async function ResultPage({
     const breakdown = await getSubmissionQuestionBreakdown(submissionId);
     const questionsByCategory = new Map(breakdown.map((b) => [b.name, b.questions]));
     return (
-      <main className="mx-auto w-full max-w-4xl px-4 py-10">
+      <main className="mx-auto w-full max-w-5xl px-4 py-10">
         <Link
           href="/admin/submissions"
           className="sticky top-3 z-10 mb-4 inline-flex w-fit items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
@@ -86,10 +86,10 @@ export default async function ResultPage({
           </div>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="text-lg">Respondent</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+            <CardContent className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
               <Detail label="Name" value={[submission.leadFirstName, submission.leadLastName].filter(Boolean).join(" ") || null} />
               <Detail label="Email" value={submission.leadEmail} />
               <Detail label="Phone" value={submission.leadMobile} />
