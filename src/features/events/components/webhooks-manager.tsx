@@ -13,10 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { formatIST } from "@/lib/date";
 
-function fmt(iso: string | null) {
-  return iso ? iso.slice(0, 16).replace("T", " ") : "—";
-}
+// IST everywhere (matches the rest of the app), never the raw UTC ISO.
+const fmt = (iso: string | null) => (iso ? formatIST(iso) : "—");
 
 export interface TriggerOption {
   value: string;

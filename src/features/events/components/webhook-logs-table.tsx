@@ -6,10 +6,10 @@ import type { EventActivityRow } from "@/features/events/types";
 import { retryEvent } from "@/features/events/actions/webhooks";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { formatIST } from "@/lib/date";
 
-function fmt(iso: string) {
-  return iso.slice(0, 16).replace("T", " ");
-}
+// IST across the whole app (matches Submissions/Contacts) — never the raw UTC ISO.
+const fmt = (iso: string) => formatIST(iso);
 
 const STATUS: Record<EventActivityRow["deliveryStatus"], { label: string; variant: "success" | "outline" | "muted" }> = {
   delivered: { label: "delivered", variant: "success" },
@@ -39,7 +39,7 @@ export function WebhookLogsTable({ rows }: { rows: EventActivityRow[] }) {
         <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
           <tr>
             <th className="w-6 px-3 py-1.5" />
-            <th className="px-3 py-1.5">Sent at</th>
+            <th className="px-3 py-1.5">Sent at (IST)</th>
             <th className="px-3 py-1.5">Event</th>
             <th className="px-3 py-1.5">Contact</th>
             <th className="px-3 py-1.5">Status</th>
@@ -100,7 +100,7 @@ function RowGroup({
               <div className="flex flex-col gap-2">
                 <p className="text-xs font-semibold uppercase text-[var(--muted-foreground)]">Request</p>
                 <Field label="Method" value="POST" mono />
-                <Field label="Sent at" value={fmt(row.createdAt)} />
+                <Field label="Sent at (IST)" value={fmt(row.createdAt)} />
                 <Field label="Event" value={row.eventName} mono />
                 <Field label="URL" value={row.endpoint ?? "—"} mono wrap />
                 <p className="mt-1 text-xs font-semibold uppercase text-[var(--muted-foreground)]">Payload sent</p>

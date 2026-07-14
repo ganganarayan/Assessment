@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { resendPurchaseToMeta } from "@/features/events/actions/capi-test";
 import type { RecentPurchase } from "@/features/events/data";
 import { Button } from "@/components/ui/button";
+import { formatIST } from "@/lib/date";
 
 type Result = Awaited<ReturnType<typeof resendPurchaseToMeta>>;
 
@@ -57,13 +58,13 @@ export function PurchaseRecovery({ purchases }: { purchases: RecentPurchase[] })
                 const r = results[p.submissionId];
                 return (
                   <tr key={p.submissionId}>
-                    <td className="whitespace-nowrap px-3 py-1.5 text-xs">{p.createdAt.slice(0, 16).replace("T", " ")}</td>
+                    <td className="whitespace-nowrap px-3 py-1.5 text-xs">{formatIST(p.createdAt)}</td>
                     <td className="px-3 py-1.5 text-xs">{p.email ?? "—"}</td>
                     <td className="px-3 py-1.5 text-xs">{p.amountRupees != null ? `₹${p.amountRupees}` : "—"}</td>
                     <td className="px-3 py-1.5 font-mono text-xs">{p.recordedVia ?? "—"}</td>
                     <td className="px-3 py-1.5 text-xs">
                       {p.metaConversionAt ? (
-                        <span className="text-green-600">✓ sent {p.metaConversionAt.slice(0, 16).replace("T", " ")}</span>
+                        <span className="text-green-600">✓ sent {formatIST(p.metaConversionAt)}</span>
                       ) : (
                         <span className="text-amber-600">not sent</span>
                       )}

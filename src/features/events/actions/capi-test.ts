@@ -7,6 +7,7 @@ import { testCapi, sendCapiEventVerbose } from "@/lib/meta/send";
 import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
 import { fireCapiLogRow } from "@/lib/meta/capi-log";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { formatIST } from "@/lib/date";
 
 /** Super-admin diagnostic: fire a server-side CAPI event (any name, default
  *  AssessmentCompleted) to Meta and return Meta's real response. */
@@ -63,7 +64,7 @@ export async function resendPurchaseToMeta(submissionId: string, force = false):
   if (p.metaConversionAt && !force) {
     return {
       ok: false,
-      error: `Already sent to Meta on ${p.metaConversionAt.toISOString().slice(0, 16).replace("T", " ")} — no action needed.`,
+      error: `Already sent to Meta on ${formatIST(p.metaConversionAt)} IST — no action needed.`,
       eventName,
       eventId: p.providerPaymentId,
     };
