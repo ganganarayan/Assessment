@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
     "@better-auth/kysely-adapter",
     "@prisma/client",
     "prisma",
+    // react-pdf pulls in fontkit/yoga (native-ish); keep it out of the webpack bundle.
+    "@react-pdf/renderer",
   ],
   experimental: {
     serverActions: {

@@ -109,6 +109,15 @@ export default async function ResultPage({
                     );
                   })()}
                 </Field>
+                <Field label="Report PDF">
+                  <a href={`/api/reports/${submissionId}`} target="_blank" rel="noreferrer" className="underline">
+                    View
+                  </a>
+                  <span className="text-[var(--muted-foreground)]">{"  ·  "}</span>
+                  <a href={`/api/reports/${submissionId}?download=1`} className="underline">
+                    Download
+                  </a>
+                </Field>
                 <Field label="Profession">{submission.leadProfession?.trim() || "—"}</Field>
               </div>
             </CardContent>
