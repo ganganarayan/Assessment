@@ -14,7 +14,6 @@ import { Document, Page, Text, View, StyleSheet, Font, renderToBuffer } from "@r
 
 // ---- brand + band palette -------------------------------------------------
 const TEAL = "#0E4C5C";
-const TEAL2 = "#145E71";
 const GOLD = "#C8912B";
 const INK = "#1f2d31";
 const MUTE = "#5b6b70";
@@ -148,6 +147,8 @@ function AssessmentReport({ data }: { data: ReportData }) {
   const bandColor = BAND_COLOR[level] ?? GOLD;
   const pct = Math.max(0, Math.min(100, Math.round(data.scorePercent)));
   const narrative = paragraphs(data.aiStatement);
+  // Per-band override copy if provided, else the band's own stored description.
+  const practice = PRACTICE_BY_BAND[level] ?? data.resultSuggestion;
 
   return (
     <Document title={`Assess360 Report — ${data.name}`} author="Assess360">
@@ -235,10 +236,10 @@ function AssessmentReport({ data }: { data: ReportData }) {
           ) : null}
 
           {/* Band description / next steps */}
-          {data.resultSuggestion ? (
+          {practice ? (
             <View style={s.section} wrap={false}>
               <Text style={s.h2}>Your next 15 days</Text>
-              <Text style={s.p}>{data.resultSuggestion}</Text>
+              <Text style={s.p}>{practice}</Text>
               <Text style={[s.p, { color: MUTE }]}>
                 Practise consistently for the next fifteen days, then take the assessment again to measure how far you have moved.
               </Text>
