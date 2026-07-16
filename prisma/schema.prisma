@@ -606,6 +606,9 @@ model Submission {
 
   // AI-generated personalized statement (stored against this submission/date).
   aiStatement String?
+  // Admin-authored "Add to PDF" note — the post-call action items / meeting summary
+  // appended at the bottom of the PDF report. Not shown to the respondent elsewhere.
+  reportNote String? @db.Text
 
   totalScore Float?
   maxScore   Float?

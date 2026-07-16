@@ -111,6 +111,21 @@ export async function saveManualAiStatement(
   return { ok: true };
 }
 
+/** Save the admin "Add to PDF" note (post-call action items / meeting summary).
+ *  Appended at the bottom of the PDF report; blank clears it. */
+export async function saveReportNote(
+  slug: string,
+  submissionId: string,
+  text: string,
+): Promise<ActionResult> {
+  await requireSuperAdmin();
+  const t = (text ?? "").trim();
+  if (t.length > 8000) return { ok: false, error: "Note is too long (max 8000 characters)." };
+  await prisma.submission.update({ where: { id: submissionId }, data: { reportNote: t || null } });
+  revalidate(slug, submissionId);
+  return { ok: true };
+}
+
 /** Make one version the default — it is mirrored into the snapshot so the VSL
  *  serves it on the next load. */
 export async function setDefaultAiStatement(

@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { formatIST } from "@/lib/date";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
+import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
 import { renderReportPdf, type ReportData } from "@/lib/pdf/report";
 
 /**
@@ -37,6 +38,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
       completedAt: true,
       createdAt: true,
       aiStatement: true,
+      reportNote: true,
       resultSnapshot: true,
       assessment: { select: { title: true } },
     },
@@ -45,6 +47,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
   if (!sub || sub.status !== "COMPLETED" || !snap || typeof snap.scorePercent !== "number") {
     return NextResponse.json({ error: "No completed result for this submission." }, { status: 404 });
   }
+
+  // Per-question detail (text + chosen answer + score) — the FULL breakdown, merged
+  // into each category by name.
+  const breakdown = await getSubmissionQuestionBreakdown(submissionId);
+  const qsByCategory = new Map(breakdown.map((b) => [b.name, b.questions]));
 
   const firstName = sub.leadFirstName?.trim() || "Participant";
   const data: ReportData = {
@@ -57,8 +64,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
     bandLevel: snap.resultBandLevel ?? null,
     aiStatement: sub.aiStatement ?? snap.aiStatement ?? null,
     resultSuggestion: snap.resultSuggestion ?? null,
+    reportNote: sub.reportNote ?? null,
     categories: Array.isArray(snap.categories)
-      ? snap.categories.map((c) => ({ name: c.name, score: c.score, max: c.max, band: c.band }))
+      ? snap.categories.map((c) => ({
+          name: c.name,
+          score: c.score,
+          max: c.max,
+          band: c.band,
+          questions: (qsByCategory.get(c.name) ?? []).map((q) => ({
+            text: q.text,
+            answer: q.answer,
+            score: q.score,
+            max: q.max,
+          })),
+        }))
       : [],
   };
 

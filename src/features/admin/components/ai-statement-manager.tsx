@@ -10,6 +10,7 @@ import { formatIST } from "@/lib/date";
 import {
   regenerateAiStatement,
   saveManualAiStatement,
+  saveReportNote,
   setDefaultAiStatement,
   deleteAiStatements,
   type AiStatementRow,
@@ -19,15 +20,19 @@ export function AiStatementManager({
   slug,
   submissionId,
   rows,
+  initialNote,
 }: {
   slug: string;
   submissionId: string;
   rows: AiStatementRow[];
+  /** The saved "Add to PDF" note (post-call action items), if any. */
+  initialNote?: string | null;
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"ai" | "manual">("ai");
+  const [mode, setMode] = useState<"ai" | "manual" | "note">("ai");
   const [instruction, setInstruction] = useState("");
   const [manual, setManual] = useState("");
+  const [note, setNote] = useState(initialNote ?? "");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
@@ -71,6 +76,9 @@ export function AiStatementManager({
           <Button size="sm" variant={mode === "manual" ? "default" : "outline"} onClick={() => setMode("manual")}>
             Write my own
           </Button>
+          <Button size="sm" variant={mode === "note" ? "default" : "outline"} onClick={() => setMode("note")}>
+            Add to PDF
+          </Button>
         </div>
 
         {mode === "ai" ? (
@@ -86,7 +94,7 @@ export function AiStatementManager({
               </Button>
             </div>
           </div>
-        ) : (
+        ) : mode === "manual" ? (
           <div className="flex flex-col gap-2">
             <Textarea
               value={manual}
@@ -96,6 +104,20 @@ export function AiStatementManager({
             <div>
               <Button size="sm" disabled={pending} onClick={() => run(() => saveManualAiStatement(slug, submissionId, manual), "Saved your version.", () => setManual(""))}>
                 {pending ? "Saving…" : "Save version"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <Textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={6}
+              placeholder="Action items / meeting summary to include at the BOTTOM of this person's PDF report (e.g. what you agreed after the 1:1). Leave blank to remove it."
+            />
+            <div>
+              <Button size="sm" disabled={pending} onClick={() => run(() => saveReportNote(slug, submissionId, note), "Saved to the PDF.")}>
+                {pending ? "Saving…" : "Save to PDF"}
               </Button>
             </div>
           </div>

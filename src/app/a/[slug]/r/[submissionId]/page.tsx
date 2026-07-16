@@ -44,6 +44,7 @@ export default async function ResultPage({
       status: true,
       resultSnapshot: true,
       resultToken: true,
+      reportNote: true,
       customerId: true,
       leadFirstName: true,
       leadLastName: true,
@@ -123,7 +124,7 @@ export default async function ResultPage({
             </CardContent>
           </Card>
 
-          <AiStatementManager slug={slug} submissionId={submissionId} rows={aiRows} />
+          <AiStatementManager slug={slug} submissionId={submissionId} rows={aiRows} initialNote={submission.reportNote} />
 
           <Card>
             <CardHeader>
