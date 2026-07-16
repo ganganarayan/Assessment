@@ -39,6 +39,15 @@ function tierScale(pct: number): string {
   return T_CRIT.scale;
 }
 
+/** Fallback band from the overall % when a submission has no stored band, so the
+ *  band name + theme always render (quartiles match the 4-band scale). */
+function fallbackBand(pct: number): { level: string; title: string } {
+  if (pct < 25) return { level: "LOW", title: "Stable" };
+  if (pct < 50) return { level: "MEDIUM", title: "Strained" };
+  if (pct < 75) return { level: "HIGH", title: "Overwhelmed" };
+  return { level: "CRITICAL", title: "Critical" };
+}
+
 /**
  * Optional per-band "next 15 days" copy. Left null on purpose — real brand-voice
  * copy is dropped in here later; until then the report shows the band's own stored
@@ -106,7 +115,7 @@ const s = StyleSheet.create({
   bandRow: { flexDirection: "row", alignItems: "center", marginTop: 18 },
   chip: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: 6, alignItems: "center", justifyContent: "center" },
   chipLabel: { color: "#ffffff", fontFamily: "Cormorant", fontSize: 18, lineHeight: 1 },
-  bandName: { fontFamily: "Cormorant", fontSize: 22, marginLeft: 14 },
+  bandName: { fontFamily: "Lato", fontWeight: "bold", fontSize: 20, marginLeft: 14 },
   scoreBig: { fontFamily: "Cormorant", fontSize: 34, color: INK, marginLeft: "auto" },
   // 4-band scale
   scaleWrap: { marginTop: 22, position: "relative" },
@@ -202,7 +211,9 @@ function Footer() {
 }
 
 function AssessmentReport({ data }: { data: ReportData }) {
-  const level = (data.bandLevel ?? "").toUpperCase();
+  const fb = fallbackBand(data.scorePercent);
+  const level = (data.bandLevel || fb.level).toUpperCase();
+  const bandTitle = data.bandTitle || fb.title;
   const theme = THEME[level] ?? DEFAULT_THEME;
   const pct = Math.max(0, Math.min(100, Math.round(data.scorePercent)));
   const narrative = paragraphs(data.aiStatement);
@@ -230,7 +241,7 @@ function AssessmentReport({ data }: { data: ReportData }) {
           <View style={[s.chip, { backgroundColor: theme.deep }]}>
             <Text style={s.chipLabel}>Result</Text>
           </View>
-          {data.bandTitle ? <Text style={[s.bandName, { color: theme.scale }]}>{data.bandTitle}</Text> : null}
+          <Text style={[s.bandName, { color: theme.deep }]}>{bandTitle}</Text>
           <Text style={s.scoreBig}>{pct}%</Text>
         </View>
 
@@ -276,7 +287,7 @@ function AssessmentReport({ data }: { data: ReportData }) {
                 <View key={i} style={s.catBlock} wrap={false}>
                   <View style={s.catHead}>
                     <Text style={s.catName}>
-                      {i + 1}. {c.name}
+                      {c.name}
                       {c.band ? `  —  ${c.band}` : ""}
                     </Text>
                     <Text style={s.catScore}>

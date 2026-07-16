@@ -25,7 +25,7 @@ async function main() {
       "Summary:\nStrong self-awareness; the load is mostly hidden from family.\n\nAction items:\n- 20-minute morning walk, no phone, daily\n- One honest conversation with your co-founder\n- Book the deep-dive program (Rs 46000)\n\nNext steps:\nRetake in 15 days, then we compare and adjust.",
     categories: [
       {
-        name: "Inner Pressure & Mental Burden",
+        name: "1: Inner Pressure & Mental Burden",
         score: 11,
         max: 12,
         band: "Critical",
@@ -36,7 +36,7 @@ async function main() {
         ],
       },
       {
-        name: "Relationships & Presence",
+        name: "2: Relationships & Presence",
         score: 4,
         max: 12,
         band: "Present",
@@ -47,7 +47,7 @@ async function main() {
         ],
       },
       {
-        name: "Meaning & Inner Stability",
+        name: "3: Meaning & Inner Stability",
         score: 9,
         max: 12,
         band: "High",
