@@ -52,6 +52,12 @@ export function scopeEditDenied(scope: ActingScope): { ok: false; error: string 
   return scope.canEdit ? null : { ok: false, error: "You have view-only access — ask an admin for edit rights." };
 }
 
+/** For a mutation action that authorizes via assessmentInScope() (not the scope
+ *  directly): resolve the scope and return the view-only error, else null. */
+export async function assertEdit(): Promise<{ ok: false; error: string } | null> {
+  return scopeEditDenied(await resolveActingScope());
+}
+
 /**
  * Resolve the caller's write/read scope for shared admin actions used by BOTH the
  * super-admin console (/admin) and a tenant workspace (/w):

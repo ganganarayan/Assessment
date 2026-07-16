@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { requireSuperAdmin, editDenied } from "@/lib/auth/guards";
 import { generatePersonalStatementResult } from "@/lib/ai/generate";
 import { type StatementInput } from "@/lib/ai/types";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
@@ -33,7 +33,7 @@ export async function regenerateAiStatement(
   submissionId: string,
   instruction: string,
 ): Promise<ActionResult> {
-  await requireSuperAdmin();
+  { const __d = editDenied(await requireSuperAdmin()); if (__d) return __d; }
   const instr = (instruction ?? "").trim();
   if (instr.length > 2000) return { ok: false, error: "Instruction is too long (max 2000 characters)." };
 
@@ -100,7 +100,7 @@ export async function saveManualAiStatement(
   submissionId: string,
   text: string,
 ): Promise<ActionResult> {
-  await requireSuperAdmin();
+  { const __d = editDenied(await requireSuperAdmin()); if (__d) return __d; }
   const t = (text ?? "").trim();
   if (!t) return { ok: false, error: "Write the message first." };
   if (t.length > MAX_LEN) return { ok: false, error: "Message is too long." };
@@ -118,7 +118,7 @@ export async function saveReportNote(
   submissionId: string,
   text: string,
 ): Promise<ActionResult> {
-  await requireSuperAdmin();
+  { const __d = editDenied(await requireSuperAdmin()); if (__d) return __d; }
   const t = (text ?? "").trim();
   if (t.length > 8000) return { ok: false, error: "Note is too long (max 8000 characters)." };
   await prisma.submission.update({ where: { id: submissionId }, data: { reportNote: t || null } });
@@ -133,7 +133,7 @@ export async function setDefaultAiStatement(
   submissionId: string,
   statementId: string,
 ): Promise<ActionResult> {
-  await requireSuperAdmin();
+  { const __d = editDenied(await requireSuperAdmin()); if (__d) return __d; }
   const st = await prisma.aiStatement.findUnique({
     where: { id: statementId },
     select: { submissionId: true, text: true },
@@ -168,7 +168,7 @@ export async function deleteAiStatements(
   submissionId: string,
   ids: string[],
 ): Promise<ActionResult> {
-  await requireSuperAdmin();
+  { const __d = editDenied(await requireSuperAdmin()); if (__d) return __d; }
   if (!ids.length) return { ok: true };
   await prisma.aiStatement.deleteMany({
     where: { id: { in: ids }, submissionId, isDefault: false },

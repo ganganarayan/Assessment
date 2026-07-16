@@ -34,6 +34,13 @@ export function editDenied(user: { staffPermission?: string | null }): { ok: fal
   return canEdit(user) ? null : { ok: false, error: "You have view-only access — ask an admin for edit rights." };
 }
 
+/** THROW when the caller is view-only — for mutation actions whose return type is
+ *  not ActionResult (so a graceful error object wouldn't type-check). Safe: the
+ *  write never runs. */
+export function assertCanEditOrThrow(user: { staffPermission?: string | null }): void {
+  if (!canEdit(user)) throw new Error("View-only access — ask an admin for edit rights.");
+}
+
 /**
  * Require a FULL owner/admin (never a staff member) — for staff management and any
  * owner-only action. Staff (even EDIT) are redirected away.

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { questionSchema, reorderSchema, type QuestionInput } from "@/features/assessment/schemas";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
+import { assertEdit } from "@/lib/tenant/acting";
 
 async function assessmentIdForCategory(categoryId: string): Promise<string | null> {
   const c = await prisma.category.findUnique({
@@ -30,6 +31,8 @@ export async function createQuestion(
   if (!(await assessmentInScope(assessmentId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
 
   const count = await prisma.question.count({ where: { categoryId } });
   const created = await prisma.question.create({
@@ -71,6 +74,8 @@ export async function updateQuestion(
   if (!(await assessmentInScope(question.category.assessmentId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
 
   // Reconcile options IN PLACE — never wholesale-delete. Past respondents'
   // answers (SubmissionAnswer) reference Option rows with onDelete: Cascade, so
@@ -129,6 +134,8 @@ export async function deleteQuestion(id: string): Promise<ActionResult> {
   if (!(await assessmentInScope(question.category.assessmentId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
 
   await prisma.question.delete({ where: { id } });
   revalidatePath(`/admin/assessments/${question.category.assessmentId}`);
@@ -147,6 +154,8 @@ export async function reorderQuestions(
   if (!(await assessmentInScope(assessmentId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
 
   await prisma.$transaction(
     // Constrain to THIS category so foreign ids match nothing (no cross-tenant reorder).

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { categorySchema, reorderSchema, type CategoryInput } from "@/features/assessment/schemas";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
+import { assertEdit } from "@/lib/tenant/acting";
 
 export async function createCategory(
   assessmentId: string,
@@ -13,6 +14,8 @@ export async function createCategory(
   if (!(await assessmentInScope(assessmentId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
   const parsed = categorySchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -57,6 +60,8 @@ export async function updateCategory(
   if (!(await assessmentInScope(current.assessmentId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
   const dup = await prisma.category.findFirst({
     where: { assessmentId: current.assessmentId, name: parsed.data.name, NOT: { id } },
     select: { id: true },
@@ -85,6 +90,8 @@ export async function deleteCategory(id: string): Promise<ActionResult> {
   if (!(await assessmentInScope(current.assessmentId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
   await prisma.category.delete({ where: { id } });
   revalidatePath(`/admin/assessments/${current.assessmentId}`);
   return { ok: true };
@@ -98,6 +105,8 @@ export async function reorderCategories(
   if (!(await assessmentInScope(assessmentId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
   const parsed = reorderSchema.safeParse({ ids });
   if (!parsed.success) return { ok: false, error: "Invalid order." };
 

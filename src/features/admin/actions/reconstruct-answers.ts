@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { requireSuperAdmin, editDenied } from "@/lib/auth/guards";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
@@ -43,7 +43,7 @@ export async function reconstructLostAnswers(
   assessmentId: string,
   apply: boolean,
 ): Promise<ActionResult<ReconstructSummary>> {
-  await requireSuperAdmin();
+  { const __d = editDenied(await requireSuperAdmin()); if (__d) return __d; }
 
   const cats = await prisma.category.findMany({
     where: { assessmentId },

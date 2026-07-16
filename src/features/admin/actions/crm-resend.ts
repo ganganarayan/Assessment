@@ -3,7 +3,7 @@
 import { EventType, CrmSendKind, CrmSendStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { requireSuperAdmin, assertCanEditOrThrow } from "@/lib/auth/guards";
 import { startWorker, stopWorker, isWorkerRunning } from "@/lib/crm/drip";
 import { enqueueScore, enqueueCustom, countCustomTargets, type CustomScope } from "@/lib/crm/enqueue";
 import { buildEnvelope, shapePayload } from "@/lib/events/payload";
@@ -109,7 +109,7 @@ export async function getScoreStatus(): Promise<ActionResult<ScoreStatus>> {
 }
 
 export async function setCrmResendUrl(url: string): Promise<ActionResult> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   const u = (url ?? "").trim();
   if (u && !/^https?:\/\//i.test(u)) return { ok: false, error: "Enter a valid http(s) URL." };
   await prisma.appSetting.upsert({
@@ -126,7 +126,7 @@ export async function setScoreSchedule(input: {
   delayMin: number;
   delayMax: number;
 }): Promise<ActionResult> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   const err = validSchedule(input.startHour, input.endHour, input.delayMin, input.delayMax);
   if (err) return { ok: false, error: err };
   await prisma.appSetting.upsert({
@@ -138,7 +138,7 @@ export async function setScoreSchedule(input: {
 }
 
 export async function startScore(): Promise<ActionResult<{ enqueued: number }>> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   const s = await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { crmResendUrl: true } });
   if (!s?.crmResendUrl) return { ok: false, error: "Set the score endpoint URL first." };
   const enqueued = await enqueueScore();
@@ -147,13 +147,13 @@ export async function startScore(): Promise<ActionResult<{ enqueued: number }>> 
 }
 
 export async function stopScore(): Promise<ActionResult> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   await stopWorker(CrmSendKind.SCORE);
   return { ok: true };
 }
 
 export async function retryFailedScore(): Promise<ActionResult> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   await prisma.crmSendQueue.updateMany({
     where: { kind: CrmSendKind.SCORE, status: "FAILED" },
     data: { status: "PENDING", attempts: 0, lastError: null },
@@ -176,7 +176,7 @@ export async function sendTestCrm(input: {
   phone: string;
   message: string;
 }): Promise<ActionResult<{ status: number; body: string }>> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   const setting = await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { crmResendUrl: true } });
   const url = setting?.crmResendUrl?.trim();
   if (!url) return { ok: false, error: "Set the score endpoint URL first." };
@@ -265,7 +265,7 @@ export async function getCustomConfig(): Promise<ActionResult<CustomConfig>> {
 }
 
 export async function setCrmDiagnosisUrl(url: string): Promise<ActionResult> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   const u = (url ?? "").trim();
   if (u && !/^https?:\/\//i.test(u)) return { ok: false, error: "Enter a valid http(s) URL." };
   await prisma.appSetting.upsert({
@@ -285,7 +285,7 @@ export async function setCustomConfig(input: {
   delayMin: number;
   delayMax: number;
 }): Promise<ActionResult> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   const err = validSchedule(input.startHour, input.endHour, input.delayMin, input.delayMax);
   if (err) return { ok: false, error: err };
   const name = input.name?.trim() || "Diagnosis";
@@ -300,7 +300,7 @@ export async function startCustom(
   assessmentId: string,
   scope: CustomScope = "all",
 ): Promise<ActionResult<{ enqueued: number }>> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   const s = await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { crmDiagnosisUrl: true } });
   if (!s?.crmDiagnosisUrl) return { ok: false, error: "Set the endpoint URL first." };
   const enqueued = await enqueueCustom(assessmentId, scope);
@@ -313,12 +313,12 @@ export async function previewCustomCount(
   assessmentId: string,
   scope: CustomScope = "all",
 ): Promise<ActionResult<{ count: number }>> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   return { ok: true, data: { count: await countCustomTargets(assessmentId, scope) } };
 }
 
 export async function stopCustom(): Promise<ActionResult> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   await stopWorker(CrmSendKind.CUSTOM);
   return { ok: true };
 }
@@ -326,7 +326,7 @@ export async function stopCustom(): Promise<ActionResult> {
 /** Empty the CUSTOM queue (everything not mid-send) — discard a stale/leftover run
  *  so the next Start queues only the chosen scope. */
 export async function clearCustomPending(): Promise<ActionResult<{ cleared: number }>> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   await stopWorker(CrmSendKind.CUSTOM);
   const res = await prisma.crmSendQueue.deleteMany({
     where: { kind: CrmSendKind.CUSTOM, status: { not: CrmSendStatus.SENDING } },
@@ -335,7 +335,7 @@ export async function clearCustomPending(): Promise<ActionResult<{ cleared: numb
 }
 
 export async function retryFailedCustom(): Promise<ActionResult> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   await prisma.crmSendQueue.updateMany({
     where: { kind: CrmSendKind.CUSTOM, status: "FAILED" },
     data: { status: "PENDING", attempts: 0, lastError: null },
@@ -357,7 +357,7 @@ export async function sendTestCustom(input: {
   email: string;
   phone: string;
 }): Promise<ActionResult<{ status: number; body: string }>> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   const s = await prisma.appSetting.findUnique({
     where: { id: "singleton" },
     select: { crmDiagnosisUrl: true, crmCustomEventType: true, crmCustomFields: true },

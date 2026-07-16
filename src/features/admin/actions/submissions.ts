@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { requireSuperAdmin, editDenied } from "@/lib/auth/guards";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /**
@@ -12,7 +12,7 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
  * plain scalar) are not affected. Super-admin only; irreversible.
  */
 export async function deleteSubmissions(ids: string[]): Promise<ActionResult> {
-  await requireSuperAdmin();
+  { const __d = editDenied(await requireSuperAdmin()); if (__d) return __d; }
   const clean = (ids ?? []).filter((id) => typeof id === "string" && id.length > 0);
   if (clean.length === 0) return { ok: true };
   await prisma.submission.deleteMany({ where: { id: { in: clean } } });

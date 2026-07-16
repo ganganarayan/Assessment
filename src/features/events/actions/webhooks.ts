@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope, tenantScope } from "@/lib/tenant/acting";
+import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { deliverWebhook } from "@/lib/webhooks/dispatch";
 import { generateWebhookSecret } from "@/lib/webhooks/sign";
@@ -37,6 +37,8 @@ export async function createWebhook(
   active: boolean,
 ): Promise<ActionResult<{ id: string }>> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
   if (!validTrigger(eventType)) return { ok: false, error: "Pick a valid trigger event." };
   const n = nameSchema.safeParse(name);
@@ -75,6 +77,8 @@ export async function editWebhook(
   url: string,
 ): Promise<ActionResult> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   const wh = await prisma.webhook.findFirst({ where: { id, ...tenantScope(scope) }, select: { firstDeliveredAt: true } });
   if (!wh) return { ok: false, error: "Webhook not found." };
   if (wh.firstDeliveredAt) {
@@ -96,6 +100,8 @@ export async function editWebhook(
 
 export async function activateWebhook(id: string): Promise<ActionResult> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   if (!(await ownsWebhook(id, scope))) return { ok: false, error: "Webhook not found." };
   await prisma.webhook.update({ where: { id }, data: { status: "ACTIVE" } });
   revalidatePath("/admin/webhooks");
@@ -105,6 +111,8 @@ export async function activateWebhook(id: string): Promise<ActionResult> {
 
 export async function deactivateWebhook(id: string): Promise<ActionResult> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   if (!(await ownsWebhook(id, scope))) return { ok: false, error: "Webhook not found." };
   await prisma.webhook.update({ where: { id }, data: { status: "INACTIVE" } });
   revalidatePath("/admin/webhooks");
@@ -114,6 +122,8 @@ export async function deactivateWebhook(id: string): Promise<ActionResult> {
 
 export async function purgeWebhook(id: string): Promise<ActionResult> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   if (!(await ownsWebhook(id, scope))) return { ok: false, error: "Webhook not found." };
   // Permanently removes the webhook config. EventLog/WebhookLog are NOT deleted
   // (no FK to logs), so history is preserved forever.
@@ -129,6 +139,8 @@ export async function purgeWebhook(id: string): Promise<ActionResult> {
  */
 export async function retryEvent(eventLogId: string): Promise<ActionResult> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   const ev = await prisma.eventLog.findUnique({ where: { id: eventLogId } });
   if (!ev) return { ok: false, error: "Event not found." };
 

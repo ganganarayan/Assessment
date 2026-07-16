@@ -3,6 +3,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
+import { assertEdit } from "@/lib/tenant/acting";
 import { isBlockType, defaultConfig, readPublishedPages, type BlockType, type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -54,6 +55,7 @@ export async function loadPages(assessmentId: string): Promise<AssessmentPageDat
  *  only thing the public renders. Auto-saved draft edits stay invisible until this. */
 export async function publishPages(assessmentId: string): Promise<ActionResult<{ publishedAt: string }>> {
   if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
+  { const __d = await assertEdit(); if (__d) return __d; }
   const draft = await loadPages(assessmentId);
   const now = new Date();
   await prisma.assessment.update({
@@ -68,6 +70,7 @@ export async function publishPages(assessmentId: string): Promise<ActionResult<{
  *  so Publish later restores the page. */
 export async function unpublishPages(assessmentId: string): Promise<ActionResult> {
   if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
+  { const __d = await assertEdit(); if (__d) return __d; }
   await prisma.assessment.update({
     where: { id: assessmentId },
     data: { publishedPages: Prisma.DbNull, pagesPublishedAt: null },
@@ -97,6 +100,7 @@ export async function listPages(assessmentId: string): Promise<ActionResult<Asse
 
 export async function addPage(assessmentId: string): Promise<ActionResult<AssessmentPageData[]>> {
   if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
+  { const __d = await assertEdit(); if (__d) return __d; }
   const max = await prisma.assessmentPage.aggregate({ where: { assessmentId }, _max: { order: true } });
   await prisma.assessmentPage.create({
     data: { assessmentId, order: (max._max.order ?? -1) + 1, title: "Results page" },
@@ -108,6 +112,7 @@ export async function updatePageTitle(pageId: string, title: string): Promise<Ac
   const assessmentId = await assessmentIdForPage(pageId);
   if (!assessmentId) return { ok: false, error: "Page not found." };
   if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
+  { const __d = await assertEdit(); if (__d) return __d; }
   await prisma.assessmentPage.update({ where: { id: pageId }, data: { title: title.trim() || null } });
   return { ok: true, data: await loadPages(assessmentId) };
 }
@@ -116,6 +121,7 @@ export async function deletePage(pageId: string): Promise<ActionResult<Assessmen
   const assessmentId = await assessmentIdForPage(pageId);
   if (!assessmentId) return { ok: false, error: "Page not found." };
   if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
+  { const __d = await assertEdit(); if (__d) return __d; }
   await prisma.assessmentPage.delete({ where: { id: pageId } });
   return { ok: true, data: await loadPages(assessmentId) };
 }
@@ -125,6 +131,7 @@ export async function movePage(pageId: string, dir: "up" | "down"): Promise<Acti
   const assessmentId = await assessmentIdForPage(pageId);
   if (!assessmentId) return { ok: false, error: "Page not found." };
   if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
+  { const __d = await assertEdit(); if (__d) return __d; }
   const pages = await prisma.assessmentPage.findMany({ where: { assessmentId }, orderBy: { order: "asc" }, select: { id: true, order: true } });
   const i = pages.findIndex((p) => p.id === pageId);
   const j = dir === "up" ? i - 1 : i + 1;
@@ -144,6 +151,7 @@ export async function addBlock(pageId: string, type: string): Promise<ActionResu
   const assessmentId = await assessmentIdForPage(pageId);
   if (!assessmentId) return { ok: false, error: "Page not found." };
   if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
+  { const __d = await assertEdit(); if (__d) return __d; }
   const max = await prisma.pageBlock.aggregate({ where: { pageId }, _max: { order: true } });
   await prisma.pageBlock.create({
     data: { pageId, order: (max._max.order ?? -1) + 1, type, config: defaultConfig(type) as Prisma.InputJsonValue },
@@ -155,6 +163,7 @@ export async function updateBlockConfig(blockId: string, config: Record<string, 
   const assessmentId = await assessmentIdForBlock(blockId);
   if (!assessmentId) return { ok: false, error: "Block not found." };
   if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
+  { const __d = await assertEdit(); if (__d) return __d; }
   await prisma.pageBlock.update({ where: { id: blockId }, data: { config: (config ?? {}) as Prisma.InputJsonValue } });
   return { ok: true, data: await loadPages(assessmentId) };
 }
@@ -163,6 +172,7 @@ export async function deleteBlock(blockId: string): Promise<ActionResult<Assessm
   const assessmentId = await assessmentIdForBlock(blockId);
   if (!assessmentId) return { ok: false, error: "Block not found." };
   if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
+  { const __d = await assertEdit(); if (__d) return __d; }
   await prisma.pageBlock.delete({ where: { id: blockId } });
   return { ok: true, data: await loadPages(assessmentId) };
 }
@@ -171,6 +181,7 @@ export async function moveBlock(blockId: string, dir: "up" | "down"): Promise<Ac
   const block = await prisma.pageBlock.findUnique({ where: { id: blockId }, select: { pageId: true, page: { select: { assessmentId: true } } } });
   if (!block) return { ok: false, error: "Block not found." };
   if (!(await assessmentInScope(block.page.assessmentId))) return { ok: false, error: "Not found." };
+  { const __d = await assertEdit(); if (__d) return __d; }
   const blocks = await prisma.pageBlock.findMany({ where: { pageId: block.pageId }, orderBy: { order: "asc" }, select: { id: true, order: true } });
   const i = blocks.findIndex((b) => b.id === blockId);
   const j = dir === "up" ? i - 1 : i + 1;

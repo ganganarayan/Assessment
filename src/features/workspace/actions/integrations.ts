@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, editDenied } from "@/lib/auth/guards";
 import { env } from "@/lib/env";
 import { encryptWithSecret } from "@/lib/crypto";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -39,7 +39,9 @@ export async function getIntegrationSettings(): Promise<IntegrationSettingsView>
 }
 
 export async function updateMetaSettings(pixelId: string, capiToken: string): Promise<ActionResult> {
-  const { tenantId } = await requireWorkspace();
+  const { user, tenantId } = await requireWorkspace();
+  const denied = editDenied(user);
+  if (denied) return denied;
   const data = {
     metaPixelId: pixelId.trim() || null,
     // Blank = keep the existing token (never round-trips the secret to the client).
@@ -55,7 +57,9 @@ export async function updateRazorpaySettings(
   keySecret: string,
   webhookSecret: string,
 ): Promise<ActionResult> {
-  const { tenantId } = await requireWorkspace();
+  const { user, tenantId } = await requireWorkspace();
+  const denied = editDenied(user);
+  if (denied) return denied;
   const data = {
     razorpayKeyId: keyId.trim() || null,
     ...(keySecret.trim() ? { razorpayKeySecretEnc: encryptWithSecret(keySecret.trim(), env.BETTER_AUTH_SECRET) } : {}),

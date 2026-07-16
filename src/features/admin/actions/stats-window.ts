@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
-import { resolveActingScope, tenantScope } from "@/lib/tenant/acting";
+import { requireSuperAdmin, editDenied } from "@/lib/auth/guards";
+import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /** Stored UTC instant -> IST datetime-local value "YYYY-MM-DDTHH:mm" for the input. */
@@ -43,7 +43,8 @@ export async function getStatsWindow(): Promise<
  * in IST ("YYYY-MM-DDTHH:mm"); null/empty clears it (show all data). Stored UTC.
  */
 export async function setStatsWindow(istLocal: string | null): Promise<ActionResult> {
-  await requireSuperAdmin();
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
   const parsed = parseIstLocal(istLocal);
   if (parsed === "invalid") return { ok: false, error: "Enter a valid date and time." };
   await prisma.appSetting.upsert({
@@ -78,6 +79,8 @@ export async function setAssessmentStatsWindow(
   istLocal: string | null,
 ): Promise<ActionResult> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   const owned = await prisma.assessment.findFirst({
     where: { id: assessmentId, ...tenantScope(scope) },
     select: { id: true },

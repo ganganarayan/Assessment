@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { categoryBandSchema, type CategoryBandInput } from "@/features/assessment/schemas";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
+import { assertEdit } from "@/lib/tenant/acting";
 
 /**
  * Per-category evaluation bands (CategoryResultBand). The chosen LEVEL is stored
@@ -35,6 +36,8 @@ export async function createCategoryBand(
   if (!(await assessmentInScope(assessmentId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
 
   // One band per level per category.
   const dupLevel = await prisma.categoryResultBand.findFirst({
@@ -89,6 +92,8 @@ export async function updateCategoryBand(
   if (!ownAId || !(await assessmentInScope(ownAId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
 
   // One band per level per category (excluding this band).
   const dupLevel = await prisma.categoryResultBand.findFirst({
@@ -132,6 +137,8 @@ export async function deleteCategoryBand(id: string): Promise<ActionResult> {
   if (!assessmentId || !(await assessmentInScope(assessmentId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
   await prisma.categoryResultBand.delete({ where: { id } });
   revalidatePath(`/admin/assessments/${assessmentId}`);
   return { ok: true };

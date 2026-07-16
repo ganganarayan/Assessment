@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { resultBandSchema, type ResultBandInput } from "@/features/assessment/schemas";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
+import { assertEdit } from "@/lib/tenant/acting";
 
 export async function createResultBand(
   assessmentId: string,
@@ -13,6 +14,8 @@ export async function createResultBand(
   if (!(await assessmentInScope(assessmentId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
   const parsed = resultBandSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -62,6 +65,8 @@ export async function updateResultBand(
   if (!(await assessmentInScope(current.assessmentId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
 
   const others = await prisma.resultBand.findMany({
     where: { assessmentId: current.assessmentId, NOT: { id } },
@@ -96,6 +101,8 @@ export async function deleteResultBand(id: string): Promise<ActionResult> {
   if (!(await assessmentInScope(current.assessmentId))) {
     return { ok: false, error: "Not found." };
   }
+  const denied = await assertEdit();
+  if (denied) return denied;
   await prisma.resultBand.delete({ where: { id } });
   revalidatePath(`/admin/assessments/${current.assessmentId}`);
   return { ok: true };

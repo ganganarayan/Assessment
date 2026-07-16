@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope } from "@/lib/tenant/acting";
+import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { listPromptVersions, nextVersionNumber } from "@/lib/ai/versions";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
@@ -14,6 +14,8 @@ function bump() {
 /** Create the next empty instruction version (V3, V4, …) for the acting tenant. */
 export async function createPromptVersion(): Promise<ActionResult<{ id: string }>> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
   const number = await nextVersionNumber(scope.tenantId);
   const row = await prisma.aiPromptVersion.create({
@@ -31,6 +33,8 @@ export async function updatePromptVersion(
   instructions: string,
 ): Promise<ActionResult> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   const owned = await prisma.aiPromptVersion.findFirst({
     where: { id, tenantId: scope.tenantId },
     select: { id: true },
@@ -46,6 +50,8 @@ export async function updatePromptVersion(
 
 export async function deletePromptVersion(id: string): Promise<ActionResult> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   const owned = await prisma.aiPromptVersion.findFirst({
     where: { id, tenantId: scope.tenantId },
     select: { id: true },
@@ -60,6 +66,8 @@ export async function deletePromptVersion(id: string): Promise<ActionResult> {
 /** Set the tenant-wide DEFAULT version (new assessments inherit it). */
 export async function setDefaultPromptVersion(id: string): Promise<ActionResult> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
   const rows = await listPromptVersions(scope.tenantId);
   if (!rows.some((r) => r.id === id)) return { ok: false, error: "Not found." };
@@ -76,6 +84,8 @@ export async function setDefaultPromptVersion(id: string): Promise<ActionResult>
 /** Tenant-wide word-count window the assembled prompts ask the model for. */
 export async function updateWordWindow(min: number, max: number): Promise<ActionResult> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
   const lo = Math.max(20, Math.min(1000, Math.round(min || 0)));
   const hi = Math.max(lo, Math.min(1000, Math.round(max || 0)));

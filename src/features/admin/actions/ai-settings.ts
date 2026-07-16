@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope, type ActingScope } from "@/lib/tenant/acting";
+import { resolveActingScope, scopeEditDenied, type ActingScope } from "@/lib/tenant/acting";
 import { env } from "@/lib/env";
 import { encryptWithSecret, decryptWithSecret } from "@/lib/crypto";
 import { isAiProvider, type AiProvider } from "@/lib/ai/types";
@@ -121,6 +121,8 @@ export async function getAiSettings(): Promise<AiSettingsView> {
 export async function saveProviderKey(provider: string, key: string): Promise<ActionResult> {
   const scope = await resolveActingScope();
   if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   if (!isAiProvider(provider)) return { ok: false, error: "Unknown provider." };
   const k = (key ?? "").trim();
   if (!k) return { ok: false, error: "Paste the API key first." };
@@ -149,6 +151,8 @@ export async function saveProviderKey(provider: string, key: string): Promise<Ac
 export async function updateAiSettings(input: AiSettingsInput): Promise<ActionResult> {
   const scope = await resolveActingScope();
   if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };

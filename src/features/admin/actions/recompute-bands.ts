@@ -2,7 +2,7 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { requireSuperAdmin, editDenied } from "@/lib/auth/guards";
 import { pickResultBand } from "@/features/assessment/scoring";
 import {
   mapCategoryResult,
@@ -46,7 +46,7 @@ export async function recomputeBands(
   assessmentId: string,
   apply: boolean,
 ): Promise<ActionResult<RecomputeSummary>> {
-  await requireSuperAdmin();
+  { const __d = editDenied(await requireSuperAdmin()); if (__d) return __d; }
 
   const assessment = await prisma.assessment.findUnique({
     where: { id: assessmentId },

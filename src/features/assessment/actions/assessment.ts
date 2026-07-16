@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope, tenantScope } from "@/lib/tenant/acting";
+import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { getAssessmentById } from "@/features/assessment/data";
 import { assessmentSchema, type AssessmentInput } from "@/features/assessment/schemas";
 import { originOf } from "@/lib/result/cors";
@@ -26,6 +26,8 @@ export async function createAssessment(
   input: AssessmentInput,
 ): Promise<ActionResult<{ id: string }>> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   if (!scope.isSuper && !scope.tenantId) {
     return { ok: false, error: "No workspace." };
   }
@@ -94,6 +96,8 @@ export async function updateAssessment(
   input: AssessmentInput,
 ): Promise<ActionResult<{ id: string }>> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   if (!(await ownsAssessment(id, scope))) {
     return { ok: false, error: "Not found." };
   }
@@ -161,6 +165,8 @@ export async function updateAssessment(
 
 export async function deleteAssessment(id: string): Promise<ActionResult> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   if (!(await ownsAssessment(id, scope))) {
     return { ok: false, error: "Not found." };
   }
@@ -175,6 +181,8 @@ export async function setAssessmentStatus(
   publish: boolean,
 ): Promise<ActionResult> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   if (!(await ownsAssessment(id, scope))) {
     return { ok: false, error: "Not found." };
   }
@@ -199,6 +207,8 @@ export async function setAssessmentStatus(
  */
 export async function duplicateAssessment(id: string): Promise<ActionResult<{ id: string }>> {
   const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
   if (!(await ownsAssessment(id, scope))) return { ok: false, error: "Not found." };
   const src = await getAssessmentById(id);
   if (!src) return { ok: false, error: "Not found." };

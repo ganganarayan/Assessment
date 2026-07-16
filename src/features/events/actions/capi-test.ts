@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { requireSuperAdmin, assertCanEditOrThrow } from "@/lib/auth/guards";
 import { testCapi, sendCapiEventVerbose } from "@/lib/meta/send";
 import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
 import { fireCapiLogRow } from "@/lib/meta/capi-log";
@@ -12,7 +12,7 @@ import { formatIST } from "@/lib/date";
 /** Super-admin diagnostic: fire a server-side CAPI event (any name, default
  *  AssessmentCompleted) to Meta and return Meta's real response. */
 export async function testMetaCapi(testEventCode?: string, eventName?: string) {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   return testCapi(testEventCode, eventName);
 }
 
@@ -30,7 +30,7 @@ export async function resendPurchaseToMeta(submissionId: string, force = false):
   eventName?: string;
   eventId?: string;
 }> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   const s = await prisma.submission.findUnique({
     where: { id: submissionId },
     select: {
@@ -112,7 +112,7 @@ export async function resendPurchaseByEmail(input: {
   phone?: string;
   amountRupees: number;
 }): Promise<{ ok: boolean; status?: number; response?: string; error?: string; matched: boolean; eventId: string }> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   const paymentId = input.paymentId.trim();
   const email = input.email.trim().toLowerCase();
   const phone = (input.phone ?? "").trim() || null;
@@ -149,7 +149,7 @@ export async function resendPurchaseByEmail(input: {
 /** Manually fire (or re-fire) a logged capture, optionally overriding the event
  *  name for that row (e.g. a high-ticket sale). Records Meta's response on the row. */
 export async function fireCapiLog(logId: string, eventNameOverride?: string) {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   return fireCapiLogRow(logId, { auto: false, eventNameOverride });
 }
 
@@ -173,7 +173,7 @@ export async function getPurchaseSettingsForm(): Promise<PurchaseSettingsForm> {
 }
 
 export async function savePurchaseSettings(form: PurchaseSettingsForm): Promise<ActionResult> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
   const amounts = (form.autoFireAmounts ?? "")
     .split(",")
     .map((s) => parseInt(s.trim(), 10))

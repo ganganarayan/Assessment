@@ -2,7 +2,7 @@
 
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { requireSuperAdmin, editDenied } from "@/lib/auth/guards";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import {
   parseImportText,
@@ -23,7 +23,7 @@ export async function previewImport(
   raw: string,
   format: Format,
 ): Promise<ActionResult<ImportPreviewItem[]> & { errors?: string[] }> {
-  await requireSuperAdmin();
+  { const __d = editDenied(await requireSuperAdmin()); if (__d) return __d; }
   const parsed = parseImportText(raw, format);
   if (!parsed.ok) {
     return { ok: false, error: "Validation failed.", errors: parsed.errors };
@@ -50,6 +50,7 @@ export async function importAssessments(
   mode: ImportMode,
 ): Promise<ActionResult<{ count: number }> & { errors?: string[] }> {
   const user = await requireSuperAdmin();
+  { const __d = editDenied(user); if (__d) return __d; }
   const parsed = parseImportText(raw, format);
   if (!parsed.ok) {
     return { ok: false, error: "Validation failed.", errors: parsed.errors };

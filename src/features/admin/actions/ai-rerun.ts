@@ -2,7 +2,7 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { requireSuperAdmin, assertCanEditOrThrow } from "@/lib/auth/guards";
 import { generatePersonalStatement } from "@/lib/ai/generate";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
 import { type StatementInput } from "@/lib/ai/types";
@@ -49,7 +49,7 @@ export async function previewAiSamples(
   assessmentId: string,
   count = 4,
 ): Promise<ActionResult<{ samples: AiSample[] }>> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
 
   const subs = await prisma.submission.findMany({
     where: { assessmentId, status: "COMPLETED" },
@@ -138,7 +138,7 @@ export async function regenerateAiBatch(
   assessmentId: string,
   offset: number,
 ): Promise<ActionResult<AiRerunBatchResult>> {
-  await requireSuperAdmin();
+  assertCanEditOrThrow(await requireSuperAdmin());
 
   const total = await prisma.submission.count({ where: { assessmentId, status: "COMPLETED" } });
   const subs = await prisma.submission.findMany({

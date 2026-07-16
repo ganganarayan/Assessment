@@ -5,7 +5,10 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { requireSuperAdmin, isStaff } from "@/lib/auth/guards";
+
+/** Tenant/user management is OWNER-only — never a staff member (even EDIT). */
+const OWNER_ONLY = { ok: false as const, error: "Only an owner can manage tenants and users." };
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { ACTING_TENANT_COOKIE } from "@/lib/tenant/acting";
 import { slugSchema } from "@/features/assessment/schemas";
@@ -65,7 +68,7 @@ export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
 }
 
 export async function createTenant(name: string, slug: string): Promise<ActionResult<{ id: string }>> {
-  await requireSuperAdmin();
+  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
   const s = slugSchema.safeParse(slug.trim().toLowerCase());
   if (!s.success) return { ok: false, error: s.error.issues[0]?.message ?? "Invalid slug." };
   const nm = name.trim();
@@ -111,7 +114,7 @@ export async function listUsers(): Promise<ActionResult<PlatformUserRow[]>> {
 
 /** Assign a login to a tenant as its ADMIN (or unassign with tenantId=null). */
 export async function assignUserToTenant(userId: string, tenantId: string | null): Promise<ActionResult> {
-  await requireSuperAdmin();
+  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
   if (!target) return { ok: false, error: "User not found." };
   if (isPlatformOwner(target.email)) return { ok: false, error: "The platform owner isn't a tenant admin." };
@@ -127,6 +130,7 @@ export async function assignUserToTenant(userId: string, tenantId: string | null
 /** Promote/demote a login to platform super-admin. The owner is always super admin. */
 export async function setUserSuperAdmin(userId: string, superAdmin: boolean): Promise<ActionResult> {
   const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
   if (!target) return { ok: false, error: "User not found." };
   if (isPlatformOwner(target.email)) return { ok: false, error: "The platform owner is always super admin." };
@@ -142,6 +146,7 @@ export async function setUserSuperAdmin(userId: string, superAdmin: boolean): Pr
 /** Delete a login. The platform owner and the acting super admin can't be deleted. */
 export async function deleteUser(userId: string): Promise<ActionResult> {
   const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
   if (!target) return { ok: false, error: "User not found." };
   if (userId === me.id) return { ok: false, error: "You can't delete your own account." };
