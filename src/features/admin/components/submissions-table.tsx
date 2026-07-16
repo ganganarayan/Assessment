@@ -155,9 +155,19 @@ export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
                     </td>
                     <td className="px-3 py-2 text-right">
                       {s.status === "COMPLETED" ? (
-                        <Link href={`/a/${s.slug}/r/${s.id}`} className="text-xs underline">
-                          Result
-                        </Link>
+                        <div className="flex items-center justify-end gap-3">
+                          <Link href={`/a/${s.slug}/r/${s.id}`} className="text-xs underline">
+                            Result
+                          </Link>
+                          <a
+                            href={`/api/reports/${s.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs underline"
+                          >
+                            PDF
+                          </a>
+                        </div>
                       ) : null}
                     </td>
                   </tr>
