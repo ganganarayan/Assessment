@@ -104,10 +104,10 @@ const s = StyleSheet.create({
   p: { marginBottom: 8, textAlign: "justify" },
   // Band block
   bandRow: { flexDirection: "row", alignItems: "center", marginTop: 18 },
-  chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 6 },
-  chipText: { color: "#ffffff", fontFamily: "Cormorant", fontSize: 20 },
-  scoreBig: { fontFamily: "Cormorant", fontSize: 34, color: INK, textAlign: "right" },
-  scoreCap: { fontSize: 9, color: MUTE, textAlign: "right" },
+  chip: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: 6, alignItems: "center", justifyContent: "center" },
+  chipLabel: { color: "#ffffff", fontFamily: "Cormorant", fontSize: 18, lineHeight: 1 },
+  bandName: { fontFamily: "Cormorant", fontSize: 22, marginLeft: 14 },
+  scoreBig: { fontFamily: "Cormorant", fontSize: 34, color: INK, marginLeft: "auto" },
   // 4-band scale
   scaleWrap: { marginTop: 22, position: "relative" },
   scaleBar: { flexDirection: "row", height: 14, borderRadius: 3, overflow: "hidden" },
@@ -127,6 +127,11 @@ const s = StyleSheet.create({
   qText: { flex: 1, fontSize: 9, color: "#3a4a4f" },
   qAns: { color: INK, fontWeight: "bold" },
   qScore: { fontSize: 9, color: MUTE, minWidth: 26, textAlign: "right" },
+  // Note (Add to PDF)
+  noteH: { fontFamily: "Lato", fontWeight: "bold", fontSize: 11, marginTop: 9, marginBottom: 3 },
+  liRow: { flexDirection: "row", marginBottom: 3, paddingLeft: 4 },
+  liBullet: { width: 12, fontSize: 10.5 },
+  liText: { flex: 1 },
   // Footer
   footer: { position: "absolute", bottom: 26, left: 44, right: 44, borderTopWidth: 1, borderTopColor: LINE, paddingTop: 6 },
   footLine: { fontSize: 7.5, color: MUTE, textAlign: "center" },
@@ -138,6 +143,50 @@ function paragraphs(text: string | null): string[] {
     .split(/\n{2,}/)
     .map((p) => p.replace(/\s*\n\s*/g, " ").trim())
     .filter(Boolean);
+}
+
+/** Rs / Rs. / INR / rupees <number>  ->  ₹<number> (keeps an existing ₹). */
+function normalizeCurrency(str: string): string {
+  return str.replace(/\b(?:rs\.?|inr|rupees?)\s*([\d][\d,]*)/gi, "₹$1");
+}
+
+interface NoteLine {
+  type: "h" | "li" | "p";
+  text: string;
+}
+/**
+ * Lightweight formatter for pasted Fathom / meeting notes: a line becomes a HEADING
+ * if it is markdown (`#`, `**bold**`) or a short line ending with ":"; a BULLET if it
+ * starts with -, *, •, or "1." ; otherwise a paragraph. `**` markers are stripped and
+ * currency is normalised to ₹.
+ */
+function parseNote(text: string): NoteLine[] {
+  const out: NoteLine[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = normalizeCurrency(raw.trim());
+    if (!line) continue;
+    let m = line.match(/^#{1,6}\s+(.*)$/);
+    if (m && m[1]) {
+      out.push({ type: "h", text: m[1].replace(/\*\*/g, "") });
+      continue;
+    }
+    m = line.match(/^\*\*(.+?)\*\*:?$/);
+    if (m && m[1]) {
+      out.push({ type: "h", text: m[1] });
+      continue;
+    }
+    if (/:$/.test(line) && line.length <= 60 && !line.includes("  ")) {
+      out.push({ type: "h", text: line.replace(/:$/, "").replace(/\*\*/g, "") });
+      continue;
+    }
+    m = line.match(/^(?:[-*•]|\d+[.)])\s+(.*)$/);
+    if (m && m[1]) {
+      out.push({ type: "li", text: m[1].replace(/\*\*/g, "") });
+      continue;
+    }
+    out.push({ type: "p", text: line.replace(/\*\*/g, "") });
+  }
+  return out;
 }
 
 function Footer() {
@@ -158,7 +207,7 @@ function AssessmentReport({ data }: { data: ReportData }) {
   const pct = Math.max(0, Math.min(100, Math.round(data.scorePercent)));
   const narrative = paragraphs(data.aiStatement);
   const practice = PRACTICE_BY_BAND[level] ?? data.resultSuggestion;
-  const note = paragraphs(data.reportNote);
+  const noteLines = data.reportNote ? parseNote(data.reportNote) : [];
 
   return (
     <Document title={`Assess360 Report — ${data.name}`} author="Assess360">
@@ -175,15 +224,14 @@ function AssessmentReport({ data }: { data: ReportData }) {
           </Text>
         </View>
 
-        {/* Band + score */}
+        {/* Band + score: "Result" label box, band name to its right in the band
+            colour (bold via the SemiBold display face), then the % on the far right. */}
         <View style={s.bandRow}>
           <View style={[s.chip, { backgroundColor: theme.deep }]}>
-            <Text style={s.chipText}>{data.bandTitle ?? "Result"}</Text>
+            <Text style={s.chipLabel}>Result</Text>
           </View>
-          <View style={{ marginLeft: "auto" }}>
-            <Text style={s.scoreBig}>{pct}%</Text>
-            <Text style={s.scoreCap}>overall</Text>
-          </View>
+          {data.bandTitle ? <Text style={[s.bandName, { color: theme.scale }]}>{data.bandTitle}</Text> : null}
+          <Text style={s.scoreBig}>{pct}%</Text>
         </View>
 
         {/* 4-band scale (position + order encode severity, not colour alone) */}
@@ -266,15 +314,26 @@ function AssessmentReport({ data }: { data: ReportData }) {
           </View>
         ) : null}
 
-        {/* Admin "Add to PDF" note — the post-call action items / meeting summary */}
-        {note.length > 0 ? (
+        {/* Admin "Add to PDF" note — pasted meeting notes, auto-formatted */}
+        {noteLines.length > 0 ? (
           <View style={s.section}>
             <Text style={[s.h2, { color: theme.deep }]}>Your action items</Text>
-            {note.map((para, i) => (
-              <Text key={i} style={s.p}>
-                {para}
-              </Text>
-            ))}
+            {noteLines.map((l, i) =>
+              l.type === "h" ? (
+                <Text key={i} style={[s.noteH, { color: theme.deep }]}>
+                  {l.text}
+                </Text>
+              ) : l.type === "li" ? (
+                <View key={i} style={s.liRow}>
+                  <Text style={s.liBullet}>•</Text>
+                  <Text style={s.liText}>{l.text}</Text>
+                </View>
+              ) : (
+                <Text key={i} style={s.p}>
+                  {l.text}
+                </Text>
+              ),
+            )}
           </View>
         ) : null}
 

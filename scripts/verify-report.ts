@@ -22,7 +22,7 @@ async function main() {
       "Swannik, running a business means the pressure rarely ends when the day does.\n\nOne thing stood out to me: whatever you carry, you have kept it from the people closest to you.\n\nWhat caught my attention was one particular combination of your answers — on its own each looks ordinary, together they change how I read the rest.",
     resultSuggestion: "This sits in the higher range. It is getting heavy, and now is the moment to act.",
     reportNote:
-      "From our call: 1) 20-minute morning walk with no phone, daily.\n\n2) One honest conversation with your co-founder about the load you carry.\n\n3) Retake this in 15 days — we compare and adjust.",
+      "Summary:\nStrong self-awareness; the load is mostly hidden from family.\n\nAction items:\n- 20-minute morning walk, no phone, daily\n- One honest conversation with your co-founder\n- Book the deep-dive program (Rs 46000)\n\nNext steps:\nRetake in 15 days, then we compare and adjust.",
     categories: [
       {
         name: "Inner Pressure & Mental Burden",
