@@ -20,6 +20,16 @@ enum Role {
   ADMIN // Administrator of a single tenant workspace. Logs in with their email.
 }
 
+// Staff permission. NULL on a User = full-access owner/admin (unchanged behaviour).
+// A staff member is a User with this set: VIEW = read-only everywhere in their
+// scope; EDIT = may edit content/config in their scope, but NEVER manage staff or
+// touch their owner. Platform staff have role SUPER_ADMIN (all-tenant visibility);
+// tenant staff have role ADMIN + a tenantId.
+enum StaffPermission {
+  VIEW
+  EDIT
+}
+
 // ---------------------------------------------------------------------------
 // Tenant — the core multi-tenancy boundary. Everything scopes to a Tenant.
 // ---------------------------------------------------------------------------
@@ -106,6 +116,8 @@ model User {
   emailVerified Boolean  @default(false)
   image         String?
   role          Role     @default(ADMIN)
+  // NULL = full-access owner/admin. Set = staff member (VIEW read-only / EDIT).
+  staffPermission StaffPermission?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

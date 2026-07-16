@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser, isSuperAdmin, type AuthUser } from "@/lib/auth/guards";
+import { requireUser, isSuperAdmin, canEdit, type AuthUser } from "@/lib/auth/guards";
 import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
 
 /**
@@ -42,6 +42,14 @@ export interface ActingScope {
   /** Tenant to scope writes/reads to. null = super-admin global (edit anything). */
   tenantId: string | null;
   isSuper: boolean;
+  /** False for VIEW-only staff — mutation actions must bail (assertScopeCanEdit). */
+  canEdit: boolean;
+}
+
+/** For a mutation action using resolveActingScope(): returns an error result to
+ *  return when the caller is view-only staff, else null to proceed. */
+export function scopeEditDenied(scope: ActingScope): { ok: false; error: string } | null {
+  return scope.canEdit ? null : { ok: false, error: "You have view-only access — ask an admin for edit rights." };
 }
 
 /**
@@ -56,13 +64,13 @@ export async function resolveActingScope(): Promise<ActingScope> {
   const user = await requireUser();
   if (isSuperAdmin(user)) {
     const acting = (await cookies()).get(ACTING_TENANT_COOKIE)?.value || null;
-    return { user, tenantId: acting, isSuper: true };
+    return { user, tenantId: acting, isSuper: true, canEdit: canEdit(user) };
   }
   const fresh = await prisma.user.findUnique({
     where: { id: user.id },
     select: { tenantId: true },
   });
-  return { user, tenantId: fresh?.tenantId ?? null, isSuper: false };
+  return { user, tenantId: fresh?.tenantId ?? null, isSuper: false, canEdit: canEdit(user) };
 }
 
 /** Prisma where-fragment for a scope: filter by tenant, or {} for super-global.

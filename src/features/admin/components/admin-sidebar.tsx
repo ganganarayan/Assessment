@@ -54,6 +54,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
     items: [
       { href: "/admin/ai", label: "AI" },
       { href: "/admin/operations", label: "Operations" },
+      { href: "/admin/staff", label: "Staff" },
       { href: "/admin/settings", label: "Settings" },
     ],
   },

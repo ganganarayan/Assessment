@@ -68,6 +68,13 @@ export const auth = betterAuth({
         required: false,
         input: false,
       },
+      // NULL = full-access owner/admin; "VIEW"/"EDIT" = staff. Surfaced on the
+      // session so guards can gate reads (VIEW) vs. mutations (EDIT/owner).
+      staffPermission: {
+        type: "string",
+        required: false,
+        input: false,
+      },
     },
   },
   databaseHooks: {

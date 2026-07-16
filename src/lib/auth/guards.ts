@@ -6,13 +6,42 @@ import { prisma } from "@/lib/db/prisma";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
 
-/** The session user shape we rely on (Better Auth surfaces role + tenantId). */
+/** The session user shape we rely on (Better Auth surfaces role + tenantId + staffPermission). */
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
   role?: string | null;
   tenantId?: string | null;
+  /** NULL = full-access owner/admin; "VIEW" = read-only staff; "EDIT" = editor staff. */
+  staffPermission?: string | null;
+}
+
+/** A staff member (limited account) vs. a full-access owner/admin. */
+export function isStaff(user: { staffPermission?: string | null }): boolean {
+  return user.staffPermission === "VIEW" || user.staffPermission === "EDIT";
+}
+
+/** May this user MUTATE within their scope? Owners/admins (null) and EDIT staff yes;
+ *  VIEW staff no. The single source of truth for the read-only vs. edit gate. */
+export function canEdit(user: { staffPermission?: string | null }): boolean {
+  return user.staffPermission !== "VIEW";
+}
+
+/** For a mutation Server Action: returns an error result to bail with when the
+ *  caller is view-only, else null to proceed. */
+export function editDenied(user: { staffPermission?: string | null }): { ok: false; error: string } | null {
+  return canEdit(user) ? null : { ok: false, error: "You have view-only access — ask an admin for edit rights." };
+}
+
+/**
+ * Require a FULL owner/admin (never a staff member) — for staff management and any
+ * owner-only action. Staff (even EDIT) are redirected away.
+ */
+export async function requireOwnerAdmin(): Promise<AuthUser> {
+  const user = await requireUser();
+  if (isStaff(user)) redirect(isSuperAdmin(user) ? "/admin" : "/w");
+  return user;
 }
 
 /**
