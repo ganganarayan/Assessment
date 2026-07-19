@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { markResultViewed } from "@/features/events/record";
 import { resultUrlFor } from "@/lib/events/completion";
 import { getCurrentUser } from "@/lib/auth/session";
-import { isPlatformOwner } from "@/lib/auth/platform";
+import { isSuperAdmin } from "@/lib/auth/guards";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { getAiStatements } from "@/features/admin/data/ai-statements";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
@@ -57,7 +57,7 @@ export default async function ResultPage({
   if (!submission || submission.assessment.slug !== slug) notFound();
 
   const user = await getCurrentUser();
-  const isOwner = user ? isPlatformOwner(user.email) : false;
+  const isOwner = user ? isSuperAdmin(user) : false;
 
   // result.viewed represents the RESPONDENT opening their result — don't fire it
   // for an admin review.

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/session";
-import { isPlatformOwner } from "@/lib/auth/platform";
+import { isSuperAdmin } from "@/lib/auth/guards";
 import { buildExportJson, buildExportCsv, exportFilename } from "@/features/assessment/transfer/export";
 
 /**
@@ -10,7 +10,7 @@ import { buildExportJson, buildExportCsv, exportFilename } from "@/features/asse
  */
 export async function GET(req: Request) {
   const user = await getCurrentUser();
-  if (!user || !isPlatformOwner(user.email)) {
+  if (!user || !isSuperAdmin(user)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

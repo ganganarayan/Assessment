@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/session";
-import { isPlatformOwner } from "@/lib/auth/platform";
+import { isSuperAdmin } from "@/lib/auth/guards";
 import { formatIST } from "@/lib/date";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
@@ -23,7 +23,7 @@ const safeName = (s: string) => s.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+
 
 export async function GET(req: Request, { params }: { params: Promise<{ submissionId: string }> }) {
   const user = await getCurrentUser();
-  if (!user || !isPlatformOwner(user.email)) {
+  if (!user || !isSuperAdmin(user)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

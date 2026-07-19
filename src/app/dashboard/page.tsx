@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth/guards";
-import { isPlatformOwner } from "@/lib/auth/platform";
+import { requireUser, isSuperAdmin, isStaff } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { ProvisionWorkspaceButton } from "@/features/platform/components/provision-workspace-button";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
@@ -15,15 +14,18 @@ import {
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  // MVP: platform owner is identified by email, not the DB role.
-  const isSuperAdmin = isPlatformOwner(user.email);
-  const roleLabel = isSuperAdmin ? "Super Admin" : "Admin";
+  // Super = DB role SUPER_ADMIN OR the platform owner — so a PLATFORM STAFF (role
+  // SUPER_ADMIN) is recognised as super and routed to /admin, and is never asked to
+  // create a workspace. A tenant staff has a tenantId and lands on their workspace.
+  const isSuper = isSuperAdmin(user);
+  const staff = isStaff(user);
+  const roleLabel = isSuper ? "Super Admin" : "Admin";
   // Read the live tenant from the DB — the session copy of tenantId can be stale
   // right after self-provisioning (before the next login refreshes the session).
-  const dbUser = isSuperAdmin
+  const dbUser = isSuper
     ? null
     : await prisma.user.findUnique({ where: { id: user.id }, select: { tenantId: true } });
-  const tenantId = dbUser?.tenantId ?? (isSuperAdmin ? null : user.tenantId ?? null);
+  const tenantId = dbUser?.tenantId ?? (isSuper ? null : user.tenantId ?? null);
   const tenant = tenantId
     ? await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, slug: true } })
     : null;
@@ -53,7 +55,7 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      {isSuperAdmin ? (
+      {isSuper ? (
         <Card>
           <CardHeader>
             <CardTitle>Super Admin</CardTitle>
@@ -90,6 +92,11 @@ export default async function DashboardPage() {
                   Open my workspace →
                 </Link>
               </>
+            ) : staff ? (
+              <span>
+                Your staff account isn&apos;t linked to a workspace yet — ask your admin to assign
+                you. (Staff never create their own workspace.)
+              </span>
             ) : (
               <ProvisionWorkspaceButton />
             )}
