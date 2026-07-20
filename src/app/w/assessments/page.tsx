@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { listAssessments } from "@/features/assessment/data";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function WorkspaceAssessmentsPage() {
   const { tenantId } = await requireWorkspace();
-  const assessments = await listAssessments(tenantId);
+  const [assessments, canEdit] = await Promise.all([listAssessments(tenantId), currentUserCanEdit()]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -18,9 +18,11 @@ export default async function WorkspaceAssessmentsPage() {
             Your assessments — private to this workspace.
           </p>
         </div>
-        <Link href="/w/assessments/new" className={buttonVariants({ size: "sm" })}>
-          + New assessment
-        </Link>
+        {canEdit ? (
+          <Link href="/w/assessments/new" className={buttonVariants({ size: "sm" })}>
+            + New assessment
+          </Link>
+        ) : null}
       </div>
       {assessments.length === 0 ? (
         <p className="rounded-lg border p-4 text-sm text-[var(--muted-foreground)]">
@@ -48,12 +50,16 @@ export default async function WorkspaceAssessmentsPage() {
                   <td className="px-3 py-2 text-center tabular-nums">{a._count.categories}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{a._count.submissions}</td>
                   <td className="px-3 py-2 text-right">
-                    <Link
-                      href={`/w/assessments/${a.id}`}
-                      className={buttonVariants({ variant: "outline", size: "sm" })}
-                    >
-                      Edit
-                    </Link>
+                    {canEdit ? (
+                      <Link
+                        href={`/w/assessments/${a.id}`}
+                        className={buttonVariants({ variant: "outline", size: "sm" })}
+                      >
+                        Edit
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-[var(--muted-foreground)]">View only</span>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { currentUserCanEdit } from "@/lib/auth/guards";
 import { getAssessmentById } from "@/features/assessment/data";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { actingTenantId } from "@/lib/tenant/acting";
@@ -25,6 +26,7 @@ export default async function EditAssessmentPage({
   const { id } = await params;
   const a = await getAssessmentById(id);
   if (!a) notFound();
+  if (!(await currentUserCanEdit())) redirect("/admin/assessment-builder");
   const promptVersions = (await listPromptVersions(await actingTenantId())).map((v) => ({ id: v.id, label: v.label }));
 
   const initial: AssessmentFormValues = {

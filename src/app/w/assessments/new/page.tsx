@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requireWorkspace } from "@/lib/auth/guards";
+import { redirect } from "next/navigation";
+import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { AssessmentForm } from "@/features/assessment/components/admin/assessment-form";
 import { listPromptVersions } from "@/lib/ai/versions";
 
@@ -9,6 +10,7 @@ export default async function WorkspaceNewAssessmentPage() {
   // Gate access (redirects a non-tenant caller). createAssessment stamps the
   // acting tenant, so the new assessment is owned by this workspace.
   const { tenantId } = await requireWorkspace();
+  if (!(await currentUserCanEdit())) redirect("/w/assessments");
   const promptVersions = (await listPromptVersions(tenantId)).map((v) => ({ id: v.id, label: v.label }));
 
   return (

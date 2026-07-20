@@ -22,6 +22,13 @@ export function isStaff(user: { staffPermission?: string | null }): boolean {
   return user.staffPermission === "VIEW" || user.staffPermission === "EDIT";
 }
 
+/** Whether the CURRENT signed-in user may edit — for server components/pages to
+ *  hide edit controls from VIEW-only staff. Reads the session (no redirect). */
+export async function currentUserCanEdit(): Promise<boolean> {
+  const session = await getSession();
+  return session ? canEdit(session.user as AuthUser) : false;
+}
+
 /** May this user MUTATE within their scope? Owners/admins (null) and EDIT staff yes;
  *  VIEW staff no. The single source of truth for the read-only vs. edit gate. */
 export function canEdit(user: { staffPermission?: string | null }): boolean {

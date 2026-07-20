@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { requireWorkspace } from "@/lib/auth/guards";
+import { notFound, redirect } from "next/navigation";
+import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { getAssessmentById } from "@/features/assessment/data";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
@@ -27,6 +27,7 @@ export default async function WorkspaceEditAssessmentPage({
   const a = await getAssessmentById(id);
   // Ownership gate: the assessment must belong to THIS workspace's tenant.
   if (!a || a.tenantId !== tenantId) notFound();
+  if (!(await currentUserCanEdit())) redirect("/w/assessments");
   const promptVersions = (await listPromptVersions(tenantId)).map((v) => ({ id: v.id, label: v.label }));
 
   const initial: AssessmentFormValues = {

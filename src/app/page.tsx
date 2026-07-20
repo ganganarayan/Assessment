@@ -13,10 +13,10 @@ export default async function HomePage() {
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 px-6 py-16 text-center">
       <div className="flex flex-col items-center gap-3">
         <span className="rounded-full border px-3 py-1 text-xs font-medium text-[var(--muted-foreground)]">
-          Staging · Phase 1 deployed successfully
+          Phase 1 deployed successfully
         </span>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Assessment Foundation Ready
+          Assess360 Foundation Ready
         </h1>
         <p className="max-w-md text-sm text-[var(--muted-foreground)] sm:text-base">
           Multi-tenant foundation is live: authentication, tenant resolution,

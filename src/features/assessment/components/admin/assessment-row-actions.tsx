@@ -15,10 +15,13 @@ export function AssessmentRowActions({
   id,
   slug,
   published,
+  canEdit = true,
 }: {
   id: string;
   slug: string;
   published: boolean;
+  /** VIEW-only staff (false) see only read actions: Preview + Export. */
+  canEdit?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -48,12 +51,14 @@ export function AssessmentRowActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Link
-        href={`/admin/assessments/${id}`}
-        className={buttonVariants({ variant: "outline", size: "sm" })}
-      >
-        Edit
-      </Link>
+      {canEdit ? (
+        <Link
+          href={`/admin/assessments/${id}`}
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          Edit
+        </Link>
+      ) : null}
       <Link
         href={`/a/${slug}?preview=1`}
         target="_blank"
@@ -61,9 +66,11 @@ export function AssessmentRowActions({
       >
         Preview
       </Link>
-      <Button size="sm" variant="ghost" onClick={duplicate} disabled={pending}>
-        Duplicate
-      </Button>
+      {canEdit ? (
+        <Button size="sm" variant="ghost" onClick={duplicate} disabled={pending}>
+          Duplicate
+        </Button>
+      ) : null}
       <details className="relative">
         <summary
           className={cn(
@@ -88,12 +95,16 @@ export function AssessmentRowActions({
           </a>
         </div>
       </details>
-      <Button size="sm" variant="outline" onClick={toggle} disabled={pending}>
-        {published ? "Unpublish" : "Publish"}
-      </Button>
-      <Button size="sm" variant="ghost" onClick={remove} disabled={pending}>
-        Delete
-      </Button>
+      {canEdit ? (
+        <>
+          <Button size="sm" variant="outline" onClick={toggle} disabled={pending}>
+            {published ? "Unpublish" : "Publish"}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={remove} disabled={pending}>
+            Delete
+          </Button>
+        </>
+      ) : null}
     </div>
   );
 }

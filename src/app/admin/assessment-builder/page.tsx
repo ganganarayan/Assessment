@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listAssessments } from "@/features/assessment/data";
 import { actingTenantId } from "@/lib/tenant/acting";
+import { currentUserCanEdit } from "@/lib/auth/guards";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -11,16 +12,21 @@ export const dynamic = "force-dynamic";
 /** Assessment Builder: every assessment (draft + published). Click one to open it
  *  in the builder (Assessment + Results pages). Create / import / export live here. */
 export default async function AssessmentBuilderPage() {
-  const assessments = await listAssessments(await actingTenantId());
+  const [assessments, canEdit] = await Promise.all([
+    listAssessments(await actingTenantId()),
+    currentUserCanEdit(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold tracking-tight">Assessment Builder</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/admin/import" className={buttonVariants({ variant: "outline" })}>
-            Import
-          </Link>
+          {canEdit ? (
+            <Link href="/admin/import" className={buttonVariants({ variant: "outline" })}>
+              Import
+            </Link>
+          ) : null}
           <details className="relative">
             <summary className={cn(buttonVariants({ variant: "outline" }), "cursor-pointer list-none")}>
               Export All ▼
@@ -30,9 +36,11 @@ export default async function AssessmentBuilderPage() {
               <a href="/api/admin/assessments/export-all?format=csv" className="rounded px-2 py-1.5 hover:bg-[var(--muted)]">CSV</a>
             </div>
           </details>
-          <Link href="/admin/assessments/new" className={buttonVariants()}>
-            New assessment
-          </Link>
+          {canEdit ? (
+            <Link href="/admin/assessments/new" className={buttonVariants()}>
+              New assessment
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -44,16 +52,20 @@ export default async function AssessmentBuilderPage() {
             <div key={a.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
-                  <Link href={`/admin/assessments/${a.id}`} className="font-medium hover:underline">
-                    {a.title}
-                  </Link>
+                  {canEdit ? (
+                    <Link href={`/admin/assessments/${a.id}`} className="font-medium hover:underline">
+                      {a.title}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{a.title}</span>
+                  )}
                   <Badge variant={a.status === "PUBLISHED" ? "success" : "muted"}>{a.status}</Badge>
                 </div>
                 <p className="text-xs text-[var(--muted-foreground)]">
                   /a/{a.slug} · {a._count.categories} categories · {a._count.submissions} submissions
                 </p>
               </div>
-              <AssessmentRowActions id={a.id} slug={a.slug} published={a.status === "PUBLISHED"} />
+              <AssessmentRowActions id={a.id} slug={a.slug} published={a.status === "PUBLISHED"} canEdit={canEdit} />
             </div>
           ))}
         </div>
