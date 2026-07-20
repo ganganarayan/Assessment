@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { requireSuperAdmin, assertCanEditOrThrow } from "@/lib/auth/guards";
+import { actingTenantId } from "@/lib/tenant/acting";
 import { testCapi, sendCapiEventVerbose } from "@/lib/meta/send";
 import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
 import { fireCapiLogRow } from "@/lib/meta/capi-log";
@@ -13,7 +14,7 @@ import { formatIST } from "@/lib/date";
  *  AssessmentCompleted) to Meta and return Meta's real response. */
 export async function testMetaCapi(testEventCode?: string, eventName?: string) {
   assertCanEditOrThrow(await requireSuperAdmin());
-  return testCapi(testEventCode, eventName);
+  return testCapi(testEventCode, eventName, await actingTenantId());
 }
 
 /**
@@ -35,6 +36,7 @@ export async function resendPurchaseToMeta(submissionId: string, force = false):
     where: { id: submissionId },
     select: {
       resultToken: true,
+      tenantId: true,
       leadFirstName: true,
       leadLastName: true,
       leadEmail: true,
@@ -89,7 +91,7 @@ export async function resendPurchaseToMeta(submissionId: string, force = false):
     // Full match signals (email/phone/name + fbc/fbp/ip/UA).
     user: buildPurchaseUserData(s),
     customData: amountRupees != null ? { value: amountRupees, currency: p.currency || "INR" } : { currency: p.currency || "INR" },
-  });
+  }, s.tenantId);
   if (r.ok) {
     await prisma.payment
       .updateMany({ where: { providerPaymentId: p.providerPaymentId, metaConversionAt: null }, data: { metaConversionAt: new Date() } })

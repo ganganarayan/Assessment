@@ -1,14 +1,14 @@
 import Script from "next/script";
-import { env } from "@/lib/env";
 
 /**
  * Meta (Facebook) Pixel base code: loads fbevents.js, inits the pixel, and fires
- * a PageView on load. Renders nothing when NEXT_PUBLIC_META_PIXEL_ID is unset.
+ * a PageView on load. The pixel id is resolved PER TENANT (the assessment's tenant,
+ * env fallback for platform) and passed in — renders nothing when there is none.
  * Funnel events (CompleteRegistration, AssessmentCompleted) are fired from the
  * runner via lib/pixel.ts.
  */
-export function MetaPixel() {
-  const id = env.NEXT_PUBLIC_META_PIXEL_ID;
+export function MetaPixel({ pixelId }: { pixelId: string | null }) {
+  const id = pixelId;
   if (!id) return null;
 
   return (

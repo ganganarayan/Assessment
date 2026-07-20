@@ -1,30 +1,35 @@
 import "server-only";
 import crypto from "crypto";
-import { env } from "@/lib/env";
 
 /**
- * Razorpay provider — thin wrapper over the REST API (Basic auth, no SDK), ported
- * from VidaPulse. NOW: one-time Payment Links for the assessment unlock. LATER:
- * createSubscription/createOrder for the Starter/Pro tiers plug in here.
+ * Razorpay provider — thin wrapper over the REST API (Basic auth, no SDK). Stateless:
+ * every call takes the TENANT's keys/secret (resolved via lib/settings/config, which
+ * falls back to env for the platform/Gita tenant), so each tenant transacts on its
+ * OWN Razorpay account. One-time Payment/Order for the assessment unlock.
  */
 
 const API_BASE = "https://api.razorpay.com/v1";
 const TIMEOUT_MS = 15_000;
 
-export function isRazorpayConfigured(): boolean {
-  return !!(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET);
+export interface RazorpayKeys {
+  keyId: string | null;
+  keySecret: string | null;
 }
 
-function authHeader(): string {
-  const token = Buffer.from(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`).toString("base64");
+export function isRazorpayConfigured(keys: RazorpayKeys): boolean {
+  return !!(keys.keyId && keys.keySecret);
+}
+
+function authHeader(keys: RazorpayKeys): string {
+  const token = Buffer.from(`${keys.keyId}:${keys.keySecret}`).toString("base64");
   return `Basic ${token}`;
 }
 
-async function razorpayRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
-  if (!isRazorpayConfigured()) throw new Error("Razorpay API keys not configured.");
+async function razorpayRequest<T>(method: string, path: string, keys: RazorpayKeys, body?: unknown): Promise<T> {
+  if (!isRazorpayConfigured(keys)) throw new Error("Razorpay API keys not configured.");
   const res = await fetch(`${API_BASE}${path}`, {
     method,
-    headers: { Authorization: authHeader(), "content-type": "application/json" },
+    headers: { Authorization: authHeader(keys), "content-type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
@@ -61,8 +66,8 @@ export interface FetchedOrder {
  * submission + amount (from its notes), so a valid signed payment triple can't be
  * replayed against an arbitrary `?submission=` to unlock someone else's result.
  */
-export async function fetchOrder(orderId: string): Promise<FetchedOrder> {
-  return razorpayRequest<FetchedOrder>("GET", `/orders/${encodeURIComponent(orderId)}`);
+export async function fetchOrder(orderId: string, keys: RazorpayKeys): Promise<FetchedOrder> {
+  return razorpayRequest<FetchedOrder>("GET", `/orders/${encodeURIComponent(orderId)}`, keys);
 }
 
 /**
@@ -70,12 +75,15 @@ export async function fetchOrder(orderId: string): Promise<FetchedOrder> {
  * with the lead's details PREFILLED (so the customer isn't asked to type anything),
  * and on success Razorpay redirects (callback_url) to our verify route.
  */
-export async function createOrder(opts: {
-  amountPaise: number;
-  currency?: string;
-  notes?: Record<string, string>;
-}): Promise<OrderResult> {
-  return razorpayRequest<OrderResult>("POST", "/orders", {
+export async function createOrder(
+  opts: {
+    amountPaise: number;
+    currency?: string;
+    notes?: Record<string, string>;
+  },
+  keys: RazorpayKeys,
+): Promise<OrderResult> {
+  return razorpayRequest<OrderResult>("POST", "/orders", keys, {
     amount: opts.amountPaise,
     currency: opts.currency ?? "INR",
     payment_capture: true,
@@ -88,10 +96,14 @@ export async function createOrder(opts: {
  * HMAC_SHA256(order_id + "|" + payment_id, key_secret). Confirms the payment is
  * genuine before we reveal the result token.
  */
-export function verifyPaymentSignature(orderId: string, paymentId: string, signature: string): boolean {
-  const secret = env.RAZORPAY_KEY_SECRET;
-  if (!secret || !orderId || !paymentId || !signature) return false;
-  const expected = crypto.createHmac("sha256", secret).update(`${orderId}|${paymentId}`).digest("hex");
+export function verifyPaymentSignature(
+  orderId: string,
+  paymentId: string,
+  signature: string,
+  keySecret: string | null,
+): boolean {
+  if (!keySecret || !orderId || !paymentId || !signature) return false;
+  const expected = crypto.createHmac("sha256", keySecret).update(`${orderId}|${paymentId}`).digest("hex");
   try {
     return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
   } catch {
@@ -100,19 +112,17 @@ export function verifyPaymentSignature(orderId: string, paymentId: string, signa
 }
 
 /**
- * Verify a Razorpay webhook signature (HMAC-SHA256 of the raw body with the
+ * Verify a Razorpay webhook signature (HMAC-SHA256 of the raw body with the tenant's
  * webhook secret). FAIL-CLOSED: when no secret is configured we reject — a public
- * money endpoint must never accept unauthenticated POSTs. Set RAZORPAY_WEBHOOK_SECRET
- * on every environment where the webhook is live.
+ * money endpoint must never accept unauthenticated POSTs.
  */
-export function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
-  const secret = env.RAZORPAY_WEBHOOK_SECRET;
-  if (!secret) {
-    console.error("[razorpay] webhook rejected: RAZORPAY_WEBHOOK_SECRET not set");
+export function verifyWebhookSignature(rawBody: string, signature: string | null, webhookSecret: string | null): boolean {
+  if (!webhookSecret) {
+    console.error("[razorpay] webhook rejected: no webhook secret configured for this tenant");
     return false;
   }
   if (!signature) return false;
-  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const expected = crypto.createHmac("sha256", webhookSecret).update(rawBody).digest("hex");
   try {
     return crypto.timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex"));
   } catch {
@@ -121,15 +131,12 @@ export function verifyWebhookSignature(rawBody: string, signature: string | null
 }
 
 /**
- * Stricter check: TRUE only when a secret IS configured AND the signature is valid
- * (unlike verifyWebhookSignature, which is permissive when no secret is set so
- * payments still record). Use this to gate side effects that an unauthenticated
- * caller must NEVER trigger — e.g. firing a Meta conversion / CRM event.
+ * Stricter check: TRUE only when a secret IS configured AND the signature is valid.
+ * Gate side effects an unauthenticated caller must NEVER trigger (Meta conversion / CRM).
  */
-export function isWebhookSignatureVerified(rawBody: string, signature: string | null): boolean {
-  const secret = env.RAZORPAY_WEBHOOK_SECRET;
-  if (!secret || !signature) return false;
-  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+export function isWebhookSignatureVerified(rawBody: string, signature: string | null, webhookSecret: string | null): boolean {
+  if (!webhookSecret || !signature) return false;
+  const expected = crypto.createHmac("sha256", webhookSecret).update(rawBody).digest("hex");
   try {
     return crypto.timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex"));
   } catch {

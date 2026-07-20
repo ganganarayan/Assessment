@@ -13,9 +13,9 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
  * (the form shows only "saved" + a masked hint). The platform/Gita path never uses
  * these — it keeps using env — so nothing here can affect the live Gita funnel.
  *
- * NOTE: this is the STORAGE layer. The runtime FIRE wiring (funnel loads the tenant
- * pixel; CAPI fires with the tenant token; Razorpay webhook routes per tenant) is a
- * separate, live-fire-tested step and is not yet connected.
+ * The runtime FIRE wiring is LIVE: the funnel loads this tenant's pixel, CAPI fires
+ * with this tenant's token, and Razorpay must be pointed at this tenant's own webhook
+ * URL (below) so its captures are HMAC-verified with this tenant's webhook secret.
  */
 
 export interface IntegrationSettingsView {
@@ -24,17 +24,23 @@ export interface IntegrationSettingsView {
   razorpayKeyId: string;
   hasRazorpaySecret: boolean;
   hasRazorpayWebhookSecret: boolean;
+  /** Where THIS tenant must point Razorpay → Settings → Webhooks. */
+  webhookUrl: string;
 }
 
 export async function getIntegrationSettings(): Promise<IntegrationSettingsView> {
   const { tenantId } = await requireWorkspace();
-  const s = await prisma.appSetting.findUnique({ where: { tenantId } });
+  const [s, tenant] = await Promise.all([
+    prisma.appSetting.findUnique({ where: { tenantId } }),
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true } }),
+  ]);
   return {
     metaPixelId: s?.metaPixelId ?? "",
     hasCapiToken: !!s?.metaCapiTokenEnc,
     razorpayKeyId: s?.razorpayKeyId ?? "",
     hasRazorpaySecret: !!s?.razorpayKeySecretEnc,
     hasRazorpayWebhookSecret: !!s?.razorpayWebhookSecretEnc,
+    webhookUrl: `${env.NEXT_PUBLIC_APP_URL}/api/payments/razorpay/${tenant?.slug ?? ""}`,
   };
 }
 

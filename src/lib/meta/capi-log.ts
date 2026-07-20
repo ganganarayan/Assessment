@@ -87,6 +87,8 @@ export async function recordCapture(input: {
   amountPaise: number | null;
   currency: string;
   submissionId: string | null;
+  /** Fallback tenant (the webhook's own tenant) when no submission match resolves it. */
+  tenantId?: string | null;
 }): Promise<void> {
   const existing = await prisma.capiLog.findUnique({ where: { providerPaymentId: input.providerPaymentId }, select: { id: true } });
   if (existing) return;
@@ -110,7 +112,7 @@ export async function recordCapture(input: {
         eventName: plan.eventName,
         matched: !!sub,
         submissionId: sub?.id ?? input.submissionId ?? null,
-        tenantId: sub?.tenantId ?? null,
+        tenantId: sub?.tenantId ?? input.tenantId ?? null,
         status: "pending",
       },
       select: { id: true },
@@ -148,11 +150,11 @@ export async function fireCapiLogRow(
 
   const eventName = opts?.eventNameOverride?.trim() || log.eventName;
 
-  if (!isCapiConfigured()) {
+  if (!(await isCapiConfigured(log.tenantId))) {
     await prisma.capiLog
-      .update({ where: { id: logId }, data: { status: "failed", response: "META_CAPI_ACCESS_TOKEN not set on this environment", firedAt: new Date() } })
+      .update({ where: { id: logId }, data: { status: "failed", response: "Meta CAPI is not configured for this tenant (Settings → Integrations)", firedAt: new Date() } })
       .catch(() => {});
-    return { ok: false, error: "META_CAPI_ACCESS_TOKEN is not set on this environment." };
+    return { ok: false, error: "Meta CAPI is not configured (add the token in Settings → Integrations)." };
   }
 
   const sub = await findSubmission(log.submissionId, log.email);
@@ -168,7 +170,7 @@ export async function fireCapiLogRow(
     eventSourceUrl: sub?.assessment?.targetUrl ?? env.NEXT_PUBLIC_APP_URL,
     user,
     customData: amountRupees != null ? { value: amountRupees, currency: log.currency || "INR" } : { currency: log.currency || "INR" },
-  });
+  }, log.tenantId);
 
   await prisma.capiLog
     .update({

@@ -40,9 +40,10 @@ export function IntegrationSettingsForm({ initial }: { initial: IntegrationSetti
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="rounded-lg border-l-2 border-amber-500 bg-amber-500/5 px-3 py-2 text-xs text-[var(--muted-foreground)]">
-        Stored securely for when per-workspace ad tracking + payments go live. Saving your keys
-        here does not yet redirect firing — that connection is being finalized.
+      <div className="rounded-lg border-l-2 border-green-500 bg-green-500/5 px-3 py-2 text-xs text-[var(--muted-foreground)]">
+        These keys are live for this workspace: your funnel fires your own Meta pixel, the
+        Conversions API sends with your token, and payments run on your Razorpay account.
+        Secrets are encrypted and never shown again.
       </div>
 
       {/* Meta */}
@@ -85,6 +86,11 @@ export function IntegrationSettingsForm({ initial }: { initial: IntegrationSetti
             Webhook secret {initial.hasRazorpayWebhookSecret ? <span className="text-green-600">(saved)</span> : null}
           </Label>
           <Input type="password" value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} placeholder={initial.hasRazorpayWebhookSecret ? "••••••••" : "Webhook signing secret"} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Webhook URL (point Razorpay → Settings → Webhooks here)</Label>
+          <Input readOnly value={initial.webhookUrl} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
+          <p className="text-xs text-[var(--muted-foreground)]">Events: payment.captured and payment_link.paid.</p>
         </div>
         <div>
           <Button size="sm" onClick={saveRazorpay} disabled={pending}>Save Razorpay settings</Button>

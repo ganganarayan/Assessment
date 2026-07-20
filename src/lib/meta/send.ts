@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { buildCapiEvent, resolveCapiConfig, type CapiEventInput } from "@/lib/meta/capi";
+import { resolveMetaConfig } from "@/lib/settings/config";
 
 /**
  * Network sender for Meta Conversions API. Imports env (so it is NOT imported by
@@ -10,19 +11,23 @@ import { buildCapiEvent, resolveCapiConfig, type CapiEventInput } from "@/lib/me
 
 const TIMEOUT_MS = 4_000;
 
-function getConfig() {
+/** Resolve the CAPI config for a tenant from Settings (null = platform/Gita, which
+ *  falls back to env). Token/pixel/dataset are per-tenant; version + test code stay
+ *  global (env). */
+async function getConfig(tenantId: string | null = null) {
+  const m = await resolveMetaConfig(tenantId);
   return resolveCapiConfig({
-    accessToken: env.META_CAPI_ACCESS_TOKEN,
-    datasetId: env.META_DATASET_ID,
-    pixelId: env.NEXT_PUBLIC_META_PIXEL_ID,
+    accessToken: m.capiToken,
+    datasetId: m.datasetId,
+    pixelId: m.pixelId,
     version: env.META_GRAPH_API_VERSION,
     testEventCode: env.META_CAPI_TEST_EVENT_CODE,
   });
 }
 
-/** True when a token + dataset are configured (CAPI will actually send). */
-export function isCapiConfigured(): boolean {
-  return getConfig() !== null;
+/** True when a token + dataset are configured for this tenant (CAPI will send). */
+export async function isCapiConfigured(tenantId: string | null = null): Promise<boolean> {
+  return (await getConfig(tenantId)) !== null;
 }
 
 /**
@@ -31,7 +36,7 @@ export function isCapiConfigured(): boolean {
  * for "is the app's event reaching Meta" — unlike sendCapiEvent it surfaces the
  * status + body instead of swallowing.
  */
-export async function testCapi(testEventCode?: string, eventNameInput?: string): Promise<{
+export async function testCapi(testEventCode?: string, eventNameInput?: string, tenantId: string | null = null): Promise<{
   ok: boolean;
   eventName: string;
   datasetId?: string;
@@ -40,7 +45,7 @@ export async function testCapi(testEventCode?: string, eventNameInput?: string):
   error?: string;
 }> {
   const eventName = (eventNameInput && eventNameInput.trim()) || "AssessmentCompleted";
-  const cfg = getConfig();
+  const cfg = await getConfig(tenantId);
   if (!cfg) {
     return {
       ok: false,
@@ -96,13 +101,13 @@ export async function testCapi(testEventCode?: string, eventNameInput?: string):
  * applies a test code — for the admin "re-send a real purchase" recovery tool, so
  * the operator can see the conversion was accepted (events_received: 1).
  */
-export async function sendCapiEventVerbose(input: CapiEventInput): Promise<{
+export async function sendCapiEventVerbose(input: CapiEventInput, tenantId: string | null = null): Promise<{
   ok: boolean;
   status?: number;
   response?: string;
   error?: string;
 }> {
-  const cfg = getConfig();
+  const cfg = await getConfig(tenantId);
   if (!cfg) {
     return { ok: false, error: "META_CAPI_ACCESS_TOKEN (and a dataset/pixel id) is NOT set on this environment." };
   }
@@ -121,8 +126,8 @@ export async function sendCapiEventVerbose(input: CapiEventInput): Promise<{
   }
 }
 
-export async function sendCapiEvent(input: CapiEventInput): Promise<void> {
-  const cfg = getConfig();
+export async function sendCapiEvent(input: CapiEventInput, tenantId: string | null = null): Promise<void> {
+  const cfg = await getConfig(tenantId);
   if (!cfg) return; // inert until configured
 
   // PRODUCTION path: never attach test_event_code. A lingering

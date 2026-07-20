@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { verifyPaymentSignature, fetchOrder } from "@/lib/payments/razorpay";
+import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { recordCapture } from "@/lib/meta/capi-log";
 import { emitCompletedPaid } from "@/lib/events/completion";
 
@@ -42,22 +43,27 @@ export async function POST(req: Request) {
   const orderId = String(form.get("razorpay_order_id") ?? "");
   const signature = String(form.get("razorpay_signature") ?? "");
 
-  if (!verifyPaymentSignature(orderId, paymentId, signature)) return failed;
+  // Resolve the tenant from the claimed submission so we verify with THAT tenant's
+  // Razorpay secret and fetch on its account (a wrong-tenant order/secret simply
+  // fails). Security still binds to the order's OWN notes below.
+  const claimed = url.searchParams.get("submission");
+  if (!claimed) return failed;
+  const claimedSub = await prisma.submission.findUnique({ where: { id: claimed }, select: { tenantId: true } });
+  if (!claimedSub) return failed;
+  const keys = await resolveRazorpayConfig(claimedSub.tenantId);
 
-  // Derive the submission to unlock from the ORDER's own notes (set at order
-  // creation) — NEVER from the client-supplied ?submission=. Otherwise one valid
-  // signed (order,payment,signature) triple could be replayed against an arbitrary
-  // submission id to reveal someone else's result token.
+  if (!verifyPaymentSignature(orderId, paymentId, signature, keys.keySecret)) return failed;
+
+  // The order's OWN notes must name the claimed submission (defends against replaying
+  // one valid triple against an arbitrary submission id).
   let order;
   try {
-    order = await fetchOrder(orderId);
+    order = await fetchOrder(orderId, keys);
   } catch {
     return failed;
   }
   const submissionId = order.notes?.submissionId ?? null;
-  if (!submissionId) return failed;
-  const claimed = url.searchParams.get("submission");
-  if (claimed && claimed !== submissionId) return failed; // defense in depth
+  if (!submissionId || submissionId !== claimed) return failed;
 
   const s = await prisma.submission.findUnique({
     where: { id: submissionId },

@@ -32,6 +32,7 @@ import { fbcCreationMs } from "@/lib/meta/capi";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { generatePersonalStatement } from "@/lib/ai/generate";
 import { isRazorpayConfigured, createOrder } from "@/lib/payments/razorpay";
+import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { type PaymentCheckout } from "@/lib/payments/types";
 
 const PAYMENT_BUSINESS_NAME = "Assess360";
@@ -85,6 +86,7 @@ function withToken(paymentUrl: string, token: string | null): string {
  * then NOT fall through to the free VSL — see the runner).
  */
 async function resolvePaidCheckout(opts: {
+  tenantId: string | null;
   paidMode: boolean;
   paymentUrl: string | null;
   paymentAmount: number | null;
@@ -94,15 +96,16 @@ async function resolvePaidCheckout(opts: {
 }): Promise<{ payment?: PaymentCheckout; paymentRedirectUrl?: string }> {
   if (!opts.paidMode) return {};
 
-  if (isRazorpayConfigured() && env.RAZORPAY_KEY_ID && opts.paymentAmount && opts.paymentAmount > 0) {
+  const rzp = await resolveRazorpayConfig(opts.tenantId);
+  if (isRazorpayConfigured(rzp) && rzp.keyId && opts.paymentAmount && opts.paymentAmount > 0) {
     try {
       const order = await createOrder({
         amountPaise: opts.paymentAmount * 100,
         currency: "INR",
         notes: { submissionId: opts.submissionId, purpose: "assessment_unlock" },
-      });
+      }, rzp);
       const payment: PaymentCheckout = {
-        keyId: env.RAZORPAY_KEY_ID,
+        keyId: rzp.keyId,
         orderId: order.id,
         amount: order.amount,
         currency: order.currency,
@@ -218,7 +221,7 @@ async function fireRegistration(
   // Server-side Meta CAPI. Inert unless configured; getMetaRequestContext is
   // fail-soft; the send is fire-and-forget so Meta's network never adds latency.
   // The eventId is returned regardless so the browser pixel can dedup.
-  if (isCapiConfigured()) {
+  if (await isCapiConfigured(assessment.tenant?.id ?? null)) {
     const ctx = await getMetaRequestContext();
     void sendCapiEvent({
       eventName: "CompleteRegistration",
@@ -233,7 +236,7 @@ async function fireRegistration(
         ...ctx,
       },
       customData: { content_name: assessment.title, assessment_name: assessment.title },
-    }).catch(() => {});
+    }, assessment.tenant?.id ?? null).catch(() => {});
   }
   return eventId;
 }
@@ -630,6 +633,7 @@ export async function completeSubmission(
   const returnCompleted = async () => {
     const resultUrl = buildResultUrl(submission.assessment.targetUrl, submission.assessment.slug, submissionId, submission.resultToken);
     const paid = await resolvePaidCheckout({
+      tenantId: submission.tenantId,
       paidMode: submission.assessment.paidMode,
       paymentUrl: submission.assessment.paymentUrl,
       paymentAmount: submission.assessment.paymentAmount,
@@ -788,6 +792,7 @@ export async function completeSubmission(
   });
   if (recheck?.status === "COMPLETED") {
     const paid = await resolvePaidCheckout({
+      tenantId: assessment.tenant?.id ?? null,
       paidMode: assessment.paidMode,
       paymentUrl: assessment.paymentUrl,
       paymentAmount: assessment.paymentAmount,
@@ -882,6 +887,7 @@ export async function completeSubmission(
       select: { resultToken: true },
     });
     const paid = await resolvePaidCheckout({
+      tenantId: assessment.tenant?.id ?? null,
       paidMode: assessment.paidMode,
       paymentUrl: assessment.paymentUrl,
       paymentAmount: assessment.paymentAmount,
@@ -944,7 +950,7 @@ export async function completeSubmission(
   // writer (exactly-once); the returned eventId dedups the browser pixel.
   // Inert unless configured; fail-soft context; non-blocking send.
   const eventId = randomUUID();
-  if (isCapiConfigured()) {
+  if (await isCapiConfigured(assessment.tenant?.id ?? null)) {
     const ctx = await getMetaRequestContext();
     void sendCapiEvent({
       eventName: "AssessmentCompleted",
@@ -959,7 +965,7 @@ export async function completeSubmission(
         ...ctx,
       },
       customData: { content_name: assessment.title, assessment_name: assessment.title },
-    }).catch(() => {});
+    }, assessment.tenant?.id ?? null).catch(() => {});
   }
 
   // Backfill Meta match signals if the Start capture missed them (e.g. the _fbp
@@ -979,6 +985,7 @@ export async function completeSubmission(
   }
 
   const paid = await resolvePaidCheckout({
+    tenantId: assessment.tenant?.id ?? null,
     paidMode: assessment.paidMode,
     paymentUrl: assessment.paymentUrl,
     paymentAmount: assessment.paymentAmount,
