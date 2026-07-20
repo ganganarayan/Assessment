@@ -1,8 +1,10 @@
 import { requireWorkspace } from "@/lib/auth/guards";
 import { getAiSettings } from "@/features/admin/actions/ai-settings";
 import { getIntegrationSettings } from "@/features/workspace/actions/integrations";
+import { getDomainSettings } from "@/features/workspace/actions/domains";
 import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
+import { DomainSettings } from "@/features/workspace/components/domain-settings";
 import { PromptVersionsManager } from "@/features/admin/components/prompt-versions-manager";
 import {
   Card,
@@ -23,6 +25,7 @@ export default async function WorkspaceSettingsPage() {
   await requireWorkspace();
   const settings = await getAiSettings();
   const integrations = await getIntegrationSettings();
+  const domains = await getDomainSettings();
 
   return (
     <div className="flex flex-col gap-6">
@@ -58,6 +61,19 @@ export default async function WorkspaceSettingsPage() {
         </CardHeader>
         <CardContent>
           <IntegrationSettingsForm initial={integrations} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Custom domains</CardTitle>
+          <CardDescription>
+            Serve your funnel on your own domain. Add a host, point its DNS at us, and verify —
+            verified domains route straight to this workspace.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DomainSettings initial={domains} />
         </CardContent>
       </Card>
 
