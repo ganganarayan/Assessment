@@ -4,13 +4,29 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  updateMetaSettings,
-  updateRazorpaySettings,
-  type IntegrationSettingsView,
-} from "@/features/workspace/actions/integrations";
+import { type IntegrationSettingsView } from "@/features/workspace/actions/integrations";
 
-export function IntegrationSettingsForm({ initial }: { initial: IntegrationSettingsView }) {
+type SaveResult = { ok: boolean; error?: string };
+type SaveMeta = (pixelId: string, capiToken: string) => Promise<SaveResult>;
+type SaveRazorpay = (keyId: string, keySecret: string, webhookSecret: string) => Promise<SaveResult>;
+
+/**
+ * Shared Meta + Razorpay key editor. The SAVE actions are injected so the same form
+ * drives three scopes: a tenant workspace, a super admin impersonating a tenant
+ * (both use the per-tenant actions), and the platform/Gita singleton (platform
+ * actions). Secrets are write-only — never round-tripped to the client.
+ */
+export function IntegrationSettingsForm({
+  initial,
+  saveMetaAction,
+  saveRazorpayAction,
+  banner,
+}: {
+  initial: IntegrationSettingsView;
+  saveMetaAction: SaveMeta;
+  saveRazorpayAction: SaveRazorpay;
+  banner?: string;
+}) {
   const [pixelId, setPixelId] = useState(initial.metaPixelId);
   const [capiToken, setCapiToken] = useState("");
   const [keyId, setKeyId] = useState(initial.razorpayKeyId);
@@ -22,16 +38,16 @@ export function IntegrationSettingsForm({ initial }: { initial: IntegrationSetti
   const saveMeta = () =>
     start(async () => {
       setMsg(null);
-      const r = await updateMetaSettings(pixelId, capiToken);
-      setMsg(r.ok ? "Meta settings saved." : r.error);
+      const r = await saveMetaAction(pixelId, capiToken);
+      setMsg(r.ok ? "Meta settings saved." : r.error ?? "Something went wrong.");
       if (r.ok) setCapiToken("");
     });
 
   const saveRazorpay = () =>
     start(async () => {
       setMsg(null);
-      const r = await updateRazorpaySettings(keyId, keySecret, webhookSecret);
-      setMsg(r.ok ? "Razorpay settings saved." : r.error);
+      const r = await saveRazorpayAction(keyId, keySecret, webhookSecret);
+      setMsg(r.ok ? "Razorpay settings saved." : r.error ?? "Something went wrong.");
       if (r.ok) {
         setKeySecret("");
         setWebhookSecret("");
@@ -41,9 +57,8 @@ export function IntegrationSettingsForm({ initial }: { initial: IntegrationSetti
   return (
     <div className="flex flex-col gap-6">
       <div className="rounded-lg border-l-2 border-green-500 bg-green-500/5 px-3 py-2 text-xs text-[var(--muted-foreground)]">
-        These keys are live for this workspace: your funnel fires your own Meta pixel, the
-        Conversions API sends with your token, and payments run on your Razorpay account.
-        Secrets are encrypted and never shown again.
+        {banner ??
+          "These keys are live for this workspace: your funnel fires your own Meta pixel, the Conversions API sends with your token, and payments run on your Razorpay account. Secrets are encrypted and never shown again."}
       </div>
 
       {/* Meta */}

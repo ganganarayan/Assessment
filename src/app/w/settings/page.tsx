@@ -1,6 +1,6 @@
 import { requireWorkspace } from "@/lib/auth/guards";
 import { getAiSettings } from "@/features/admin/actions/ai-settings";
-import { getIntegrationSettings } from "@/features/workspace/actions/integrations";
+import { getIntegrationSettings, updateMetaSettings, updateRazorpaySettings } from "@/features/workspace/actions/integrations";
 import { getDomainSettings } from "@/features/workspace/actions/domains";
 import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
@@ -60,7 +60,11 @@ export default async function WorkspaceSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <IntegrationSettingsForm initial={integrations} />
+          <IntegrationSettingsForm
+            initial={integrations}
+            saveMetaAction={updateMetaSettings}
+            saveRazorpayAction={updateRazorpaySettings}
+          />
         </CardContent>
       </Card>
 
