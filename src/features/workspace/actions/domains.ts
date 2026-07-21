@@ -20,8 +20,10 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
  * domains). TLS certs are provisioned out-of-band by the platform owner in Railway.
  */
 
-/** The host a tenant must point their CNAME at, e.g. "assess.applygitawisdom.com". */
-export function appHost(): string {
+/** The host a tenant must point their CNAME at, e.g. "assess.applygitawisdom.com".
+ *  NOT exported: a "use server" file may only export async functions, and this is a
+ *  sync helper — exporting it would fail the Next.js build (tsc won't catch it). */
+function appHost(): string {
   try {
     return new URL(env.NEXT_PUBLIC_APP_URL).host.toLowerCase();
   } catch {
