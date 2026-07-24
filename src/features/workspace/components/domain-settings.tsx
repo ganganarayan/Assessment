@@ -11,6 +11,7 @@ import {
   setPrimaryDomain,
   removeDomain,
   type DomainSettingsView,
+  type DomainView,
 } from "@/features/workspace/actions/domains";
 
 export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
@@ -18,6 +19,7 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
   const [hostname, setHostname] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const managed = initial.railwayManaged;
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) =>
     start(async () => {
@@ -32,16 +34,19 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
       const r = await addDomain(hostname);
       if (r.ok) setHostname("");
       return r;
-    }, "Domain added — point its DNS, then Verify.");
+    }, managed ? "Domain added — point its CNAME at the target shown, then Check status." : "Domain added — point its DNS, then Check status.");
+
+  const targetFor = (d: DomainView) => d.dnsTarget ?? initial.cnameTarget;
 
   return (
     <div className="flex flex-col gap-5">
       <div className="rounded-lg border-l-2 border-[var(--border)] bg-[var(--muted)]/30 px-3 py-2 text-xs text-[var(--muted-foreground)]">
-        Bring your own domain (e.g. <span className="font-mono">assess.yourbrand.com</span>). At your
-        DNS provider, add a <span className="font-semibold">CNAME</span> record pointing the host to{" "}
-        <span className="font-mono text-[var(--foreground)]">{initial.cnameTarget}</span>, then click
-        Verify. Once verified, this domain maps to your workspace and serves your assessments. TLS is
-        provisioned by us after verification.
+        Bring your own domain (e.g. <span className="font-mono">assess.yourbrand.com</span>). Add it
+        below, then at your DNS provider add a <span className="font-semibold">CNAME</span> record
+        pointing the host at the <span className="font-semibold">target shown for that domain</span>.
+        {managed
+          ? " We register it with our platform automatically and provision an HTTPS certificate — it goes live once the certificate is issued (usually a few minutes after DNS propagates)."
+          : ` Point the CNAME at ${initial.cnameTarget}. Once DNS resolves here the domain serves your assessments.`}
       </div>
 
       {/* Add */}
@@ -64,26 +69,37 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
       ) : (
         <ul className="flex flex-col divide-y divide-[var(--border)] rounded-lg border">
           {initial.domains.map((d) => (
-            <li key={d.id} className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-sm">{d.hostname}</span>
-                {d.isPrimary ? (
-                  <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-600">Primary</span>
-                ) : null}
-                {d.verified ? (
-                  <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-600">Verified</span>
-                ) : (
-                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600">Pending DNS</span>
-                )}
+            <li key={d.id} className="flex flex-col gap-2 px-3 py-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-sm">{d.hostname}</span>
+                  {d.isPrimary ? (
+                    <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-600">Primary</span>
+                  ) : null}
+                  {d.certLive || d.verified ? (
+                    <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-600">Live · HTTPS</span>
+                  ) : (
+                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600">
+                      {managed ? `Provisioning${d.certStatus ? ` · ${d.certStatus}` : ""}` : "Pending DNS"}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {!(d.certLive || d.verified) ? (
+                    <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => verifyDomain(d.id), "Live — your domain now serves over HTTPS.")}>Check status</Button>
+                  ) : !d.isPrimary ? (
+                    <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => setPrimaryDomain(d.id), "Primary domain updated.")}>Make primary</Button>
+                  ) : null}
+                  <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => removeDomain(d.id), "Domain removed.")}>Remove</Button>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {!d.verified ? (
-                  <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => verifyDomain(d.id), "Verified — your domain is live.")}>Verify</Button>
-                ) : !d.isPrimary ? (
-                  <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => setPrimaryDomain(d.id), "Primary domain updated.")}>Make primary</Button>
-                ) : null}
-                <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => removeDomain(d.id), "Domain removed.")}>Remove</Button>
-              </div>
+              {/* DNS instruction row */}
+              {!(d.certLive || d.verified) ? (
+                <div className="rounded-md bg-[var(--muted)]/40 px-2.5 py-1.5 text-xs text-[var(--muted-foreground)]">
+                  Add a <span className="font-semibold">CNAME</span> record: <span className="font-mono">{d.hostname}</span> →{" "}
+                  <span className="font-mono text-[var(--foreground)] select-all">{targetFor(d)}</span>
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

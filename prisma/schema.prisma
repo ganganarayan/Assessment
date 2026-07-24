@@ -75,6 +75,16 @@ model Domain {
   hostname  String   @unique
   isPrimary Boolean  @default(false)
   verified  Boolean  @default(false)
+
+  // Railway custom-domain provisioning. When RAILWAY_API_TOKEN is configured the app
+  // registers this host with Railway (customDomainCreate) so Railway issues the TLS
+  // cert. railwayDomainId = the Railway domain id (for status polling + delete),
+  // dnsTarget = the CNAME value Railway wants the tenant to point at, certStatus =
+  // the last-seen Railway certificate status (e.g. "ISSUED"/"ISSUING").
+  railwayDomainId String?
+  dnsTarget       String?
+  certStatus      String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
