@@ -282,6 +282,10 @@ model Assessment {
   id               String           @id @default(cuid())
   slug             String           @unique
   title            String
+  // Opt-in hero copy shown around the headline (title): eyebrow is a small kicker
+  // ABOVE it, subheadline a secondary line BELOW it. Both optional; null = hidden.
+  eyebrow          String?
+  subheadline      String?
   description      String?
   coverImageUrl    String?
   status           AssessmentStatus @default(DRAFT)

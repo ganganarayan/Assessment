@@ -32,6 +32,8 @@ export default async function EditAssessmentPage({
   const initial: AssessmentFormValues = {
     title: a.title,
     slug: a.slug,
+    eyebrow: a.eyebrow ?? "",
+    subheadline: a.subheadline ?? "",
     description: a.description ?? "",
     coverImageUrl: a.coverImageUrl ?? "",
     estimatedMinutes: a.estimatedMinutes ?? undefined,

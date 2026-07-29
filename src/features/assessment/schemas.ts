@@ -14,6 +14,8 @@ export const slugSchema = z
 export const assessmentSchema = z.object({
   title: z.string().min(2, "Title is required.").max(160),
   slug: slugSchema,
+  eyebrow: z.string().max(200).optional().or(z.literal("")),
+  subheadline: z.string().max(500).optional().or(z.literal("")),
   description: z.string().max(2000).optional().or(z.literal("")),
   coverImageUrl: z.string().url("Must be a valid URL.").optional().or(z.literal("")),
   estimatedMinutes: z.coerce.number().int().min(0).max(600).optional(),

@@ -40,6 +40,8 @@ function slugify(s: string) {
 const DEFAULTS: AssessmentFormValues = {
   title: "",
   slug: "",
+  eyebrow: "",
+  subheadline: "",
   description: "",
   coverImageUrl: "",
   estimatedMinutes: undefined,
@@ -140,7 +142,17 @@ export function AssessmentForm({
       <form onSubmit={onSubmit}>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="title">Title</Label>
+            <Label htmlFor="eyebrow">Eyebrow</Label>
+            <Input
+              id="eyebrow"
+              value={values.eyebrow ?? ""}
+              onChange={(e) => set("eyebrow", e.target.value)}
+              placeholder="Small kicker shown above the headline"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="title">Headline (title)</Label>
             <Input
               id="title"
               value={values.title}
@@ -150,6 +162,16 @@ export function AssessmentForm({
                 if (autoSlug) set("slug", slugify(title));
               }}
               required
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="subheadline">Sub-headline</Label>
+            <Input
+              id="subheadline"
+              value={values.subheadline ?? ""}
+              onChange={(e) => set("subheadline", e.target.value)}
+              placeholder="Secondary line shown below the headline"
             />
           </div>
 

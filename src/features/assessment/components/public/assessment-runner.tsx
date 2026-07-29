@@ -35,6 +35,8 @@ export interface PublicCategory {
 export interface PublicAssessment {
   slug: string;
   title: string;
+  eyebrow: string | null;
+  subheadline: string | null;
   description: string | null;
   coverImageUrl: string | null;
   estimatedMinutes: number | null;
@@ -377,7 +379,17 @@ export function AssessmentRunner({
           />
         ) : null}
         <div className="flex flex-col gap-2">
+          {assessment.eyebrow ? (
+            <p className="text-sm font-semibold uppercase tracking-wide text-[var(--primary)]">
+              {assessment.eyebrow}
+            </p>
+          ) : null}
           <h1 className="text-3xl font-bold tracking-tight">{assessment.title}</h1>
+          {assessment.subheadline ? (
+            <p className="text-lg font-medium text-[var(--foreground)]">
+              {assessment.subheadline}
+            </p>
+          ) : null}
           {assessment.description ? (
             <p className="whitespace-pre-line text-[var(--muted-foreground)]">
               {assessment.description}

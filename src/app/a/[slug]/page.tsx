@@ -29,6 +29,8 @@ export default async function PublicAssessmentPage({
   const assessment: PublicAssessment = {
     slug: a.slug,
     title: a.title,
+    eyebrow: a.eyebrow,
+    subheadline: a.subheadline,
     description: a.description,
     coverImageUrl: a.coverImageUrl,
     estimatedMinutes: a.estimatedMinutes,

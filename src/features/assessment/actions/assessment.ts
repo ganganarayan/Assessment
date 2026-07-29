@@ -44,6 +44,8 @@ export async function createAssessment(
     data: {
       title: d.title,
       slug: d.slug,
+      eyebrow: nullifyEmpty(d.eyebrow),
+      subheadline: nullifyEmpty(d.subheadline),
       description: nullifyEmpty(d.description),
       coverImageUrl: nullifyEmpty(d.coverImageUrl),
       estimatedMinutes: d.estimatedMinutes ?? null,
@@ -117,6 +119,8 @@ export async function updateAssessment(
     data: {
       title: d.title,
       slug: d.slug,
+      eyebrow: nullifyEmpty(d.eyebrow),
+      subheadline: nullifyEmpty(d.subheadline),
       description: nullifyEmpty(d.description),
       coverImageUrl: nullifyEmpty(d.coverImageUrl),
       estimatedMinutes: d.estimatedMinutes ?? null,
@@ -230,6 +234,8 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
       // below so it can be edited + published; the live snapshot starts empty.
       publishedPages: Prisma.DbNull,
       pagesPublishedAt: null,
+      eyebrow: src.eyebrow,
+      subheadline: src.subheadline,
       description: src.description,
       coverImageUrl: src.coverImageUrl,
       estimatedMinutes: src.estimatedMinutes,
