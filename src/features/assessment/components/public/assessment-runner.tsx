@@ -380,7 +380,7 @@ export function AssessmentRunner({
         ) : null}
         <div className="flex flex-col gap-2">
           {assessment.eyebrow ? (
-            <p className="text-sm font-semibold uppercase tracking-wide text-[var(--primary)]">
+            <p className="text-sm font-semibold uppercase tracking-wide text-[#D4AF37]">
               {assessment.eyebrow}
             </p>
           ) : null}
