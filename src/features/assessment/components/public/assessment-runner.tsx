@@ -360,14 +360,21 @@ export function AssessmentRunner({
       // Landing page + opt-in form on ONE screen (no separate "Start" step): the
       // headline/description show, with the lead form directly below.
       <form onSubmit={submitLead} className="flex flex-col gap-6">
-        {/* Honeypot: off-screen, not a tab stop, ignored by AT — only bots fill it. */}
+        {/* Honeypot: off-screen, not a tab stop, ignored by AT — only bots fill it.
+            The data-*ignore attrs stop password managers (LastPass/1Password/Bitwarden)
+            and browser autofill from filling it — otherwise a real human's autofill
+            trips the honeypot and gets wrongly blocked. */}
         <input
           ref={hpRef}
           type="text"
-          name="company_website"
+          name="contact_pref_hp"
           tabIndex={-1}
           autoComplete="off"
           aria-hidden="true"
+          data-lpignore="true"
+          data-1p-ignore="true"
+          data-bwignore="true"
+          data-form-type="other"
           className="absolute left-[-9999px] h-0 w-0 opacity-0"
         />
         {assessment.coverImageUrl ? (

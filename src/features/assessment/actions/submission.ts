@@ -273,6 +273,7 @@ export async function startSubmission(
   // value, silently refuse (no submission created) so bot opt-ins never pollute the
   // funnel. Same generic error a real user would never trigger.
   if (!preview && honeypot && honeypot.trim()) {
+    console.warn(`[start] blocked by HONEYPOT (slug=${slug}, len=${honeypot.trim().length}) — likely autofill/password-manager, not a bot`);
     return { ok: false, error: "Something went wrong. Please try again." };
   }
   const assessment = await prisma.assessment.findFirst({
@@ -343,6 +344,7 @@ export async function startSubmission(
   // Bot guard #2 — known crawlers/scrapers (search + AI bots, HTTP libraries) must
   // not create submissions. Real browser UAs never match; a match is a confident bot.
   if (!preview && isCrawlerUserAgent(metaCtx.clientUserAgent)) {
+    console.warn(`[start] blocked by CRAWLER-UA (slug=${slug}, ua=${(metaCtx.clientUserAgent ?? "").slice(0, 120)})`);
     return { ok: false, error: "Something went wrong. Please try again." };
   }
   // fbclid_timestamp (unix MILLISECONDS), ALWAYS set: prefer the REAL fbc creation
