@@ -14,6 +14,23 @@ import { decryptWithSecret } from "@/lib/crypto";
 const SEL_META = { metaPixelId: true, metaCapiTokenEnc: true } as const;
 const SEL_RZP = { razorpayKeyId: true, razorpayKeySecretEnc: true, razorpayWebhookSecretEnc: true } as const;
 
+/**
+ * Decrypt an encrypted secret, NEVER throwing. A corrupt/undecryptable stored value
+ * (e.g. saved under a different secret, or malformed) must not crash the caller —
+ * for money/analytics config a bad token has to degrade to "unset", not take down the
+ * live opt-in or checkout. Returns null on any failure so the platform falls back to
+ * env and a tenant is simply treated as unconfigured.
+ */
+function safeDecrypt(enc: string | null | undefined): string | null {
+  if (!enc) return null;
+  try {
+    return decryptWithSecret(enc, env.BETTER_AUTH_SECRET);
+  } catch (e) {
+    console.error("[settings/config] secret decrypt failed:", e instanceof Error ? e.message : String(e));
+    return null;
+  }
+}
+
 async function settingRow<T>(tenantId: string | null, select: T) {
   return tenantId
     ? prisma.appSetting.findUnique({ where: { tenantId }, select: select as never })
@@ -31,11 +48,9 @@ export async function resolveMetaConfig(tenantId: string | null): Promise<MetaCo
   const s = (await settingRow(tenantId, SEL_META)) as { metaPixelId: string | null; metaCapiTokenEnc: string | null } | null;
   const isPlatform = tenantId === null;
   const pixelId = s?.metaPixelId?.trim() || (isPlatform ? env.NEXT_PUBLIC_META_PIXEL_ID ?? null : null);
-  const capiToken = s?.metaCapiTokenEnc
-    ? decryptWithSecret(s.metaCapiTokenEnc, env.BETTER_AUTH_SECRET)
-    : isPlatform
-      ? env.META_CAPI_ACCESS_TOKEN ?? null
-      : null;
+  // Stored token wins; a corrupt/undecryptable one falls back to env for the platform
+  // (keeps the live Gita funnel firing), or leaves a tenant unconfigured — never throws.
+  const capiToken = safeDecrypt(s?.metaCapiTokenEnc) ?? (isPlatform ? env.META_CAPI_ACCESS_TOKEN ?? null : null);
   // Dataset id: the platform can override via env; otherwise the pixel id is the dataset.
   const datasetId = isPlatform ? env.META_DATASET_ID ?? pixelId : pixelId;
   return { pixelId, capiToken, datasetId };
@@ -57,15 +72,7 @@ export async function resolveRazorpayConfig(tenantId: string | null): Promise<Ra
   const isPlatform = tenantId === null;
   return {
     keyId: s?.razorpayKeyId?.trim() || (isPlatform ? env.RAZORPAY_KEY_ID ?? null : null),
-    keySecret: s?.razorpayKeySecretEnc
-      ? decryptWithSecret(s.razorpayKeySecretEnc, env.BETTER_AUTH_SECRET)
-      : isPlatform
-        ? env.RAZORPAY_KEY_SECRET ?? null
-        : null,
-    webhookSecret: s?.razorpayWebhookSecretEnc
-      ? decryptWithSecret(s.razorpayWebhookSecretEnc, env.BETTER_AUTH_SECRET)
-      : isPlatform
-        ? env.RAZORPAY_WEBHOOK_SECRET ?? null
-        : null,
+    keySecret: safeDecrypt(s?.razorpayKeySecretEnc) ?? (isPlatform ? env.RAZORPAY_KEY_SECRET ?? null : null),
+    webhookSecret: safeDecrypt(s?.razorpayWebhookSecretEnc) ?? (isPlatform ? env.RAZORPAY_WEBHOOK_SECRET ?? null : null),
   };
 }

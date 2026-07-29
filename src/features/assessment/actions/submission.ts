@@ -216,27 +216,33 @@ async function fireRegistration(
   lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null; profession: string | null },
   attr: ReturnType<typeof normalizeAttribution>,
 ): Promise<string> {
-  await emitStart(assessment, submissionId, customerId, lead, attr);
   const eventId = randomUUID();
-  // Server-side Meta CAPI. Inert unless configured; getMetaRequestContext is
-  // fail-soft; the send is fire-and-forget so Meta's network never adds latency.
-  // The eventId is returned regardless so the browser pixel can dedup.
-  if (await isCapiConfigured(assessment.tenant?.id ?? null)) {
-    const ctx = await getMetaRequestContext();
-    void sendCapiEvent({
-      eventName: "CompleteRegistration",
-      eventId,
-      eventTimeMs: Date.now(),
-      eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
-      user: {
-        email: lead.email,
-        phone: lead.mobile,
-        firstName: lead.firstName,
-        lastName: lead.lastName,
-        ...ctx,
-      },
-      customData: { content_name: assessment.title, assessment_name: assessment.title },
-    }, assessment.tenant?.id ?? null).catch(() => {});
+  // The submission is ALREADY persisted before this runs, so no CRM/CAPI side-effect
+  // may ever block the lead. Everything here is wrapped: a failure is logged and the
+  // opt-in still succeeds (the eventId is returned regardless for pixel dedup).
+  try {
+    await emitStart(assessment, submissionId, customerId, lead, attr);
+    // Server-side Meta CAPI. Inert unless configured; getMetaRequestContext is
+    // fail-soft; the send is fire-and-forget so Meta's network never adds latency.
+    if (await isCapiConfigured(assessment.tenant?.id ?? null)) {
+      const ctx = await getMetaRequestContext();
+      void sendCapiEvent({
+        eventName: "CompleteRegistration",
+        eventId,
+        eventTimeMs: Date.now(),
+        eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
+        user: {
+          email: lead.email,
+          phone: lead.mobile,
+          firstName: lead.firstName,
+          lastName: lead.lastName,
+          ...ctx,
+        },
+        customData: { content_name: assessment.title, assessment_name: assessment.title },
+      }, assessment.tenant?.id ?? null).catch(() => {});
+    }
+  } catch (e) {
+    console.error("[start] fireRegistration side-effect failed (lead still captured):", e instanceof Error ? e.message : String(e));
   }
   return eventId;
 }
