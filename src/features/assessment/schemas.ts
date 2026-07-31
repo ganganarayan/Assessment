@@ -52,6 +52,12 @@ export const assessmentSchema = z.object({
   // Custom profession dropdown options (trimmed, non-empty, deduped). Empty = the
   // built-in default list.
   professionOptions: z.array(z.string().trim().min(1).max(120)).max(100).default([]),
+  // Editable lead-field LABELS (blank = the built-in default label).
+  firstNameLabel: z.string().max(60).optional().or(z.literal("")),
+  lastNameLabel: z.string().max(60).optional().or(z.literal("")),
+  emailLabel: z.string().max(60).optional().or(z.literal("")),
+  mobileLabel: z.string().max(60).optional().or(z.literal("")),
+  professionLabel: z.string().max(60).optional().or(z.literal("")),
   // Editable opt-in copy. Blank = default behavior.
   introNotice: z.string().max(2000).optional().or(z.literal("")),
   startButtonLabel: z.string().max(120).optional().or(z.literal("")),

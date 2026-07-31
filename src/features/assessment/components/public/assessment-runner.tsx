@@ -59,6 +59,11 @@ export interface PublicAssessment {
   collectProfession: boolean;
   professionRequired: boolean;
   professionOptions: string[];
+  firstNameLabel: string | null;
+  lastNameLabel: string | null;
+  emailLabel: string | null;
+  mobileLabel: string | null;
+  professionLabel: string | null;
   introNotice: string | null;
   startButtonLabel: string | null;
   paidMode: boolean;
@@ -450,7 +455,7 @@ export function AssessmentRunner({
         <div className="flex flex-col gap-4">
           {assessment.collectFirstName ? (
             <Field
-              label="First name"
+              label={assessment.firstNameLabel?.trim() || "First name"}
               required={assessment.firstNameRequired}
               value={lead.firstName ?? ""}
               onChange={(v) => setLead((l) => ({ ...l, firstName: v }))}
@@ -458,7 +463,7 @@ export function AssessmentRunner({
           ) : null}
           {assessment.collectLastName ? (
             <Field
-              label="Last name"
+              label={assessment.lastNameLabel?.trim() || "Last name"}
               required={assessment.lastNameRequired}
               value={lead.lastName ?? ""}
               onChange={(v) => setLead((l) => ({ ...l, lastName: v }))}
@@ -466,7 +471,7 @@ export function AssessmentRunner({
           ) : null}
           {assessment.collectEmail ? (
             <Field
-              label="Email"
+              label={assessment.emailLabel?.trim() || "Email"}
               type="email"
               required={assessment.emailRequired}
               value={lead.email ?? ""}
@@ -475,7 +480,7 @@ export function AssessmentRunner({
           ) : null}
           {assessment.collectMobile ? (
             <Field
-              label="Mobile"
+              label={assessment.mobileLabel?.trim() || "Mobile"}
               required={assessment.mobileRequired}
               value={lead.mobile ?? ""}
               onChange={(v) => setLead((l) => ({ ...l, mobile: v }))}
@@ -483,7 +488,7 @@ export function AssessmentRunner({
           ) : null}
           {assessment.collectProfession ? (
             <SelectField
-              label="Profession"
+              label={assessment.professionLabel?.trim() || "Profession"}
               required={assessment.professionRequired}
               value={lead.profession ?? ""}
               options={professionOptionsFor(assessment.professionOptions)}

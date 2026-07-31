@@ -318,6 +318,14 @@ model Assessment {
   // Custom profession dropdown options. Empty = the built-in default list.
   professionOptions  String[] @default([])
 
+  // Editable lead-field LABELS on the opt-in form. Null = the built-in default
+  // ("First name", "Email", "Profession", …). Only the label changes, not the field.
+  firstNameLabel  String?
+  lastNameLabel   String?
+  emailLabel      String?
+  mobileLabel     String?
+  professionLabel String?
+
   // Editable intro copy. introNotice overrides the auto retake message on the
   // opt-in screen (null = the computed message). startButtonLabel overrides the
   // opt-in button text (null/empty = "Start").

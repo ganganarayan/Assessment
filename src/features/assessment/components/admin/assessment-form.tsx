@@ -22,11 +22,11 @@ import {
 export type AssessmentFormValues = AssessmentInput;
 
 const LEAD_FIELDS = [
-  { collect: "collectFirstName", required: "firstNameRequired", label: "First name" },
-  { collect: "collectLastName", required: "lastNameRequired", label: "Last name" },
-  { collect: "collectEmail", required: "emailRequired", label: "Email" },
-  { collect: "collectMobile", required: "mobileRequired", label: "Mobile" },
-  { collect: "collectProfession", required: "professionRequired", label: "Profession" },
+  { collect: "collectFirstName", required: "firstNameRequired", label: "First name", labelKey: "firstNameLabel" },
+  { collect: "collectLastName", required: "lastNameRequired", label: "Last name", labelKey: "lastNameLabel" },
+  { collect: "collectEmail", required: "emailRequired", label: "Email", labelKey: "emailLabel" },
+  { collect: "collectMobile", required: "mobileRequired", label: "Mobile", labelKey: "mobileLabel" },
+  { collect: "collectProfession", required: "professionRequired", label: "Profession", labelKey: "professionLabel" },
 ] as const;
 
 function slugify(s: string) {
@@ -62,6 +62,11 @@ const DEFAULTS: AssessmentFormValues = {
   collectProfession: true,
   professionRequired: true,
   professionOptions: [],
+  firstNameLabel: "",
+  lastNameLabel: "",
+  emailLabel: "",
+  mobileLabel: "",
+  professionLabel: "",
   introNotice: "",
   startButtonLabel: "",
   retakePolicy: "DELAYED",
@@ -246,8 +251,8 @@ export function AssessmentForm({
             <p className="text-sm font-medium">Lead capture</p>
             <div className="flex flex-col gap-2">
               {LEAD_FIELDS.map((f) => (
-                <div key={f.collect} className="flex items-center gap-6 text-sm">
-                  <span className="w-24">{f.label}</span>
+                <div key={f.collect} className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                  <span className="w-24 shrink-0">{f.label}</span>
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -265,6 +270,13 @@ export function AssessmentForm({
                     />
                     Required
                   </label>
+                  <Input
+                    className="h-8 max-w-[13rem] flex-1 text-sm"
+                    placeholder={`Label (default: ${f.label})`}
+                    value={values[f.labelKey] ?? ""}
+                    disabled={!values[f.collect]}
+                    onChange={(e) => set(f.labelKey, e.target.value)}
+                  />
                 </div>
               ))}
             </div>
