@@ -13,7 +13,7 @@ import { type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
 import { type PaymentCheckout } from "@/lib/payments/types";
 import { ResultPages } from "@/features/assessment/components/public/result-pages";
-import { type LeadInput, professionOptionsFor } from "@/features/assessment/schemas";
+import { type LeadInput, professionOptionsFor, type PreResultField } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,11 @@ export interface PublicAssessment {
   subheadline: string | null;
   description: string | null;
   coverImageUrl: string | null;
+  buttonColor: string | null;
+  buttonTextColor: string | null;
+  preResultHeading: string | null;
+  preResultSubtext: string | null;
+  preResultFields: PreResultField[];
   estimatedMinutes: number | null;
   trainingUrl: string | null;
   retakePolicy: "DELAYED" | "NEVER" | "UNLIMITED";
@@ -67,7 +72,7 @@ export interface PublicAssessment {
   pages: AssessmentPageData[];
 }
 
-type Step = "intro" | "questions" | "locked" | "evaluating" | "resultPages";
+type Step = "intro" | "questions" | "details" | "locked" | "evaluating" | "resultPages";
 
 /** Anticipation countdown shown after Submit before the VSL/destination loads.
  *  Single source of truth; promote to a per-assessment field if it needs to vary. */
@@ -100,6 +105,13 @@ export function AssessmentRunner({
 }) {
   const [step, setStep] = useState<Step>("intro");
   const [submissionId, setSubmissionId] = useState<string | null>(null);
+  // Answers to the optional pre-results details page, keyed by field id.
+  const [detailAnswers, setDetailAnswers] = useState<Record<string, string>>({});
+  // Per-assessment CTA styling; blank falls back to the default (green/white) theme.
+  const ctaStyle: React.CSSProperties = {
+    ...(assessment.buttonColor ? { backgroundColor: assessment.buttonColor, borderColor: assessment.buttonColor } : {}),
+    ...(assessment.buttonTextColor ? { color: assessment.buttonTextColor } : {}),
+  };
   // Unguessable capability returned at Start; sent with draft-save + complete so those
   // writes can't be driven by guessing the submission id.
   const [editToken, setEditToken] = useState<string | null>(null);
@@ -219,17 +231,43 @@ export function AssessmentRunner({
       setError(`Please answer all required questions (${requiredUnanswered} left).`);
       return;
     }
+    // Optional pre-results data-capture page: collect the extra details first, then
+    // complete. No fields configured = complete straight away (unchanged flow).
+    if (assessment.preResultFields.length > 0) {
+      setStep("details");
+      return;
+    }
+    runCompletion();
+  }
+
+  function submitDetails() {
+    setError(null);
+    const missing = assessment.preResultFields.find((f) => f.required && !(detailAnswers[f.id] ?? "").trim());
+    if (missing) {
+      setError(`Please fill in "${missing.label}".`);
+      return;
+    }
+    runCompletion(detailAnswers);
+  }
+
+  function runCompletion(preResultAnswers?: Record<string, string>) {
+    if (!submissionId) {
+      setError("Session expired. Please restart.");
+      setStep("questions");
+      return;
+    }
     const payload = {
       answers: Object.entries(answers).map(([questionId, optionId]) => ({
         questionId,
         optionId,
       })),
     };
+    const details = preResultAnswers && Object.keys(preResultAnswers).length ? preResultAnswers : undefined;
     // Switch to the countdown IMMEDIATELY (outside the transition) so it renders
     // from 3, while the server scores + generates the AI statement.
     setStep("evaluating");
     start(async () => {
-      const res = await completeSubmission(submissionId, payload, editToken ?? undefined);
+      const res = await completeSubmission(submissionId, payload, editToken ?? undefined, details);
       if (!res.ok) {
         setError(res.error);
         setStep("questions");
@@ -461,7 +499,7 @@ export function AssessmentRunner({
           </div>
         ) : null}
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
-        <Button size="lg" type="submit" disabled={pending}>
+        <Button size="lg" type="submit" disabled={pending} style={ctaStyle}>
           {pending ? "Starting…" : assessment.startButtonLabel?.trim() || "Start"}
         </Button>
       </form>
@@ -529,6 +567,54 @@ export function AssessmentRunner({
 
   if (step === "evaluating") {
     return <EvaluatingCountdown redirectUrl={redirectUrl} seconds={assessment.vslCountdownSeconds} />;
+  }
+
+  if (step === "details") {
+    const setDetail = (id: string, v: string) => setDetailAnswers((prev) => ({ ...prev, [id]: v }));
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-2xl font-bold tracking-tight">
+            {assessment.preResultHeading?.trim() || "A few last details"}
+          </h2>
+          {assessment.preResultSubtext ? (
+            <p className="whitespace-pre-line text-[var(--muted-foreground)]">{assessment.preResultSubtext}</p>
+          ) : null}
+        </div>
+
+        {assessment.preResultFields.map((field) => (
+          <div key={field.id} className="flex flex-col gap-2">
+            <Label htmlFor={`pr-${field.id}`}>
+              {field.label} {field.required ? <span className="text-red-500">*</span> : null}
+            </Label>
+            {field.type === "select" ? (
+              <select
+                id={`pr-${field.id}`}
+                value={detailAnswers[field.id] ?? ""}
+                onChange={(e) => setDetail(field.id, e.target.value)}
+                className="h-11 rounded-md border border-[var(--border)] bg-transparent px-3 text-base"
+              >
+                <option value="">Select…</option>
+                {field.options.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                id={`pr-${field.id}`}
+                value={detailAnswers[field.id] ?? ""}
+                onChange={(e) => setDetail(field.id, e.target.value)}
+              />
+            )}
+          </div>
+        ))}
+
+        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+        <Button size="lg" onClick={submitDetails} disabled={pending} style={ctaStyle}>
+          {pending ? "Please wait…" : "Continue"}
+        </Button>
+      </div>
+    );
   }
 
   // step === "questions" — paginate the questions by the display mode.
@@ -621,7 +707,7 @@ export function AssessmentRunner({
           <span />
         )}
         {isLast ? (
-          <Button size="lg" onClick={submitAnswers} disabled={pending}>
+          <Button size="lg" onClick={submitAnswers} disabled={pending} style={ctaStyle}>
             {pending
               ? "Submitting…"
               : assessment.pages.length === 0 && assessment.paidMode && assessment.paymentButtonLabel
@@ -629,7 +715,7 @@ export function AssessmentRunner({
                 : "Submit"}
           </Button>
         ) : (
-          <Button size="lg" onClick={goNext} disabled={pending}>
+          <Button size="lg" onClick={goNext} disabled={pending} style={ctaStyle}>
             Next
           </Button>
         )}

@@ -288,6 +288,18 @@ model Assessment {
   subheadline      String?
   description      String?
   coverImageUrl    String?
+
+  // Funnel CTA styling: primary-button background + text colour (hex, e.g. "#16a34a").
+  // Null = the default green/white theme, so existing funnels are unchanged.
+  buttonColor     String?
+  buttonTextColor String?
+
+  // Optional "pre-results" data-capture page shown AFTER the questions, BEFORE the
+  // results. preResultFields = ordered JSON [{ id, label, type: "text"|"select",
+  // options: string[], required: boolean }]. Null/empty = no extra page (unchanged flow).
+  preResultHeading String?
+  preResultSubtext String?
+  preResultFields  Json?
   status           AssessmentStatus @default(DRAFT)
   estimatedMinutes Int?
   thankYouMessage  String?
@@ -594,6 +606,10 @@ model Submission {
   leadEmail      String?
   leadMobile     String?
   leadProfession String?
+
+  // Answers to the assessment's optional "pre-results" data-capture page, keyed by
+  // the field id: { [fieldId]: string }. Null when the assessment has no such page.
+  preResultAnswers Json?
 
   // Marketing attribution captured from the landing URL (utm_*, fbclid, gclid).
   // Stored as JSON so new click-id params need no schema change.

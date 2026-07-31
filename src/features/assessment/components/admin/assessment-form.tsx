@@ -43,6 +43,11 @@ const DEFAULTS: AssessmentFormValues = {
   eyebrow: "",
   subheadline: "",
   description: "",
+  buttonColor: "",
+  buttonTextColor: "",
+  preResultHeading: "",
+  preResultSubtext: "",
+  preResultFields: [],
   coverImageUrl: "",
   estimatedMinutes: undefined,
   thankYouMessage: "",
@@ -112,10 +117,14 @@ export function AssessmentForm({
     e.preventDefault();
     setError(null);
     start(async () => {
-      // Clean the profession options (drop blank lines) before validation.
+      // Clean the profession options + pre-result fields (drop blank lines / empty
+      // fields) before validation.
       const payload = {
         ...values,
         professionOptions: values.professionOptions.map((s) => s.trim()).filter(Boolean),
+        preResultFields: values.preResultFields
+          .map((f) => ({ ...f, label: f.label.trim(), options: f.options.map((o) => o.trim()).filter(Boolean) }))
+          .filter((f) => f.label.length > 0),
       };
       const res =
         mode === "create"
@@ -306,6 +315,93 @@ export function AssessmentForm({
                 </p>
               </div>
             ) : null}
+          </div>
+
+          <div className="flex flex-col gap-4 rounded-lg border p-4">
+            <p className="text-sm font-medium">Button colours</p>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              The funnel&apos;s primary buttons. Blank = the default green / white.
+            </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="buttonColor">Button colour</Label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={values.buttonColor || "#16a34a"} onChange={(e) => set("buttonColor", e.target.value)} className="h-9 w-12 shrink-0 rounded border" />
+                  <Input id="buttonColor" className="max-w-[10rem]" placeholder="#16a34a" value={values.buttonColor ?? ""} onChange={(e) => set("buttonColor", e.target.value)} />
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="buttonTextColor">Button text colour</Label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={values.buttonTextColor || "#ffffff"} onChange={(e) => set("buttonTextColor", e.target.value)} className="h-9 w-12 shrink-0 rounded border" />
+                  <Input id="buttonTextColor" className="max-w-[10rem]" placeholder="#ffffff" value={values.buttonTextColor ?? ""} onChange={(e) => set("buttonTextColor", e.target.value)} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 rounded-lg border p-4">
+            <p className="text-sm font-medium">Pre-results details page</p>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Optional. Shown after the questions, before results. Answers are saved against the
+              lead. No fields = no extra page.
+            </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="preResultHeading">Page heading</Label>
+                <Input id="preResultHeading" placeholder="A few last details" value={values.preResultHeading ?? ""} onChange={(e) => set("preResultHeading", e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="preResultSubtext">Sub-text</Label>
+                <Input id="preResultSubtext" value={values.preResultSubtext ?? ""} onChange={(e) => set("preResultSubtext", e.target.value)} />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {values.preResultFields.map((field, idx) => (
+                <div key={field.id} className="flex flex-col gap-2 rounded-md border p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      className="min-w-[12rem] flex-1"
+                      placeholder="Field label (e.g. Company size)"
+                      value={field.label}
+                      onChange={(e) => set("preResultFields", values.preResultFields.map((f, i) => (i === idx ? { ...f, label: e.target.value } : f)))}
+                    />
+                    <select
+                      value={field.type}
+                      onChange={(e) => set("preResultFields", values.preResultFields.map((f, i) => (i === idx ? { ...f, type: e.target.value as "text" | "select" } : f)))}
+                      className="h-9 rounded-md border bg-transparent px-2 text-sm"
+                    >
+                      <option value="text">Text</option>
+                      <option value="select">Dropdown</option>
+                    </select>
+                    <label className="flex items-center gap-1 whitespace-nowrap text-sm">
+                      <input type="checkbox" checked={field.required} onChange={(e) => set("preResultFields", values.preResultFields.map((f, i) => (i === idx ? { ...f, required: e.target.checked } : f)))} />
+                      Required
+                    </label>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => set("preResultFields", values.preResultFields.filter((_, i) => i !== idx))}>Remove</Button>
+                  </div>
+                  {field.type === "select" ? (
+                    <Textarea
+                      rows={4}
+                      placeholder={"Dropdown options, one per line\n1-10 employees\n11-50 employees\n51-200 employees"}
+                      value={field.options.join("\n")}
+                      onChange={(e) => set("preResultFields", values.preResultFields.map((f, i) => (i === idx ? { ...f, options: e.target.value.split("\n") } : f)))}
+                    />
+                  ) : null}
+                </div>
+              ))}
+              <div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => set("preResultFields", [...values.preResultFields, { id: crypto.randomUUID(), label: "", type: "text", options: [], required: false }])}
+                >
+                  + Add field
+                </Button>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col gap-3 rounded-lg border p-4">

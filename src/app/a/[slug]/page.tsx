@@ -6,6 +6,7 @@ import {
   type PublicAssessment,
 } from "@/features/assessment/components/public/assessment-runner";
 import { readPublishedPages } from "@/features/assessment/pages/blocks";
+import { type PreResultField } from "@/features/assessment/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,11 @@ export default async function PublicAssessmentPage({
     eyebrow: a.eyebrow,
     subheadline: a.subheadline,
     description: a.description,
+    buttonColor: a.buttonColor,
+    buttonTextColor: a.buttonTextColor,
+    preResultHeading: a.preResultHeading,
+    preResultSubtext: a.preResultSubtext,
+    preResultFields: ((a.preResultFields as PreResultField[] | null) ?? []).filter((f) => f && f.label),
     coverImageUrl: a.coverImageUrl,
     estimatedMinutes: a.estimatedMinutes,
     trainingUrl: a.trainingUrl,

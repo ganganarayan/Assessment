@@ -11,12 +11,30 @@ export const slugSchema = z
     "Slug must be lowercase letters, numbers, and hyphens.",
   );
 
+/** One field on the optional "pre-results" data-capture page. */
+export const preResultFieldSchema = z.object({
+  id: z.string().min(1).max(60),
+  label: z.string().trim().min(1, "Field label is required.").max(200),
+  type: z.enum(["text", "select"]),
+  // Dropdown options (for type "select"); trimmed + non-empty. Ignored for "text".
+  options: z.array(z.string().trim().min(1).max(200)).max(100).default([]),
+  required: z.boolean().default(false),
+});
+export type PreResultField = z.infer<typeof preResultFieldSchema>;
+
 export const assessmentSchema = z.object({
   title: z.string().min(2, "Title is required.").max(160),
   slug: slugSchema,
   eyebrow: z.string().max(200).optional().or(z.literal("")),
   subheadline: z.string().max(500).optional().or(z.literal("")),
   description: z.string().max(2000).optional().or(z.literal("")),
+  // Funnel CTA styling (hex like "#16a34a"); blank = default green/white theme.
+  buttonColor: z.string().max(20).optional().or(z.literal("")),
+  buttonTextColor: z.string().max(20).optional().or(z.literal("")),
+  // Optional pre-results data-capture page.
+  preResultHeading: z.string().max(200).optional().or(z.literal("")),
+  preResultSubtext: z.string().max(1000).optional().or(z.literal("")),
+  preResultFields: z.array(preResultFieldSchema).max(30).default([]),
   coverImageUrl: z.string().url("Must be a valid URL.").optional().or(z.literal("")),
   estimatedMinutes: z.coerce.number().int().min(0).max(600).optional(),
   thankYouMessage: z.string().max(2000).optional().or(z.literal("")),

@@ -581,6 +581,7 @@ export async function completeSubmission(
   submissionId: string,
   input: AnswersInput,
   editToken?: string,
+  preResultAnswers?: Record<string, string>,
 ): Promise<
   ActionResult<{
     submissionId: string;
@@ -626,6 +627,22 @@ export async function completeSubmission(
   // are allowed through).
   if (submission.editToken && submission.editToken !== editToken) {
     return { ok: false, error: "Not authorized." };
+  }
+
+  // Persist the optional pre-results details (sanitized + capped — untrusted client
+  // input). Saved regardless of the completion branch; non-fatal on failure.
+  if (preResultAnswers && typeof preResultAnswers === "object") {
+    const clean = Object.fromEntries(
+      Object.entries(preResultAnswers)
+        .filter(([, v]) => typeof v === "string" && v.trim())
+        .slice(0, 50)
+        .map(([k, v]) => [String(k).slice(0, 60), String(v).slice(0, 500)]),
+    );
+    if (Object.keys(clean).length) {
+      await prisma.submission
+        .update({ where: { id: submissionId }, data: { preResultAnswers: clean as unknown as Prisma.InputJsonValue } })
+        .catch(() => {});
+    }
   }
 
   // Customer details for the Razorpay payment link (used by all paid paths).
