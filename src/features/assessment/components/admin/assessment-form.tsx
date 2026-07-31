@@ -6,7 +6,7 @@ import {
   createAssessment,
   updateAssessment,
 } from "@/features/assessment/actions/assessment";
-import type { AssessmentInput } from "@/features/assessment/schemas";
+import type { AssessmentInput, PreResultField } from "@/features/assessment/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,65 @@ const LEAD_FIELDS = [
   { collect: "collectMobile", required: "mobileRequired", label: "Mobile", labelKey: "mobileLabel" },
   { collect: "collectProfession", required: "professionRequired", label: "Profession", labelKey: "professionLabel" },
 ] as const;
+
+/** Reusable editor for a list of custom fields (label + Text/Dropdown + options +
+ *  required). Used for both the opt-in extra fields and the pre-results page. */
+function CustomFieldsEditor({ fields, onChange }: { fields: PreResultField[]; onChange: (next: PreResultField[]) => void }) {
+  return (
+    <div className="flex flex-col gap-3">
+      {fields.map((field, idx) => (
+        <div key={field.id} className="flex flex-col gap-2 rounded-md border p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              className="min-w-[12rem] flex-1"
+              placeholder="Field label (e.g. Company size)"
+              value={field.label}
+              onChange={(e) => onChange(fields.map((f, i) => (i === idx ? { ...f, label: e.target.value } : f)))}
+            />
+            <select
+              value={field.type}
+              onChange={(e) => onChange(fields.map((f, i) => (i === idx ? { ...f, type: e.target.value as "text" | "select" } : f)))}
+              className="h-9 rounded-md border bg-transparent px-2 text-sm"
+            >
+              <option value="text">Text</option>
+              <option value="select">Dropdown</option>
+            </select>
+            <label className="flex items-center gap-1 whitespace-nowrap text-sm">
+              <input type="checkbox" checked={field.required} onChange={(e) => onChange(fields.map((f, i) => (i === idx ? { ...f, required: e.target.checked } : f)))} />
+              Required
+            </label>
+            <Button type="button" size="sm" variant="ghost" onClick={() => onChange(fields.filter((_, i) => i !== idx))}>Remove</Button>
+          </div>
+          {field.type === "select" ? (
+            <Textarea
+              rows={4}
+              placeholder={"Dropdown options, one per line\n1-10 employees\n11-50 employees\n51-200 employees"}
+              value={field.options.join("\n")}
+              onChange={(e) => onChange(fields.map((f, i) => (i === idx ? { ...f, options: e.target.value.split("\n") } : f)))}
+            />
+          ) : null}
+        </div>
+      ))}
+      <div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => onChange([...fields, { id: crypto.randomUUID(), label: "", type: "text", options: [], required: false }])}
+        >
+          + Add field
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** Trim labels/options and drop fields with no label (before validation). */
+function cleanFields(fields: PreResultField[]): PreResultField[] {
+  return fields
+    .map((f) => ({ ...f, label: f.label.trim(), options: f.options.map((o) => o.trim()).filter(Boolean) }))
+    .filter((f) => f.label.length > 0);
+}
 
 function slugify(s: string) {
   return s
@@ -67,6 +126,7 @@ const DEFAULTS: AssessmentFormValues = {
   emailLabel: "",
   mobileLabel: "",
   professionLabel: "",
+  optinFields: [],
   introNotice: "",
   startButtonLabel: "",
   retakePolicy: "DELAYED",
@@ -127,9 +187,8 @@ export function AssessmentForm({
       const payload = {
         ...values,
         professionOptions: values.professionOptions.map((s) => s.trim()).filter(Boolean),
-        preResultFields: values.preResultFields
-          .map((f) => ({ ...f, label: f.label.trim(), options: f.options.map((o) => o.trim()).filter(Boolean) }))
-          .filter((f) => f.label.length > 0),
+        preResultFields: cleanFields(values.preResultFields),
+        optinFields: cleanFields(values.optinFields),
       };
       const res =
         mode === "create"
@@ -369,51 +428,16 @@ export function AssessmentForm({
               </div>
             </div>
 
-            <div className="flex flex-col gap-3">
-              {values.preResultFields.map((field, idx) => (
-                <div key={field.id} className="flex flex-col gap-2 rounded-md border p-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Input
-                      className="min-w-[12rem] flex-1"
-                      placeholder="Field label (e.g. Company size)"
-                      value={field.label}
-                      onChange={(e) => set("preResultFields", values.preResultFields.map((f, i) => (i === idx ? { ...f, label: e.target.value } : f)))}
-                    />
-                    <select
-                      value={field.type}
-                      onChange={(e) => set("preResultFields", values.preResultFields.map((f, i) => (i === idx ? { ...f, type: e.target.value as "text" | "select" } : f)))}
-                      className="h-9 rounded-md border bg-transparent px-2 text-sm"
-                    >
-                      <option value="text">Text</option>
-                      <option value="select">Dropdown</option>
-                    </select>
-                    <label className="flex items-center gap-1 whitespace-nowrap text-sm">
-                      <input type="checkbox" checked={field.required} onChange={(e) => set("preResultFields", values.preResultFields.map((f, i) => (i === idx ? { ...f, required: e.target.checked } : f)))} />
-                      Required
-                    </label>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => set("preResultFields", values.preResultFields.filter((_, i) => i !== idx))}>Remove</Button>
-                  </div>
-                  {field.type === "select" ? (
-                    <Textarea
-                      rows={4}
-                      placeholder={"Dropdown options, one per line\n1-10 employees\n11-50 employees\n51-200 employees"}
-                      value={field.options.join("\n")}
-                      onChange={(e) => set("preResultFields", values.preResultFields.map((f, i) => (i === idx ? { ...f, options: e.target.value.split("\n") } : f)))}
-                    />
-                  ) : null}
-                </div>
-              ))}
-              <div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => set("preResultFields", [...values.preResultFields, { id: crypto.randomUUID(), label: "", type: "text", options: [], required: false }])}
-                >
-                  + Add field
-                </Button>
-              </div>
-            </div>
+            <CustomFieldsEditor fields={values.preResultFields} onChange={(next) => set("preResultFields", next)} />
+          </div>
+
+          <div className="flex flex-col gap-4 rounded-lg border p-4">
+            <p className="text-sm font-medium">Extra opt-in fields</p>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Additional questions shown on the opt-in form, below Profession. Text or dropdown;
+              answers are saved against the lead. No fields = the standard form.
+            </p>
+            <CustomFieldsEditor fields={values.optinFields} onChange={(next) => set("optinFields", next)} />
           </div>
 
           <div className="flex flex-col gap-3 rounded-lg border p-4">

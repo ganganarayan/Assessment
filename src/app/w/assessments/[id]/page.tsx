@@ -41,6 +41,7 @@ export default async function WorkspaceEditAssessmentPage({
     preResultHeading: a.preResultHeading ?? "",
     preResultSubtext: a.preResultSubtext ?? "",
     preResultFields: (a.preResultFields as AssessmentFormValues["preResultFields"] | null) ?? [],
+    optinFields: (a.optinFields as AssessmentFormValues["optinFields"] | null) ?? [],
     coverImageUrl: a.coverImageUrl ?? "",
     estimatedMinutes: a.estimatedMinutes ?? undefined,
     thankYouMessage: a.thankYouMessage ?? "",

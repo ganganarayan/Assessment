@@ -58,6 +58,8 @@ export const assessmentSchema = z.object({
   emailLabel: z.string().max(60).optional().or(z.literal("")),
   mobileLabel: z.string().max(60).optional().or(z.literal("")),
   professionLabel: z.string().max(60).optional().or(z.literal("")),
+  // Extra custom fields on the opt-in form (same shape as pre-results fields).
+  optinFields: z.array(preResultFieldSchema).max(30).default([]),
   // Editable opt-in copy. Blank = default behavior.
   introNotice: z.string().max(2000).optional().or(z.literal("")),
   startButtonLabel: z.string().max(120).optional().or(z.literal("")),

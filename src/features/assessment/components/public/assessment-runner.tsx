@@ -64,6 +64,7 @@ export interface PublicAssessment {
   emailLabel: string | null;
   mobileLabel: string | null;
   professionLabel: string | null;
+  optinFields: PreResultField[];
   introNotice: string | null;
   startButtonLabel: string | null;
   paidMode: boolean;
@@ -112,6 +113,8 @@ export function AssessmentRunner({
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   // Answers to the optional pre-results details page, keyed by field id.
   const [detailAnswers, setDetailAnswers] = useState<Record<string, string>>({});
+  // Answers to the extra opt-in fields, keyed by field id.
+  const [optinAnswers, setOptinAnswers] = useState<Record<string, string>>({});
   // Per-assessment CTA styling; blank falls back to the default (green/white) theme.
   const ctaStyle: React.CSSProperties = {
     ...(assessment.buttonColor ? { backgroundColor: assessment.buttonColor, borderColor: assessment.buttonColor } : {}),
@@ -179,11 +182,18 @@ export function AssessmentRunner({
   function submitLead(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    // Required extra opt-in fields must be filled before we start.
+    const missingOptin = assessment.optinFields.find((f) => f.required && !(optinAnswers[f.id] ?? "").trim());
+    if (missingOptin) {
+      setError(`Please fill in "${missingOptin.label}".`);
+      return;
+    }
     // Honeypot: hidden field only a bot fills. Its value is passed to the server,
     // which silently refuses when it is non-empty.
     const honeypot = hpRef.current?.value ?? "";
+    const optin = Object.keys(optinAnswers).length ? optinAnswers : undefined;
     start(async () => {
-      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot);
+      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot, optin);
       if (!res.ok) {
         setError(res.error);
         return;
@@ -496,6 +506,28 @@ export function AssessmentRunner({
               onChange={(v) => setLead((l) => ({ ...l, profession: v }))}
             />
           ) : null}
+
+          {assessment.optinFields.map((f) =>
+            f.type === "select" ? (
+              <SelectField
+                key={f.id}
+                label={f.label}
+                required={f.required}
+                value={optinAnswers[f.id] ?? ""}
+                options={f.options}
+                placeholder="Select…"
+                onChange={(v) => setOptinAnswers((prev) => ({ ...prev, [f.id]: v }))}
+              />
+            ) : (
+              <Field
+                key={f.id}
+                label={f.label}
+                required={f.required}
+                value={optinAnswers[f.id] ?? ""}
+                onChange={(v) => setOptinAnswers((prev) => ({ ...prev, [f.id]: v }))}
+              />
+            ),
+          )}
         </div>
 
         {assessment.paidMode && assessment.paymentIntroText ? (

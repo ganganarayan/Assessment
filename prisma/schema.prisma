@@ -326,6 +326,11 @@ model Assessment {
   mobileLabel     String?
   professionLabel String?
 
+  // Extra custom fields on the OPT-IN form (beyond the built-in lead fields), same
+  // shape as preResultFields: [{ id, label, type: "text"|"select", options[], required }].
+  // Null/empty = none. Answers land on Submission.optinAnswers.
+  optinFields Json?
+
   // Editable intro copy. introNotice overrides the auto retake message on the
   // opt-in screen (null = the computed message). startButtonLabel overrides the
   // opt-in button text (null/empty = "Start").
@@ -618,6 +623,9 @@ model Submission {
   // Answers to the assessment's optional "pre-results" data-capture page, keyed by
   // the field id: { [fieldId]: string }. Null when the assessment has no such page.
   preResultAnswers Json?
+
+  // Answers to the assessment's extra OPT-IN fields, keyed by field id. Null = none.
+  optinAnswers Json?
 
   // Marketing attribution captured from the landing URL (utm_*, fbclid, gclid).
   // Stored as JSON so new click-id params need no schema change.

@@ -59,6 +59,7 @@ export default async function PublicAssessmentPage({
     emailLabel: a.emailLabel,
     mobileLabel: a.mobileLabel,
     professionLabel: a.professionLabel,
+    optinFields: ((a.optinFields as PreResultField[] | null) ?? []).filter((f) => f && f.label),
     introNotice: a.introNotice,
     startButtonLabel: a.startButtonLabel,
     paidMode: a.paidMode,

@@ -268,6 +268,7 @@ export async function startSubmission(
   attribution?: Record<string, string>,
   preview?: boolean,
   honeypot?: string,
+  optinAnswers?: Record<string, string>,
 ): Promise<ActionResult<StartResult>> {
   // Bot guard #1 — honeypot: a hidden form field no human fills. If it carries a
   // value, silently refuse (no submission created) so bot opt-ins never pollute the
@@ -367,6 +368,17 @@ export async function startSubmission(
     adminPreview = u ? isPlatformOwner(u.email) : false;
   }
 
+  // Extra opt-in field answers — sanitized + capped (untrusted client input).
+  const cleanOptin = optinAnswers && typeof optinAnswers === "object"
+    ? Object.fromEntries(
+        Object.entries(optinAnswers)
+          .filter(([, v]) => typeof v === "string" && v.trim())
+          .slice(0, 50)
+          .map(([k, v]) => [String(k).slice(0, 60), String(v).slice(0, 500)]),
+      )
+    : {};
+  const optinData = Object.keys(cleanOptin).length ? { optinAnswers: cleanOptin as unknown as Prisma.InputJsonValue } : {};
+
   const submissionData = {
     assessmentId: assessment.id,
     tenantId: assessment.tenantId,
@@ -383,6 +395,7 @@ export async function startSubmission(
     fbp: metaCtx.fbp,
     fbc: metaCtx.fbc,
     fbclidTimestamp,
+    ...optinData,
     ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
   };
 
@@ -429,6 +442,7 @@ export async function startSubmission(
         leadEmail: submissionData.leadEmail,
         leadMobile: submissionData.leadMobile,
         leadProfession: submissionData.leadProfession,
+        ...optinData,
         ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
       };
       const inflight = await tx.submission.findFirst({
