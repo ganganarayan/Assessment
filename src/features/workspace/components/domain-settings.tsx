@@ -20,6 +20,7 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const managed = initial.railwayManaged;
+  const autoDns = initial.autoDns;
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) =>
     start(async () => {
@@ -34,19 +35,30 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
       const r = await addDomain(hostname);
       if (r.ok) setHostname("");
       return r;
-    }, managed ? "Domain added — point its CNAME at the target shown, then Check status." : "Domain added — point its DNS, then Check status.");
+    }, autoDns ? "Domain added — DNS + HTTPS are being set up automatically." : managed ? "Domain added — point its CNAME at the target shown, then Check status." : "Domain added — point its DNS, then Check status.");
 
   const targetFor = (d: DomainView) => d.dnsTarget ?? initial.cnameTarget;
 
   return (
     <div className="flex flex-col gap-5">
       <div className="rounded-lg border-l-2 border-[var(--border)] bg-[var(--muted)]/30 px-3 py-2 text-xs text-[var(--muted-foreground)]">
-        Bring your own domain (e.g. <span className="font-mono">assess.yourbrand.com</span>). Add it
-        below, then at your DNS provider add a <span className="font-semibold">CNAME</span> record
-        pointing the host at the <span className="font-semibold">target shown for that domain</span>.
-        {managed
-          ? " We register it with our platform automatically and provision an HTTPS certificate — it goes live once the certificate is issued (usually a few minutes after DNS propagates)."
-          : ` Point the CNAME at ${initial.cnameTarget}. Once DNS resolves here the domain serves your assessments.`}
+        {autoDns ? (
+          <>
+            Bring your own domain (e.g. <span className="font-mono">assess.yourbrand.com</span>) that&apos;s
+            on our DNS. Just add it below — we create the DNS record and provision an HTTPS
+            certificate <span className="font-semibold">automatically</span>. It goes live within a
+            minute or two; use Check status if it&apos;s not live yet.
+          </>
+        ) : (
+          <>
+            Bring your own domain (e.g. <span className="font-mono">assess.yourbrand.com</span>). Add it
+            below, then at your DNS provider add a <span className="font-semibold">CNAME</span> record
+            pointing the host at the <span className="font-semibold">target shown for that domain</span>.
+            {managed
+              ? " We register it with our platform and provision an HTTPS certificate — it goes live once the certificate is issued."
+              : ` Point the CNAME at ${initial.cnameTarget}. Once DNS resolves here the domain serves your assessments.`}
+          </>
+        )}
       </div>
 
       {/* Add */}
@@ -93,11 +105,16 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
                   <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => removeDomain(d.id), "Domain removed.")}>Remove</Button>
                 </div>
               </div>
-              {/* DNS instruction row */}
-              {!(d.certLive || d.verified) ? (
+              {/* DNS instruction row — only when the tenant must set DNS themselves
+                  (auto-DNS creates the record for them, so nothing to show). */}
+              {!autoDns && !(d.certLive || d.verified) ? (
                 <div className="rounded-md bg-[var(--muted)]/40 px-2.5 py-1.5 text-xs text-[var(--muted-foreground)]">
                   Add a <span className="font-semibold">CNAME</span> record: <span className="font-mono">{d.hostname}</span> →{" "}
                   <span className="font-mono text-[var(--foreground)] select-all">{targetFor(d)}</span>
+                </div>
+              ) : autoDns && !(d.certLive || d.verified) ? (
+                <div className="rounded-md bg-[var(--muted)]/40 px-2.5 py-1.5 text-xs text-[var(--muted-foreground)]">
+                  Setting up DNS + certificate automatically… click <span className="font-semibold">Check status</span> in a minute.
                 </div>
               ) : null}
             </li>

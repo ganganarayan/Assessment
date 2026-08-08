@@ -11,10 +11,49 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
 import {
   railwayConfigured,
   railwayCreateCustomDomain,
-  railwayCustomDomainStatus,
   railwayDeleteCustomDomain,
   certIsLive,
 } from "@/lib/railway/domains";
+import {
+  cloudflareConfigured,
+  cloudflareProvisionDomain,
+  cloudflareDeprovisionDomain,
+} from "@/lib/cloudflare/domains";
+
+/**
+ * Fully provision a custom domain:
+ *  - Railway = ROUTING: register the host so Railway serves this app for that Host.
+ *  - Cloudflare = TLS + DNS: create a PROXIED CNAME (host -> this app's host) so
+ *    Cloudflare issues the certificate and proxies to Railway. No up.railway.app is
+ *    shown to the tenant, and the DNS record is created for them automatically.
+ * Verified (→ routable) once Cloudflare's proxied record + cert are in place.
+ */
+async function provisionDomain(hostname: string): Promise<{
+  verified: boolean;
+  dnsTarget: string;
+  railwayDomainId: string | null;
+  certStatus: string;
+  error?: string;
+}> {
+  const origin = appHost();
+  let railwayDomainId: string | null = null;
+  if (railwayConfigured()) {
+    try {
+      railwayDomainId = (await railwayCreateCustomDomain(hostname))?.id ?? null;
+    } catch {
+      /* may already be registered; routing is best-effort and idempotent */
+    }
+  }
+  if (cloudflareConfigured()) {
+    try {
+      const cf = await cloudflareProvisionDomain(hostname, origin);
+      return { verified: cf.ok, dnsTarget: origin, railwayDomainId, certStatus: cf.ok ? "active" : "error", error: cf.error };
+    } catch (e) {
+      return { verified: false, dnsTarget: origin, railwayDomainId, certStatus: "error", error: e instanceof Error ? e.message : "Cloudflare provisioning failed." };
+    }
+  }
+  return { verified: false, dnsTarget: origin, railwayDomainId, certStatus: "pending" };
+}
 
 /**
  * Per-tenant custom domains. Every row is scoped to the acting workspace tenant
@@ -53,11 +92,13 @@ export interface DomainView {
 
 export interface DomainSettingsView {
   domains: DomainView[];
-  /** Fallback CNAME target when Railway isn't managing domains. */
+  /** Fallback CNAME target when auto-provisioning is off. */
   cnameTarget: string;
   rootDomain: string;
-  /** TRUE when Railway auto-provisioning (cert issuance) is active. */
+  /** TRUE when auto-provisioning (Railway routing / Cloudflare cert) is active. */
   railwayManaged: boolean;
+  /** TRUE when Cloudflare manages DNS automatically (no manual CNAME for the tenant). */
+  autoDns: boolean;
 }
 
 const hostnameSchema = z
@@ -73,7 +114,8 @@ const hostnameSchema = z
 
 export async function getDomainSettings(): Promise<DomainSettingsView> {
   const { tenantId } = await requireWorkspace();
-  const managed = railwayConfigured();
+  const autoDns = cloudflareConfigured();
+  const managed = autoDns || railwayConfigured();
   const fallback = appHost();
   const rows = await prisma.domain.findMany({
     where: { tenantId },
@@ -94,6 +136,7 @@ export async function getDomainSettings(): Promise<DomainSettingsView> {
     cnameTarget: fallback,
     rootDomain: env.NEXT_PUBLIC_ROOT_DOMAIN.toLowerCase(),
     railwayManaged: managed,
+    autoDns,
   };
 }
 
@@ -122,21 +165,13 @@ export async function addDomain(rawHostname: string): Promise<ActionResult> {
     throw e;
   }
 
-  // Register with Railway so it issues the cert + tells us the CNAME target. A failure
-  // here is non-fatal — the row exists and "Check status" retries the registration.
-  if (railwayConfigured()) {
-    try {
-      const r = await railwayCreateCustomDomain(hostname);
-      if (r) {
-        await prisma.domain.update({
-          where: { id: domainId },
-          data: { railwayDomainId: r.id, dnsTarget: r.dnsTarget, certStatus: r.certStatus },
-        });
-      }
-    } catch {
-      /* keep the row; the tenant can retry from the settings screen */
-    }
-  }
+  // Auto-provision routing (Railway) + TLS/DNS (Cloudflare). Non-fatal on failure —
+  // the row exists and "Check status" retries.
+  const p = await provisionDomain(hostname);
+  await prisma.domain.update({
+    where: { id: domainId },
+    data: { railwayDomainId: p.railwayDomainId, dnsTarget: p.dnsTarget, certStatus: p.certStatus, verified: p.verified },
+  });
 
   revalidatePath("/w/settings");
   return { ok: true };
@@ -182,29 +217,19 @@ export async function verifyDomain(id: string): Promise<ActionResult> {
   });
   if (!domain) return { ok: false, error: "Domain not found." };
 
-  if (railwayConfigured()) {
-    try {
-      const r = domain.railwayDomainId
-        ? await railwayCustomDomainStatus(domain.railwayDomainId)
-        : await railwayCreateCustomDomain(domain.hostname);
-      if (!r) return { ok: false, error: "Couldn't reach Railway. Try again in a moment." };
-      const live = certIsLive(r.certStatus);
-      await prisma.domain.update({
-        where: { id: domain.id },
-        data: { railwayDomainId: r.id, dnsTarget: r.dnsTarget, certStatus: r.certStatus, verified: live },
-      });
-      revalidatePath("/w/settings");
-      return live
-        ? { ok: true }
-        : { ok: false, error: r.dnsTarget
-            ? `Not live yet (cert: ${r.certStatus ?? "provisioning"}). Point a CNAME for ${domain.hostname} → ${r.dnsTarget}, then check again in a few minutes.`
-            : `Provisioning… check again shortly.` };
-    } catch (e) {
-      return { ok: false, error: e instanceof Error ? e.message : "Railway registration failed." };
-    }
+  // Auto-provisioned path (Cloudflare and/or Railway configured): (re)provision + refresh.
+  if (cloudflareConfigured() || railwayConfigured()) {
+    const p = await provisionDomain(domain.hostname);
+    await prisma.domain.update({
+      where: { id: domain.id },
+      data: { railwayDomainId: p.railwayDomainId, dnsTarget: p.dnsTarget, certStatus: p.certStatus, verified: p.verified },
+    });
+    revalidatePath("/w/settings");
+    if (p.verified) return { ok: true };
+    return { ok: false, error: p.error ?? "Still provisioning — try Check status again in a minute." };
   }
 
-  // Fallback (no Railway token): CNAME auto-detect against this app's host.
+  // Last-resort fallback (no tokens at all): CNAME auto-detect against this app's host.
   if (domain.verified) return { ok: true };
   if (!(await pointsToUs(domain.hostname))) {
     return { ok: false, error: `DNS isn't pointing here yet. Add a CNAME for ${domain.hostname} → ${appHost()} and try again in a few minutes.` };
@@ -236,10 +261,11 @@ export async function removeDomain(id: string): Promise<ActionResult> {
   const denied = editDenied(user);
   if (denied) return denied;
 
-  // Deregister from Railway first (best-effort), then delete our own row. The tenant
-  // guard makes deleteMany a no-op if the row isn't ours.
-  const domain = await prisma.domain.findFirst({ where: { id, tenantId }, select: { railwayDomainId: true } });
+  // Deregister from Railway + remove the Cloudflare record (both best-effort), then
+  // delete our row. The tenant guard makes deleteMany a no-op if the row isn't ours.
+  const domain = await prisma.domain.findFirst({ where: { id, tenantId }, select: { hostname: true, railwayDomainId: true } });
   if (domain?.railwayDomainId) await railwayDeleteCustomDomain(domain.railwayDomainId);
+  if (domain?.hostname) await cloudflareDeprovisionDomain(domain.hostname);
   await prisma.domain.deleteMany({ where: { id, tenantId } });
   revalidatePath("/w/settings");
   return { ok: true };
