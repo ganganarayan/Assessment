@@ -46,7 +46,8 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
     const q = query.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) =>
-      [r.firstName, r.lastName, r.email, r.mobile, r.profession, r.customerId, r.resultToken]
+      [r.firstName, r.lastName, r.email, r.mobile, r.profession, r.customerId, r.resultToken,
+        ...r.customAnswers.map((a) => `${a.label} ${a.value}`)]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -172,6 +173,11 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                     <span className="text-xs text-[var(--muted-foreground)]">{r.email ?? "—"}</span>
                     <span className="text-xs text-[var(--muted-foreground)]">{r.mobile ?? "—"}</span>
                     <span className="text-xs text-[var(--muted-foreground)]">{r.profession ?? "—"}</span>
+                    {r.customAnswers.map((a) => (
+                      <span key={a.label} className="text-xs text-[var(--muted-foreground)]">
+                        <span className="font-medium">{a.label}:</span> {a.value}
+                      </span>
+                    ))}
                   </div>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{r.customerId ?? "—"}</td>

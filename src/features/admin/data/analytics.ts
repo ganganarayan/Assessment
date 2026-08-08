@@ -6,6 +6,7 @@ import { istDateRangeToUtc, formatIST } from "@/lib/date";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { getStatsFloor, floorCreatedAt } from "@/lib/stats-floor";
 import type { PayloadAttribution } from "@/features/events/types";
+import { labeledAnswers, labeledAnswersText, type LabeledAnswer } from "@/features/assessment/custom-fields";
 
 /** The destination URL a contact lands on (targetUrl?t=token), falling back to the
  *  internal result page. Same rule as the completion/CRM builders. */
@@ -203,6 +204,8 @@ export interface ContactRow {
   userAgent: string | null;
   fbp: string | null;
   fbclidTimestamp: number | null;
+  /** Custom opt-in + pre-results field answers (label + value), in field order. */
+  customAnswers: LabeledAnswer[];
 }
 
 export interface ContactExportRow {
@@ -212,6 +215,7 @@ export interface ContactExportRow {
   email: string;
   phone: string;
   profession: string;
+  customDetails: string;
   customerId: string;
   resultToken: string;
   completed: boolean;
@@ -261,7 +265,9 @@ export async function listContactsForExport(range?: {
       userAgent: true,
       fbp: true,
       fbclidTimestamp: true,
-      assessment: { select: { slug: true, targetUrl: true } },
+      optinAnswers: true,
+      preResultAnswers: true,
+      assessment: { select: { slug: true, targetUrl: true, optinFields: true, preResultFields: true } },
     },
   });
   const paid = await getPaidBySubmission(rows.map((r) => r.id));
@@ -275,6 +281,14 @@ export async function listContactsForExport(range?: {
       email: r.leadEmail ?? "",
       phone: r.leadMobile ?? "",
       profession: r.leadProfession ?? "",
+      customDetails: labeledAnswersText(
+        labeledAnswers({
+          optinFields: r.assessment?.optinFields,
+          optinAnswers: r.optinAnswers,
+          preResultFields: r.assessment?.preResultFields,
+          preResultAnswers: r.preResultAnswers,
+        }),
+      ),
       customerId: r.customerId ?? "",
       resultToken: r.resultToken ?? "",
       completed: r.status === "COMPLETED",
@@ -342,7 +356,9 @@ export async function listContacts(opts: {
       userAgent: true,
       fbp: true,
       fbclidTimestamp: true,
-      assessment: { select: { slug: true, targetUrl: true } },
+      optinAnswers: true,
+      preResultAnswers: true,
+      assessment: { select: { slug: true, targetUrl: true, optinFields: true, preResultFields: true } },
     },
   });
 
@@ -379,6 +395,12 @@ export async function listContacts(opts: {
         userAgent: r.userAgent,
         fbp: r.fbp,
         fbclidTimestamp: r.fbclidTimestamp,
+        customAnswers: labeledAnswers({
+          optinFields: r.assessment?.optinFields,
+          optinAnswers: r.optinAnswers,
+          preResultFields: r.assessment?.preResultFields,
+          preResultAnswers: r.preResultAnswers,
+        }),
       };
     }),
   };

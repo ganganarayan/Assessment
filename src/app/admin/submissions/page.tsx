@@ -5,6 +5,7 @@ import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar"
 import { AssessmentScopeBar } from "@/features/admin/components/assessment-scope-bar";
 import { getStatsFloor } from "@/lib/stats-floor";
 import { formatIST } from "@/lib/date";
+import { labeledAnswers } from "@/features/assessment/custom-fields";
 import {
   SubmissionsTable,
   type SubmissionRow,
@@ -56,6 +57,12 @@ export default async function SubmissionsPage({
       status: s.status,
       paidAmount: p?.amount ?? null,
       paidAt: p?.at ?? null,
+      customAnswers: labeledAnswers({
+        optinFields: s.assessment.optinFields,
+        optinAnswers: s.optinAnswers,
+        preResultFields: s.assessment.preResultFields,
+        preResultAnswers: s.preResultAnswers,
+      }),
     };
   });
 

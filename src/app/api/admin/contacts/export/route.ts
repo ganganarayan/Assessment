@@ -18,6 +18,7 @@ const COLUMNS: CsvColumn<ContactExportRow>[] = [
   { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
   { key: "profession", label: "Profession" },
+  { key: "customDetails", label: "Custom details" },
   { key: "customerId", label: "Customer ID" },
   { key: "resultToken", label: "Result token" },
   { key: "completed", label: "Completed" },

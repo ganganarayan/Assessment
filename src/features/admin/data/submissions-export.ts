@@ -6,6 +6,7 @@ import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { EXPORT_CAP } from "@/features/admin/data/analytics";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { getStatsFloor } from "@/lib/stats-floor";
+import { labeledAnswers, labeledAnswersText } from "@/features/assessment/custom-fields";
 
 export interface SubmissionExportCategory {
   name: string;
@@ -34,6 +35,8 @@ export interface SubmissionExportRow {
   email: string | null;
   phone: string | null;
   profession: string | null;
+  /** Custom opt-in + pre-results answers, flattened as "Label: value | Label: value". */
+  customDetails: string;
   scoreRaw: number | null;
   max: number | null;
   scorePercent: number | null;
@@ -71,11 +74,13 @@ export async function listSubmissionsForExport(): Promise<SubmissionExportRow[]>
       leadEmail: true,
       leadMobile: true,
       leadProfession: true,
+      optinAnswers: true,
+      preResultAnswers: true,
       totalScore: true,
       maxScore: true,
       attribution: true,
       resultSnapshot: true,
-      assessment: { select: { title: true, slug: true } },
+      assessment: { select: { title: true, slug: true, optinFields: true, preResultFields: true } },
       resultBand: { select: { level: true, title: true } },
       aiStatements: {
         orderBy: { createdAt: "asc" },
@@ -124,6 +129,14 @@ export async function listSubmissionsForExport(): Promise<SubmissionExportRow[]>
       email: s.leadEmail,
       phone: s.leadMobile,
       profession: s.leadProfession,
+      customDetails: labeledAnswersText(
+        labeledAnswers({
+          optinFields: s.assessment.optinFields,
+          optinAnswers: s.optinAnswers,
+          preResultFields: s.assessment.preResultFields,
+          preResultAnswers: s.preResultAnswers,
+        }),
+      ),
       scoreRaw: snap?.scoreRaw ?? s.totalScore ?? null,
       max: snap?.max ?? s.maxScore ?? null,
       scorePercent: snap?.scorePercent ?? null,

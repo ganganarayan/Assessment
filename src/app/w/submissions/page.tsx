@@ -1,6 +1,7 @@
 import { requireWorkspace } from "@/lib/auth/guards";
 import { listSubmissions } from "@/features/assessment/data";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
+import { labeledAnswers } from "@/features/assessment/custom-fields";
 import {
   SubmissionsTable,
   type SubmissionRow,
@@ -30,6 +31,12 @@ export default async function WorkspaceSubmissionsPage() {
       status: s.status,
       paidAmount: p?.amount ?? null,
       paidAt: p?.at ?? null,
+      customAnswers: labeledAnswers({
+        optinFields: s.assessment.optinFields,
+        optinAnswers: s.optinAnswers,
+        preResultFields: s.assessment.preResultFields,
+        preResultAnswers: s.preResultAnswers,
+      }),
     };
   });
 

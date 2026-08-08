@@ -28,6 +28,7 @@ interface FlatRow {
   email: string;
   phone: string;
   profession: string;
+  customDetails: string;
   score: string | number;
   max: string | number;
   percent: string | number;
@@ -59,6 +60,7 @@ const COLUMNS: CsvColumn<FlatRow>[] = [
   { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
   { key: "profession", label: "Profession" },
+  { key: "customDetails", label: "Custom details" },
   { key: "score", label: "Score" },
   { key: "max", label: "Max" },
   { key: "percent", label: "Percent" },
@@ -91,6 +93,7 @@ function flatten(r: SubmissionExportRow): FlatRow {
     email: r.email ?? "",
     phone: r.phone ?? "",
     profession: r.profession ?? "",
+    customDetails: r.customDetails ?? "",
     score: r.scoreRaw ?? "",
     max: r.max ?? "",
     percent: r.scorePercent ?? "",

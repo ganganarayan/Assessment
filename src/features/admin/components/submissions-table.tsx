@@ -22,6 +22,7 @@ export interface SubmissionRow {
   status: string;
   paidAmount: number | null;
   paidAt: string | null;
+  customAnswers: { label: string; value: string }[];
 }
 
 type SortKey = "date" | "lead" | "score" | "result" | "status";
@@ -42,7 +43,8 @@ export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
     const q = query.trim().toLowerCase();
     const matches = (r: SubmissionRow) =>
       !q ||
-      [r.firstName, r.lastName, r.email, r.mobile, r.profession, r.assessmentTitle, r.bandTitle]
+      [r.firstName, r.lastName, r.email, r.mobile, r.profession, r.assessmentTitle, r.bandTitle,
+        ...r.customAnswers.map((a) => `${a.label} ${a.value}`)]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -132,6 +134,11 @@ export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
                         {s.profession ? (
                           <span className="text-xs text-[var(--muted-foreground)]">{s.profession}</span>
                         ) : null}
+                        {s.customAnswers.map((a) => (
+                          <span key={a.label} className="text-xs text-[var(--muted-foreground)]">
+                            <span className="font-medium">{a.label}:</span> {a.value}
+                          </span>
+                        ))}
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 tabular-nums">
