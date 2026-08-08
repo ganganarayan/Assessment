@@ -36,23 +36,49 @@ async function provisionDomain(hostname: string): Promise<{
   error?: string;
 }> {
   const origin = appHost();
+
+  // Routing (Railway) — REQUIRED: Railway routes by Host, so without registration the
+  // host 404s ("train has not arrived") even with a valid Cloudflare cert. Capture the
+  // error instead of swallowing it.
   let railwayDomainId: string | null = null;
+  let railwayError: string | null = null;
   if (railwayConfigured()) {
     try {
       railwayDomainId = (await railwayCreateCustomDomain(hostname))?.id ?? null;
-    } catch {
-      /* may already be registered; routing is best-effort and idempotent */
+      if (!railwayDomainId) railwayError = "Railway returned no domain id.";
+    } catch (e) {
+      railwayError = e instanceof Error ? e.message : String(e);
     }
   }
+
+  // TLS + DNS (Cloudflare).
+  let cfOk = false;
+  let cfError: string | null = null;
   if (cloudflareConfigured()) {
     try {
       const cf = await cloudflareProvisionDomain(hostname, origin);
-      return { verified: cf.ok, dnsTarget: origin, railwayDomainId, certStatus: cf.ok ? "active" : "error", error: cf.error };
+      cfOk = cf.ok;
+      cfError = cf.error ?? null;
     } catch (e) {
-      return { verified: false, dnsTarget: origin, railwayDomainId, certStatus: "error", error: e instanceof Error ? e.message : "Cloudflare provisioning failed." };
+      cfError = e instanceof Error ? e.message : String(e);
     }
   }
-  return { verified: false, dnsTarget: origin, railwayDomainId, certStatus: "pending" };
+
+  const routingOk = !railwayConfigured() || !!railwayDomainId;
+  const verified = cfOk && routingOk;
+  const notes: string[] = [];
+  if (railwayError) notes.push(`Routing (Railway): ${railwayError}`);
+  if (cfError) notes.push(`TLS (Cloudflare): ${cfError}`);
+  if (!railwayConfigured()) notes.push("Railway routing not configured (RAILWAY_API_TOKEN).");
+  if (!cloudflareConfigured()) notes.push("Cloudflare TLS not configured (CLOUDFLARE_API_TOKEN).");
+
+  return {
+    verified,
+    dnsTarget: origin,
+    railwayDomainId,
+    certStatus: verified ? "active" : "pending",
+    error: notes.length ? notes.join(" · ") : undefined,
+  };
 }
 
 /**

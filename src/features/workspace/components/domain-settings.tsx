@@ -97,9 +97,8 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  {!(d.certLive || d.verified) ? (
-                    <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => verifyDomain(d.id), "Live — your domain now serves over HTTPS.")}>Check status</Button>
-                  ) : !d.isPrimary ? (
+                  <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => verifyDomain(d.id), "Live — your domain now serves over HTTPS.")}>Check status</Button>
+                  {(d.certLive || d.verified) && !d.isPrimary ? (
                     <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => setPrimaryDomain(d.id), "Primary domain updated.")}>Make primary</Button>
                   ) : null}
                   <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => removeDomain(d.id), "Domain removed.")}>Remove</Button>
