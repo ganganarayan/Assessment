@@ -32,6 +32,30 @@ export async function exitTenant(): Promise<void> {
   redirect("/platform");
 }
 
+/**
+ * Permanently delete a tenant AND all its data (assessments, submissions, domains,
+ * webhooks, payments, settings…) via the DB cascade. DESTRUCTIVE + irreversible, so
+ * it requires the caller to type the exact slug. Logins are PRESERVED: their tenant
+ * link is cleared first so the cascade can't delete the user rows.
+ */
+export async function deleteTenant(tenantId: string, confirmSlug: string): Promise<ActionResult> {
+  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true, slug: true } });
+  if (!t) return { ok: false, error: "Tenant not found." };
+  if ((confirmSlug ?? "").trim().toLowerCase() !== t.slug.toLowerCase()) {
+    return { ok: false, error: `Type the slug "${t.slug}" exactly to confirm.` };
+  }
+  // Preserve logins: unassign before the FK cascade would delete them.
+  await prisma.user.updateMany({ where: { tenantId }, data: { tenantId: null } });
+  // Drop the acting cookie if it points at the tenant being deleted.
+  if ((await cookies()).get(ACTING_TENANT_COOKIE)?.value === tenantId) {
+    (await cookies()).delete(ACTING_TENANT_COOKIE);
+  }
+  await prisma.tenant.delete({ where: { id: tenantId } });
+  revalidatePath("/platform");
+  return { ok: true };
+}
+
 /** Platform-owner (super-admin) tenant + user management. Stage 1: create tenants,
  *  assign existing logins to a tenant as its admin, promote/demote super admins.
  *  Creating the login itself is self-serve (/sign-up), then assigned here. */

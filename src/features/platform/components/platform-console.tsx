@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   createTenant,
+  deleteTenant,
   listTenants,
   listUsers,
   listDeletedUsers,
@@ -68,6 +69,18 @@ export function PlatformConsole({
       setError(null);
       const r = await restoreUser(u.id);
       if (!r.ok) setError(r.error);
+      await refresh();
+    });
+
+  const delTenant = (t: TenantRow) =>
+    start(async () => {
+      setError(null);
+      const typed = window.prompt(
+        `PERMANENTLY delete "${t.name}" and ALL its data (assessments, submissions, domains, webhooks…). Logins are kept (unassigned). This cannot be undone.\n\nType the slug to confirm:\n${t.slug}`,
+      );
+      if (typed == null) return;
+      const r = await deleteTenant(t.id, typed);
+      if (!r.ok) return setError(r.error);
       await refresh();
     });
 
@@ -169,9 +182,20 @@ export function PlatformConsole({
                     <td className="px-3 py-2 text-center tabular-nums">{t.submissionCount}</td>
                     <td className="px-3 py-2">{t.status}</td>
                     <td className="px-3 py-2 text-right">
-                      <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => { await enterTenant(t.id); })}>
-                        Enter →
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => { await enterTenant(t.id); })}>
+                          Enter →
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={pending}
+                          onClick={() => delTenant(t)}
+                          className="border-red-500 text-red-600 hover:bg-red-500/10"
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))
