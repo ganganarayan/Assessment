@@ -39,6 +39,8 @@ export function PlatformConsole({
   const [users, setUsers] = useState<PlatformUserRow[]>(initialUsers);
   const [deleted, setDeleted] = useState<PlatformUserRow[]>(initialDeletedUsers);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [slug, setSlug] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -72,12 +74,14 @@ export function PlatformConsole({
   const create = () =>
     start(async () => {
       setError(null);
-      const r = await createTenant(name, slug);
+      const r = await createTenant(name, email, password, slug);
       if (!r.ok) {
         setError(r.error);
         return;
       }
       setName("");
+      setEmail("");
+      setPassword("");
       setSlug("");
       await refresh();
     });
@@ -110,16 +114,28 @@ export function PlatformConsole({
       {/* Create tenant */}
       <section className="flex flex-col gap-3 rounded-lg border p-4">
         <h2 className="text-lg font-semibold">Create a tenant</h2>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Creates the tenant AND its admin login. Name, email and password are required — the admin
+          can sign in immediately. Slug is auto-derived from the name unless you set one.
+        </p>
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
-            <Label className="text-xs">Name</Label>
+            <Label className="text-xs">Name *</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Gita Clarity" />
           </div>
           <div className="flex flex-col gap-1">
-            <Label className="text-xs">Slug</Label>
-            <Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="gita" />
+            <Label className="text-xs">Admin email *</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@brand.com" />
           </div>
-          <Button disabled={pending} onClick={create}>Create tenant</Button>
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs">Password *</Label>
+            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="min 8 chars" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs">Slug (optional)</Label>
+            <Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="auto from name" />
+          </div>
+          <Button disabled={pending || !name.trim() || !email.trim() || !password.trim()} onClick={create}>Create tenant</Button>
         </div>
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
       </section>

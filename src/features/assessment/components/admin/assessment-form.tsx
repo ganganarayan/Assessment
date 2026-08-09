@@ -138,6 +138,7 @@ const DEFAULTS: AssessmentFormValues = {
   vslCountdownSeconds: 10,
   questionDisplayMode: "ALL",
   aiPromptVersionId: "",
+  useAiStatement: true,
   nextStep: "DESTINATION",
   paymentUrl: "",
   paymentHeadline: "",
@@ -584,13 +585,23 @@ export function AssessmentForm({
 
           <div className="flex flex-col gap-2 rounded-lg border p-4">
             <p className="text-sm font-medium">AI result instructions</p>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={values.useAiStatement}
+                onChange={(e) => set("useAiStatement", e.target.checked)}
+              />
+              Use an AI personal statement in the results
+            </label>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Which system-prompt version drives the AI message for THIS assessment. Manage the
-              versions under AI → System prompt versions.
+              Off = no AI message is generated or shown — the scores, bands and your template convey
+              the result. When on, pick which system-prompt version drives it (manage under AI →
+              System prompt versions).
             </p>
             <select
-              className="h-10 max-w-md rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+              className="h-10 max-w-md rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm disabled:opacity-50"
               value={values.aiPromptVersionId ?? ""}
+              disabled={!values.useAiStatement}
               onChange={(e) => set("aiPromptVersionId", e.target.value)}
             >
               <option value="">Tenant default</option>
@@ -642,6 +653,19 @@ export function AssessmentForm({
                 <span>
                   <span className="font-medium">Destination page (VSL)</span>
                   <span className="block text-xs text-[var(--muted-foreground)]">No payment — submit goes straight to the destination page (carrying the token).</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2">
+                <input
+                  type="radio"
+                  name="nextStep"
+                  className="mt-1"
+                  checked={values.nextStep === "RESULTS"}
+                  onChange={() => set("nextStep", "RESULTS")}
+                />
+                <span>
+                  <span className="font-medium">Show results on assess360</span>
+                  <span className="block text-xs text-[var(--muted-foreground)]">No external VSL — show the results on our own result page. Webhooks/CRM firing stays the same.</span>
                 </span>
               </label>
               <label className="flex items-start gap-2">

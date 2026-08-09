@@ -5,6 +5,7 @@ import { getDomainSettings } from "@/features/workspace/actions/domains";
 import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
 import { DomainSettings } from "@/features/workspace/components/domain-settings";
+import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
 import { PromptVersionsManager } from "@/features/admin/components/prompt-versions-manager";
 import {
   Card,
@@ -78,6 +79,18 @@ export default async function WorkspaceSettingsPage() {
         </CardHeader>
         <CardContent>
           <DomainSettings initial={domains} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Change password</CardTitle>
+          <CardDescription>
+            Update your own login password. Signs out your other sessions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChangePasswordForm />
         </CardContent>
       </Card>
 

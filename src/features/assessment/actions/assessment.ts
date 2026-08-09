@@ -84,6 +84,7 @@ export async function createAssessment(
       vslCountdownSeconds: d.vslCountdownSeconds,
       questionDisplayMode: d.questionDisplayMode,
       aiPromptVersionId: nullifyEmpty(d.aiPromptVersionId),
+      useAiStatement: d.useAiStatement,
       // nextStep is the source of truth; keep the legacy paidMode boolean in sync
       // so existing payment/event/runner logic keeps working unchanged.
       nextStep: d.nextStep,
@@ -170,6 +171,7 @@ export async function updateAssessment(
       vslCountdownSeconds: d.vslCountdownSeconds,
       questionDisplayMode: d.questionDisplayMode,
       aiPromptVersionId: nullifyEmpty(d.aiPromptVersionId),
+      useAiStatement: d.useAiStatement,
       // nextStep is the source of truth; keep the legacy paidMode boolean in sync
       // so existing payment/event/runner logic keeps working unchanged.
       nextStep: d.nextStep,
@@ -296,6 +298,7 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
       vslCountdownSeconds: src.vslCountdownSeconds,
       questionDisplayMode: src.questionDisplayMode,
       aiPromptVersionId: src.aiPromptVersionId,
+      useAiStatement: src.useAiStatement,
       nextStep: src.nextStep,
       paidMode: src.paidMode,
       paymentUrl: src.paymentUrl,

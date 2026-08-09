@@ -68,15 +68,45 @@ export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
   };
 }
 
-export async function createTenant(name: string, slug: string): Promise<ActionResult<{ id: string }>> {
+/**
+ * Create a tenant AND its admin login in one step — mirroring signup (name, email,
+ * password all required). The admin can log in immediately. Bypasses the signup
+ * auto-provision hook (we assign the intended tenant directly), so no stray tenant.
+ * Slug is derived from the name unless provided.
+ */
+export async function createTenant(
+  name: string,
+  email: string,
+  password: string,
+  slug?: string,
+): Promise<ActionResult<{ id: string }>> {
   if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
-  const s = slugSchema.safeParse(slug.trim().toLowerCase());
-  if (!s.success) return { ok: false, error: s.error.issues[0]?.message ?? "Invalid slug." };
   const nm = name.trim();
-  if (nm.length < 2) return { ok: false, error: "Tenant name is required." };
-  const existing = await prisma.tenant.findUnique({ where: { slug: s.data } });
-  if (existing) return { ok: false, error: "That tenant slug is already in use." };
+  if (nm.length < 2) return { ok: false, error: "Name is required." };
+  const em = email.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return { ok: false, error: "Enter a valid admin email." };
+  const pw = (password ?? "").trim();
+  if (pw.length < 8) return { ok: false, error: "Password must be at least 8 characters." };
+
+  const rawSlug = slug && slug.trim()
+    ? slug.trim().toLowerCase()
+    : nm.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32);
+  const s = slugSchema.safeParse(rawSlug);
+  if (!s.success) return { ok: false, error: s.error.issues[0]?.message ?? "Invalid slug." };
+  if (await prisma.tenant.findUnique({ where: { slug: s.data }, select: { id: true } })) {
+    return { ok: false, error: "That tenant slug is already in use." };
+  }
+  if (await prisma.user.findUnique({ where: { email: em }, select: { id: true } })) {
+    return { ok: false, error: "A login with that email already exists." };
+  }
+
+  const ctx = await auth.$context;
+  const hashed = await ctx.password.hash(pw);
   const t = await prisma.tenant.create({ data: { slug: s.data, name: nm } });
+  const u = await prisma.user.create({
+    data: { name: nm, email: em, role: Role.ADMIN, tenantId: t.id, emailVerified: true },
+  });
+  await prisma.account.create({ data: { accountId: u.id, providerId: "credential", password: hashed, userId: u.id } });
   revalidatePath("/platform");
   return { ok: true, data: { id: t.id } };
 }

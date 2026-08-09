@@ -1,9 +1,32 @@
 "use server";
 
+import { headers } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 import { requireUser } from "@/lib/auth/guards";
 import { auth } from "@/lib/auth/auth";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+
+/**
+ * Self-service password change for the signed-in user (Settings → Change password).
+ * Verifies the CURRENT password via Better Auth, then sets the new one and signs out
+ * other sessions. Distinct from forceSetOwnPassword (forced reset, no current check).
+ */
+export async function changeOwnPassword(currentPassword: string, newPassword: string): Promise<ActionResult> {
+  await requireUser();
+  const cur = (currentPassword ?? "").trim();
+  const next = (newPassword ?? "").trim();
+  if (next.length < 8) return { ok: false, error: "New password must be at least 8 characters." };
+  if (!cur) return { ok: false, error: "Enter your current password." };
+  try {
+    await auth.api.changePassword({
+      body: { currentPassword: cur, newPassword: next, revokeOtherSessions: true },
+      headers: await headers(),
+    });
+  } catch {
+    return { ok: false, error: "Couldn't change the password — check your current password." };
+  }
+  return { ok: true };
+}
 
 /**
  * Set the SIGNED-IN user's own password and clear the forced-change flag. Used by the

@@ -97,10 +97,11 @@ export const assessmentSchema = z.object({
   questionDisplayMode: z.enum(["ALL", "CATEGORY", "SINGLE"]).default("ALL"),
   // Which AI result-instructions version drives this assessment. "" => tenant default.
   aiPromptVersionId: z.string().max(60).optional().or(z.literal("")),
+  useAiStatement: z.boolean().default(true),
   // Explicit next step after the Results page. PAYMENT => take payment then go to
   // the destination; DESTINATION => straight to the destination/VSL. The save
   // action derives the legacy paidMode boolean from this.
-  nextStep: z.enum(["PAYMENT", "DESTINATION"]).default("DESTINATION"),
+  nextStep: z.enum(["PAYMENT", "DESTINATION", "RESULTS"]).default("DESTINATION"),
   paymentUrl: z.string().url("Enter a valid payment URL.").optional().or(z.literal("")),
   paymentHeadline: z.string().max(2000).optional().or(z.literal("")),
   paymentButtonLabel: z.string().max(200).optional().or(z.literal("")),

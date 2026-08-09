@@ -62,7 +62,9 @@ function buildResultUrl(
       /* malformed targetUrl — fall back to the internal result page */
     }
   }
-  return `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}`;
+  // Internal result page (used for "Show results on assess360" + as a fallback). Carry
+  // the token so the respondent can view their results in-platform (token-gated).
+  return `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}${token ? `?t=${encodeURIComponent(token)}` : ""}`;
 }
 
 /** Append ?t=<token> to a static payment link so the post-payment page can unlock. */
@@ -716,6 +718,8 @@ export async function completeSubmission(
       paidMode: true,
       paymentUrl: true,
       paymentAmount: true,
+      useAiStatement: true,
+      nextStep: true,
       tenant: { select: { id: true, slug: true, name: true } },
       categories: {
         select: {
@@ -840,7 +844,12 @@ export async function completeSubmission(
       customer,
     });
     const paidExit = !!(paid.payment || paid.paymentRedirectUrl);
-    const resultUrl = buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, recheck.resultToken);
+    const resultUrl = buildResultUrl(
+      assessment.nextStep === "RESULTS" ? null : assessment.targetUrl,
+      assessment.slug,
+      submissionId,
+      recheck.resultToken,
+    );
     return {
       ok: true,
       data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid },
@@ -851,17 +860,24 @@ export async function completeSubmission(
   // per-category bands so the message uses the assessment's own words. Fail-soft:
   // null when AI is off/slow/errors; the page falls back to the static
   // suggestion. The default version is mirrored into the snapshot below.
-  const aiStatement = await generatePersonalStatement({
-    firstName: submission.leadFirstName,
-    profession: submission.leadProfession,
-    assessmentTitle: assessment.title,
-    scoreRaw: totalScore,
-    max: maxScore,
-    percentage: Math.round(percentage),
-    band: band?.title ?? null,
-    bandLevel: band?.level ?? null,
-    categories: aiCategories,
-  }, submission.tenantId, submission.assessment.aiPromptVersionId);
+  // Per-assessment AI toggle: when off, no statement is generated (no AI cost) and the
+  // results/template convey the message on their own.
+  const aiStatement = assessment.useAiStatement
+    ? await generatePersonalStatement({
+        firstName: submission.leadFirstName,
+        profession: submission.leadProfession,
+        assessmentTitle: assessment.title,
+        scoreRaw: totalScore,
+        max: maxScore,
+        percentage: Math.round(percentage),
+        band: band?.title ?? null,
+        bandLevel: band?.level ?? null,
+        categories: aiCategories,
+      }, submission.tenantId, submission.assessment.aiPromptVersionId)
+    : null;
+  // "Show results on assess360" (nextStep RESULTS): never redirect to an external VSL —
+  // force our own internal result page.
+  const vslTarget = assessment.nextStep === "RESULTS" ? null : assessment.targetUrl;
 
   const snapshot = buildResultSnapshot({
     customerId,
@@ -874,7 +890,7 @@ export async function completeSubmission(
     aiStatement,
     categories: categoryResults,
   });
-  const resultUrl = buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, token);
+  const resultUrl = buildResultUrl(vslTarget, assessment.slug, submissionId, token);
 
   // Persist atomically. The final statement is a compare-and-swap on status:
   // only a writer that flips STARTED -> COMPLETED "wins". This makes scoring
@@ -935,7 +951,7 @@ export async function completeSubmission(
       customer,
     });
     const paidExit = !!(paid.payment || paid.paymentRedirectUrl);
-    const resultUrl = buildResultUrl(assessment.targetUrl, assessment.slug, submissionId, existing?.resultToken ?? null);
+    const resultUrl = buildResultUrl(vslTarget, assessment.slug, submissionId, existing?.resultToken ?? null);
     return {
       ok: true,
       data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid },

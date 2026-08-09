@@ -17,6 +17,7 @@ import {
   getPasswordResetWebhook,
 } from "@/features/admin/actions/platform-integrations";
 import { PasswordResetWebhookForm } from "@/features/admin/components/password-reset-webhook-form";
+import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
 import {
   Card,
   CardContent,
@@ -121,6 +122,16 @@ export default async function SettingsPage() {
           </CardHeader>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Change password</CardTitle>
+          <CardDescription>Update your own login password. Signs out your other sessions.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChangePasswordForm />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

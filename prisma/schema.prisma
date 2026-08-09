@@ -278,6 +278,7 @@ enum QuestionDisplayMode {
 enum NextStep {
   PAYMENT // take payment (Razorpay), then the destination
   DESTINATION // go straight to the destination/VSL (no payment)
+  RESULTS // show the results on assess360's own result page (no external VSL redirect)
 }
 
 // ---------------------------------------------------------------------------
@@ -377,6 +378,9 @@ model Assessment {
   // Which AI result-instructions version drives THIS assessment's statement. Null =>
   // the tenant default (AppSetting.aiPromptVersion). A built-in code id or AiPromptVersion id.
   aiPromptVersionId String?
+  // When false, no AI personal statement is generated/shown — the results (scores,
+  // bands, category meanings, template) convey the message on their own.
+  useAiStatement    Boolean @default(true)
 
   // Pay-to-unlock. When paidMode is on, submitting the assessment stores results
   // then redirects to paymentUrl (with ?t=<token>) INSTEAD of the destination/VSL;

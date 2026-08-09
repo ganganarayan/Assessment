@@ -5,41 +5,77 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { forceSetOwnPassword } from "@/features/auth/actions/password";
+import { changeOwnPassword, forceSetOwnPassword } from "@/features/auth/actions/password";
 
-/** Forced password change (after a super admin set a temporary password). */
-export function ChangePasswordForm({ redirectTo }: { redirectTo: string }) {
+/**
+ * Password form with two modes:
+ *  - "self" (default, Settings → Change password): requires the CURRENT password;
+ *    verified server-side, signs out other sessions.
+ *  - "force" (the /change-password screen after a super-admin reset): no current
+ *    password (the user just signed in with a temp one); redirects on success.
+ */
+export function ChangePasswordForm({
+  mode = "self",
+  redirectTo,
+}: {
+  mode?: "self" | "force";
+  redirectTo?: string;
+}) {
   const router = useRouter();
-  const [pw, setPw] = useState("");
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
   const [pending, start] = useTransition();
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setMsg(null);
-    if (pw.length < 8) return setMsg("Password must be at least 8 characters.");
-    if (pw !== confirm) return setMsg("Passwords don't match.");
+  const submit = () =>
     start(async () => {
-      const r = await forceSetOwnPassword(pw);
-      if (!r.ok) return setMsg(r.error);
-      router.replace(redirectTo);
-      router.refresh();
+      setMsg(null);
+      setOk(false);
+      if (next !== confirm) {
+        setMsg("New password and confirmation don't match.");
+        return;
+      }
+      const r = mode === "force" ? await forceSetOwnPassword(next) : await changeOwnPassword(current, next);
+      if (!r.ok) {
+        setMsg(r.error);
+        return;
+      }
+      setOk(true);
+      if (mode === "force") {
+        router.replace(redirectTo || "/");
+        router.refresh();
+        return;
+      }
+      setMsg("Password changed. Other sessions were signed out.");
+      setCurrent("");
+      setNext("");
+      setConfirm("");
     });
-  };
 
   return (
-    <form onSubmit={submit} className="flex w-full max-w-sm flex-col gap-4">
+    <div className="flex max-w-sm flex-col gap-3 text-left">
+      {mode === "self" ? (
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Current password</Label>
+          <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" />
+        </div>
+      ) : null}
       <div className="flex flex-col gap-1">
-        <Label htmlFor="pw">New password</Label>
-        <Input id="pw" type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" required />
+        <Label className="text-xs">New password</Label>
+        <Input type="password" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" placeholder="At least 8 characters" />
       </div>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="confirm">Confirm new password</Label>
-        <Input id="confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" required />
+        <Label className="text-xs">Confirm new password</Label>
+        <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
       </div>
-      {msg ? <p className="text-sm text-red-500">{msg}</p> : null}
-      <Button type="submit" disabled={pending}>{pending ? "Saving…" : "Set new password"}</Button>
-    </form>
+      <div>
+        <Button size="sm" onClick={submit} disabled={pending || !next || (mode === "self" && !current)}>
+          {mode === "force" ? "Set password & continue" : "Change password"}
+        </Button>
+      </div>
+      {msg ? <p className={`text-sm ${ok ? "text-green-600" : "text-red-500"}`}>{msg}</p> : null}
+    </div>
   );
 }

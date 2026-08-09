@@ -19,7 +19,7 @@ export default async function ChangePasswordPage() {
           For your security, please choose a new password before continuing.
         </p>
       </div>
-      <ChangePasswordForm redirectTo={home} />
+      <ChangePasswordForm mode="force" redirectTo={home} />
     </main>
   );
 }

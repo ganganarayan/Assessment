@@ -34,10 +34,14 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 export default async function ResultPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; submissionId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug, submissionId } = await params;
+  const sp = await searchParams;
+  const token = Array.isArray(sp.t) ? sp.t[0] : sp.t;
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
     select: {
@@ -51,7 +55,7 @@ export default async function ResultPage({
       leadEmail: true,
       leadMobile: true,
       leadProfession: true,
-      assessment: { select: { slug: true, title: true, targetUrl: true } },
+      assessment: { select: { slug: true, title: true, targetUrl: true, nextStep: true, useAiStatement: true } },
     },
   });
   if (!submission || submission.assessment.slug !== slug) notFound();
@@ -193,6 +197,61 @@ export default async function ResultPage({
             </Card>
           ) : null}
           </div>
+        </div>
+      </main>
+    );
+  }
+
+  // ---- Respondent results IN-PLATFORM (nextStep RESULTS) -------------------
+  // Only when the assessment is set to show results here AND the caller holds the
+  // result token (same capability that gates the VSL link), or is the admin.
+  if (
+    submission.assessment.nextStep === "RESULTS" &&
+    submission.status === "COMPLETED" &&
+    snap &&
+    (isOwner || (!!token && token === submission.resultToken))
+  ) {
+    return (
+      <main className="mx-auto w-full max-w-2xl px-4 py-10">
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-[var(--muted-foreground)]">{submission.assessment.title}</p>
+            <h1 className="text-3xl font-bold tracking-tight">Your results</h1>
+          </div>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                {snap.resultBand ? <Badge variant="outline">{snap.resultBand}</Badge> : null}
+                <CardTitle>Overall: {snap.scorePercent}%</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {snap.resultSuggestion ? <p className="whitespace-pre-line">{snap.resultSuggestion}</p> : null}
+              {submission.assessment.useAiStatement && snap.aiStatement ? (
+                <p className="whitespace-pre-line text-[var(--muted-foreground)]">{snap.aiStatement}</p>
+              ) : null}
+            </CardContent>
+          </Card>
+          {snap.categories?.length ? (
+            <Card>
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-lg">Category breakdown</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                {snap.categories.map((c) => (
+                  <div key={c.name} className="flex flex-col gap-1 border-b border-[var(--border)] pb-2 last:border-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium">{c.name}</span>
+                      <span className="shrink-0 tabular-nums text-sm text-[var(--muted-foreground)]">
+                        {c.score}/{c.max}{c.band ? ` · ${c.band}` : ""}
+                      </span>
+                    </div>
+                    {c.meaning ? <p className="whitespace-pre-line text-sm text-[var(--muted-foreground)]">{c.meaning}</p> : null}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       </main>
     );
