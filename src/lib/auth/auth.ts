@@ -29,6 +29,32 @@ export const auth = betterAuth({
     enabled: true,
     // requireEmailVerification stays OFF for now (no mail system yet) so signup logs
     // in directly. Flip to true once EMAIL_VERIFY_WEBHOOK_URL is live to enforce it.
+    // Password reset: the link is valid for 10 minutes.
+    resetPasswordTokenExpiresIn: 600,
+    // Delegate the reset email to the owner's CRM (same pattern as verification):
+    // POST the reset link to the configured webhook; the CRM emails the user, who
+    // clicks it and lands on /reset-password. URL from the super-admin Settings field
+    // (AppSetting singleton), falling back to PASSWORD_RESET_WEBHOOK_URL (env).
+    sendResetPassword: async ({ user, url, token }) => {
+      const row = await prisma.appSetting
+        .findUnique({ where: { id: "singleton" }, select: { passwordResetWebhookUrl: true } })
+        .catch(() => null);
+      const hook = row?.passwordResetWebhookUrl?.trim() || env.PASSWORD_RESET_WEBHOOK_URL;
+      if (!hook) {
+        console.error("[auth] password-reset requested but no webhook configured");
+        return;
+      }
+      try {
+        await fetch(hook, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ type: "password_reset", email: user.email, name: user.name, reset_url: url, token }),
+          signal: AbortSignal.timeout(8000),
+        });
+      } catch (e) {
+        console.error("[auth] password-reset webhook failed:", e instanceof Error ? e.message : String(e));
+      }
+    },
   },
   emailVerification: {
     sendOnSignUp: true,
@@ -72,6 +98,12 @@ export const auth = betterAuth({
       // session so guards can gate reads (VIEW) vs. mutations (EDIT/owner).
       staffPermission: {
         type: "string",
+        required: false,
+        input: false,
+      },
+      // TRUE = a super admin set the password; the app forces a change on next login.
+      mustChangePassword: {
+        type: "boolean",
         required: false,
         input: false,
       },

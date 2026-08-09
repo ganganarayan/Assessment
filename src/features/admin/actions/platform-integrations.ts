@@ -45,6 +45,28 @@ export async function updatePlatformMetaSettings(pixelId: string, capiToken: str
   return { ok: true };
 }
 
+export async function getPasswordResetWebhook(): Promise<{ url: string }> {
+  await requireSuperAdmin();
+  const s = await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { passwordResetWebhookUrl: true } });
+  return { url: s?.passwordResetWebhookUrl ?? "" };
+}
+
+/** The platform password-reset webhook: assess360 POSTs the reset link here; the CRM
+ *  emails the user. Blank falls back to env PASSWORD_RESET_WEBHOOK_URL. */
+export async function updatePasswordResetWebhook(url: string): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  const trimmed = url.trim();
+  if (trimmed && !/^https?:\/\//i.test(trimmed)) return { ok: false, error: "Enter a full https:// URL." };
+  await prisma.appSetting.upsert({
+    where: { id: "singleton" },
+    update: { passwordResetWebhookUrl: trimmed || null },
+    create: { id: "singleton", passwordResetWebhookUrl: trimmed || null },
+  });
+  revalidatePath("/admin/settings");
+  return { ok: true };
+}
+
 export async function updatePlatformRazorpaySettings(
   keyId: string,
   keySecret: string,

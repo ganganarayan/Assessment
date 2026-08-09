@@ -17,6 +17,22 @@ export interface AuthUser {
   staffPermission?: string | null;
 }
 
+/**
+ * Gate every protected surface on the account's current DB state (fresh — not the
+ * possibly-stale session): a soft-deleted user is bounced to sign-in, and a user
+ * whose password was set by a super admin is forced to /change-password first.
+ * Called from the role guards below (not requireUser, so /change-password itself
+ * stays reachable).
+ */
+async function enforceAccountState(userId: string): Promise<void> {
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { deletedAt: true, mustChangePassword: true },
+  });
+  if (!u || u.deletedAt) redirect("/sign-in");
+  if (u.mustChangePassword) redirect("/change-password");
+}
+
 /** A staff member (limited account) vs. a full-access owner/admin. */
 export function isStaff(user: { staffPermission?: string | null }): boolean {
   return user.staffPermission === "VIEW" || user.staffPermission === "EDIT";
@@ -54,6 +70,7 @@ export function assertCanEditOrThrow(user: { staffPermission?: string | null }):
  */
 export async function requireOwnerAdmin(): Promise<AuthUser> {
   const user = await requireUser();
+  await enforceAccountState(user.id);
   if (isStaff(user)) redirect(isSuperAdmin(user) ? "/admin" : "/w");
   return user;
 }
@@ -80,6 +97,7 @@ export function isSuperAdmin(user: { role?: string | null; email: string }): boo
  */
 export async function requireSuperAdmin(): Promise<AuthUser> {
   const user = await requireUser();
+  await enforceAccountState(user.id);
   // Non-super users belong in their tenant workspace (/w); if they have no tenant,
   // /w bounces them to /dashboard to self-provision.
   if (!isSuperAdmin(user)) redirect("/w");
@@ -109,6 +127,7 @@ export async function requireTenantAdmin(): Promise<{ user: AuthUser; tenantId: 
  */
 export async function requireWorkspace(): Promise<{ user: AuthUser; tenantId: string; impersonating: boolean }> {
   const user = await requireUser();
+  await enforceAccountState(user.id);
   if (isSuperAdmin(user)) {
     const acting = (await cookies()).get(ACTING_TENANT_COOKIE)?.value || null;
     if (!acting) redirect("/platform");

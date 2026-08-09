@@ -10,6 +10,7 @@ import { requireSuperAdmin, isStaff } from "@/lib/auth/guards";
 /** Tenant/user management is OWNER-only — never a staff member (even EDIT). */
 const OWNER_ONLY = { ok: false as const, error: "Only an owner can manage tenants and users." };
 import { isPlatformOwner } from "@/lib/auth/platform";
+import { auth } from "@/lib/auth/auth";
 import { ACTING_TENANT_COOKIE } from "@/lib/tenant/acting";
 import { slugSchema } from "@/features/assessment/schemas";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -50,7 +51,7 @@ export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
   await requireSuperAdmin();
   const rows = await prisma.tenant.findMany({
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { users: true, assessments: true, submissions: true } } },
+    include: { _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } } },
   });
   return {
     ok: true,
@@ -92,24 +93,37 @@ export interface PlatformUserRow {
   isOwner: boolean;
 }
 
+function toUserRow(u: { id: string; name: string; email: string; tenantId: string | null; role: string; tenant: { name: string } | null }): PlatformUserRow {
+  return {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    tenantId: u.tenantId,
+    tenantName: u.tenant?.name ?? null,
+    isSuper: u.role === "SUPER_ADMIN" || isPlatformOwner(u.email),
+    isOwner: isPlatformOwner(u.email),
+  };
+}
+
 export async function listUsers(): Promise<ActionResult<PlatformUserRow[]>> {
   await requireSuperAdmin();
   const users = await prisma.user.findMany({
+    where: { deletedAt: null },
     orderBy: { createdAt: "desc" },
     include: { tenant: { select: { name: true } } },
   });
-  return {
-    ok: true,
-    data: users.map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      tenantId: u.tenantId,
-      tenantName: u.tenant?.name ?? null,
-      isSuper: u.role === "SUPER_ADMIN" || isPlatformOwner(u.email),
-      isOwner: isPlatformOwner(u.email),
-    })),
-  };
+  return { ok: true, data: users.map(toUserRow) };
+}
+
+/** Soft-deleted users (recoverable). Shown in the platform "Deleted users" section. */
+export async function listDeletedUsers(): Promise<ActionResult<PlatformUserRow[]>> {
+  await requireSuperAdmin();
+  const users = await prisma.user.findMany({
+    where: { deletedAt: { not: null } },
+    orderBy: { updatedAt: "desc" },
+    include: { tenant: { select: { name: true } } },
+  });
+  return { ok: true, data: users.map(toUserRow) };
 }
 
 /** Assign a login to a tenant as its ADMIN (or unassign with tenantId=null). */
@@ -143,7 +157,9 @@ export async function setUserSuperAdmin(userId: string, superAdmin: boolean): Pr
   return { ok: true };
 }
 
-/** Delete a login. The platform owner and the acting super admin can't be deleted. */
+/** Soft-delete a login: hide it from active logins, unassign its tenant, and revoke
+ *  its sessions immediately. Recoverable from the "Deleted users" section. The
+ *  platform owner and the acting super admin can't be deleted. */
 export async function deleteUser(userId: string): Promise<ActionResult> {
   const me = await requireSuperAdmin();
   if (isStaff(me)) return OWNER_ONLY;
@@ -151,7 +167,46 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
   if (!target) return { ok: false, error: "User not found." };
   if (userId === me.id) return { ok: false, error: "You can't delete your own account." };
   if (isPlatformOwner(target.email)) return { ok: false, error: "The platform owner can't be deleted." };
-  await prisma.user.delete({ where: { id: userId } });
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { deletedAt: new Date(), tenantId: null } }),
+    prisma.session.deleteMany({ where: { userId } }),
+  ]);
+  revalidatePath("/platform");
+  return { ok: true };
+}
+
+/** Restore a soft-deleted login (leaves it unassigned — reassign a tenant after). */
+export async function restoreUser(userId: string): Promise<ActionResult> {
+  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { deletedAt: true } });
+  if (!target) return { ok: false, error: "User not found." };
+  await prisma.user.update({ where: { id: userId }, data: { deletedAt: null } });
+  revalidatePath("/platform");
+  return { ok: true };
+}
+
+/** Super admin sets a user's password directly. Forces a change on next login and
+ *  revokes current sessions so the new password takes effect immediately. */
+export async function setUserPassword(userId: string, newPassword: string): Promise<ActionResult> {
+  const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
+  if ((newPassword ?? "").length < 8) return { ok: false, error: "Password must be at least 8 characters." };
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true } });
+  if (!target) return { ok: false, error: "User not found." };
+  if (isPlatformOwner(target.email)) return { ok: false, error: "Use Forgot password for the owner account, not a set." };
+
+  const ctx = await auth.$context;
+  const hashed = await ctx.password.hash(newPassword.trim());
+  const acct = await prisma.account.findFirst({ where: { userId, providerId: "credential" }, select: { id: true } });
+  if (acct) {
+    await prisma.account.update({ where: { id: acct.id }, data: { password: hashed } });
+  } else {
+    await prisma.account.create({ data: { accountId: userId, providerId: "credential", password: hashed, userId } });
+  }
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { mustChangePassword: true } }),
+    prisma.session.deleteMany({ where: { userId } }),
+  ]);
   revalidatePath("/platform");
   return { ok: true };
 }

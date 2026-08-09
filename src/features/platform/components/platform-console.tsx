@@ -8,9 +8,12 @@ import {
   createTenant,
   listTenants,
   listUsers,
+  listDeletedUsers,
   assignUserToTenant,
   setUserSuperAdmin,
+  setUserPassword,
   deleteUser,
+  restoreUser,
   enterTenant,
   type TenantRow,
   type PlatformUserRow,
@@ -24,24 +27,47 @@ import {
 export function PlatformConsole({
   initialTenants,
   initialUsers,
+  initialDeletedUsers,
   currentUserId,
 }: {
   initialTenants: TenantRow[];
   initialUsers: PlatformUserRow[];
+  initialDeletedUsers: PlatformUserRow[];
   currentUserId: string;
 }) {
   const [tenants, setTenants] = useState<TenantRow[]>(initialTenants);
   const [users, setUsers] = useState<PlatformUserRow[]>(initialUsers);
+  const [deleted, setDeleted] = useState<PlatformUserRow[]>(initialDeletedUsers);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const refresh = async () => {
-    const [t, u] = await Promise.all([listTenants(), listUsers()]);
+    const [t, u, d] = await Promise.all([listTenants(), listUsers(), listDeletedUsers()]);
     if (t.ok && t.data) setTenants(t.data);
     if (u.ok && u.data) setUsers(u.data);
+    if (d.ok && d.data) setDeleted(d.data);
   };
+
+  const setPw = (u: PlatformUserRow) =>
+    start(async () => {
+      setError(null);
+      const pw = window.prompt(`Set a new password for ${u.email}.\nThey'll be signed out and forced to change it on next login.`);
+      if (pw == null) return;
+      const r = await setUserPassword(u.id, pw);
+      if (!r.ok) return setError(r.error);
+      window.alert(`Password set for ${u.email}. Share it with them; they'll set their own on first login.`);
+      await refresh();
+    });
+
+  const restore = (u: PlatformUserRow) =>
+    start(async () => {
+      setError(null);
+      const r = await restoreUser(u.id);
+      if (!r.ok) setError(r.error);
+      await refresh();
+    });
 
   const create = () =>
     start(async () => {
@@ -73,7 +99,7 @@ export function PlatformConsole({
 
   const del = (u: PlatformUserRow) =>
     start(async () => {
-      if (!confirm(`Delete the login ${u.email}? This removes their account and sign-in access.`)) return;
+      if (!confirm(`Delete the login ${u.email}? They'll be signed out and moved to Deleted users (recoverable), and unassigned from their tenant.`)) return;
       const r = await deleteUser(u.id);
       if (!r.ok) setError(r.error);
       await refresh();
@@ -183,6 +209,11 @@ export function PlatformConsole({
                   <td className="px-3 py-2 text-right">
                     <div className="flex justify-end gap-2">
                       {u.isOwner ? null : (
+                        <Button size="sm" variant="outline" disabled={pending} onClick={() => setPw(u)}>
+                          Set password
+                        </Button>
+                      )}
+                      {u.isOwner ? null : (
                         <Button size="sm" variant="outline" disabled={pending} onClick={() => toggleSuper(u)}>
                           {u.isSuper ? "Remove super-admin" : "Make super-admin"}
                         </Button>
@@ -206,6 +237,41 @@ export function PlatformConsole({
           </table>
         </div>
       </section>
+
+      {/* Deleted users */}
+      {deleted.length > 0 ? (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold">Deleted users ({deleted.length})</h2>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Signed out + unassigned from their tenant. Restore to re-enable sign-in (then reassign a tenant).
+          </p>
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+                <tr>
+                  <th className="px-3 py-1.5">User</th>
+                  <th className="px-3 py-1.5" />
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {deleted.map((u) => (
+                  <tr key={u.id} className="text-[var(--muted-foreground)]">
+                    <td className="px-3 py-2">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{u.name}</span>
+                        <span className="text-xs">{u.email}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <Button size="sm" variant="outline" disabled={pending} onClick={() => restore(u)}>Restore</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

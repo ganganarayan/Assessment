@@ -128,6 +128,12 @@ model User {
   role          Role     @default(ADMIN)
   // NULL = full-access owner/admin. Set = staff member (VIEW read-only / EDIT).
   staffPermission StaffPermission?
+  // Soft delete: set = removed (hidden from active logins, unassigned from tenant,
+  // sessions revoked) but recoverable from the "Deleted users" section.
+  deletedAt     DateTime?
+  // TRUE after a super admin sets the password — the user is forced to change it on
+  // next login before reaching the app; cleared once they set their own.
+  mustChangePassword Boolean @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -1138,6 +1144,11 @@ model AppSetting {
   purchaseAutoFireAmounts     String @default("199,499,999,1000")
   purchaseHighTicketThreshold Int    @default(4000)
   purchaseHighTicketEventName String @default("Purchase")
+
+  // Platform password-reset webhook: assess360 POSTs the reset link here; the CRM
+  // catches it and emails the user. Platform-level (login is platform-wide), so it
+  // lives on the singleton row. Null = fall back to env PASSWORD_RESET_WEBHOOK_URL.
+  passwordResetWebhookUrl String?
 
   // CRM "score_updated" resend: the destination endpoint (separate from the
   // configured webhooks) and a persisted "drip is active" flag for status/resume.

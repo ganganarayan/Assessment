@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireSuperAdmin } from "@/lib/auth/guards";
-import { listTenants, listUsers } from "@/features/platform/actions";
+import { listTenants, listUsers, listDeletedUsers } from "@/features/platform/actions";
 import { PlatformConsole } from "@/features/platform/components/platform-console";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PlatformPage() {
   const me = await requireSuperAdmin();
-  const [t, u] = await Promise.all([listTenants(), listUsers()]);
+  const [t, u, d] = await Promise.all([listTenants(), listUsers(), listDeletedUsers()]);
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -29,6 +29,7 @@ export default async function PlatformPage() {
       <PlatformConsole
         initialTenants={t.ok && t.data ? t.data : []}
         initialUsers={u.ok && u.data ? u.data : []}
+        initialDeletedUsers={d.ok && d.data ? d.data : []}
         currentUserId={me.id}
       />
     </main>

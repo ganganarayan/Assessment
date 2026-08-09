@@ -44,6 +44,9 @@ const serverSchema = z.object({
   // Unset => no email is sent (verification not enforced yet). Set it, then flip
   // requireEmailVerification on in auth.ts, to enforce verify-before-login.
   EMAIL_VERIFY_WEBHOOK_URL: z.string().url().optional(),
+  // Password-reset webhook fallback (the super-admin Settings field overrides it):
+  // assess360 POSTs the reset link here; the CRM emails the user.
+  PASSWORD_RESET_WEBHOOK_URL: z.string().url().optional(),
   // Reserved for the future Starter/Pro tiers — leave unset for now.
   RAZORPAY_PLAN_ID_STARTER: z.string().min(1).optional(),
   RAZORPAY_PLAN_ID_PRO: z.string().min(1).optional(),
