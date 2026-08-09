@@ -14,9 +14,7 @@ import {
   getPlatformIntegrationSettings,
   updatePlatformMetaSettings,
   updatePlatformRazorpaySettings,
-  getPasswordResetWebhook,
 } from "@/features/admin/actions/platform-integrations";
-import { PasswordResetWebhookForm } from "@/features/admin/components/password-reset-webhook-form";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
 import {
   Card,
@@ -39,10 +37,9 @@ export default async function SettingsPage() {
   const impersonating = actingId !== null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
-  const [integrations, domains, resetHook] = await Promise.all([
+  const [integrations, domains] = await Promise.all([
     impersonating ? getIntegrationSettings() : getPlatformIntegrationSettings(),
     impersonating ? getDomainSettings() : Promise.resolve(null),
-    impersonating ? Promise.resolve(null) : getPasswordResetWebhook(),
   ]);
 
   return (
@@ -83,20 +80,6 @@ export default async function SettingsPage() {
           />
         </CardContent>
       </Card>
-
-      {!impersonating && resetHook ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Password reset (CRM webhook)</CardTitle>
-            <CardDescription>
-              Where assess360 sends password-reset links so your CRM emails them to users. Platform-wide.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <PasswordResetWebhookForm initialUrl={resetHook.url} />
-          </CardContent>
-        </Card>
-      ) : null}
 
       {impersonating && domains ? (
         <Card>

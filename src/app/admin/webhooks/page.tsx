@@ -2,12 +2,19 @@ import { getWebhooks } from "@/features/events/data";
 import { WebhooksManager } from "@/features/events/components/webhooks-manager";
 import { ACTIVE_EVENT_TYPES, EVENT_LABEL, DEFAULT_EVENT_NAME } from "@/features/events/types";
 import { actingTenantId } from "@/lib/tenant/acting";
+import { getPasswordResetWebhook } from "@/features/admin/actions/platform-integrations";
+import { PasswordResetWebhookForm } from "@/features/admin/components/password-reset-webhook-form";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
 export default async function WebhooksPage() {
   // Scope to the entered tenant when impersonating; null = platform/Gita.
-  const { active, inactive } = await getWebhooks(await actingTenantId());
+  const actingId = await actingTenantId();
+  const { active, inactive } = await getWebhooks(actingId);
+  // Password reset is a PLATFORM-level auth webhook (login is platform-wide), so it's
+  // shown only in the platform view (not while impersonating a tenant).
+  const resetHook = actingId === null ? await getPasswordResetWebhook() : null;
   // Trigger options: every event the app emits, with a friendly label + a suggested
   // default delivered name. Computed server-side so the client never imports the
   // event registry (which pulls @prisma/client). Multiple webhooks may share a
@@ -30,6 +37,22 @@ export default async function WebhooksPage() {
         </p>
       </div>
       <WebhooksManager active={active} inactive={inactive} triggers={triggers} />
+
+      {resetHook ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Password reset webhook</CardTitle>
+            <CardDescription>
+              Platform-wide. When someone uses “Forgot password”, assess360 POSTs the reset link
+              (10-min expiry) to this URL — your CRM catches it and emails the user. Payload:
+              <span className="font-mono"> {"{ type: \"password_reset\", email, name, reset_url, token }"}</span>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PasswordResetWebhookForm initialUrl={resetHook.url} />
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }
