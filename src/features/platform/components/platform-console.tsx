@@ -241,7 +241,7 @@ export function PlatformConsole({
                       >
                         <option value="">Unassigned (Admin)</option>
                         {tenants.map((t) => (
-                          <option key={t.id} value={t.id}>{t.name} (Admin)</option>
+                          <option key={t.id} value={t.id}>{t.name} · {t.slug} (Admin)</option>
                         ))}
                       </select>
                     )}

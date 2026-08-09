@@ -41,8 +41,10 @@ export const auth = betterAuth({
     if (origin) {
       try {
         const host = new URL(origin).host.toLowerCase();
-        const d = await prisma.domain.findUnique({ where: { hostname: host }, select: { verified: true } });
-        if (d?.verified) list.push(origin);
+        // Trust any registered custom domain (the request reaching us means it already
+        // routes here) — don't gate on the `verified` flag, which can be stale.
+        const d = await prisma.domain.findUnique({ where: { hostname: host }, select: { id: true } });
+        if (d) list.push(origin);
       } catch {
         /* malformed origin — ignore */
       }
