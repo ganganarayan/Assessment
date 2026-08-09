@@ -21,6 +21,7 @@ export interface CategoryData {
   id: string;
   name: string;
   description: string | null;
+  page: number;
   questions: QuestionData[];
 }
 
@@ -42,6 +43,7 @@ export function CategoriesManager({
   const router = useRouter();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -49,13 +51,14 @@ export function CategoriesManager({
   function add() {
     setError(null);
     start(async () => {
-      const res = await createCategory(assessmentId, { name, description });
+      const res = await createCategory(assessmentId, { name, description, page });
       if (!res.ok) {
         setError(res.error);
         return;
       }
       setName("");
       setDescription("");
+      setPage(1);
       router.refresh();
     });
   }
@@ -95,7 +98,12 @@ export function CategoriesManager({
           ) : (
             <div className="flex items-start justify-between gap-3">
               <div className="flex flex-col">
-                <span className="font-semibold">{c.name}</span>
+                <span className="font-semibold">
+                  {c.name}
+                  {c.page === 2 ? (
+                    <span className="ml-2 rounded-full bg-[var(--muted)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Page 2 · Queries</span>
+                  ) : null}
+                </span>
                 {c.description ? (
                   <span className="text-xs text-[var(--muted-foreground)]">
                     {c.description}
@@ -129,6 +137,18 @@ export function CategoriesManager({
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="cat-page">Page</Label>
+          <select
+            id="cat-page"
+            value={page}
+            onChange={(e) => setPage(Number(e.target.value))}
+            className="h-10 max-w-xs rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+          >
+            <option value={1}>Page 1 — Assessment</option>
+            <option value={2}>Page 2 — Queries (separate scored page)</option>
+          </select>
+        </div>
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         <div>
           <Button size="sm" onClick={add} disabled={pending || name.trim() === ""}>
@@ -151,13 +171,14 @@ function CategoryEditForm({
 }) {
   const [name, setName] = useState(category.name);
   const [description, setDescription] = useState(category.description ?? "");
+  const [page, setPage] = useState(category.page ?? 1);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   function save() {
     setError(null);
     start(async () => {
-      const res = await updateCategory(category.id, { name, description });
+      const res = await updateCategory(category.id, { name, description, page });
       if (!res.ok) {
         setError(res.error);
         return;
@@ -170,6 +191,14 @@ function CategoryEditForm({
     <div className="flex flex-col gap-2">
       <Input value={name} onChange={(e) => setName(e.target.value)} />
       <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+      <select
+        value={page}
+        onChange={(e) => setPage(Number(e.target.value))}
+        className="h-9 max-w-xs rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+      >
+        <option value={1}>Page 1 — Assessment</option>
+        <option value={2}>Page 2 — Queries</option>
+      </select>
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex gap-2">
         <Button size="sm" onClick={save} disabled={pending}>Save</Button>

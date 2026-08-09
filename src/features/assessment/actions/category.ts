@@ -35,6 +35,7 @@ export async function createCategory(
       assessmentId,
       name: parsed.data.name,
       description: nullifyEmpty(parsed.data.description),
+      page: parsed.data.page,
       displayOrder: count,
     },
   });
@@ -73,6 +74,7 @@ export async function updateCategory(
     data: {
       name: parsed.data.name,
       description: nullifyEmpty(parsed.data.description),
+      page: parsed.data.page,
     },
     select: { assessmentId: true },
   });

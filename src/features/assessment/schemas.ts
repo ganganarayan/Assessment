@@ -141,6 +141,8 @@ export type AssessmentInput = z.infer<typeof assessmentSchema>;
 export const categorySchema = z.object({
   name: z.string().min(1, "Name is required.").max(160),
   description: z.string().max(1000).optional().or(z.literal("")),
+  // 1 = main assessment, 2 = the separate scored "queries" page.
+  page: z.coerce.number().int().min(1).max(2).default(1),
 });
 export type CategoryInput = z.infer<typeof categorySchema>;
 

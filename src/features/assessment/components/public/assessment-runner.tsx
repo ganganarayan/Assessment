@@ -30,6 +30,7 @@ export interface PublicCategory {
   id: string;
   name: string;
   description: string | null;
+  page: number;
   questions: PublicQuestion[];
 }
 export interface PublicAssessment {
@@ -659,12 +660,18 @@ export function AssessmentRunner({
   const leadContact = [lead.email, lead.mobile].filter(Boolean).join(" · ");
 
   type QGroup = { cat: (typeof assessment.categories)[number]; qs: (typeof assessment.categories)[number]["questions"] };
-  const screens: QGroup[][] =
+  // Categories are grouped by PAGE (1 = assessment, 2 = queries). Page 1's screens come
+  // first, then page 2's — so the two scored pages are always visually separate.
+  const pageGroups = [1, 2]
+    .map((p) => assessment.categories.filter((c) => (c.page ?? 1) === p))
+    .filter((g) => g.length > 0);
+  const screens: QGroup[][] = pageGroups.flatMap((cats) =>
     assessment.questionDisplayMode === "CATEGORY"
-      ? assessment.categories.map((c) => [{ cat: c, qs: c.questions }])
+      ? cats.map((c) => [{ cat: c, qs: c.questions }])
       : assessment.questionDisplayMode === "SINGLE"
-        ? assessment.categories.flatMap((c) => c.questions.map((q) => [{ cat: c, qs: [q] }]))
-        : [assessment.categories.map((c) => ({ cat: c, qs: c.questions }))];
+        ? cats.flatMap((c) => c.questions.map((q) => [{ cat: c, qs: [q] }]))
+        : [cats.map((c) => ({ cat: c, qs: c.questions }))],
+  );
   const lastIdx = Math.max(0, screens.length - 1);
   const idx = Math.min(screenIndex, lastIdx);
   const isLast = idx >= lastIdx;

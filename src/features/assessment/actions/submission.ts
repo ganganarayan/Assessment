@@ -725,6 +725,7 @@ export async function completeSubmission(
         select: {
           id: true,
           name: true,
+          page: true,
           questions: {
             select: {
               id: true,

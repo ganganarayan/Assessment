@@ -85,6 +85,7 @@ export default async function EditAssessmentPage({
     id: c.id,
     name: c.name,
     description: c.description,
+    page: c.page,
     questions: c.questions.map((q) => ({
       id: q.id,
       text: q.text,

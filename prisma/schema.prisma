@@ -510,6 +510,10 @@ model Category {
   name         String
   description  String?
   displayOrder Int      @default(0)
+  // Which page of the funnel this category belongs to: 1 = the main assessment,
+  // 2 = the separate "queries" page (its own scored questions, shown after the
+  // assessment; scored + banded independently; results show both pages).
+  page         Int      @default(1)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

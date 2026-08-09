@@ -55,7 +55,16 @@ export default async function ResultPage({
       leadEmail: true,
       leadMobile: true,
       leadProfession: true,
-      assessment: { select: { slug: true, title: true, targetUrl: true, nextStep: true, useAiStatement: true } },
+      assessment: {
+        select: {
+          slug: true,
+          title: true,
+          targetUrl: true,
+          nextStep: true,
+          useAiStatement: true,
+          categories: { select: { name: true, page: true } },
+        },
+      },
     },
   });
   if (!submission || submission.assessment.slug !== slug) notFound();
@@ -211,6 +220,15 @@ export default async function ResultPage({
     snap &&
     (isOwner || (!!token && token === submission.resultToken))
   ) {
+    // Group the category breakdown by page (1 = assessment, 2 = queries) so both
+    // scored pages show as separate sections. Page is looked up by name at render time.
+    const pageByName = new Map(submission.assessment.categories.map((c) => [c.name, c.page ?? 1]));
+    const cats = snap.categories ?? [];
+    const groups = [
+      { key: 1, label: "Assessment", items: cats.filter((c) => (pageByName.get(c.name) ?? 1) === 1) },
+      { key: 2, label: "Queries", items: cats.filter((c) => (pageByName.get(c.name) ?? 1) === 2) },
+    ].filter((g) => g.items.length > 0);
+    const twoPages = groups.length > 1;
     return (
       <main className="mx-auto w-full max-w-2xl px-4 py-10">
         <div className="flex flex-col gap-6">
@@ -232,13 +250,13 @@ export default async function ResultPage({
               ) : null}
             </CardContent>
           </Card>
-          {snap.categories?.length ? (
-            <Card>
+          {groups.map((g) => (
+            <Card key={g.key}>
               <CardHeader className="pb-2 pt-4">
-                <CardTitle className="text-lg">Category breakdown</CardTitle>
+                <CardTitle className="text-lg">{twoPages ? g.label : "Category breakdown"}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
-                {snap.categories.map((c) => (
+                {g.items.map((c) => (
                   <div key={c.name} className="flex flex-col gap-1 border-b border-[var(--border)] pb-2 last:border-0 last:pb-0">
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-medium">{c.name}</span>
@@ -251,7 +269,7 @@ export default async function ResultPage({
                 ))}
               </CardContent>
             </Card>
-          ) : null}
+          ))}
         </div>
       </main>
     );

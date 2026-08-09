@@ -86,6 +86,7 @@ export default async function WorkspaceEditAssessmentPage({
     id: c.id,
     name: c.name,
     description: c.description,
+    page: c.page,
     questions: c.questions.map((q) => ({
       id: q.id,
       text: q.text,
