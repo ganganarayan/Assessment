@@ -25,6 +25,30 @@ export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
   database: prismaAdapter(prisma, { provider: "postgresql" }),
+  /**
+   * Trusted origins for the CSRF/origin check. Beyond the app's own URL + the root
+   * domain (and its subdomains), a tenant admin may sign in on their OWN custom
+   * domain — so if the request's origin is a VERIFIED custom domain in our Domain
+   * table, trust it too. Without this, sign-in from a custom domain is rejected with
+   * "Invalid origin" before the password is ever checked.
+   */
+  trustedOrigins: async (request) => {
+    const root = env.NEXT_PUBLIC_ROOT_DOMAIN;
+    const list = [env.BETTER_AUTH_URL, env.NEXT_PUBLIC_APP_URL, `https://${root}`, `https://*.${root}`].filter(
+      (v): v is string => !!v,
+    );
+    const origin = request?.headers.get("origin");
+    if (origin) {
+      try {
+        const host = new URL(origin).host.toLowerCase();
+        const d = await prisma.domain.findUnique({ where: { hostname: host }, select: { verified: true } });
+        if (d?.verified) list.push(origin);
+      } catch {
+        /* malformed origin — ignore */
+      }
+    }
+    return list;
+  },
   emailAndPassword: {
     enabled: true,
     // requireEmailVerification stays OFF for now (no mail system yet) so signup logs
