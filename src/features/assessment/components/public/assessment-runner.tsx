@@ -65,6 +65,8 @@ export interface PublicAssessment {
   emailLabel: string | null;
   mobileLabel: string | null;
   professionLabel: string | null;
+  professionPlaceholder: string | null;
+  leadCaptureAfter: boolean;
   optinFields: PreResultField[];
   introNotice: string | null;
   startButtonLabel: string | null;
@@ -79,7 +81,7 @@ export interface PublicAssessment {
   pages: AssessmentPageData[];
 }
 
-type Step = "intro" | "questions" | "details" | "locked" | "evaluating" | "resultPages";
+type Step = "intro" | "questions" | "leadForm" | "details" | "locked" | "evaluating" | "resultPages";
 
 /** Anticipation countdown shown after Submit before the VSL/destination loads.
  *  Single source of truth; promote to a per-assessment field if it needs to vary. */
@@ -214,11 +216,23 @@ export function AssessmentRunner({
       if (res.data?.status === "started" && res.data.eventId) {
         pixelTrack("CompleteRegistration", { content_name: assessment.title }, res.data.eventId);
       }
-      setSubmissionId(res.data?.submissionId ?? null);
-      setEditToken(res.data?.status === "started" ? res.data.editToken : null);
+      const newSid = res.data?.submissionId ?? null;
+      const newTok = res.data?.status === "started" ? res.data.editToken : null;
+      setSubmissionId(newSid);
+      setEditToken(newTok);
       // Resume: pre-fill answers they saved/submitted before (editable until paid).
       if (res.data?.status === "started" && res.data.answers) {
         setAnswers(res.data.answers);
+      }
+      // Lead-capture-after: questions are already answered — go straight to the
+      // pre-results details (if any) or complete now, using the FRESH ids.
+      if (assessment.leadCaptureAfter) {
+        if (assessment.preResultFields.length > 0) {
+          setStep("details");
+        } else {
+          runCompletion(undefined, newSid ?? undefined, newTok ?? undefined);
+        }
+        return;
       }
       setScreenIndex(0); // start at the first question page
       setStep("questions");
@@ -239,12 +253,19 @@ export function AssessmentRunner({
 
   function submitAnswers() {
     setError(null);
-    if (!submissionId) {
-      setError("Session expired. Please restart.");
-      return;
-    }
     if (requiredUnanswered > 0) {
       setError(`Please answer all required questions (${requiredUnanswered} left).`);
+      return;
+    }
+    // Lead-capture-after: the questions ran anonymously; now collect the lead (which
+    // creates the submission), then complete.
+    if (assessment.leadCaptureAfter && !submissionId) {
+      setError(null);
+      setStep("leadForm");
+      return;
+    }
+    if (!submissionId) {
+      setError("Session expired. Please restart.");
       return;
     }
     // Optional pre-results data-capture page: collect the extra details first, then
@@ -266,8 +287,12 @@ export function AssessmentRunner({
     runCompletion(detailAnswers);
   }
 
-  function runCompletion(preResultAnswers?: Record<string, string>) {
-    if (!submissionId) {
+  function runCompletion(preResultAnswers?: Record<string, string>, sidArg?: string, tokArg?: string) {
+    // In lead-capture-after mode the submission is created moments earlier, so the
+    // caller passes the fresh id/token (React state isn't updated synchronously).
+    const sid = sidArg ?? submissionId;
+    const tok = tokArg ?? editToken ?? undefined;
+    if (!sid) {
       setError("Session expired. Please restart.");
       setStep("questions");
       return;
@@ -283,7 +308,7 @@ export function AssessmentRunner({
     // from 3, while the server scores + generates the AI statement.
     setStep("evaluating");
     start(async () => {
-      const res = await completeSubmission(submissionId, payload, editToken ?? undefined, details);
+      const res = await completeSubmission(sid, payload, tok, details);
       if (!res.ok) {
         setError(res.error);
         setStep("questions");
@@ -311,7 +336,7 @@ export function AssessmentRunner({
         // Free fallback destination only — in paid mode the button pays, never
         // redirects to the (free) result.
         setPageResultDest(assessment.paidMode ? null : (res.data?.resultUrl ?? null));
-        const r = await getResultForPages(submissionId);
+        const r = await getResultForPages(sid);
         if (r.ok && r.data) setPageResult(r.data);
         setStep("resultPages");
         return;
@@ -351,7 +376,7 @@ export function AssessmentRunner({
       // a minimum wait without ever cutting scoring short. Append event=1 so the
       // destination's VSL-view pixel fires ONCE on this post-completion redirect;
       // the link saved to the CRM stays without it, so later opens don't re-fire.
-      const base = res.data?.resultUrl ?? `/a/${assessment.slug}/r/${submissionId}`;
+      const base = res.data?.resultUrl ?? `/a/${assessment.slug}/r/${sid}`;
       const url = base + (base.includes("?") ? "&" : "?") + "event=1";
       setRedirectUrl(url);
     });
@@ -400,6 +425,68 @@ export function AssessmentRunner({
     );
   }
 
+  // Reusable pieces of the opt-in form — shown on the intro screen (lead-first) OR on
+  // the dedicated leadForm step (lead-after). Defined here so both steps share them.
+  const honeypotInput = (
+    <input
+      ref={hpRef}
+      type="text"
+      name="contact_pref_hp"
+      tabIndex={-1}
+      autoComplete="off"
+      aria-hidden="true"
+      data-lpignore="true"
+      data-1p-ignore="true"
+      data-bwignore="true"
+      data-form-type="other"
+      className="absolute left-[-9999px] h-0 w-0 opacity-0"
+    />
+  );
+  const leadFieldsBlock = (
+    <div className="flex flex-col gap-4">
+      {assessment.collectFirstName ? (
+        <Field label={assessment.firstNameLabel?.trim() || "First name"} required={assessment.firstNameRequired} value={lead.firstName ?? ""} onChange={(v) => setLead((l) => ({ ...l, firstName: v }))} />
+      ) : null}
+      {assessment.collectLastName ? (
+        <Field label={assessment.lastNameLabel?.trim() || "Last name"} required={assessment.lastNameRequired} value={lead.lastName ?? ""} onChange={(v) => setLead((l) => ({ ...l, lastName: v }))} />
+      ) : null}
+      {assessment.collectEmail ? (
+        <Field label={assessment.emailLabel?.trim() || "Email"} type="email" required={assessment.emailRequired} value={lead.email ?? ""} onChange={(v) => setLead((l) => ({ ...l, email: v }))} />
+      ) : null}
+      {assessment.collectMobile ? (
+        <Field label={assessment.mobileLabel?.trim() || "Mobile"} required={assessment.mobileRequired} value={lead.mobile ?? ""} onChange={(v) => setLead((l) => ({ ...l, mobile: v }))} />
+      ) : null}
+      {assessment.collectProfession ? (
+        <SelectField label={assessment.professionLabel?.trim() || "Profession"} required={assessment.professionRequired} value={lead.profession ?? ""} options={professionOptionsFor(assessment.professionOptions)} placeholder={assessment.professionPlaceholder?.trim() || "Select your profession"} onChange={(v) => setLead((l) => ({ ...l, profession: v }))} />
+      ) : null}
+      {assessment.optinFields.map((f) =>
+        f.type === "select" ? (
+          <SelectField key={f.id} label={f.label} required={f.required} value={optinAnswers[f.id] ?? ""} options={f.options} placeholder="Select…" onChange={(v) => setOptinAnswers((prev) => ({ ...prev, [f.id]: v }))} />
+        ) : (
+          <Field key={f.id} label={f.label} required={f.required} value={optinAnswers[f.id] ?? ""} onChange={(v) => setOptinAnswers((prev) => ({ ...prev, [f.id]: v }))} />
+        ),
+      )}
+    </div>
+  );
+
+  // Lead-capture-AFTER: the opt-in form on its own step, shown after the questions.
+  if (step === "leadForm") {
+    return (
+      <form onSubmit={submitLead} className="flex flex-col gap-6">
+        {honeypotInput}
+        <div className="flex flex-col gap-1">
+          <h2 className="text-2xl font-bold tracking-tight">Almost done</h2>
+          <p className="text-[var(--muted-foreground)]">Enter your details to see your results.</p>
+        </div>
+        {leadFieldsBlock}
+        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+        <Button size="lg" type="submit" disabled={pending} style={ctaStyle}>
+          {pending ? "Please wait…" : "See my results"}
+        </Button>
+      </form>
+    );
+  }
+
   if (step === "intro") {
     // A custom introNotice overrides the auto retake message entirely.
     const retakeNotice =
@@ -410,58 +497,55 @@ export function AssessmentRunner({
           : assessment.retakePolicy === "DELAYED"
             ? `Please answer honestly in one sitting. Once you submit, you won't be able to retake this assessment for ${assessment.retakeDays} day${assessment.retakeDays === 1 ? "" : "s"}.`
             : null;
-    return (
-      // Landing page + opt-in form on ONE screen (no separate "Start" step): the
-      // headline/description show, with the lead form directly below.
-      <form onSubmit={submitLead} className="flex flex-col gap-6">
-        {/* Honeypot: off-screen, not a tab stop, ignored by AT — only bots fill it.
-            The data-*ignore attrs stop password managers (LastPass/1Password/Bitwarden)
-            and browser autofill from filling it — otherwise a real human's autofill
-            trips the honeypot and gets wrongly blocked. */}
-        <input
-          ref={hpRef}
-          type="text"
-          name="contact_pref_hp"
-          tabIndex={-1}
-          autoComplete="off"
-          aria-hidden="true"
-          data-lpignore="true"
-          data-1p-ignore="true"
-          data-bwignore="true"
-          data-form-type="other"
-          className="absolute left-[-9999px] h-0 w-0 opacity-0"
-        />
+    const landing = (
+      <>
         {assessment.coverImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={assessment.coverImageUrl}
-            alt=""
-            className="aspect-video w-full rounded-lg object-cover"
-          />
+          <img src={assessment.coverImageUrl} alt="" className="aspect-video w-full rounded-lg object-cover" />
         ) : null}
         <div className="flex flex-col gap-2">
           {assessment.eyebrow ? (
-            <p className="text-sm font-semibold uppercase tracking-wide text-[#D4AF37]">
-              {assessment.eyebrow}
-            </p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-[#D4AF37]">{assessment.eyebrow}</p>
           ) : null}
           <h1 className="text-3xl font-bold tracking-tight">{assessment.title}</h1>
           {assessment.subheadline ? (
-            <p className="text-lg font-medium text-[var(--foreground)]">
-              {assessment.subheadline}
-            </p>
+            <p className="text-lg font-medium text-[var(--foreground)]">{assessment.subheadline}</p>
           ) : null}
           {assessment.description ? (
-            <p className="whitespace-pre-line text-[var(--muted-foreground)]">
-              {assessment.description}
-            </p>
+            <p className="whitespace-pre-line text-[var(--muted-foreground)]">{assessment.description}</p>
           ) : null}
         </div>
         {retakeNotice ? (
-          <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-[var(--foreground)]">
-            {retakeNotice}
-          </p>
+          <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-[var(--foreground)]">{retakeNotice}</p>
         ) : null}
+      </>
+    );
+
+    // Lead-capture-AFTER: show the landing + a Start button; the opt-in form appears
+    // after the questions (the "leadForm" step). No lead fields here.
+    if (assessment.leadCaptureAfter) {
+      return (
+        <div className="flex flex-col gap-6">
+          {landing}
+          {error ? <p className="text-sm text-red-500">{error}</p> : null}
+          <Button
+            size="lg"
+            type="button"
+            disabled={pending}
+            style={ctaStyle}
+            onClick={() => { setError(null); setScreenIndex(0); setStep("questions"); }}
+          >
+            {assessment.startButtonLabel?.trim() || "Start"}
+          </Button>
+        </div>
+      );
+    }
+
+    // Default: landing + opt-in form on one screen.
+    return (
+      <form onSubmit={submitLead} className="flex flex-col gap-6">
+        {honeypotInput}
+        {landing}
 
         <div className="flex flex-col gap-4">
           {assessment.collectFirstName ? (
@@ -503,7 +587,7 @@ export function AssessmentRunner({
               required={assessment.professionRequired}
               value={lead.profession ?? ""}
               options={professionOptionsFor(assessment.professionOptions)}
-              placeholder="Select your profession"
+              placeholder={assessment.professionPlaceholder?.trim() || "Select your profession"}
               onChange={(v) => setLead((l) => ({ ...l, profession: v }))}
             />
           ) : null}

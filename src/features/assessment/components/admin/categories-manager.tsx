@@ -82,8 +82,20 @@ export function CategoriesManager({
     });
   }
 
+  const page2Count = categories.filter((c) => c.page === 2).length;
   return (
     <div className="flex flex-col gap-4">
+      <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-xs text-[var(--muted-foreground)]">
+        Each category is a group of scored questions. Set a category&apos;s <strong>Page</strong> to
+        <strong> Page 2 — Queries</strong> to put it (and the questions you add inside it) on the
+        separate second scored page. Give it its own <strong>Category bands</strong> below for the
+        results text.
+        {page2Count > 0 ? (
+          <> You have <strong>{page2Count}</strong> Page-2 categor{page2Count === 1 ? "y" : "ies"} (look for the “Page 2 · Queries” badge).</>
+        ) : (
+          <> No Page-2 categories yet — add one, or edit an existing category and switch its Page.</>
+        )}
+      </p>
       {categories.map((c, i) => (
         <div key={c.id} className="flex flex-col gap-3 rounded-lg border p-4">
           {editingId === c.id ? (

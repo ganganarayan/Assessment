@@ -332,6 +332,13 @@ model Assessment {
   emailLabel      String?
   mobileLabel     String?
   professionLabel String?
+  // Placeholder shown in the profession dropdown (null = "Select your profession").
+  professionPlaceholder String?
+
+  // Lead-capture position: false = the opt-in form is the FIRST screen (default);
+  // true = show a landing (headline + Start) first, ask the questions, THEN collect
+  // the lead on an opt-in form before results.
+  leadCaptureAfter Boolean @default(false)
 
   // Extra custom fields on the OPT-IN form (beyond the built-in lead fields), same
   // shape as preResultFields: [{ id, label, type: "text"|"select", options[], required }].

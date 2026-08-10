@@ -58,6 +58,9 @@ export const assessmentSchema = z.object({
   emailLabel: z.string().max(60).optional().or(z.literal("")),
   mobileLabel: z.string().max(60).optional().or(z.literal("")),
   professionLabel: z.string().max(60).optional().or(z.literal("")),
+  professionPlaceholder: z.string().max(120).optional().or(z.literal("")),
+  // Lead-capture position: false = opt-in first (default); true = after the questions.
+  leadCaptureAfter: z.boolean().default(false),
   // Extra custom fields on the opt-in form (same shape as pre-results fields).
   optinFields: z.array(preResultFieldSchema).max(30).default([]),
   // Editable opt-in copy. Blank = default behavior.

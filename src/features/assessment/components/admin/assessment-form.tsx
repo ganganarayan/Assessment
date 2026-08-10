@@ -126,6 +126,8 @@ const DEFAULTS: AssessmentFormValues = {
   emailLabel: "",
   mobileLabel: "",
   professionLabel: "",
+  professionPlaceholder: "",
+  leadCaptureAfter: false,
   optinFields: [],
   introNotice: "",
   startButtonLabel: "",
@@ -372,21 +374,51 @@ export function AssessmentForm({
             </div>
 
             {values.collectProfession ? (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="professionOptions">Profession dropdown options</Label>
-                <Textarea
-                  id="professionOptions"
-                  rows={6}
-                  placeholder={"One per line. Leave blank to use the built-in list.\nSenior Management\nBusiness Owner\nDoctor"}
-                  value={(values.professionOptions ?? []).join("\n")}
-                  onChange={(e) => set("professionOptions", e.target.value.split("\n"))}
-                />
-                <p className="text-xs text-[var(--muted-foreground)]">
-                  One option per line. Blank = the built-in 13 professions. The exact label is
-                  stored and sent to your CRM.
-                </p>
-              </div>
+              <>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="professionPlaceholder">Profession dropdown placeholder</Label>
+                  <Input
+                    id="professionPlaceholder"
+                    className="max-w-md"
+                    placeholder="Select your profession"
+                    value={values.professionPlaceholder ?? ""}
+                    onChange={(e) => set("professionPlaceholder", e.target.value)}
+                  />
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    The greyed “choose…” text at the top of the dropdown. Blank = “Select your profession”.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="professionOptions">Profession dropdown options</Label>
+                  <Textarea
+                    id="professionOptions"
+                    rows={6}
+                    placeholder={"One per line. Leave blank to use the built-in list.\nSenior Management\nBusiness Owner\nDoctor"}
+                    value={(values.professionOptions ?? []).join("\n")}
+                    onChange={(e) => set("professionOptions", e.target.value.split("\n"))}
+                  />
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    One option per line. Blank = the built-in 13 professions. The exact label is
+                    stored and sent to your CRM.
+                  </p>
+                </div>
+              </>
             ) : null}
+
+            <div className="flex flex-col gap-1 border-t pt-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={values.leadCaptureAfter}
+                  onChange={(e) => set("leadCaptureAfter", e.target.checked)}
+                />
+                Collect the lead AFTER the assessment
+              </label>
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Off (default): the opt-in form is the first screen. On: show a landing (headline +
+                Start), ask the questions (page 1 → page 2), THEN show the opt-in form, then results.
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-col gap-4 rounded-lg border p-4">
