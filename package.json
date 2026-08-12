@@ -27,6 +27,7 @@
     "verify:capi": "tsx scripts/verify-capi.ts",
     "verify:ai": "tsx scripts/verify-ai.ts",
     "verify:report": "tsx scripts/verify-report.ts",
+    "verify:clinic": "tsx scripts/verify-clinic-audit.ts",
     "seed:category-bands": "tsx scripts/seed-category-bands.ts",
     "postinstall": "prisma generate"
   },

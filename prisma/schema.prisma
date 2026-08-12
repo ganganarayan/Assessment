@@ -273,6 +273,15 @@ enum QuestionDisplayMode {
   SINGLE // one question per page (with its category name)
 }
 
+// Which scoring/result engine an assessment uses. GENERIC = the built-in
+// category-weight scorer (all existing funnels). CLINIC_AUDIT = the data-driven
+// patient-acquisition funnel model (E×B×S×C…) with the interactive result page.
+// Additive: everything defaults to GENERIC so existing assessments are unchanged.
+enum AssessmentEngine {
+  GENERIC
+  CLINIC_AUDIT
+}
+
 // The step the flow moves to after the Results page. Explicit binding — every
 // flow must resolve to one. paidMode is kept in sync (PAYMENT => paidMode on).
 enum NextStep {
@@ -358,6 +367,15 @@ model Assessment {
   uniqueIdentifier UniqueIdentifier @default(EMAIL)
   // Optional VSL/training link shown on the retake-lockout screen.
   trainingUrl      String?
+
+  // Scoring/result engine. GENERIC (default) keeps the built-in category-weight
+  // scorer. CLINIC_AUDIT routes scoring + result rendering to the data-driven
+  // patient-acquisition funnel engine (see lib/scoring/clinic-audit.ts).
+  engine       AssessmentEngine @default(GENERIC)
+  // Optional model-parameter overrides for CLINIC_AUDIT (costPerEnquiry, bookRateCap,
+  // show-up target, override cutoffs, band gap thresholds, dormant %). Null => the
+  // code defaults in lib/scoring/clinic-audit.ts (DEFAULT_ENGINE_CONFIG).
+  engineConfig Json?
 
   // How questions are paginated for the respondent (one page / per category / one
   // question at a time).
@@ -546,6 +564,11 @@ model Question {
   weight       Float        @default(1)
   required     Boolean      @default(true)
   displayOrder Int          @default(0)
+  // CLINIC_AUDIT engine only: the funnel role this question feeds — one of
+  // ENQUIRIES, BOOK_RATE, SHOWUP_RATE, CLOSE_RATE, TREATMENT_VALUE, AD_SPEND,
+  // DORMANT, CAPACITY, UPLIFT_BOOKRATE. Null = not a scoring input (context /
+  // qualifier). Ignored by the GENERIC engine. See lib/scoring/clinic-audit.ts.
+  scoringRole  String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -566,7 +589,16 @@ model Question {
 model Option {
   id           String   @id @default(cuid())
   label        String
+  // GENERIC engine: the score point (1..4). CLINIC_AUDIT engine: the working figure
+  // for the question's scoringRole — rupees/counts as-is (90000, 90), rates & uplift
+  // as whole-number percent (32 = 0.32 book rate, 6 = +0.06 uplift). Int-only.
   value        Int
+  // CLINIC_AUDIT: fixed "weakest area" diagnosis line shown when this answer is one
+  // of the two weakest (assembled, never AI-generated). Null = no clause.
+  diagnosisClause String?
+  // CLINIC_AUDIT: marks an "I don't know / not sure" option, so the engine uses this
+  // value as a fallback assumption and surfaces it on the result page for correction.
+  isAssumption Boolean  @default(false)
   displayOrder Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
