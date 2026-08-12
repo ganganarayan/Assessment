@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
+import { computeResult } from "@/lib/scoring/clinic-audit";
+import { ClinicAuditResult } from "@/features/assessment/components/public/clinic-audit-result";
 import { markResultViewed } from "@/features/events/record";
 import { resultUrlFor } from "@/lib/events/completion";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -63,6 +66,8 @@ export default async function ResultPage({
           nextStep: true,
           useAiStatement: true,
           professionLabel: true,
+          engine: true,
+          tenantId: true,
           categories: { select: { name: true, page: true } },
         },
       },
@@ -78,6 +83,44 @@ export default async function ResultPage({
   if (!isOwner) await markResultViewed(submissionId);
 
   const snap = submission.resultSnapshot as unknown as ResultSnapshot | null;
+
+  // ---- Clinic-audit engine: branded interactive result --------------------
+  // Token-gated like the other respondent results (owner or matching ?t=token).
+  // Renders from the clinic snapshot; the client recomputes edits via the same
+  // pure engine. Takes precedence over the generic branches for this engine.
+  if (
+    submission.assessment.engine === "CLINIC_AUDIT" &&
+    snap?.clinic &&
+    submission.status === "COMPLETED" &&
+    (isOwner || (!!token && token === submission.resultToken))
+  ) {
+    const setting = submission.assessment.tenantId
+      ? await prisma.appSetting.findUnique({
+          where: { tenantId: submission.assessment.tenantId },
+          select: { bookingUrl: true },
+        })
+      : null;
+    const original = computeResult(snap.clinic.inputs, snap.clinic.config);
+    const h = await headers();
+    const host = h.get("host") ?? "";
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    const resultUrl = `${proto}://${host}/a/${slug}/r/${submissionId}${
+      token ? `?t=${encodeURIComponent(token)}` : ""
+    }`;
+    return (
+      <main style={{ minHeight: "100vh", background: "#F7F5F0" }}>
+        <ClinicAuditResult
+          inputs={snap.clinic.inputs}
+          config={snap.clinic.config}
+          original={original}
+          prose={snap.clinic.prose}
+          bookingUrl={setting?.bookingUrl ?? null}
+          resultUrl={resultUrl}
+          title={submission.assessment.title}
+        />
+      </main>
+    );
+  }
 
   // ---- Admin review: full result ------------------------------------------
   if (isOwner && submission.status === "COMPLETED" && snap) {

@@ -4,6 +4,19 @@
  * both the read endpoint and webhook 2.
  */
 import { pickResultBand, type ScoringBand } from "@/features/assessment/scoring";
+import { type ClinicInputs, type EngineConfig } from "@/lib/scoring/clinic-audit";
+
+/**
+ * Clinic-audit engine payload embedded in the snapshot. Stores the normalized
+ * numeric inputs + the resolved config so the result page (and its editable
+ * calculator) can recompute via the SAME pure function — never a second copy —
+ * and the AI prose (written once from the original answers). Absent for GENERIC.
+ */
+export interface ClinicSnapshot {
+  inputs: ClinicInputs;
+  config: EngineConfig;
+  prose: string | null;
+}
 
 /** A per-category band row (DB shape, minimal): percentage range -> label/meaning. */
 export interface CategoryBandLike extends ScoringBand {
@@ -33,6 +46,8 @@ export interface ResultSnapshot {
   /** AI-generated personalized statement (null when AI is off/unavailable). */
   aiStatement: string | null;
   categories: CategoryResultEntry[];
+  /** CLINIC_AUDIT engine only: funnel inputs + config + prose. Absent for GENERIC. */
+  clinic?: ClinicSnapshot;
 }
 
 /** Integer percentage (0–100). */
@@ -61,6 +76,7 @@ export function buildResultSnapshot(args: {
   resultSuggestion?: string | null;
   aiStatement?: string | null;
   categories: CategoryResultEntry[];
+  clinic?: ClinicSnapshot;
 }): ResultSnapshot {
   return {
     customerId: args.customerId,
@@ -72,5 +88,6 @@ export function buildResultSnapshot(args: {
     resultSuggestion: args.resultSuggestion ?? null,
     aiStatement: args.aiStatement ?? null,
     categories: args.categories,
+    ...(args.clinic ? { clinic: args.clinic } : {}),
   };
 }

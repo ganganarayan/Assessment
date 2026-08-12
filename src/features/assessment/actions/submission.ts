@@ -30,13 +30,24 @@ import { randomUUID } from "crypto";
 import { sendCapiEvent, isCapiConfigured } from "@/lib/meta/send";
 import { fbcCreationMs } from "@/lib/meta/capi";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
-import { generatePersonalStatement } from "@/lib/ai/generate";
+import { generatePersonalStatement, generateClinicStatement } from "@/lib/ai/generate";
+import {
+  resolveEngineConfig,
+  deriveInputs,
+  computeResult,
+  isClinicRole,
+  type RawAnswer,
+  type ClinicRole,
+  type ClinicAuditResult,
+} from "@/lib/scoring/clinic-audit";
+import { buildClinicContext, type ClinicPromptContext } from "@/lib/ai/clinic-prompt";
+import { formatINR, pctLabel } from "@/lib/format/inr";
 import { isRazorpayConfigured, createOrder } from "@/lib/payments/razorpay";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { type PaymentCheckout } from "@/lib/payments/types";
 
 const PAYMENT_BUSINESS_NAME = "Assess360";
-import { buildResultSnapshot, mapCategoryResult } from "@/lib/result/snapshot";
+import { buildResultSnapshot, mapCategoryResult, type ClinicSnapshot } from "@/lib/result/snapshot";
 import { buildCategoryQuestionBreakdown, type ChosenAnswer } from "@/lib/result/questions";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 
@@ -65,6 +76,54 @@ function buildResultUrl(
   // Internal result page (used for "Show results on assess360" + as a fallback). Carry
   // the token so the respondent can view their results in-platform (token-gated).
   return `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}${token ? `?t=${encodeURIComponent(token)}` : ""}`;
+}
+
+/**
+ * Assemble the clinic-audit AI CONTEXT from the computed result + the answers.
+ * Every figure is pre-formatted here so the model quotes it verbatim (it never
+ * calculates). Close rate is labelled as held constant.
+ */
+function buildClinicPromptContext(
+  result: ClinicAuditResult,
+  questions: { id: string; text: string; options: { id: string; label: string }[] }[],
+  optionByQuestionId: Map<string, string>,
+  profession: string | null,
+): ClinicPromptContext {
+  const figures: { label: string; value: string }[] = [
+    { label: "Cases today (per month)", value: `${result.casesNow}` },
+    { label: "Revenue today (per month)", value: formatINR(result.revenueNow) },
+    { label: "Revenue today (per year)", value: formatINR(result.revenueNow * 12) },
+    { label: "Achievable cases (per month)", value: `${result.casesPotential}` },
+    { label: "Achievable revenue (per month)", value: formatINR(result.revenuePotential) },
+    { label: "The gap (per month)", value: formatINR(result.gap) },
+    { label: "The gap (per year)", value: formatINR(result.annualGap) },
+    { label: "Booking rate now → achievable", value: `${pctLabel(result.bookRateNow)} → ${pctLabel(result.bookRateImproved)}` },
+    { label: "Show-up rate now → achievable", value: `${pctLabel(result.showUpNow)} → ${pctLabel(result.showUpImproved)}` },
+    { label: "Close rate (held constant, never modelled improving)", value: pctLabel(result.closeRate) },
+    { label: "Monthly enquiries", value: `${result.enquiries}` },
+    { label: "Average treatment value", value: formatINR(result.treatmentValue) },
+    {
+      label: "To add five cases a month",
+      value: `${result.fiveCases.attended} consultations attended, ${result.fiveCases.booked} booked, ${result.fiveCases.enquiries} enquiries, ${formatINR(result.fiveCases.adSpend)} ad spend`,
+    },
+    { label: "Dormant list recoverable", value: `${result.dormant.recoverable} cases (${formatINR(result.dormant.value)})` },
+    { label: "Spare capacity (cases/month)", value: `${result.capacity}` },
+  ];
+  const answers: { q: string; a: string }[] = [];
+  for (const q of questions) {
+    const oid = optionByQuestionId.get(q.id);
+    if (!oid) continue;
+    const label = q.options.find((o) => o.id === oid)?.label;
+    if (label) answers.push({ q: q.text, a: label });
+  }
+  return {
+    clinicType: profession,
+    band: result.band,
+    figures,
+    weakestClauses: result.weakestAreas.map((w) => w.clause),
+    assumptions: result.assumptions,
+    answers,
+  };
 }
 
 /** Append ?t=<token> to a static payment link so the post-payment page can unlock. */
@@ -720,6 +779,8 @@ export async function completeSubmission(
       paymentAmount: true,
       useAiStatement: true,
       nextStep: true,
+      engine: true,
+      engineConfig: true,
       tenant: { select: { id: true, slug: true, name: true } },
       categories: {
         select: {
@@ -732,7 +793,8 @@ export async function completeSubmission(
               text: true,
               weight: true,
               required: true,
-              options: { select: { id: true, value: true, label: true } },
+              scoringRole: true,
+              options: { select: { id: true, value: true, label: true, diagnosisClause: true, isAssumption: true } },
             },
           },
           bands: {
@@ -857,25 +919,54 @@ export async function completeSubmission(
     };
   }
 
-  // AI personalized statement. Feeds the overall band (level + title) and the
-  // per-category bands so the message uses the assessment's own words. Fail-soft:
-  // null when AI is off/slow/errors; the page falls back to the static
-  // suggestion. The default version is mirrored into the snapshot below.
-  // Per-assessment AI toggle: when off, no statement is generated (no AI cost) and the
-  // results/template convey the message on their own.
-  const aiStatement = assessment.useAiStatement
-    ? await generatePersonalStatement({
-        firstName: submission.leadFirstName,
-        profession: submission.leadProfession,
-        assessmentTitle: assessment.title,
-        scoreRaw: totalScore,
-        max: maxScore,
-        percentage: Math.round(percentage),
-        band: band?.title ?? null,
-        bandLevel: band?.level ?? null,
-        categories: aiCategories,
-      }, submission.tenantId, submission.assessment.aiPromptVersionId)
-    : null;
+  // Clinic-audit engine: compute the funnel result from the answers' roles + option
+  // numbers (pure, deterministic), then generate the fixed 4-section Divine Leads
+  // prose over the ALREADY-COMPUTED figures. The generic scoring above still ran
+  // (harmless totals) so webhooks/analytics keep their shape; the result page renders
+  // from the clinic snapshot. Both AI paths are fail-soft (null on off/slow/error).
+  let clinicSnap: ClinicSnapshot | null = null;
+  let clinicBandName: string | null = null;
+  let aiStatement: string | null = null;
+
+  if (assessment.engine === "CLINIC_AUDIT") {
+    const config = resolveEngineConfig(assessment.engineConfig);
+    const rawAnswers: RawAnswer[] = [];
+    for (const a of parsed.data.answers) {
+      const q = questionById.get(a.questionId);
+      if (!q || !isClinicRole(q.scoringRole ?? "")) continue;
+      const opt = q.options.find((o) => o.id === a.optionId);
+      if (!opt) continue;
+      rawAnswers.push({
+        role: q.scoringRole as ClinicRole,
+        value: opt.value,
+        isAssumption: opt.isAssumption,
+        clause: opt.diagnosisClause,
+      });
+    }
+    const inputs = deriveInputs(rawAnswers, config);
+    const result = computeResult(inputs, config);
+    clinicBandName = result.band;
+    if (assessment.useAiStatement) {
+      const ctx = buildClinicPromptContext(result, questions, optionByQuestionId, submission.leadProfession);
+      aiStatement = await generateClinicStatement(buildClinicContext(ctx), submission.tenantId);
+    }
+    clinicSnap = { inputs, config, prose: aiStatement };
+  } else {
+    // GENERIC: the personalized statement over the overall + per-category bands.
+    aiStatement = assessment.useAiStatement
+      ? await generatePersonalStatement({
+          firstName: submission.leadFirstName,
+          profession: submission.leadProfession,
+          assessmentTitle: assessment.title,
+          scoreRaw: totalScore,
+          max: maxScore,
+          percentage: Math.round(percentage),
+          band: band?.title ?? null,
+          bandLevel: band?.level ?? null,
+          categories: aiCategories,
+        }, submission.tenantId, submission.assessment.aiPromptVersionId)
+      : null;
+  }
   // "Show results on assess360" (nextStep RESULTS): never redirect to an external VSL —
   // force our own internal result page.
   const vslTarget = assessment.nextStep === "RESULTS" ? null : assessment.targetUrl;
@@ -885,11 +976,12 @@ export async function completeSubmission(
     scoreRaw: totalScore,
     max: maxScore,
     scorePercent: Math.round(percentage),
-    resultBand: band?.title ?? null,
+    resultBand: clinicBandName ?? band?.title ?? null,
     resultBandLevel: band?.level ?? null,
     resultSuggestion: band?.description ?? null,
     aiStatement,
     categories: categoryResults,
+    clinic: clinicSnap ?? undefined,
   });
   const resultUrl = buildResultUrl(vslTarget, assessment.slug, submissionId, token);
 

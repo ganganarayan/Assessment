@@ -7,6 +7,7 @@ import { applyCrisisLine } from "@/lib/ai/crisis";
 import { PREVIEW_SAMPLE } from "@/lib/ai/prompt-versions";
 import { resolvePromptVersion, getWordWindow } from "@/lib/ai/versions";
 import { DEFAULT_MODEL, isAiProvider, type AiConfig, type StatementInput } from "@/lib/ai/types";
+import { CLINIC_SYSTEM_PROMPT } from "@/lib/ai/clinic-prompt";
 
 /**
  * Server-side LLM call for the personalized result statement. Fully fail-soft:
@@ -113,6 +114,28 @@ export async function generatePersonalStatement(
   // Total function: never throws into completeSubmission — swallows to null so the
   // funnel falls back to the static suggestion.
   return (await generatePersonalStatementResult(input, tenantId, versionId)).text;
+}
+
+/**
+ * Clinic-audit 4-section prose. Uses the tenant's own AI provider/key with the
+ * FIXED Divine Leads system prompt + a CONTEXT block of the ALREADY-COMPUTED
+ * figures (the model never calculates). Fully fail-soft: returns null when AI is
+ * off/unconfigured or on any error/timeout, so the result page renders the numbers
+ * without prose. No humanizer/crisis line — this is a business audit, verbatim.
+ */
+export async function generateClinicStatement(
+  context: string,
+  tenantId: string | null = null,
+): Promise<string | null> {
+  try {
+    const cfg = await getAiConfig(tenantId);
+    if (!cfg) return null;
+    const raw = await callProvider(cfg, CLINIC_SYSTEM_PROMPT, context);
+    return clean(raw);
+  } catch (e) {
+    console.error("[ai] clinic statement error:", e instanceof Error ? e.message : String(e));
+    return null;
+  }
 }
 
 async function callProvider(cfg: AiConfig, system: string, user: string): Promise<string | null> {
