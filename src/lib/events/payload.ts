@@ -168,6 +168,22 @@ export function buildEnvelope(
   envelope["contact.assessment_diagnosis"] = band?.title ?? null;
   envelope["contact.result_url"] = (m.resultUrl as string | null) ?? null;
   envelope["contact.ai_statement"] = input.aiStatement ?? null;
+
+  // Clinic-audit computed figures (CLINIC_AUDIT engine only) — flat contact fields
+  // so the CRM/n8n can map the money numbers directly, plus a metadata.clinic block.
+  if (input.clinic) {
+    const c = input.clinic;
+    envelope.metadata = { ...(envelope.metadata as Record<string, unknown>), clinic: c };
+    envelope["contact.clinic_band"] = c.band;
+    envelope["contact.clinic_cases_now"] = c.casesNow;
+    envelope["contact.clinic_revenue_now"] = c.revenueNow;
+    envelope["contact.clinic_cases_potential"] = c.casesPotential;
+    envelope["contact.clinic_revenue_potential"] = c.revenuePotential;
+    envelope["contact.clinic_gap_monthly"] = c.gapMonthly;
+    envelope["contact.clinic_gap_annual"] = c.gapAnnual;
+    envelope["contact.clinic_dormant_value"] = c.dormantValue;
+    envelope["contact.clinic_five_case_ad_spend"] = c.fiveCaseAdSpend;
+  }
   // Event name as a contact custom field, so the CRM can match every event
   // uniformly on contact.event_type (lead_created / assessment_started /
   // assessment_completed / …). The score_updated resend overrides this in the sender.

@@ -25,6 +25,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
     items: [
       { href: "/w/stats", label: "Stats" },
       { href: "/w/contacts", label: "Contacts" },
+      { href: "/w/data-window", label: "Data window" },
     ],
   },
   {
@@ -32,6 +33,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
     items: [
       { href: "/w/webhooks", label: "Webhooks", exact: true },
       { href: "/w/webhooks/logs", label: "Webhook Logs" },
+      { href: "/w/pixel-test", label: "Pixel Tester" },
       { href: "/w/api", label: "API tokens" },
     ],
   },
@@ -39,6 +41,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
     section: null,
     items: [
       { href: "/w/conversions", label: "Conversions" },
+      { href: "/w/operations", label: "Operations" },
       { href: "/w/staff", label: "Staff" },
       { href: "/w/settings", label: "Settings" },
     ],

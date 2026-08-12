@@ -926,6 +926,7 @@ export async function completeSubmission(
   // from the clinic snapshot. Both AI paths are fail-soft (null on off/slow/error).
   let clinicSnap: ClinicSnapshot | null = null;
   let clinicBandName: string | null = null;
+  let clinicResult: ClinicAuditResult | null = null;
   let aiStatement: string | null = null;
 
   if (assessment.engine === "CLINIC_AUDIT") {
@@ -945,6 +946,7 @@ export async function completeSubmission(
     }
     const inputs = deriveInputs(rawAnswers, config);
     const result = computeResult(inputs, config);
+    clinicResult = result;
     clinicBandName = result.band;
     if (assessment.useAiStatement) {
       const ctx = buildClinicPromptContext(result, questions, optionByQuestionId, submission.leadProfession);
@@ -1073,6 +1075,21 @@ export async function completeSubmission(
   // fires completed_unpaid immediately here. (Legacy: this used to emit the separate
   // assessment.completed for free mode — unified so every "completed, not purchased"
   // lead lands on the same CRM webhook regardless of paid/free.)
+  // Clinic engine: send the computed money figures + the funnel band instead of the
+  // (meaningless) generic totals/categories, so the CRM gets the diagnosis + gap.
+  const clinicPayload = clinicResult
+    ? {
+        band: clinicResult.band,
+        casesNow: clinicResult.casesNow,
+        revenueNow: clinicResult.revenueNow,
+        casesPotential: clinicResult.casesPotential,
+        revenuePotential: clinicResult.revenuePotential,
+        gapMonthly: clinicResult.gap,
+        gapAnnual: clinicResult.annualGap,
+        dormantValue: clinicResult.dormant.value,
+        fiveCaseAdSpend: clinicResult.fiveCases.adSpend,
+      }
+    : null;
   if (!assessment.paidMode) {
     await emitEvent(EventType.ASSESSMENT_COMPLETED_UNPAID, {
       submissionId,
@@ -1085,9 +1102,14 @@ export async function completeSubmission(
         email: full?.leadEmail ?? null,
         mobile: full?.leadMobile ?? null,
       },
-      score: { total: totalScore, max: maxScore, percentage },
-      resultBand: band ? { level: band.level, title: band.title } : null,
-      categories: categoryResults,
+      score: clinicResult ? null : { total: totalScore, max: maxScore, percentage },
+      resultBand: clinicResult
+        ? { level: clinicResult.band, title: clinicResult.band }
+        : band
+          ? { level: band.level, title: band.title }
+          : null,
+      categories: clinicResult ? null : categoryResults,
+      clinic: clinicPayload,
       resultUrl,
       aiStatement,
       attribution: normalizeAttribution(submission.attribution) ?? undefined,

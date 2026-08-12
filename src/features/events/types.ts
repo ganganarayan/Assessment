@@ -133,6 +133,20 @@ export interface PayloadCategory {
   band: string | null;
   meaning: string | null;
 }
+/** Computed clinic-audit funnel figures, sent to the CRM on completion (CLINIC_AUDIT
+ *  engine only). Flat numbers/strings so each maps to a contact.clinic_* custom field. */
+export interface PayloadClinic {
+  band: string;
+  casesNow: number;
+  revenueNow: number;
+  casesPotential: number;
+  revenuePotential: number;
+  gapMonthly: number;
+  gapAnnual: number;
+  dormantValue: number;
+  fiveCaseAdSpend: number;
+}
+
 /** metadata for assessment-related events. */
 export interface AssessmentMetadata {
   assessmentId: string | null;
@@ -190,6 +204,8 @@ export interface EmitInput {
   resultUrl?: string | null;
   /** AI-generated personalized statement (sent to the CRM as contact.ai_statement). */
   aiStatement?: string | null;
+  /** CLINIC_AUDIT computed figures → contact.clinic_* custom fields + metadata.clinic. */
+  clinic?: PayloadClinic | null;
   attribution?: Partial<PayloadAttribution> | null;
   /** Override the event timestamp (defaults to now). Used for deterministic samples. */
   timestamp?: string;
