@@ -17,14 +17,35 @@ export interface QuestionOptionData {
   id: string;
   label: string;
   value: number;
+  diagnosisClause?: string | null;
+  isAssumption?: boolean;
 }
 export interface QuestionData {
   id: string;
   text: string;
   weight: number;
   required: boolean;
+  scoringRole?: string | null;
   options: QuestionOptionData[];
 }
+
+/** Engine of the parent assessment — CLINIC_AUDIT unlocks the funnel scoring fields. */
+export type BuilderEngine = "GENERIC" | "CLINIC_AUDIT";
+
+/** Clinic-audit funnel roles (must match ClinicRole in lib/scoring/clinic-audit.ts). */
+const CLINIC_ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "— not scored —" },
+  { value: "ENQUIRIES", label: "Enquiries / month (E)" },
+  { value: "BOOK_RATE", label: "Booking rate % (B)" },
+  { value: "SHOWUP_RATE", label: "Show-up rate % (S)" },
+  { value: "CLOSE_RATE", label: "Close rate % (C)" },
+  { value: "TREATMENT_VALUE", label: "Treatment value ₹ (V)" },
+  { value: "AD_SPEND", label: "Ad spend ₹ (A)" },
+  { value: "DORMANT", label: "Dormant list (D)" },
+  { value: "CAPACITY", label: "Spare capacity (K)" },
+  { value: "UPLIFT_BOOKRATE", label: "Book-rate uplift points" },
+];
+const ROLE_LABEL = new Map(CLINIC_ROLE_OPTIONS.map((r) => [r.value, r.label]));
 
 const DEFAULT_OPTIONS = [
   { label: "Never", value: 1 },
@@ -44,9 +65,11 @@ function move<T>(arr: T[], from: number, to: number): T[] {
 export function QuestionsManager({
   categoryId,
   questions,
+  engine = "GENERIC",
 }: {
   categoryId: string;
   questions: QuestionData[];
+  engine?: BuilderEngine;
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
@@ -81,6 +104,7 @@ export function QuestionsManager({
             categoryId={categoryId}
             questionId={q.id}
             initial={q}
+            engine={engine}
             onDone={() => {
               setEditingId(null);
               router.refresh();
@@ -93,9 +117,17 @@ export function QuestionsManager({
             className="flex items-start justify-between gap-3 rounded-md border bg-[var(--background)] p-3 text-sm"
           >
             <div className="flex flex-col gap-1">
-              <span className="font-medium">{q.text}</span>
+              <span className="font-medium">
+                {q.text}
+                {engine === "CLINIC_AUDIT" && q.scoringRole ? (
+                  <span className="ml-2 rounded-full bg-[var(--muted)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+                    {ROLE_LABEL.get(q.scoringRole) ?? q.scoringRole}
+                  </span>
+                ) : null}
+              </span>
               <span className="text-xs text-[var(--muted-foreground)]">
-                weight {q.weight} · {q.required ? "required" : "optional"} ·{" "}
+                {engine === "CLINIC_AUDIT" ? null : <>weight {q.weight} · </>}
+                {q.required ? "required" : "optional"} ·{" "}
                 {q.options.map((o) => `${o.label}(${o.value})`).join(", ")}
               </span>
             </div>
@@ -112,6 +144,7 @@ export function QuestionsManager({
       {adding ? (
         <QuestionForm
           categoryId={categoryId}
+          engine={engine}
           onDone={() => {
             setAdding(false);
             router.refresh();
@@ -127,30 +160,48 @@ export function QuestionsManager({
   );
 }
 
+interface OptionRow {
+  uid: string;
+  label: string;
+  value: number;
+  clause: string;
+  dontKnow: boolean;
+}
+
 function QuestionForm({
   categoryId,
   questionId,
   initial,
+  engine = "GENERIC",
   onDone,
   onCancel,
 }: {
   categoryId: string;
   questionId?: string;
   initial?: QuestionData;
+  engine?: BuilderEngine;
   onDone: () => void;
   onCancel: () => void;
 }) {
+  const clinic = engine === "CLINIC_AUDIT";
   const [text, setText] = useState(initial?.text ?? "");
   const [weight, setWeight] = useState(String(initial?.weight ?? 1));
   const [required, setRequired] = useState(initial?.required ?? true);
-  const [options, setOptions] = useState<{ uid: string; label: string; value: number }[]>(
-    initial?.options.map((o) => ({ uid: o.id, label: o.label, value: o.value })) ??
-      DEFAULT_OPTIONS.map((o) => ({ uid: crypto.randomUUID(), ...o })),
+  const [role, setRole] = useState(initial?.scoringRole ?? "");
+  const [options, setOptions] = useState<OptionRow[]>(
+    initial?.options.map((o) => ({
+      uid: o.id,
+      label: o.label,
+      value: o.value,
+      clause: o.diagnosisClause ?? "",
+      dontKnow: o.isAssumption ?? false,
+    })) ??
+      DEFAULT_OPTIONS.map((o) => ({ uid: crypto.randomUUID(), ...o, clause: "", dontKnow: false })),
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  function setOption(i: number, patch: Partial<{ label: string; value: number }>) {
+  function setOption(i: number, patch: Partial<Omit<OptionRow, "uid">>) {
     setOptions((opts) => opts.map((o, idx) => (idx === i ? { ...o, ...patch } : o)));
   }
 
@@ -160,7 +211,13 @@ function QuestionForm({
       text,
       weight: Number(weight),
       required,
-      options: options.map((o) => ({ label: o.label, value: o.value })),
+      scoringRole: clinic ? role : "",
+      options: options.map((o) => ({
+        label: o.label,
+        value: o.value,
+        diagnosisClause: clinic ? o.clause : "",
+        isAssumption: clinic ? o.dontKnow : false,
+      })),
     };
     start(async () => {
       const res = questionId
@@ -180,18 +237,41 @@ function QuestionForm({
         <Label>Question text</Label>
         <Input value={text} onChange={(e) => setText(e.target.value)} />
       </div>
-      <div className="flex flex-wrap items-end gap-4">
+
+      {clinic ? (
         <div className="flex flex-col gap-2">
-          <Label>Weight</Label>
-          <Input
-            type="number"
-            step="0.1"
-            min={0}
-            className="w-24"
-            value={weight}
-            onChange={(e) => setWeight(e.target.value)}
-          />
+          <Label>Scoring role</Label>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="h-10 max-w-xs rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+          >
+            {CLINIC_ROLE_OPTIONS.map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            What this question feeds in the funnel math. Each option&apos;s <strong>number</strong> below is
+            the working figure — rupees/counts as-is (e.g. 90000, 90), rates &amp; uplift as whole
+            percent (e.g. 32 = 0.32). Leave as &ldquo;not scored&rdquo; for qualifier questions.
+          </p>
         </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-end gap-4">
+        {clinic ? null : (
+          <div className="flex flex-col gap-2">
+            <Label>Weight</Label>
+            <Input
+              type="number"
+              step="0.1"
+              min={0}
+              className="w-24"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+            />
+          </div>
+        )}
         <label className="flex items-center gap-2 pb-2 text-sm">
           <input
             type="checkbox"
@@ -203,29 +283,49 @@ function QuestionForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>Options (label · score)</Label>
+        <Label>{clinic ? "Options (label · number)" : "Options (label · score)"}</Label>
         {options.map((o, i) => (
-          <div key={o.uid} className="flex items-center gap-2">
-            <Input
-              value={o.label}
-              onChange={(e) => setOption(i, { label: e.target.value })}
-              placeholder="Label"
-            />
-            <Input
-              type="number"
-              className="w-24"
-              value={o.value}
-              onChange={(e) => setOption(i, { value: Number(e.target.value) })}
-            />
-            <Button
-              size="sm"
-              variant="ghost"
-              type="button"
-              disabled={options.length <= 2}
-              onClick={() => setOptions((opts) => opts.filter((_, idx) => idx !== i))}
-            >
-              ✕
-            </Button>
+          <div key={o.uid} className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <Input
+                value={o.label}
+                onChange={(e) => setOption(i, { label: e.target.value })}
+                placeholder="Label"
+              />
+              <Input
+                type="number"
+                className="w-28"
+                value={o.value}
+                onChange={(e) => setOption(i, { value: Number(e.target.value) })}
+              />
+              {clinic ? (
+                <label className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-[var(--muted-foreground)]">
+                  <input
+                    type="checkbox"
+                    checked={o.dontKnow}
+                    onChange={(e) => setOption(i, { dontKnow: e.target.checked })}
+                  />
+                  &ldquo;don&apos;t know&rdquo;
+                </label>
+              ) : null}
+              <Button
+                size="sm"
+                variant="ghost"
+                type="button"
+                disabled={options.length <= 2}
+                onClick={() => setOptions((opts) => opts.filter((_, idx) => idx !== i))}
+              >
+                ✕
+              </Button>
+            </div>
+            {clinic ? (
+              <Input
+                value={o.clause}
+                onChange={(e) => setOption(i, { clause: e.target.value })}
+                placeholder="Diagnosis line for this answer (optional — shown if it's a top-2 weakness)"
+                className="text-xs"
+              />
+            ) : null}
           </div>
         ))}
         <Button
@@ -233,7 +333,10 @@ function QuestionForm({
           variant="outline"
           type="button"
           onClick={() =>
-            setOptions((opts) => [...opts, { uid: crypto.randomUUID(), label: "", value: opts.length + 1 }])
+            setOptions((opts) => [
+              ...opts,
+              { uid: crypto.randomUUID(), label: "", value: opts.length + 1, clause: "", dontKnow: false },
+            ])
           }
         >
           + Add option

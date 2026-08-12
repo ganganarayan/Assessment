@@ -72,6 +72,7 @@ export default async function EditAssessmentPage({
     tokenTtlSeconds: a.tokenTtlSeconds ?? undefined,
     vslCountdownSeconds: a.vslCountdownSeconds,
     questionDisplayMode: a.questionDisplayMode,
+    engine: a.engine,
     aiPromptVersionId: a.aiPromptVersionId ?? "",
     useAiStatement: a.useAiStatement,
     nextStep: a.nextStep,
@@ -93,7 +94,14 @@ export default async function EditAssessmentPage({
       text: q.text,
       weight: q.weight,
       required: q.required,
-      options: q.options.map((o) => ({ id: o.id, label: o.label, value: o.value })),
+      scoringRole: q.scoringRole,
+      options: q.options.map((o) => ({
+        id: o.id,
+        label: o.label,
+        value: o.value,
+        diagnosisClause: o.diagnosisClause,
+        isAssumption: o.isAssumption,
+      })),
     })),
   }));
 
@@ -155,7 +163,7 @@ export default async function EditAssessmentPage({
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Categories &amp; Questions</h2>
-        <CategoriesManager assessmentId={a.id} categories={categories} />
+        <CategoriesManager assessmentId={a.id} categories={categories} engine={a.engine} />
       </section>
 
       <section className="flex flex-col gap-3">

@@ -85,6 +85,7 @@ export async function createAssessment(
       tokenTtlSeconds: d.tokenTtlSeconds ?? null,
       vslCountdownSeconds: d.vslCountdownSeconds,
       questionDisplayMode: d.questionDisplayMode,
+      engine: d.engine,
       aiPromptVersionId: nullifyEmpty(d.aiPromptVersionId),
       useAiStatement: d.useAiStatement,
       // nextStep is the source of truth; keep the legacy paidMode boolean in sync
@@ -174,6 +175,7 @@ export async function updateAssessment(
       tokenTtlSeconds: d.tokenTtlSeconds ?? null,
       vslCountdownSeconds: d.vslCountdownSeconds,
       questionDisplayMode: d.questionDisplayMode,
+      engine: d.engine,
       aiPromptVersionId: nullifyEmpty(d.aiPromptVersionId),
       useAiStatement: d.useAiStatement,
       // nextStep is the source of truth; keep the legacy paidMode boolean in sync
@@ -303,6 +305,8 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
       tokenTtlSeconds: src.tokenTtlSeconds,
       vslCountdownSeconds: src.vslCountdownSeconds,
       questionDisplayMode: src.questionDisplayMode,
+      engine: src.engine,
+      engineConfig: src.engineConfig ?? Prisma.JsonNull,
       aiPromptVersionId: src.aiPromptVersionId,
       useAiStatement: src.useAiStatement,
       nextStep: src.nextStep,

@@ -7,6 +7,17 @@ import { questionSchema, reorderSchema, type QuestionInput } from "@/features/as
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { assertEdit } from "@/lib/tenant/acting";
+import { isClinicRole } from "@/lib/scoring/clinic-audit";
+
+/** Clinic-audit role: keep only a valid role, else null (GENERIC questions store null). */
+function cleanRole(role: string | undefined): string | null {
+  const r = (role ?? "").trim();
+  return isClinicRole(r) ? r : null;
+}
+/** Clinic-audit per-option extras, normalized for persistence. */
+function optionExtras(o: { diagnosisClause?: string; isAssumption?: boolean }) {
+  return { diagnosisClause: (o.diagnosisClause ?? "").trim() || null, isAssumption: o.isAssumption ?? false };
+}
 
 async function assessmentIdForCategory(categoryId: string): Promise<string | null> {
   const c = await prisma.category.findUnique({
@@ -41,12 +52,14 @@ export async function createQuestion(
       text: d.text,
       weight: d.weight,
       required: d.required,
+      scoringRole: cleanRole(d.scoringRole),
       displayOrder: count,
       options: {
         create: d.options.map((o, index) => ({
           label: o.label,
           value: o.value,
           displayOrder: index,
+          ...optionExtras(o),
         })),
       },
     },
@@ -97,13 +110,13 @@ export async function updateQuestion(
       ops.push(
         prisma.option.update({
           where: { id: ex.id },
-          data: { label: o.label, value: o.value, displayOrder: index },
+          data: { label: o.label, value: o.value, displayOrder: index, ...optionExtras(o) },
         }),
       );
     } else {
       ops.push(
         prisma.option.create({
-          data: { questionId: id, label: o.label, value: o.value, displayOrder: index },
+          data: { questionId: id, label: o.label, value: o.value, displayOrder: index, ...optionExtras(o) },
         }),
       );
     }
@@ -116,7 +129,7 @@ export async function updateQuestion(
   ops.push(
     prisma.question.update({
       where: { id },
-      data: { text: d.text, weight: d.weight, required: d.required },
+      data: { text: d.text, weight: d.weight, required: d.required, scoringRole: cleanRole(d.scoringRole) },
     }),
   );
   await prisma.$transaction(ops);

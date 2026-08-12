@@ -139,6 +139,7 @@ const DEFAULTS: AssessmentFormValues = {
   tokenTtlSeconds: undefined,
   vslCountdownSeconds: 10,
   questionDisplayMode: "ALL",
+  engine: "GENERIC",
   aiPromptVersionId: "",
   useAiStatement: true,
   nextStep: "DESTINATION",
@@ -641,6 +642,34 @@ export function AssessmentForm({
                 <option key={v.id} value={v.id}>{v.label}</option>
               ))}
             </select>
+          </div>
+
+          <div className="flex flex-col gap-3 rounded-lg border p-4">
+            <p className="text-sm font-medium">Scoring engine</p>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              How answers are scored and results are rendered. Leave on Standard unless this
+              is the clinic patient-acquisition audit.
+            </p>
+            <div className="flex flex-col gap-2 text-sm">
+              {([
+                ["GENERIC", "Standard", "Category-weight scoring with bands and the page builder."],
+                ["CLINIC_AUDIT", "Clinic audit (funnel)", "Data-driven funnel math + the interactive result page. Set a role per question and a number per option below."],
+              ] as const).map(([val, label, hint]) => (
+                <label key={val} className="flex items-start gap-2">
+                  <input
+                    type="radio"
+                    name="engine"
+                    className="mt-1"
+                    checked={values.engine === val}
+                    onChange={() => set("engine", val)}
+                  />
+                  <span>
+                    <span className="font-medium">{label}</span>
+                    <span className="block text-xs text-[var(--muted-foreground)]">{hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
 
           <div className="flex flex-col gap-3 rounded-lg border p-4">

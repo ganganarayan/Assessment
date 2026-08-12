@@ -11,6 +11,7 @@ import {
 import {
   QuestionsManager,
   type QuestionData,
+  type BuilderEngine,
 } from "@/features/assessment/components/admin/questions-manager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,9 +37,11 @@ function move<T>(arr: T[], from: number, to: number): T[] {
 export function CategoriesManager({
   assessmentId,
   categories,
+  engine = "GENERIC",
 }: {
   assessmentId: string;
   categories: CategoryData[];
+  engine?: BuilderEngine;
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -131,7 +134,7 @@ export function CategoriesManager({
             </div>
           )}
 
-          <QuestionsManager categoryId={c.id} questions={c.questions} />
+          <QuestionsManager categoryId={c.id} questions={c.questions} engine={engine} />
         </div>
       ))}
 

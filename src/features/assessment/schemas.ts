@@ -98,6 +98,9 @@ export const assessmentSchema = z.object({
     .default(10),
   // How the questions are paginated for the respondent.
   questionDisplayMode: z.enum(["ALL", "CATEGORY", "SINGLE"]).default("ALL"),
+  // Scoring/result engine. GENERIC = the built-in category-weight scorer.
+  // CLINIC_AUDIT = the data-driven patient-acquisition funnel engine.
+  engine: z.enum(["GENERIC", "CLINIC_AUDIT"]).default("GENERIC"),
   // Which AI result-instructions version drives this assessment. "" => tenant default.
   aiPromptVersionId: z.string().max(60).optional().or(z.literal("")),
   useAiStatement: z.boolean().default(true),
@@ -151,13 +154,23 @@ export type CategoryInput = z.infer<typeof categorySchema>;
 
 export const optionSchema = z.object({
   label: z.string().min(1, "Option label is required.").max(160),
-  value: z.coerce.number().int().min(0).max(100),
+  // GENERIC: the score point (e.g. 1..4). CLINIC_AUDIT: the working figure for the
+  // question's role — rupees/counts as-is (90000, 90), rates & uplift as whole-number
+  // percent (32 = 0.32). Wide bound so it can hold rupee treatment values.
+  value: z.coerce.number().int().min(0).max(100_000_000),
+  // CLINIC_AUDIT only (ignored by GENERIC): fixed weakest-area line for this answer,
+  // and whether this is the "I don't know" option (→ assumption on the result page).
+  diagnosisClause: z.string().max(300).optional().or(z.literal("")),
+  isAssumption: z.boolean().default(false),
 });
 
 export const questionSchema = z.object({
   text: z.string().min(1, "Question text is required.").max(500),
   weight: z.coerce.number().min(0).max(100).default(1),
   required: z.boolean().default(true),
+  // CLINIC_AUDIT only: the funnel role this question feeds (blank = not scored).
+  // Validated against the engine's role list in the action; ignored by GENERIC.
+  scoringRole: z.string().max(40).optional().or(z.literal("")),
   options: z
     .array(optionSchema)
     .min(2, "Provide at least two options.")
