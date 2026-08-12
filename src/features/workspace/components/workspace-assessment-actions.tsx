@@ -9,9 +9,10 @@ import {
   duplicateAssessment,
 } from "@/features/assessment/actions/assessment";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-/** Publish / preview / delete for the tenant editor. Uses the tenant-scoped
- *  actions (which reject cross-tenant ids) — no admin export links. */
+/** Publish / preview / duplicate / delete + tenant-scoped Export for the tenant
+ *  editor. Export/import stay within this workspace (see /api/w/... + /w/import). */
 export function WorkspaceAssessmentActions({
   id,
   slug,
@@ -59,6 +60,19 @@ export function WorkspaceAssessmentActions({
       <Button size="sm" variant="ghost" onClick={duplicate} disabled={pending}>
         Duplicate
       </Button>
+      <details className="relative">
+        <summary className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer list-none")}>
+          Export ▼
+        </summary>
+        <div className="absolute right-0 z-10 mt-1 flex w-36 flex-col rounded-md border bg-[var(--background)] p-1 text-sm shadow">
+          <a href={`/api/w/assessments/${id}/export?format=json`} className="rounded px-2 py-1.5 hover:bg-[var(--muted)]">
+            JSON
+          </a>
+          <a href={`/api/w/assessments/${id}/export?format=csv`} className="rounded px-2 py-1.5 hover:bg-[var(--muted)]">
+            CSV
+          </a>
+        </div>
+      </details>
       <Button size="sm" variant="outline" onClick={toggle} disabled={pending}>
         {published ? "Unpublish" : "Publish"}
       </Button>

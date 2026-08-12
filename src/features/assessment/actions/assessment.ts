@@ -324,17 +324,21 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
           name: c.name,
           description: c.description,
           displayOrder: c.displayOrder,
+          page: c.page,
           questions: {
             create: c.questions.map((q) => ({
               text: q.text,
               weight: q.weight,
               required: q.required,
               displayOrder: q.displayOrder,
+              scoringRole: q.scoringRole,
               options: {
                 create: q.options.map((o) => ({
                   label: o.label,
                   value: o.value,
                   displayOrder: o.displayOrder,
+                  diagnosisClause: o.diagnosisClause,
+                  isAssumption: o.isAssumption,
                 })),
               },
             })),

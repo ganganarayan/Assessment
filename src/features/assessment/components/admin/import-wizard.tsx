@@ -10,6 +10,10 @@ import type {
   ImportMode,
   ImportPreviewItem,
 } from "@/features/assessment/transfer/schema";
+import type { ActionResult } from "@/features/assessment/actions/shared";
+
+type PreviewAction = (raw: string, format: "json" | "csv") => Promise<ActionResult<ImportPreviewItem[]> & { errors?: string[] }>;
+type ImportAction = (raw: string, format: "json" | "csv", mode: ImportMode) => Promise<ActionResult<{ count: number }> & { errors?: string[] }>;
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,7 +24,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export function ImportWizard() {
+export function ImportWizard({
+  previewAction = previewImport,
+  importAction = importAssessments,
+  doneHref = "/admin/assessments",
+}: {
+  previewAction?: PreviewAction;
+  importAction?: ImportAction;
+  doneHref?: string;
+} = {}) {
   const router = useRouter();
   const [raw, setRaw] = useState<string | null>(null);
   const [format, setFormat] = useState<"json" | "csv">("json");
@@ -58,7 +70,7 @@ export function ImportWizard() {
     setFileName(file.name);
 
     start(async () => {
-      const res = await previewImport(text, fmt);
+      const res = await previewAction(text, fmt);
       if (!res.ok) {
         setErrors(res.errors ?? [res.error]);
         return;
@@ -77,13 +89,13 @@ export function ImportWizard() {
     }
     setError(null);
     start(async () => {
-      const res = await importAssessments(raw, format, mode);
+      const res = await importAction(raw, format, mode);
       if (!res.ok) {
         setError(res.error);
         if (res.errors) setErrors(res.errors);
         return;
       }
-      router.push("/admin/assessments");
+      router.push(doneHref);
       router.refresh();
     });
   }

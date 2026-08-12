@@ -2,7 +2,7 @@
 
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { requireSuperAdmin, editDenied } from "@/lib/auth/guards";
+import { requireSuperAdmin, requireWorkspace, editDenied } from "@/lib/auth/guards";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import {
   parseImportText,
@@ -101,6 +101,91 @@ export async function importAssessments(
     const code = e instanceof Prisma.PrismaClientKnownRequestError ? e.code : "";
     if (code === "P2002") {
       return { ok: false, error: "Import failed: a slug collided during import. No changes were made." };
+    }
+    if (code === "P2028") {
+      return { ok: false, error: "Import timed out — the file is too large for one transaction. No changes were made." };
+    }
+    return { ok: false, error: "Import failed; no changes were made." };
+  }
+}
+
+/* -------------------------------------------------------- TENANT (workspace) --- */
+// Same validate/preview/import as above, but scoped to the acting workspace: the
+// created assessments are assigned to THIS tenant, and replace can only overwrite
+// this tenant's own slugs (see performImportAll's tenant-scoped delete).
+
+/** Tenant preview — identical validation, workspace-guarded. */
+export async function previewTenantImport(
+  raw: string,
+  format: Format,
+): Promise<ActionResult<ImportPreviewItem[]> & { errors?: string[] }> {
+  const { user } = await requireWorkspace();
+  { const __d = editDenied(user); if (__d) return __d; }
+  const parsed = parseImportText(raw, format);
+  if (!parsed.ok) return { ok: false, error: "Validation failed.", errors: parsed.errors };
+
+  const items: ImportPreviewItem[] = [];
+  for (const a of parsed.data.assessments) {
+    items.push({
+      title: a.title,
+      slug: a.slug,
+      categoryCount: a.categories.length,
+      questionCount: a.categories.reduce((n, c) => n + c.questions.length, 0),
+      resultBandCount: a.resultBands.length,
+      slugExists: await slugExists(a.slug),
+    });
+  }
+  return { ok: true, data: items };
+}
+
+/** Tenant import — creates the assessments under the acting tenant. */
+export async function importTenantAssessments(
+  raw: string,
+  format: Format,
+  mode: ImportMode,
+): Promise<ActionResult<{ count: number }> & { errors?: string[] }> {
+  const { user, tenantId } = await requireWorkspace();
+  { const __d = editDenied(user); if (__d) return __d; }
+  const parsed = parseImportText(raw, format);
+  if (!parsed.ok) return { ok: false, error: "Validation failed.", errors: parsed.errors };
+
+  const conflicts: string[] = [];
+  const items: ImportItem[] = [];
+  const usedSlugs = new Set<string>();
+
+  for (const body of parsed.data.assessments) {
+    const taken = (await slugExists(body.slug)) || usedSlugs.has(body.slug);
+    let finalSlug = body.slug;
+    let replace = false;
+
+    if (mode === "create") {
+      if (taken) { conflicts.push(body.slug); continue; }
+    } else if (mode === "copy") {
+      if (taken) finalSlug = await generateCopySlug(body.slug, usedSlugs);
+    } else {
+      replace = await slugExists(body.slug);
+      while (usedSlugs.has(finalSlug)) finalSlug = await generateCopySlug(finalSlug, usedSlugs);
+    }
+
+    usedSlugs.add(finalSlug);
+    items.push({ body, finalSlug, replace });
+  }
+
+  if (mode === "create" && conflicts.length > 0) {
+    return {
+      ok: false,
+      error: `These slugs already exist: ${conflicts.join(", ")}. Choose “Create copy” or “Replace existing”.`,
+    };
+  }
+
+  try {
+    const count = await performImportAll(items, user.id, tenantId);
+    revalidatePath("/w/assessments");
+    return { ok: true, data: { count } };
+  } catch (e) {
+    const code = e instanceof Prisma.PrismaClientKnownRequestError ? e.code : "";
+    if (code === "P2002") {
+      return { ok: false, error: "Import failed: that slug is already taken (globally). Choose “Create copy”." };
     }
     if (code === "P2028") {
       return { ok: false, error: "Import timed out — the file is too large for one transaction. No changes were made." };

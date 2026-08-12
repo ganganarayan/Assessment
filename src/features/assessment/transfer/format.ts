@@ -63,16 +63,21 @@ export const CSV_COLUMNS = [
   "mobile_required",
   "collect_profession",
   "profession_required",
+  "engine",
   "category_index",
   "category_name",
   "category_description",
+  "category_page",
   "question_index",
   "question_text",
   "weight",
   "required",
+  "question_scoring_role",
   "option_index",
   "option_label",
   "option_value",
+  "option_diagnosis_clause",
+  "option_is_assumption",
   "band_index",
   "band_level",
   "band_title",
@@ -111,6 +116,7 @@ export function bodiesToCsv(bodies: AssessmentBodyExport[]): string {
         mobile_required: a.mobileRequired,
         collect_profession: a.collectProfession,
         profession_required: a.professionRequired,
+        engine: a.engine ?? "GENERIC",
       }),
     );
 
@@ -122,6 +128,7 @@ export function bodiesToCsv(bodies: AssessmentBodyExport[]): string {
           category_index: ci,
           category_name: c.name,
           category_description: c.description ?? "",
+          category_page: c.page ?? 1,
         }),
       );
       c.questions.forEach((q, qi) => {
@@ -134,6 +141,7 @@ export function bodiesToCsv(bodies: AssessmentBodyExport[]): string {
             question_text: q.text,
             weight: q.weight,
             required: q.required,
+            question_scoring_role: q.scoringRole ?? "",
           }),
         );
         q.options.forEach((o, oi) => {
@@ -146,6 +154,8 @@ export function bodiesToCsv(bodies: AssessmentBodyExport[]): string {
               option_index: oi,
               option_label: o.label,
               option_value: o.value,
+              option_diagnosis_clause: o.diagnosisClause ?? "",
+              option_is_assumption: o.isAssumption ?? false,
             }),
           );
         });
@@ -189,16 +199,20 @@ const toIntOrNull = (s: string): number | null =>
 interface AccOption {
   label: string;
   value: number;
+  diagnosisClause: string | null;
+  isAssumption: boolean;
 }
 interface AccQuestion {
   text: string;
   weight: number;
   required: boolean;
+  scoringRole: string | null;
   options: AccOption[];
 }
 interface AccCategory {
   name: string;
   description: string | null;
+  page: number;
   questions: AccQuestion[];
 }
 interface AccBand {
@@ -211,6 +225,7 @@ interface AccBand {
 interface Acc {
   slug: string;
   title: string;
+  engine: string;
   description: string | null;
   coverImageUrl: string | null;
   estimatedMinutes: number | null;
@@ -258,6 +273,7 @@ export function csvToDocument(
       a = {
         slug,
         title: "",
+        engine: "GENERIC",
         description: null,
         coverImageUrl: null,
         estimatedMinutes: null,
@@ -281,13 +297,13 @@ export function csvToDocument(
   };
   const ensureCat = (acc: Acc, ci: number): AccCategory => {
     if (!acc.categories[ci]) {
-      acc.categories[ci] = { name: "", description: null, questions: [] };
+      acc.categories[ci] = { name: "", description: null, page: 1, questions: [] };
     }
     return acc.categories[ci];
   };
   const ensureQ = (cat: AccCategory, qi: number): AccQuestion => {
     if (!cat.questions[qi]) {
-      cat.questions[qi] = { text: "", weight: 0, required: false, options: [] };
+      cat.questions[qi] = { text: "", weight: 0, required: false, scoringRole: null, options: [] };
     }
     return cat.questions[qi];
   };
@@ -316,11 +332,15 @@ export function csvToDocument(
       acc.mobileRequired = toBool(cell(row, "mobile_required"), false);
       acc.collectProfession = toBool(cell(row, "collect_profession"), true);
       acc.professionRequired = toBool(cell(row, "profession_required"), true);
+      const eng = cell(row, "engine").trim().toUpperCase();
+      acc.engine = eng === "CLINIC_AUDIT" ? "CLINIC_AUDIT" : "GENERIC";
     } else if (type === "CATEGORY") {
       recognized += 1;
       const c = ensureCat(acc, toInt(cell(row, "category_index")));
       c.name = cell(row, "category_name");
       c.description = emptyToNull(cell(row, "category_description"));
+      const p = toInt(cell(row, "category_page"));
+      c.page = p === 2 ? 2 : 1;
     } else if (type === "QUESTION") {
       recognized += 1;
       const c = ensureCat(acc, toInt(cell(row, "category_index")));
@@ -328,6 +348,7 @@ export function csvToDocument(
       q.text = cell(row, "question_text");
       q.weight = toNum(cell(row, "weight"));
       q.required = toBool(cell(row, "required"), false);
+      q.scoringRole = emptyToNull(cell(row, "question_scoring_role"));
     } else if (type === "OPTION") {
       recognized += 1;
       const c = ensureCat(acc, toInt(cell(row, "category_index")));
@@ -335,6 +356,8 @@ export function csvToDocument(
       q.options[toInt(cell(row, "option_index"))] = {
         label: cell(row, "option_label"),
         value: toInt(cell(row, "option_value")),
+        diagnosisClause: emptyToNull(cell(row, "option_diagnosis_clause")),
+        isAssumption: toBool(cell(row, "option_is_assumption"), false),
       };
     } else if (type === "BAND") {
       recognized += 1;
@@ -372,20 +395,27 @@ export function csvToDocument(
     mobileRequired: acc.mobileRequired,
     collectProfession: acc.collectProfession,
     professionRequired: acc.professionRequired,
+    // Only emit the v2 fields when non-default, so a GENERIC assessment round-trips
+    // identically to one exported before these columns existed (omitted == default).
+    ...(acc.engine === "CLINIC_AUDIT" ? { engine: "CLINIC_AUDIT" as const } : {}),
     categories: compact(acc.categories).map((c, ci) => ({
       name: c.name,
       description: c.description,
       displayOrder: ci,
+      ...(c.page === 2 ? { page: 2 } : {}),
       questions: compact(c.questions).map((q, qi) => ({
         text: q.text,
         type: "SINGLE_SELECT" as const,
         weight: q.weight,
         required: q.required,
         displayOrder: qi,
+        ...(q.scoringRole ? { scoringRole: q.scoringRole } : {}),
         options: compact(q.options).map((o, oi) => ({
           label: o.label,
           value: o.value,
           displayOrder: oi,
+          ...(o.diagnosisClause ? { diagnosisClause: o.diagnosisClause } : {}),
+          ...(o.isAssumption ? { isAssumption: true } : {}),
         })),
       })),
     })),

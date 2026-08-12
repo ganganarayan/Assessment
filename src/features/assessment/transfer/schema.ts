@@ -18,6 +18,9 @@ const optionExport = z.object({
   label: z.string().min(1),
   value: z.number().int(),
   displayOrder: z.number().int().nonnegative(),
+  // CLINIC_AUDIT extras (added v2; optional so v1 files still import).
+  diagnosisClause: z.string().nullable().optional(),
+  isAssumption: z.boolean().optional(),
 });
 
 const questionExport = z.object({
@@ -26,6 +29,8 @@ const questionExport = z.object({
   weight: z.number().min(0),
   required: z.boolean(),
   displayOrder: z.number().int().nonnegative(),
+  // CLINIC_AUDIT funnel role (added v2).
+  scoringRole: z.string().nullable().optional(),
   options: z.array(optionExport).min(2),
 });
 
@@ -33,6 +38,8 @@ const categoryExport = z.object({
   name: z.string().min(1),
   description: z.string().nullable().optional(),
   displayOrder: z.number().int().nonnegative(),
+  // Page 1 = assessment, 2 = queries (added v2; optional keeps old files valid).
+  page: z.number().int().min(1).max(2).optional(),
   questions: z.array(questionExport),
 });
 
@@ -63,6 +70,33 @@ export const assessmentBodyExport = z.object({
   // Added later; default true so pre-existing export files still import cleanly.
   collectProfession: z.boolean().default(true),
   professionRequired: z.boolean().default(true),
+  // ---- Added v2 (all optional so v1 files still import) --------------------
+  // Scoring engine + its parameter overrides.
+  engine: z.enum(["GENERIC", "CLINIC_AUDIT"]).optional(),
+  engineConfig: z.unknown().nullable().optional(),
+  // Funnel copy / opt-in configuration (environment-agnostic — carried for fidelity).
+  eyebrow: z.string().nullable().optional(),
+  subheadline: z.string().nullable().optional(),
+  buttonColor: z.string().nullable().optional(),
+  buttonTextColor: z.string().nullable().optional(),
+  firstNameLabel: z.string().nullable().optional(),
+  lastNameLabel: z.string().nullable().optional(),
+  emailLabel: z.string().nullable().optional(),
+  mobileLabel: z.string().nullable().optional(),
+  professionLabel: z.string().nullable().optional(),
+  professionPlaceholder: z.string().nullable().optional(),
+  professionOptions: z.array(z.string()).optional(),
+  leadCaptureAfter: z.boolean().optional(),
+  preResultHeading: z.string().nullable().optional(),
+  preResultSubtext: z.string().nullable().optional(),
+  preResultFields: z.unknown().nullable().optional(),
+  optinFields: z.unknown().nullable().optional(),
+  introNotice: z.string().nullable().optional(),
+  startButtonLabel: z.string().nullable().optional(),
+  useAiStatement: z.boolean().optional(),
+  nextStep: z.enum(["PAYMENT", "DESTINATION", "RESULTS"]).optional(),
+  questionDisplayMode: z.enum(["ALL", "CATEGORY", "SINGLE"]).optional(),
+  vslCountdownSeconds: z.number().int().optional(),
   categories: z.array(categoryExport),
   resultBands: z.array(resultBandExport),
 });

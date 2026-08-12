@@ -138,10 +138,88 @@ function roundTrip(name: string, bodies: AssessmentBodyExport[]) {
   else eq(`${name} · CSV`, csvRes.data.assessments, bodies);
 }
 
+// Clinic-audit engine: exercises the v2 fields (engine, category.page, scoringRole,
+// option.diagnosisClause + isAssumption). Only NON-default v2 fields are set, so the
+// round-trip (which omits defaults) matches exactly.
+const clinic: AssessmentBodyExport = {
+  title: "Clinic Audit",
+  slug: "clinic-audit",
+  description: null,
+  coverImageUrl: null,
+  estimatedMinutes: null,
+  thankYouMessage: null,
+  collectFirstName: true,
+  firstNameRequired: false,
+  collectLastName: true,
+  lastNameRequired: false,
+  collectEmail: true,
+  emailRequired: true,
+  collectMobile: true,
+  mobileRequired: false,
+  collectProfession: true,
+  professionRequired: true,
+  engine: "CLINIC_AUDIT",
+  categories: [
+    {
+      name: "Funnel",
+      description: null,
+      displayOrder: 0,
+      questions: [
+        {
+          text: "Monthly enquiries?",
+          type: "SINGLE_SELECT",
+          weight: 1,
+          required: true,
+          displayOrder: 0,
+          scoringRole: "ENQUIRIES",
+          options: [
+            { label: "60-120", value: 90, displayOrder: 0 },
+            { label: "I don't know", value: 60, displayOrder: 1, isAssumption: true },
+          ],
+        },
+        {
+          text: "Book rate?",
+          type: "SINGLE_SELECT",
+          weight: 1,
+          required: true,
+          displayOrder: 1,
+          scoringRole: "BOOK_RATE",
+          options: [
+            { label: "15-25", value: 20, displayOrder: 0, diagnosisClause: "few enquiries convert to a booking" },
+            { label: "Under 15", value: 12, displayOrder: 1, diagnosisClause: "most enquiries never book" },
+          ],
+        },
+      ],
+    },
+    {
+      name: "Present situation",
+      description: null,
+      displayOrder: 1,
+      page: 2,
+      questions: [
+        {
+          text: "Treatment value?",
+          type: "SINGLE_SELECT",
+          weight: 1,
+          required: true,
+          displayOrder: 0,
+          scoringRole: "TREATMENT_VALUE",
+          options: [
+            { label: "60k-120k", value: 90000, displayOrder: 0 },
+            { label: "over 250k", value: 300000, displayOrder: 1 },
+          ],
+        },
+      ],
+    },
+  ],
+  resultBands: [],
+};
+
 console.log("Transfer round-trip verification\n");
 
 roundTrip("single adversarial", [adversarial]);
 roundTrip("multi-assessment", [adversarial, second]);
+roundTrip("clinic-audit (v2 fields)", [clinic]);
 
 // BOM tolerance (Excel / Windows re-save)
 {
