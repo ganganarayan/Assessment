@@ -1165,6 +1165,10 @@ model AppSetting {
   // lives on the singleton row. Null = fall back to env PASSWORD_RESET_WEBHOOK_URL.
   passwordResetWebhookUrl String?
 
+  // Per-tenant booking/calendar link (Calendly/Cal.com/etc). The respondent
+  // results page renders a "Book a 1-on-1 call" CTA pointing here; null = hide it.
+  bookingUrl String?
+
   // CRM "score_updated" resend: the destination endpoint (separate from the
   // configured webhooks) and a persisted "drip is active" flag for status/resume.
   // crmDripActive doubles as the SCORE worker's "armed" flag (boot-resume).

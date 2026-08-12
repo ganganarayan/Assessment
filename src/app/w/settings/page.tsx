@@ -2,6 +2,8 @@ import { requireWorkspace } from "@/lib/auth/guards";
 import { getAiSettings } from "@/features/admin/actions/ai-settings";
 import { getIntegrationSettings, updateMetaSettings, updateRazorpaySettings } from "@/features/workspace/actions/integrations";
 import { getDomainSettings } from "@/features/workspace/actions/domains";
+import { getBookingUrl } from "@/features/workspace/actions/booking";
+import { BookingSettingsForm } from "@/features/workspace/components/booking-settings-form";
 import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
 import { DomainSettings } from "@/features/workspace/components/domain-settings";
@@ -27,6 +29,7 @@ export default async function WorkspaceSettingsPage() {
   const settings = await getAiSettings();
   const integrations = await getIntegrationSettings();
   const domains = await getDomainSettings();
+  const bookingUrl = await getBookingUrl();
 
   return (
     <div className="flex flex-col gap-6">
@@ -66,6 +69,19 @@ export default async function WorkspaceSettingsPage() {
             saveMetaAction={updateMetaSettings}
             saveRazorpayAction={updateRazorpaySettings}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Booking / calendar link</CardTitle>
+          <CardDescription>
+            The scheduling link respondents book through. Powers the &ldquo;Book a
+            1-on-1 call&rdquo; button on their results page.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BookingSettingsForm initial={bookingUrl} />
         </CardContent>
       </Card>
 

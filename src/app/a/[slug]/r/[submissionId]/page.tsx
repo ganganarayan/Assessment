@@ -62,6 +62,7 @@ export default async function ResultPage({
           targetUrl: true,
           nextStep: true,
           useAiStatement: true,
+          professionLabel: true,
           categories: { select: { name: true, page: true } },
         },
       },
@@ -132,7 +133,7 @@ export default async function ResultPage({
                     Download
                   </a>
                 </Field>
-                <Field label="Profession">{submission.leadProfession?.trim() || "—"}</Field>
+                <Field label={submission.assessment.professionLabel?.trim() || "Profession"}>{submission.leadProfession?.trim() || "—"}</Field>
               </div>
             </CardContent>
           </Card>
