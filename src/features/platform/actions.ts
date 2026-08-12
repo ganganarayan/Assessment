@@ -73,23 +73,31 @@ export interface TenantRow {
 
 export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
   await requireSuperAdmin();
-  const rows = await prisma.tenant.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } } },
-  });
-  return {
-    ok: true,
-    data: rows.map((t) => ({
-      id: t.id,
-      slug: t.slug,
-      name: t.name,
-      status: t.status,
-      adminCount: t._count.users,
-      assessmentCount: t._count.assessments,
-      submissionCount: t._count.submissions,
-      createdAt: t.createdAt.toISOString(),
-    })),
-  };
+  // Fail-soft: a DB blip here must degrade to a banner on /platform, never a
+  // full-page server crash. requireSuperAdmin stays OUTSIDE the try so its
+  // redirect (a thrown NEXT_REDIRECT) is never swallowed.
+  try {
+    const rows = await prisma.tenant.findMany({
+      orderBy: { createdAt: "desc" },
+      include: { _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } } },
+    });
+    return {
+      ok: true,
+      data: rows.map((t) => ({
+        id: t.id,
+        slug: t.slug,
+        name: t.name,
+        status: t.status,
+        adminCount: t._count.users,
+        assessmentCount: t._count.assessments,
+        submissionCount: t._count.submissions,
+        createdAt: t.createdAt.toISOString(),
+      })),
+    };
+  } catch (e) {
+    console.error("[platform] listTenants failed:", e instanceof Error ? e.message : String(e));
+    return { ok: false, error: "Couldn't load tenants (a temporary database error). Reload to retry." };
+  }
 }
 
 /**
@@ -161,23 +169,33 @@ function toUserRow(u: { id: string; name: string; email: string; tenantId: strin
 
 export async function listUsers(): Promise<ActionResult<PlatformUserRow[]>> {
   await requireSuperAdmin();
-  const users = await prisma.user.findMany({
-    where: { deletedAt: null },
-    orderBy: { createdAt: "desc" },
-    include: { tenant: { select: { name: true } } },
-  });
-  return { ok: true, data: users.map(toUserRow) };
+  try {
+    const users = await prisma.user.findMany({
+      where: { deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      include: { tenant: { select: { name: true } } },
+    });
+    return { ok: true, data: users.map(toUserRow) };
+  } catch (e) {
+    console.error("[platform] listUsers failed:", e instanceof Error ? e.message : String(e));
+    return { ok: false, error: "Couldn't load logins (a temporary database error). Reload to retry." };
+  }
 }
 
 /** Soft-deleted users (recoverable). Shown in the platform "Deleted users" section. */
 export async function listDeletedUsers(): Promise<ActionResult<PlatformUserRow[]>> {
   await requireSuperAdmin();
-  const users = await prisma.user.findMany({
-    where: { deletedAt: { not: null } },
-    orderBy: { updatedAt: "desc" },
-    include: { tenant: { select: { name: true } } },
-  });
-  return { ok: true, data: users.map(toUserRow) };
+  try {
+    const users = await prisma.user.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { updatedAt: "desc" },
+      include: { tenant: { select: { name: true } } },
+    });
+    return { ok: true, data: users.map(toUserRow) };
+  } catch (e) {
+    console.error("[platform] listDeletedUsers failed:", e instanceof Error ? e.message : String(e));
+    return { ok: false, error: "Couldn't load deleted logins (a temporary database error). Reload to retry." };
+  }
 }
 
 /** Assign a login to a tenant as its ADMIN (or unassign with tenantId=null). */
