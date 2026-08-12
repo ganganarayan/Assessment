@@ -543,77 +543,6 @@ export function AssessmentForm({
               </fieldset>
             ) : null}
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="trainingUrl">
-                Training / VSL link (shown on the retake-lock screen){" "}
-                <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="trainingUrl"
-                required
-                value={values.trainingUrl ?? ""}
-                onChange={(e) => set("trainingUrl", e.target.value)}
-                placeholder="https://…"
-              />
-              <p className="text-xs text-[var(--muted-foreground)]">
-                Required. Can be the same URL as the destination page below.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3 rounded-lg border p-4">
-            <p className="text-sm font-medium">Destination page</p>
-            <p className="text-xs text-[var(--muted-foreground)]">
-              Where respondents land after finishing (we append <span className="font-mono">?t=&lt;token&gt;</span>).
-              This page is also what the result endpoint authorizes (CORS).
-            </p>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="targetUrl">
-                Destination page URL <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="targetUrl"
-                required
-                value={values.targetUrl ?? ""}
-                onChange={(e) => set("targetUrl", e.target.value)}
-                placeholder="https://your-page.com/results"
-              />
-              <p className="text-xs text-[var(--muted-foreground)]">
-                Required, must be https. Can be the same URL as the Training / VSL link above.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="tokenTtl">Result link lifetime (seconds)</Label>
-              <Input
-                id="tokenTtl"
-                type="number"
-                min={60}
-                max={7776000}
-                className="w-40"
-                value={values.tokenTtlSeconds ?? ""}
-                onChange={(e) =>
-                  set("tokenTtlSeconds", e.target.value === "" ? undefined : Number(e.target.value))
-                }
-                placeholder="2592000"
-              />
-              <p className="text-xs text-[var(--muted-foreground)]">Default 30 days (2592000s) if blank. Keep it long so emailed/revisited result links don&apos;t expire.</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="vslCountdown">Countdown before destination (seconds)</Label>
-              <Input
-                id="vslCountdown"
-                type="number"
-                min={0}
-                max={120}
-                className="w-40"
-                value={values.vslCountdownSeconds ?? 10}
-                onChange={(e) =>
-                  set("vslCountdownSeconds", e.target.value === "" ? 0 : Number(e.target.value))
-                }
-                placeholder="10"
-              />
-              <p className="text-xs text-[var(--muted-foreground)]">Anticipation timer shown after Submit before the destination/VSL loads. 0 = redirect immediately. Default 10.</p>
-            </div>
           </div>
 
           <div className="flex flex-col gap-2 rounded-lg border p-4">
@@ -820,6 +749,83 @@ export function AssessmentForm({
               </div>
             ) : null}
           </div>
+
+          {/* Destination + Training/VSL: only relevant when the flow lands on an
+              external page. Hidden (and not required) for "Show results on assess360". */}
+          {values.nextStep !== "RESULTS" ? (
+            <>
+              <div className="flex flex-col gap-3 rounded-lg border p-4">
+                <p className="text-sm font-medium">Destination page</p>
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Where respondents land after finishing (we append <span className="font-mono">?t=&lt;token&gt;</span>).
+                  This page is also what the result endpoint authorizes (CORS).
+                </p>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="targetUrl">
+                    Destination page URL <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="targetUrl"
+                    required
+                    value={values.targetUrl ?? ""}
+                    onChange={(e) => set("targetUrl", e.target.value)}
+                    placeholder="https://your-page.com/results"
+                  />
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Required for this next step, must be https.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="trainingUrl">
+                    Training / VSL link (shown on the retake-lock screen){" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="trainingUrl"
+                    required
+                    value={values.trainingUrl ?? ""}
+                    onChange={(e) => set("trainingUrl", e.target.value)}
+                    placeholder="https://…"
+                  />
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Required for this next step. Can be the same URL as the destination page.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="tokenTtl">Result link lifetime (seconds)</Label>
+                  <Input
+                    id="tokenTtl"
+                    type="number"
+                    min={60}
+                    max={7776000}
+                    className="w-40"
+                    value={values.tokenTtlSeconds ?? ""}
+                    onChange={(e) =>
+                      set("tokenTtlSeconds", e.target.value === "" ? undefined : Number(e.target.value))
+                    }
+                    placeholder="2592000"
+                  />
+                  <p className="text-xs text-[var(--muted-foreground)]">Default 30 days (2592000s) if blank. Keep it long so emailed/revisited result links don&apos;t expire.</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="vslCountdown">Countdown before destination (seconds)</Label>
+                  <Input
+                    id="vslCountdown"
+                    type="number"
+                    min={0}
+                    max={120}
+                    className="w-40"
+                    value={values.vslCountdownSeconds ?? 10}
+                    onChange={(e) =>
+                      set("vslCountdownSeconds", e.target.value === "" ? 0 : Number(e.target.value))
+                    }
+                    placeholder="10"
+                  />
+                  <p className="text-xs text-[var(--muted-foreground)]">Anticipation timer shown after Submit before the destination/VSL loads. 0 = redirect immediately. Default 10.</p>
+                </div>
+              </div>
+            </>
+          ) : null}
 
           {error ? (
             <p className="text-sm text-red-500" role="alert">

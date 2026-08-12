@@ -75,19 +75,22 @@ export const assessmentSchema = z.object({
     .max(3650, "Lock days can be at most 3650.")
     .default(15),
   uniqueIdentifier: z.enum(["EMAIL", "MOBILE"]).default("EMAIL"),
-  // Training/VSL link shown on the retake-lock screen. REQUIRED (may be the same
-  // URL as the destination page).
+  // Training/VSL link shown on the retake-lock screen, and the destination page the
+  // respondent lands on. Both are required ONLY when the flow goes to an external
+  // destination (nextStep DESTINATION or PAYMENT) — enforced in superRefine below.
+  // For "Show results on assess360" (RESULTS) neither is needed, so both may be blank.
+  // The destination origin authorizes the public read endpoint (CORS), so it must be https.
   trainingUrl: z
     .string()
-    .min(1, "Training / VSL link is required.")
-    .url("Enter a valid Training / VSL URL."),
-  // Destination page the respondent lands on after completing. REQUIRED. Its
-  // origin authorizes the public read endpoint (CORS), so it must be https.
+    .url("Enter a valid Training / VSL URL.")
+    .optional()
+    .or(z.literal("")),
   targetUrl: z
     .string()
-    .min(1, "Destination page URL is required.")
     .url("Enter a valid URL.")
-    .startsWith("https://", "Destination URL must use https://"),
+    .startsWith("https://", "Destination URL must use https://")
+    .optional()
+    .or(z.literal("")),
   tokenTtlSeconds: z.coerce.number().int().min(60).max(7776000).optional(), // up to 90 days
   // Anticipation countdown (seconds) before the destination/VSL loads. 0 = instant.
   vslCountdownSeconds: z.coerce
@@ -124,6 +127,16 @@ export const assessmentSchema = z.object({
       path: ["paymentAmount"],
       message: "Set a price (₹) or a payment link when the next step is Payment.",
     });
+  }
+  // Destination + Training/VSL links are required ONLY when the flow lands on an
+  // external destination. "Show results on assess360" (RESULTS) needs neither.
+  if (d.nextStep !== "RESULTS") {
+    if (!d.targetUrl) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["targetUrl"], message: "Destination page URL is required for this next step." });
+    }
+    if (!d.trainingUrl) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["trainingUrl"], message: "Training / VSL link is required for this next step." });
+    }
   }
   // A lockout can only be enforced if the identifying field is always captured.
   if (d.retakePolicy === "UNLIMITED") return;
