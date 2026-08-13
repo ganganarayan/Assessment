@@ -69,6 +69,10 @@ export default async function ResultPage({
           engine: true,
           tenantId: true,
           categories: { select: { name: true, page: true } },
+          // Author-set band words (Running on Luck / Feast or Famine / …). The clinic
+          // engine has no score %, so we map its ₹-gap band to the matching LEVEL and
+          // show the author's title as the result headline.
+          resultBands: { select: { level: true, title: true, description: true } },
         },
       },
     },
@@ -101,6 +105,18 @@ export default async function ResultPage({
         })
       : null;
     const original = computeResult(snap.clinic.inputs, snap.clinic.config);
+    // Map the clinic ₹-gap band → the author's Result Band title (by matching level).
+    // CRITICAL/HIGH line up; the clinic MODERATE ↔ MEDIUM, BELOW_THRESHOLD ↔ LOW.
+    const clinicBandToLevel: Record<string, string> = {
+      CRITICAL: "CRITICAL",
+      HIGH: "HIGH",
+      MODERATE: "MEDIUM",
+      BELOW_THRESHOLD: "LOW",
+    };
+    const bandByLevel = new Map(submission.assessment.resultBands.map((b) => [b.level as string, b]));
+    const matchedBand = bandByLevel.get(clinicBandToLevel[original.band] ?? "");
+    const bandLabel = matchedBand?.title ?? null;
+    const bandNote = matchedBand?.description ?? null;
     const h = await headers();
     const host = h.get("host") ?? "";
     const proto = h.get("x-forwarded-proto") ?? "https";
@@ -117,6 +133,8 @@ export default async function ResultPage({
           bookingUrl={setting?.bookingUrl ?? null}
           resultUrl={resultUrl}
           title={submission.assessment.title}
+          bandLabel={bandLabel}
+          bandNote={bandNote}
         />
       </main>
     );

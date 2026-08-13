@@ -27,6 +27,9 @@ const BRAND_CSS = `
 .dl * { box-sizing:border-box; }
 .dl h1,.dl h2,.dl h3 { font-family:var(--serif); font-weight:600; margin:0; }
 .dl .eyebrow { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+.dl .band-head { font-size:32px; line-height:1.15; color:var(--gold-d); margin-top:6px; }
+.dl .band-note { font-size:15px; color:var(--muted); margin-top:4px; }
+.dl .sub-line { font-size:15px; font-weight:600; color:var(--ink); margin-top:14px; }
 .dl .num { font-family:var(--mono); font-variant-numeric:tabular-nums; }
 .dl .figures { display:grid; grid-template-columns:1fr; gap:12px; margin:16px 0; }
 .dl .fig { border:1px solid var(--line); border-radius:4px; padding:16px; background:#fff; }
@@ -75,6 +78,10 @@ interface Props {
   bookingUrl: string | null;
   resultUrl: string;
   title: string;
+  /** Author's band word for this ₹-gap band (e.g. "Leaky Funnel"); null = none set. */
+  bandLabel: string | null;
+  /** The band's one-line description shown under the headline. */
+  bandNote: string | null;
 }
 
 function useReducedMotion(): boolean {
@@ -112,7 +119,7 @@ function useCountUp(target: number, reduced: boolean): number {
 
 const clampNum = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
-export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl, resultUrl, title }: Props) {
+export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl, resultUrl, title, bandLabel, bandNote }: Props) {
   const reduced = useReducedMotion();
 
   // Editable inputs (strings while typing). C is 0..10 = closeRate × 10.
@@ -170,7 +177,15 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
     <div className="dl">
       <style dangerouslySetInnerHTML={{ __html: BRAND_CSS }} />
       <p className="eyebrow">{title}</p>
-      <h1 style={{ fontSize: 26, marginTop: 4 }}>What your current funnel is worth</h1>
+      {bandLabel ? (
+        <>
+          <h1 className="band-head">{bandLabel}</h1>
+          {bandNote ? <p className="band-note">{bandNote}</p> : null}
+          <p className="sub-line">What your current funnel is worth</p>
+        </>
+      ) : (
+        <h1 style={{ fontSize: 26, marginTop: 4 }}>What your current funnel is worth</h1>
+      )}
 
       {/* Three figures */}
       <div className="figures" aria-live="polite">
