@@ -24,8 +24,25 @@ export interface PublicQuestion {
   id: string;
   text: string;
   required: boolean;
+  /** CLINIC_AUDIT only: the funnel role this question feeds, e.g. "ENQUIRIES". Drives
+   *  the optional "know your actual number?" field below the range choice. */
+  scoringRole: string | null;
   options: PublicOption[];
 }
+
+/** CLINIC_AUDIT numeric roles a respondent might know an exact figure for — the
+ *  "actual number" field renders below the range choice for these only. Excludes
+ *  UPLIFT_BOOKRATE (behavioral — response speed/follow-up — not a number to type). */
+const CLINIC_ACTUAL_FIELD: Record<string, { prompt: string; unit: "₹" | "%" | ""; placeholder: string }> = {
+  ENQUIRIES: { prompt: "Know your actual monthly enquiries?", unit: "", placeholder: "e.g. 42" },
+  BOOK_RATE: { prompt: "Know your actual booking rate?", unit: "%", placeholder: "e.g. 27" },
+  SHOWUP_RATE: { prompt: "Know your actual show-up rate?", unit: "%", placeholder: "e.g. 62" },
+  CLOSE_RATE: { prompt: "Know your actual close rate?", unit: "%", placeholder: "e.g. 33" },
+  TREATMENT_VALUE: { prompt: "Know your actual average treatment value?", unit: "₹", placeholder: "e.g. 95000" },
+  AD_SPEND: { prompt: "Know your actual monthly ad spend?", unit: "₹", placeholder: "e.g. 42000" },
+  DORMANT: { prompt: "Know your actual dormant list size?", unit: "", placeholder: "e.g. 620" },
+  CAPACITY: { prompt: "Know your actual spare capacity?", unit: "", placeholder: "e.g. 8" },
+};
 export interface PublicCategory {
   id: string;
   name: string;
@@ -134,6 +151,9 @@ export function AssessmentRunner({
     profession: "",
   });
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // CLINIC_AUDIT only: the respondent's typed exact number per scored question,
+  // keyed by questionId (raw digit string; blank = use the range's midpoint).
+  const [actualAnswers, setActualAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [lockout, setLockout] = useState<Lockout | null>(null);
   const [screenIndex, setScreenIndex] = useState(0); // current question page (paginated modes)
@@ -304,11 +324,12 @@ export function AssessmentRunner({
       })),
     };
     const details = preResultAnswers && Object.keys(preResultAnswers).length ? preResultAnswers : undefined;
+    const actual = Object.keys(actualAnswers).length ? actualAnswers : undefined;
     // Switch to the countdown IMMEDIATELY (outside the transition) so it renders
     // from 3, while the server scores + generates the AI statement.
     setStep("evaluating");
     start(async () => {
-      const res = await completeSubmission(sid, payload, tok, details);
+      const res = await completeSubmission(sid, payload, tok, details, actual);
       if (!res.ok) {
         setError(res.error);
         setStep("questions");
@@ -818,6 +839,33 @@ export function AssessmentRunner({
                   </label>
                 ))}
               </div>
+              {(() => {
+                const actualField = q.scoringRole ? CLINIC_ACTUAL_FIELD[q.scoringRole] : undefined;
+                if (!actualField) return null;
+                return (
+                  <div className="mt-1 flex flex-col gap-1 border-t pt-3">
+                    <label htmlFor={`actual-${q.id}`} className="text-xs text-[var(--muted-foreground)]">
+                      {actualField.prompt} Enter it below (optional) — otherwise we&apos;ll use the
+                      midpoint of your selected range.
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {actualField.unit === "₹" ? <span className="text-sm text-[var(--muted-foreground)]">₹</span> : null}
+                      <Input
+                        id={`actual-${q.id}`}
+                        type="text"
+                        inputMode="numeric"
+                        placeholder={actualField.placeholder}
+                        value={actualAnswers[q.id] ?? ""}
+                        onChange={(e) =>
+                          setActualAnswers((a) => ({ ...a, [q.id]: e.target.value.replace(/[^0-9]/g, "") }))
+                        }
+                        className="max-w-[160px]"
+                      />
+                      {actualField.unit === "%" ? <span className="text-sm text-[var(--muted-foreground)]">%</span> : null}
+                    </div>
+                  </div>
+                );
+              })()}
             </fieldset>
           ))}
         </div>

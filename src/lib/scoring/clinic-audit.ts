@@ -97,8 +97,15 @@ export function resolveEngineConfig(raw: unknown): EngineConfig {
 /** One selected answer, already reduced to its role + working number. */
 export interface RawAnswer {
   role: ClinicRole;
-  value: number; // Option.value as stored (rupees/counts as-is, rates as whole %)
-  isAssumption?: boolean; // the "I don't know" option
+  value: number; // Option.value as stored — the RANGE MIDPOINT/fallback (rupees/counts
+  // as-is, rates as whole %); used only when actualValue is absent.
+  /** The respondent's own exact number, if they typed one — takes precedence over
+   *  `value` (the range midpoint) whenever present. Not applicable to UPLIFT_BOOKRATE. */
+  actualValue?: number | null;
+  /** The selected option's label text (e.g. "30–60", "I don't know") — shown in the
+   *  "(assumed — average of X)" tag whenever actualValue is absent. */
+  optionLabel?: string | null;
+  isAssumption?: boolean; // the "I don't know" option specifically
   clause?: string | null; // Option.diagnosisClause for weakest-area text
 }
 
@@ -113,7 +120,14 @@ export interface ClinicInputs {
   D: number;
   K: number;
   bookUpliftPoints: number; // summed uplift, in rate units (0.06, …)
-  assumptions: string[]; // friendly labels of inputs answered "don't know"
+  /** Friendly labels of every numeric role where NO actual number was typed — the
+   *  range midpoint (or "don't know" fallback) was used instead. Broader than just
+   *  literal "I don't know": ANY unconfirmed range counts, per the respondent's own
+   *  choice to leave the actual-number field blank. */
+  assumptions: string[];
+  /** Role → the selected option's label text, for roles in `assumptions` — lets the
+   *  UI show exactly which range was averaged ("assumed — average of 30–60"). */
+  assumedRangeLabel: Partial<Record<ClinicRole, string>>;
   weakest: WeakArea[]; // candidate weakest areas, worst-first (top 2 used)
 }
 
@@ -147,14 +161,16 @@ function toWorking(role: ClinicRole, value: number): number {
 export function deriveInputs(answers: RawAnswer[], config: EngineConfig): ClinicInputs {
   const base: Partial<Record<ClinicRole, number>> = {};
   const assumptions: string[] = [];
+  const assumedRangeLabel: Partial<Record<ClinicRole, string>> = {};
   const weakest: WeakArea[] = [];
   let bookUpliftPoints = 0;
 
   for (const a of answers) {
     if (!isClinicRole(a.role)) continue;
-    const working = toWorking(a.role, a.value);
 
     if (a.role === "UPLIFT_BOOKRATE") {
+      // Behavioral, not a number a respondent would know — no actual-value override.
+      const working = toWorking(a.role, a.value);
       bookUpliftPoints += working;
       if (a.clause && working > 0) {
         weakest.push({ key: a.role, clause: a.clause, severity: working });
@@ -162,8 +178,16 @@ export function deriveInputs(answers: RawAnswer[], config: EngineConfig): Clinic
       continue;
     }
 
+    // The respondent's own exact number wins when given; otherwise fall back to the
+    // selected option's range midpoint (or "don't know" default) — and flag it, since
+    // ANY unconfirmed range should read as an assumption, not just literal "I don't know".
+    const hasActual = a.actualValue != null && Number.isFinite(a.actualValue);
+    const working = toWorking(a.role, hasActual ? (a.actualValue as number) : a.value);
     base[a.role] = working;
-    if (a.isAssumption) assumptions.push(ROLE_LABEL[a.role]);
+    if (!hasActual) {
+      assumptions.push(ROLE_LABEL[a.role]);
+      if (a.optionLabel) assumedRangeLabel[a.role] = a.optionLabel;
+    }
 
     // Rate answers below their benchmark are weakness candidates when clause-tagged.
     if (a.clause) {
@@ -187,6 +211,7 @@ export function deriveInputs(answers: RawAnswer[], config: EngineConfig): Clinic
     K: base.CAPACITY ?? 0,
     bookUpliftPoints,
     assumptions,
+    assumedRangeLabel,
     weakest,
   };
 }
@@ -244,6 +269,7 @@ export interface ClinicAuditResult {
   capacityBlocked: boolean;
   weakestAreas: { key: ClinicRole; clause: string }[];
   assumptions: string[];
+  assumedRangeLabel: Partial<Record<ClinicRole, string>>;
 }
 
 function round(n: number): number {
@@ -325,6 +351,7 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
     capacityBlocked,
     weakestAreas: inputs.weakest.slice(0, 2).map((w) => ({ key: w.key, clause: w.clause })),
     assumptions: inputs.assumptions,
+    assumedRangeLabel: inputs.assumedRangeLabel,
   };
 }
 

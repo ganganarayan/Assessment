@@ -7,7 +7,7 @@ import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
 import { renderReportPdf, type ReportData } from "@/lib/pdf/report";
 import { renderClinicReportPdf, type ClinicReportData } from "@/lib/pdf/clinic-report";
-import { computeResult, matchClinicResultBand } from "@/lib/scoring/clinic-audit";
+import { computeResult } from "@/lib/scoring/clinic-audit";
 
 /**
  * Branded PDF report for a completed submission.
@@ -51,7 +51,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
           title: true,
           engine: true,
           tenantId: true,
-          resultBands: { select: { level: true, title: true, description: true } },
         },
       },
     },
@@ -77,20 +76,22 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
 
   let pdf: Buffer;
   if (sub.assessment.engine === "CLINIC_AUDIT" && snap.clinic) {
-    // Clinic engine: the SAME diagnosis as the web result page — money figures + the
-    // author's band word — never the generic score/category report (meaningless for
-    // clinic option values, which are rupees/rates, not score points).
+    // Clinic engine: the EXACT same calculation trail as the web result page (same
+    // shared helpers, same figures, same "assumed" tags) — never the generic score/
+    // category report (meaningless for clinic option values, which are rupees/rates,
+    // not score points).
     const result = computeResult(snap.clinic.inputs, snap.clinic.config);
-    const matchedBand = matchClinicResultBand(result.band, sub.assessment.resultBands);
+    const setting = sub.assessment.tenantId
+      ? await prisma.appSetting.findUnique({ where: { tenantId: sub.assessment.tenantId }, select: { bookingUrl: true } })
+      : null;
     const data: ClinicReportData = {
       name,
       profession: sub.leadProfession?.trim() || null,
       assessmentTitle: sub.assessment.title,
       dateIST,
-      bandLabel: matchedBand?.title ?? null,
-      bandNote: matchedBand?.description ?? null,
       result,
       prose: snap.clinic.prose,
+      bookingUrl: setting?.bookingUrl ?? null,
     };
     pdf = await renderClinicReportPdf(data);
   } else {

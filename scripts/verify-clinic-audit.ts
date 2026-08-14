@@ -36,18 +36,29 @@ interface Spec {
   K: number;
   uplifts?: number[]; // UPLIFT_BOOKRATE option values (whole percent)
   dontKnow?: ClinicRole[]; // roles answered "I don't know"
+  actual?: Partial<Record<ClinicRole, number>>; // respondent-typed exact numbers
+  labels?: Partial<Record<ClinicRole, string>>; // selected option's label text
 }
 function build(s: Spec): RawAnswer[] {
   const dk = new Set(s.dontKnow ?? []);
+  const actual = s.actual ?? {};
+  const labels = s.labels ?? {};
+  const mk = (role: ClinicRole, value: number): RawAnswer => ({
+    role,
+    value,
+    isAssumption: dk.has(role),
+    actualValue: actual[role] ?? null,
+    optionLabel: labels[role] ?? null,
+  });
   const a: RawAnswer[] = [
-    { role: "ENQUIRIES", value: s.E, isAssumption: dk.has("ENQUIRIES") },
-    { role: "BOOK_RATE", value: s.B, isAssumption: dk.has("BOOK_RATE") },
-    { role: "SHOWUP_RATE", value: s.S, isAssumption: dk.has("SHOWUP_RATE") },
-    { role: "CLOSE_RATE", value: s.C, isAssumption: dk.has("CLOSE_RATE") },
-    { role: "TREATMENT_VALUE", value: s.V, isAssumption: dk.has("TREATMENT_VALUE") },
-    { role: "AD_SPEND", value: s.A ?? 0 },
-    { role: "DORMANT", value: s.D, isAssumption: dk.has("DORMANT") },
-    { role: "CAPACITY", value: s.K, isAssumption: dk.has("CAPACITY") },
+    mk("ENQUIRIES", s.E),
+    mk("BOOK_RATE", s.B),
+    mk("SHOWUP_RATE", s.S),
+    mk("CLOSE_RATE", s.C),
+    mk("TREATMENT_VALUE", s.V),
+    mk("AD_SPEND", s.A ?? 0),
+    mk("DORMANT", s.D),
+    mk("CAPACITY", s.K),
   ];
   for (const u of s.uplifts ?? []) a.push({ role: "UPLIFT_BOOKRATE", value: u, clause: `uplift ${u}` });
   return a;
@@ -132,13 +143,35 @@ console.log("Clinic Audit engine verification\n");
 
 // --- "Don't know" assumptions ---------------------------------------------
 {
+  // TREATMENT_VALUE and AD_SPEND get an actual number here so ONLY the 6 "don't
+  // know" roles remain assumed (an actual number, when given, is never assumed).
   const r = score({
     E: 60, B: 18, S: 60, C: 30, V: 90000, D: 400, K: 10,
     dontKnow: ["ENQUIRIES", "BOOK_RATE", "SHOWUP_RATE", "CLOSE_RATE", "DORMANT", "CAPACITY"],
+    actual: { TREATMENT_VALUE: 90000, AD_SPEND: 15000 },
   });
   expect("assumptions surfaced for every 'don't know'", r.assumptions.length === 6, `n=${r.assumptions.length}`);
   expect("  includes 'monthly enquiries'", r.assumptions.includes("monthly enquiries"));
   expect("  includes 'close rate'", r.assumptions.includes("close rate"));
+}
+
+// --- Actual-number override (respondent typed an exact figure) -------------
+{
+  // 90 is the "60–120" range midpoint; the respondent actually knows it's 73.
+  const raw = build({ E: 90, B: 20, S: 55, C: 30, V: 90000, D: 350, K: 17 });
+  raw[0] = { ...raw[0]!, actualValue: 73, optionLabel: "60–120" };
+  const r = scoreClinicAudit(raw, cfg);
+  expect("actual number overrides the range midpoint", r.enquiries === 73, `E=${r.enquiries}`);
+  expect("  an actual number is never tagged assumed", !r.assumptions.includes("monthly enquiries"));
+}
+{
+  // A real range was picked (NOT "I don't know") but no actual number was typed —
+  // must still read as an assumption, with the range label carried for the UI tag.
+  const raw = build({ E: 90, B: 20, S: 55, C: 30, V: 90000, D: 350, K: 17 });
+  raw[0] = { ...raw[0]!, optionLabel: "60–120" }; // no actualValue, not flagged "don't know" either
+  const r = scoreClinicAudit(raw, cfg);
+  expect("blank actual number still tags the range as assumed", r.assumptions.includes("monthly enquiries"));
+  expect("  range label carried through for the UI tag", r.assumedRangeLabel.ENQUIRIES === "60–120", `label=${r.assumedRangeLabel.ENQUIRIES}`);
 }
 
 // --- Five-case chain (deterministic) --------------------------------------

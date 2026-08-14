@@ -6,7 +6,9 @@ import {
   type ClinicInputs,
   type EngineConfig,
   type ClinicAuditResult,
+  type ClinicRole,
 } from "@/lib/scoring/clinic-audit";
+import { fmtStep, caseLine, buildTrail, assumedTagText } from "@/lib/scoring/clinic-trail";
 import { formatINR, monthlyLabel, pctLabel } from "@/lib/format/inr";
 
 /**
@@ -87,38 +89,6 @@ interface Props {
 
 const clampNum = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
-/** One decimal place, trimmed ("2.4", "2" not "2.0"). */
-function fmt1(n: number): string {
-  const r = Math.round(n * 10) / 10;
-  return Number.isInteger(r) ? String(r) : r.toFixed(1);
-}
-/** A funnel-stage count: one decimal under 20 (so small counts stay honest — never
- *  rounds a real 2.4 down to a misleading "2"), whole numbers above. */
-function fmtStep(n: number): string {
-  if (n <= 0) return "0";
-  return n < 20 ? fmt1(n) : String(Math.round(n));
-}
-/** The final "cases" step needs special handling: a sub-1 monthly rate must never
- *  render as a bare "0" (which would make "0 cases × price = revenue" look broken
- *  to a reader) — show the honest fraction plus a plain-English frequency. */
-function caseLine(n: number): { text: string; hint: string | null } {
-  if (n <= 0) return { text: "0", hint: null };
-  if (n < 1) {
-    const months = Math.max(1, Math.round(1 / n));
-    return { text: fmt1(n), hint: months <= 1 ? "roughly 1 case a month" : `roughly 1 case every ${months} months` };
-  }
-  return { text: fmtStep(n), hint: null };
-}
-/** Enquiries → booked → attended → cases, at a given rate chain. Cases uses the
- *  UNROUNDED chain (matches the engine's own casesNowExact/casesPotentialExact),
- *  so the displayed revenue always reconciles with the displayed case count. */
-function buildTrail(E: number, B: number, S: number, C: number) {
-  const booked = E * B;
-  const attended = booked * S;
-  const cases = attended * C;
-  return { booked, attended, cases };
-}
-
 export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl, resultUrl, title }: Props) {
   // Editable inputs (strings while typing). C is 0..10 = closeRate × 10.
   const [eStr, setEStr] = useState(String(inputs.E));
@@ -161,10 +131,16 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
     [inputs, config, E, V, effectiveC],
   );
   const edited = eEdited || vEdited || cEdited;
-  // An "assumed" tag only applies to the ORIGINAL submission's fallback figures
-  // (role labels must match ROLE_LABEL in lib/scoring/clinic-audit.ts exactly) —
+  // An "assumed" tag only applies to the ORIGINAL submission's fallback figures —
   // once the reader edits that specific field, it's their own number, not ours.
-  const isAssumed = (label: string, fieldEdited: boolean) => !fieldEdited && original.assumptions.includes(label);
+  const assumedTag = (role: ClinicRole, label: string, fieldEdited: boolean) =>
+    assumedTagText(original.assumptions, original.assumedRangeLabel, role, label, fieldEdited);
+  const eTag = assumedTag("ENQUIRIES", "monthly enquiries", eEdited);
+  const bTag = assumedTag("BOOK_RATE", "booking rate", false);
+  const sTag = assumedTag("SHOWUP_RATE", "show-up rate", false);
+  const cTag = assumedTag("CLOSE_RATE", "close rate", cEdited);
+  const vTag = assumedTag("TREATMENT_VALUE", "treatment value", vEdited);
+  const dTag = assumedTag("DORMANT", "dormant list size", false);
   const todayTrail = buildTrail(result.enquiries, result.bookRateNow, result.showUpNow, result.closeRate);
   const potTrail = buildTrail(result.enquiries, result.bookRateImproved, result.showUpImproved, result.closeRate);
   const caseToday = caseLine(todayTrail.cases);
@@ -241,21 +217,21 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
           <span>Monthly enquiries</span>
           <span className="num">
             {fmtStep(result.enquiries)}
-            {isAssumed("monthly enquiries", eEdited) ? <span className="assumed-tag">assumed</span> : null}
+            {eTag ? <span className="assumed-tag">{eTag}</span> : null}
           </span>
         </div>
         <div className="calc-row op">
-          <span>× Booking rate ({pctLabel(result.bookRateNow)})</span>
+          <span>× Booking rate ({pctLabel(result.bookRateNow)}){bTag ? <span className="assumed-tag">{bTag}</span> : null}</span>
           <span className="num">= {fmtStep(todayTrail.booked)} booked</span>
         </div>
         <div className="calc-row op">
-          <span>× Show-up rate ({pctLabel(result.showUpNow)})</span>
+          <span>× Show-up rate ({pctLabel(result.showUpNow)}){sTag ? <span className="assumed-tag">{sTag}</span> : null}</span>
           <span className="num">= {fmtStep(todayTrail.attended)} attended</span>
         </div>
         <div className="calc-row op final">
           <span>
             × Close rate ({pctLabel(result.closeRate)})
-            {isAssumed("close rate", cEdited) ? <span className="assumed-tag">assumed</span> : null}
+            {cTag ? <span className="assumed-tag">{cTag}</span> : null}
           </span>
           <span className="num">
             = {caseToday.text} patient{caseToday.text === "1" ? "" : "s"}/month
@@ -265,7 +241,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         <div className="calc-row op revenue">
           <span>
             × Treatment value ({formatINR(result.treatmentValue)})
-            {isAssumed("treatment value", vEdited) ? <span className="assumed-tag">assumed</span> : null}
+            {vTag ? <span className="assumed-tag">{vTag}</span> : null}
           </span>
           <span className="num">= {formatINR(result.revenueNow)}/month</span>
         </div>
@@ -348,8 +324,8 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
           <h2>Already sitting in your clinic</h2>
           <p>
             About <span className="num">{result.dormant.recoverable}</span> cases (<span className="num">{formatINR(result.dormant.value)}</span>) are
-            recoverable from the dormant enquiries you already hold — no ad spend required. This is
-            the first-fortnight number, deliberately conservative.
+            recoverable from the dormant enquiries you already hold{dTag ? <span className="assumed-tag">{dTag}</span> : null} — no ad spend
+            required. This is the first-fortnight number, deliberately conservative.
           </p>
         </div>
       ) : null}

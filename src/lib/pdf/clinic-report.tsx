@@ -6,13 +6,17 @@ import { join } from "path";
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Font, renderToBuffer } from "@react-pdf/renderer";
 import { type ClinicAuditResult } from "@/lib/scoring/clinic-audit";
-import { formatINR, monthlyLabel, pctLabel } from "@/lib/format/inr";
+import { fmtStep, caseLine, buildTrail, assumedTagText } from "@/lib/scoring/clinic-trail";
+import { formatINR, pctLabel } from "@/lib/format/inr";
 
 /**
- * Divine Leads clinic-audit PDF — the SAME diagnosis as the web result page (money
- * figures + the author's band word + the AI prose), not the generic score/category
- * report (which is meaningless for clinic option values — they're rupees/rates, not
- * score points — and carries the wrong, unrelated brand footer).
+ * Divine Leads clinic-audit PDF. Renders the EXACT same calculation trail as the
+ * web result page (clinic-audit-result.tsx) — same shared helpers from
+ * lib/scoring/clinic-trail.ts, same figures, same "assumed" tags — so the two can
+ * never show different numbers for the same submission. No band headline (dropped
+ * from the web page too — the calculation speaks for itself); no generic score/
+ * category report (meaningless for clinic option values, which are rupees/rates,
+ * not score points).
  */
 
 const INK = "#0E3540";
@@ -45,11 +49,9 @@ export interface ClinicReportData {
   profession: string | null;
   assessmentTitle: string;
   dateIST: string;
-  /** Author's Result Band title for this ₹-gap band (e.g. "Leaky Funnel"); null = none set. */
-  bandLabel: string | null;
-  bandNote: string | null;
   result: ClinicAuditResult;
   prose: string | null;
+  bookingUrl: string | null;
 }
 
 const s = StyleSheet.create({
@@ -60,9 +62,7 @@ const s = StyleSheet.create({
   coverTitle: { color: "#ffffff", fontFamily: "Cormorant", fontSize: 26, marginTop: 2 },
   coverName: { color: "#ffffff", fontFamily: "Cormorant", fontSize: 16, marginTop: 10 },
   coverMeta: { color: "#ffffffbb", fontSize: 10, marginTop: 6 },
-  bandHead: { fontFamily: "Cormorant", fontSize: 24, color: GOLD, marginTop: 20 },
-  bandNote: { fontSize: 11, color: MUTE, marginTop: 3 },
-  figures: { flexDirection: "row", gap: 12, marginTop: 18 },
+  figures: { flexDirection: "row", gap: 12, marginTop: 20 },
   fig: { flex: 1, borderWidth: 1, borderColor: LINE, borderRadius: 4, padding: 10 },
   figCapToday: { fontSize: 8.5, letterSpacing: 0.5, textTransform: "uppercase", color: TEAL },
   figCapGap: { fontSize: 8.5, letterSpacing: 0.5, textTransform: "uppercase", color: GOLD },
@@ -70,11 +70,23 @@ const s = StyleSheet.create({
   figAmt: { fontFamily: "Lato", fontWeight: "bold", fontSize: 15, marginTop: 4 },
   figAmtGap: { fontFamily: "Lato", fontWeight: "bold", fontSize: 18, color: GOLD, marginTop: 4 },
   figSub: { fontSize: 8, color: MUTE, marginTop: 2 },
-  arith: { fontSize: 8.5, color: MUTE, backgroundColor: "#F7F5F0", borderRadius: 4, padding: 8, marginTop: 14 },
+  calc: { borderWidth: 1, borderColor: LINE, borderRadius: 4, padding: 10, marginTop: 14 },
+  calcTitle: { fontSize: 9, fontWeight: "bold", textTransform: "uppercase", color: TEAL, marginBottom: 5 },
+  calcTitlePot: { fontSize: 9, fontWeight: "bold", textTransform: "uppercase", color: GOLD, marginBottom: 5 },
+  calcRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3.5, borderBottomWidth: 1, borderBottomColor: LINE, fontSize: 9 },
+  calcRowLast: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3.5, fontSize: 9 },
+  calcLabel: { color: MUTE, maxWidth: "62%" },
+  calcVal: { fontFamily: "Lato" },
+  calcValRevenue: { fontFamily: "Lato", fontWeight: "bold", color: TEAL },
+  calcValRevenuePot: { fontFamily: "Lato", fontWeight: "bold", color: GOLD },
+  // No italic — only Lato Regular/Bold are registered (react-pdf can't synthesize
+  // italic; requesting it throws "Could not resolve font" at render time).
+  assumedTag: { fontSize: 7.5, color: GOLD },
   section: { marginTop: 18 },
   h2: { fontFamily: "Cormorant", fontSize: 16, marginBottom: 6, color: TEAL },
   p: { marginBottom: 8, textAlign: "justify" },
   note: { fontSize: 9.5, color: MUTE, backgroundColor: "#F7F5F0", borderRadius: 4, padding: 8, marginTop: 8 },
+  cta: { marginTop: 8, fontSize: 10, color: TEAL },
   footer: { position: "absolute", bottom: 24, left: 44, right: 44, borderTopWidth: 1, borderTopColor: LINE, paddingTop: 6 },
   footLine: { fontSize: 7.5, color: MUTE, textAlign: "center" },
 });
@@ -86,9 +98,49 @@ function paragraphs(text: string | null): string[] {
     .filter(Boolean);
 }
 
+/** One calculation-trail row: label (+ optional assumed tag) on the left, the
+ *  computed value on the right. `last` drops the bottom border. */
+function CalcRow({
+  label,
+  tag,
+  value,
+  last,
+  valueStyle,
+}: {
+  label: string;
+  tag?: string | null;
+  value: string;
+  last?: boolean;
+  valueStyle?: typeof s.calcVal;
+}) {
+  return (
+    <View style={last ? s.calcRowLast : s.calcRow}>
+      <Text style={s.calcLabel}>
+        {label}
+        {tag ? <Text style={s.assumedTag}> ({tag})</Text> : null}
+      </Text>
+      <Text style={valueStyle ?? s.calcVal}>{value}</Text>
+    </View>
+  );
+}
+
 function ClinicReport({ data }: { data: ClinicReportData }) {
   const r = data.result;
   const narrative = paragraphs(data.prose);
+
+  const eTag = assumedTagText(r.assumptions, r.assumedRangeLabel, "ENQUIRIES", "monthly enquiries", false);
+  const bTag = assumedTagText(r.assumptions, r.assumedRangeLabel, "BOOK_RATE", "booking rate", false);
+  const sTag = assumedTagText(r.assumptions, r.assumedRangeLabel, "SHOWUP_RATE", "show-up rate", false);
+  const cTag = assumedTagText(r.assumptions, r.assumedRangeLabel, "CLOSE_RATE", "close rate", false);
+  const vTag = assumedTagText(r.assumptions, r.assumedRangeLabel, "TREATMENT_VALUE", "treatment value", false);
+  const dTag = assumedTagText(r.assumptions, r.assumedRangeLabel, "DORMANT", "dormant list size", false);
+
+  const todayTrail = buildTrail(r.enquiries, r.bookRateNow, r.showUpNow, r.closeRate);
+  const potTrail = buildTrail(r.enquiries, r.bookRateImproved, r.showUpImproved, r.closeRate);
+  const caseToday = caseLine(todayTrail.cases);
+  const casePot = caseLine(potTrail.cases);
+  const caseTodayLabel = `${caseToday.text} patient${caseToday.text === "1" ? "" : "s"}/month${caseToday.hint ? ` (${caseToday.hint})` : ""}`;
+  const casePotLabel = `${casePot.text} patient${casePot.text === "1" ? "" : "s"}/month${casePot.hint ? ` (${casePot.hint})` : ""}`;
 
   return (
     <Document title={`Patient Acquisition Audit — ${data.name}`} author="Assess360">
@@ -104,19 +156,12 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
           </Text>
         </View>
 
-        {data.bandLabel ? (
-          <>
-            <Text style={s.bandHead}>{data.bandLabel}</Text>
-            {data.bandNote ? <Text style={s.bandNote}>{data.bandNote}</Text> : null}
-          </>
-        ) : null}
-
         <View style={s.figures}>
           <View style={s.fig}>
             <Text style={s.figCapToday}>Earning today</Text>
             <Text style={s.figAmt}>{formatINR(r.revenueNow)}</Text>
             <Text style={s.figSub}>{r.casesNow} cases from {r.enquiries} enquiries</Text>
-            <Text style={s.figSub}>{monthlyLabel(r.revenueNow)}</Text>
+            <Text style={s.figSub}>{formatINR(r.revenueNow * 12)} a year</Text>
           </View>
           <View style={s.fig}>
             <Text style={s.figCapGap}>Lost in the gap</Text>
@@ -131,18 +176,40 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
           </View>
         </View>
 
-        <View style={s.arith}>
-          <Text>
-            {r.enquiries} enquiries × {pctLabel(r.bookRateNow)} booking × {pctLabel(r.showUpNow)} show-up × {pctLabel(r.closeRate)} close = {r.casesNow} cases × {formatINR(r.treatmentValue)} = {formatINR(r.revenueNow)}
-          </Text>
-          <Text style={{ marginTop: 4 }}>
-            The same {r.enquiries} enquiries at {pctLabel(r.bookRateImproved)} booking and {pctLabel(r.showUpImproved)} show-up = {r.casesPotential} cases = {formatINR(r.revenuePotential)}
-          </Text>
+        {/* Full calculation trail — identical to the web page, stage by stage. */}
+        <View style={s.calc}>
+          <Text style={s.calcTitle}>Today — how we got this number</Text>
+          <CalcRow label="Monthly enquiries" tag={eTag} value={fmtStep(r.enquiries)} />
+          <CalcRow label={`× Booking rate (${pctLabel(r.bookRateNow)})`} tag={bTag} value={`= ${fmtStep(todayTrail.booked)} booked`} />
+          <CalcRow label={`× Show-up rate (${pctLabel(r.showUpNow)})`} tag={sTag} value={`= ${fmtStep(todayTrail.attended)} attended`} />
+          <CalcRow label={`× Close rate (${pctLabel(r.closeRate)})`} tag={cTag} value={`= ${caseTodayLabel}`} />
+          <CalcRow
+            label={`× Treatment value (${formatINR(r.treatmentValue)})`}
+            tag={vTag}
+            value={`= ${formatINR(r.revenueNow)}/month`}
+            valueStyle={s.calcValRevenue}
+            last
+          />
+        </View>
+
+        <View style={s.calc}>
+          <Text style={s.calcTitlePot}>Achievable — fixing response speed &amp; follow-up</Text>
+          <CalcRow label="Monthly enquiries (same)" value={fmtStep(r.enquiries)} />
+          <CalcRow label={`× Booking rate (${pctLabel(r.bookRateImproved)})`} value={`= ${fmtStep(potTrail.booked)} booked`} />
+          <CalcRow label={`× Show-up rate (${pctLabel(r.showUpImproved)})`} value={`= ${fmtStep(potTrail.attended)} attended`} />
+          <CalcRow label={`× Close rate (${pctLabel(r.closeRate)}, unchanged — never modelled as improving)`} value={`= ${casePotLabel}`} />
+          <CalcRow
+            label={`× Treatment value (${formatINR(r.treatmentValue)})`}
+            value={`= ${formatINR(r.revenuePotential)}/month`}
+            valueStyle={s.calcValRevenuePot}
+            last
+          />
         </View>
 
         {r.assumptions.length > 0 ? (
           <Text style={s.note}>
-            Figures assumed (answer was &quot;I don&apos;t know&quot;) for: {r.assumptions.join(", ")}. Correct these on the interactive result page.
+            Figures marked &quot;assumed&quot; were used because no exact number was given — the
+            midpoint of the selected range was used instead. Editable on the interactive result page.
           </Text>
         ) : null}
 
@@ -159,8 +226,9 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
           <View style={s.section} wrap={false}>
             <Text style={s.h2}>Already sitting in your clinic</Text>
             <Text style={s.p}>
-              About {r.dormant.recoverable} cases ({formatINR(r.dormant.value)}) are recoverable from the dormant
-              enquiries you already hold — no ad spend required.
+              About {r.dormant.recoverable} cases ({formatINR(r.dormant.value)})
+              {dTag ? ` (${dTag})` : ""} are recoverable from the dormant enquiries you already hold —
+              no ad spend required.
             </Text>
           </View>
         ) : null}
@@ -173,6 +241,12 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
             ))}
           </View>
         ) : null}
+
+        <View style={s.section} wrap={false}>
+          <Text style={s.h2}>Talk it through</Text>
+          <Text style={s.p}>Book a 1-on-1 video call with our expert to walk through these numbers for your clinic.</Text>
+          {data.bookingUrl ? <Text style={s.cta}>{data.bookingUrl}</Text> : null}
+        </View>
 
         <View style={s.footer} fixed>
           <Text style={s.footLine}>Patient Acquisition Audit — Assess360</Text>

@@ -658,6 +658,9 @@ export async function completeSubmission(
   input: AnswersInput,
   editToken?: string,
   preResultAnswers?: Record<string, string>,
+  /** CLINIC_AUDIT only: respondent-typed EXACT numbers, keyed by questionId, for
+   *  scored questions where they knew the real figure instead of a range midpoint. */
+  clinicActualAnswers?: Record<string, string>,
 ): Promise<
   ActionResult<{
     submissionId: string;
@@ -717,6 +720,24 @@ export async function completeSubmission(
     if (Object.keys(clean).length) {
       await prisma.submission
         .update({ where: { id: submissionId }, data: { preResultAnswers: clean as unknown as Prisma.InputJsonValue } })
+        .catch(() => {});
+    }
+  }
+
+  // Persist the respondent's ACTUAL numbers (sanitized — only finite numeric
+  // strings survive). Saved regardless of the completion branch; non-fatal on
+  // failure. Read back below when building the clinic engine's answers.
+  let cleanActual: Record<string, string> = {};
+  if (clinicActualAnswers && typeof clinicActualAnswers === "object") {
+    cleanActual = Object.fromEntries(
+      Object.entries(clinicActualAnswers)
+        .filter(([, v]) => typeof v === "string" && v.trim() && Number.isFinite(Number(v.trim())))
+        .slice(0, 50)
+        .map(([k, v]) => [String(k).slice(0, 60), String(Number(v.trim()))]),
+    );
+    if (Object.keys(cleanActual).length) {
+      await prisma.submission
+        .update({ where: { id: submissionId }, data: { clinicActualAnswers: cleanActual as unknown as Prisma.InputJsonValue } })
         .catch(() => {});
     }
   }
@@ -942,9 +963,13 @@ export async function completeSubmission(
       if (!q || !isClinicRole(q.scoringRole ?? "")) continue;
       const opt = q.options.find((o) => o.id === a.optionId);
       if (!opt) continue;
+      const actualRaw = cleanActual[a.questionId];
+      const actualValue = actualRaw !== undefined ? Number(actualRaw) : null;
       rawAnswers.push({
         role: q.scoringRole as ClinicRole,
         value: opt.value,
+        actualValue,
+        optionLabel: opt.label,
         isAssumption: opt.isAssumption,
         clause: opt.diagnosisClause,
       });

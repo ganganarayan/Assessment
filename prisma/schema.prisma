@@ -680,6 +680,12 @@ model Submission {
   // Answers to the assessment's extra OPT-IN fields, keyed by field id. Null = none.
   optinAnswers Json?
 
+  // CLINIC_AUDIT only: the respondent's ACTUAL number for a scored question, keyed
+  // by questionId: { [questionId]: string }, when they knew it and typed it instead
+  // of relying on their selected range's midpoint. Null/absent per-question = use
+  // the option's stored value (and the result page/PDF tag that figure "assumed").
+  clinicActualAnswers Json?
+
   // Marketing attribution captured from the landing URL (utm_*, fbclid, gclid).
   // Stored as JSON so new click-id params need no schema change.
   attribution Json?

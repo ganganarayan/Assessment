@@ -68,7 +68,7 @@ export function buildClinicContext(ctx: ClinicPromptContext): string {
   }
   if (ctx.assumptions.length) {
     lines.push("");
-    lines.push(`ASSUMED because the answer was "I don't know": ${ctx.assumptions.join(", ")}.`);
+    lines.push(`ASSUMED (no exact figure given — the midpoint of their selected range was used): ${ctx.assumptions.join(", ")}.`);
   }
   if (ctx.answers.length) {
     lines.push("");

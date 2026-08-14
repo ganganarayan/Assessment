@@ -81,6 +81,7 @@ export default async function PublicAssessmentPage({
         id: q.id,
         text: q.text,
         required: q.required,
+        scoringRole: q.scoringRole,
         options: q.options.map((o) => ({ id: o.id, label: o.label, value: o.value })),
       })),
     })),
