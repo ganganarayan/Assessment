@@ -51,11 +51,19 @@ const BRAND_CSS = `
 .dl .field input:focus { outline:2px solid var(--gold); outline-offset:2px; }
 .dl .field .hint { font-size:11px; color:var(--muted); margin-top:3px; }
 .dl .field.invalid input { border-bottom-color:#b04a3a; }
-.dl .arith { font-family:var(--mono); font-size:12.5px; background:#fff; border:1px solid var(--line);
-  border-radius:4px; padding:12px; overflow-x:auto; white-space:nowrap; }
-.dl .arith div+div { margin-top:6px; }
 .dl .note { font-size:13px; color:var(--muted); background:#fff; border:1px solid var(--line);
   border-radius:4px; padding:12px; }
+.dl .calc { background:#fff; border:1px solid var(--line); border-radius:4px; padding:12px 14px; margin-top:14px; }
+.dl .calc-title { font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--teal); margin-bottom:6px; }
+.dl .calc-title.pot { color:var(--gold-d); }
+.dl .calc-row { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline;
+  column-gap:10px; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px; }
+.dl .calc-row:last-child { border-bottom:0; }
+.dl .calc-row.op span:first-child { color:var(--muted); }
+.dl .calc-row.final { font-weight:600; }
+.dl .calc-row.revenue { color:var(--teal); font-weight:700; font-size:15px; padding-top:8px; }
+.dl .calc-row.revenue.pot { color:var(--gold-d); }
+.dl .assumed-tag { font-size:10px; color:var(--gold-d); font-style:italic; margin-left:6px; font-weight:400; }
 .dl .prose { white-space:pre-line; }
 .dl .prose h3 { margin-top:18px; margin-bottom:4px; font-size:16px; }
 .dl .block { border-top:1px solid var(--line); padding-top:16px; margin-top:20px; }
@@ -119,6 +127,38 @@ function useCountUp(target: number, reduced: boolean): number {
 
 const clampNum = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
+/** One decimal place, trimmed ("2.4", "2" not "2.0"). */
+function fmt1(n: number): string {
+  const r = Math.round(n * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+}
+/** A funnel-stage count: one decimal under 20 (so small counts stay honest — never
+ *  rounds a real 2.4 down to a misleading "2"), whole numbers above. */
+function fmtStep(n: number): string {
+  if (n <= 0) return "0";
+  return n < 20 ? fmt1(n) : String(Math.round(n));
+}
+/** The final "cases" step needs special handling: a sub-1 monthly rate must never
+ *  render as a bare "0" (which would make "0 cases × price = revenue" look broken
+ *  to a reader) — show the honest fraction plus a plain-English frequency. */
+function caseLine(n: number): { text: string; hint: string | null } {
+  if (n <= 0) return { text: "0", hint: null };
+  if (n < 1) {
+    const months = Math.max(1, Math.round(1 / n));
+    return { text: fmt1(n), hint: months <= 1 ? "roughly 1 case a month" : `roughly 1 case every ${months} months` };
+  }
+  return { text: fmtStep(n), hint: null };
+}
+/** Enquiries → booked → attended → cases, at a given rate chain. Cases uses the
+ *  UNROUNDED chain (matches the engine's own casesNowExact/casesPotentialExact),
+ *  so the displayed revenue always reconciles with the displayed case count. */
+function buildTrail(E: number, B: number, S: number, C: number) {
+  const booked = E * B;
+  const attended = booked * S;
+  const cases = attended * C;
+  return { booked, attended, cases };
+}
+
 export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl, resultUrl, title, bandLabel, bandNote }: Props) {
   const reduced = useReducedMotion();
 
@@ -153,6 +193,17 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
     [inputs, config, E, V, C10],
   );
   const edited = E !== inputs.E || V !== inputs.V || C10 !== Math.round(inputs.C * 10);
+  const eEdited = E !== inputs.E;
+  const vEdited = V !== inputs.V;
+  const cEdited = C10 !== Math.round(inputs.C * 10);
+  // An "assumed" tag only applies to the ORIGINAL submission's fallback figures
+  // (role labels must match ROLE_LABEL in lib/scoring/clinic-audit.ts exactly) —
+  // once the reader edits that specific field, it's their own number, not ours.
+  const isAssumed = (label: string, fieldEdited: boolean) => !fieldEdited && original.assumptions.includes(label);
+  const todayTrail = buildTrail(result.enquiries, result.bookRateNow, result.showUpNow, result.closeRate);
+  const potTrail = buildTrail(result.enquiries, result.bookRateImproved, result.showUpImproved, result.closeRate);
+  const caseToday = caseLine(todayTrail.cases);
+  const casePot = caseLine(potTrail.cases);
 
   const goldCount = useCountUp(original.gap, reduced);
   const showGap = edited ? result.gap : goldCount;
@@ -231,13 +282,68 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       </div>
       {edited ? <button className="link" onClick={reset}>Reset to my answers</button> : null}
 
-      {/* The arithmetic, visible */}
-      <div className="arith" style={{ marginTop: 12 }}>
-        <div>
-          {result.enquiries} enquiries × {pctLabel(result.bookRateNow)} booking × {pctLabel(result.showUpNow)} show-up × {pctLabel(result.closeRate)} close = {result.casesNow} cases × {formatINR(result.treatmentValue)} = {formatINR(result.revenueNow)}
+      {/* The full calculation, every stage, in the open — the reader can check it
+          against their own rough numbers. Never hidden behind a toggle. */}
+      <div className="calc" aria-live="polite">
+        <p className="calc-title">Today — how we got this number</p>
+        <div className="calc-row">
+          <span>Monthly enquiries</span>
+          <span className="num">
+            {fmtStep(result.enquiries)}
+            {isAssumed("monthly enquiries", eEdited) ? <span className="assumed-tag">assumed</span> : null}
+          </span>
         </div>
-        <div>
-          The same {result.enquiries} enquiries at {pctLabel(result.bookRateImproved)} booking and {pctLabel(result.showUpImproved)} show-up = {result.casesPotential} cases = {formatINR(result.revenuePotential)}
+        <div className="calc-row op">
+          <span>× Booking rate ({pctLabel(result.bookRateNow)})</span>
+          <span className="num">= {fmtStep(todayTrail.booked)} booked</span>
+        </div>
+        <div className="calc-row op">
+          <span>× Show-up rate ({pctLabel(result.showUpNow)})</span>
+          <span className="num">= {fmtStep(todayTrail.attended)} attended</span>
+        </div>
+        <div className="calc-row op final">
+          <span>
+            × Close rate ({pctLabel(result.closeRate)})
+            {isAssumed("close rate", cEdited) ? <span className="assumed-tag">assumed</span> : null}
+          </span>
+          <span className="num">
+            = {caseToday.text} patient{caseToday.text === "1" ? "" : "s"}/month
+            {caseToday.hint ? ` (${caseToday.hint})` : ""}
+          </span>
+        </div>
+        <div className="calc-row op revenue">
+          <span>
+            × Treatment value ({formatINR(result.treatmentValue)})
+            {isAssumed("treatment value", vEdited) ? <span className="assumed-tag">assumed</span> : null}
+          </span>
+          <span className="num">= {formatINR(result.revenueNow)}/month</span>
+        </div>
+      </div>
+
+      <div className="calc" style={{ marginTop: 12 }}>
+        <p className="calc-title pot">Achievable — fixing response speed &amp; follow-up</p>
+        <div className="calc-row">
+          <span>Monthly enquiries (same)</span>
+          <span className="num">{fmtStep(result.enquiries)}</span>
+        </div>
+        <div className="calc-row op">
+          <span>× Booking rate ({pctLabel(result.bookRateImproved)})</span>
+          <span className="num">= {fmtStep(potTrail.booked)} booked</span>
+        </div>
+        <div className="calc-row op">
+          <span>× Show-up rate ({pctLabel(result.showUpImproved)})</span>
+          <span className="num">= {fmtStep(potTrail.attended)} attended</span>
+        </div>
+        <div className="calc-row op final">
+          <span>× Close rate ({pctLabel(result.closeRate)}, unchanged — this is yours, never modelled as improving)</span>
+          <span className="num">
+            = {casePot.text} patient{casePot.text === "1" ? "" : "s"}/month
+            {casePot.hint ? ` (${casePot.hint})` : ""}
+          </span>
+        </div>
+        <div className="calc-row op revenue pot">
+          <span>× Treatment value ({formatINR(result.treatmentValue)})</span>
+          <span className="num">= {formatINR(result.revenuePotential)}/month</span>
         </div>
       </div>
 
@@ -251,8 +357,9 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       {/* Assumptions */}
       {result.assumptions.length > 0 ? (
         <p className="note" style={{ marginTop: 12 }}>
-          We used assumptions for {result.assumptions.join(", ")} because you weren&apos;t sure of
-          those figures. They&apos;re editable above, and everything updates.
+          Figures marked <em>assumed</em> above were used because you weren&apos;t sure of the real
+          number. Enquiries, treatment value, and close rate are editable higher up the page —
+          change them and every number here recalculates.
         </p>
       ) : null}
 
