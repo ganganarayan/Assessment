@@ -190,6 +190,30 @@ export function deriveInputs(answers: RawAnswer[], config: EngineConfig): Clinic
 
 export type ClinicBand = "CRITICAL" | "HIGH" | "MODERATE" | "BELOW_THRESHOLD";
 
+/**
+ * Maps the clinic ₹-gap band to the assessment's own Result Band LEVEL
+ * (CRITICAL/HIGH/MEDIUM/LOW), so the author's own title/description
+ * ("Running on Luck", "Engine Running", …) can be looked up and shown. This is
+ * the SINGLE source of truth for that mapping — every call site (scoring at
+ * completion, the result page, the PDF) must use this, never re-derive it, so
+ * the band shown can never drift between views of the same submission.
+ */
+export const CLINIC_BAND_TO_LEVEL: Record<ClinicBand, string> = {
+  CRITICAL: "CRITICAL",
+  HIGH: "HIGH",
+  MODERATE: "MEDIUM",
+  BELOW_THRESHOLD: "LOW",
+};
+
+/** Look up the author's Result Band row matching a clinic band, by level. */
+export function matchClinicResultBand<T extends { level: string }>(
+  clinicBand: ClinicBand,
+  resultBands: readonly T[],
+): T | null {
+  const level = CLINIC_BAND_TO_LEVEL[clinicBand];
+  return resultBands.find((b) => b.level === level) ?? null;
+}
+
 export interface ClinicAuditResult {
   casesNow: number; // rounded for display
   revenueNow: number; // rupees/month, from UNROUNDED cases

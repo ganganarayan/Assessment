@@ -36,6 +36,7 @@ import {
   deriveInputs,
   computeResult,
   isClinicRole,
+  matchClinicResultBand,
   type RawAnswer,
   type ClinicRole,
   type ClinicAuditResult,
@@ -927,6 +928,10 @@ export async function completeSubmission(
   let clinicSnap: ClinicSnapshot | null = null;
   let clinicBandName: string | null = null;
   let clinicResult: ClinicAuditResult | null = null;
+  // The author's own Result Band row matching the clinic ₹-gap band (by level) —
+  // via the SAME shared mapping the result page uses, so the Submissions table,
+  // the PDF, and the result page can never disagree on the diagnosis shown.
+  let matchedClinicBand: { id: string; level: string; title: string; description: string | null } | null = null;
   let aiStatement: string | null = null;
 
   if (assessment.engine === "CLINIC_AUDIT") {
@@ -948,6 +953,7 @@ export async function completeSubmission(
     const result = computeResult(inputs, config);
     clinicResult = result;
     clinicBandName = result.band;
+    matchedClinicBand = matchClinicResultBand(result.band, assessment.resultBands);
     if (assessment.useAiStatement) {
       const ctx = buildClinicPromptContext(result, questions, optionByQuestionId, submission.leadProfession);
       aiStatement = await generateClinicStatement(buildClinicContext(ctx), submission.tenantId);
@@ -978,9 +984,12 @@ export async function completeSubmission(
     scoreRaw: totalScore,
     max: maxScore,
     scorePercent: Math.round(percentage),
-    resultBand: clinicBandName ?? band?.title ?? null,
-    resultBandLevel: band?.level ?? null,
-    resultSuggestion: band?.description ?? null,
+    // Clinic: the author's OWN band title (matched via CLINIC_BAND_TO_LEVEL), never
+    // the raw internal band constant — falls back to the raw constant only if the
+    // author hasn't set all 4 Result Band levels yet, so the field is never empty.
+    resultBand: clinicResult ? (matchedClinicBand?.title ?? clinicBandName) : (band?.title ?? null),
+    resultBandLevel: clinicResult ? clinicBandName : (band?.level ?? null),
+    resultSuggestion: clinicResult ? (matchedClinicBand?.description ?? null) : (band?.description ?? null),
     aiStatement,
     categories: categoryResults,
     clinic: clinicSnap ?? undefined,
@@ -1017,7 +1026,11 @@ export async function completeSubmission(
         status: "COMPLETED",
         totalScore,
         maxScore,
-        resultBandId: band?.id ?? null,
+        // Clinic: the matched Result Band row (by level), NOT the generic percentage-
+        // based `band` — that percentage is meaningless for clinic option values (they're
+        // rupees/rates, not score points) and was the cause of the Submissions table
+        // showing a DIFFERENT diagnosis than the actual result page for the same lead.
+        resultBandId: clinicResult ? (matchedClinicBand?.id ?? null) : (band?.id ?? null),
         completedAt: new Date(),
         resultToken: token,
         resultTokenExpiresAt: expiresAt,
@@ -1103,8 +1116,12 @@ export async function completeSubmission(
         mobile: full?.leadMobile ?? null,
       },
       score: clinicResult ? null : { total: totalScore, max: maxScore, percentage },
+      // level = the stable machine constant (CRITICAL/HIGH/MODERATE/BELOW_THRESHOLD),
+      // title = the author's own band word (falls back to the constant if unset) —
+      // this is what lands in contact.assessment_diagnosis, so it must be the same
+      // word the result page and Submissions table show, not the raw constant.
       resultBand: clinicResult
-        ? { level: clinicResult.band, title: clinicResult.band }
+        ? { level: clinicResult.band, title: matchedClinicBand?.title ?? clinicResult.band }
         : band
           ? { level: band.level, title: band.title }
           : null,

@@ -1,0 +1,50 @@
+/**
+ * Offline smoke test for the clinic-audit branded PDF report: renders a sample and
+ * asserts it is a valid, reasonably-sized PDF. Catches font/register/layout errors
+ * before a deploy (react-pdf issues won't show up in typecheck).
+ *   npx tsx scripts/verify-clinic-report.ts
+ */
+import { renderClinicReportPdf } from "../src/lib/pdf/clinic-report";
+import { DEFAULT_ENGINE_CONFIG, computeResult, deriveInputs } from "../src/lib/scoring/clinic-audit";
+
+async function main() {
+  const inputs = deriveInputs(
+    [
+      { role: "ENQUIRIES", value: 20 },
+      { role: "BOOK_RATE", value: 12 },
+      { role: "SHOWUP_RATE", value: 35 },
+      { role: "CLOSE_RATE", value: 30 },
+      { role: "TREATMENT_VALUE", value: 112000 },
+      { role: "AD_SPEND", value: 15000 },
+      { role: "DORMANT", value: 1500 },
+      { role: "CAPACITY", value: 10 },
+      { role: "UPLIFT_BOOKRATE", value: 6, clause: "slow first reply" },
+      { role: "UPLIFT_BOOKRATE", value: 6, clause: "no structured follow-up" },
+    ],
+    DEFAULT_ENGINE_CONFIG,
+  );
+  const result = computeResult(inputs, DEFAULT_ENGINE_CONFIG);
+
+  const buf = await renderClinicReportPdf({
+    name: "Ganesh Test Patro",
+    profession: "Hair Transplant Clinic",
+    assessmentTitle: "Where does your clinic actually lose patients?",
+    dateIST: "2026-08-14 13:51",
+    bandLabel: "Engine Running",
+    bandNote: "Solid system in place, fine-tune to scale",
+    result,
+    prose:
+      "### Where you stand\nYour clinic earns roughly the figures shown above from its current enquiries.\n\n### What is producing the gap\nResponse speed and follow-up depth are both costing bookings.",
+  });
+
+  const okHeader = buf.subarray(0, 5).toString("latin1") === "%PDF-";
+  const okSize = buf.length > 2000;
+  console.log(`  header %PDF-: ${okHeader ? "PASS" : "FAIL"}`);
+  console.log(`  size ${buf.length} bytes > 2000: ${okSize ? "PASS" : "FAIL"}`);
+  process.exit(okHeader && okSize ? 0 : 1);
+}
+
+main().catch((e) => {
+  console.error("FAIL — threw:", e);
+  process.exit(1);
+});

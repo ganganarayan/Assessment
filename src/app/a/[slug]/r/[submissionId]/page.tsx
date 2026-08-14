@@ -3,7 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
-import { computeResult } from "@/lib/scoring/clinic-audit";
+import { computeResult, matchClinicResultBand } from "@/lib/scoring/clinic-audit";
 import { ClinicAuditResult } from "@/features/assessment/components/public/clinic-audit-result";
 import { markResultViewed } from "@/features/events/record";
 import { resultUrlFor } from "@/lib/events/completion";
@@ -80,11 +80,26 @@ export default async function ResultPage({
   if (!submission || submission.assessment.slug !== slug) notFound();
 
   const user = await getCurrentUser();
-  const isOwner = user ? isSuperAdmin(user) : false;
+  // isSuperOwner gates the RAW ADMIN VIEW below (AI statement tools etc.) — those
+  // actions (features/admin/actions/ai-statements.ts) are super-admin-only, so
+  // exposing that branch to a tenant admin would render buttons that silently
+  // redirect on click. Stays super-admin-only.
+  const isSuperOwner = user ? isSuperAdmin(user) : false;
+  // canViewInternally additionally allows a TENANT admin/staff to view (read-only)
+  // a result belonging to their OWN tenant, without a token — this is what the
+  // "Result" link in /w/submissions (and /admin/submissions) relies on. Previously
+  // this was isSuperOwner-only, so a tenant admin clicking "Result" on their own
+  // submission fell through every branch to the blank public fallback page.
+  let canViewInternally = isSuperOwner;
+  if (user && !isSuperOwner && submission.assessment.tenantId) {
+    // Fresh read: the session's tenantId can be stale if assignment changed mid-session.
+    const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { tenantId: true } });
+    canViewInternally = fresh?.tenantId === submission.assessment.tenantId;
+  }
 
   // result.viewed represents the RESPONDENT opening their result — don't fire it
-  // for an admin review.
-  if (!isOwner) await markResultViewed(submissionId);
+  // for an internal (admin/tenant) review.
+  if (!canViewInternally) await markResultViewed(submissionId);
 
   const snap = submission.resultSnapshot as unknown as ResultSnapshot | null;
 
@@ -96,7 +111,7 @@ export default async function ResultPage({
     submission.assessment.engine === "CLINIC_AUDIT" &&
     snap?.clinic &&
     submission.status === "COMPLETED" &&
-    (isOwner || (!!token && token === submission.resultToken))
+    (canViewInternally || (!!token && token === submission.resultToken))
   ) {
     const setting = submission.assessment.tenantId
       ? await prisma.appSetting.findUnique({
@@ -105,16 +120,10 @@ export default async function ResultPage({
         })
       : null;
     const original = computeResult(snap.clinic.inputs, snap.clinic.config);
-    // Map the clinic ₹-gap band → the author's Result Band title (by matching level).
-    // CRITICAL/HIGH line up; the clinic MODERATE ↔ MEDIUM, BELOW_THRESHOLD ↔ LOW.
-    const clinicBandToLevel: Record<string, string> = {
-      CRITICAL: "CRITICAL",
-      HIGH: "HIGH",
-      MODERATE: "MEDIUM",
-      BELOW_THRESHOLD: "LOW",
-    };
-    const bandByLevel = new Map(submission.assessment.resultBands.map((b) => [b.level as string, b]));
-    const matchedBand = bandByLevel.get(clinicBandToLevel[original.band] ?? "");
+    // Author's Result Band title matching the ₹-gap band — the SAME shared mapping
+    // used when scoring (submission.ts), so this can never disagree with what was
+    // stored on the submission (Submissions table, PDF, webhook).
+    const matchedBand = matchClinicResultBand(original.band, submission.assessment.resultBands);
     const bandLabel = matchedBand?.title ?? null;
     const bandNote = matchedBand?.description ?? null;
     const h = await headers();
@@ -140,8 +149,9 @@ export default async function ResultPage({
     );
   }
 
-  // ---- Admin review: full result ------------------------------------------
-  if (isOwner && submission.status === "COMPLETED" && snap) {
+  // ---- Admin review: full result (super admin only — see canViewInternally note
+  //      above re: AiStatementManager's actions being super-admin-gated) ---------
+  if (isSuperOwner && submission.status === "COMPLETED" && snap) {
     const aiRows = await getAiStatements(submissionId);
     const breakdown = await getSubmissionQuestionBreakdown(submissionId);
     const questionsByCategory = new Map(breakdown.map((b) => [b.name, b.questions]));
@@ -280,7 +290,7 @@ export default async function ResultPage({
     submission.assessment.nextStep === "RESULTS" &&
     submission.status === "COMPLETED" &&
     snap &&
-    (isOwner || (!!token && token === submission.resultToken))
+    (canViewInternally || (!!token && token === submission.resultToken))
   ) {
     // Group the category breakdown by page (1 = assessment, 2 = queries) so both
     // scored pages show as separate sections. Page is looked up by name at render time.

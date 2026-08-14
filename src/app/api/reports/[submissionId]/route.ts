@@ -6,15 +6,21 @@ import { formatIST } from "@/lib/date";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
 import { renderReportPdf, type ReportData } from "@/lib/pdf/report";
+import { renderClinicReportPdf, type ClinicReportData } from "@/lib/pdf/clinic-report";
+import { computeResult, matchClinicResultBand } from "@/lib/scoring/clinic-audit";
 
 /**
- * Branded PDF band report for a completed submission.
+ * Branded PDF report for a completed submission.
  *   GET /api/reports/{submissionId}          → inline (view in browser)
  *   GET /api/reports/{submissionId}?download=1 → attachment (save)
  *
- * Admin-only for now (platform owner session). Generated on demand from the STORED
- * snapshot + stored AI statement — no model call, so every render is identical
- * bytes. A long-lived token for CRM pickup is added when PDF delivery is built.
+ * Generated on demand from the STORED snapshot + stored AI statement — no model
+ * call, so every render is identical bytes.
+ *
+ * Auth: the platform owner (any submission), OR a tenant admin/staff viewing a
+ * submission that belongs to THEIR OWN tenant. Previously this was super-admin-only,
+ * so a tenant admin clicking "PDF" from their own /w/submissions got a 404 (visually
+ * a blank page) even for their own workspace's data.
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +29,7 @@ const safeName = (s: string) => s.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+
 
 export async function GET(req: Request, { params }: { params: Promise<{ submissionId: string }> }) {
   const user = await getCurrentUser();
-  if (!user || !isSuperAdmin(user)) {
+  if (!user) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -40,7 +46,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
       aiStatement: true,
       reportNote: true,
       resultSnapshot: true,
-      assessment: { select: { title: true } },
+      assessment: {
+        select: {
+          title: true,
+          engine: true,
+          tenantId: true,
+          resultBands: { select: { level: true, title: true, description: true } },
+        },
+      },
     },
   });
   const snap = (sub?.resultSnapshot ?? null) as ResultSnapshot | null;
@@ -48,40 +61,73 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
     return NextResponse.json({ error: "No completed result for this submission." }, { status: 404 });
   }
 
-  // Per-question detail (text + chosen answer + score) — the FULL breakdown, merged
-  // into each category by name.
-  const breakdown = await getSubmissionQuestionBreakdown(submissionId);
-  const qsByCategory = new Map(breakdown.map((b) => [b.name, b.questions]));
+  // Authorize: super admin (any), or a same-tenant admin/staff (their own workspace only).
+  let authorized = isSuperAdmin(user);
+  if (!authorized && sub.assessment.tenantId) {
+    const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { tenantId: true } });
+    authorized = fresh?.tenantId === sub.assessment.tenantId;
+  }
+  if (!authorized) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const firstName = sub.leadFirstName?.trim() || "Participant";
-  const data: ReportData = {
-    name: [sub.leadFirstName, sub.leadLastName].map((p) => p?.trim()).filter(Boolean).join(" ") || firstName,
-    profession: sub.leadProfession?.trim() || null,
-    assessmentTitle: sub.assessment.title,
-    dateIST: formatIST(sub.completedAt ?? sub.createdAt),
-    scorePercent: snap.scorePercent,
-    bandTitle: snap.resultBand,
-    bandLevel: snap.resultBandLevel ?? null,
-    aiStatement: sub.aiStatement ?? snap.aiStatement ?? null,
-    resultSuggestion: snap.resultSuggestion ?? null,
-    reportNote: sub.reportNote ?? null,
-    categories: Array.isArray(snap.categories)
-      ? snap.categories.map((c) => ({
-          name: c.name,
-          score: c.score,
-          max: c.max,
-          band: c.band,
-          questions: (qsByCategory.get(c.name) ?? []).map((q) => ({
-            text: q.text,
-            answer: q.answer,
-            score: q.score,
-            max: q.max,
-          })),
-        }))
-      : [],
-  };
+  const name = [sub.leadFirstName, sub.leadLastName].map((p) => p?.trim()).filter(Boolean).join(" ") || firstName;
+  const dateIST = formatIST(sub.completedAt ?? sub.createdAt);
 
-  const pdf = await renderReportPdf(data);
+  let pdf: Buffer;
+  if (sub.assessment.engine === "CLINIC_AUDIT" && snap.clinic) {
+    // Clinic engine: the SAME diagnosis as the web result page — money figures + the
+    // author's band word — never the generic score/category report (meaningless for
+    // clinic option values, which are rupees/rates, not score points).
+    const result = computeResult(snap.clinic.inputs, snap.clinic.config);
+    const matchedBand = matchClinicResultBand(result.band, sub.assessment.resultBands);
+    const data: ClinicReportData = {
+      name,
+      profession: sub.leadProfession?.trim() || null,
+      assessmentTitle: sub.assessment.title,
+      dateIST,
+      bandLabel: matchedBand?.title ?? null,
+      bandNote: matchedBand?.description ?? null,
+      result,
+      prose: snap.clinic.prose,
+    };
+    pdf = await renderClinicReportPdf(data);
+  } else {
+    // Per-question detail (text + chosen answer + score) — the FULL breakdown, merged
+    // into each category by name.
+    const breakdown = await getSubmissionQuestionBreakdown(submissionId);
+    const qsByCategory = new Map(breakdown.map((b) => [b.name, b.questions]));
+
+    const data: ReportData = {
+      name,
+      profession: sub.leadProfession?.trim() || null,
+      assessmentTitle: sub.assessment.title,
+      dateIST,
+      scorePercent: snap.scorePercent,
+      bandTitle: snap.resultBand,
+      bandLevel: snap.resultBandLevel ?? null,
+      aiStatement: sub.aiStatement ?? snap.aiStatement ?? null,
+      resultSuggestion: snap.resultSuggestion ?? null,
+      reportNote: sub.reportNote ?? null,
+      categories: Array.isArray(snap.categories)
+        ? snap.categories.map((c) => ({
+            name: c.name,
+            score: c.score,
+            max: c.max,
+            band: c.band,
+            questions: (qsByCategory.get(c.name) ?? []).map((q) => ({
+              text: q.text,
+              answer: q.answer,
+              score: q.score,
+              max: q.max,
+            })),
+          }))
+        : [],
+    };
+    pdf = await renderReportPdf(data);
+  }
+
   const download = new URL(req.url).searchParams.get("download") === "1";
   const disposition = `${download ? "attachment" : "inline"}; filename="Assess360_Report_${safeName(firstName)}.pdf"`;
 
