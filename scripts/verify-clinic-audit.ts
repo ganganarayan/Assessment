@@ -103,6 +103,27 @@ console.log("Clinic Audit engine verification\n");
   expect("  computed band kept (CRITICAL) while blocked", r.band === "CRITICAL", `band=${r.band}`);
 }
 
+// --- Low-enquiries override steps aside for a large ANNUAL gap -------------
+{
+  // E just under min (25 < 30), but a high ticket + real uplift produce a big
+  // annual gap — the low-enquiries not-viable override should waive, and the
+  // band should be computed normally from the (still real) monthly gap.
+  const r = score({ E: 25, B: 12, S: 35, C: 25, V: 300000, D: 1500, K: 30, uplifts: [6, 5, 6, 3] });
+  expect("large annual gap waives low-enquiries not-viable", !r.notViable, `notViable=${r.notViable} gap=${r.gap}`);
+  expect("  band computed normally, not forced BELOW_THRESHOLD", r.band !== "BELOW_THRESHOLD", `band=${r.band}`);
+}
+{
+  // E under min, but the gap is genuinely small — override must NOT waive it.
+  const r = score({ E: 20, B: 12, S: 35, C: 30, V: 50000, D: 1500, K: 10 });
+  expect("small annual gap keeps low-enquiries not-viable", r.notViable, `notViable=${r.notViable} gap=${r.gap}`);
+  expect("  band forced BELOW_THRESHOLD", r.band === "BELOW_THRESHOLD", `band=${r.band}`);
+}
+{
+  // Low TICKET (not enquiries) is never waived by the gap — different economics.
+  const r = score({ E: 300, B: 45, S: 95, C: 65, V: 18000, D: 1500, K: 30 });
+  expect("low-ticket not-viable is absolute (no gap override)", r.notViable, `notViable=${r.notViable}`);
+}
+
 // --- 0.38 book-rate cap ----------------------------------------------------
 {
   const r = score({ E: 90, B: 20, S: 55, C: 30, V: 90000, D: 350, K: 17, uplifts: [10, 10, 10] });

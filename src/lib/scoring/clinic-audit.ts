@@ -55,6 +55,12 @@ export interface EngineConfig {
   bandHigh: number; // gap ≥ this → HIGH
   bandModerate: number; // gap ≥ this → MODERATE (else BELOW_THRESHOLD)
   dormantRate: number; // fraction of the dormant list treated as recoverable
+  // A clinic under minEnquiries is presumed too small to be a real prospect — UNLESS
+  // the implied ANNUAL gap clears this bar, in which case the low-enquiries override
+  // steps aside and the normal band ladder (on the monthly gap) decides instead. Does
+  // NOT apply to the minTicket override (a genuinely low-ticket clinic stays not-viable
+  // regardless of gap — that economics doesn't suit a retainer either way).
+  notViableAnnualGapOverride: number;
 }
 
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
@@ -69,6 +75,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   bandHigh: 500_000,
   bandModerate: 200_000,
   dormantRate: 0.02,
+  notViableAnnualGapOverride: 1_000_000, // ₹10L/year
 };
 
 /** Merge a stored (partial, possibly malformed) engineConfig JSON over the defaults. */
@@ -279,8 +286,14 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
   const dormantRecoverable = Math.floor(D * config.dormantRate);
   const dormant = { count: D, recoverable: dormantRecoverable, value: dormantRecoverable * V };
 
-  // Overrides first, then band on gap.
-  const notViable = E < config.minEnquiries || V < config.minTicket;
+  // Overrides first, then band on gap. Low-enquiries steps aside when the implied
+  // ANNUAL gap is large enough — a real prospect can still have few enquiries if
+  // each one is worth a lot. Low-ticket has no such override (see config comment).
+  const enquiriesTooLow = E < config.minEnquiries;
+  const ticketTooLow = V < config.minTicket;
+  const gapOverridesLowEnquiries =
+    enquiriesTooLow && !ticketTooLow && gap * 12 >= config.notViableAnnualGapOverride;
+  const notViable = (enquiriesTooLow && !gapOverridesLowEnquiries) || ticketTooLow;
   const capacityBlocked = K < config.capacityBlockedBelow;
   let band: ClinicBand;
   if (notViable) band = "BELOW_THRESHOLD";
