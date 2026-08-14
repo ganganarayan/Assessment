@@ -3,7 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
-import { computeResult, matchClinicResultBand } from "@/lib/scoring/clinic-audit";
+import { computeResult } from "@/lib/scoring/clinic-audit";
 import { ClinicAuditResult } from "@/features/assessment/components/public/clinic-audit-result";
 import { markResultViewed } from "@/features/events/record";
 import { resultUrlFor } from "@/lib/events/completion";
@@ -69,10 +69,6 @@ export default async function ResultPage({
           engine: true,
           tenantId: true,
           categories: { select: { name: true, page: true } },
-          // Author-set band words (Running on Luck / Feast or Famine / …). The clinic
-          // engine has no score %, so we map its ₹-gap band to the matching LEVEL and
-          // show the author's title as the result headline.
-          resultBands: { select: { level: true, title: true, description: true } },
         },
       },
     },
@@ -119,13 +115,12 @@ export default async function ResultPage({
           select: { bookingUrl: true },
         })
       : null;
+    // The ₹-gap band is still computed and stored (submission.ts) for INTERNAL
+    // triage — Submissions table, CRM webhook segmentation. It is deliberately NOT
+    // shown to the respondent: a fixed category label can only ever contradict the
+    // calculation trail below (a small-gap clinic can still be genuinely desperate;
+    // a big-gap one merely comfortable) — the numbers make the case on their own.
     const original = computeResult(snap.clinic.inputs, snap.clinic.config);
-    // Author's Result Band title matching the ₹-gap band — the SAME shared mapping
-    // used when scoring (submission.ts), so this can never disagree with what was
-    // stored on the submission (Submissions table, PDF, webhook).
-    const matchedBand = matchClinicResultBand(original.band, submission.assessment.resultBands);
-    const bandLabel = matchedBand?.title ?? null;
-    const bandNote = matchedBand?.description ?? null;
     const h = await headers();
     const host = h.get("host") ?? "";
     const proto = h.get("x-forwarded-proto") ?? "https";
@@ -142,8 +137,6 @@ export default async function ResultPage({
           bookingUrl={setting?.bookingUrl ?? null}
           resultUrl={resultUrl}
           title={submission.assessment.title}
-          bandLabel={bandLabel}
-          bandNote={bandNote}
         />
       </main>
     );

@@ -27,9 +27,6 @@ const BRAND_CSS = `
 .dl * { box-sizing:border-box; }
 .dl h1,.dl h2,.dl h3 { font-family:var(--serif); font-weight:600; margin:0; }
 .dl .eyebrow { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
-.dl .band-head { font-size:32px; line-height:1.15; color:var(--gold-d); margin-top:6px; }
-.dl .band-note { font-size:15px; color:var(--muted); margin-top:4px; }
-.dl .sub-line { font-size:15px; font-weight:600; color:var(--ink); margin-top:14px; }
 .dl .num { font-family:var(--mono); font-variant-numeric:tabular-nums; }
 .dl .figures { display:grid; grid-template-columns:1fr; gap:12px; margin:16px 0; }
 .dl .fig { border:1px solid var(--line); border-radius:4px; padding:16px; background:#fff; }
@@ -86,10 +83,6 @@ interface Props {
   bookingUrl: string | null;
   resultUrl: string;
   title: string;
-  /** Author's band word for this ₹-gap band (e.g. "Leaky Funnel"); null = none set. */
-  bandLabel: string | null;
-  /** The band's one-line description shown under the headline. */
-  bandNote: string | null;
 }
 
 function useReducedMotion(): boolean {
@@ -159,7 +152,7 @@ function buildTrail(E: number, B: number, S: number, C: number) {
   return { booked, attended, cases };
 }
 
-export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl, resultUrl, title, bandLabel, bandNote }: Props) {
+export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl, resultUrl, title }: Props) {
   const reduced = useReducedMotion();
 
   // Editable inputs (strings while typing). C is 0..10 = closeRate × 10.
@@ -208,9 +201,6 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
   const goldCount = useCountUp(original.gap, reduced);
   const showGap = edited ? result.gap : goldCount;
 
-  const band = original.band; // FIXED from the submission — edits never re-band.
-  const critical = band === "CRITICAL" || band === "HIGH";
-
   const commit = () => {
     const e = parseInt(eStr, 10); if (Number.isFinite(e) && e > 0) { const c = clampNum(e, 1, 2000); setE(c); setEStr(String(c)); }
     const v = parseInt(vStr, 10); if (Number.isFinite(v) && v > 0) { const c = clampNum(v, 1000, 1_000_000); setV(c); setVStr(String(c)); }
@@ -228,15 +218,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
     <div className="dl">
       <style dangerouslySetInnerHTML={{ __html: BRAND_CSS }} />
       <p className="eyebrow">{title}</p>
-      {bandLabel ? (
-        <>
-          <h1 className="band-head">{bandLabel}</h1>
-          {bandNote ? <p className="band-note">{bandNote}</p> : null}
-          <p className="sub-line">What your current funnel is worth</p>
-        </>
-      ) : (
-        <h1 style={{ fontSize: 26, marginTop: 4 }}>What your current funnel is worth</h1>
-      )}
+      <h1 style={{ fontSize: 26, marginTop: 4 }}>What your current funnel is worth</h1>
 
       {/* Three figures */}
       <div className="figures" aria-live="polite">
@@ -403,42 +385,20 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         </div>
       ) : null}
 
-      {/* Conditional close */}
-      {critical && !original.notViable ? (
-        <div className="block">
-          <h2>Talk it through</h2>
-          <p>Book a 1-on-1 video call with our expert to walk through these numbers for your clinic.</p>
-          {bookingUrl ? (
-            <>
-              <iframe className="cal" src={bookingUrl} title="Book a call" loading="lazy" />
-              <p style={{ marginTop: 8 }}>
-                <a className="btn" href={bookingUrl} target="_blank" rel="noreferrer">Book a 1-on-1 call</a>
-              </p>
-            </>
-          ) : null}
-        </div>
-      ) : null}
-
-      {band === "MODERATE" && !original.notViable ? (
-        <div className="block">
-          <h2>One thing to fix first</h2>
-          {original.weakestAreas[0]?.clause ? <p>{original.weakestAreas[0].clause}.</p> : null}
-          {bookingUrl ? (
-            <p><a className="link" href={bookingUrl} target="_blank" rel="noreferrer">Or book a quick call to talk it through →</a></p>
-          ) : null}
-        </div>
-      ) : null}
-
-      {original.notViable || band === "BELOW_THRESHOLD" ? (
-        <div className="block">
-          <h2>Where this leaves you</h2>
-          <p>
-            On these numbers the arithmetic does not currently justify a paid engagement. The most
-            useful next step is to tighten what you already have — response times, follow-up, and
-            recording enquiries — before spending on more of them.
-          </p>
-        </div>
-      ) : null}
+      {/* Talk it through — universal. The calculation above already makes the case;
+          it is never gated behind an internal severity band. */}
+      <div className="block">
+        <h2>Talk it through</h2>
+        <p>Book a 1-on-1 video call with our expert to walk through these numbers for your clinic.</p>
+        {bookingUrl ? (
+          <>
+            <iframe className="cal" src={bookingUrl} title="Book a call" loading="lazy" />
+            <p style={{ marginTop: 8 }}>
+              <a className="btn" href={bookingUrl} target="_blank" rel="noreferrer">Book a 1-on-1 call</a>
+            </p>
+          </>
+        ) : null}
+      </div>
 
       {/* Share */}
       <div className="block">
