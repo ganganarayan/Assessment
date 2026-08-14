@@ -85,39 +85,6 @@ interface Props {
   title: string;
 }
 
-function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(m.matches);
-    const h = () => setReduced(m.matches);
-    m.addEventListener?.("change", h);
-    return () => m.removeEventListener?.("change", h);
-  }, []);
-  return reduced;
-}
-
-/** Count up to `target` once on mount (unless reduced-motion). */
-function useCountUp(target: number, reduced: boolean): number {
-  const [v, setV] = useState(reduced ? target : 0);
-  useEffect(() => {
-    if (reduced) { setV(target); return; }
-    const dur = 900;
-    let raf = 0;
-    const t0 = performance.now();
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - t0) / dur);
-      setV(Math.round(target * (1 - Math.pow(1 - p, 3))));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-    // Only on mount — recomputes update via the live result, not this animation.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return v;
-}
-
 const clampNum = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 /** One decimal place, trimmed ("2.4", "2" not "2.0"). */
@@ -153,8 +120,6 @@ function buildTrail(E: number, B: number, S: number, C: number) {
 }
 
 export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl, resultUrl, title }: Props) {
-  const reduced = useReducedMotion();
-
   // Editable inputs (strings while typing). C is 0..10 = closeRate × 10.
   const [eStr, setEStr] = useState(String(inputs.E));
   const [vStr, setVStr] = useState(String(inputs.V));
@@ -181,14 +146,21 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
   const vInvalid = !(parseInt(vStr, 10) > 0);
   const cInvalid = !Number.isFinite(parseInt(cStr, 10));
 
-  const result = useMemo(
-    () => computeResult({ ...inputs, E, V, C: C10 / 10 }, config),
-    [inputs, config, E, V, C10],
-  );
-  const edited = E !== inputs.E || V !== inputs.V || C10 !== Math.round(inputs.C * 10);
   const eEdited = E !== inputs.E;
   const vEdited = V !== inputs.V;
+  // Close rate is edited via a 0–10 "out of 10" field, which cannot represent every
+  // real rate exactly (25% × 10 = 2.5, rounds to 3 = 30%). That rounding must NEVER
+  // leak into the actual math unless the reader genuinely typed a new value — so the
+  // effective C stays the EXACT original rate (matching the PDF/submission bit-for-
+  // bit) until cEdited is true, only then switching to the (now intentional) C10/10.
   const cEdited = C10 !== Math.round(inputs.C * 10);
+  const effectiveC = cEdited ? C10 / 10 : inputs.C;
+
+  const result = useMemo(
+    () => computeResult({ ...inputs, E, V, C: effectiveC }, config),
+    [inputs, config, E, V, effectiveC],
+  );
+  const edited = eEdited || vEdited || cEdited;
   // An "assumed" tag only applies to the ORIGINAL submission's fallback figures
   // (role labels must match ROLE_LABEL in lib/scoring/clinic-audit.ts exactly) —
   // once the reader edits that specific field, it's their own number, not ours.
@@ -197,9 +169,6 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
   const potTrail = buildTrail(result.enquiries, result.bookRateImproved, result.showUpImproved, result.closeRate);
   const caseToday = caseLine(todayTrail.cases);
   const casePot = caseLine(potTrail.cases);
-
-  const goldCount = useCountUp(original.gap, reduced);
-  const showGap = edited ? result.gap : goldCount;
 
   const commit = () => {
     const e = parseInt(eStr, 10); if (Number.isFinite(e) && e > 0) { const c = clampNum(e, 1, 2000); setE(c); setEStr(String(c)); }
@@ -230,7 +199,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         </div>
         <div className="fig gap">
           <div className="cap">Lost in the gap</div>
-          <div className="amt">{formatINR(showGap)}</div>
+          <div className="amt">{formatINR(result.gap)}</div>
           <div className="sub">{Math.max(0, result.casesPotential - result.casesNow)} cases never reached · {monthlyLabel(result.gap)}</div>
           <div className="sub num">{formatINR(result.annualGap)} a year</div>
         </div>
