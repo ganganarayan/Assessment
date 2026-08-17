@@ -59,13 +59,47 @@ export function isClinicUnit(v: string | null | undefined): v is ClinicUnit {
   return !!v && (CLINIC_UNITS as readonly string[]).includes(v);
 }
 
-/** The unit a role uses when the question doesn't declare one. Rates default to
- *  PER_100, which is exactly how every pre-existing configuration was read. */
+/** The unit a role uses absent any other signal. */
 export function defaultUnitForRole(role: ClinicRole): ClinicUnit {
   if (role === "UPLIFT_BOOKRATE") return "POINTS";
   if (RATE_ROLES.has(role)) return "PER_100";
   if (role === "TREATMENT_VALUE" || role === "AD_SPEND") return "RUPEES";
   return "COUNT";
+}
+
+/**
+ * Work out the scale a rate question is written in, from the question itself.
+ *
+ * A question asking "Out of every 10 booked consultations, how many attend?" and
+ * answered "7" means SEVENTY PERCENT. Reading that as 7% is the system's error, not
+ * the respondent's — their answer was exactly what was asked for. So the scale is
+ * INFERRED here rather than depending on an operator remembering to configure it:
+ *
+ *   1. the question's own wording ("out of every 10" / "out of 100" / "percent"), then
+ *   2. the shape of its options — a rate whose every option is <= 10 is out-of-10
+ *      (real percentage bands span far wider, e.g. 45 / 32 / 20 / 12).
+ *
+ * An explicit Question.scoringUnit still wins over this when set.
+ */
+export function detectUnitFromQuestion(
+  role: ClinicRole,
+  questionText: string | null | undefined,
+  optionValues: readonly number[] = [],
+): ClinicUnit {
+  if (!RATE_ROLES.has(role) || role === "UPLIFT_BOOKRATE") return defaultUnitForRole(role);
+
+  const t = (questionText ?? "").toLowerCase();
+  // "out of every 100" / "out of 100" / "per 100" / "%" / "percent" → percentage.
+  if (/\b(?:out of|per)\s+(?:every\s+)?100\b/.test(t) || /%|percent/.test(t)) return "PER_100";
+  // "out of every 10" / "out of 10" / "in every 10" → tenths.
+  if (/\b(?:out of|in|per)\s+(?:every\s+)?10\b/.test(t)) return "PER_10";
+
+  // No wording signal: let the option values speak. Percentage bands for a real
+  // clinic always exceed 10 somewhere; an all-<=10 set is an out-of-10 scale.
+  const positives = optionValues.filter((v) => Number.isFinite(v) && v > 0);
+  if (positives.length > 0 && Math.max(...positives) <= 10) return "PER_10";
+
+  return "PER_100";
 }
 
 /** Convert a stored/typed number in `unit` into the engine's working value

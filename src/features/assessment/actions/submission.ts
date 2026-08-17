@@ -37,6 +37,7 @@ import {
   computeResult,
   isClinicRole,
   isClinicUnit,
+  detectUnitFromQuestion,
   matchClinicResultBand,
   type RawAnswer,
   type ClinicRole,
@@ -972,7 +973,12 @@ export async function completeSubmission(
         value: opt.value,
         actualValue,
         optionLabel: opt.label,
-        unit: isClinicUnit(q.scoringUnit) ? q.scoringUnit : null,
+        // Explicit config wins; otherwise infer the scale from the question's own
+        // wording/options, so "out of every 10" answered 7 scores as 70% — which is
+        // what the respondent plainly meant — with nothing to configure.
+        unit: isClinicUnit(q.scoringUnit)
+          ? q.scoringUnit
+          : detectUnitFromQuestion(q.scoringRole as ClinicRole, q.text, q.options.map((o) => o.value)),
         isAssumption: opt.isAssumption,
         clause: opt.diagnosisClause,
       });

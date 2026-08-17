@@ -41,8 +41,6 @@ const CLINIC_UNIT_OPTIONS: { value: string; label: string }[] = [
   { value: "COUNT", label: "Plain count" },
   { value: "POINTS", label: "Uplift points (whole percent)" },
 ];
-/** Roles where the unit genuinely changes the maths (rates). */
-const UNIT_SENSITIVE_ROLES = new Set(["BOOK_RATE", "SHOWUP_RATE", "CLOSE_RATE"]);
 
 /** Engine of the parent assessment — CLINIC_AUDIT unlocks the funnel scoring fields. */
 export type BuilderEngine = "GENERIC" | "CLINIC_AUDIT";
@@ -285,16 +283,12 @@ function QuestionForm({
               </select>
               <p className="text-xs text-[var(--muted-foreground)]">
                 Applies to the option numbers below <em>and</em> the respondent&apos;s typed actual
-                number. <strong>Match your question&apos;s wording.</strong> A question asking
-                &ldquo;out of every 10&rdquo; must use <strong>Out of 10</strong> — otherwise
-                answering &ldquo;7&rdquo; is read as 7%, not 70%.
+                number. <strong>Leave on &ldquo;Default&rdquo; unless you need to override.</strong>{" "}
+                The scale is read from your question&apos;s own wording — a question asking
+                &ldquo;out of every 10&rdquo; answered 7 scores as 70%, one asking &ldquo;out of
+                every 100&rdquo; answered 10 scores as 10%. Set this only if a question&apos;s
+                wording is ambiguous.
               </p>
-              {UNIT_SENSITIVE_ROLES.has(role) && !unit ? (
-                <p className="rounded-md bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-400">
-                  Not set — defaults to <strong>out of 100 (percent)</strong>. If this question says
-                  &ldquo;out of every 10&rdquo;, set it to <strong>Out of 10</strong> now.
-                </p>
-              ) : null}
             </div>
           ) : null}
         </div>

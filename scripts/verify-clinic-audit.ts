@@ -11,6 +11,7 @@ import {
   resolveEngineConfig,
   scoreClinicAudit,
   computeResult,
+  detectUnitFromQuestion,
   type RawAnswer,
   type ClinicRole,
 } from "../src/lib/scoring/clinic-audit";
@@ -207,6 +208,41 @@ console.log("Clinic Audit engine verification\n");
   // Under one case a month is incoherent even when every rate looks plausible.
   const r = score({ E: 2, B: 20, S: 55, C: 30, V: 90000, D: 100, K: 10 });
   expect("under 1 case/month flags inconsistent", r.dataInconsistent, `casesNow=${r.casesNowExact}`);
+}
+
+// --- Scale inferred from the question itself (no config required) ----------
+{
+  // THE reported failure. The question asks "out of every 10"; the respondent
+  // answered 7. That means 70%, and the system must read it that way unaided.
+  const q13 = "Out of every 10 booked consultations, how many actually take the procedure?";
+  const q14 = "Out of every 10 patients who attended a consultation, how many go ahead with the treatment?";
+  expect("'out of every 10' question → PER_10", detectUnitFromQuestion("SHOWUP_RATE", q13, [9, 7, 5, 3]) === "PER_10");
+  expect("  same for the close-rate question", detectUnitFromQuestion("CLOSE_RATE", q14, [6, 4, 2, 1]) === "PER_10");
+
+  const q9 = "Out of every 100 enquiries, how many book a consultation?";
+  expect("'out of every 100' question → PER_100", detectUnitFromQuestion("BOOK_RATE", q9, [45, 32, 20, 10]) === "PER_100");
+  expect("  a %-worded question → PER_100", detectUnitFromQuestion("BOOK_RATE", "What % of enquiries book?", [45, 20]) === "PER_100");
+
+  // No wording signal: the option values decide.
+  expect("all options <= 10 → PER_10", detectUnitFromQuestion("SHOWUP_RATE", "How many attend?", [9, 7, 5, 3]) === "PER_10");
+  expect("options spanning past 10 → PER_100", detectUnitFromQuestion("SHOWUP_RATE", "How many attend?", [95, 75, 55]) === "PER_100");
+  // Non-rate roles are never reinterpreted.
+  expect("rupee role unaffected", detectUnitFromQuestion("TREATMENT_VALUE", "Out of every 10?", [5]) === "RUPEES");
+}
+{
+  // End to end: the reported submission, scored with the inferred scale.
+  const raw = build({ E: 100, B: 10, S: 7, C: 2, V: 100000, D: 1500, K: 25 }).map((a) => {
+    if (a.role === "SHOWUP_RATE") return { ...a, unit: detectUnitFromQuestion("SHOWUP_RATE", "Out of every 10 booked consultations, how many actually take the procedure?", [9, 7, 5, 3]) };
+    if (a.role === "CLOSE_RATE") return { ...a, unit: detectUnitFromQuestion("CLOSE_RATE", "Out of every 10 patients who attended a consultation, how many go ahead?", [6, 4, 2, 1]) };
+    if (a.role === "BOOK_RATE") return { ...a, unit: detectUnitFromQuestion("BOOK_RATE", "Out of every 100 enquiries, how many book a consultation?", [45, 32, 20, 10]) };
+    return a;
+  });
+  const r = scoreClinicAudit(raw, cfg);
+  expect("reported case: show-up reads as 70%", Math.abs(r.showUpNow - 0.7) < 1e-9, `S=${r.showUpNow}`);
+  expect("  close reads as 20%", Math.abs(r.closeRate - 0.2) < 1e-9, `C=${r.closeRate}`);
+  expect("  booking still reads as 10%", Math.abs(r.bookRateNow - 0.1) < 1e-9, `B=${r.bookRateNow}`);
+  expect("  earning today = ₹1,40,000", r.revenueNow === 140000, `revenueNow=${r.revenueNow}`);
+  expect("  NOT flagged as bad data", !r.dataInconsistent, `suspect=${r.suspectRoles.join()}`);
 }
 
 // --- Legacy snapshots (persisted by an older build) must never throw -------

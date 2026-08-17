@@ -15,6 +15,7 @@ import { type PaymentCheckout } from "@/lib/payments/types";
 import { ResultPages } from "@/features/assessment/components/public/result-pages";
 import { type LeadInput, professionOptionsFor, type PreResultField } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
+import { detectUnitFromQuestion, isClinicRole, type ClinicRole } from "@/lib/scoring/clinic-audit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,13 +46,16 @@ const CLINIC_ACTUAL_FIELD: Record<string, { prompt: string; placeholder: string 
   CAPACITY: { prompt: "Know your actual spare capacity?", placeholder: "e.g. 8" },
 };
 
-/** The unit a question's numbers are in — mirrors defaultUnitForRole() in the
- *  engine so the field always speaks the SAME language as the question wording. */
-function unitForQuestion(role: string, declared: string | null): string {
-  if (declared) return declared;
-  if (role === "BOOK_RATE" || role === "SHOWUP_RATE" || role === "CLOSE_RATE") return "PER_100";
-  if (role === "TREATMENT_VALUE" || role === "AD_SPEND") return "RUPEES";
-  return "COUNT";
+/** The unit a question's numbers are in. Uses the SAME inference as the scoring
+ *  engine, so what the field asks for is exactly what gets scored. */
+function unitForQuestion(q: PublicQuestion): string {
+  if (q.scoringUnit) return q.scoringUnit;
+  if (!isClinicRole(q.scoringRole ?? "")) return "COUNT";
+  return detectUnitFromQuestion(
+    q.scoringRole as ClinicRole,
+    q.text,
+    q.options.map((o) => o.value),
+  );
 }
 
 /** How the field is framed for the respondent, in their own words. */
@@ -244,7 +248,7 @@ export function AssessmentRunner({
     if (found || !q.scoringRole || !CLINIC_ACTUAL_FIELD[q.scoringRole]) return found;
     return actualNumberError(
       q.scoringRole,
-      unitForQuestion(q.scoringRole, q.scoringUnit),
+      unitForQuestion(q),
       actualAnswers[q.id] ?? "",
     );
   }, null);
@@ -848,7 +852,7 @@ export function AssessmentRunner({
         if (found || !q.scoringRole || !CLINIC_ACTUAL_FIELD[q.scoringRole]) return found;
         return actualNumberError(
           q.scoringRole,
-          unitForQuestion(q.scoringRole, q.scoringUnit),
+          unitForQuestion(q),
           actualAnswers[q.id] ?? "",
         );
       }, null);
@@ -910,7 +914,7 @@ export function AssessmentRunner({
               {(() => {
                 const actualField = q.scoringRole ? CLINIC_ACTUAL_FIELD[q.scoringRole] : undefined;
                 if (!actualField || !q.scoringRole) return null;
-                const unit = unitForQuestion(q.scoringRole, q.scoringUnit);
+                const unit = unitForQuestion(q);
                 const aff = unitAffordance(unit);
                 const raw = actualAnswers[q.id] ?? "";
                 const err = actualNumberError(q.scoringRole, unit, raw);
