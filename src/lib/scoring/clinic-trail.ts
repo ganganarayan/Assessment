@@ -47,13 +47,15 @@ export function buildTrail(E: number, B: number, S: number, C: number) {
  * field (their edit is now their own number, not ours).
  */
 export function assumedTagText(
-  assumptions: string[],
-  assumedRangeLabel: Partial<Record<ClinicRole, string>>,
+  assumptions: string[] | undefined,
+  assumedRangeLabel: Partial<Record<ClinicRole, string>> | undefined,
   role: ClinicRole,
   label: string,
   fieldEdited: boolean,
 ): string | null {
-  if (fieldEdited || !assumptions.includes(label)) return null;
-  const range = assumedRangeLabel[role];
+  // Both may be absent on a result computed from a snapshot persisted before these
+  // fields existed — degrade to "no tag" rather than throwing on every old result.
+  if (fieldEdited || !(assumptions ?? []).includes(label)) return null;
+  const range = (assumedRangeLabel ?? {})[role];
   return range ? `assumed — avg of ${range}` : "assumed";
 }

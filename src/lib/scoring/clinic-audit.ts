@@ -350,9 +350,21 @@ function round(n: number): number {
   return Math.round(n);
 }
 
-/** Compute the full result from normalized inputs. Pure — safe on the client. */
+/**
+ * Compute the full result from normalized inputs. Pure — safe on the client.
+ *
+ * IMPORTANT: `inputs` is frequently a snapshot PERSISTED BY AN OLDER BUILD
+ * (Submission.resultSnapshot.clinic.inputs), so any field added to ClinicInputs
+ * after a submission was scored arrives as `undefined` here. Every collection is
+ * therefore read defensively — a missing one must degrade, never throw, or every
+ * historical result page and PDF 500s the moment a new field ships.
+ */
 export function computeResult(inputs: ClinicInputs, config: EngineConfig): ClinicAuditResult {
   const { E, B, S, C, V, D, K } = inputs;
+  const weakest = inputs.weakest ?? [];
+  const assumptions = inputs.assumptions ?? [];
+  const assumedRangeLabel = inputs.assumedRangeLabel ?? {};
+  const suspectRoles = inputs.suspectRoles ?? [];
 
   // Current state — revenue is computed on UNROUNDED cases.
   const casesNowExact = E * B * S * C;
@@ -423,13 +435,13 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
     band,
     notViable,
     capacityBlocked,
-    weakestAreas: inputs.weakest.slice(0, 2).map((w) => ({ key: w.key, clause: w.clause })),
-    assumptions: inputs.assumptions,
-    assumedRangeLabel: inputs.assumedRangeLabel,
+    weakestAreas: weakest.slice(0, 2).map((w) => ({ key: w.key, clause: w.clause })),
+    assumptions,
+    assumedRangeLabel,
     casesNowExact,
-    suspectRoles: inputs.suspectRoles,
+    suspectRoles,
     // Under one case a month isn't a clinic that pays rent — it's broken input.
-    dataInconsistent: inputs.suspectRoles.length > 0 || (E > 0 && casesNowExact < 1),
+    dataInconsistent: suspectRoles.length > 0 || (E > 0 && casesNowExact < 1),
   };
 }
 

@@ -10,6 +10,7 @@ import {
   DEFAULT_ENGINE_CONFIG,
   resolveEngineConfig,
   scoreClinicAudit,
+  computeResult,
   type RawAnswer,
   type ClinicRole,
 } from "../src/lib/scoring/clinic-audit";
@@ -206,6 +207,30 @@ console.log("Clinic Audit engine verification\n");
   // Under one case a month is incoherent even when every rate looks plausible.
   const r = score({ E: 2, B: 20, S: 55, C: 30, V: 90000, D: 100, K: 10 });
   expect("under 1 case/month flags inconsistent", r.dataInconsistent, `casesNow=${r.casesNowExact}`);
+}
+
+// --- Legacy snapshots (persisted by an older build) must never throw -------
+{
+  // The result page and the PDF both call computeResult on the STORED snapshot, so
+  // a snapshot written before a field existed arrives with that field undefined.
+  // This shape broke every historical result page + PDF with a 500 on 2026-08-17.
+  const legacy = {
+    E: 100, B: 0.1, S: 0.7, C: 0.2, V: 100000, A: 0, D: 1500, K: 10,
+    bookUpliftPoints: 0.2,
+    // assumptions / assumedRangeLabel / suspectRoles / weakest all absent.
+  } as unknown as Parameters<typeof computeResult>[0];
+  let threw: string | null = null;
+  let out: ReturnType<typeof computeResult> | null = null;
+  try {
+    out = computeResult(legacy, cfg);
+  } catch (e) {
+    threw = e instanceof Error ? e.message : String(e);
+  }
+  expect("legacy snapshot (missing new fields) does not throw", threw === null, `threw: ${threw}`);
+  // 100 × 10% × 70% × 20% = 1.4 cases × ₹1,00,000 = ₹1,40,000.
+  expect("  still computes revenue", out?.revenueNow === 140000, `revenueNow=${out?.revenueNow}`);
+  expect("  missing collections degrade to empty", out?.suspectRoles.length === 0 && out?.assumptions.length === 0);
+  expect("  a healthy legacy clinic is not flagged inconsistent", out?.dataInconsistent === false);
 }
 
 // --- Five-case chain (deterministic) --------------------------------------
