@@ -13,6 +13,7 @@ import { isSuperAdmin } from "@/lib/auth/guards";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { getAiStatements } from "@/features/admin/data/ai-statements";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
+import { getClinicAnswers } from "@/features/admin/data/clinic-answers";
 import { AiStatementManager } from "@/features/admin/components/ai-statement-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -142,6 +143,10 @@ export default async function ResultPage({
       { label: "Dormant list", value: String(original.dormant.count), assumed: original.assumptions.includes("dormant list size") },
       { label: "Spare capacity", value: String(original.capacity), assumed: original.assumptions.includes("spare capacity") },
     ];
+    // Their answers, question by question, grouped by category — shown in full to
+    // internal viewers (with the value the engine used, so a misconfigured option
+    // is visible), and to the respondent so they can spot a typo in what they filled.
+    const clinicAnswers = await getClinicAnswers(submissionId);
     return (
       <main style={{ minHeight: "100vh", background: "#F7F5F0" }}>
         {canViewInternally ? (
@@ -172,7 +177,45 @@ export default async function ResultPage({
                   ))}
                 </div>
               </details>
-              <p className="mt-3 text-xs text-[var(--muted-foreground)]">Below is exactly what the respondent sees.</p>
+              {clinicAnswers.length > 0 ? (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+                    Their responses
+                  </p>
+                  {clinicAnswers.map((cat) => (
+                    <div key={cat.name} className="mt-3">
+                      <p className="text-sm font-semibold">
+                        {cat.name}
+                        {cat.page === 2 ? (
+                          <span className="ml-2 text-xs font-normal text-[var(--muted-foreground)]">Page 2</span>
+                        ) : null}
+                      </p>
+                      <ul className="mt-1 flex flex-col gap-1.5">
+                        {cat.rows.map((r) => (
+                          <li key={r.questionId} className="flex flex-col border-b border-[var(--border)] pb-1.5 text-sm last:border-0">
+                            <span className="text-[var(--muted-foreground)]">{r.text}</span>
+                            <span>
+                              {r.answerLabel ?? <em className="text-[var(--muted-foreground)]">not answered</em>}
+                              {r.role ? (
+                                <span className="ml-2 text-xs text-[var(--muted-foreground)]">
+                                  [{r.role} → engine used{" "}
+                                  {r.actualValue != null
+                                    ? `${r.actualValue} (typed)`
+                                    : `${r.optionValue ?? "—"} (from option)`}
+                                  ]
+                                </span>
+                              ) : null}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <p className="mt-4 border-t pt-3 text-xs text-[var(--muted-foreground)]">
+                Below is exactly what the respondent sees.
+              </p>
             </div>
           </div>
         ) : null}
@@ -184,6 +227,10 @@ export default async function ResultPage({
           bookingUrl={setting?.bookingUrl ?? null}
           resultUrl={resultUrl}
           title={submission.assessment.title}
+          answers={clinicAnswers.map((c) => ({
+            name: c.name,
+            rows: c.rows.map((r) => ({ text: r.text, answerLabel: r.answerLabel })),
+          }))}
         />
       </main>
     );

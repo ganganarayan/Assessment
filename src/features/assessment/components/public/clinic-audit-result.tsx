@@ -85,11 +85,14 @@ interface Props {
   bookingUrl: string | null;
   resultUrl: string;
   title: string;
+  /** Their own answers, grouped by category — shown back to them so a typo in what
+   *  they filled is visible and correctable (every figure here drives the maths). */
+  answers?: { name: string; rows: { text: string; answerLabel: string | null }[] }[];
 }
 
 const clampNum = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
-export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl, resultUrl, title }: Props) {
+export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl, resultUrl, title, answers }: Props) {
   // Editable inputs (strings while typing). C is 0..10 = closeRate × 10.
   const [eStr, setEStr] = useState(String(inputs.E));
   const [vStr, setVStr] = useState(String(inputs.V));
@@ -327,6 +330,29 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
             recoverable from the dormant enquiries you already hold{dTag ? <span className="assumed-tag">{dTag}</span> : null} — no ad spend
             required. This is the first-fortnight number, deliberately conservative.
           </p>
+        </div>
+      ) : null}
+
+      {/* What they told us — every figure above is derived from these answers, so
+          showing them back makes a mis-tap or typo findable rather than silent. */}
+      {answers && answers.length > 0 ? (
+        <div className="block">
+          <h2>What you told us</h2>
+          <p style={{ fontSize: 14, color: "var(--muted)", marginBottom: 8 }}>
+            Every number above is calculated from these answers. If any of them is wrong, retake the
+            audit and the figures will update.
+          </p>
+          {answers.map((cat) => (
+            <div key={cat.name} style={{ marginTop: 10 }}>
+              <p style={{ fontWeight: 600, fontSize: 14 }}>{cat.name}</p>
+              {cat.rows.map((r, i) => (
+                <div key={i} className="calc-row">
+                  <span style={{ maxWidth: "62%" }}>{r.text}</span>
+                  <span className="num">{r.answerLabel ?? "—"}</span>
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
       ) : null}
 
