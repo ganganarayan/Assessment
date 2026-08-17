@@ -81,6 +81,7 @@ async function buildAssessmentBody(
         required: q.required,
         displayOrder: qi,
         scoringRole: q.scoringRole,
+        scoringUnit: q.scoringUnit,
         options: q.options.map((o, oi) => ({
           label: o.label,
           value: o.value,

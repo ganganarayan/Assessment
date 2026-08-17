@@ -174,6 +174,40 @@ console.log("Clinic Audit engine verification\n");
   expect("  range label carried through for the UI tag", r.assumedRangeLabel.ENQUIRIES === "60–120", `label=${r.assumedRangeLabel.ENQUIRIES}`);
 }
 
+// --- Unit handling (the 10x bug that produced 100x-wrong revenue) ----------
+{
+  // The exact live failure: a question worded "out of every 10" answered 7 and 2,
+  // read as percentages. Reproduces the wrong result when the unit isn't declared.
+  const raw = build({ E: 100, B: 10, S: 7, C: 2, V: 100000, D: 1500, K: 10 });
+  const r = scoreClinicAudit(raw, cfg);
+  expect("undeclared unit still reads rates as percent (back-compat)", Math.abs(r.showUpNow - 0.07) < 1e-9, `S=${r.showUpNow}`);
+  expect("  the absurd result is flagged inconsistent", r.dataInconsistent, `casesNow=${r.casesNowExact}`);
+  expect("  the implausible rates are named", r.suspectRoles.includes("SHOWUP_RATE") && r.suspectRoles.includes("CLOSE_RATE"), `${r.suspectRoles.join()}`);
+}
+{
+  // Same answers, but the questions declare PER_10 — 7 now means 70%, 2 means 20%.
+  const raw = build({ E: 100, B: 10, S: 7, C: 2, V: 100000, D: 1500, K: 10 }).map((a) =>
+    a.role === "SHOWUP_RATE" || a.role === "CLOSE_RATE" ? { ...a, unit: "PER_10" as const } : a,
+  );
+  const r = scoreClinicAudit(raw, cfg);
+  expect("PER_10 unit reads 7 as 70%", Math.abs(r.showUpNow - 0.7) < 1e-9, `S=${r.showUpNow}`);
+  expect("  and 2 as 20%", Math.abs(r.closeRate - 0.2) < 1e-9, `C=${r.closeRate}`);
+  expect("  revenue is 100x the mis-scaled figure", r.revenueNow === 140000, `revenueNow=${r.revenueNow}`);
+  expect("  a real clinic is NOT flagged inconsistent", !r.dataInconsistent, `casesNow=${r.casesNowExact}`);
+}
+{
+  // Rupee/count roles are unaffected by unit conversion.
+  const raw = build({ E: 90, B: 20, S: 55, C: 30, V: 90000, D: 350, K: 17 });
+  const r = scoreClinicAudit(raw, cfg);
+  expect("rupees pass through unconverted", r.treatmentValue === 90000, `V=${r.treatmentValue}`);
+  expect("counts pass through unconverted", r.enquiries === 90, `E=${r.enquiries}`);
+}
+{
+  // Under one case a month is incoherent even when every rate looks plausible.
+  const r = score({ E: 2, B: 20, S: 55, C: 30, V: 90000, D: 100, K: 10 });
+  expect("under 1 case/month flags inconsistent", r.dataInconsistent, `casesNow=${r.casesNowExact}`);
+}
+
 // --- Five-case chain (deterministic) --------------------------------------
 {
   // C=0.65, S=0.95, bImproved=0.45 → attended 8, booked 9, enquiries 18, spend ₹9,000.

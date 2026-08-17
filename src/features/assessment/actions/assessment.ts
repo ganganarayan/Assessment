@@ -332,6 +332,7 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
               required: q.required,
               displayOrder: q.displayOrder,
               scoringRole: q.scoringRole,
+              scoringUnit: q.scoringUnit,
               options: {
                 create: q.options.map((o) => ({
                   label: o.label,

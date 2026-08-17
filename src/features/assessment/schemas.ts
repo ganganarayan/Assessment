@@ -184,6 +184,9 @@ export const questionSchema = z.object({
   // CLINIC_AUDIT only: the funnel role this question feeds (blank = not scored).
   // Validated against the engine's role list in the action; ignored by GENERIC.
   scoringRole: z.string().max(40).optional().or(z.literal("")),
+  // CLINIC_AUDIT only: the unit the option numbers + typed actual number are in
+  // (PER_10 / PER_100 / RUPEES / COUNT / POINTS). Blank = the role's default.
+  scoringUnit: z.string().max(20).optional().or(z.literal("")),
   options: z
     .array(optionSchema)
     .min(2, "Provide at least two options.")

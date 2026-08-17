@@ -7,12 +7,17 @@ import { questionSchema, reorderSchema, type QuestionInput } from "@/features/as
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { assertEdit } from "@/lib/tenant/acting";
-import { isClinicRole } from "@/lib/scoring/clinic-audit";
+import { isClinicRole, isClinicUnit } from "@/lib/scoring/clinic-audit";
 
 /** Clinic-audit role: keep only a valid role, else null (GENERIC questions store null). */
 function cleanRole(role: string | undefined): string | null {
   const r = (role ?? "").trim();
   return isClinicRole(r) ? r : null;
+}
+/** Clinic-audit unit: keep only a valid unit, else null (= the role's default). */
+function cleanUnit(unit: string | undefined): string | null {
+  const u = (unit ?? "").trim();
+  return isClinicUnit(u) ? u : null;
 }
 /** Clinic-audit per-option extras, normalized for persistence. */
 function optionExtras(o: { diagnosisClause?: string; isAssumption?: boolean }) {
@@ -53,6 +58,7 @@ export async function createQuestion(
       weight: d.weight,
       required: d.required,
       scoringRole: cleanRole(d.scoringRole),
+      scoringUnit: cleanUnit(d.scoringUnit),
       displayOrder: count,
       options: {
         create: d.options.map((o, index) => ({
@@ -129,7 +135,13 @@ export async function updateQuestion(
   ops.push(
     prisma.question.update({
       where: { id },
-      data: { text: d.text, weight: d.weight, required: d.required, scoringRole: cleanRole(d.scoringRole) },
+      data: {
+        text: d.text,
+        weight: d.weight,
+        required: d.required,
+        scoringRole: cleanRole(d.scoringRole),
+        scoringUnit: cleanUnit(d.scoringUnit),
+      },
     }),
   );
   await prisma.$transaction(ops);

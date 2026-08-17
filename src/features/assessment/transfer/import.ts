@@ -101,6 +101,7 @@ function createData(
             required: q.required,
             displayOrder: qi,
             scoringRole: q.scoringRole ?? null,
+            scoringUnit: q.scoringUnit ?? null,
             options: {
               create: q.options.map((o, oi) => ({
                 label: o.label,

@@ -88,11 +88,13 @@ interface Props {
   /** Their own answers, grouped by category — shown back to them so a typo in what
    *  they filled is visible and correctable (every figure here drives the maths). */
   answers?: { name: string; rows: { text: string; answerLabel: string | null }[] }[];
+  /** Public assessment URL, so an incoherent result can offer a redo. */
+  retakeUrl?: string | null;
 }
 
 const clampNum = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
-export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl, resultUrl, title, answers }: Props) {
+export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl, resultUrl, title, answers, retakeUrl }: Props) {
   // Editable inputs (strings while typing). C is 0..10 = closeRate × 10.
   const [eStr, setEStr] = useState(String(inputs.E));
   const [vStr, setVStr] = useState(String(inputs.V));
@@ -166,8 +168,56 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
     <div className="dl">
       <style dangerouslySetInnerHTML={{ __html: BRAND_CSS }} />
       <p className="eyebrow">{title}</p>
-      <h1 style={{ fontSize: 26, marginTop: 4 }}>What your current funnel is worth</h1>
 
+      {/* Incoherent inputs: fewer than one case a month, or a rate so low it's
+          almost certainly a unit mix-up. Showing money figures here would be
+          worse than showing nothing — "0 cases" next to a positive revenue reads
+          as broken, and the underlying number is wrong anyway. Ask instead. */}
+      {original.dataInconsistent ? (
+        <div className="cap-lead" style={{ marginTop: 12 }}>
+          <h1 style={{ fontSize: 22, marginBottom: 6 }}>These numbers don&apos;t add up yet</h1>
+          <p style={{ fontSize: 15 }}>
+            From the answers given, your clinic works out to{" "}
+            <strong>
+              {original.casesNowExact < 1
+                ? "less than one completed treatment a month"
+                : "an unusually low conversion rate"}
+            </strong>
+            . A working clinic doesn&apos;t run below that, so one of the figures was almost
+            certainly entered in the wrong scale.
+          </p>
+          {original.suspectRoles.length > 0 ? (
+            <p style={{ fontSize: 15, marginTop: 8 }}>
+              Most likely{" "}
+              <strong>
+                {original.suspectRoles
+                  .map((r) => (r === "SHOWUP_RATE" ? "the show-up rate" : r === "CLOSE_RATE" ? "the close rate" : "the booking rate"))
+                  .join(" and ")}
+              </strong>
+              . If a question asked &ldquo;out of every 10&rdquo;, answering 7 means{" "}
+              <strong>70%</strong>, not 7%.
+            </p>
+          ) : null}
+          <p style={{ fontSize: 15, marginTop: 8 }}>
+            Check &ldquo;What you told us&rdquo; below, then retake the audit with the corrected
+            figures — it takes under a minute and the numbers will be right.
+          </p>
+          {retakeUrl ? (
+            <p style={{ marginTop: 12 }}>
+              <a className="btn" href={retakeUrl}>Correct my answers</a>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!original.dataInconsistent ? (
+        <h1 style={{ fontSize: 26, marginTop: 4 }}>What your current funnel is worth</h1>
+      ) : null}
+
+      {/* Everything money-related is withheld when the inputs are incoherent —
+          a wrong figure presented confidently is worse than no figure at all. */}
+      {!original.dataInconsistent ? (
+      <>
       {/* Three figures */}
       <div className="figures" aria-live="polite">
         <div className="fig today">
@@ -331,6 +381,8 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
             required. This is the first-fortnight number, deliberately conservative.
           </p>
         </div>
+      ) : null}
+      </>
       ) : null}
 
       {/* What they told us — every figure above is derived from these answers, so

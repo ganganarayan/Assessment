@@ -569,6 +569,13 @@ model Question {
   // DORMANT, CAPACITY, UPLIFT_BOOKRATE. Null = not a scoring input (context /
   // qualifier). Ignored by the GENERIC engine. See lib/scoring/clinic-audit.ts.
   scoringRole  String?
+  // CLINIC_AUDIT: the UNIT this question's numbers are expressed in — PER_10
+  // ("out of every 10"), PER_100 (percent / "out of every 100"), RUPEES, COUNT,
+  // or POINTS (book-rate uplift). Applies to BOTH the option values and the
+  // respondent's typed actual number, so a question worded "out of every 10"
+  // can never be silently read as a percentage. Null = the role's default
+  // (rates → PER_100), which preserves every existing configuration exactly.
+  scoringUnit  String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 

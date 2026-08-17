@@ -26,8 +26,23 @@ export interface QuestionData {
   weight: number;
   required: boolean;
   scoringRole?: string | null;
+  scoringUnit?: string | null;
   options: QuestionOptionData[];
 }
+
+/** How this question's numbers are expressed — applies to BOTH the option values
+ *  and the respondent's typed actual number, so a question worded "out of every
+ *  10" can never be read as a percentage. */
+const CLINIC_UNIT_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "Default for the role" },
+  { value: "PER_10", label: "Out of 10 (e.g. “7 or 8”)" },
+  { value: "PER_100", label: "Out of 100 / percent (e.g. “25–40”)" },
+  { value: "RUPEES", label: "Rupees ₹" },
+  { value: "COUNT", label: "Plain count" },
+  { value: "POINTS", label: "Uplift points (whole percent)" },
+];
+/** Roles where the unit genuinely changes the maths (rates). */
+const UNIT_SENSITIVE_ROLES = new Set(["BOOK_RATE", "SHOWUP_RATE", "CLOSE_RATE"]);
 
 /** Engine of the parent assessment — CLINIC_AUDIT unlocks the funnel scoring fields. */
 export type BuilderEngine = "GENERIC" | "CLINIC_AUDIT";
@@ -188,6 +203,7 @@ function QuestionForm({
   const [weight, setWeight] = useState(String(initial?.weight ?? 1));
   const [required, setRequired] = useState(initial?.required ?? true);
   const [role, setRole] = useState(initial?.scoringRole ?? "");
+  const [unit, setUnit] = useState(initial?.scoringUnit ?? "");
   const [options, setOptions] = useState<OptionRow[]>(
     initial?.options.map((o) => ({
       uid: o.id,
@@ -212,6 +228,7 @@ function QuestionForm({
       weight: Number(weight),
       required,
       scoringRole: clinic ? role : "",
+      scoringUnit: clinic ? unit : "",
       options: options.map((o) => ({
         label: o.label,
         value: o.value,
@@ -251,10 +268,35 @@ function QuestionForm({
             ))}
           </select>
           <p className="text-xs text-[var(--muted-foreground)]">
-            What this question feeds in the funnel math. Each option&apos;s <strong>number</strong> below is
-            the working figure — rupees/counts as-is (e.g. 90000, 90), rates &amp; uplift as whole
-            percent (e.g. 32 = 0.32). Leave as &ldquo;not scored&rdquo; for qualifier questions.
+            What this question feeds in the funnel math. Leave as &ldquo;not scored&rdquo; for
+            qualifier questions.
           </p>
+          {role ? (
+            <div className="mt-2 flex flex-col gap-2">
+              <Label>Numbers are expressed in</Label>
+              <select
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                className="h-10 max-w-xs rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+              >
+                {CLINIC_UNIT_OPTIONS.map((u) => (
+                  <option key={u.value} value={u.value}>{u.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Applies to the option numbers below <em>and</em> the respondent&apos;s typed actual
+                number. <strong>Match your question&apos;s wording.</strong> A question asking
+                &ldquo;out of every 10&rdquo; must use <strong>Out of 10</strong> — otherwise
+                answering &ldquo;7&rdquo; is read as 7%, not 70%.
+              </p>
+              {UNIT_SENSITIVE_ROLES.has(role) && !unit ? (
+                <p className="rounded-md bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-400">
+                  Not set — defaults to <strong>out of 100 (percent)</strong>. If this question says
+                  &ldquo;out of every 10&rdquo;, set it to <strong>Out of 10</strong> now.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

@@ -27,22 +27,62 @@ export interface PublicQuestion {
   /** CLINIC_AUDIT only: the funnel role this question feeds, e.g. "ENQUIRIES". Drives
    *  the optional "know your actual number?" field below the range choice. */
   scoringRole: string | null;
+  scoringUnit: string | null;
   options: PublicOption[];
 }
 
 /** CLINIC_AUDIT numeric roles a respondent might know an exact figure for — the
  *  "actual number" field renders below the range choice for these only. Excludes
  *  UPLIFT_BOOKRATE (behavioral — response speed/follow-up — not a number to type). */
-const CLINIC_ACTUAL_FIELD: Record<string, { prompt: string; unit: "₹" | "%" | ""; placeholder: string }> = {
-  ENQUIRIES: { prompt: "Know your actual monthly enquiries?", unit: "", placeholder: "e.g. 42" },
-  BOOK_RATE: { prompt: "Know your actual booking rate?", unit: "%", placeholder: "e.g. 27" },
-  SHOWUP_RATE: { prompt: "Know your actual show-up rate?", unit: "%", placeholder: "e.g. 62" },
-  CLOSE_RATE: { prompt: "Know your actual close rate?", unit: "%", placeholder: "e.g. 33" },
-  TREATMENT_VALUE: { prompt: "Know your actual average treatment value?", unit: "₹", placeholder: "e.g. 95000" },
-  AD_SPEND: { prompt: "Know your actual monthly ad spend?", unit: "₹", placeholder: "e.g. 42000" },
-  DORMANT: { prompt: "Know your actual dormant list size?", unit: "", placeholder: "e.g. 620" },
-  CAPACITY: { prompt: "Know your actual spare capacity?", unit: "", placeholder: "e.g. 8" },
+const CLINIC_ACTUAL_FIELD: Record<string, { prompt: string; placeholder: string }> = {
+  ENQUIRIES: { prompt: "Know your actual monthly enquiries?", placeholder: "e.g. 42" },
+  BOOK_RATE: { prompt: "Know your actual booking rate?", placeholder: "e.g. 27" },
+  SHOWUP_RATE: { prompt: "Know your actual show-up rate?", placeholder: "e.g. 7" },
+  CLOSE_RATE: { prompt: "Know your actual close rate?", placeholder: "e.g. 3" },
+  TREATMENT_VALUE: { prompt: "Know your actual average treatment value?", placeholder: "e.g. 95000" },
+  AD_SPEND: { prompt: "Know your actual monthly ad spend?", placeholder: "e.g. 42000" },
+  DORMANT: { prompt: "Know your actual dormant list size?", placeholder: "e.g. 620" },
+  CAPACITY: { prompt: "Know your actual spare capacity?", placeholder: "e.g. 8" },
 };
+
+/** The unit a question's numbers are in — mirrors defaultUnitForRole() in the
+ *  engine so the field always speaks the SAME language as the question wording. */
+function unitForQuestion(role: string, declared: string | null): string {
+  if (declared) return declared;
+  if (role === "BOOK_RATE" || role === "SHOWUP_RATE" || role === "CLOSE_RATE") return "PER_100";
+  if (role === "TREATMENT_VALUE" || role === "AD_SPEND") return "RUPEES";
+  return "COUNT";
+}
+
+/** How the field is framed for the respondent, in their own words. */
+function unitAffordance(unit: string): { prefix: string | null; suffix: string | null; hint: string } {
+  switch (unit) {
+    case "PER_10":
+      return { prefix: null, suffix: "out of 10", hint: "Enter how many out of every 10." };
+    case "PER_100":
+      return { prefix: null, suffix: "%", hint: "Enter it as a percentage (out of 100)." };
+    case "RUPEES":
+      return { prefix: "₹", suffix: null, hint: "Enter the amount in rupees." };
+    default:
+      return { prefix: null, suffix: null, hint: "Enter the number." };
+  }
+}
+
+/** Reject an entry that can't be what they meant — the guard that would have
+ *  caught "7" typed into a percentage field when the question said "out of 10". */
+function actualNumberError(role: string, unit: string, raw: string): string | null {
+  const n = Number(raw);
+  if (!raw.trim() || !Number.isFinite(n)) return null; // blank is fine — we use the range
+  if (n <= 0) return "Enter a number greater than zero.";
+  if (unit === "PER_10" && n > 10) return "This question is out of 10 — enter a number from 1 to 10.";
+  if (unit === "PER_100" && n > 100) return "Enter it as a percentage — 100 or less.";
+  // A percentage this low is nearly always an "out of 10" answer typed into a
+  // percent field (7 meaning 7-in-10). Ask, rather than silently mis-scoring.
+  if (unit === "PER_100" && (role === "SHOWUP_RATE" || role === "CLOSE_RATE") && n <= 10) {
+    return `That reads as ${n}% — fewer than ${n} in every 100. If you meant ${n} out of 10, enter ${n * 10}.`;
+  }
+  return null;
+}
 export interface PublicCategory {
   id: string;
   name: string;
@@ -198,6 +238,16 @@ export function AssessmentRunner({
   const requiredUnanswered = questions.filter(
     (q) => q.required && !answers[q.id],
   ).length;
+  /** First invalid typed actual number, if any — a wrong unit here silently skews
+   *  every figure on the result, so it must be corrected before submitting. */
+  const firstActualError = questions.reduce<string | null>((found, q) => {
+    if (found || !q.scoringRole || !CLINIC_ACTUAL_FIELD[q.scoringRole]) return found;
+    return actualNumberError(
+      q.scoringRole,
+      unitForQuestion(q.scoringRole, q.scoringUnit),
+      actualAnswers[q.id] ?? "",
+    );
+  }, null);
 
   // Honeypot input ref — hidden from humans; a filled value marks a bot opt-in.
   const hpRef = useRef<HTMLInputElement>(null);
@@ -275,6 +325,10 @@ export function AssessmentRunner({
     setError(null);
     if (requiredUnanswered > 0) {
       setError(`Please answer all required questions (${requiredUnanswered} left).`);
+      return;
+    }
+    if (firstActualError) {
+      setError(firstActualError);
       return;
     }
     // Lead-capture-after: the questions ran anonymously; now collect the lead (which
@@ -788,6 +842,20 @@ export function AssessmentRunner({
       setError(`Please answer all required questions (${currentRequiredLeft} left).`);
       return;
     }
+    const screenActualError = current
+      .flatMap((g) => g.qs)
+      .reduce<string | null>((found, q) => {
+        if (found || !q.scoringRole || !CLINIC_ACTUAL_FIELD[q.scoringRole]) return found;
+        return actualNumberError(
+          q.scoringRole,
+          unitForQuestion(q.scoringRole, q.scoringUnit),
+          actualAnswers[q.id] ?? "",
+        );
+      }, null);
+    if (screenActualError) {
+      setError(screenActualError);
+      return;
+    }
     setError(null);
     setScreenIndex((i) => Math.min(i + 1, lastIdx));
   };
@@ -841,28 +909,34 @@ export function AssessmentRunner({
               </div>
               {(() => {
                 const actualField = q.scoringRole ? CLINIC_ACTUAL_FIELD[q.scoringRole] : undefined;
-                if (!actualField) return null;
+                if (!actualField || !q.scoringRole) return null;
+                const unit = unitForQuestion(q.scoringRole, q.scoringUnit);
+                const aff = unitAffordance(unit);
+                const raw = actualAnswers[q.id] ?? "";
+                const err = actualNumberError(q.scoringRole, unit, raw);
                 return (
                   <div className="mt-1 flex flex-col gap-1 border-t pt-3">
                     <label htmlFor={`actual-${q.id}`} className="text-xs text-[var(--muted-foreground)]">
                       {actualField.prompt} Enter it below (optional) — otherwise we&apos;ll use the
-                      midpoint of your selected range.
+                      midpoint of your selected range. {aff.hint}
                     </label>
                     <div className="flex items-center gap-2">
-                      {actualField.unit === "₹" ? <span className="text-sm text-[var(--muted-foreground)]">₹</span> : null}
+                      {aff.prefix ? <span className="text-sm text-[var(--muted-foreground)]">{aff.prefix}</span> : null}
                       <Input
                         id={`actual-${q.id}`}
                         type="text"
                         inputMode="numeric"
                         placeholder={actualField.placeholder}
-                        value={actualAnswers[q.id] ?? ""}
+                        value={raw}
                         onChange={(e) =>
                           setActualAnswers((a) => ({ ...a, [q.id]: e.target.value.replace(/[^0-9]/g, "") }))
                         }
                         className="max-w-[160px]"
+                        aria-invalid={err ? true : undefined}
                       />
-                      {actualField.unit === "%" ? <span className="text-sm text-[var(--muted-foreground)]">%</span> : null}
+                      {aff.suffix ? <span className="text-sm text-[var(--muted-foreground)]">{aff.suffix}</span> : null}
                     </div>
+                    {err ? <p className="text-xs text-red-500">{err}</p> : null}
                   </div>
                 );
               })()}

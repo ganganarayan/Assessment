@@ -73,6 +73,7 @@ export const CSV_COLUMNS = [
   "weight",
   "required",
   "question_scoring_role",
+  "question_scoring_unit",
   "option_index",
   "option_label",
   "option_value",
@@ -142,6 +143,7 @@ export function bodiesToCsv(bodies: AssessmentBodyExport[]): string {
             weight: q.weight,
             required: q.required,
             question_scoring_role: q.scoringRole ?? "",
+            question_scoring_unit: q.scoringUnit ?? "",
           }),
         );
         q.options.forEach((o, oi) => {
@@ -207,6 +209,7 @@ interface AccQuestion {
   weight: number;
   required: boolean;
   scoringRole: string | null;
+  scoringUnit: string | null;
   options: AccOption[];
 }
 interface AccCategory {
@@ -303,7 +306,7 @@ export function csvToDocument(
   };
   const ensureQ = (cat: AccCategory, qi: number): AccQuestion => {
     if (!cat.questions[qi]) {
-      cat.questions[qi] = { text: "", weight: 0, required: false, scoringRole: null, options: [] };
+      cat.questions[qi] = { text: "", weight: 0, required: false, scoringRole: null, scoringUnit: null, options: [] };
     }
     return cat.questions[qi];
   };
@@ -349,6 +352,7 @@ export function csvToDocument(
       q.weight = toNum(cell(row, "weight"));
       q.required = toBool(cell(row, "required"), false);
       q.scoringRole = emptyToNull(cell(row, "question_scoring_role"));
+      q.scoringUnit = emptyToNull(cell(row, "question_scoring_unit"));
     } else if (type === "OPTION") {
       recognized += 1;
       const c = ensureCat(acc, toInt(cell(row, "category_index")));
@@ -410,6 +414,7 @@ export function csvToDocument(
         required: q.required,
         displayOrder: qi,
         ...(q.scoringRole ? { scoringRole: q.scoringRole } : {}),
+        ...(q.scoringUnit ? { scoringUnit: q.scoringUnit } : {}),
         options: compact(q.options).map((o, oi) => ({
           label: o.label,
           value: o.value,

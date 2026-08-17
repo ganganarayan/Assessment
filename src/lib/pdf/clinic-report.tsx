@@ -156,6 +156,16 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
           </Text>
         </View>
 
+        {r.dataInconsistent ? (
+          <Text style={s.note}>
+            These answers don&apos;t describe a working clinic — they compute to under one
+            completed treatment a month, so a figure was almost certainly entered in the wrong
+            scale (for a question asking &quot;out of every 10&quot;, answering 7 means 70%, not
+            7%). The figures below are shown for reference only and should not be relied on until
+            the audit is retaken with corrected numbers.
+          </Text>
+        ) : null}
+
         <View style={s.figures}>
           <View style={s.fig}>
             <Text style={s.figCapToday}>Earning today</Text>

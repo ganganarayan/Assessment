@@ -231,6 +231,7 @@ export default async function ResultPage({
             name: c.name,
             rows: c.rows.map((r) => ({ text: r.text, answerLabel: r.answerLabel })),
           }))}
+          retakeUrl={`${proto}://${host}/a/${slug}`}
         />
       </main>
     );

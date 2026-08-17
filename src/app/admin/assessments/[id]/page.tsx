@@ -95,6 +95,7 @@ export default async function EditAssessmentPage({
       weight: q.weight,
       required: q.required,
       scoringRole: q.scoringRole,
+      scoringUnit: q.scoringUnit,
       options: q.options.map((o) => ({
         id: o.id,
         label: o.label,

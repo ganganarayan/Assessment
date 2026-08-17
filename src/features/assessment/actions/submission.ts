@@ -36,6 +36,7 @@ import {
   deriveInputs,
   computeResult,
   isClinicRole,
+  isClinicUnit,
   matchClinicResultBand,
   type RawAnswer,
   type ClinicRole,
@@ -816,6 +817,7 @@ export async function completeSubmission(
               weight: true,
               required: true,
               scoringRole: true,
+              scoringUnit: true,
               options: { select: { id: true, value: true, label: true, diagnosisClause: true, isAssumption: true } },
             },
           },
@@ -970,6 +972,7 @@ export async function completeSubmission(
         value: opt.value,
         actualValue,
         optionLabel: opt.label,
+        unit: isClinicUnit(q.scoringUnit) ? q.scoringUnit : null,
         isAssumption: opt.isAssumption,
         clause: opt.diagnosisClause,
       });

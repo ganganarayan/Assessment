@@ -40,8 +40,58 @@ export function isClinicRole(v: string | null | undefined): v is ClinicRole {
   return !!v && (CLINIC_ROLES as readonly string[]).includes(v);
 }
 
-/** Roles whose stored option value is a whole-number percent → divided by 100. */
+/** Roles whose working value is a RATE (a 0..1 fraction) rather than a raw count/₹. */
 const RATE_ROLES = new Set<ClinicRole>(["BOOK_RATE", "SHOWUP_RATE", "CLOSE_RATE", "UPLIFT_BOOKRATE"]);
+
+/**
+ * The unit a question's numbers are expressed in. Declared per question in the
+ * builder and applied to BOTH the option values and the respondent's typed actual
+ * number — so a question worded "out of every 10" can never be read as a percent.
+ *
+ * This exists because that exact ambiguity produced a 10x error per rate (100x on
+ * revenue): a question asking "out of every 10 booked consultations, how many
+ * attend?" invites the answer 7, which as a percent is 7% rather than 70%.
+ */
+export const CLINIC_UNITS = ["PER_10", "PER_100", "RUPEES", "COUNT", "POINTS"] as const;
+export type ClinicUnit = (typeof CLINIC_UNITS)[number];
+
+export function isClinicUnit(v: string | null | undefined): v is ClinicUnit {
+  return !!v && (CLINIC_UNITS as readonly string[]).includes(v);
+}
+
+/** The unit a role uses when the question doesn't declare one. Rates default to
+ *  PER_100, which is exactly how every pre-existing configuration was read. */
+export function defaultUnitForRole(role: ClinicRole): ClinicUnit {
+  if (role === "UPLIFT_BOOKRATE") return "POINTS";
+  if (RATE_ROLES.has(role)) return "PER_100";
+  if (role === "TREATMENT_VALUE" || role === "AD_SPEND") return "RUPEES";
+  return "COUNT";
+}
+
+/** Convert a stored/typed number in `unit` into the engine's working value
+ *  (rates as a 0..1 fraction; counts and rupees as-is). */
+export function toWorkingValue(value: number, unit: ClinicUnit): number {
+  switch (unit) {
+    case "PER_10":
+      return value / 10;
+    case "PER_100":
+    case "POINTS":
+      return value / 100;
+    default:
+      return value;
+  }
+}
+
+/**
+ * Lowest rate we treat as believable for a real clinic. Below this the input is
+ * almost certainly a unit mix-up (7 meaning "7 out of 10" read as 7%) rather than
+ * a genuine figure, so it's surfaced instead of silently producing absurd revenue.
+ */
+export const RATE_PLAUSIBILITY_FLOOR: Partial<Record<ClinicRole, number>> = {
+  BOOK_RATE: 0.02,
+  SHOWUP_RATE: 0.15,
+  CLOSE_RATE: 0.05,
+};
 
 export interface EngineConfig {
   costPerEnquiry: number; // ₹ per enquiry for the five-case ad-spend estimate
@@ -105,6 +155,8 @@ export interface RawAnswer {
   /** The selected option's label text (e.g. "30–60", "I don't know") — shown in the
    *  "(assumed — average of X)" tag whenever actualValue is absent. */
   optionLabel?: string | null;
+  /** The question's declared unit; absent = the role's default (back-compatible). */
+  unit?: ClinicUnit | null;
   isAssumption?: boolean; // the "I don't know" option specifically
   clause?: string | null; // Option.diagnosisClause for weakest-area text
 }
@@ -128,6 +180,9 @@ export interface ClinicInputs {
   /** Role → the selected option's label text, for roles in `assumptions` — lets the
    *  UI show exactly which range was averaged ("assumed — average of 30–60"). */
   assumedRangeLabel: Partial<Record<ClinicRole, string>>;
+  /** Rate roles whose value fell below RATE_PLAUSIBILITY_FLOOR — almost always a
+   *  unit mix-up. Drives the "these numbers don't add up" gate on the result. */
+  suspectRoles: ClinicRole[];
   weakest: WeakArea[]; // candidate weakest areas, worst-first (top 2 used)
 }
 
@@ -149,8 +204,10 @@ const ROLE_LABEL: Record<ClinicRole, string> = {
   UPLIFT_BOOKRATE: "response and follow-up",
 };
 
-function toWorking(role: ClinicRole, value: number): number {
-  return RATE_ROLES.has(role) ? value / 100 : value;
+/** Resolve a raw number to its working value using the question's declared unit,
+ *  falling back to the role's default when the question doesn't declare one. */
+function toWorking(role: ClinicRole, value: number, unit?: ClinicUnit | null): number {
+  return toWorkingValue(value, isClinicUnit(unit) ? unit : defaultUnitForRole(role));
 }
 
 /**
@@ -162,6 +219,7 @@ export function deriveInputs(answers: RawAnswer[], config: EngineConfig): Clinic
   const base: Partial<Record<ClinicRole, number>> = {};
   const assumptions: string[] = [];
   const assumedRangeLabel: Partial<Record<ClinicRole, string>> = {};
+  const suspectRoles: ClinicRole[] = [];
   const weakest: WeakArea[] = [];
   let bookUpliftPoints = 0;
 
@@ -170,7 +228,7 @@ export function deriveInputs(answers: RawAnswer[], config: EngineConfig): Clinic
 
     if (a.role === "UPLIFT_BOOKRATE") {
       // Behavioral, not a number a respondent would know — no actual-value override.
-      const working = toWorking(a.role, a.value);
+      const working = toWorking(a.role, a.value, a.unit);
       bookUpliftPoints += working;
       if (a.clause && working > 0) {
         weakest.push({ key: a.role, clause: a.clause, severity: working });
@@ -182,12 +240,16 @@ export function deriveInputs(answers: RawAnswer[], config: EngineConfig): Clinic
     // selected option's range midpoint (or "don't know" default) — and flag it, since
     // ANY unconfirmed range should read as an assumption, not just literal "I don't know".
     const hasActual = a.actualValue != null && Number.isFinite(a.actualValue);
-    const working = toWorking(a.role, hasActual ? (a.actualValue as number) : a.value);
+    const working = toWorking(a.role, hasActual ? (a.actualValue as number) : a.value, a.unit);
     base[a.role] = working;
     if (!hasActual) {
       assumptions.push(ROLE_LABEL[a.role]);
       if (a.optionLabel) assumedRangeLabel[a.role] = a.optionLabel;
     }
+    // A rate below its plausibility floor is almost certainly a unit mix-up — flag
+    // it rather than let it silently produce a 10x-wrong revenue figure.
+    const floor = RATE_PLAUSIBILITY_FLOOR[a.role];
+    if (floor !== undefined && working > 0 && working < floor) suspectRoles.push(a.role);
 
     // Rate answers below their benchmark are weakness candidates when clause-tagged.
     if (a.clause) {
@@ -212,6 +274,7 @@ export function deriveInputs(answers: RawAnswer[], config: EngineConfig): Clinic
     bookUpliftPoints,
     assumptions,
     assumedRangeLabel,
+    suspectRoles,
     weakest,
   };
 }
@@ -270,6 +333,17 @@ export interface ClinicAuditResult {
   weakestAreas: { key: ClinicRole; clause: string }[];
   assumptions: string[];
   assumedRangeLabel: Partial<Record<ClinicRole, string>>;
+  /** Exact (unrounded) monthly cases — lets callers judge coherence without
+   *  re-deriving the chain. Below 1 the funnel doesn't describe a real clinic. */
+  casesNowExact: number;
+  /** Rate roles whose value is implausibly low (see RATE_PLAUSIBILITY_FLOOR). */
+  suspectRoles: ClinicRole[];
+  /**
+   * The inputs don't describe a viable clinic: fewer than one case a month, or a
+   * rate below its plausibility floor. Callers must NOT present money figures from
+   * this result to a respondent — ask them to correct their answers instead.
+   */
+  dataInconsistent: boolean;
 }
 
 function round(n: number): number {
@@ -352,6 +426,10 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
     weakestAreas: inputs.weakest.slice(0, 2).map((w) => ({ key: w.key, clause: w.clause })),
     assumptions: inputs.assumptions,
     assumedRangeLabel: inputs.assumedRangeLabel,
+    casesNowExact,
+    suspectRoles: inputs.suspectRoles,
+    // Under one case a month isn't a clinic that pays rent — it's broken input.
+    dataInconsistent: inputs.suspectRoles.length > 0 || (E > 0 && casesNowExact < 1),
   };
 }
 

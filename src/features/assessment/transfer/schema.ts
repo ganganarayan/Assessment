@@ -31,6 +31,8 @@ const questionExport = z.object({
   displayOrder: z.number().int().nonnegative(),
   // CLINIC_AUDIT funnel role (added v2).
   scoringRole: z.string().nullable().optional(),
+  // CLINIC_AUDIT unit for this question's numbers (PER_10/PER_100/RUPEES/COUNT/POINTS).
+  scoringUnit: z.string().nullable().optional(),
   options: z.array(optionExport).min(2),
 });
 
