@@ -407,6 +407,20 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
     enquiriesTooLow && !ticketTooLow && gap * 12 >= config.notViableAnnualGapOverride;
   const notViable = (enquiriesTooLow && !gapOverridesLowEnquiries) || ticketTooLow;
   const capacityBlocked = K < config.capacityBlockedBelow;
+
+  // Plausibility is judged HERE, from the final rates, rather than trusted from
+  // `inputs` — so it works identically for a snapshot written by an older build
+  // (which carries no suspectRoles) as for a freshly scored one.
+  const suspectFromRates: ClinicRole[] = [];
+  const checkRate = (role: ClinicRole, v: number) => {
+    const floor = RATE_PLAUSIBILITY_FLOOR[role];
+    if (floor !== undefined && v > 0 && v < floor) suspectFromRates.push(role);
+  };
+  checkRate("BOOK_RATE", B);
+  checkRate("SHOWUP_RATE", S);
+  checkRate("CLOSE_RATE", C);
+  const allSuspect = Array.from(new Set([...suspectRoles, ...suspectFromRates]));
+
   let band: ClinicBand;
   if (notViable) band = "BELOW_THRESHOLD";
   else if (gap >= config.bandCritical) band = "CRITICAL";
@@ -439,9 +453,9 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
     assumptions,
     assumedRangeLabel,
     casesNowExact,
-    suspectRoles,
+    suspectRoles: allSuspect,
     // Under one case a month isn't a clinic that pays rent — it's broken input.
-    dataInconsistent: suspectRoles.length > 0 || (E > 0 && casesNowExact < 1),
+    dataInconsistent: allSuspect.length > 0 || (E > 0 && casesNowExact < 1),
   };
 }
 

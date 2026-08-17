@@ -87,7 +87,10 @@ interface Props {
   title: string;
   /** Their own answers, grouped by category — shown back to them so a typo in what
    *  they filled is visible and correctable (every figure here drives the maths). */
-  answers?: { name: string; rows: { text: string; answerLabel: string | null }[] }[];
+  answers?: {
+    name: string;
+    rows: { text: string; answerLabel: string | null; role?: ClinicRole | null }[];
+  }[];
   /** Public assessment URL, so an incoherent result can offer a redo. */
   retakeUrl?: string | null;
 }
@@ -164,6 +167,31 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
 
   const waHref = `https://wa.me/?text=${encodeURIComponent(`${title} — see the numbers here: ${resultUrl}`)}`;
 
+  // Match each flagged role back to the actual question the respondent answered, so
+  // the correction notice can point at a specific question instead of a vague role.
+  // "read as 7%" + "if you meant 7 out of 10, that's 70%" is the whole diagnosis.
+  const rateNow: Partial<Record<ClinicRole, number>> = {
+    BOOK_RATE: original.bookRateNow,
+    SHOWUP_RATE: original.showUpNow,
+    CLOSE_RATE: original.closeRate,
+  };
+  const suspectQuestions = (answers ?? [])
+    .flatMap((c) => c.rows)
+    .filter((r) => r.role && original.suspectRoles.includes(r.role))
+    .map((r) => {
+      const asFraction = rateNow[r.role as ClinicRole] ?? 0;
+      const asPercent = Math.round(asFraction * 100);
+      // The near-universal cause: an "out of 10" answer typed into a percent field.
+      // 7 read as 7% almost certainly meant 7-in-10 = 70%.
+      const likelyMeant = asPercent > 0 && asPercent <= 10 ? `${asPercent} out of 10 (${asPercent * 10}%)` : null;
+      return {
+        text: r.text,
+        answerLabel: r.answerLabel,
+        readAs: `${asPercent}%`,
+        likelyMeant,
+      };
+    });
+
   return (
     <div className="dl">
       <style dangerouslySetInnerHTML={{ __html: BRAND_CSS }} />
@@ -183,28 +211,45 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
                 ? "less than one completed treatment a month"
                 : "an unusually low conversion rate"}
             </strong>
-            . A working clinic doesn&apos;t run below that, so one of the figures was almost
-            certainly entered in the wrong scale.
+            . A working clinic doesn&apos;t run below that, so the figures below were almost
+            certainly entered in a different scale than the question expected.
           </p>
-          {original.suspectRoles.length > 0 ? (
-            <p style={{ fontSize: 15, marginTop: 8 }}>
-              Most likely{" "}
-              <strong>
-                {original.suspectRoles
-                  .map((r) => (r === "SHOWUP_RATE" ? "the show-up rate" : r === "CLOSE_RATE" ? "the close rate" : "the booking rate"))
-                  .join(" and ")}
-              </strong>
-              . If a question asked &ldquo;out of every 10&rdquo;, answering 7 means{" "}
-              <strong>70%</strong>, not 7%.
-            </p>
+
+          {/* Name the EXACT questions to re-answer, with what they said and how it
+              was read — a generic "one of your figures is wrong" is unactionable. */}
+          {suspectQuestions.length > 0 ? (
+            <div style={{ marginTop: 12 }}>
+              <p style={{ fontSize: 14, fontWeight: 600 }}>Please re-check these answers:</p>
+              {suspectQuestions.map((q, i) => (
+                <div key={i} style={{ marginTop: 8, paddingLeft: 10, borderLeft: "3px solid var(--gold)" }}>
+                  <p style={{ fontSize: 14, fontWeight: 600 }}>{q.text}</p>
+                  <p style={{ fontSize: 14, color: "var(--muted)" }}>
+                    You answered <strong>{q.answerLabel ?? "—"}</strong> — we read that as{" "}
+                    <strong>{q.readAs}</strong>
+                    {q.likelyMeant ? (
+                      <>
+                        . If you meant <strong>{q.likelyMeant}</strong>, that&apos;s the figure to
+                        enter.
+                      </>
+                    ) : (
+                      "."
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
           ) : null}
-          <p style={{ fontSize: 15, marginTop: 8 }}>
-            Check &ldquo;What you told us&rdquo; below, then retake the audit with the corrected
-            figures — it takes under a minute and the numbers will be right.
+
+          <p style={{ fontSize: 15, marginTop: 12 }}>
+            Your other answers are listed under &ldquo;What you told us&rdquo; below — keep this page
+            open, open the audit in a new window, and re-enter everything the same except the
+            answers above.
           </p>
           {retakeUrl ? (
             <p style={{ marginTop: 12 }}>
-              <a className="btn" href={retakeUrl}>Correct my answers</a>
+              <a className="btn" href={retakeUrl} target="_blank" rel="noreferrer">
+                Open the audit in a new window
+              </a>
             </p>
           ) : null}
         </div>

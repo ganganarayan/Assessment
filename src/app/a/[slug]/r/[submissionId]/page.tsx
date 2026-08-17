@@ -155,6 +155,26 @@ export default async function ResultPage({
               <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
                 Internal — not shown to the respondent
               </p>
+              {original.dataInconsistent ? (
+                <div className="mt-2 rounded-md border border-amber-500 bg-amber-500/10 px-3 py-2 text-sm">
+                  <strong>Data looks mis-scaled.</strong>{" "}
+                  {original.suspectRoles.length > 0 ? (
+                    <>
+                      The{" "}
+                      {original.suspectRoles
+                        .map((r) =>
+                          r === "SHOWUP_RATE" ? "show-up rate" : r === "CLOSE_RATE" ? "close rate" : "booking rate",
+                        )
+                        .join(" and ")}{" "}
+                      came out implausibly low. If those questions are worded &ldquo;out of every
+                      10&rdquo;, set their <strong>unit to &ldquo;Out of 10&rdquo;</strong> in the
+                      builder — otherwise an answer of 7 is read as 7%, not 70%.
+                    </>
+                  ) : (
+                    <>This funnel computes to under one case a month, so a figure is in the wrong scale.</>
+                  )}
+                </div>
+              ) : null}
               <div className="mt-2 grid grid-cols-1 gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
                 <Field label="Name">{[submission.leadFirstName, submission.leadLastName].filter(Boolean).join(" ") || "—"}</Field>
                 <Field label="Phone">{submission.leadMobile?.trim() || "—"}</Field>
@@ -163,8 +183,13 @@ export default async function ResultPage({
                 <Field label="Completed">{submission.completedAt ? new Date(submission.completedAt).toLocaleString() : "—"}</Field>
                 <Field label="Internal band">{original.band}{original.notViable ? " · not viable" : ""}{original.capacityBlocked ? " · capacity-blocked" : ""}</Field>
               </div>
-              <details className="mt-2 text-sm">
-                <summary className="cursor-pointer text-[var(--muted-foreground)]">Raw funnel inputs used in this calculation</summary>
+              {/* Always visible (not a <details>) — collapsed content is invisible
+                  when the page is printed or saved to PDF, which is exactly when
+                  these figures are needed most. */}
+              <div className="mt-3 text-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+                  Raw funnel inputs used in this calculation
+                </p>
                 <div className="mt-2 grid grid-cols-2 gap-x-8 gap-y-1 sm:grid-cols-4">
                   {inputRows.map((row) => (
                     <div key={row.label} className="flex flex-col">
@@ -176,7 +201,7 @@ export default async function ResultPage({
                     </div>
                   ))}
                 </div>
-              </details>
+              </div>
               {clinicAnswers.length > 0 ? (
                 <div className="mt-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
@@ -229,7 +254,7 @@ export default async function ResultPage({
           title={submission.assessment.title}
           answers={clinicAnswers.map((c) => ({
             name: c.name,
-            rows: c.rows.map((r) => ({ text: r.text, answerLabel: r.answerLabel })),
+            rows: c.rows.map((r) => ({ text: r.text, answerLabel: r.answerLabel, role: r.role })),
           }))}
           retakeUrl={`${proto}://${host}/a/${slug}`}
         />
