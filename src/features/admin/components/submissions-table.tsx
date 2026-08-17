@@ -163,7 +163,7 @@ export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
                     <td className="px-3 py-2 text-right">
                       {s.status === "COMPLETED" ? (
                         <div className="flex items-center justify-end gap-3">
-                          <Link href={`/a/${s.slug}/r/${s.id}`} className="text-xs underline">
+                          <Link href={`/a/${s.slug}/r/${s.id}`} target="_blank" rel="noreferrer" className="text-xs underline">
                             Result
                           </Link>
                           <a

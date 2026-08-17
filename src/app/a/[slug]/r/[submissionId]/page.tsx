@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { computeResult } from "@/lib/scoring/clinic-audit";
+import { formatINR } from "@/lib/format/inr";
 import { ClinicAuditResult } from "@/features/assessment/components/public/clinic-audit-result";
 import { markResultViewed } from "@/features/events/record";
 import { resultUrlFor } from "@/lib/events/completion";
@@ -58,6 +59,7 @@ export default async function ResultPage({
       leadEmail: true,
       leadMobile: true,
       leadProfession: true,
+      completedAt: true,
       assessment: {
         select: {
           slug: true,
@@ -127,8 +129,53 @@ export default async function ResultPage({
     const resultUrl = `${proto}://${host}/a/${slug}/r/${submissionId}${
       token ? `?t=${encodeURIComponent(token)}` : ""
     }`;
+    // Raw funnel inputs, for the internal-only block below — role, the number the
+    // engine actually used, and whether it was assumed (range midpoint) or a typed
+    // actual figure. Never shown to the respondent.
+    const inputRows: { label: string; value: string; assumed: boolean }[] = [
+      { label: "Enquiries", value: String(original.enquiries), assumed: original.assumptions.includes("monthly enquiries") },
+      { label: "Booking rate", value: `${Math.round(original.bookRateNow * 100)}%`, assumed: original.assumptions.includes("booking rate") },
+      { label: "Show-up rate", value: `${Math.round(original.showUpNow * 100)}%`, assumed: original.assumptions.includes("show-up rate") },
+      { label: "Close rate", value: `${Math.round(original.closeRate * 100)}%`, assumed: original.assumptions.includes("close rate") },
+      { label: "Treatment value", value: formatINR(original.treatmentValue), assumed: original.assumptions.includes("treatment value") },
+      { label: "Ad spend", value: formatINR(original.adSpend), assumed: original.assumptions.includes("ad spend") },
+      { label: "Dormant list", value: String(original.dormant.count), assumed: original.assumptions.includes("dormant list size") },
+      { label: "Spare capacity", value: String(original.capacity), assumed: original.assumptions.includes("spare capacity") },
+    ];
     return (
       <main style={{ minHeight: "100vh", background: "#F7F5F0" }}>
+        {canViewInternally ? (
+          <div style={{ background: "#fff", borderBottom: "1px solid #DCD6C9" }}>
+            <div className="mx-auto w-full max-w-2xl px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+                Internal — not shown to the respondent
+              </p>
+              <div className="mt-2 grid grid-cols-1 gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
+                <Field label="Name">{[submission.leadFirstName, submission.leadLastName].filter(Boolean).join(" ") || "—"}</Field>
+                <Field label="Phone">{submission.leadMobile?.trim() || "—"}</Field>
+                <Field label="Email">{submission.leadEmail?.trim() || "—"}</Field>
+                <Field label={submission.assessment.professionLabel?.trim() || "Profession"}>{submission.leadProfession?.trim() || "—"}</Field>
+                <Field label="Completed">{submission.completedAt ? new Date(submission.completedAt).toLocaleString() : "—"}</Field>
+                <Field label="Internal band">{original.band}{original.notViable ? " · not viable" : ""}{original.capacityBlocked ? " · capacity-blocked" : ""}</Field>
+              </div>
+              <details className="mt-2 text-sm">
+                <summary className="cursor-pointer text-[var(--muted-foreground)]">Raw funnel inputs used in this calculation</summary>
+                <div className="mt-2 grid grid-cols-2 gap-x-8 gap-y-1 sm:grid-cols-4">
+                  {inputRows.map((row) => (
+                    <div key={row.label} className="flex flex-col">
+                      <span className="text-xs text-[var(--muted-foreground)]">{row.label}</span>
+                      <span>
+                        {row.value}
+                        {row.assumed ? <span className="ml-1 text-xs text-[var(--muted-foreground)]">(assumed)</span> : null}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+              <p className="mt-3 text-xs text-[var(--muted-foreground)]">Below is exactly what the respondent sees.</p>
+            </div>
+          </div>
+        ) : null}
         <ClinicAuditResult
           inputs={snap.clinic.inputs}
           config={snap.clinic.config}
