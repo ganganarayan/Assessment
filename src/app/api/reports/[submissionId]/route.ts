@@ -7,7 +7,7 @@ import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
 import { renderReportPdf, type ReportData } from "@/lib/pdf/report";
 import { renderClinicReportPdf, type ClinicReportData } from "@/lib/pdf/clinic-report";
-import { computeResult, deriveInputs } from "@/lib/scoring/clinic-audit";
+import { computeResult, deriveInputs, resolveEngineConfig } from "@/lib/scoring/clinic-audit";
 import { getClinicRawAnswers } from "@/features/admin/data/clinic-answers";
 
 /**
@@ -85,9 +85,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
     // so the PDF reflects the current interpretation for older submissions too —
     // and stays byte-identical to the web result page.
     const rawAnswers = await getClinicRawAnswers(submissionId);
-    const liveInputs =
-      rawAnswers.length > 0 ? deriveInputs(rawAnswers, snap.clinic.config) : snap.clinic.inputs;
-    const result = computeResult(liveInputs, snap.clinic.config);
+    // Merge the stored config over current defaults — a snapshot predating a config
+    // key would otherwise feed undefined into the maths and render NaN.
+    const liveConfig = resolveEngineConfig(snap.clinic.config);
+    const liveInputs = rawAnswers.length > 0 ? deriveInputs(rawAnswers, liveConfig) : snap.clinic.inputs;
+    const result = computeResult(liveInputs, liveConfig);
     const setting = sub.assessment.tenantId
       ? await prisma.appSetting.findUnique({ where: { tenantId: sub.assessment.tenantId }, select: { bookingUrl: true } })
       : null;
@@ -99,7 +101,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
       result,
       prose: snap.clinic.prose,
       bookingUrl: setting?.bookingUrl ?? null,
-      costPerEnquiry: snap.clinic.config.costPerEnquiry,
+      costPerEnquiry: liveConfig.costPerEnquiry,
     };
     pdf = await renderClinicReportPdf(data);
   } else {

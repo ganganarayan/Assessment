@@ -164,7 +164,7 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   bandModerate: 200_000,
   dormantRate: 0.02,
   notViableAnnualGapOverride: 1_000_000, // ₹10L/year
-  adBudgetMonthly: 60_000,
+  adBudgetMonthly: 50_000,
   serviceFeeMonthly: 100_000,
 };
 
@@ -392,9 +392,11 @@ export interface ClinicAuditResult {
     enquiries: number;
     /** Additional cases from those enquiries (unrounded). */
     cases: number;
-    /** Additional revenue, over and above today's. */
+    /** Additional revenue from the ads, over and above the improved funnel. */
     revenue: number;
-    /** today + additional − investment. */
+    /** The improved funnel (their existing enquiries) PLUS the ads — gross. */
+    combinedRevenue: number;
+    /** combinedRevenue − investment: what they actually keep. */
     netTotal: number;
     /** netTotal − today: the monthly gain the engagement is actually worth. */
     netGain: number;
@@ -469,7 +471,11 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
   const pmCasesExact = pmEnquiries * bImproved * sImproved * C;
   const pmRevenue = round(pmCasesExact * V);
   const investment = adBudget + config.serviceFeeMonthly;
-  const pmNetTotal = revenueNow + pmRevenue - investment;
+  // The engagement delivers BOTH halves: the funnel fix (their existing enquiries
+  // converting at the improved rates) AND the new enquiries the ads buy. The ladder
+  // shown to the reader is therefore today → funnel fixed → plus ads → net of cost.
+  const pmCombined = revenuePotential + pmRevenue;
+  const pmNetTotal = pmCombined - investment;
   const performance = {
     adBudget,
     serviceFee: config.serviceFeeMonthly,
@@ -477,6 +483,7 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
     enquiries: pmEnquiries,
     cases: pmCasesExact,
     revenue: pmRevenue,
+    combinedRevenue: pmCombined,
     netTotal: pmNetTotal,
     netGain: pmNetTotal - revenueNow,
   };

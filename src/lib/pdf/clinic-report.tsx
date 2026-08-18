@@ -264,18 +264,23 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
         </View>
 
         <View style={s.section} wrap={false}>
-          <Text style={s.h2}>What your month would look like</Text>
+          <Text style={s.h2}>Where this leaves you</Text>
+          <Text style={s.p}>
+            The same clinic at each stage — your enquiries today, the same enquiries with the
+            follow-up system working, then with performance marketing added on top.
+          </Text>
           <View style={s.calc}>
-            <CalcRow label="Earning today" value={`${formatINR(r.revenueNow)}/month`} />
-            <CalcRow label="+ From performance marketing" value={`+ ${formatINR(r.performance.revenue)}/month`} />
+            <CalcRow label="Today" value={`${formatINR(r.revenueNow)}/month`} />
+            <CalcRow label="With the follow-up system working (same enquiries)" value={`${formatINR(r.revenuePotential)}/month`} valueStyle={s.calcValRevenue} />
+            <CalcRow label={`+ performance marketing (${formatINR(r.performance.adBudget)} ads)`} value={`${formatINR(r.performance.combinedRevenue)}/month`} valueStyle={s.calcValRevenuePot} />
             <CalcRow label="− Performance marketing fee" value={`− ${formatINR(r.performance.serviceFee)}/month`} />
             <CalcRow label="− Ad budget" value={`− ${formatINR(r.performance.adBudget)}/month`} />
-            <CalcRow label="= Your total" value={`${formatINR(r.performance.netTotal)}/month`} valueStyle={s.calcValRevenue} last />
+            <CalcRow label="= What you keep" value={`${formatINR(r.performance.netTotal)}/month`} valueStyle={s.calcValRevenue} last />
           </View>
           {r.performance.netGain > 0 ? (
             <Text style={[s.p, { marginTop: 8 }]}>
               You put in {formatINR(r.performance.investment)} a month and end up{" "}
-              {formatINR(r.performance.netGain)} a month ahead of where you are now.
+              {formatINR(r.performance.netGain)} a month ahead of where you are today.
             </Text>
           ) : null}
         </View>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireWorkspace, editDenied } from "@/lib/auth/guards";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { tenantAppSettingId } from "@/lib/settings/tenant-row";
 
 /**
  * Per-tenant booking/calendar link. Read + written on the tenant's own AppSetting
@@ -29,7 +30,7 @@ export async function updateBookingUrl(url: string): Promise<ActionResult> {
     return { ok: false, error: "Enter a full URL starting with http:// or https://" };
   }
   const data = { bookingUrl: trimmed || null };
-  await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { tenantId, ...data } });
+  await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { id: tenantAppSettingId(tenantId), tenantId, ...data } });
   revalidatePath("/w/settings");
   return { ok: true };
 }

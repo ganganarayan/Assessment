@@ -63,6 +63,17 @@ const BRAND_CSS = `
 .dl .calc-row.revenue { color:var(--teal); font-weight:700; font-size:15px; padding-top:8px; }
 .dl .calc-row.revenue.pot { color:var(--gold-d); }
 .dl .calc-row.rounded { font-weight:600; border-top:1px solid var(--line); }
+.dl .ladder { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:12px; }
+@media (max-width:560px){ .dl .ladder{ grid-template-columns:1fr; } }
+.dl .rung { border:1px solid var(--line); border-radius:4px; padding:12px; background:#fff;
+  display:flex; flex-direction:column; }
+.dl .rung.mid { border-color:var(--teal); }
+.dl .rung.top { border-color:var(--gold); background:#FFFDF7; }
+.dl .rung-cap { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+.dl .rung-amt { font-size:20px; font-weight:700; margin-top:6px; }
+.dl .rung.mid .rung-amt { color:var(--teal); }
+.dl .rung.top .rung-amt { color:var(--gold-d); }
+.dl .rung-sub { font-size:12px; color:var(--muted); margin-top:4px; }
 .dl .verdict { font-size:16px; font-weight:600; color:var(--gold-d); background:#fff;
   border:1px solid var(--gold); border-radius:4px; padding:12px 14px; margin-top:12px; }
 .dl .edit-lead { font-size:14px; background:#fff; border:1px solid var(--gold); border-radius:4px;
@@ -111,6 +122,10 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
   const [E, setE] = useState(inputs.E);
   const [V, setV] = useState(inputs.V);
   const [C10, setC10] = useState(Math.round(inputs.C * 10));
+  // Ad budget drives the performance-marketing projection. Editable so the
+  // reader can dial their own number in and watch the whole offer move.
+  const [adStr, setAdStr] = useState(String(config.adBudgetMonthly));
+  const [adBudget, setAdBudget] = useState(config.adBudgetMonthly);
 
   // Debounced commit: parse → clamp → commit, holding previous on invalid input.
   useEffect(() => {
@@ -121,9 +136,11 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       if (Number.isFinite(v) && v > 0) setV(clampNum(v, 1000, 1_000_000));
       const c = parseInt(cStr, 10);
       if (Number.isFinite(c)) setC10(clampNum(c, 0, 10));
+      const ad = parseInt(adStr, 10);
+      if (Number.isFinite(ad) && ad > 0) setAdBudget(clampNum(ad, 1000, 10_000_000));
     }, 400);
     return () => clearTimeout(id);
-  }, [eStr, vStr, cStr]);
+  }, [eStr, vStr, cStr, adStr]);
 
   const eInvalid = !(parseInt(eStr, 10) > 0);
   const vInvalid = !(parseInt(vStr, 10) > 0);
@@ -139,9 +156,12 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
   const cEdited = C10 !== Math.round(inputs.C * 10);
   const effectiveC = cEdited ? C10 / 10 : inputs.C;
 
+  // The reader's ad budget overrides the configured one, so the projection below
+  // responds to what THEY would actually spend.
+  const liveConfig = useMemo(() => ({ ...config, adBudgetMonthly: adBudget }), [config, adBudget]);
   const result = useMemo(
-    () => computeResult({ ...inputs, E, V, C: effectiveC }, config),
-    [inputs, config, E, V, effectiveC],
+    () => computeResult({ ...inputs, E, V, C: effectiveC }, liveConfig),
+    [inputs, liveConfig, E, V, effectiveC],
   );
   const edited = eEdited || vEdited || cEdited;
   // An "assumed" tag only applies to the ORIGINAL submission's fallback figures —
@@ -171,11 +191,13 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
     const e = parseInt(eStr, 10); if (Number.isFinite(e) && e > 0) { const c = clampNum(e, 1, 2000); setE(c); setEStr(String(c)); }
     const v = parseInt(vStr, 10); if (Number.isFinite(v) && v > 0) { const c = clampNum(v, 1000, 1_000_000); setV(c); setVStr(String(c)); }
     const cc = parseInt(cStr, 10); if (Number.isFinite(cc)) { const c = clampNum(cc, 0, 10); setC10(c); setCStr(String(c)); }
+    const ad = parseInt(adStr, 10); if (Number.isFinite(ad) && ad > 0) { const c = clampNum(ad, 1000, 10_000_000); setAdBudget(c); setAdStr(String(c)); }
   };
   const reset = () => {
     setEStr(String(inputs.E)); setE(inputs.E);
     setVStr(String(inputs.V)); setV(inputs.V);
     setCStr(String(Math.round(inputs.C * 10))); setC10(Math.round(inputs.C * 10));
+    setAdStr(String(config.adBudgetMonthly)); setAdBudget(config.adBudgetMonthly);
   };
 
   const waHref = `https://wa.me/?text=${encodeURIComponent(`${title} — see the numbers here: ${resultUrl}`)}`;
@@ -445,17 +467,28 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       <div className="block">
         <h2>With performance marketing</h2>
         <p style={{ fontSize: 14, color: "var(--muted)" }}>
-          On an ad budget of <strong>{formatINR(result.performance.adBudget)} a month</strong>, at{" "}
-          {formatINR(config.costPerEnquiry)} per enquiry — converted at the improved booking and
-          show-up rates, and your own close rate, unchanged.
+          At {formatINR(liveConfig.costPerEnquiry)} per enquiry, converted at the improved booking
+          and show-up rates and your own close rate, unchanged.
         </p>
+        <div className="field" style={{ maxWidth: 260, marginTop: 10 }}>
+          <label htmlFor="dl-ad">Ad budget a month — change it to see the figures move</label>
+          <input
+            id="dl-ad"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={adStr}
+            onChange={(e) => setAdStr(e.target.value)}
+            onBlur={commit}
+          />
+          <div className="hint">Try your own number. Everything below recalculates.</div>
+        </div>
         <div className="calc" style={{ marginTop: 10 }}>
           <div className="calc-row">
             <span>Ad budget</span>
             <span className="num">{formatINR(result.performance.adBudget)}/month</span>
           </div>
           <div className="calc-row op">
-            <span>÷ Cost per enquiry ({formatINR(config.costPerEnquiry)})</span>
+            <span>÷ Cost per enquiry ({formatINR(liveConfig.costPerEnquiry)})</span>
             <span className="num">= {fmtStep(result.performance.enquiries)} new enquiries</span>
           </div>
           <div className="calc-row op">
@@ -487,17 +520,39 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         </p>
       </div>
 
-      {/* The two tables added up, net of what it costs to get there. */}
+      {/* The three stages, side by side, so the progression is unmissable. */}
       <div className="block">
-        <h2>What your month would look like</h2>
-        <div className="calc" style={{ marginTop: 10 }}>
-          <div className="calc-row">
-            <span>Earning today</span>
-            <span className="num">{formatINR(result.revenueNow)}/month</span>
+        <h2>Where this leaves you</h2>
+        <p style={{ fontSize: 14, color: "var(--muted)" }}>
+          The same clinic, at each stage — your enquiries first, then the same enquiries with the
+          follow-up system working, then with performance marketing added on top.
+        </p>
+        <div className="ladder">
+          <div className="rung">
+            <span className="rung-cap">Today</span>
+            <span className="rung-amt num">{formatINR(result.revenueNow)}</span>
+            <span className="rung-sub">{roundPatients(todayTrail.cases)} patients a month</span>
           </div>
-          <div className="calc-row op">
-            <span>+ From performance marketing</span>
-            <span className="num">+ {formatINR(result.performance.revenue)}/month</span>
+          <div className="rung mid">
+            <span className="rung-cap">With the follow-up system working</span>
+            <span className="rung-amt num">{formatINR(result.revenuePotential)}</span>
+            <span className="rung-sub">
+              {roundPatients(potTrail.cases)} patients a month — same enquiries, nothing bought
+            </span>
+          </div>
+          <div className="rung top">
+            <span className="rung-cap">+ performance marketing ({formatINR(result.performance.adBudget)} ads)</span>
+            <span className="rung-amt num">{formatINR(result.performance.combinedRevenue)}</span>
+            <span className="rung-sub">
+              {roundPatients(potTrail.cases) + roundPatients(pmTrail.cases)} patients a month
+            </span>
+          </div>
+        </div>
+
+        <div className="calc" style={{ marginTop: 14 }}>
+          <div className="calc-row">
+            <span>Gross at the top stage</span>
+            <span className="num">{formatINR(result.performance.combinedRevenue)}/month</span>
           </div>
           <div className="calc-row op">
             <span>− Performance marketing fee</span>
@@ -508,14 +563,14 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
             <span className="num">− {formatINR(result.performance.adBudget)}/month</span>
           </div>
           <div className="calc-row op revenue">
-            <span>= Your total</span>
+            <span>= What you keep</span>
             <span className="num">{formatINR(result.performance.netTotal)}/month</span>
           </div>
         </div>
         {result.performance.netGain > 0 ? (
           <p className="verdict">
             You put in {formatINR(result.performance.investment)} a month and end up{" "}
-            {formatINR(result.performance.netGain)} a month ahead of where you are now.
+            {formatINR(result.performance.netGain)} a month ahead of where you are today.
           </p>
         ) : null}
       </div>

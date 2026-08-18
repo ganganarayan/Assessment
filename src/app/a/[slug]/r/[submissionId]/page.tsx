@@ -3,7 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
-import { computeResult, deriveInputs } from "@/lib/scoring/clinic-audit";
+import { computeResult, deriveInputs, resolveEngineConfig } from "@/lib/scoring/clinic-audit";
 import { formatINR } from "@/lib/format/inr";
 import { ClinicAuditResult } from "@/features/assessment/components/public/clinic-audit-result";
 import { markResultViewed } from "@/features/events/record";
@@ -130,9 +130,12 @@ export default async function ResultPage({
     // read applies to every submission — including ones scored before the fix. Falls
     // back to the snapshot when the answers are unavailable.
     const rawAnswers = await getClinicRawAnswers(submissionId);
-    const liveInputs =
-      rawAnswers.length > 0 ? deriveInputs(rawAnswers, snap.clinic.config) : snap.clinic.inputs;
-    const original = computeResult(liveInputs, snap.clinic.config);
+    // Merge the STORED config over the current defaults: a snapshot written before
+    // a config key existed carries no value for it, and reading that key straight
+    // off the snapshot yields undefined — which turns every derived figure into NaN.
+    const liveConfig = resolveEngineConfig(snap.clinic.config);
+    const liveInputs = rawAnswers.length > 0 ? deriveInputs(rawAnswers, liveConfig) : snap.clinic.inputs;
+    const original = computeResult(liveInputs, liveConfig);
     const h = await headers();
     const host = h.get("host") ?? "";
     const proto = h.get("x-forwarded-proto") ?? "https";
@@ -222,7 +225,7 @@ export default async function ResultPage({
         ) : null}
         <ClinicAuditResult
           inputs={liveInputs}
-          config={snap.clinic.config}
+          config={liveConfig}
           original={original}
           prose={snap.clinic.prose}
           bookingUrl={setting?.bookingUrl ?? null}

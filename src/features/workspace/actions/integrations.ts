@@ -6,6 +6,7 @@ import { requireWorkspace, editDenied } from "@/lib/auth/guards";
 import { env } from "@/lib/env";
 import { encryptWithSecret } from "@/lib/crypto";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { tenantAppSettingId } from "@/lib/settings/tenant-row";
 
 /**
  * Per-tenant integration config (Meta ads + Razorpay). Stored on the tenant's own
@@ -30,17 +31,26 @@ export interface IntegrationSettingsView {
 
 export async function getIntegrationSettings(): Promise<IntegrationSettingsView> {
   const { tenantId } = await requireWorkspace();
-  const [s, tenant] = await Promise.all([
+  const [s, tenant, domain] = await Promise.all([
     prisma.appSetting.findUnique({ where: { tenantId } }),
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true } }),
+    // The tenant's OWN domain, preferring a verified one. Razorpay must be pointed
+    // at the host the tenant actually operates on — handing them the platform's
+    // domain looks wrong and ties their payment config to someone else's hostname.
+    prisma.domain.findFirst({
+      where: { tenantId },
+      orderBy: [{ verified: "desc" }, { createdAt: "asc" }],
+      select: { hostname: true },
+    }),
   ]);
+  const base = domain?.hostname ? `https://${domain.hostname}` : env.NEXT_PUBLIC_APP_URL;
   return {
     metaPixelId: s?.metaPixelId ?? "",
     hasCapiToken: !!s?.metaCapiTokenEnc,
     razorpayKeyId: s?.razorpayKeyId ?? "",
     hasRazorpaySecret: !!s?.razorpayKeySecretEnc,
     hasRazorpayWebhookSecret: !!s?.razorpayWebhookSecretEnc,
-    webhookUrl: `${env.NEXT_PUBLIC_APP_URL}/api/payments/razorpay/${tenant?.slug ?? ""}`,
+    webhookUrl: `${base}/api/payments/razorpay/${tenant?.slug ?? ""}`,
   };
 }
 
@@ -53,7 +63,7 @@ export async function updateMetaSettings(pixelId: string, capiToken: string): Pr
     // Blank = keep the existing token (never round-trips the secret to the client).
     ...(capiToken.trim() ? { metaCapiTokenEnc: encryptWithSecret(capiToken.trim(), env.BETTER_AUTH_SECRET) } : {}),
   };
-  await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { tenantId, ...data } });
+  await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { id: tenantAppSettingId(tenantId), tenantId, ...data } });
   revalidatePath("/w/settings");
   return { ok: true };
 }
@@ -73,7 +83,7 @@ export async function updateRazorpaySettings(
       ? { razorpayWebhookSecretEnc: encryptWithSecret(webhookSecret.trim(), env.BETTER_AUTH_SECRET) }
       : {}),
   };
-  await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { tenantId, ...data } });
+  await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { id: tenantAppSettingId(tenantId), tenantId, ...data } });
   revalidatePath("/w/settings");
   return { ok: true };
 }

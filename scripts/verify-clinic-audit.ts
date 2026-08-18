@@ -251,15 +251,30 @@ console.log("Clinic Audit engine verification\n");
   // booking (0.10 + 0.20 uplift = 0.30) and show-up (0.70 < 0.75 -> 0.80) rates and
   // their own unchanged 20% close: 120 × .30 × .80 × .20 = 5.76 cases.
   const r = score({ E: 100, B: 10, S: 70, C: 20, V: 100000, D: 1500, K: 25, uplifts: [6, 5, 6, 3] });
-  expect("ad budget buys enquiries at cost per enquiry", r.performance.enquiries === 120, `enq=${r.performance.enquiries}`);
-  expect("  additional revenue = ₹5,76,000", r.performance.revenue === 576000, `rev=${r.performance.revenue}`);
-  expect("  investment = fee + ad budget", r.performance.investment === 160000, `inv=${r.performance.investment}`);
+  expect("ad budget buys enquiries at cost per enquiry", r.performance.enquiries === 100, `enq=${r.performance.enquiries}`);
+  expect("  additional revenue from ads = ₹4,80,000", r.performance.revenue === 480000, `rev=${r.performance.revenue}`);
+  expect("  investment = fee + ad budget", r.performance.investment === 150000, `inv=${r.performance.investment}`);
   // today = 100 × .10 × .70 × .20 = 1.4 cases = ₹1,40,000
   expect("  today unchanged at ₹1,40,000", r.revenueNow === 140000, `now=${r.revenueNow}`);
-  // 140000 + 576000 - 160000 = 556000
-  expect("  net total = today + additional − outlay", r.performance.netTotal === 556000, `total=${r.performance.netTotal}`);
-  expect("  net gain = total − today", r.performance.netGain === 416000, `gain=${r.performance.netGain}`);
+  // The engagement delivers the funnel fix AND the ads: potential 4,80,000 +
+  // ads 4,80,000 = 9,60,000 gross, less the 1,50,000 outlay = 8,10,000 kept.
+  expect("  combined = improved funnel + ads", r.performance.combinedRevenue === 960000, `comb=${r.performance.combinedRevenue}`);
+  expect("  net total = combined − outlay", r.performance.netTotal === 810000, `total=${r.performance.netTotal}`);
+  expect("  net gain = total − today", r.performance.netGain === 670000, `gain=${r.performance.netGain}`);
   expect("  close rate never improved in the offer", Math.abs(r.closeRate - 0.2) < 1e-9, `C=${r.closeRate}`);
+}
+
+// --- Legacy CONFIG (snapshot predating a config key) must not yield NaN ----
+{
+  // The result page/PDF read config off the stored snapshot. A snapshot written
+  // before adBudgetMonthly existed carries no value for it, and using that key
+  // straight turned every performance figure into NaN on screen. resolveEngineConfig
+  // merges over the defaults, which is what both surfaces now do.
+  const legacyCfg = resolveEngineConfig({ costPerEnquiry: 500, bookRateCap: 0.38 });
+  expect("missing config key falls back to default", legacyCfg.adBudgetMonthly === 50_000, `ad=${legacyCfg.adBudgetMonthly}`);
+  expect("  and the service fee too", legacyCfg.serviceFeeMonthly === 100_000, `fee=${legacyCfg.serviceFeeMonthly}`);
+  const r = scoreClinicAudit(build({ E: 100, B: 10, S: 70, C: 20, V: 100000, D: 1500, K: 25 }), legacyCfg);
+  expect("  no NaN reaches the performance figures", Number.isFinite(r.performance.revenue) && Number.isFinite(r.performance.netTotal), `rev=${r.performance.revenue}`);
 }
 
 // --- Legacy snapshots (persisted by an older build) must never throw -------

@@ -11,6 +11,7 @@ import { testStatement } from "@/lib/ai/generate";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { PREVIEW_SAMPLE, SAMPLE_EASY_READ, DEFAULT_PROMPT_VERSION } from "@/lib/ai/prompt-versions";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { tenantAppSettingId } from "@/lib/settings/tenant-row";
 
 const schema = z.object({
   enabled: z.boolean(),
@@ -134,7 +135,7 @@ export async function saveProviderKey(provider: string, key: string): Promise<Ac
     await prisma.appSetting.upsert({
       where: { tenantId: scope.tenantId },
       update: data,
-      create: { tenantId: scope.tenantId, ...data },
+      create: { id: tenantAppSettingId(scope.tenantId), tenantId: scope.tenantId, ...data },
     });
   } else {
     await prisma.appSetting.upsert({
@@ -180,7 +181,7 @@ export async function updateAiSettings(input: AiSettingsInput): Promise<ActionRe
     await prisma.appSetting.upsert({
       where: { tenantId: scope.tenantId },
       update: data,
-      create: { tenantId: scope.tenantId, ...data },
+      create: { id: tenantAppSettingId(scope.tenantId), tenantId: scope.tenantId, ...data },
     });
   } else {
     await prisma.appSetting.upsert({

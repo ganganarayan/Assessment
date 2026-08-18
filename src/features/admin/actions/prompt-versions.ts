@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { listPromptVersions, nextVersionNumber } from "@/lib/ai/versions";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { tenantAppSettingId } from "@/lib/settings/tenant-row";
 
 function bump() {
   revalidatePath("/admin/ai");
@@ -73,7 +74,7 @@ export async function setDefaultPromptVersion(id: string): Promise<ActionResult>
   if (!rows.some((r) => r.id === id)) return { ok: false, error: "Not found." };
   const data = { aiPromptVersion: id };
   if (scope.tenantId) {
-    await prisma.appSetting.upsert({ where: { tenantId: scope.tenantId }, update: data, create: { tenantId: scope.tenantId, ...data } });
+    await prisma.appSetting.upsert({ where: { tenantId: scope.tenantId }, update: data, create: { id: tenantAppSettingId(scope.tenantId), tenantId: scope.tenantId, ...data } });
   } else {
     await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
   }
@@ -91,7 +92,7 @@ export async function updateWordWindow(min: number, max: number): Promise<Action
   const hi = Math.max(lo, Math.min(1000, Math.round(max || 0)));
   const data = { aiWordMin: lo, aiWordMax: hi };
   if (scope.tenantId) {
-    await prisma.appSetting.upsert({ where: { tenantId: scope.tenantId }, update: data, create: { tenantId: scope.tenantId, ...data } });
+    await prisma.appSetting.upsert({ where: { tenantId: scope.tenantId }, update: data, create: { id: tenantAppSettingId(scope.tenantId), tenantId: scope.tenantId, ...data } });
   } else {
     await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
   }
