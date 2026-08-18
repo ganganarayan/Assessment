@@ -36,8 +36,8 @@ Two short paragraphs, max four sentences each. Take the two weakest areas from t
 ### What is already sitting in the clinic
 One paragraph, three sentences max. Cover the dormant enquiry list and the spare-capacity figure. If spare capacity is fewer than five cases a month, say plainly that acquisition is not their constraint and adding enquiries would create pressure rather than revenue.
 
-### What five more cases a month would take
-Two or three sentences. Walk the supplied chain — consultations attended, booked, enquiries, ad spend — and note the close rate used is the clinic's own reported figure, held constant. No call to action.
+### What performance marketing would add
+Two or three sentences. Walk the supplied chain — ad budget, the enquiries it buys, bookings, attendances, cases — and state the additional monthly revenue as supplied. Note the close rate used is the clinic's own reported figure, held constant, and that the figure is over and above what they earn today. No call to action.
 
 ## Length
 

@@ -245,6 +245,23 @@ console.log("Clinic Audit engine verification\n");
   expect("  NOT flagged as bad data", !r.dataInconsistent, `suspect=${r.suspectRoles.join()}`);
 }
 
+// --- Performance-marketing offer -------------------------------------------
+{
+  // ₹60,000 budget at ₹500/enquiry = 120 new enquiries, converted at the IMPROVED
+  // booking (0.10 + 0.20 uplift = 0.30) and show-up (0.70 < 0.75 -> 0.80) rates and
+  // their own unchanged 20% close: 120 × .30 × .80 × .20 = 5.76 cases.
+  const r = score({ E: 100, B: 10, S: 70, C: 20, V: 100000, D: 1500, K: 25, uplifts: [6, 5, 6, 3] });
+  expect("ad budget buys enquiries at cost per enquiry", r.performance.enquiries === 120, `enq=${r.performance.enquiries}`);
+  expect("  additional revenue = ₹5,76,000", r.performance.revenue === 576000, `rev=${r.performance.revenue}`);
+  expect("  investment = fee + ad budget", r.performance.investment === 160000, `inv=${r.performance.investment}`);
+  // today = 100 × .10 × .70 × .20 = 1.4 cases = ₹1,40,000
+  expect("  today unchanged at ₹1,40,000", r.revenueNow === 140000, `now=${r.revenueNow}`);
+  // 140000 + 576000 - 160000 = 556000
+  expect("  net total = today + additional − outlay", r.performance.netTotal === 556000, `total=${r.performance.netTotal}`);
+  expect("  net gain = total − today", r.performance.netGain === 416000, `gain=${r.performance.netGain}`);
+  expect("  close rate never improved in the offer", Math.abs(r.closeRate - 0.2) < 1e-9, `C=${r.closeRate}`);
+}
+
 // --- Legacy snapshots (persisted by an older build) must never throw -------
 {
   // The result page and the PDF both call computeResult on the STORED snapshot, so

@@ -106,9 +106,12 @@ function buildClinicPromptContext(
     { label: "Monthly enquiries", value: `${result.enquiries}` },
     { label: "Average treatment value", value: formatINR(result.treatmentValue) },
     {
-      label: "To add five cases a month",
-      value: `${result.fiveCases.attended} consultations attended, ${result.fiveCases.booked} booked, ${result.fiveCases.enquiries} enquiries, ${formatINR(result.fiveCases.adSpend)} ad spend`,
+      label: "Performance marketing — ad budget",
+      value: `${formatINR(result.performance.adBudget)}/month buying ${Math.round(result.performance.enquiries)} new enquiries`,
     },
+    { label: "Performance marketing — additional revenue (over and above today)", value: `${formatINR(result.performance.revenue)}/month` },
+    { label: "Performance marketing — total monthly outlay (fee + ad budget)", value: formatINR(result.performance.investment) },
+    { label: "Performance marketing — net monthly gain after both costs", value: formatINR(result.performance.netGain) },
     { label: "Dormant list recoverable", value: `${result.dormant.recoverable} cases (${formatINR(result.dormant.value)})` },
     { label: "Spare capacity (cases/month)", value: `${result.capacity}` },
   ];

@@ -63,6 +63,8 @@ const BRAND_CSS = `
 .dl .calc-row.revenue { color:var(--teal); font-weight:700; font-size:15px; padding-top:8px; }
 .dl .calc-row.revenue.pot { color:var(--gold-d); }
 .dl .calc-row.rounded { font-weight:600; border-top:1px solid var(--line); }
+.dl .verdict { font-size:16px; font-weight:600; color:var(--gold-d); background:#fff;
+  border:1px solid var(--gold); border-radius:4px; padding:12px 14px; margin-top:12px; }
 .dl .edit-lead { font-size:14px; background:#fff; border:1px solid var(--gold); border-radius:4px;
   padding:10px 12px; margin-top:14px; }
 .dl .assumed-tag { font-size:10px; color:var(--gold-d); font-style:italic; margin-left:6px; font-weight:400; }
@@ -156,12 +158,12 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
   const potTrail = buildTrail(result.enquiries, result.bookRateImproved, result.showUpImproved, result.closeRate);
   const caseToday = caseLine(todayTrail.cases);
   const casePot = caseLine(potTrail.cases);
-  // The five-case chain, worked FORWARD from the ad spend the engine derived, so
-  // every stage reconciles with the money rather than appearing out of nowhere.
-  const fiveTrail = buildTrail(
-    result.fiveCases.enquiries,
+  // The performance-marketing chain, worked FORWARD from the ad budget so every
+  // stage reconciles with the money rather than appearing out of nowhere.
+  const pmTrail = buildTrail(
+    result.performance.enquiries,
     result.bookRateImproved,
-    result.showUpNow,
+    result.showUpImproved,
     result.closeRate,
   );
 
@@ -439,47 +441,83 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         </div>
       ) : null}
 
-      {/* Five-case block — shown as the same stepped table, worked FORWARD from the
-          ad spend so it is obvious what the money buys at each stage. */}
+      {/* Performance-marketing offer: what a fixed budget adds ON TOP of today. */}
       <div className="block">
-        <h2>What five more cases a month would take</h2>
+        <h2>With performance marketing</h2>
         <p style={{ fontSize: 14, color: "var(--muted)" }}>
-          Working forward from the ad spend, at <strong>{formatINR(config.costPerEnquiry)} per enquiry</strong> and
-          your own rates. The close rate stays your reported figure — never modelled as improving.
+          On an ad budget of <strong>{formatINR(result.performance.adBudget)} a month</strong>, at{" "}
+          {formatINR(config.costPerEnquiry)} per enquiry — converted at the improved booking and
+          show-up rates, and your own close rate, unchanged.
         </p>
         <div className="calc" style={{ marginTop: 10 }}>
           <div className="calc-row">
-            <span>Ad spend</span>
-            <span className="num">{formatINR(result.fiveCases.adSpend)}/month</span>
+            <span>Ad budget</span>
+            <span className="num">{formatINR(result.performance.adBudget)}/month</span>
           </div>
           <div className="calc-row op">
             <span>÷ Cost per enquiry ({formatINR(config.costPerEnquiry)})</span>
-            <span className="num">= {fmtStep(result.fiveCases.enquiries)} enquiries</span>
+            <span className="num">= {fmtStep(result.performance.enquiries)} new enquiries</span>
           </div>
           <div className="calc-row op">
             <span>× Booking rate ({pctLabel(result.bookRateImproved)})</span>
-            <span className="num">= {fmtStep(fiveTrail.booked)} booked</span>
+            <span className="num">= {fmtStep(pmTrail.booked)} booked</span>
           </div>
           <div className="calc-row op">
-            <span>× Show-up rate ({pctLabel(result.showUpNow)})</span>
-            <span className="num">= {fmtStep(fiveTrail.attended)} attended</span>
+            <span>× Show-up rate ({pctLabel(result.showUpImproved)})</span>
+            <span className="num">= {fmtStep(pmTrail.attended)} attended</span>
           </div>
           <div className="calc-row op final">
-            <span>× Close rate ({pctLabel(result.closeRate)})</span>
-            <span className="num">= {fmtStep(fiveTrail.cases)} patients/month</span>
+            <span>× Close rate ({pctLabel(result.closeRate)}, unchanged)</span>
+            <span className="num">= {fmtStep(pmTrail.cases)} patients/month</span>
           </div>
-          <div className="calc-row op revenue">
+          <div className="calc-row op revenue pot">
             <span>× Treatment value ({formatINR(result.treatmentValue)})</span>
-            <span className="num">= {formatINR(fiveTrail.cases * result.treatmentValue)}/month</span>
+            <span className="num">= {formatINR(result.performance.revenue)}/month</span>
           </div>
           <div className="calc-row op rounded">
             <span>In whole patients</span>
             <span className="num">
-              {roundPatients(fiveTrail.cases)} patients/month ={" "}
-              {formatINR(roundedRevenue(fiveTrail.cases, result.treatmentValue))}/month
+              {roundPatients(pmTrail.cases)} patients/month ={" "}
+              {formatINR(roundedRevenue(pmTrail.cases, result.treatmentValue))}/month
             </span>
           </div>
         </div>
+        <p style={{ fontSize: 14, marginTop: 8 }}>
+          <strong>This is additional</strong> — over and above what your clinic earns today.
+        </p>
+      </div>
+
+      {/* The two tables added up, net of what it costs to get there. */}
+      <div className="block">
+        <h2>What your month would look like</h2>
+        <div className="calc" style={{ marginTop: 10 }}>
+          <div className="calc-row">
+            <span>Earning today</span>
+            <span className="num">{formatINR(result.revenueNow)}/month</span>
+          </div>
+          <div className="calc-row op">
+            <span>+ From performance marketing</span>
+            <span className="num">+ {formatINR(result.performance.revenue)}/month</span>
+          </div>
+          <div className="calc-row op">
+            <span>− Performance marketing fee</span>
+            <span className="num">− {formatINR(result.performance.serviceFee)}/month</span>
+          </div>
+          <div className="calc-row op">
+            <span>− Ad budget</span>
+            <span className="num">− {formatINR(result.performance.adBudget)}/month</span>
+          </div>
+          <div className="calc-row op revenue">
+            <span>= Your total</span>
+            <span className="num">{formatINR(result.performance.netTotal)}/month</span>
+          </div>
+        </div>
+        {result.performance.netGain > 0 ? (
+          <p className="verdict">
+            You put in {formatINR(result.performance.investment)} a month and end up{" "}
+            {formatINR(result.performance.netGain)} a month ahead of where you are now.
+          </p>
+        ) : null}
       </div>
 
       {/* Dormant database */}
@@ -534,9 +572,14 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         ) : null}
       </div>
 
-      {/* Share */}
+      {/* Close: book the appointment, and forward it to whoever decides. */}
       <div className="block">
-        <a className="btn wa" href={waHref} target="_blank" rel="noreferrer">Send this to the clinic owner</a>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+          {bookingUrl ? (
+            <a className="btn" href={bookingUrl} target="_blank" rel="noreferrer">Book an appointment</a>
+          ) : null}
+          <a className="btn wa" href={waHref} target="_blank" rel="noreferrer">Send this to the clinic owner</a>
+        </div>
       </div>
     </div>
   );

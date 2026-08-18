@@ -145,6 +145,10 @@ export interface EngineConfig {
   // NOT apply to the minTicket override (a genuinely low-ticket clinic stays not-viable
   // regardless of gap — that economics doesn't suit a retainer either way).
   notViableAnnualGapOverride: number;
+  /** Monthly ad budget the performance-marketing projection is built on. */
+  adBudgetMonthly: number;
+  /** Monthly service fee for running it — the other half of their outlay. */
+  serviceFeeMonthly: number;
 }
 
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
@@ -160,6 +164,8 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   bandModerate: 200_000,
   dormantRate: 0.02,
   notViableAnnualGapOverride: 1_000_000, // ₹10L/year
+  adBudgetMonthly: 60_000,
+  serviceFeeMonthly: 100_000,
 };
 
 /** Merge a stored (partial, possibly malformed) engineConfig JSON over the defaults. */
@@ -370,6 +376,29 @@ export interface ClinicAuditResult {
   /** Exact (unrounded) monthly cases — lets callers judge coherence without
    *  re-deriving the chain. Below 1 the funnel doesn't describe a real clinic. */
   casesNowExact: number;
+  /**
+   * What a performance-marketing engagement adds ON TOP of what they earn today:
+   * a fixed ad budget buys new enquiries, which run through the IMPROVED booking
+   * and show-up rates (the engagement fixes response speed and follow-up) at their
+   * own unchanged close rate. Stated net of both costs, so the offer is judged on
+   * money in vs money out rather than on gross revenue.
+   */
+  performance: {
+    adBudget: number;
+    serviceFee: number;
+    /** adBudget + serviceFee — what they put in each month. */
+    investment: number;
+    /** New enquiries the budget buys (unrounded). */
+    enquiries: number;
+    /** Additional cases from those enquiries (unrounded). */
+    cases: number;
+    /** Additional revenue, over and above today's. */
+    revenue: number;
+    /** today + additional − investment. */
+    netTotal: number;
+    /** netTotal − today: the monthly gain the engagement is actually worth. */
+    netGain: number;
+  };
   /** Rate roles whose value is implausibly low (see RATE_PLAUSIBILITY_FLOOR). */
   suspectRoles: ClinicRole[];
   /**
@@ -432,6 +461,26 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
   const dormantRecoverable = Math.floor(D * config.dormantRate);
   const dormant = { count: D, recoverable: dormantRecoverable, value: dormantRecoverable * V };
 
+  // Performance-marketing projection: a fixed budget buys enquiries at the same
+  // cost per enquiry, converted at the IMPROVED booking/show-up rates (the
+  // engagement fixes those) and their OWN close rate, which is never modelled up.
+  const adBudget = config.adBudgetMonthly;
+  const pmEnquiries = config.costPerEnquiry > 0 ? adBudget / config.costPerEnquiry : 0;
+  const pmCasesExact = pmEnquiries * bImproved * sImproved * C;
+  const pmRevenue = round(pmCasesExact * V);
+  const investment = adBudget + config.serviceFeeMonthly;
+  const pmNetTotal = revenueNow + pmRevenue - investment;
+  const performance = {
+    adBudget,
+    serviceFee: config.serviceFeeMonthly,
+    investment,
+    enquiries: pmEnquiries,
+    cases: pmCasesExact,
+    revenue: pmRevenue,
+    netTotal: pmNetTotal,
+    netGain: pmNetTotal - revenueNow,
+  };
+
   // Overrides first, then band on gap. Low-enquiries steps aside when the implied
   // ANNUAL gap is large enough — a real prospect can still have few enquiries if
   // each one is worth a lot. Low-ticket has no such override (see config comment).
@@ -487,6 +536,7 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
     assumptions,
     assumedRangeLabel,
     casesNowExact,
+    performance,
     suspectRoles: allSuspect,
     // Under one case a month isn't a clinic that pays rent — it's broken input.
     dataInconsistent: allSuspect.length > 0 || (E > 0 && casesNowExact < 1),

@@ -141,7 +141,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
   const potTrail = buildTrail(r.enquiries, r.bookRateImproved, r.showUpImproved, r.closeRate);
   const caseToday = caseLine(todayTrail.cases);
   const casePot = caseLine(potTrail.cases);
-  const fiveTrail = buildTrail(r.fiveCases.enquiries, r.bookRateImproved, r.showUpNow, r.closeRate);
+  const pmTrail = buildTrail(r.performance.enquiries, r.bookRateImproved, r.showUpImproved, r.closeRate);
   const caseTodayLabel = `${caseToday.text} patient${caseToday.text === "1" ? "" : "s"}/month${caseToday.hint ? ` (${caseToday.hint})` : ""}`;
   const casePotLabel = `${casePot.text} patient${casePot.text === "1" ? "" : "s"}/month${casePot.hint ? ` (${casePot.hint})` : ""}`;
 
@@ -235,28 +235,49 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
         ) : null}
 
         <View style={s.section} wrap={false}>
-          <Text style={s.h2}>What five more cases a month would take</Text>
+          <Text style={s.h2}>With performance marketing</Text>
           <Text style={s.p}>
-            Working forward from the ad spend, at {formatINR(data.costPerEnquiry)} per enquiry and your
-            own rates. The close rate stays your reported figure — never modelled as improving.
+            On an ad budget of {formatINR(r.performance.adBudget)} a month, at{" "}
+            {formatINR(data.costPerEnquiry)} per enquiry — converted at the improved booking and
+            show-up rates, and your own close rate, unchanged.
           </Text>
           <View style={s.calc}>
-            <CalcRow label="Ad spend" value={`${formatINR(r.fiveCases.adSpend)}/month`} />
-            <CalcRow label={`÷ Cost per enquiry (${formatINR(data.costPerEnquiry)})`} value={`= ${fmtStep(r.fiveCases.enquiries)} enquiries`} />
-            <CalcRow label={`× Booking rate (${pctLabel(r.bookRateImproved)})`} value={`= ${fmtStep(fiveTrail.booked)} booked`} />
-            <CalcRow label={`× Show-up rate (${pctLabel(r.showUpNow)})`} value={`= ${fmtStep(fiveTrail.attended)} attended`} />
-            <CalcRow label={`× Close rate (${pctLabel(r.closeRate)})`} value={`= ${fmtStep(fiveTrail.cases)} patients/month`} />
+            <CalcRow label="Ad budget" value={`${formatINR(r.performance.adBudget)}/month`} />
+            <CalcRow label={`÷ Cost per enquiry (${formatINR(data.costPerEnquiry)})`} value={`= ${fmtStep(r.performance.enquiries)} new enquiries`} />
+            <CalcRow label={`× Booking rate (${pctLabel(r.bookRateImproved)})`} value={`= ${fmtStep(pmTrail.booked)} booked`} />
+            <CalcRow label={`× Show-up rate (${pctLabel(r.showUpImproved)})`} value={`= ${fmtStep(pmTrail.attended)} attended`} />
+            <CalcRow label={`× Close rate (${pctLabel(r.closeRate)}, unchanged)`} value={`= ${fmtStep(pmTrail.cases)} patients/month`} />
             <CalcRow
               label={`× Treatment value (${formatINR(r.treatmentValue)})`}
-              value={`= ${formatINR(fiveTrail.cases * r.treatmentValue)}/month`}
-              valueStyle={s.calcValRevenue}
+              value={`= ${formatINR(r.performance.revenue)}/month`}
+              valueStyle={s.calcValRevenuePot}
             />
             <CalcRow
               label="In whole patients"
-              value={`${roundPatients(fiveTrail.cases)} patients/month = ${formatINR(roundedRevenue(fiveTrail.cases, r.treatmentValue))}/month`}
+              value={`${roundPatients(pmTrail.cases)} patients/month = ${formatINR(roundedRevenue(pmTrail.cases, r.treatmentValue))}/month`}
               last
             />
           </View>
+          <Text style={[s.p, { marginTop: 8 }]}>
+            This is additional — over and above what your clinic earns today.
+          </Text>
+        </View>
+
+        <View style={s.section} wrap={false}>
+          <Text style={s.h2}>What your month would look like</Text>
+          <View style={s.calc}>
+            <CalcRow label="Earning today" value={`${formatINR(r.revenueNow)}/month`} />
+            <CalcRow label="+ From performance marketing" value={`+ ${formatINR(r.performance.revenue)}/month`} />
+            <CalcRow label="− Performance marketing fee" value={`− ${formatINR(r.performance.serviceFee)}/month`} />
+            <CalcRow label="− Ad budget" value={`− ${formatINR(r.performance.adBudget)}/month`} />
+            <CalcRow label="= Your total" value={`${formatINR(r.performance.netTotal)}/month`} valueStyle={s.calcValRevenue} last />
+          </View>
+          {r.performance.netGain > 0 ? (
+            <Text style={[s.p, { marginTop: 8 }]}>
+              You put in {formatINR(r.performance.investment)} a month and end up{" "}
+              {formatINR(r.performance.netGain)} a month ahead of where you are now.
+            </Text>
+          ) : null}
         </View>
 
         {r.dormant.recoverable > 0 ? (
