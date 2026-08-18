@@ -7,7 +7,8 @@ import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
 import { renderReportPdf, type ReportData } from "@/lib/pdf/report";
 import { renderClinicReportPdf, type ClinicReportData } from "@/lib/pdf/clinic-report";
-import { computeResult } from "@/lib/scoring/clinic-audit";
+import { computeResult, deriveInputs } from "@/lib/scoring/clinic-audit";
+import { getClinicRawAnswers } from "@/features/admin/data/clinic-answers";
 
 /**
  * Branded PDF report for a completed submission.
@@ -80,7 +81,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
     // shared helpers, same figures, same "assumed" tags) — never the generic score/
     // category report (meaningless for clinic option values, which are rupees/rates,
     // not score points).
-    const result = computeResult(snap.clinic.inputs, snap.clinic.config);
+    // Re-derive from the stored ANSWERS (not the snapshot's pre-converted numbers)
+    // so the PDF reflects the current interpretation for older submissions too —
+    // and stays byte-identical to the web result page.
+    const rawAnswers = await getClinicRawAnswers(submissionId);
+    const liveInputs =
+      rawAnswers.length > 0 ? deriveInputs(rawAnswers, snap.clinic.config) : snap.clinic.inputs;
+    const result = computeResult(liveInputs, snap.clinic.config);
     const setting = sub.assessment.tenantId
       ? await prisma.appSetting.findUnique({ where: { tenantId: sub.assessment.tenantId }, select: { bookingUrl: true } })
       : null;

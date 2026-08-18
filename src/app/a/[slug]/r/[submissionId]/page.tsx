@@ -3,7 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
-import { computeResult } from "@/lib/scoring/clinic-audit";
+import { computeResult, deriveInputs } from "@/lib/scoring/clinic-audit";
 import { formatINR } from "@/lib/format/inr";
 import { ClinicAuditResult } from "@/features/assessment/components/public/clinic-audit-result";
 import { markResultViewed } from "@/features/events/record";
@@ -13,7 +13,7 @@ import { isSuperAdmin } from "@/lib/auth/guards";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { getAiStatements } from "@/features/admin/data/ai-statements";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
-import { getClinicAnswers } from "@/features/admin/data/clinic-answers";
+import { getClinicAnswers, getClinicRawAnswers } from "@/features/admin/data/clinic-answers";
 import { AiStatementManager } from "@/features/admin/components/ai-statement-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -123,7 +123,14 @@ export default async function ResultPage({
     // shown to the respondent: a fixed category label can only ever contradict the
     // calculation trail below (a small-gap clinic can still be genuinely desperate;
     // a big-gap one merely comfortable) — the numbers make the case on their own.
-    const original = computeResult(snap.clinic.inputs, snap.clinic.config);
+    // Re-derive the funnel inputs from the STORED ANSWERS instead of trusting the
+    // snapshot's pre-converted numbers, so a correction to how a question's scale is
+    // read applies to every submission — including ones scored before the fix. Falls
+    // back to the snapshot when the answers are unavailable.
+    const rawAnswers = await getClinicRawAnswers(submissionId);
+    const liveInputs =
+      rawAnswers.length > 0 ? deriveInputs(rawAnswers, snap.clinic.config) : snap.clinic.inputs;
+    const original = computeResult(liveInputs, snap.clinic.config);
     const h = await headers();
     const host = h.get("host") ?? "";
     const proto = h.get("x-forwarded-proto") ?? "https";
@@ -245,7 +252,7 @@ export default async function ResultPage({
           </div>
         ) : null}
         <ClinicAuditResult
-          inputs={snap.clinic.inputs}
+          inputs={liveInputs}
           config={snap.clinic.config}
           original={original}
           prose={snap.clinic.prose}

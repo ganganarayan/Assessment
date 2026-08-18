@@ -1,6 +1,12 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
-import { isClinicRole, type ClinicRole } from "@/lib/scoring/clinic-audit";
+import {
+  isClinicRole,
+  isClinicUnit,
+  detectUnitFromQuestion,
+  type ClinicRole,
+  type RawAnswer,
+} from "@/lib/scoring/clinic-audit";
 
 /**
  * The respondent's answers for a CLINIC_AUDIT submission, grouped by category and
@@ -30,6 +36,74 @@ export interface ClinicAnswerCategory {
   name: string;
   page: number;
   rows: ClinicAnswerRow[];
+}
+
+/**
+ * Rebuild the engine's RawAnswer[] from the submission's STORED ANSWERS rather than
+ * from the snapshot's pre-converted numbers.
+ *
+ * The snapshot caches inputs that were already scaled at completion time, so a fix
+ * to how a scale is interpreted would otherwise only ever help NEW submissions —
+ * every result page and PDF created earlier would keep showing the old, wrong
+ * reading forever. Re-deriving here means the current interpretation applies to
+ * every submission, past and future. The AI prose still comes from the snapshot
+ * (it is written once and must stay stable).
+ *
+ * Returns [] when the submission has no scored answers — callers then fall back to
+ * the stored snapshot inputs.
+ */
+export async function getClinicRawAnswers(submissionId: string): Promise<RawAnswer[]> {
+  const sub = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    select: { assessmentId: true, clinicActualAnswers: true },
+  });
+  if (!sub) return [];
+
+  const [answers, questions] = await Promise.all([
+    prisma.submissionAnswer.findMany({
+      where: { submissionId },
+      select: { questionId: true, optionId: true },
+    }),
+    prisma.question.findMany({
+      where: { category: { assessmentId: sub.assessmentId } },
+      select: {
+        id: true,
+        text: true,
+        scoringRole: true,
+        scoringUnit: true,
+        options: { select: { id: true, value: true, label: true, diagnosisClause: true, isAssumption: true } },
+      },
+    }),
+  ]);
+
+  const questionById = new Map(questions.map((q) => [q.id, q]));
+  const actualRaw = (sub.clinicActualAnswers ?? {}) as Record<string, unknown>;
+  const out: RawAnswer[] = [];
+
+  for (const a of answers) {
+    const q = questionById.get(a.questionId);
+    if (!q || !isClinicRole(q.scoringRole ?? "")) continue;
+    const opt = q.options.find((o) => o.id === a.optionId);
+    if (!opt) continue;
+    const role = q.scoringRole as ClinicRole;
+    const rawActual = actualRaw[a.questionId];
+    const actualValue =
+      typeof rawActual === "string" && Number.isFinite(Number(rawActual)) ? Number(rawActual) : null;
+    out.push({
+      role,
+      value: opt.value,
+      actualValue,
+      optionLabel: opt.label,
+      // Explicit config wins; else infer from the question's own wording/options —
+      // the same rule the runner and the scorer use.
+      unit: isClinicUnit(q.scoringUnit)
+        ? q.scoringUnit
+        : detectUnitFromQuestion(role, q.text, q.options.map((o) => o.value)),
+      isAssumption: opt.isAssumption,
+      clause: opt.diagnosisClause,
+    });
+  }
+  return out;
 }
 
 export async function getClinicAnswers(submissionId: string): Promise<ClinicAnswerCategory[]> {
