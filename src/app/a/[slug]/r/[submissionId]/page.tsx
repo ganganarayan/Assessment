@@ -190,6 +190,19 @@ export default async function ResultPage({
                   )}
                 </div>
               ) : null}
+              {/* The booking CTA is the whole point of this page, so a missing
+                  calendar link must be loud HERE rather than silently dropping the
+                  button from the respondent's view. */}
+              {!setting?.bookingUrl ? (
+                <div className="mt-2 rounded-md border border-amber-500 bg-amber-500/10 px-3 py-2 text-sm">
+                  <strong>No booking link set.</strong> The &ldquo;Book an appointment&rdquo; button
+                  is hidden for the respondent until you save a calendar link in{" "}
+                  <a className="underline" href={isSuperOwner ? "/admin/settings" : "/w/settings"}>
+                    Settings &rarr; Booking / calendar link
+                  </a>
+                  .
+                </div>
+              ) : null}
               <div className="mt-2 grid grid-cols-1 gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
                 <Field label="Name">{[submission.leadFirstName, submission.leadLastName].filter(Boolean).join(" ") || "—"}</Field>
                 <Field label="Phone">{submission.leadMobile?.trim() || "—"}</Field>

@@ -522,10 +522,10 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
 
       {/* The three stages, side by side, so the progression is unmissable. */}
       <div className="block">
-        <h2>Where this leaves you</h2>
+        <h2>What you gain</h2>
         <p style={{ fontSize: 14, color: "var(--muted)" }}>
-          The same clinic, at each stage — your enquiries first, then the same enquiries with the
-          same enquiries after AI automation, then with performance marketing added on top.
+          The same clinic at each stage. Your enquiries today, the same enquiries once AI automation
+          answers and follows them up, then performance marketing on top.
         </p>
         <div className="ladder">
           <div className="rung">
@@ -569,8 +569,10 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         </div>
         {result.performance.netGain > 0 ? (
           <p className="verdict">
-            You put in {formatINR(result.performance.investment)} a month and end up{" "}
-            {formatINR(result.performance.netGain)} a month ahead of where you are today.
+            You spend {formatINR(result.performance.investment)} a month. You keep{" "}
+            {formatINR(result.performance.netTotal)}. That is{" "}
+            <strong>{formatINR(result.performance.netGain)} a month more profit</strong> than you
+            make today — {formatINR(result.performance.netGain * 12)} over a year.
           </p>
         ) : null}
       </div>
@@ -578,11 +580,13 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       {/* Dormant database */}
       {result.dormant.recoverable > 0 ? (
         <div className="block">
-          <h2>Already sitting in your clinic</h2>
+          <h2>The unattended gold mine in your clinic</h2>
           <p>
-            About <span className="num">{result.dormant.recoverable}</span> cases (<span className="num">{formatINR(result.dormant.value)}</span>) are
-            recoverable from the dormant enquiries you already hold{dTag ? <span className="assumed-tag">{dTag}</span> : null} — no ad spend
-            required. This is the first-fortnight number, deliberately conservative.
+            You are already sitting on <span className="num">{result.dormant.recoverable}</span> recoverable
+            cases &mdash; <span className="num">{formatINR(result.dormant.value)}</span>{dTag ? <span className="assumed-tag">{dTag}</span> : null} of
+            treatment value in enquiries you have already paid for and nobody has called back. It
+            costs you nothing in ads to go and get it. This is the first-fortnight number, and it is
+            deliberately conservative.
           </p>
         </div>
       ) : null}
@@ -614,18 +618,16 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
 
       {/* Talk it through — universal. The calculation above already makes the case;
           it is never gated behind an internal severity band. */}
-      <div className="block">
-        <h2>Talk it through</h2>
-        <p>Book a 1-on-1 video call with our expert to walk through these numbers for your clinic.</p>
-        {bookingUrl ? (
-          <>
-            <iframe className="cal" src={bookingUrl} title="Book a call" loading="lazy" />
-            <p style={{ marginTop: 8 }}>
-              <a className="btn" href={bookingUrl} target="_blank" rel="noreferrer">Book a 1-on-1 call</a>
-            </p>
-          </>
-        ) : null}
-      </div>
+      {bookingUrl ? (
+        <div className="block">
+          <h2>Talk it through</h2>
+          <p>Book a 1-on-1 video call with our expert to walk through these numbers for your clinic.</p>
+          <iframe className="cal" src={bookingUrl} title="Book a call" loading="lazy" />
+          <p style={{ marginTop: 8 }}>
+            <a className="btn" href={bookingUrl} target="_blank" rel="noreferrer">Book a 1-on-1 call</a>
+          </p>
+        </div>
+      ) : null}
 
       {/* Close: book the appointment, and forward it to whoever decides. */}
       <div className="block">

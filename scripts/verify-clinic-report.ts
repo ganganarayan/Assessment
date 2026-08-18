@@ -27,6 +27,13 @@ async function main() {
     DEFAULT_ENGINE_CONFIG,
   );
   const result = computeResult(inputs, DEFAULT_ENGINE_CONFIG);
+  // Guard the offer block: if netGain is not positive the verdict never renders and
+  // this smoke test silently stops covering it (a font/style fault there would ship).
+  if (!(result.performance.netGain > 0)) {
+    console.error("  fixture must produce a positive netGain to exercise the verdict: FAIL");
+    process.exit(1);
+  }
+  console.log("  fixture exercises the offer verdict: PASS");
 
   const buf = await renderClinicReportPdf({
     name: "Ganesh Test Patro",

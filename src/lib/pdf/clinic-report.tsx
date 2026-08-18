@@ -89,6 +89,8 @@ const s = StyleSheet.create({
   p: { marginBottom: 8, textAlign: "justify" },
   note: { fontSize: 9.5, color: MUTE, backgroundColor: "#F7F5F0", borderRadius: 4, padding: 8, marginTop: 8 },
   cta: { marginTop: 8, fontSize: 10, color: TEAL },
+  verdict: { marginTop: 10, fontSize: 11, color: GOLD, fontFamily: "Lato", fontWeight: "bold",
+    borderWidth: 1, borderColor: GOLD, borderRadius: 4, padding: 10, backgroundColor: "#FFFDF7" },
   footer: { position: "absolute", bottom: 24, left: 44, right: 44, borderTopWidth: 1, borderTopColor: LINE, paddingTop: 6 },
   footLine: { fontSize: 7.5, color: MUTE, textAlign: "center" },
 });
@@ -264,10 +266,10 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
         </View>
 
         <View style={s.section} wrap={false}>
-          <Text style={s.h2}>Where this leaves you</Text>
+          <Text style={s.h2}>What you gain</Text>
           <Text style={s.p}>
-            The same clinic at each stage — your enquiries today, the same enquiries with the
-            same enquiries after AI automation, then with performance marketing added on top.
+            The same clinic at each stage. Your enquiries today, the same enquiries once AI
+            automation answers and follows them up, then performance marketing on top.
           </Text>
           <View style={s.calc}>
             <CalcRow label="Today" value={`${formatINR(r.revenueNow)}/month`} />
@@ -278,20 +280,23 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
             <CalcRow label="= What you keep" value={`${formatINR(r.performance.netTotal)}/month`} valueStyle={s.calcValRevenue} last />
           </View>
           {r.performance.netGain > 0 ? (
-            <Text style={[s.p, { marginTop: 8 }]}>
-              You put in {formatINR(r.performance.investment)} a month and end up{" "}
-              {formatINR(r.performance.netGain)} a month ahead of where you are today.
+            <Text style={s.verdict}>
+              You spend {formatINR(r.performance.investment)} a month. You keep{" "}
+              {formatINR(r.performance.netTotal)}. That is {formatINR(r.performance.netGain)} a
+              month more profit than you make today — {formatINR(r.performance.netGain * 12)} over
+              a year.
             </Text>
           ) : null}
         </View>
 
         {r.dormant.recoverable > 0 ? (
           <View style={s.section} wrap={false}>
-            <Text style={s.h2}>Already sitting in your clinic</Text>
+            <Text style={s.h2}>The unattended gold mine in your clinic</Text>
             <Text style={s.p}>
-              About {r.dormant.recoverable} cases ({formatINR(r.dormant.value)})
-              {dTag ? ` (${dTag})` : ""} are recoverable from the dormant enquiries you already hold —
-              no ad spend required.
+              You are already sitting on {r.dormant.recoverable} recoverable cases —{" "}
+              {formatINR(r.dormant.value)}{dTag ? ` (${dTag})` : ""} of treatment value in enquiries
+              you have already paid for and nobody has called back. It costs you nothing in ads to go
+              and get it.
             </Text>
           </View>
         ) : null}
@@ -305,11 +310,13 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
           </View>
         ) : null}
 
-        <View style={s.section} wrap={false}>
-          <Text style={s.h2}>Talk it through</Text>
-          <Text style={s.p}>Book a 1-on-1 video call with our expert to walk through these numbers for your clinic.</Text>
-          {data.bookingUrl ? <Text style={s.cta}>{data.bookingUrl}</Text> : null}
-        </View>
+        {data.bookingUrl ? (
+          <View style={s.section} wrap={false}>
+            <Text style={s.h2}>Talk it through</Text>
+            <Text style={s.p}>Book a 1-on-1 video call with our expert to walk through these numbers for your clinic.</Text>
+            <Text style={s.cta}>{data.bookingUrl}</Text>
+          </View>
+        ) : null}
 
         <View style={s.footer} fixed>
           <Text style={s.footLine}>Patient Acquisition Audit — Assess360</Text>
