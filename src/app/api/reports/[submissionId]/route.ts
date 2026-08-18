@@ -99,6 +99,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
       result,
       prose: snap.clinic.prose,
       bookingUrl: setting?.bookingUrl ?? null,
+      costPerEnquiry: snap.clinic.config.costPerEnquiry,
     };
     pdf = await renderClinicReportPdf(data);
   } else {

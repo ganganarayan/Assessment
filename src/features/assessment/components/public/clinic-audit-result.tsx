@@ -63,6 +63,8 @@ const BRAND_CSS = `
 .dl .calc-row.revenue { color:var(--teal); font-weight:700; font-size:15px; padding-top:8px; }
 .dl .calc-row.revenue.pot { color:var(--gold-d); }
 .dl .calc-row.rounded { font-weight:600; border-top:1px solid var(--line); }
+.dl .edit-lead { font-size:14px; background:#fff; border:1px solid var(--gold); border-radius:4px;
+  padding:10px 12px; margin-top:14px; }
 .dl .assumed-tag { font-size:10px; color:var(--gold-d); font-style:italic; margin-left:6px; font-weight:400; }
 .dl .prose { white-space:pre-line; }
 .dl .prose h3 { margin-top:18px; margin-bottom:4px; font-size:16px; }
@@ -154,6 +156,14 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
   const potTrail = buildTrail(result.enquiries, result.bookRateImproved, result.showUpImproved, result.closeRate);
   const caseToday = caseLine(todayTrail.cases);
   const casePot = caseLine(potTrail.cases);
+  // The five-case chain, worked FORWARD from the ad spend the engine derived, so
+  // every stage reconciles with the money rather than appearing out of nowhere.
+  const fiveTrail = buildTrail(
+    result.fiveCases.enquiries,
+    result.bookRateImproved,
+    result.showUpNow,
+    result.closeRate,
+  );
 
   const commit = () => {
     const e = parseInt(eStr, 10); if (Number.isFinite(e) && e > 0) { const c = clampNum(e, 1, 2000); setE(c); setEStr(String(c)); }
@@ -285,7 +295,12 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         </div>
       </div>
 
-      {/* Editable inputs */}
+      {/* Editable inputs — say plainly that they ARE editable; a gold underline
+          alone doesn't tell anyone they may overwrite the figure. */}
+      <div className="edit-lead">
+        <strong>These three numbers are yours to change.</strong> If any of them is off, type your
+        real figure — every calculation on this page updates instantly.
+      </div>
       <div className="inputs">
         <div className={`field${eInvalid ? " invalid" : ""}`}>
           <label htmlFor="dl-e">New patient enquiries a month</label>
@@ -424,15 +439,47 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         </div>
       ) : null}
 
-      {/* Five-case block */}
+      {/* Five-case block — shown as the same stepped table, worked FORWARD from the
+          ad spend so it is obvious what the money buys at each stage. */}
       <div className="block">
         <h2>What five more cases a month would take</h2>
-        <p>
-          At your own close rate, held constant: <span className="num">{result.fiveCases.attended}</span> consultations
-          attended, <span className="num">{result.fiveCases.booked}</span> booked, <span className="num">{result.fiveCases.enquiries}</span> enquiries,
-          roughly <span className="num">{formatINR(result.fiveCases.adSpend)}</span> in ad spend. The close rate here is your
-          own reported figure — never modelled as improving.
+        <p style={{ fontSize: 14, color: "var(--muted)" }}>
+          Working forward from the ad spend, at <strong>{formatINR(config.costPerEnquiry)} per enquiry</strong> and
+          your own rates. The close rate stays your reported figure — never modelled as improving.
         </p>
+        <div className="calc" style={{ marginTop: 10 }}>
+          <div className="calc-row">
+            <span>Ad spend</span>
+            <span className="num">{formatINR(result.fiveCases.adSpend)}/month</span>
+          </div>
+          <div className="calc-row op">
+            <span>÷ Cost per enquiry ({formatINR(config.costPerEnquiry)})</span>
+            <span className="num">= {fmtStep(result.fiveCases.enquiries)} enquiries</span>
+          </div>
+          <div className="calc-row op">
+            <span>× Booking rate ({pctLabel(result.bookRateImproved)})</span>
+            <span className="num">= {fmtStep(fiveTrail.booked)} booked</span>
+          </div>
+          <div className="calc-row op">
+            <span>× Show-up rate ({pctLabel(result.showUpNow)})</span>
+            <span className="num">= {fmtStep(fiveTrail.attended)} attended</span>
+          </div>
+          <div className="calc-row op final">
+            <span>× Close rate ({pctLabel(result.closeRate)})</span>
+            <span className="num">= {fmtStep(fiveTrail.cases)} patients/month</span>
+          </div>
+          <div className="calc-row op revenue">
+            <span>× Treatment value ({formatINR(result.treatmentValue)})</span>
+            <span className="num">= {formatINR(fiveTrail.cases * result.treatmentValue)}/month</span>
+          </div>
+          <div className="calc-row op rounded">
+            <span>In whole patients</span>
+            <span className="num">
+              {roundPatients(fiveTrail.cases)} patients/month ={" "}
+              {formatINR(roundedRevenue(fiveTrail.cases, result.treatmentValue))}/month
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Dormant database */}

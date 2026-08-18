@@ -103,14 +103,16 @@ export default async function ResultPage({
   const snap = submission.resultSnapshot as unknown as ResultSnapshot | null;
 
   // ---- Clinic-audit engine: branded interactive result --------------------
-  // Token-gated like the other respondent results (owner or matching ?t=token).
-  // Renders from the clinic snapshot; the client recomputes edits via the same
-  // pure engine. Takes precedence over the generic branches for this engine.
+  // Reachable by the submission id ALONE — no token, no sign-in. The id is an
+  // unguessable cuid, and this page is built to be forwarded ("Send this to the
+  // clinic owner"), so requiring ?t= made the SAME url behave differently for the
+  // sender and the recipient: whoever opened it without the token got a bare
+  // "assessment recorded" page. Renders from the clinic snapshot; the client
+  // recomputes edits via the same pure engine. Precedes the generic branches.
   if (
     submission.assessment.engine === "CLINIC_AUDIT" &&
     snap?.clinic &&
-    submission.status === "COMPLETED" &&
-    (canViewInternally || (!!token && token === submission.resultToken))
+    submission.status === "COMPLETED"
   ) {
     const setting = submission.assessment.tenantId
       ? await prisma.appSetting.findUnique({
@@ -156,8 +158,11 @@ export default async function ResultPage({
     const clinicAnswers = await getClinicAnswers(submissionId);
     return (
       <main style={{ minHeight: "100vh", background: "#F7F5F0" }}>
+        {/* Colours come from the THEME tokens, never a hardcoded white — the app
+            renders dark for signed-in staff, so a fixed white panel made every
+            value (which inherits --foreground) white-on-white and invisible. */}
         {canViewInternally ? (
-          <div style={{ background: "#fff", borderBottom: "1px solid #DCD6C9" }}>
+          <div className="border-b border-[var(--border)] bg-[var(--background)] text-[var(--foreground)]">
             <div className="mx-auto w-full max-w-2xl px-4 py-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
                 Internal — not shown to the respondent

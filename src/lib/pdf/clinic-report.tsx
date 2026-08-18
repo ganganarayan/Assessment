@@ -52,6 +52,8 @@ export interface ClinicReportData {
   result: ClinicAuditResult;
   prose: string | null;
   bookingUrl: string | null;
+  /** ₹ per enquiry used for the five-case ad-spend chain (from the engine config). */
+  costPerEnquiry: number;
 }
 
 const s = StyleSheet.create({
@@ -139,6 +141,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
   const potTrail = buildTrail(r.enquiries, r.bookRateImproved, r.showUpImproved, r.closeRate);
   const caseToday = caseLine(todayTrail.cases);
   const casePot = caseLine(potTrail.cases);
+  const fiveTrail = buildTrail(r.fiveCases.enquiries, r.bookRateImproved, r.showUpNow, r.closeRate);
   const caseTodayLabel = `${caseToday.text} patient${caseToday.text === "1" ? "" : "s"}/month${caseToday.hint ? ` (${caseToday.hint})` : ""}`;
   const casePotLabel = `${casePot.text} patient${casePot.text === "1" ? "" : "s"}/month${casePot.hint ? ` (${casePot.hint})` : ""}`;
 
@@ -234,10 +237,26 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
         <View style={s.section} wrap={false}>
           <Text style={s.h2}>What five more cases a month would take</Text>
           <Text style={s.p}>
-            At your own close rate, held constant: {r.fiveCases.attended} consultations attended,{" "}
-            {r.fiveCases.booked} booked, {r.fiveCases.enquiries} enquiries, roughly {formatINR(r.fiveCases.adSpend)}{" "}
-            in ad spend.
+            Working forward from the ad spend, at {formatINR(data.costPerEnquiry)} per enquiry and your
+            own rates. The close rate stays your reported figure — never modelled as improving.
           </Text>
+          <View style={s.calc}>
+            <CalcRow label="Ad spend" value={`${formatINR(r.fiveCases.adSpend)}/month`} />
+            <CalcRow label={`÷ Cost per enquiry (${formatINR(data.costPerEnquiry)})`} value={`= ${fmtStep(r.fiveCases.enquiries)} enquiries`} />
+            <CalcRow label={`× Booking rate (${pctLabel(r.bookRateImproved)})`} value={`= ${fmtStep(fiveTrail.booked)} booked`} />
+            <CalcRow label={`× Show-up rate (${pctLabel(r.showUpNow)})`} value={`= ${fmtStep(fiveTrail.attended)} attended`} />
+            <CalcRow label={`× Close rate (${pctLabel(r.closeRate)})`} value={`= ${fmtStep(fiveTrail.cases)} patients/month`} />
+            <CalcRow
+              label={`× Treatment value (${formatINR(r.treatmentValue)})`}
+              value={`= ${formatINR(fiveTrail.cases * r.treatmentValue)}/month`}
+              valueStyle={s.calcValRevenue}
+            />
+            <CalcRow
+              label="In whole patients"
+              value={`${roundPatients(fiveTrail.cases)} patients/month = ${formatINR(roundedRevenue(fiveTrail.cases, r.treatmentValue))}/month`}
+              last
+            />
+          </View>
         </View>
 
         {r.dormant.recoverable > 0 ? (
