@@ -89,7 +89,6 @@ const BRAND_CSS = `
 .dl .btn.wa { background:var(--teal); }
 .dl .link { color:var(--teal); text-decoration:underline; cursor:pointer; background:none; border:0;
   font-family:var(--body); font-size:14px; padding:0; }
-.dl .cal { width:100%; height:640px; border:1px solid var(--line); border-radius:4px; margin-top:12px; }
 .dl .cap-lead { background:#fff; border:1px solid var(--gold); border-radius:4px; padding:14px; margin:12px 0; }
 `;
 
@@ -616,22 +615,14 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         </div>
       ) : null}
 
-      {/* Talk it through — universal. The calculation above already makes the case;
-          it is never gated behind an internal severity band. */}
-      {bookingUrl ? (
-        <div className="block">
-          <h2>Talk it through</h2>
-          <p>Book a 1-on-1 video call with our expert to walk through these numbers for your clinic.</p>
-          <iframe className="cal" src={bookingUrl} title="Book a call" loading="lazy" />
-          <p style={{ marginTop: 8 }}>
-            <a className="btn" href={bookingUrl} target="_blank" rel="noreferrer">Book a 1-on-1 call</a>
-          </p>
-        </div>
-      ) : null}
-
-      {/* Close: book the appointment, and forward it to whoever decides. */}
+      {/* Close: book the appointment, and forward it to whoever decides. The calendar
+          is deliberately NOT embedded here — it loads a heavy third-party frame in the
+          middle of the argument and pulls attention off the numbers. The button opens
+          it in its own tab instead. */}
       <div className="block">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+        <h2>Talk it through</h2>
+        <p>Book a 1-on-1 video call with our expert to walk through these numbers for your clinic.</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 }}>
           {bookingUrl ? (
             <a className="btn" href={bookingUrl} target="_blank" rel="noreferrer">Book an appointment</a>
           ) : null}
