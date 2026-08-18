@@ -8,7 +8,7 @@ import {
   type ClinicAuditResult,
   type ClinicRole,
 } from "@/lib/scoring/clinic-audit";
-import { fmtStep, caseLine, buildTrail, assumedTagText } from "@/lib/scoring/clinic-trail";
+import { fmtStep, caseLine, buildTrail, assumedTagText, roundPatients, roundedRevenue } from "@/lib/scoring/clinic-trail";
 import { formatINR, monthlyLabel, pctLabel } from "@/lib/format/inr";
 
 /**
@@ -62,6 +62,7 @@ const BRAND_CSS = `
 .dl .calc-row.final { font-weight:600; }
 .dl .calc-row.revenue { color:var(--teal); font-weight:700; font-size:15px; padding-top:8px; }
 .dl .calc-row.revenue.pot { color:var(--gold-d); }
+.dl .calc-row.rounded { font-weight:600; border-top:1px solid var(--line); }
 .dl .assumed-tag { font-size:10px; color:var(--gold-d); font-style:italic; margin-left:6px; font-weight:400; }
 .dl .prose { white-space:pre-line; }
 .dl .prose h3 { margin-top:18px; margin-bottom:4px; font-size:16px; }
@@ -343,6 +344,16 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
           </span>
           <span className="num">= {formatINR(result.revenueNow)}/month</span>
         </div>
+        {/* You can't treat a fraction of a person — show what that means in whole
+            patients alongside the exact arithmetic. */}
+        <div className="calc-row op rounded">
+          <span>In whole patients</span>
+          <span className="num">
+            {roundPatients(todayTrail.cases)} patient
+            {roundPatients(todayTrail.cases) === 1 ? "" : "s"}/month ={" "}
+            {formatINR(roundedRevenue(todayTrail.cases, result.treatmentValue))}/month
+          </span>
+        </div>
       </div>
 
       <div className="calc" style={{ marginTop: 12 }}>
@@ -369,6 +380,14 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         <div className="calc-row op revenue pot">
           <span>× Treatment value ({formatINR(result.treatmentValue)})</span>
           <span className="num">= {formatINR(result.revenuePotential)}/month</span>
+        </div>
+        <div className="calc-row op rounded">
+          <span>In whole patients</span>
+          <span className="num">
+            {roundPatients(potTrail.cases)} patient
+            {roundPatients(potTrail.cases) === 1 ? "" : "s"}/month ={" "}
+            {formatINR(roundedRevenue(potTrail.cases, result.treatmentValue))}/month
+          </span>
         </div>
       </div>
 

@@ -6,7 +6,7 @@ import { join } from "path";
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Font, renderToBuffer } from "@react-pdf/renderer";
 import { type ClinicAuditResult } from "@/lib/scoring/clinic-audit";
-import { fmtStep, caseLine, buildTrail, assumedTagText } from "@/lib/scoring/clinic-trail";
+import { fmtStep, caseLine, buildTrail, assumedTagText, roundPatients, roundedRevenue } from "@/lib/scoring/clinic-trail";
 import { formatINR, pctLabel } from "@/lib/format/inr";
 
 /**
@@ -198,6 +198,10 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
             tag={vTag}
             value={`= ${formatINR(r.revenueNow)}/month`}
             valueStyle={s.calcValRevenue}
+          />
+          <CalcRow
+            label="In whole patients"
+            value={`${roundPatients(todayTrail.cases)} patient${roundPatients(todayTrail.cases) === 1 ? "" : "s"}/month = ${formatINR(roundedRevenue(todayTrail.cases, r.treatmentValue))}/month`}
             last
           />
         </View>
@@ -212,6 +216,10 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
             label={`× Treatment value (${formatINR(r.treatmentValue)})`}
             value={`= ${formatINR(r.revenuePotential)}/month`}
             valueStyle={s.calcValRevenuePot}
+          />
+          <CalcRow
+            label="In whole patients"
+            value={`${roundPatients(potTrail.cases)} patient${roundPatients(potTrail.cases) === 1 ? "" : "s"}/month = ${formatINR(roundedRevenue(potTrail.cases, r.treatmentValue))}/month`}
             last
           />
         </View>

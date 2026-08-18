@@ -31,6 +31,21 @@ export function caseLine(n: number): { text: string; hint: string | null } {
   return { text: fmtStep(n), hint: null };
 }
 
+/**
+ * Whole patients. You cannot treat 1.4 people — the exact figure is what the funnel
+ * mathematically yields, but the number of humans through the door is an integer.
+ * Both are shown: the exact figure keeps the arithmetic checkable, the rounded one
+ * is what actually happens. Rounds half up (1.4 → 1, 4.5 → 5, 4.8 → 5).
+ */
+export function roundPatients(n: number): number {
+  return Math.round(n);
+}
+
+/** The revenue implied by the WHOLE-patient count, shown beside the exact figure. */
+export function roundedRevenue(cases: number, treatmentValue: number): number {
+  return roundPatients(cases) * treatmentValue;
+}
+
 /** Enquiries → booked → attended → cases, at a given rate chain. Cases uses the
  *  UNROUNDED chain (matches the engine's own casesNowExact/casesPotentialExact),
  *  so the displayed revenue always reconciles with the displayed case count. */

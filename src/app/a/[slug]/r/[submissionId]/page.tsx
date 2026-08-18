@@ -209,42 +209,6 @@ export default async function ResultPage({
                   ))}
                 </div>
               </div>
-              {clinicAnswers.length > 0 ? (
-                <div className="mt-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-                    Their responses
-                  </p>
-                  {clinicAnswers.map((cat) => (
-                    <div key={cat.name} className="mt-3">
-                      <p className="text-sm font-semibold">
-                        {cat.name}
-                        {cat.page === 2 ? (
-                          <span className="ml-2 text-xs font-normal text-[var(--muted-foreground)]">Page 2</span>
-                        ) : null}
-                      </p>
-                      <ul className="mt-1 flex flex-col gap-1.5">
-                        {cat.rows.map((r) => (
-                          <li key={r.questionId} className="flex flex-col border-b border-[var(--border)] pb-1.5 text-sm last:border-0">
-                            <span className="text-[var(--muted-foreground)]">{r.text}</span>
-                            <span>
-                              {r.answerLabel ?? <em className="text-[var(--muted-foreground)]">not answered</em>}
-                              {r.role ? (
-                                <span className="ml-2 text-xs text-[var(--muted-foreground)]">
-                                  [{r.role} → engine used{" "}
-                                  {r.actualValue != null
-                                    ? `${r.actualValue} (typed)`
-                                    : `${r.optionValue ?? "—"} (from option)`}
-                                  ]
-                                </span>
-                              ) : null}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
               <p className="mt-4 border-t pt-3 text-xs text-[var(--muted-foreground)]">
                 Below is exactly what the respondent sees.
               </p>
