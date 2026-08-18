@@ -396,7 +396,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       </div>
 
       <div className="calc" style={{ marginTop: 12 }}>
-        <p className="calc-title pot">Achievable — fixing response speed &amp; follow-up</p>
+        <p className="calc-title pot">After AI automation that fixes response speed &amp; follow-up</p>
         <div className="calc-row">
           <span>Monthly enquiries (same)</span>
           <span className="num">{fmtStep(result.enquiries)}</span>
@@ -525,7 +525,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         <h2>Where this leaves you</h2>
         <p style={{ fontSize: 14, color: "var(--muted)" }}>
           The same clinic, at each stage — your enquiries first, then the same enquiries with the
-          follow-up system working, then with performance marketing added on top.
+          same enquiries after AI automation, then with performance marketing added on top.
         </p>
         <div className="ladder">
           <div className="rung">
@@ -534,7 +534,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
             <span className="rung-sub">{roundPatients(todayTrail.cases)} patients a month</span>
           </div>
           <div className="rung mid">
-            <span className="rung-cap">With the follow-up system working</span>
+            <span className="rung-cap">After AI automation</span>
             <span className="rung-amt num">{formatINR(result.revenuePotential)}</span>
             <span className="rung-sub">
               {roundPatients(potTrail.cases)} patients a month — same enquiries, nothing bought

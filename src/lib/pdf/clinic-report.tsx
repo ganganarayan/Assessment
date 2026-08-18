@@ -210,7 +210,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
         </View>
 
         <View style={s.calc}>
-          <Text style={s.calcTitlePot}>Achievable — fixing response speed &amp; follow-up</Text>
+          <Text style={s.calcTitlePot}>After AI automation that fixes response speed &amp; follow-up</Text>
           <CalcRow label="Monthly enquiries (same)" value={fmtStep(r.enquiries)} />
           <CalcRow label={`× Booking rate (${pctLabel(r.bookRateImproved)})`} value={`= ${fmtStep(potTrail.booked)} booked`} />
           <CalcRow label={`× Show-up rate (${pctLabel(r.showUpImproved)})`} value={`= ${fmtStep(potTrail.attended)} attended`} />
@@ -267,11 +267,11 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
           <Text style={s.h2}>Where this leaves you</Text>
           <Text style={s.p}>
             The same clinic at each stage — your enquiries today, the same enquiries with the
-            follow-up system working, then with performance marketing added on top.
+            same enquiries after AI automation, then with performance marketing added on top.
           </Text>
           <View style={s.calc}>
             <CalcRow label="Today" value={`${formatINR(r.revenueNow)}/month`} />
-            <CalcRow label="With the follow-up system working (same enquiries)" value={`${formatINR(r.revenuePotential)}/month`} valueStyle={s.calcValRevenue} />
+            <CalcRow label="After AI automation (same enquiries)" value={`${formatINR(r.revenuePotential)}/month`} valueStyle={s.calcValRevenue} />
             <CalcRow label={`+ performance marketing (${formatINR(r.performance.adBudget)} ads)`} value={`${formatINR(r.performance.combinedRevenue)}/month`} valueStyle={s.calcValRevenuePot} />
             <CalcRow label="− Performance marketing fee" value={`− ${formatINR(r.performance.serviceFee)}/month`} />
             <CalcRow label="− Ad budget" value={`− ${formatINR(r.performance.adBudget)}/month`} />
