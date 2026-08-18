@@ -8,7 +8,7 @@ import {
   type ClinicAuditResult,
   type ClinicRole,
 } from "@/lib/scoring/clinic-audit";
-import { fmtStep, caseLine, buildTrail, assumedTagText, roundPatients, roundedRevenue } from "@/lib/scoring/clinic-trail";
+import { fmtStep, caseLine, buildTrail, assumedTagText, roundPatients, roundedRevenue, wholePatientView } from "@/lib/scoring/clinic-trail";
 import { formatINR, monthlyLabel, pctLabel } from "@/lib/format/inr";
 
 /**
@@ -185,6 +185,18 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
     result.showUpImproved,
     result.closeRate,
   );
+  // Every SUMMARY figure is restated in whole patients: a reader who sees
+  // "1 patient a month" must see one treatment value of money, not the exact
+  // 1.4-patient revenue. The exact chain still appears in the trails above each
+  // total, so the arithmetic stays checkable.
+  const whole = wholePatientView({
+    casesNow: todayTrail.cases,
+    casesPotential: potTrail.cases,
+    casesPm: pmTrail.cases,
+    treatmentValue: result.treatmentValue,
+    adBudget: result.performance.adBudget,
+    serviceFee: result.performance.serviceFee,
+  });
 
   const commit = () => {
     const e = parseInt(eStr, 10); if (Number.isFinite(e) && e > 0) { const c = clampNum(e, 1, 2000); setE(c); setEStr(String(c)); }
@@ -290,7 +302,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       ) : null}
 
       {!original.dataInconsistent ? (
-        <h1 style={{ fontSize: 26, marginTop: 4 }}>What your current funnel is worth</h1>
+        <h1 style={{ fontSize: 26, marginTop: 4 }}>Your numbers right now</h1>
       ) : null}
 
       {/* Everything money-related is withheld when the inputs are incoherent —
@@ -301,47 +313,43 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       <div className="figures" aria-live="polite">
         <div className="fig today">
           <div className="cap">Earning today</div>
-          <div className="amt">{formatINR(result.revenueNow)}</div>
-          <div className="sub">{result.casesNow} cases from {result.enquiries} enquiries · {monthlyLabel(result.revenueNow)}</div>
-          <div className="sub num">{formatINR(result.revenueNow * 12)} a year</div>
+          <div className="amt">{formatINR(whole.revenueNow)}</div>
+          <div className="sub">{whole.patientsNow} patients from {result.enquiries} enquiries · {monthlyLabel(whole.revenueNow)}</div>
+          <div className="sub num">{formatINR(whole.revenueNow * 12)} a year</div>
         </div>
         <div className="fig gap">
           <div className="cap">Lost in the gap</div>
-          <div className="amt">{formatINR(result.gap)}</div>
-          <div className="sub">{Math.max(0, result.casesPotential - result.casesNow)} cases never reached · {monthlyLabel(result.gap)}</div>
-          <div className="sub num">{formatINR(result.annualGap)} a year</div>
+          <div className="amt">{formatINR(whole.gap)}</div>
+          <div className="sub">{whole.patientsGap} patients never reached · {monthlyLabel(whole.gap)}</div>
+          <div className="sub num">{formatINR(whole.annualGap)} a year</div>
         </div>
         <div className="fig full">
           <div className="cap">Full potential</div>
-          <div className="amt">{formatINR(result.revenuePotential)}</div>
-          <div className="sub">{result.casesPotential} cases at the same close rate</div>
+          <div className="amt">{formatINR(whole.revenuePotential)}</div>
+          <div className="sub">{whole.patientsPotential} patients at the same close rate</div>
         </div>
       </div>
 
       {/* Editable inputs — say plainly that they ARE editable; a gold underline
           alone doesn't tell anyone they may overwrite the figure. */}
-      <div className="edit-lead">
-        <strong>These three numbers are yours to change.</strong> If any of them is off, type your
-        real figure — every calculation on this page updates instantly.
-      </div>
+      <div className="edit-lead">Change any of the figures below and see the effect.</div>
+      {/* One short label per field, no per-field hint — three equal one-line labels
+          keep the columns on a shared baseline instead of staggering by height. */}
       <div className="inputs">
         <div className={`field${eInvalid ? " invalid" : ""}`}>
-          <label htmlFor="dl-e">New patient enquiries a month</label>
+          <label htmlFor="dl-e">Enquiries a month</label>
           <input id="dl-e" inputMode="numeric" pattern="[0-9]*" value={eStr}
             onChange={(e) => setEStr(e.target.value)} onBlur={commit} />
-          <div className="hint">Change it if you know your real number.</div>
         </div>
         <div className={`field${vInvalid ? " invalid" : ""}`}>
-          <label htmlFor="dl-v">Average value of one completed treatment</label>
+          <label htmlFor="dl-v">Treatment value</label>
           <input id="dl-v" inputMode="numeric" pattern="[0-9]*" value={vStr}
             onChange={(e) => setVStr(e.target.value)} onBlur={commit} />
-          <div className="hint">Change it if you know your real number.</div>
         </div>
         <div className={`field${cInvalid ? " invalid" : ""}`}>
-          <label htmlFor="dl-c">Of every 10 who attend, how many go ahead?</label>
+          <label htmlFor="dl-c">Treatments taken per 10 meetings</label>
           <input id="dl-c" inputMode="numeric" pattern="[0-9]*" value={cStr}
             onChange={(e) => setCStr(e.target.value)} onBlur={commit} />
-          <div className="hint">Change it if you know your real number.</div>
         </div>
       </div>
       {edited ? <button className="link" onClick={reset}>Reset to my answers</button> : null}
@@ -509,8 +517,8 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
           <div className="calc-row op rounded">
             <span>In whole patients</span>
             <span className="num">
-              {roundPatients(pmTrail.cases)} patients/month ={" "}
-              {formatINR(roundedRevenue(pmTrail.cases, result.treatmentValue))}/month
+              {whole.patientsPm} patient{whole.patientsPm === 1 ? "" : "s"}/month ={" "}
+              {formatINR(whole.revenuePm)}/month
             </span>
           </div>
         </div>
@@ -529,21 +537,24 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         <div className="ladder">
           <div className="rung">
             <span className="rung-cap">Today</span>
-            <span className="rung-amt num">{formatINR(result.revenueNow)}</span>
-            <span className="rung-sub">{roundPatients(todayTrail.cases)} patients a month</span>
+            <span className="rung-amt num">{formatINR(whole.revenueNow)}</span>
+            <span className="rung-sub">
+              {whole.patientsNow} patient{whole.patientsNow === 1 ? "" : "s"} a month
+            </span>
           </div>
           <div className="rung mid">
             <span className="rung-cap">After AI automation</span>
-            <span className="rung-amt num">{formatINR(result.revenuePotential)}</span>
+            <span className="rung-amt num">{formatINR(whole.revenuePotential)}</span>
             <span className="rung-sub">
-              {roundPatients(potTrail.cases)} patients a month — same enquiries, nothing bought
+              {whole.patientsPotential} patient{whole.patientsPotential === 1 ? "" : "s"} a month — same
+              enquiries, nothing bought
             </span>
           </div>
           <div className="rung top">
             <span className="rung-cap">+ performance marketing ({formatINR(result.performance.adBudget)} ads)</span>
-            <span className="rung-amt num">{formatINR(result.performance.combinedRevenue)}</span>
+            <span className="rung-amt num">{formatINR(whole.combined)}</span>
             <span className="rung-sub">
-              {roundPatients(potTrail.cases) + roundPatients(pmTrail.cases)} patients a month
+              {whole.patientsTop} patient{whole.patientsTop === 1 ? "" : "s"} a month
             </span>
           </div>
         </div>
@@ -551,7 +562,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         <div className="calc" style={{ marginTop: 14 }}>
           <div className="calc-row">
             <span>Gross at the top stage</span>
-            <span className="num">{formatINR(result.performance.combinedRevenue)}/month</span>
+            <span className="num">{formatINR(whole.combined)}/month</span>
           </div>
           <div className="calc-row op">
             <span>− Performance marketing fee</span>
@@ -563,15 +574,14 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
           </div>
           <div className="calc-row op revenue">
             <span>= What you keep</span>
-            <span className="num">{formatINR(result.performance.netTotal)}/month</span>
+            <span className="num">{formatINR(whole.netTotal)}/month</span>
           </div>
         </div>
-        {result.performance.netGain > 0 ? (
+        {whole.netGain > 0 ? (
           <p className="verdict">
-            You spend {formatINR(result.performance.investment)} a month. You keep{" "}
-            {formatINR(result.performance.netTotal)}. That is{" "}
-            <strong>{formatINR(result.performance.netGain)} a month more profit</strong> than you
-            make today — {formatINR(result.performance.netGain * 12)} over a year.
+            You spend {formatINR(whole.investment)} a month. You keep {formatINR(whole.netTotal)}.
+            That is <strong>{formatINR(whole.netGain)} a month more profit</strong> than you make
+            today — {formatINR(whole.netGain * 12)} over a year.
           </p>
         ) : null}
       </div>
@@ -622,11 +632,13 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       <div className="block">
         <h2>Talk it through</h2>
         <p>Book a 1-on-1 video call with our expert to walk through these numbers for your clinic.</p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 }}>
+        {/* Forward-on sits left, the booking CTA is pushed to the right edge so it
+            lands on the same margin as every figure above it. */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12, justifyContent: "space-between" }}>
+          <a className="btn wa" href={waHref} target="_blank" rel="noreferrer">Send this to the clinic owner</a>
           {bookingUrl ? (
             <a className="btn" href={bookingUrl} target="_blank" rel="noreferrer">Book an appointment</a>
           ) : null}
-          <a className="btn wa" href={waHref} target="_blank" rel="noreferrer">Send this to the clinic owner</a>
         </div>
       </div>
     </div>

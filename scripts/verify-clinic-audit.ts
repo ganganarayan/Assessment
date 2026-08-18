@@ -15,6 +15,7 @@ import {
   type RawAnswer,
   type ClinicRole,
 } from "../src/lib/scoring/clinic-audit";
+import { wholePatientView } from "../src/lib/scoring/clinic-trail";
 
 let failures = 0;
 const ok = (n: string) => console.log(`  PASS  ${n}`);
@@ -329,6 +330,49 @@ console.log("Clinic Audit engine verification\n");
   expect("resolveEngineConfig overrides costPerEnquiry", merged.costPerEnquiry === 750, `${merged.costPerEnquiry}`);
   expect("  keeps defaults for the rest", merged.bookRateCap === 0.38, `${merged.bookRateCap}`);
   expect("  ignores unknown/invalid keys", !("bogus" in merged));
+}
+
+// --- Whole-patient view -----------------------------------------------------
+// Every summary figure must reconcile with the patient count printed beside it:
+// if the page says 1 patient, the money must be exactly one treatment value.
+{
+  const V = 100_000;
+  const w = wholePatientView({
+    casesNow: 1.4,
+    casesPotential: 4.8,
+    casesPm: 4.6,
+    treatmentValue: V,
+    adBudget: 50_000,
+    serviceFee: 100_000,
+  });
+  expect("rounds half up: 1.4 -> 1", w.patientsNow === 1, `${w.patientsNow}`);
+  expect("  4.8 -> 5", w.patientsPotential === 5, `${w.patientsPotential}`);
+  expect("  4.6 -> 5", w.patientsPm === 5, `${w.patientsPm}`);
+  expect("  top rung sums the two rounded counts", w.patientsTop === 10, `${w.patientsTop}`);
+  expect("revenue is patients x treatment value (today)", w.revenueNow === 100_000, `${w.revenueNow}`);
+  expect("  (after AI automation)", w.revenuePotential === 500_000, `${w.revenuePotential}`);
+  expect("  (top stage)", w.combined === 1_000_000, `${w.combined}`);
+  expect("no odd money: every total is a whole multiple of V",
+    [w.revenueNow, w.revenuePotential, w.revenuePm, w.combined, w.gap].every((n) => n % V === 0));
+  expect("gap = potential - today", w.gap === 400_000, `${w.gap}`);
+  expect("  annual gap is 12x", w.annualGap === 4_800_000, `${w.annualGap}`);
+  expect("netTotal = combined - ads - fee", w.netTotal === 850_000, `${w.netTotal}`);
+  expect("netGain = netTotal - today", w.netGain === 750_000, `${w.netGain}`);
+  expect("investment = ads + fee", w.investment === 150_000, `${w.investment}`);
+
+  const half = wholePatientView({ casesNow: 0.5, casesPotential: 1.5, casesPm: 0,
+    treatmentValue: V, adBudget: 0, serviceFee: 0 });
+  expect("0.5 rounds up to 1", half.patientsNow === 1, `${half.patientsNow}`);
+  expect("  1.5 rounds up to 2", half.patientsPotential === 2, `${half.patientsPotential}`);
+  const zero = wholePatientView({ casesNow: 0, casesPotential: 0, casesPm: 0,
+    treatmentValue: V, adBudget: 0, serviceFee: 0 });
+  expect("a zero funnel yields zero money", zero.revenueNow === 0 && zero.gap === 0);
+  // A sub-half funnel rounds to 0 patients — the money must follow, never showing
+  // revenue beside "0 patients".
+  const tiny = wholePatientView({ casesNow: 0.3, casesPotential: 0.4, casesPm: 0,
+    treatmentValue: V, adBudget: 0, serviceFee: 0 });
+  expect("0.3 patients shows 0 money, not a fraction",
+    tiny.patientsNow === 0 && tiny.revenueNow === 0, `${tiny.patientsNow}/${tiny.revenueNow}`);
 }
 
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILURE(S)`}\n`);

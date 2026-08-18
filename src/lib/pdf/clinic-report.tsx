@@ -6,7 +6,7 @@ import { join } from "path";
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Font, renderToBuffer } from "@react-pdf/renderer";
 import { type ClinicAuditResult } from "@/lib/scoring/clinic-audit";
-import { fmtStep, caseLine, buildTrail, assumedTagText, roundPatients, roundedRevenue } from "@/lib/scoring/clinic-trail";
+import { fmtStep, caseLine, buildTrail, assumedTagText, roundPatients, roundedRevenue, wholePatientView } from "@/lib/scoring/clinic-trail";
 import { formatINR, pctLabel } from "@/lib/format/inr";
 
 /**
@@ -144,6 +144,16 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
   const caseToday = caseLine(todayTrail.cases);
   const casePot = caseLine(potTrail.cases);
   const pmTrail = buildTrail(r.performance.enquiries, r.bookRateImproved, r.showUpImproved, r.closeRate);
+  // Summary figures in whole patients — same helper the web page uses, so the two
+  // surfaces cannot report different money for the same patient count.
+  const whole = wholePatientView({
+    casesNow: todayTrail.cases,
+    casesPotential: potTrail.cases,
+    casesPm: pmTrail.cases,
+    treatmentValue: r.treatmentValue,
+    adBudget: r.performance.adBudget,
+    serviceFee: r.performance.serviceFee,
+  });
   const caseTodayLabel = `${caseToday.text} patient${caseToday.text === "1" ? "" : "s"}/month${caseToday.hint ? ` (${caseToday.hint})` : ""}`;
   const casePotLabel = `${casePot.text} patient${casePot.text === "1" ? "" : "s"}/month${casePot.hint ? ` (${casePot.hint})` : ""}`;
 
@@ -174,20 +184,20 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
         <View style={s.figures}>
           <View style={s.fig}>
             <Text style={s.figCapToday}>Earning today</Text>
-            <Text style={s.figAmt}>{formatINR(r.revenueNow)}</Text>
-            <Text style={s.figSub}>{r.casesNow} cases from {r.enquiries} enquiries</Text>
-            <Text style={s.figSub}>{formatINR(r.revenueNow * 12)} a year</Text>
+            <Text style={s.figAmt}>{formatINR(whole.revenueNow)}</Text>
+            <Text style={s.figSub}>{whole.patientsNow} patients from {r.enquiries} enquiries</Text>
+            <Text style={s.figSub}>{formatINR(whole.revenueNow * 12)} a year</Text>
           </View>
           <View style={s.fig}>
             <Text style={s.figCapGap}>Lost in the gap</Text>
-            <Text style={s.figAmtGap}>{formatINR(r.gap)}</Text>
-            <Text style={s.figSub}>{Math.max(0, r.casesPotential - r.casesNow)} cases never reached</Text>
-            <Text style={s.figSub}>{formatINR(r.annualGap)} a year</Text>
+            <Text style={s.figAmtGap}>{formatINR(whole.gap)}</Text>
+            <Text style={s.figSub}>{whole.patientsGap} patients never reached</Text>
+            <Text style={s.figSub}>{formatINR(whole.annualGap)} a year</Text>
           </View>
           <View style={s.fig}>
             <Text style={s.figCapFull}>Full potential</Text>
-            <Text style={s.figAmt}>{formatINR(r.revenuePotential)}</Text>
-            <Text style={s.figSub}>{r.casesPotential} cases at the same close rate</Text>
+            <Text style={s.figAmt}>{formatINR(whole.revenuePotential)}</Text>
+            <Text style={s.figSub}>{whole.patientsPotential} patients at the same close rate</Text>
           </View>
         </View>
 
@@ -256,7 +266,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
             />
             <CalcRow
               label="In whole patients"
-              value={`${roundPatients(pmTrail.cases)} patients/month = ${formatINR(roundedRevenue(pmTrail.cases, r.treatmentValue))}/month`}
+              value={`${whole.patientsPm} patient${whole.patientsPm === 1 ? "" : "s"}/month = ${formatINR(whole.revenuePm)}/month`}
               last
             />
           </View>
@@ -272,19 +282,18 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
             automation answers and follows them up, then performance marketing on top.
           </Text>
           <View style={s.calc}>
-            <CalcRow label="Today" value={`${formatINR(r.revenueNow)}/month`} />
-            <CalcRow label="After AI automation (same enquiries)" value={`${formatINR(r.revenuePotential)}/month`} valueStyle={s.calcValRevenue} />
-            <CalcRow label={`+ performance marketing (${formatINR(r.performance.adBudget)} ads)`} value={`${formatINR(r.performance.combinedRevenue)}/month`} valueStyle={s.calcValRevenuePot} />
+            <CalcRow label="Today" value={`${formatINR(whole.revenueNow)}/month`} />
+            <CalcRow label="After AI automation (same enquiries)" value={`${formatINR(whole.revenuePotential)}/month`} valueStyle={s.calcValRevenue} />
+            <CalcRow label={`+ performance marketing (${formatINR(r.performance.adBudget)} ads)`} value={`${formatINR(whole.combined)}/month`} valueStyle={s.calcValRevenuePot} />
             <CalcRow label="− Performance marketing fee" value={`− ${formatINR(r.performance.serviceFee)}/month`} />
             <CalcRow label="− Ad budget" value={`− ${formatINR(r.performance.adBudget)}/month`} />
-            <CalcRow label="= What you keep" value={`${formatINR(r.performance.netTotal)}/month`} valueStyle={s.calcValRevenue} last />
+            <CalcRow label="= What you keep" value={`${formatINR(whole.netTotal)}/month`} valueStyle={s.calcValRevenue} last />
           </View>
-          {r.performance.netGain > 0 ? (
+          {whole.netGain > 0 ? (
             <Text style={s.verdict}>
-              You spend {formatINR(r.performance.investment)} a month. You keep{" "}
-              {formatINR(r.performance.netTotal)}. That is {formatINR(r.performance.netGain)} a
-              month more profit than you make today — {formatINR(r.performance.netGain * 12)} over
-              a year.
+              You spend {formatINR(whole.investment)} a month. You keep{" "}
+              {formatINR(whole.netTotal)}. That is {formatINR(whole.netGain)} a month more profit
+              than you make today — {formatINR(whole.netGain * 12)} over a year.
             </Text>
           ) : null}
         </View>

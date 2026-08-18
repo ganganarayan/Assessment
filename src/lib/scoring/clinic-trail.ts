@@ -74,3 +74,53 @@ export function assumedTagText(
   const range = (assumedRangeLabel ?? {})[role];
   return range ? `assumed — avg of ${range}` : "assumed";
 }
+
+/**
+ * Every headline figure, restated in WHOLE patients.
+ *
+ * A clinic owner reads "1 patient a month" and "₹1,40,000 a month" as one claim, so
+ * the two must reconcile: if we say one patient, the money must be one treatment
+ * value. The exact chain still appears in the calculation trail (that is what makes
+ * the arithmetic checkable) — but every summary number the reader quotes back to us
+ * is derived from the rounded patient count, so no line ever contradicts another.
+ *
+ * Shared by the web page and the PDF so the two cannot drift apart.
+ */
+export function wholePatientView(args: {
+  casesNow: number;
+  casesPotential: number;
+  casesPm: number;
+  treatmentValue: number;
+  adBudget: number;
+  serviceFee: number;
+}) {
+  const { treatmentValue: V, adBudget, serviceFee } = args;
+  const patientsNow = roundPatients(args.casesNow);
+  const patientsPotential = roundPatients(args.casesPotential);
+  const patientsPm = roundPatients(args.casesPm);
+  const patientsTop = patientsPotential + patientsPm;
+
+  const revenueNow = patientsNow * V;
+  const revenuePotential = patientsPotential * V;
+  const revenuePm = patientsPm * V;
+  const combined = patientsTop * V;
+  const investment = adBudget + serviceFee;
+  const netTotal = combined - investment;
+
+  return {
+    patientsNow,
+    patientsPotential,
+    patientsPm,
+    patientsTop,
+    patientsGap: Math.max(0, patientsPotential - patientsNow),
+    revenueNow,
+    revenuePotential,
+    revenuePm,
+    gap: Math.max(0, revenuePotential - revenueNow),
+    annualGap: Math.max(0, revenuePotential - revenueNow) * 12,
+    combined,
+    investment,
+    netTotal,
+    netGain: netTotal - revenueNow,
+  };
+}
