@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { requireWorkspace } from "@/lib/auth/guards";
 import { listSubmissionsForExport } from "@/features/admin/data/submissions-export";
 import {
   SUBMISSION_EXPORT_COLUMNS,
@@ -10,24 +10,25 @@ import { toCsv } from "@/lib/csv";
 import { formatIST } from "@/lib/date";
 
 /**
- * Super-admin submissions export. GET /api/admin/submissions/export?format=csv|json[&assessment=<id>]
- * — every submission with its full result: score, overall band, result link,
- * UTMs, all category results, and ALL AI-statement versions. JSON keeps these
- * nested; CSV flattens categories + versions into single cells (one row per
- * submission). Optionally scoped to a single assessment.
+ * Tenant-scoped submissions export. GET /api/w/submissions/export?assessment=<id>&format=csv|json
+ * — same shape as the super-admin export, but restricted to the signed-in
+ * tenant's own submissions for the given assessment.
  */
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  await requireSuperAdmin();
+  const { tenantId } = await requireWorkspace();
 
   const url = new URL(req.url);
   const format = url.searchParams.get("format") === "json" ? "json" : "csv";
-  const assessmentId = url.searchParams.get("assessment") ?? undefined;
-  const rows = await listSubmissionsForExport({ assessmentId });
+  const assessmentId = url.searchParams.get("assessment");
+  if (!assessmentId) {
+    return NextResponse.json({ error: "Missing ?assessment=<id>" }, { status: 400 });
+  }
+
+  const rows = await listSubmissionsForExport({ tenantId, assessmentId });
   const stamp = formatIST(new Date()).slice(0, 10);
   const capped = rows.length >= EXPORT_CAP;
-  if (capped) console.warn(`[submissions-export] capped at ${EXPORT_CAP} rows`);
   const extra: Record<string, string> = capped ? { "x-export-capped": String(EXPORT_CAP) } : {};
 
   if (format === "json") {

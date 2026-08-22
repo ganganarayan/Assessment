@@ -7,6 +7,7 @@ import { EXPORT_CAP } from "@/features/admin/data/analytics";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { getStatsFloor } from "@/lib/stats-floor";
 import { labeledAnswers, labeledAnswersText } from "@/features/assessment/custom-fields";
+import { env } from "@/lib/env";
 
 export interface SubmissionExportCategory {
   name: string;
@@ -44,6 +45,7 @@ export interface SubmissionExportRow {
   overallBandLevel: string | null;
   paidAmount: number | null;
   paidAtIST: string | null;
+  resultUrl: string | null;
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
@@ -55,12 +57,26 @@ export interface SubmissionExportRow {
   aiStatements: SubmissionExportAi[];
 }
 
-/** ALL submissions with their full results (categories + every AI version),
- *  newest first, for the Submissions export. */
-export async function listSubmissionsForExport(): Promise<SubmissionExportRow[]> {
+export interface SubmissionExportFilter {
+  /** Restrict to one tenant's submissions (via its assessments). */
+  tenantId?: string;
+  /** Restrict to one assessment's submissions. */
+  assessmentId?: string;
+}
+
+/** Submissions with their full results (categories + every AI version),
+ *  newest first, for the Submissions export. Optionally scoped to a tenant
+ *  and/or a single assessment. */
+export async function listSubmissionsForExport(
+  filter: SubmissionExportFilter = {},
+): Promise<SubmissionExportRow[]> {
   const floor = await getStatsFloor();
   const subs = await prisma.submission.findMany({
-    where: floor ? { createdAt: { gte: floor } } : {},
+    where: {
+      ...(floor ? { createdAt: { gte: floor } } : {}),
+      ...(filter.assessmentId ? { assessmentId: filter.assessmentId } : {}),
+      ...(filter.tenantId ? { tenantId: filter.tenantId } : {}),
+    },
     orderBy: { createdAt: "desc" },
     take: EXPORT_CAP,
     select: {
@@ -144,6 +160,7 @@ export async function listSubmissionsForExport(): Promise<SubmissionExportRow[]>
       overallBandLevel: s.resultBand?.level ?? snap?.resultBandLevel ?? null,
       paidAmount: p?.amount ?? null,
       paidAtIST: p?.at ? formatIST(new Date(p.at)) : null,
+      resultUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${s.assessment.slug}/r/${s.id}`,
       utm_source: a?.utm_source ?? null,
       utm_medium: a?.utm_medium ?? null,
       utm_campaign: a?.utm_campaign ?? null,

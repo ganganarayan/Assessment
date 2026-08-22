@@ -44,6 +44,7 @@ export default async function SubmissionsPage({
     return {
       id: s.id,
       slug: s.assessment.slug,
+      assessmentId: s.assessmentId,
       assessmentTitle: s.assessment.title,
       createdAt: s.createdAt.toISOString(),
       firstName: s.leadFirstName,

@@ -18,6 +18,7 @@ export default async function WorkspaceSubmissionsPage() {
     return {
       id: s.id,
       slug: s.assessment.slug,
+      assessmentId: s.assessmentId,
       assessmentTitle: s.assessment.title,
       createdAt: s.createdAt.toISOString(),
       firstName: s.leadFirstName,
@@ -50,7 +51,7 @@ export default async function WorkspaceSubmissionsPage() {
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions yet.</p>
       ) : (
-        <SubmissionsTable rows={rows} />
+        <SubmissionsTable rows={rows} exportBase="/api/w/submissions/export" />
       )}
     </div>
   );

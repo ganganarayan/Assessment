@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 export interface SubmissionRow {
   id: string;
   slug: string;
+  assessmentId: string;
   assessmentTitle: string;
   createdAt: string; // ISO
   firstName: string | null;
@@ -28,8 +29,16 @@ export interface SubmissionRow {
 type SortKey = "date" | "lead" | "score" | "result" | "status";
 
 /** Submissions grouped by assessment (name shown once as a section header), with
- *  click-to-sort columns (toggles asc/desc, applied within each group). */
-export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
+ *  click-to-sort columns (toggles asc/desc, applied within each group).
+ *  `exportBase`, when given, adds per-assessment "CSV" / "JSON" export links
+ *  to each group header, pointing at `${exportBase}?assessment=<id>&format=...`. */
+export function SubmissionsTable({
+  rows,
+  exportBase,
+}: {
+  rows: SubmissionRow[];
+  exportBase?: string;
+}) {
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
   const [query, setQuery] = useState("");
 
@@ -69,13 +78,13 @@ export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
       return 0;
     };
 
-    const m = new Map<string, SubmissionRow[]>();
+    const m = new Map<string, { title: string; rows: SubmissionRow[] }>();
     for (const r of visible) {
-      const arr = m.get(r.assessmentTitle) ?? [];
-      arr.push(r);
-      m.set(r.assessmentTitle, arr);
+      const g = m.get(r.assessmentId) ?? { title: r.assessmentTitle, rows: [] };
+      g.rows.push(r);
+      m.set(r.assessmentId, g);
     }
-    for (const arr of m.values()) arr.sort(cmp);
+    for (const g of m.values()) g.rows.sort(cmp);
     return Array.from(m.entries());
   }, [rows, sort, query]);
 
@@ -102,12 +111,33 @@ export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
       {groups.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions match “{query}”.</p>
       ) : null}
-      {groups.map(([title, subs]) => (
-        <div key={title} className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold">
-            {title}{" "}
-            <span className="text-sm font-normal text-[var(--muted-foreground)]">({subs.length})</span>
-          </h2>
+      {groups.map(([assessmentId, group]) => (
+        <div key={assessmentId} className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-4">
+            <h2 className="text-lg font-semibold">
+              {group.title}{" "}
+              <span className="text-sm font-normal text-[var(--muted-foreground)]">
+                ({group.rows.length})
+              </span>
+            </h2>
+            {exportBase ? (
+              <div className="flex items-center gap-3 text-xs">
+                <span className="text-[var(--muted-foreground)]">Export:</span>
+                <a
+                  href={`${exportBase}?assessment=${assessmentId}&format=csv`}
+                  className="underline"
+                >
+                  CSV
+                </a>
+                <a
+                  href={`${exportBase}?assessment=${assessmentId}&format=json`}
+                  className="underline"
+                >
+                  JSON
+                </a>
+              </div>
+            ) : null}
+          </div>
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
               <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
@@ -122,7 +152,7 @@ export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {subs.map((s) => (
+                {group.rows.map((s) => (
                   <tr key={s.id}>
                     <td className="whitespace-nowrap px-3 py-2 text-xs">{formatIST(s.createdAt)}</td>
                     <td className="px-3 py-2">
