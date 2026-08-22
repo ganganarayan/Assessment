@@ -7,7 +7,7 @@ import { EXPORT_CAP } from "@/features/admin/data/analytics";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { getStatsFloor } from "@/lib/stats-floor";
 import { labeledAnswers, labeledAnswersText } from "@/features/assessment/custom-fields";
-import { env } from "@/lib/env";
+import { resultUrlFor } from "@/lib/events/completion";
 
 export interface SubmissionExportCategory {
   name: string;
@@ -100,7 +100,10 @@ export async function listSubmissionsForExport(
       maxScore: true,
       attribution: true,
       resultSnapshot: true,
-      assessment: { select: { title: true, slug: true, optinFields: true, preResultFields: true } },
+      resultToken: true,
+      assessment: {
+        select: { title: true, slug: true, targetUrl: true, optinFields: true, preResultFields: true },
+      },
       resultBand: { select: { level: true, title: true } },
       aiStatements: {
         orderBy: { createdAt: "asc" },
@@ -164,7 +167,7 @@ export async function listSubmissionsForExport(
       overallBandLevel: s.resultBand?.level ?? snap?.resultBandLevel ?? null,
       paidAmount: p?.amount ?? null,
       paidAtIST: p?.at ? formatIST(new Date(p.at)) : null,
-      resultUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${s.assessment.slug}/r/${s.id}`,
+      resultUrl: resultUrlFor(s.assessment.targetUrl, s.assessment.slug, s.id, s.resultToken),
       utm_source: a?.utm_source ?? null,
       utm_medium: a?.utm_medium ?? null,
       utm_campaign: a?.utm_campaign ?? null,
