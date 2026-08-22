@@ -62,6 +62,10 @@ export interface SubmissionExportFilter {
   tenantId?: string;
   /** Restrict to one assessment's submissions. */
   assessmentId?: string;
+  /** Explicit "Data window" floor to apply (createdAt >= floor). Pass `null`
+   *  to disable filtering entirely. Omit to fall back to the global platform
+   *  floor — only meaningful for the fully unscoped, platform-wide export. */
+  floor?: Date | null;
 }
 
 /** Submissions with their full results (categories + every AI version),
@@ -70,7 +74,7 @@ export interface SubmissionExportFilter {
 export async function listSubmissionsForExport(
   filter: SubmissionExportFilter = {},
 ): Promise<SubmissionExportRow[]> {
-  const floor = await getStatsFloor();
+  const floor = filter.floor !== undefined ? filter.floor : await getStatsFloor();
   const subs = await prisma.submission.findMany({
     where: {
       ...(floor ? { createdAt: { gte: floor } } : {}),

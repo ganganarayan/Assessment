@@ -26,7 +26,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing ?assessment=<id>" }, { status: 400 });
   }
 
-  const rows = await listSubmissionsForExport({ tenantId, assessmentId });
+  // No "Data window" floor: /w/submissions shows every submission unfiltered.
+  const rows = await listSubmissionsForExport({ tenantId, assessmentId, floor: null });
   const stamp = formatIST(new Date()).slice(0, 10);
   const capped = rows.length >= EXPORT_CAP;
   const extra: Record<string, string> = capped ? { "x-export-capped": String(EXPORT_CAP) } : {};

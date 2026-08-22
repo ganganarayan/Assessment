@@ -13,14 +13,17 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const EXPORT_GROUPS = [
-  {
-    items: [
-      { label: "CSV", href: "/api/admin/submissions/export?format=csv" },
-      { label: "JSON", href: "/api/admin/submissions/export?format=json" },
-    ],
-  },
-];
+function exportGroups(assessmentId?: string) {
+  const suffix = assessmentId ? `&assessment=${assessmentId}` : "";
+  return [
+    {
+      items: [
+        { label: "CSV", href: `/api/admin/submissions/export?format=csv${suffix}` },
+        { label: "JSON", href: `/api/admin/submissions/export?format=json${suffix}` },
+      ],
+    },
+  ];
+}
 
 export default async function SubmissionsPage({
   searchParams,
@@ -71,7 +74,7 @@ export default async function SubmissionsPage({
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
-        {scoped ? null : <AnalyticsToolbar exportGroups={EXPORT_GROUPS} />}
+        <AnalyticsToolbar exportGroups={exportGroups(scoped?.id)} />
       </div>
       {scoped ? (
         <AssessmentScopeBar assessmentTitle={scoped.title} allHref="/admin/submissions" />

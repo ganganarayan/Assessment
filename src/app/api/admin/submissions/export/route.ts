@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/auth/guards";
+import { prisma } from "@/lib/db/prisma";
 import { listSubmissionsForExport } from "@/features/admin/data/submissions-export";
 import {
   SUBMISSION_EXPORT_COLUMNS,
@@ -24,7 +25,13 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const format = url.searchParams.get("format") === "json" ? "json" : "csv";
   const assessmentId = url.searchParams.get("assessment") ?? undefined;
-  const rows = await listSubmissionsForExport({ assessmentId });
+  // Scoped to one assessment: use ITS OWN "Data window" reset (or none), not the
+  // platform-wide floor — matches what the scoped Submissions page shows on screen.
+  const floor = assessmentId
+    ? (await prisma.assessment.findUnique({ where: { id: assessmentId }, select: { statsResetAt: true } }))
+        ?.statsResetAt ?? null
+    : undefined;
+  const rows = await listSubmissionsForExport({ assessmentId, floor });
   const stamp = formatIST(new Date()).slice(0, 10);
   const capped = rows.length >= EXPORT_CAP;
   if (capped) console.warn(`[submissions-export] capped at ${EXPORT_CAP} rows`);
