@@ -1,19 +1,23 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { isOriginAllowed } from "@/lib/result/cors";
-import { readResult } from "@/lib/result/read";
+import { readResult, chooseServedRow } from "@/lib/result/read";
 import { rateLimit } from "@/lib/rate-limit";
 import { loadPurchaseSettings, resolvePurchasePlan } from "@/lib/meta/capi-log";
 
 /**
  * Public, latency-critical read endpoint the customer's destination page calls:
- *   GET /api/r/:token  -> the result snapshot (404 missing, 410 expired).
+ *   GET /api/r/:token  -> the result snapshot (404 missing, 200 otherwise).
  *
- * Security is the unguessable, expiring token (no auth). CORS is PER-TENANT:
- * the request Origin is reflected ONLY if it matches the owning assessment's
- * targetOrigin (derived from its Target URL). Never wildcards. GET/OPTIONS only.
- * One indexed query by token; the payload is a denormalized snapshot (no joins
- * beyond a shallow targetOrigin read for CORS).
+ * LATEST-ONLY: the token identifies a PERSON (via its own row's identifierValue);
+ * the page renders that person's NEWEST completed submission for the same
+ * assessment, so a retake surfaces on the original (already-emailed/embedded)
+ * token automatically. No expiry (see lib/result/read.ts). No version navigator —
+ * exactly one reading (the newest) is ever exposed.
+ *
+ * Security is the unguessable token (no auth). CORS is PER-TENANT: the request
+ * Origin is reflected ONLY if it matches the owning assessment's targetOrigin
+ * (same assessment for every one of a person's submissions). Never wildcards.
  */
 export const dynamic = "force-dynamic";
 
@@ -38,16 +42,61 @@ function throttled(req: Request): boolean {
   return global || perIp;
 }
 
-async function lookup(token: string) {
+interface TokenRow {
+  id: string;
+  tenantId: string | null;
+  assessmentId: string;
+  identifierValue: string | null;
+  resultSnapshot: unknown;
+  assessment: { targetOrigin: string | null; paidMode: boolean };
+}
+
+/** The token's own submission row (defines the person + the owning assessment). */
+async function lookupToken(token: string): Promise<TokenRow | null> {
   return prisma.submission.findUnique({
     where: { resultToken: token },
     select: {
       id: true,
+      tenantId: true,
+      assessmentId: true,
+      identifierValue: true,
       resultSnapshot: true,
-      resultTokenExpiresAt: true,
-      assessment: { select: { targetOrigin: true, paymentEventName: true } },
+      assessment: { select: { targetOrigin: true, paidMode: true } },
     },
   });
+}
+
+interface ServedRow {
+  id: string;
+  tenantId: string | null;
+  resultSnapshot: unknown;
+}
+
+/**
+ * The person's NEWEST completed reading for this assessment. Paid assessments key
+ * on payment (completedPaidAt) so an unpaid draft never surfaces; free ones key on
+ * completion. Null when the person has no completed reading (or the token row has
+ * no identifier — anonymous, ungroupable), in which case the caller serves the
+ * token's own row.
+ */
+async function newestForPerson(row: TokenRow): Promise<ServedRow | null> {
+  if (!row.identifierValue) return null;
+  const paid = row.assessment.paidMode;
+  return prisma.submission.findFirst({
+    where: paid
+      ? { assessmentId: row.assessmentId, identifierValue: row.identifierValue, completedPaidAt: { not: null } }
+      : { assessmentId: row.assessmentId, identifierValue: row.identifierValue, status: "COMPLETED" },
+    orderBy: paid ? { completedPaidAt: "desc" } : { completedAt: "desc" },
+    select: { id: true, tenantId: true, resultSnapshot: true },
+  });
+}
+
+/** The tenant's booking/calendar link (per-tenant AppSetting), for the destination
+ *  page's "Book a 1:1 Diagnosis Conversation" CTA. Null when unset. */
+async function bookingUrlFor(tenantId: string | null): Promise<string | null> {
+  if (!tenantId) return null;
+  const s = await prisma.appSetting.findUnique({ where: { tenantId }, select: { bookingUrl: true } });
+  return s?.bookingUrl ?? null;
 }
 
 /** The captured payment for a submission, shaped for the connector's browser
@@ -66,7 +115,7 @@ export async function OPTIONS(req: Request, ctx: { params: Promise<{ token: stri
   if (throttled(req)) return new NextResponse(null, { status: 429 });
   const { token } = await ctx.params;
   const origin = req.headers.get("origin");
-  const sub = await lookup(token);
+  const sub = await lookupToken(token);
   return new NextResponse(null, {
     status: 204,
     headers: corsHeaders(origin, sub?.assessment.targetOrigin ?? null),
@@ -81,32 +130,39 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  const sub = await lookup(token);
-  const headers = corsHeaders(origin, sub?.assessment.targetOrigin ?? null);
+  const tokenRow = await lookupToken(token);
+  // CORS is anchored to the token's assessment (shared by all the person's rows).
+  const headers = corsHeaders(origin, tokenRow?.assessment.targetOrigin ?? null);
 
-  const outcome = readResult(sub, Date.now());
+  // Resolve to the person's newest completed reading; fall back to the token's own
+  // row when there's nothing newer (or it's anonymous).
+  const newest = tokenRow ? await newestForPerson(tokenRow) : null;
+  const served = chooseServedRow<ServedRow>(
+    tokenRow ? { id: tokenRow.id, tenantId: tokenRow.tenantId, resultSnapshot: tokenRow.resultSnapshot } : null,
+    newest,
+  );
 
-  // Analytics: count EVERY successful fetch (one per VSL page load) and stamp the
-  // first one. Fire-and-forget; never delays or fails the read.
+  const outcome = readResult(served);
+
   let body = outcome.body;
-  if (outcome.status === 200 && sub) {
+  if (outcome.status === 200 && served) {
+    // Analytics count the SERVED row (the reading actually rendered).
     void prisma.submission
-      .updateMany({ where: { resultToken: token }, data: { resultFetchCount: { increment: 1 } } })
+      .updateMany({ where: { id: served.id }, data: { resultFetchCount: { increment: 1 } } })
       .catch(() => {});
     void prisma.submission
-      .updateMany({ where: { resultToken: token, resultFetchedAt: null }, data: { resultFetchedAt: new Date() } })
+      .updateMany({ where: { id: served.id, resultFetchedAt: null }, data: { resultFetchedAt: new Date() } })
       .catch(() => {});
-    // Attach the payment id (if paid) so the destination page can fire the browser
-    // pixel with the matching event_id + event name. The browser Purchase MUST use the
-    // SAME name the server CAPI auto-fires (Meta dedups on name+event_id) — so resolve
-    // it from the same settings-driven plan, not the legacy per-assessment name.
-    const pf = await purchaseFor(sub.id);
+    // Payment pixel is resolved for the SERVED submission so the browser Purchase
+    // uses the matching event_id + name (Meta dedups on name+event_id).
+    const pf = await purchaseFor(served.id);
     let purchase: { eventId: string; value: number | null; currency: string; eventName: string } | null = null;
     if (pf) {
       const { eventName } = resolvePurchasePlan(pf.value, await loadPurchaseSettings());
       purchase = { ...pf, eventName };
     }
-    body = { ...(outcome.body as Record<string, unknown>), purchase };
+    const bookingUrl = await bookingUrlFor(served.tenantId);
+    body = { ...(outcome.body as Record<string, unknown>), purchase, bookingUrl };
   }
 
   return NextResponse.json(body, {

@@ -23,6 +23,7 @@
     "verify:transfer": "tsx scripts/verify-transfer.ts",
     "verify:webhook-payload": "tsx scripts/verify-webhook-payload.ts",
     "verify:retake": "tsx scripts/verify-retake.ts",
+    "verify:result": "tsx scripts/verify-result.ts",
     "verify:vsl": "tsx scripts/verify-vsl.ts",
     "verify:capi": "tsx scripts/verify-capi.ts",
     "verify:ai": "tsx scripts/verify-ai.ts",

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const CONNECTOR_VERSION = "v14";
+const CONNECTOR_VERSION = "v15";
 
 /**
  * Two snippets, because the customer's page builder runs scripts ONLY in the
@@ -38,6 +38,7 @@ export function ConnectDestination({
   const partA = buildHeadSnippet(base, bandWords);
   const partB = buildBodySnippet();
   const partC = buildScoreSnippet();
+  const partD = buildCtaSnippet();
 
   return (
     <div className="flex flex-col gap-4">
@@ -46,11 +47,13 @@ export function ConnectDestination({
         <li>Paste <strong>Part A</strong> in the page&apos;s <span className="font-mono">&lt;head&gt;</span> (where scripts run).</li>
         <li>Paste <strong>Part B</strong> in the page <strong>body, right above your video</strong> (the AI message).</li>
         <li>Paste <strong>Part C</strong> in the page <strong>body, below your video and CTA button</strong> (the score + category breakdown).</li>
-        <li>All parts use classes (not ids), so they survive re-pastes. One fetch fills both B and C — no extra latency. Console shows <span className="font-mono">[assess360] connector {CONNECTOR_VERSION} active</span>.</li>
+        <li>Paste <strong>Part D</strong> where you want the <strong>Book a 1:1 Diagnosis Conversation</strong> button (e.g. right below the video). Its link comes from <strong>Settings → Booking / calendar link</strong>; if that&apos;s blank the button stays hidden.</li>
+        <li>All parts use classes (not ids), so they survive re-pastes. One fetch fills B, C and D — no extra latency. Console shows <span className="font-mono">[assess360] connector {CONNECTOR_VERSION} active</span>.</li>
       </ol>
       <CodeBlock title={`Part A — paste in <head> (connector ${CONNECTOR_VERSION})`} code={partA} />
       <CodeBlock title="Part B — paste in body, above your video" code={partB} />
       <CodeBlock title="Part C — paste in body, below your video + CTA" code={partC} />
+      <CodeBlock title="Part D — paste where the Book button should appear" code={partD} />
     </div>
   );
 }
@@ -155,6 +158,25 @@ function buildHeadSnippet(endpointBase: string, bandWords: Record<string, string
     if (d.purchase.value != null) cd.value = d.purchase.value;
     window.fbq("trackCustom", d.purchase.eventName || "Purchase121", cd, { eventID: d.purchase.eventId });
   }
+  // Primary CTA — point every ".assess360-cta" anchor at the clinic's calendar
+  // link (from Settings). No link set => hide the button rather than leave a dead
+  // control. The label is only set when the element is empty, so a hand-written
+  // label in the page is preserved.
+  function fillCta(d) {
+    var els = document.querySelectorAll(".assess360-cta");
+    for (var i = 0; i < els.length; i++) {
+      var a = els[i];
+      if (d.bookingUrl) {
+        a.setAttribute("href", d.bookingUrl);
+        a.setAttribute("target", "_blank");
+        a.setAttribute("rel", "noopener");
+        if (!a.textContent || !a.textContent.trim()) a.textContent = "Book a 1:1 Diagnosis Conversation";
+        a.style.display = "";
+      } else {
+        a.style.display = "none";
+      }
+    }
+  }
   function show(d) {
     var hasStmt = document.querySelectorAll('.assess360-ai-statement, [id^="ai-statement"]').length;
     var hasScore = document.querySelectorAll(".assess360-score").length;
@@ -163,6 +185,7 @@ function buildHeadSnippet(endpointBase: string, bandWords: Record<string, string
     }
     fillStatement(d);
     fillScore(d);
+    fillCta(d);
     firePurchase(d);
   }
   function go() { load().then(show).catch(function () {}); }
@@ -179,6 +202,16 @@ function buildBodySnippet(): string {
   return `<!-- assess360 results ${CONNECTOR_VERSION} — paste in body, above your video -->
 <h2 style="font-size:1.8rem;font-weight:800;text-align:center;margin:0 0 14px">Please Read Carefully</h2>
 <div class="assess360-ai-statement" style="white-space:pre-line;font-size:1.2rem;line-height:1.6"></div>`;
+}
+
+function buildCtaSnippet(): string {
+  // Class-based anchor, hidden until the head script sets its href from the
+  // tenant's booking link. Restyle .assess360-cta in your page CSS; the inline
+  // styles are only a sensible default so it looks like a button out of the box.
+  return `<!-- assess360 CTA ${CONNECTOR_VERSION} — paste where the Book button should appear -->
+<div style="text-align:center;margin:18px 0">
+  <a class="assess360-cta" href="#" style="display:none;background:#c79a3b;color:#fff;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:1.1rem">Book a 1:1 Diagnosis Conversation</a>
+</div>`;
 }
 
 function buildScoreSnippet(): string {

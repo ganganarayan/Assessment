@@ -71,15 +71,13 @@ console.log("VSL / token feature verification\n");
   expect("resultBandLevel defaults null", bare.resultBandLevel === null);
 }
 
-// (d) Read outcome: 404 / 410 / 200.
+// (d) Read outcome: 404 / 200 (expiry is DISABLED — see verify:result for the
+//     age-independence and latest-only resolution checks).
 {
-  expect("read 404 (missing)", readResult(null, Date.now()).status === 404);
-  expect("read 404 (no snapshot)", readResult({ resultSnapshot: null, resultTokenExpiresAt: null }, Date.now()).status === 404);
-  const past = new Date(Date.now() - 1000);
-  expect("read 410 (expired)", readResult({ resultSnapshot: { a: 1 }, resultTokenExpiresAt: past }, Date.now()).status === 410);
-  const future = new Date(Date.now() + 60_000);
-  const okOut = readResult({ resultSnapshot: { a: 1 }, resultTokenExpiresAt: future }, Date.now());
-  expect("read 200 (valid) returns snapshot", okOut.status === 200 && JSON.stringify(okOut.body) === JSON.stringify({ a: 1 }));
+  expect("read 404 (missing)", readResult(null).status === 404);
+  expect("read 404 (no snapshot)", readResult({ resultSnapshot: null }).status === 404);
+  const okOut = readResult({ resultSnapshot: { a: 1 } });
+  expect("read 200 (present) returns snapshot", okOut.status === 200 && JSON.stringify(okOut.body) === JSON.stringify({ a: 1 }));
 }
 
 // (e) CORS per-tenant.
