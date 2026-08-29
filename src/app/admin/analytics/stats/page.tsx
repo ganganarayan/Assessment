@@ -214,7 +214,11 @@ export default async function StatsPage({
                       </span>
                     </td>
                     <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]" colSpan={6}>
-                      Automated hits (Meta ad-review, crawlers), collapsed — excluded from all stats.
+                      {botSummary.sources.length > 0
+                        ? botSummary.sources
+                            .map((b) => `${b.source} ×${b.count.toLocaleString()}`)
+                            .join(" · ")
+                        : "Automated hits — collapsed, excluded from all stats."}
                     </td>
                   </tr>
                 ) : null}

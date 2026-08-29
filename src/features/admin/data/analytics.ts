@@ -7,6 +7,7 @@ import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { getStatsFloor, floorCreatedAt } from "@/lib/stats-floor";
 import type { PayloadAttribution } from "@/features/events/types";
 import { labeledAnswers, labeledAnswersText, type LabeledAnswer } from "@/features/assessment/custom-fields";
+import { botSourceFromUserAgent } from "@/lib/bots";
 
 /** The destination URL a contact lands on (targetUrl?t=token), falling back to the
  *  internal result page. Same rule as the completion/CRM builders. */
@@ -190,6 +191,12 @@ export async function listPageViews(opts: {
   }));
 }
 
+/** One bot source (e.g. "Meta ad-review") with its running hit count. */
+export interface BotSourceCount {
+  source: string;
+  count: number;
+}
+
 export interface BotViewSummary {
   /** Total bot/crawler page views in scope (Meta ad-review, preview bots, …). */
   count: number;
@@ -197,10 +204,17 @@ export interface BotViewSummary {
   firstAt: string;
   /** Most recent bot hit (ISO). */
   lastAt: string;
+  /** Which agents made up the count, desc by count — derived from the stored UA. */
+  sources: BotSourceCount[];
 }
 
-/** One collapsed line for all bot hits in scope: running count + first/last seen.
- *  null when there are none. Feeds the single "bot" row atop the page-view log. */
+/** Read cap for the source breakdown — bot volume is tiny, so this only guards
+ *  against a pathological flood; count/first/last stay exact via aggregate(). */
+const BOT_BREAKDOWN_CAP = 5000;
+
+/** One collapsed line for all bot hits in scope: running count, first/last seen,
+ *  and a per-source breakdown. null when there are none. Feeds the single "bot"
+ *  row atop the page-view log. */
 export async function getBotViewSummary(opts: {
   from?: string;
   to?: string;
@@ -212,18 +226,40 @@ export async function getBotViewSummary(opts: {
     assessmentId: opts.assessmentId,
     ...("floor" in opts ? { floor: opts.floor } : {}),
   });
-  const agg = await prisma.pageView.aggregate({
-    where: { ...scope, isBot: true },
-    _count: { _all: true },
-    _min: { createdAt: true },
-    _max: { createdAt: true },
-  });
+  const botWhere = { ...scope, isBot: true };
+
+  const [agg, rows] = await Promise.all([
+    prisma.pageView.aggregate({
+      where: botWhere,
+      _count: { _all: true },
+      _min: { createdAt: true },
+      _max: { createdAt: true },
+    }),
+    prisma.pageView.findMany({
+      where: botWhere,
+      select: { userAgent: true },
+      take: BOT_BREAKDOWN_CAP,
+    }),
+  ]);
+
   const count = agg._count._all;
   if (!count || !agg._min.createdAt || !agg._max.createdAt) return null;
+
+  // Group the sampled UAs by friendly source label, desc by count.
+  const tally = new Map<string, number>();
+  for (const r of rows) {
+    const label = botSourceFromUserAgent(r.userAgent);
+    tally.set(label, (tally.get(label) ?? 0) + 1);
+  }
+  const sources = [...tally.entries()]
+    .map(([source, c]) => ({ source, count: c }))
+    .sort((a, b) => b.count - a.count);
+
   return {
     count,
     firstAt: agg._min.createdAt.toISOString(),
     lastAt: agg._max.createdAt.toISOString(),
+    sources,
   };
 }
 

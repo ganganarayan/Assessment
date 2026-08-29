@@ -5,7 +5,7 @@
  *
  *   npx tsx scripts/verify-bots.ts
  */
-import { isBotUserAgent } from "../src/lib/bots";
+import { isBotUserAgent, botSourceFromUserAgent } from "../src/lib/bots";
 
 let failures = 0;
 const ok = (n: string) => console.log(`  PASS  ${n}`);
@@ -59,6 +59,23 @@ expect("empty UA -> bot", isBotUserAgent("") === true);
 expect("whitespace UA -> bot", isBotUserAgent("   ") === true);
 expect("null UA -> bot", isBotUserAgent(null) === true);
 expect("undefined UA -> bot", isBotUserAgent(undefined) === true);
+
+// --- botSourceFromUserAgent: friendly source labels ---
+const sources: [string, string][] = [
+  ["Meta ad-review", "meta-externalagent/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler)"],
+  ["Facebook crawler", "facebookexternalhit/1.1"],
+  ["Googlebot", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"],
+  ["Bingbot", "Mozilla/5.0 (compatible; bingbot/2.0)"],
+  ["AhrefsBot", "Mozilla/5.0 (compatible; AhrefsBot/7.0)"],
+  ["LinkedInBot", "LinkedInBot/1.0"],
+  ["Headless browser", "Mozilla/5.0 HeadlessChrome/126.0.0.0"],
+  ["HTTP client", "python-requests/2.31.0"],
+  ["No user-agent", ""],
+];
+for (const [label, ua] of sources) {
+  expect(`source: ${label}`, botSourceFromUserAgent(ua) === label, `got "${botSourceFromUserAgent(ua)}" for ${ua || "(empty)"}`);
+}
+expect("source: unknown bot -> Other bot", botSourceFromUserAgent("SomeService Bot/2.0") === "Other bot");
 
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILURE(S)`}`);
 process.exit(failures === 0 ? 0 : 1);

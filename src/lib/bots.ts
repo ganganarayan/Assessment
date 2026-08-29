@@ -101,3 +101,45 @@ export function isBotUserAgent(ua: string | null | undefined): boolean {
   if (!ua || !ua.trim()) return true;
   return BOT_UA.test(ua);
 }
+
+/**
+ * Friendly source label for a bot User-Agent, used to break the collapsed bot row
+ * down by WHICH agent is hitting (Meta ad-review vs a search crawler vs tooling).
+ * First match wins, so order runs specific -> generic. Derived at read time from
+ * the stored UA, so it needs no column and applies to already-recorded hits.
+ */
+const BOT_SOURCES: [RegExp, string][] = [
+  [/meta-externalagent/i, "Meta ad-review"],
+  [/facebookexternalhit/i, "Facebook crawler"],
+  [/facebookcatalog/i, "Facebook catalog"],
+  [/facebot/i, "Facebot"],
+  [/twitterbot/i, "Twitterbot"],
+  [/linkedinbot/i, "LinkedInBot"],
+  [/slackbot|slack-imgproxy/i, "Slackbot"],
+  [/telegrambot/i, "Telegram"],
+  [/discordbot/i, "Discord"],
+  [/redditbot/i, "Reddit"],
+  [/whatsapp/i, "WhatsApp"],
+  [/googlebot|mediapartners/i, "Googlebot"],
+  [/bingbot/i, "Bingbot"],
+  [/yandex/i, "Yandex"],
+  [/duckduckbot/i, "DuckDuckBot"],
+  [/baiduspider/i, "Baidu"],
+  [/applebot/i, "Applebot"],
+  [/ahrefsbot/i, "AhrefsBot"],
+  [/semrushbot/i, "SemrushBot"],
+  [/mj12bot|dotbot|petalbot|embedly|skypeuripreview|bitlybot/i, "Other crawler"],
+  [/lighthouse|gtmetrix|pingdom|uptimerobot/i, "Monitor"],
+  [/headlesschrome|phantomjs|puppeteer|playwright|selenium/i, "Headless browser"],
+  [/python-requests|python-urllib|go-http-client|node-fetch|axios|okhttp|curl|wget|libwww|httpclient|scrapy|java\//i, "HTTP client"],
+];
+
+/** Short source name for a bot UA (e.g. "Meta ad-review"). Empty UA => "No user-agent". */
+export function botSourceFromUserAgent(ua: string | null | undefined): string {
+  const s = (ua ?? "").trim();
+  if (!s) return "No user-agent";
+  for (const [re, label] of BOT_SOURCES) {
+    if (re.test(s)) return label;
+  }
+  return "Other bot";
+}
