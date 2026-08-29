@@ -64,11 +64,14 @@ export async function getAnalyticsStats(
   opts?: AssessmentScope,
 ) {
   const scope = await createdAtScope(range, tenantId, opts);
+  // Page-view metrics count real humans only — bot/crawler hits (e.g. Meta's
+  // ad-review agent) are recorded but never counted as traffic.
+  const humanScope = { ...scope, isBot: false };
 
   const [totalViews, uniqueVisitors, optins, completed, vslLoads, paidAgg] = await Promise.all([
-    prisma.pageView.count({ where: scope }),
+    prisma.pageView.count({ where: humanScope }),
     // distinct visitorId rows; length = unique views (no raw SQL).
-    prisma.pageView.findMany({ where: scope, select: { visitorId: true }, distinct: ["visitorId"] }),
+    prisma.pageView.findMany({ where: humanScope, select: { visitorId: true }, distinct: ["visitorId"] }),
     // "Opted in" = submission rows. Equals distinct people for the common config
     // (a required, unique identifier such as email); UNLIMITED-retake or
     // no-identifier assessments may count repeat attempts by the same person.
@@ -109,7 +112,8 @@ export async function getUtmBreakdown(range?: { from?: string; to?: string }, te
   const where = await createdAtScope(range, tenantId, opts);
   const grouped = await prisma.pageView.groupBy({
     by: ["utmSource", "utmMedium", "utmCampaign", "utmTerm", "utmContent"],
-    where,
+    // Traffic source is a human-only view; bot hits are excluded.
+    where: { ...where, isBot: false },
     _count: { id: true },
     orderBy: { _count: { id: "desc" } },
     take: 200,
@@ -134,9 +138,13 @@ export interface PageViewLogRow {
   content: string | null;
   fbclid: string | null;
   gclid: string | null;
+  /** Automated client (bot/crawler/renderer) — shown labeled, excluded from stats. */
+  isBot: boolean;
 }
 
-/** Recent page views (one row per visit, no lead data) for the live log. */
+/** Recent page views (one row per visit, no lead data) for the live log. Bot hits
+ *  are EXCLUDED by default (the live log shows one collapsed bot row instead — see
+ *  getBotViewSummary); pass includeBots for the raw export where every hit is a row. */
 export async function listPageViews(opts: {
   from?: string;
   to?: string;
@@ -144,11 +152,13 @@ export async function listPageViews(opts: {
   tenantId?: string | null;
   assessmentId?: string | null;
   floor?: Date | null;
+  includeBots?: boolean;
 }): Promise<PageViewLogRow[]> {
-  const where = await createdAtScope({ from: opts.from, to: opts.to }, opts.tenantId ?? null, {
+  const scope = await createdAtScope({ from: opts.from, to: opts.to }, opts.tenantId ?? null, {
     assessmentId: opts.assessmentId,
     ...("floor" in opts ? { floor: opts.floor } : {}),
   });
+  const where = opts.includeBots ? scope : { ...scope, isBot: false };
   const rows = await prisma.pageView.findMany({
     where,
     orderBy: { createdAt: "desc" },
@@ -163,6 +173,7 @@ export async function listPageViews(opts: {
       utmContent: true,
       fbclid: true,
       gclid: true,
+      isBot: true,
     },
   });
   return rows.map((r) => ({
@@ -175,7 +186,45 @@ export async function listPageViews(opts: {
     content: r.utmContent,
     fbclid: r.fbclid,
     gclid: r.gclid,
+    isBot: r.isBot,
   }));
+}
+
+export interface BotViewSummary {
+  /** Total bot/crawler page views in scope (Meta ad-review, preview bots, …). */
+  count: number;
+  /** Earliest bot hit (ISO). */
+  firstAt: string;
+  /** Most recent bot hit (ISO). */
+  lastAt: string;
+}
+
+/** One collapsed line for all bot hits in scope: running count + first/last seen.
+ *  null when there are none. Feeds the single "bot" row atop the page-view log. */
+export async function getBotViewSummary(opts: {
+  from?: string;
+  to?: string;
+  tenantId?: string | null;
+  assessmentId?: string | null;
+  floor?: Date | null;
+}): Promise<BotViewSummary | null> {
+  const scope = await createdAtScope({ from: opts.from, to: opts.to }, opts.tenantId ?? null, {
+    assessmentId: opts.assessmentId,
+    ...("floor" in opts ? { floor: opts.floor } : {}),
+  });
+  const agg = await prisma.pageView.aggregate({
+    where: { ...scope, isBot: true },
+    _count: { _all: true },
+    _min: { createdAt: true },
+    _max: { createdAt: true },
+  });
+  const count = agg._count._all;
+  if (!count || !agg._min.createdAt || !agg._max.createdAt) return null;
+  return {
+    count,
+    firstAt: agg._min.createdAt.toISOString(),
+    lastAt: agg._max.createdAt.toISOString(),
+  };
 }
 
 export interface ContactRow {

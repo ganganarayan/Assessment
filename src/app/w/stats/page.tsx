@@ -3,6 +3,7 @@ import {
   getAnalyticsStats,
   getUtmBreakdown,
   listPageViews,
+  getBotViewSummary,
 } from "@/features/admin/data/analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
@@ -12,6 +13,12 @@ export const dynamic = "force-dynamic";
 
 const dash = (v: string | null) => (v && v.trim() ? v : "—");
 
+const BotTag = () => (
+  <span className="rounded bg-[var(--muted)] px-1.5 py-0.5 text-xs font-medium text-[var(--muted-foreground)]">
+    bot
+  </span>
+);
+
 export default async function WorkspaceStatsPage({
   searchParams,
 }: {
@@ -20,10 +27,11 @@ export default async function WorkspaceStatsPage({
   const { tenantId } = await requireWorkspace();
   const sp = await searchParams;
   const range = { from: sp.from, to: sp.to };
-  const [s, utm, log] = await Promise.all([
+  const [s, utm, log, botSummary] = await Promise.all([
     getAnalyticsStats(range, tenantId),
     getUtmBreakdown(range, tenantId),
     listPageViews({ ...range, limit: 100, tenantId }),
+    getBotViewSummary({ ...range, tenantId }),
   ]);
 
   const items = [
@@ -117,10 +125,12 @@ export default async function WorkspaceStatsPage({
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Page-view log</h2>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Latest {log.length.toLocaleString()} visits. A visitor becomes a contact once they opt in.
+            Latest {log.length.toLocaleString()} human visits. A visitor becomes a contact once they
+            opt in. Automated hits (Meta ad-review, crawlers) are collapsed into a single <BotTag />
+            row and excluded from every number above.
           </p>
         </div>
-        {log.length === 0 ? (
+        {log.length === 0 && !botSummary ? (
           <p className="text-sm text-[var(--muted-foreground)]">No page views yet.</p>
         ) : (
           <div className="overflow-x-auto rounded-lg border">
@@ -136,6 +146,23 @@ export default async function WorkspaceStatsPage({
                 </tr>
               </thead>
               <tbody className="divide-y">
+                {botSummary ? (
+                  <tr className="bg-[var(--muted)]/40">
+                    <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
+                      <div>{formatIST(botSummary.lastAt)}</div>
+                      <div className="opacity-70">first {formatIST(botSummary.firstAt)}</div>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <BotTag />{" "}
+                      <span className="tabular-nums text-xs font-medium text-[var(--muted-foreground)]">
+                        ×{botSummary.count.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]" colSpan={4}>
+                      Automated hits (Meta ad-review, crawlers), collapsed — excluded from all stats.
+                    </td>
+                  </tr>
+                ) : null}
                 {log.map((r) => (
                   <tr key={r.id}>
                     <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">

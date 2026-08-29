@@ -513,6 +513,13 @@ model PageView {
   fbclid      String?
   gclid       String?
 
+  // Automated-client flag: the visit's User-Agent matched a bot/crawler/renderer
+  // (e.g. Meta's ad-review agent, which hits the bare URL with no UTM). Recorded
+  // for audit but excluded from every human-facing metric. userAgent kept so a
+  // misclassification is inspectable.
+  isBot     Boolean @default(false)
+  userAgent String?
+
   // Owning tenant (denormalized from the assessment; null = platform/Gita). Scalar
   // only — no FK — since page views are high-write and already cascade via assessment.
   tenantId String?
