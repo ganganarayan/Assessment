@@ -39,3 +39,27 @@ export function hashName(name: string | null | undefined): string | null {
   const c = clean(name);
   return c ? sha256Hex(c.toLowerCase()) : null;
 }
+
+/** City / state: Meta wants lowercase a-z only (no spaces/punctuation), then hash. */
+export function hashCityState(value: string | null | undefined): string | null {
+  const c = clean(value);
+  if (!c) return null;
+  const norm = c.toLowerCase().replace(/[^a-z]/g, "");
+  return norm.length > 0 ? sha256Hex(norm) : null;
+}
+
+/** Country: 2-letter ISO code, lowercase, then hash. */
+export function hashCountry(value: string | null | undefined): string | null {
+  const c = clean(value);
+  if (!c) return null;
+  const norm = c.toLowerCase().replace(/[^a-z]/g, "").slice(0, 2);
+  return norm.length === 2 ? sha256Hex(norm) : null;
+}
+
+/** Zip/postal: lowercase, strip spaces, then hash. */
+export function hashZip(value: string | null | undefined): string | null {
+  const c = clean(value);
+  if (!c) return null;
+  const norm = c.toLowerCase().replace(/\s+/g, "");
+  return norm.length > 0 ? sha256Hex(norm) : null;
+}

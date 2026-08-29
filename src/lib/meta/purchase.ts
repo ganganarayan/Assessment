@@ -20,6 +20,11 @@ export interface PurchaseAttributionSource {
   userAgent: string | null;
   fbclidTimestamp: number | null; // unix MILLISECONDS
   createdAt: Date;
+  // Geo captured at opt-in — fed to Meta advanced matching (ct/st/country/zp).
+  country?: string | null;
+  city?: string | null;
+  region?: string | null;
+  postalCode?: string | null;
 }
 
 /**
@@ -41,5 +46,9 @@ export function buildPurchaseUserData(s: PurchaseAttributionSource): CapiUserDat
     fbp: s.fbp,
     clientIpAddress: s.clientIp,
     clientUserAgent: s.userAgent,
+    city: s.city ?? null,
+    state: s.region ?? null,
+    country: s.country ?? null,
+    zip: s.postalCode ?? null,
   };
 }

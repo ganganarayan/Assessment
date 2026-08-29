@@ -1,4 +1,4 @@
-import { hashEmail, hashPhone, hashName } from "@/lib/meta/hash";
+import { hashEmail, hashPhone, hashName, hashCityState, hashCountry, hashZip } from "@/lib/meta/hash";
 
 /**
  * Pure builder for a single Meta Conversions API (server-side) event. No env, no
@@ -21,6 +21,11 @@ export interface CapiUserData {
   clientUserAgent?: string | null;
   fbp?: string | null;
   fbc?: string | null;
+  /** Advanced-matching geo (hashed in buildUserData): raises Meta match quality. */
+  city?: string | null;
+  state?: string | null; // region / province
+  country?: string | null; // 2-letter ISO
+  zip?: string | null; // postal code
 }
 
 export interface CapiEventInput {
@@ -45,6 +50,10 @@ export interface CapiUserDataPayload {
   client_user_agent?: string;
   fbp?: string;
   fbc?: string;
+  ct?: string[]; // city (hashed)
+  st?: string[]; // state/region (hashed)
+  country?: string[]; // 2-letter (hashed)
+  zp?: string[]; // zip/postal (hashed)
 }
 
 export interface CapiEventPayload {
@@ -71,6 +80,14 @@ function buildUserData(u: CapiUserData): CapiUserDataPayload {
   if (u.clientUserAgent) out.client_user_agent = u.clientUserAgent;
   if (u.fbp) out.fbp = u.fbp;
   if (u.fbc) out.fbc = u.fbc;
+  const ct = hashCityState(u.city);
+  const st = hashCityState(u.state);
+  const country = hashCountry(u.country);
+  const zp = hashZip(u.zip);
+  if (ct) out.ct = [ct];
+  if (st) out.st = [st];
+  if (country) out.country = [country];
+  if (zp) out.zp = [zp];
   return out;
 }
 

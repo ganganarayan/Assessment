@@ -304,6 +304,10 @@ async function fireRegistration(
           firstName: lead.firstName,
           lastName: lead.lastName,
           ...ctx,
+          // Map CF geo names to Meta's advanced-matching fields (city/country flow
+          // via the spread; state/zip need the region/postalCode mapping).
+          state: ctx.region,
+          zip: ctx.postalCode,
         },
         customData: { content_name: assessment.title, assessment_name: assessment.title },
       }, assessment.tenant?.id ?? null).catch(() => {});
@@ -461,6 +465,14 @@ export async function startSubmission(
     userAgent: metaCtx.clientUserAgent,
     fbp: metaCtx.fbp,
     fbc: metaCtx.fbc,
+    country: metaCtx.country,
+    city: metaCtx.city,
+    region: metaCtx.region,
+    postalCode: metaCtx.postalCode,
+    timezone: metaCtx.timezone,
+    deviceType: metaCtx.deviceType,
+    browser: metaCtx.browser,
+    os: metaCtx.os,
     fbclidTimestamp,
     ...optinData,
     ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
@@ -703,6 +715,14 @@ export async function completeSubmission(
       userAgent: true,
       fbp: true,
       fbc: true,
+      country: true,
+      city: true,
+      region: true,
+      postalCode: true,
+      timezone: true,
+      deviceType: true,
+      browser: true,
+      os: true,
       assessment: { select: { slug: true, targetUrl: true, paidMode: true, paymentUrl: true, paymentAmount: true, aiPromptVersionId: true } },
     },
   });
@@ -1187,6 +1207,8 @@ export async function completeSubmission(
         firstName: full?.leadFirstName ?? null,
         lastName: full?.leadLastName ?? null,
         ...ctx,
+        state: ctx.region,
+        zip: ctx.postalCode,
       },
       customData: { content_name: assessment.title, assessment_name: assessment.title },
     }, assessment.tenant?.id ?? null).catch(() => {});
@@ -1201,6 +1223,14 @@ export async function completeSubmission(
     if (!submission.userAgent && mctx.clientUserAgent) patch.userAgent = mctx.clientUserAgent;
     if (!submission.fbp && mctx.fbp) patch.fbp = mctx.fbp;
     if (!submission.fbc && mctx.fbc) patch.fbc = mctx.fbc;
+    if (!submission.country && mctx.country) patch.country = mctx.country;
+    if (!submission.city && mctx.city) patch.city = mctx.city;
+    if (!submission.region && mctx.region) patch.region = mctx.region;
+    if (!submission.postalCode && mctx.postalCode) patch.postalCode = mctx.postalCode;
+    if (!submission.timezone && mctx.timezone) patch.timezone = mctx.timezone;
+    if (!submission.deviceType && mctx.deviceType) patch.deviceType = mctx.deviceType;
+    if (!submission.browser && mctx.browser) patch.browser = mctx.browser;
+    if (!submission.os && mctx.os) patch.os = mctx.os;
     if (Object.keys(patch).length > 0) {
       await prisma.submission.updateMany({ where: { id: submissionId }, data: patch });
     }

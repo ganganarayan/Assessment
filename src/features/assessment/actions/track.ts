@@ -7,6 +7,8 @@ import { rateLimit } from "@/lib/rate-limit";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { ATTR_COOKIE } from "@/lib/attribution";
 import { isBotUserAgent } from "@/lib/bots";
+import { readGeoHeaders } from "@/lib/geo";
+import { parseUserAgent } from "@/lib/user-agent";
 
 const VISITOR_COOKIE = "a360_vid";
 
@@ -67,10 +69,20 @@ export async function recordOptinView(
     const h = await headers();
     const ua = h.get("user-agent");
     const ipRaw = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip")?.trim() || null;
+    const geo = readGeoHeaders((k) => h.get(k));
+    const device = parseUserAgent(ua);
     const meta = {
       isBot: isBotUserAgent(ua),
       userAgent: ua ? ua.slice(0, 512) : null,
       ip: ipRaw ? ipRaw.slice(0, 64) : null,
+      country: geo.country,
+      city: geo.city,
+      region: geo.region,
+      postalCode: geo.postalCode,
+      timezone: geo.timezone,
+      deviceType: device.deviceType,
+      browser: device.browser,
+      os: device.os,
     };
 
     const existing = c.get(VISITOR_COOKIE)?.value;

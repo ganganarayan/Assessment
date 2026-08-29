@@ -36,6 +36,14 @@ const COLUMNS: CsvColumn<ContactExportRow>[] = [
   { key: "fbp", label: "fbp" },
   { key: "client_ip", label: "client_ip" },
   { key: "user_agent", label: "user_agent" },
+  { key: "device_type", label: "device_type" },
+  { key: "browser", label: "browser" },
+  { key: "os", label: "os" },
+  { key: "country", label: "country" },
+  { key: "city", label: "city" },
+  { key: "region", label: "region" },
+  { key: "postal_code", label: "postal_code" },
+  { key: "timezone", label: "timezone" },
 ];
 
 export async function GET(req: Request) {

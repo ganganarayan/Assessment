@@ -144,6 +144,15 @@ export interface PageViewLogRow {
   /** Client IP + User-Agent (admin-only) — for triaging untagged/blank traffic. */
   ip: string | null;
   userAgent: string | null;
+  /** Geo (Cloudflare) + device (parsed UA) enrichment. */
+  country: string | null;
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
+  timezone: string | null;
+  deviceType: string | null;
+  browser: string | null;
+  os: string | null;
 }
 
 /** Recent page views (one row per visit, no lead data) for the live log. Bot hits
@@ -180,6 +189,14 @@ export async function listPageViews(opts: {
       isBot: true,
       ip: true,
       userAgent: true,
+      country: true,
+      city: true,
+      region: true,
+      postalCode: true,
+      timezone: true,
+      deviceType: true,
+      browser: true,
+      os: true,
     },
   });
   return rows.map((r) => ({
@@ -195,6 +212,14 @@ export async function listPageViews(opts: {
     isBot: r.isBot,
     ip: r.ip,
     userAgent: r.userAgent,
+    country: r.country,
+    city: r.city,
+    region: r.region,
+    postalCode: r.postalCode,
+    timezone: r.timezone,
+    deviceType: r.deviceType,
+    browser: r.browser,
+    os: r.os,
   }));
 }
 
@@ -282,6 +307,13 @@ export interface ContactRow {
   userAgent: string | null;
   fbp: string | null;
   fbclidTimestamp: number | null;
+  /** Geo (Cloudflare) + device (parsed UA) captured at opt-in. */
+  country: string | null;
+  city: string | null;
+  region: string | null;
+  deviceType: string | null;
+  browser: string | null;
+  os: string | null;
   /** Custom opt-in + pre-results field answers (label + value), in field order. */
   customAnswers: LabeledAnswer[];
 }
@@ -311,6 +343,14 @@ export interface ContactExportRow {
   fbp: string | null;
   client_ip: string | null;
   user_agent: string | null;
+  device_type: string | null;
+  browser: string | null;
+  os: string | null;
+  country: string | null;
+  city: string | null;
+  region: string | null;
+  postal_code: string | null;
+  timezone: string | null;
 }
 
 /** Safety cap so an export can never try to materialize an unbounded result. */
@@ -343,6 +383,14 @@ export async function listContactsForExport(range?: {
       userAgent: true,
       fbp: true,
       fbclidTimestamp: true,
+      country: true,
+      city: true,
+      region: true,
+      postalCode: true,
+      timezone: true,
+      deviceType: true,
+      browser: true,
+      os: true,
       optinAnswers: true,
       preResultAnswers: true,
       assessment: { select: { slug: true, targetUrl: true, optinFields: true, preResultFields: true } },
@@ -384,6 +432,14 @@ export async function listContactsForExport(range?: {
       fbp: r.fbp ?? null,
       client_ip: r.clientIp ?? null,
       user_agent: r.userAgent ?? null,
+      device_type: r.deviceType ?? null,
+      browser: r.browser ?? null,
+      os: r.os ?? null,
+      country: r.country ?? null,
+      city: r.city ?? null,
+      region: r.region ?? null,
+      postal_code: r.postalCode ?? null,
+      timezone: r.timezone ?? null,
     };
   });
 }
@@ -434,6 +490,14 @@ export async function listContacts(opts: {
       userAgent: true,
       fbp: true,
       fbclidTimestamp: true,
+      country: true,
+      city: true,
+      region: true,
+      postalCode: true,
+      timezone: true,
+      deviceType: true,
+      browser: true,
+      os: true,
       optinAnswers: true,
       preResultAnswers: true,
       assessment: { select: { slug: true, targetUrl: true, optinFields: true, preResultFields: true } },
@@ -473,6 +537,12 @@ export async function listContacts(opts: {
         userAgent: r.userAgent,
         fbp: r.fbp,
         fbclidTimestamp: r.fbclidTimestamp,
+        country: r.country,
+        city: r.city,
+        region: r.region,
+        deviceType: r.deviceType,
+        browser: r.browser,
+        os: r.os,
         customAnswers: labeledAnswers({
           optinFields: r.assessment?.optinFields,
           optinAnswers: r.optinAnswers,

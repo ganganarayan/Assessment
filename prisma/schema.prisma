@@ -522,6 +522,16 @@ model PageView {
   // Client IP (x-forwarded-for first hop). Captured for the log + bot triage; not
   // shown publicly. Admin-only visibility.
   ip        String?
+  // Geo (Cloudflare headers) + device (parsed UA). Enrichment for the log/export;
+  // all null when the CF location-headers transform is off / UA is unknown.
+  country    String?
+  city       String?
+  region     String?
+  postalCode String?
+  timezone   String?
+  deviceType String?
+  browser    String?
+  os         String?
 
   // Owning tenant (denormalized from the assessment; null = platform/Gita). Scalar
   // only — no FK — since page views are high-write and already cascade via assessment.
@@ -716,6 +726,16 @@ model Submission {
   userAgent       String?
   fbp             String?
   fbc             String?
+  // Geo (Cloudflare) + device (parsed UA), captured at Start. region/postalCode feed
+  // Meta CAPI advanced matching (st/zp); country is the 2-letter ISO code.
+  country         String?
+  city            String?
+  region          String?
+  postalCode      String?
+  timezone        String?
+  deviceType      String?
+  browser         String?
+  os              String?
   // Unix MILLISECONDS (matches Meta's fbc format fb.1.<ms>.<fbclid> exactly, so no
   // unit conversion anywhere). Double, because a ms epoch overflows Int4 — the value
   // is always an integer and is exact in a double well beyond any realistic date.

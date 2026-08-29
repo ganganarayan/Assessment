@@ -17,6 +17,12 @@ export const dynamic = "force-dynamic";
 
 const dash = (v: string | null) => (v && v.trim() ? v : "—");
 
+/** Join non-empty parts with a separator; em-dash when all are blank. */
+const join = (parts: (string | null)[], sep: string) => {
+  const s = parts.filter((p) => p && p.trim()).join(sep);
+  return s || "—";
+};
+
 const BotTag = () => (
   <span className="rounded bg-[var(--muted)] px-1.5 py-0.5 text-xs font-medium text-[var(--muted-foreground)]">
     bot
@@ -199,6 +205,8 @@ export default async function StatsPage({
                   <th className="px-3 py-1.5">fbclid</th>
                   <th className="px-3 py-1.5">gclid</th>
                   <th className="px-3 py-1.5">IP</th>
+                  <th className="px-3 py-1.5">Device</th>
+                  <th className="px-3 py-1.5">Location</th>
                   <th className="px-3 py-1.5">User-Agent</th>
                 </tr>
               </thead>
@@ -222,6 +230,12 @@ export default async function StatsPage({
                     <td className="max-w-[120px] truncate px-3 py-2 text-xs" title={r.ip ?? ""}>
                       {dash(r.ip)}
                     </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-xs">
+                      {join([r.deviceType, r.browser, r.os], " · ")}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-xs">
+                      {join([r.city, r.region, r.country], ", ")}
+                    </td>
                     <td className="max-w-[240px] truncate px-3 py-2 text-xs text-[var(--muted-foreground)]" title={r.userAgent ?? ""}>
                       {dash(r.userAgent)}
                     </td>
@@ -241,7 +255,7 @@ export default async function StatsPage({
                         ×{b.count.toLocaleString()}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]" colSpan={8}>
+                    <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]" colSpan={10}>
                       Automated — excluded from all stats.
                     </td>
                   </tr>

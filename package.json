@@ -31,6 +31,7 @@
     "verify:clinic": "tsx scripts/verify-clinic-audit.ts",
     "verify:clinic-report": "tsx scripts/verify-clinic-report.ts",
     "verify:bots": "tsx scripts/verify-bots.ts",
+    "verify:enrichment": "tsx scripts/verify-enrichment.ts",
     "seed:category-bands": "tsx scripts/seed-category-bands.ts",
     "postinstall": "prisma generate"
   },

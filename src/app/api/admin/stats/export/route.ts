@@ -37,6 +37,14 @@ interface PageViewExport {
   gclid: string | null;
   ip: string | null;
   user_agent: string | null;
+  device_type: string | null;
+  browser: string | null;
+  os: string | null;
+  country: string | null;
+  city: string | null;
+  region: string | null;
+  postal_code: string | null;
+  timezone: string | null;
 }
 const PAGEVIEW_COLUMNS: CsvColumn<PageViewExport>[] = [
   { key: "timeIST", label: "Time (IST)" },
@@ -50,6 +58,14 @@ const PAGEVIEW_COLUMNS: CsvColumn<PageViewExport>[] = [
   { key: "gclid", label: "gclid" },
   { key: "ip", label: "ip" },
   { key: "user_agent", label: "user_agent" },
+  { key: "device_type", label: "device_type" },
+  { key: "browser", label: "browser" },
+  { key: "os", label: "os" },
+  { key: "country", label: "country" },
+  { key: "city", label: "city" },
+  { key: "region", label: "region" },
+  { key: "postal_code", label: "postal_code" },
+  { key: "timezone", label: "timezone" },
 ];
 
 export async function GET(req: Request) {
@@ -86,6 +102,14 @@ export async function GET(req: Request) {
       gclid: r.gclid,
       ip: r.ip,
       user_agent: r.userAgent,
+      device_type: r.deviceType,
+      browser: r.browser,
+      os: r.os,
+      country: r.country,
+      city: r.city,
+      region: r.region,
+      postal_code: r.postalCode,
+      timezone: r.timezone,
     }));
     const capped = rows.length >= EXPORT_CAP;
     if (capped) console.warn(`[stats-export] page-view log capped at ${EXPORT_CAP}`);
