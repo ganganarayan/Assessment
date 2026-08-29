@@ -143,6 +143,8 @@ export default async function WorkspaceStatsPage({
                   <th className="px-3 py-1.5">Campaign</th>
                   <th className="px-3 py-1.5">fbclid</th>
                   <th className="px-3 py-1.5">gclid</th>
+                  <th className="px-3 py-1.5">IP</th>
+                  <th className="px-3 py-1.5">User-Agent</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -160,6 +162,12 @@ export default async function WorkspaceStatsPage({
                     <td className="max-w-[140px] truncate px-3 py-2 text-xs" title={r.gclid ?? ""}>
                       {dash(r.gclid)}
                     </td>
+                    <td className="max-w-[120px] truncate px-3 py-2 text-xs" title={r.ip ?? ""}>
+                      {dash(r.ip)}
+                    </td>
+                    <td className="max-w-[240px] truncate px-3 py-2 text-xs text-[var(--muted-foreground)]" title={r.userAgent ?? ""}>
+                      {dash(r.userAgent)}
+                    </td>
                   </tr>
                 ))}
                 {/* Bots clubbed by source, always sorted below the human rows. */}
@@ -176,7 +184,7 @@ export default async function WorkspaceStatsPage({
                         ×{b.count.toLocaleString()}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]" colSpan={4}>
+                    <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]" colSpan={6}>
                       Automated — excluded from all stats.
                     </td>
                   </tr>

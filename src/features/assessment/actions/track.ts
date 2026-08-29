@@ -63,10 +63,15 @@ export async function recordOptinView(
 
     // Classify the client: Meta's ad-review agent + crawlers execute JS (so they
     // reach this beacon) but carry no UTM — flag them so human metrics exclude the
-    // hit while the log still shows it. userAgent stored for audit.
+    // hit while the log still shows it. userAgent + IP stored for audit/triage.
     const h = await headers();
     const ua = h.get("user-agent");
-    const meta = { isBot: isBotUserAgent(ua), userAgent: ua ? ua.slice(0, 512) : null };
+    const ipRaw = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip")?.trim() || null;
+    const meta = {
+      isBot: isBotUserAgent(ua),
+      userAgent: ua ? ua.slice(0, 512) : null,
+      ip: ipRaw ? ipRaw.slice(0, 64) : null,
+    };
 
     const existing = c.get(VISITOR_COOKIE)?.value;
 
@@ -78,7 +83,7 @@ export async function recordOptinView(
     }
 
     // Cold visitor: bound per-IP so a cookie-less flood can't inflate unique views.
-    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const ip = ipRaw || "unknown";
     if (!rateLimit(`pv:ip:${ip}`, 30)) return;
 
     const vid = generateId(24);

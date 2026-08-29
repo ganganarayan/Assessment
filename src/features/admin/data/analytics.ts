@@ -141,6 +141,9 @@ export interface PageViewLogRow {
   gclid: string | null;
   /** Automated client (bot/crawler/renderer) — shown labeled, excluded from stats. */
   isBot: boolean;
+  /** Client IP + User-Agent (admin-only) — for triaging untagged/blank traffic. */
+  ip: string | null;
+  userAgent: string | null;
 }
 
 /** Recent page views (one row per visit, no lead data) for the live log. Bot hits
@@ -175,6 +178,8 @@ export async function listPageViews(opts: {
       fbclid: true,
       gclid: true,
       isBot: true,
+      ip: true,
+      userAgent: true,
     },
   });
   return rows.map((r) => ({
@@ -188,6 +193,8 @@ export async function listPageViews(opts: {
     fbclid: r.fbclid,
     gclid: r.gclid,
     isBot: r.isBot,
+    ip: r.ip,
+    userAgent: r.userAgent,
   }));
 }
 

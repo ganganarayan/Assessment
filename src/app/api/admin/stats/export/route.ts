@@ -35,6 +35,8 @@ interface PageViewExport {
   utm_content: string | null;
   fbclid: string | null;
   gclid: string | null;
+  ip: string | null;
+  user_agent: string | null;
 }
 const PAGEVIEW_COLUMNS: CsvColumn<PageViewExport>[] = [
   { key: "timeIST", label: "Time (IST)" },
@@ -46,6 +48,8 @@ const PAGEVIEW_COLUMNS: CsvColumn<PageViewExport>[] = [
   { key: "utm_content", label: "utm_content" },
   { key: "fbclid", label: "fbclid" },
   { key: "gclid", label: "gclid" },
+  { key: "ip", label: "ip" },
+  { key: "user_agent", label: "user_agent" },
 ];
 
 export async function GET(req: Request) {
@@ -80,6 +84,8 @@ export async function GET(req: Request) {
       utm_content: r.content,
       fbclid: r.fbclid,
       gclid: r.gclid,
+      ip: r.ip,
+      user_agent: r.userAgent,
     }));
     const capped = rows.length >= EXPORT_CAP;
     if (capped) console.warn(`[stats-export] page-view log capped at ${EXPORT_CAP}`);

@@ -519,6 +519,9 @@ model PageView {
   // misclassification is inspectable.
   isBot     Boolean @default(false)
   userAgent String?
+  // Client IP (x-forwarded-for first hop). Captured for the log + bot triage; not
+  // shown publicly. Admin-only visibility.
+  ip        String?
 
   // Owning tenant (denormalized from the assessment; null = platform/Gita). Scalar
   // only — no FK — since page views are high-write and already cascade via assessment.
