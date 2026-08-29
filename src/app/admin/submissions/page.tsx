@@ -61,6 +61,12 @@ export default async function SubmissionsPage({
       status: s.status,
       paidAmount: p?.amount ?? null,
       paidAt: p?.at ?? null,
+      deviceType: s.deviceType,
+      browser: s.browser,
+      os: s.os,
+      country: s.country,
+      city: s.city,
+      region: s.region,
       customAnswers: labeledAnswers({
         optinFields: s.assessment.optinFields,
         optinAnswers: s.optinAnswers,

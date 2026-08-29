@@ -23,8 +23,20 @@ export interface SubmissionRow {
   status: string;
   paidAmount: number | null;
   paidAt: string | null;
+  deviceType: string | null;
+  browser: string | null;
+  os: string | null;
+  country: string | null;
+  city: string | null;
+  region: string | null;
   customAnswers: { label: string; value: string }[];
 }
+
+/** Join non-empty parts with a separator; em-dash when all are blank. */
+const join = (parts: (string | null)[], sep: string) => {
+  const s = parts.filter((p) => p && p.trim()).join(sep);
+  return s || "—";
+};
 
 type SortKey = "date" | "lead" | "score" | "result" | "status";
 
@@ -147,6 +159,8 @@ export function SubmissionsTable({
                   <Th k="score" label="Score" />
                   <Th k="result" label="Result" />
                   <Th k="status" label="Status" />
+                  <th className="whitespace-nowrap px-3 py-2">Device</th>
+                  <th className="whitespace-nowrap px-3 py-2">Location</th>
                   <th className="whitespace-nowrap px-3 py-2">Paid</th>
                   <th className="px-3 py-2"></th>
                 </tr>
@@ -178,6 +192,8 @@ export function SubmissionsTable({
                     <td className="px-3 py-2">
                       <Badge variant={s.status === "COMPLETED" ? "success" : "muted"}>{s.status}</Badge>
                     </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-xs">{join([s.deviceType, s.browser, s.os], " · ")}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-xs">{join([s.city, s.region, s.country], ", ")}</td>
                     <td className="whitespace-nowrap px-3 py-2">
                       {s.paidAmount != null ? (
                         <div className="flex flex-col">

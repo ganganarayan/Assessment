@@ -31,6 +31,14 @@ export interface SubmissionExportFlatRow {
   utm_content: string;
   fbclid: string;
   gclid: string;
+  device_type: string;
+  browser: string;
+  os: string;
+  country: string;
+  city: string;
+  region: string;
+  postal_code: string;
+  timezone: string;
   categories: string;
   aiDefault: string;
   aiVersions: string;
@@ -64,6 +72,14 @@ export const SUBMISSION_EXPORT_COLUMNS: CsvColumn<SubmissionExportFlatRow>[] = [
   { key: "utm_content", label: "utm_content" },
   { key: "fbclid", label: "fbclid" },
   { key: "gclid", label: "gclid" },
+  { key: "device_type", label: "device_type" },
+  { key: "browser", label: "browser" },
+  { key: "os", label: "os" },
+  { key: "country", label: "country" },
+  { key: "city", label: "city" },
+  { key: "region", label: "region" },
+  { key: "postal_code", label: "postal_code" },
+  { key: "timezone", label: "timezone" },
   { key: "categories", label: "Category results" },
   { key: "aiDefault", label: "AI message (default)" },
   { key: "aiVersions", label: "AI versions (all)" },
@@ -98,6 +114,14 @@ export function flattenSubmissionExportRow(r: SubmissionExportRow): SubmissionEx
     utm_content: r.utm_content ?? "",
     fbclid: r.fbclid ?? "",
     gclid: r.gclid ?? "",
+    device_type: r.device_type ?? "",
+    browser: r.browser ?? "",
+    os: r.os ?? "",
+    country: r.country ?? "",
+    city: r.city ?? "",
+    region: r.region ?? "",
+    postal_code: r.postal_code ?? "",
+    timezone: r.timezone ?? "",
     categories: r.categories
       .map((c) => `${c.name}: ${c.score}/${c.max}${c.band ? ` (${c.band})` : ""}`)
       .join(" | "),

@@ -20,6 +20,12 @@ const UTM = [
 
 const tick = (v: boolean) => (v ? "✓" : "—");
 
+/** Join non-empty parts with a separator; em-dash when all are blank. */
+const join = (parts: (string | null)[], sep: string) => {
+  const s = parts.filter((p) => p && p.trim()).join(sep);
+  return s || "—";
+};
+
 /** Contacts table with row selection + delete (super-admin). Selection is over
  *  the rows currently shown (this page). */
 export function ContactsTable({ rows }: { rows: ContactRow[] }) {
@@ -144,13 +150,15 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
               <th className="whitespace-nowrap px-3 py-1.5">fbclid_timestamp</th>
               <th className="whitespace-nowrap px-3 py-1.5">fbp</th>
               <th className="whitespace-nowrap px-3 py-1.5">client_ip</th>
+              <th className="whitespace-nowrap px-3 py-1.5">Device</th>
+              <th className="whitespace-nowrap px-3 py-1.5">Location</th>
               <th className="whitespace-nowrap px-3 py-1.5">user_agent</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={13 + UTM.length} className="px-3 py-6 text-center text-sm text-[var(--muted-foreground)]">
+                <td colSpan={15 + UTM.length} className="px-3 py-6 text-center text-sm text-[var(--muted-foreground)]">
                   No contacts match “{query}”.
                 </td>
               </tr>
@@ -226,6 +234,8 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                 <td className="whitespace-nowrap px-3 py-2 text-xs tabular-nums">{r.fbclidTimestamp ?? "—"}</td>
                 <td className="max-w-[160px] truncate px-3 py-2 text-xs" title={r.fbp ?? ""}>{r.fbp ?? "—"}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs">{r.clientIp ?? "—"}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-xs">{join([r.deviceType, r.browser, r.os], " · ")}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-xs">{join([r.city, r.region, r.country], ", ")}</td>
                 <td className="max-w-[220px] truncate px-3 py-2 text-xs" title={r.userAgent ?? ""}>{r.userAgent ?? "—"}</td>
               </tr>
             ))}

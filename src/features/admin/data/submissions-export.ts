@@ -53,6 +53,14 @@ export interface SubmissionExportRow {
   utm_content: string | null;
   fbclid: string | null;
   gclid: string | null;
+  device_type: string | null;
+  browser: string | null;
+  os: string | null;
+  country: string | null;
+  city: string | null;
+  region: string | null;
+  postal_code: string | null;
+  timezone: string | null;
   categories: SubmissionExportCategory[];
   aiStatements: SubmissionExportAi[];
 }
@@ -99,6 +107,14 @@ export async function listSubmissionsForExport(
       totalScore: true,
       maxScore: true,
       attribution: true,
+      deviceType: true,
+      browser: true,
+      os: true,
+      country: true,
+      city: true,
+      region: true,
+      postalCode: true,
+      timezone: true,
       resultSnapshot: true,
       resultToken: true,
       assessment: {
@@ -175,6 +191,14 @@ export async function listSubmissionsForExport(
       utm_content: a?.utm_content ?? null,
       fbclid: a?.fbclid ?? null,
       gclid: a?.gclid ?? null,
+      device_type: s.deviceType,
+      browser: s.browser,
+      os: s.os,
+      country: s.country,
+      city: s.city,
+      region: s.region,
+      postal_code: s.postalCode,
+      timezone: s.timezone,
       categories,
       aiStatements,
     };
