@@ -2,7 +2,7 @@ import {
   getAnalyticsStats,
   getUtmBreakdown,
   listPageViews,
-  getBotViewSummary,
+  getBotSourceRows,
 } from "@/features/admin/data/analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
@@ -34,11 +34,11 @@ export default async function StatsPage({
   const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, t) : null;
   const aScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : undefined;
   const pvScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {};
-  const [s, utm, log, botSummary] = await Promise.all([
+  const [s, utm, log, botRows] = await Promise.all([
     getAnalyticsStats(range, t, aScope),
     getUtmBreakdown(range, t, aScope),
     listPageViews({ ...range, limit: 100, tenantId: t, ...pvScope }),
-    getBotViewSummary({ ...range, tenantId: t, ...pvScope }),
+    getBotSourceRows({ ...range, tenantId: t, ...pvScope }),
   ]);
 
   const items = [
@@ -179,11 +179,11 @@ export default async function StatsPage({
           <p className="text-sm text-[var(--muted-foreground)]">
             Latest {log.length.toLocaleString()} human visits. A visitor becomes a contact once
             they opt in — they then appear with lead data on Contacts. Automated hits (Meta
-            ad-review, crawlers) are collapsed into a single <BotTag /> row and excluded from
-            every number above.
+            ad-review, crawlers) are clubbed by source into the <BotTag /> rows below and excluded
+            from every number above.
           </p>
         </div>
-        {log.length === 0 && !botSummary ? (
+        {log.length === 0 && botRows.length === 0 ? (
           <p className="text-sm text-[var(--muted-foreground)]">No page views yet.</p>
         ) : (
           <div className="overflow-x-auto rounded-lg border">
@@ -201,27 +201,6 @@ export default async function StatsPage({
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {botSummary ? (
-                  <tr className="bg-[var(--muted)]/40">
-                    <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
-                      <div>{formatIST(botSummary.lastAt)}</div>
-                      <div className="opacity-70">first {formatIST(botSummary.firstAt)}</div>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2">
-                      <BotTag />{" "}
-                      <span className="tabular-nums text-xs font-medium text-[var(--muted-foreground)]">
-                        ×{botSummary.count.toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]" colSpan={6}>
-                      {botSummary.sources.length > 0
-                        ? botSummary.sources
-                            .map((b) => `${b.source} ×${b.count.toLocaleString()}`)
-                            .join(" · ")
-                        : "Automated hits — collapsed, excluded from all stats."}
-                    </td>
-                  </tr>
-                ) : null}
                 {log.map((r) => (
                   <tr key={r.id}>
                     <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
@@ -237,6 +216,25 @@ export default async function StatsPage({
                     </td>
                     <td className="max-w-[140px] truncate px-3 py-2 text-xs" title={r.gclid ?? ""}>
                       {dash(r.gclid)}
+                    </td>
+                  </tr>
+                ))}
+                {/* Bots clubbed by source, always sorted below the human rows. */}
+                {botRows.map((b) => (
+                  <tr key={`bot:${b.source}`} className="bg-[var(--muted)]/40">
+                    <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
+                      <div>{formatIST(b.lastAt)}</div>
+                      <div className="opacity-70">first {formatIST(b.firstAt)}</div>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <BotTag />{" "}
+                      <span className="text-xs font-medium">{b.source}</span>{" "}
+                      <span className="tabular-nums text-xs text-[var(--muted-foreground)]">
+                        ×{b.count.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]" colSpan={6}>
+                      Automated — excluded from all stats.
                     </td>
                   </tr>
                 ))}

@@ -191,76 +191,62 @@ export async function listPageViews(opts: {
   }));
 }
 
-/** One bot source (e.g. "Meta ad-review") with its running hit count. */
-export interface BotSourceCount {
+/** One clubbed bot row: a source (e.g. "Meta ad-review") with its running hit
+ *  count and first/last-seen span. Derived at read time from the stored UA. */
+export interface BotSourceRow {
   source: string;
   count: number;
-}
-
-export interface BotViewSummary {
-  /** Total bot/crawler page views in scope (Meta ad-review, preview bots, …). */
-  count: number;
-  /** Earliest bot hit (ISO). */
+  /** Earliest hit from this source (ISO). */
   firstAt: string;
-  /** Most recent bot hit (ISO). */
+  /** Most recent hit from this source (ISO). */
   lastAt: string;
-  /** Which agents made up the count, desc by count — derived from the stored UA. */
-  sources: BotSourceCount[];
 }
 
-/** Read cap for the source breakdown — bot volume is tiny, so this only guards
- *  against a pathological flood; count/first/last stay exact via aggregate(). */
-const BOT_BREAKDOWN_CAP = 5000;
+/** Read cap — bot volume is tiny; guards only against a pathological flood. */
+const BOT_ROWS_CAP = 5000;
 
-/** One collapsed line for all bot hits in scope: running count, first/last seen,
- *  and a per-source breakdown. null when there are none. Feeds the single "bot"
- *  row atop the page-view log. */
-export async function getBotViewSummary(opts: {
+/** All bot page views in scope, CLUBBED BY SOURCE into one row each (running count
+ *  + first/last seen), sorted by count desc. Empty when there are none. These are
+ *  rendered BELOW the human page-view rows so real traffic reads first. */
+export async function getBotSourceRows(opts: {
   from?: string;
   to?: string;
   tenantId?: string | null;
   assessmentId?: string | null;
   floor?: Date | null;
-}): Promise<BotViewSummary | null> {
+}): Promise<BotSourceRow[]> {
   const scope = await createdAtScope({ from: opts.from, to: opts.to }, opts.tenantId ?? null, {
     assessmentId: opts.assessmentId,
     ...("floor" in opts ? { floor: opts.floor } : {}),
   });
-  const botWhere = { ...scope, isBot: true };
+  const rows = await prisma.pageView.findMany({
+    where: { ...scope, isBot: true },
+    select: { userAgent: true, createdAt: true },
+    take: BOT_ROWS_CAP,
+  });
+  if (rows.length === 0) return [];
 
-  const [agg, rows] = await Promise.all([
-    prisma.pageView.aggregate({
-      where: botWhere,
-      _count: { _all: true },
-      _min: { createdAt: true },
-      _max: { createdAt: true },
-    }),
-    prisma.pageView.findMany({
-      where: botWhere,
-      select: { userAgent: true },
-      take: BOT_BREAKDOWN_CAP,
-    }),
-  ]);
-
-  const count = agg._count._all;
-  if (!count || !agg._min.createdAt || !agg._max.createdAt) return null;
-
-  // Group the sampled UAs by friendly source label, desc by count.
-  const tally = new Map<string, number>();
+  // Club by friendly source label, tracking count + the span of hit times.
+  const bySource = new Map<string, { count: number; first: Date; last: Date }>();
   for (const r of rows) {
     const label = botSourceFromUserAgent(r.userAgent);
-    tally.set(label, (tally.get(label) ?? 0) + 1);
+    const cur = bySource.get(label);
+    if (!cur) {
+      bySource.set(label, { count: 1, first: r.createdAt, last: r.createdAt });
+    } else {
+      cur.count += 1;
+      if (r.createdAt < cur.first) cur.first = r.createdAt;
+      if (r.createdAt > cur.last) cur.last = r.createdAt;
+    }
   }
-  const sources = [...tally.entries()]
-    .map(([source, c]) => ({ source, count: c }))
-    .sort((a, b) => b.count - a.count);
-
-  return {
-    count,
-    firstAt: agg._min.createdAt.toISOString(),
-    lastAt: agg._max.createdAt.toISOString(),
-    sources,
-  };
+  return [...bySource.entries()]
+    .map(([source, v]) => ({
+      source,
+      count: v.count,
+      firstAt: v.first.toISOString(),
+      lastAt: v.last.toISOString(),
+    }))
+    .sort((a, b) => b.count - a.count || (a.lastAt < b.lastAt ? 1 : -1));
 }
 
 export interface ContactRow {
