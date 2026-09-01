@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin, editDenied } from "@/lib/auth/guards";
 import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
+import { tenantAppSettingId } from "@/lib/settings/tenant-row";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /** Stored UTC instant -> IST datetime-local value "YYYY-MM-DDTHH:mm" for the input. */
@@ -24,11 +24,12 @@ function parseIstLocal(istLocal: string | null): Date | null | "invalid" {
 export async function getStatsWindow(): Promise<
   ActionResult<{ startAtInput: string; startAtIso: string | null }>
 > {
-  await requireSuperAdmin();
-  const s = await prisma.appSetting.findUnique({
-    where: { id: "singleton" },
-    select: { statsResetAt: true },
-  });
+  // Scope to the caller: a tenant admin (or a super admin impersonating one) reads
+  // that tenant's window; a super admin at the platform view reads the singleton.
+  const scope = await resolveActingScope();
+  const s = scope.tenantId
+    ? await prisma.appSetting.findUnique({ where: { tenantId: scope.tenantId }, select: { statsResetAt: true } })
+    : await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { statsResetAt: true } });
   return {
     ok: true,
     data: {
@@ -39,19 +40,32 @@ export async function getStatsWindow(): Promise<
 }
 
 /**
- * Set (or clear) the reporting start date. `istLocal` is the datetime-local value
- * in IST ("YYYY-MM-DDTHH:mm"); null/empty clears it (show all data). Stored UTC.
+ * Set (or clear) the reporting start date for the caller's scope. `istLocal` is the
+ * datetime-local value in IST ("YYYY-MM-DDTHH:mm"); null/empty clears it (show all
+ * data). Stored UTC. A tenant writes its OWN AppSetting row; the platform view writes
+ * the singleton. View-only staff are blocked.
  */
 export async function setStatsWindow(istLocal: string | null): Promise<ActionResult> {
-  const denied = editDenied(await requireSuperAdmin());
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
   if (denied) return denied;
   const parsed = parseIstLocal(istLocal);
   if (parsed === "invalid") return { ok: false, error: "Enter a valid date and time." };
-  await prisma.appSetting.upsert({
-    where: { id: "singleton" },
-    update: { statsResetAt: parsed },
-    create: { id: "singleton", statsResetAt: parsed },
-  });
+  if (scope.tenantId) {
+    await prisma.appSetting.upsert({
+      where: { tenantId: scope.tenantId },
+      update: { statsResetAt: parsed },
+      create: { id: tenantAppSettingId(scope.tenantId), tenantId: scope.tenantId, statsResetAt: parsed },
+    });
+  } else {
+    await prisma.appSetting.upsert({
+      where: { id: "singleton" },
+      update: { statsResetAt: parsed },
+      create: { id: "singleton", statsResetAt: parsed },
+    });
+  }
+  revalidatePath("/admin/data-window");
+  revalidatePath("/w/data-window");
   return { ok: true };
 }
 

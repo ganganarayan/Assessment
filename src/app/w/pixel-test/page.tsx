@@ -13,11 +13,14 @@ export const dynamic = "force-dynamic";
 /** Tenant workspace Pixel Tester — same tools as /admin/pixel-test, scoped to this
  *  tenant's own Meta pixel/CAPI config. */
 export default async function WorkspacePixelTestPage() {
-  await requireWorkspace();
+  // impersonating = a super admin operating this workspace; a real tenant admin gets
+  // only the self-serve testers. The purchase-management panels below (resend, log
+  // firing, auto-fire settings) are platform-level and stay super-admin-only.
+  const { impersonating } = await requireWorkspace();
   const t = await actingTenantId();
-  const purchases = await listRecentPurchases(t);
-  const capiLogs = await listCapiLogs(t);
-  const purchaseSettings = await getPurchaseSettingsForm();
+  const purchases = impersonating ? await listRecentPurchases(t) : [];
+  const capiLogs = impersonating ? await listCapiLogs(t) : [];
+  const purchaseSettings = impersonating ? await getPurchaseSettingsForm() : null;
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -27,7 +30,8 @@ export default async function WorkspacePixelTestPage() {
           becomes selectable as a conversion event. Standard events (e.g. PageView,
           CompleteRegistration) use <span className="font-mono">track</span>; anything else
           (e.g. <span className="font-mono">AssessmentCompleted</span>) uses{" "}
-          <span className="font-mono">trackCustom</span>.
+          <span className="font-mono">trackCustom</span>. Paste your workspace&apos;s Pixel ID
+          into the tester below.
         </p>
       </div>
 
@@ -35,11 +39,13 @@ export default async function WorkspacePixelTestPage() {
 
       <CapiTester />
 
-      <CapiLogPanel initialLogs={capiLogs} initialSettings={purchaseSettings} />
-
-      <ManualPurchaseResend />
-
-      <PurchaseRecovery purchases={purchases} />
+      {impersonating && purchaseSettings ? (
+        <>
+          <CapiLogPanel initialLogs={capiLogs} initialSettings={purchaseSettings} />
+          <ManualPurchaseResend />
+          <PurchaseRecovery purchases={purchases} />
+        </>
+      ) : null}
 
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-[var(--muted-foreground)]">
         <strong className="text-[var(--foreground)]">Testing only.</strong> Events go to the

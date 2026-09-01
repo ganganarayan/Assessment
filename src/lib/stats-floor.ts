@@ -6,11 +6,12 @@ import { prisma } from "@/lib/db/prisma";
  * views (dashboard, stats, contacts, submissions) show only records at/after it —
  * a non-destructive "show data from this date onward". Null = all time.
  */
-export async function getStatsFloor(): Promise<Date | null> {
-  const s = await prisma.appSetting.findUnique({
-    where: { id: "singleton" },
-    select: { statsResetAt: true },
-  });
+export async function getStatsFloor(tenantId: string | null = null): Promise<Date | null> {
+  // A tenant reads its OWN window (its AppSetting row); the platform/Gita view reads
+  // the singleton. A tenant never inherits the singleton (so Gita's window is private).
+  const s = tenantId
+    ? await prisma.appSetting.findUnique({ where: { tenantId }, select: { statsResetAt: true } })
+    : await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { statsResetAt: true } });
   return s?.statsResetAt ?? null;
 }
 

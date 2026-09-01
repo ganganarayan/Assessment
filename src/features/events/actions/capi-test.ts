@@ -3,18 +3,22 @@
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { requireSuperAdmin, assertCanEditOrThrow } from "@/lib/auth/guards";
-import { actingTenantId } from "@/lib/tenant/acting";
+import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { testCapi, sendCapiEventVerbose } from "@/lib/meta/send";
 import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
 import { fireCapiLogRow } from "@/lib/meta/capi-log";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { formatIST } from "@/lib/date";
 
-/** Super-admin diagnostic: fire a server-side CAPI event (any name, default
- *  AssessmentCompleted) to Meta and return Meta's real response. */
+/** Diagnostic: fire a server-side CAPI event (any name, default AssessmentCompleted)
+ *  to Meta and return Meta's real response. Scoped to the caller — a tenant admin
+ *  fires against their OWN dataset; a super admin uses the tenant they've entered (or
+ *  the platform/Gita dataset). View-only staff are blocked. */
 export async function testMetaCapi(testEventCode?: string, eventName?: string) {
-  assertCanEditOrThrow(await requireSuperAdmin());
-  return testCapi(testEventCode, eventName, await actingTenantId());
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return { ok: false, eventName: eventName ?? "AssessmentCompleted", error: denied.error };
+  return testCapi(testEventCode, eventName, scope.tenantId);
 }
 
 /**

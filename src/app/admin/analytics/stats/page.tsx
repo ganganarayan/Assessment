@@ -57,7 +57,7 @@ export default async function StatsPage({
 
   // The reporting floor actually applied (mirrors createdAtScope): the assessment's
   // own Data window when scoped, else the global one (skipped while impersonating).
-  const effectiveFloor: Date | null = scoped ? scoped.statsResetAt : t ? null : await getStatsFloor();
+  const effectiveFloor: Date | null = scoped ? scoped.statsResetAt : await getStatsFloor(t);
   const scopeLabel = scoped ? "Funnel numbers for this assessment" : "Funnel numbers across all assessments";
   const note =
     sp.from || sp.to

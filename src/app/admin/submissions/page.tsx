@@ -40,7 +40,7 @@ export default async function SubmissionsPage({
     scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : undefined,
   );
   // Effective reporting floor (Data window) actually applied to this list.
-  const effectiveFloor: Date | null = scoped ? scoped.statsResetAt : t ? null : await getStatsFloor();
+  const effectiveFloor: Date | null = scoped ? scoped.statsResetAt : await getStatsFloor(t);
   const paid = await getPaidBySubmission(submissions.map((s) => s.id));
   const rows: SubmissionRow[] = submissions.map((s) => {
     const p = paid.get(s.id);

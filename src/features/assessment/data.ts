@@ -76,7 +76,7 @@ export async function listSubmissions(
 ) {
   // The stats-floor "reset to 0" baseline is the platform/Gita setting — apply it
   // only to the platform view. An assessment-scoped view passes its own floor.
-  const floor = opts && "floor" in opts ? opts.floor ?? null : tenantId ? null : await getStatsFloor();
+  const floor = opts && "floor" in opts ? opts.floor ?? null : await getStatsFloor(tenantId);
   return prisma.submission.findMany({
     where: {
       ...(floor ? { createdAt: { gte: floor } } : {}),
@@ -104,8 +104,8 @@ export async function getSubmissionResult(submissionId: string) {
 }
 
 export async function getDashboardCounts(tenantId: string | null = null) {
-  // The stats-floor "reset to 0" is a platform/Gita setting — never apply it to a tenant.
-  const floor = tenantId ? null : await getStatsFloor();
+  // Each view uses its OWN reporting window (tenant's, or the singleton for platform).
+  const floor = await getStatsFloor(tenantId);
   const completedWhere = {
     status: "COMPLETED" as const,
     tenantId,

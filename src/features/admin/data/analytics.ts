@@ -49,9 +49,10 @@ async function createdAtScope(
   opts?: AssessmentScope,
 ): Promise<Record<string, unknown>> {
   const { gte, lte } = istDateRangeToUtc(range?.from, range?.to);
-  // An assessment-scoped view passes its own floor; otherwise the platform floor
-  // applies to the global (null-tenant) view and none to a tenant view.
-  const floor = opts && "floor" in opts ? opts.floor ?? null : tenantId ? null : await getStatsFloor();
+  // An assessment-scoped view passes its own floor; otherwise each view uses its
+  // OWN reporting window — the tenant's for a tenant view, the singleton for the
+  // platform/Gita (null-tenant) view.
+  const floor = opts && "floor" in opts ? opts.floor ?? null : await getStatsFloor(tenantId);
   const where: Record<string, unknown> = { ...floorCreatedAt(floor, gte, lte), tenantId };
   if (opts?.assessmentId) where.assessmentId = opts.assessmentId;
   return where;

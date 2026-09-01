@@ -24,7 +24,11 @@ export async function resolveActingTenant(): Promise<ActingTenant> {
     const acting = (await cookies()).get(ACTING_TENANT_COOKIE)?.value || null;
     return { user, tenantId: acting, impersonating: !!acting };
   }
-  return { user, tenantId: user.tenantId ?? null, impersonating: false };
+  // Read the tenant id FRESH from the DB: right after a tenant self-provisions, the
+  // session copy can still be null/stale, which would silently scope their /w pages
+  // to the wrong tenant (or none). Mirror resolveActingScope.
+  const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { tenantId: true } });
+  return { user, tenantId: fresh?.tenantId ?? user.tenantId ?? null, impersonating: false };
 }
 
 /**
