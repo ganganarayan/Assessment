@@ -359,6 +359,9 @@ model Assessment {
   // opt-in button text (null/empty = "Start").
   introNotice      String?
   startButtonLabel String?
+  // Lead-capture-AFTER only: the opt-in button shown AFTER the questions. Distinct
+  // from startButtonLabel (the landing's Start). null/empty = "Show my results".
+  resultsButtonLabel String?
 
   // Retake lockout: how often a respondent (keyed by uniqueIdentifier) may
   // retake. DELAYED uses retakeDays; NEVER = once; UNLIMITED = no throttle.

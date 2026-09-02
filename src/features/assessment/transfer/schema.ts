@@ -95,6 +95,7 @@ export const assessmentBodyExport = z.object({
   optinFields: z.unknown().nullable().optional(),
   introNotice: z.string().nullable().optional(),
   startButtonLabel: z.string().nullable().optional(),
+  resultsButtonLabel: z.string().nullable().optional(),
   useAiStatement: z.boolean().optional(),
   nextStep: z.enum(["PAYMENT", "DESTINATION", "RESULTS"]).optional(),
   questionDisplayMode: z.enum(["ALL", "CATEGORY", "SINGLE"]).optional(),

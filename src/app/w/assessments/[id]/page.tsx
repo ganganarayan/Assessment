@@ -65,6 +65,7 @@ export default async function WorkspaceEditAssessmentPage({
     leadCaptureAfter: a.leadCaptureAfter,
     introNotice: a.introNotice ?? "",
     startButtonLabel: a.startButtonLabel ?? "",
+    resultsButtonLabel: a.resultsButtonLabel ?? "",
     retakePolicy: a.retakePolicy,
     retakeDays: a.retakeDays,
     uniqueIdentifier: a.uniqueIdentifier,

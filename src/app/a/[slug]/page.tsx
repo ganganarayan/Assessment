@@ -64,6 +64,7 @@ export default async function PublicAssessmentPage({
     optinFields: ((a.optinFields as PreResultField[] | null) ?? []).filter((f) => f && f.label),
     introNotice: a.introNotice,
     startButtonLabel: a.startButtonLabel,
+    resultsButtonLabel: a.resultsButtonLabel,
     paidMode: a.paidMode,
     vslCountdownSeconds: a.vslCountdownSeconds,
     questionDisplayMode: a.questionDisplayMode,

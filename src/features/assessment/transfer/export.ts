@@ -65,6 +65,7 @@ async function buildAssessmentBody(
     optinFields: a.optinFields ?? null,
     introNotice: a.introNotice,
     startButtonLabel: a.startButtonLabel,
+    resultsButtonLabel: a.resultsButtonLabel,
     useAiStatement: a.useAiStatement,
     nextStep: a.nextStep,
     questionDisplayMode: a.questionDisplayMode,

@@ -80,6 +80,7 @@ function createData(
     optinFields: asJson(body.optinFields),
     introNotice: body.introNotice ?? null,
     startButtonLabel: body.startButtonLabel ?? null,
+    resultsButtonLabel: body.resultsButtonLabel ?? null,
     useAiStatement: body.useAiStatement ?? true,
     nextStep,
     paidMode: nextStep === "PAYMENT",

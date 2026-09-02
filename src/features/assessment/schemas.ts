@@ -66,6 +66,7 @@ export const assessmentSchema = z.object({
   // Editable opt-in copy. Blank = default behavior.
   introNotice: z.string().max(2000).optional().or(z.literal("")),
   startButtonLabel: z.string().max(120).optional().or(z.literal("")),
+  resultsButtonLabel: z.string().max(120).optional().or(z.literal("")),
   // Retake lockout config.
   retakePolicy: z.enum(["DELAYED", "NEVER", "UNLIMITED"]).default("DELAYED"),
   retakeDays: z.coerce

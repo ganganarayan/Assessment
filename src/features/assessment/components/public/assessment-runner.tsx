@@ -131,6 +131,7 @@ export interface PublicAssessment {
   optinFields: PreResultField[];
   introNotice: string | null;
   startButtonLabel: string | null;
+  resultsButtonLabel: string | null;
   paidMode: boolean;
   /** Anticipation countdown (seconds) after Submit before the destination/VSL loads. */
   vslCountdownSeconds: number;
@@ -564,7 +565,7 @@ export function AssessmentRunner({
         {leadFieldsBlock}
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         <Button size="lg" type="submit" disabled={pending} style={ctaStyle}>
-          {pending ? "Please wait…" : "See my results"}
+          {pending ? "Please wait…" : assessment.resultsButtonLabel?.trim() || "Show my results"}
         </Button>
       </form>
     );

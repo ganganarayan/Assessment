@@ -131,6 +131,7 @@ const DEFAULTS: AssessmentFormValues = {
   optinFields: [],
   introNotice: "",
   startButtonLabel: "",
+  resultsButtonLabel: "",
   retakePolicy: "DELAYED",
   retakeDays: 15,
   uniqueIdentifier: "EMAIL",
@@ -419,6 +420,23 @@ export function AssessmentForm({
                 Off (default): the opt-in form is the first screen. On: show a landing (headline +
                 Start), ask the questions (page 1 → page 2), THEN show the opt-in form, then results.
               </p>
+
+              {values.leadCaptureAfter ? (
+                <div className="mt-3 flex flex-col gap-2">
+                  <Label htmlFor="resultsButtonLabel">Post-assessment button text</Label>
+                  <Input
+                    id="resultsButtonLabel"
+                    className="max-w-xs"
+                    placeholder="Show my results"
+                    value={values.resultsButtonLabel ?? ""}
+                    onChange={(e) => set("resultsButtonLabel", e.target.value)}
+                  />
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    The opt-in button shown AFTER the questions. Distinct from the Start button
+                    text above. Blank = &quot;Show my results&quot;.
+                  </p>
+                </div>
+              ) : null}
             </div>
           </div>
 
