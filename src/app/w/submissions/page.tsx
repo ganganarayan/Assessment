@@ -4,6 +4,7 @@ import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { labeledAnswers } from "@/features/assessment/custom-fields";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { resultUrlFor } from "@/lib/events/completion";
+import { timezoneForCountry } from "@/lib/geo";
 import {
   SubmissionsTable,
   type SubmissionRow,
@@ -46,7 +47,7 @@ export default async function WorkspaceSubmissionsPage() {
       country: s.country,
       city: s.city,
       region: s.region,
-      timezone: s.timezone,
+      timezone: s.timezone ?? timezoneForCountry(s.country),
       attribution: normalizeAttribution(s.attribution),
       fbclidTimestamp: s.fbclidTimestamp,
       fbp: s.fbp,

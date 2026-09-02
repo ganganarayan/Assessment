@@ -36,6 +36,51 @@ function clean(v: string | null): string | null {
   return c.length > 0 ? c.slice(0, 128) : null;
 }
 
+/**
+ * Best-effort timezone for a 2-letter country code — a fallback for when Cloudflare
+ * doesn't send cf-timezone. Single-timezone countries are exact; for large multi-zone
+ * countries we use the most populous zone (a reasonable default, not authoritative).
+ */
+const COUNTRY_TZ: Record<string, string> = {
+  IN: "Asia/Kolkata",
+  LK: "Asia/Colombo",
+  NP: "Asia/Kathmandu",
+  BD: "Asia/Dhaka",
+  PK: "Asia/Karachi",
+  AE: "Asia/Dubai",
+  SA: "Asia/Riyadh",
+  SG: "Asia/Singapore",
+  MY: "Asia/Kuala_Lumpur",
+  ID: "Asia/Jakarta",
+  PH: "Asia/Manila",
+  TH: "Asia/Bangkok",
+  HK: "Asia/Hong_Kong",
+  JP: "Asia/Tokyo",
+  CN: "Asia/Shanghai",
+  GB: "Europe/London",
+  IE: "Europe/Dublin",
+  DE: "Europe/Berlin",
+  FR: "Europe/Paris",
+  NL: "Europe/Amsterdam",
+  ES: "Europe/Madrid",
+  IT: "Europe/Rome",
+  US: "America/New_York",
+  CA: "America/Toronto",
+  BR: "America/Sao_Paulo",
+  MX: "America/Mexico_City",
+  AU: "Australia/Sydney",
+  NZ: "Pacific/Auckland",
+  ZA: "Africa/Johannesburg",
+  NG: "Africa/Lagos",
+  KE: "Africa/Nairobi",
+};
+
+/** Representative timezone for a country code, or null when unknown. */
+export function timezoneForCountry(country: string | null | undefined): string | null {
+  const c = (country ?? "").trim().toUpperCase();
+  return c ? COUNTRY_TZ[c] ?? null : null;
+}
+
 /** Read geo from a header getter (e.g. `(k) => headers().get(k)`). */
 export function readGeoHeaders(get: (key: string) => string | null | undefined): GeoContext {
   const g = (k: string) => {

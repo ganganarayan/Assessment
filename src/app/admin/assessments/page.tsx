@@ -60,9 +60,6 @@ export default async function AssessmentsPage() {
                 <Link href={`/admin/submissions?assessment=${a.id}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
                   Submissions
                 </Link>
-                <Link href={`/admin/analytics/contacts?assessment=${a.id}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
-                  Contacts
-                </Link>
                 <Link href={`/admin/data-window?assessment=${a.id}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
                   Data window
                 </Link>

@@ -46,17 +46,6 @@ export interface SubmissionRow {
 
 type SortKey = "date" | "lead" | "score";
 
-/** utm columns pulled from the attribution blob (same set as Contacts). */
-const UTM = [
-  "utm_source",
-  "utm_medium",
-  "utm_campaign",
-  "utm_term",
-  "utm_content",
-  "fbclid",
-  "gclid",
-] as const;
-
 const dash = (v: string | null | undefined) => (v && String(v).trim() ? String(v) : "—");
 
 /** Join non-empty parts with a separator; em-dash when all are blank. */
@@ -195,12 +184,22 @@ export function SubmissionsTable({
                     <div className="opacity-70">Paid</div>
                   </th>
                   <th className="px-3 py-2 text-center">VSL</th>
-                  <th className="px-3 py-2">Result</th>
-                  <th className="px-3 py-2">PDF</th>
+                  <th className="px-3 py-2">
+                    <div>Result</div>
+                    <div className="opacity-70">PDF</div>
+                  </th>
                   <th className="px-3 py-2">Device</th>
-                  {UTM.map((u) => (
-                    <th key={u} className="whitespace-nowrap px-3 py-2">{u}</th>
-                  ))}
+                  <th className="whitespace-nowrap px-3 py-2">
+                    <div>utm_source</div>
+                    <div className="opacity-70">utm_medium</div>
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2">
+                    <div>utm_campaign</div>
+                    <div className="opacity-70">utm_term</div>
+                  </th>
+                  <th className="px-3 py-2">utm_content</th>
+                  <th className="px-3 py-2">fbclid</th>
+                  <th className="px-3 py-2">gclid</th>
                   <th className="whitespace-nowrap px-3 py-2">client_ip</th>
                   <th className="whitespace-nowrap px-3 py-2">user_agent</th>
                   <th className="whitespace-nowrap px-3 py-2">Location</th>
@@ -285,22 +284,17 @@ export function SubmissionsTable({
                     </td>
                     {/* VSL */}
                     <td className="px-3 py-2 text-center tabular-nums">{s.vslLoads}</td>
-                    {/* Result link */}
+                    {/* Result over PDF */}
                     <td className="px-3 py-2">
                       {s.status === "COMPLETED" ? (
-                        <Link href={`/a/${s.slug}/r/${s.id}`} target="_blank" rel="noreferrer" className="text-xs underline">
-                          Result
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    {/* PDF link */}
-                    <td className="px-3 py-2">
-                      {s.status === "COMPLETED" ? (
-                        <a href={`/api/reports/${s.id}`} target="_blank" rel="noreferrer" className="text-xs underline">
-                          PDF
-                        </a>
+                        <div className="flex flex-col gap-0.5">
+                          <Link href={`/a/${s.slug}/r/${s.id}`} target="_blank" rel="noreferrer" className="text-xs underline">
+                            Result
+                          </Link>
+                          <a href={`/api/reports/${s.id}`} target="_blank" rel="noreferrer" className="text-xs underline opacity-70">
+                            PDF
+                          </a>
+                        </div>
                       ) : (
                         "—"
                       )}
@@ -309,43 +303,48 @@ export function SubmissionsTable({
                     <td className="whitespace-nowrap px-3 py-2 text-xs">
                       {join([s.deviceType, s.browser, s.os], " · ")}
                     </td>
-                    {/* UTM — fbclid truncates to 1 line + Copy; utm_content wraps (clamped). */}
-                    {UTM.map((u) => {
-                      const v = s.attribution?.[u] ?? null;
-                      if (u === "fbclid") {
-                        return (
-                          <td key={u} className="px-3 py-2 text-xs">
-                            {v ? (
-                              <div className="flex items-center gap-1">
-                                <span className="max-w-[90px] truncate font-mono text-[11px]" title={v}>{v}</span>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-6 shrink-0 px-1.5 text-[10px]"
-                                  onClick={() => copy(`${s.id}:fbclid`, v)}
-                                >
-                                  {copiedKey === `${s.id}:fbclid` ? "✓" : "Copy"}
-                                </Button>
-                              </div>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                        );
-                      }
-                      if (u === "utm_content") {
-                        return (
-                          <td key={u} className="px-3 py-2 text-xs">
-                            <div className="max-w-[180px] break-words line-clamp-4" title={v ?? ""}>{dash(v)}</div>
-                          </td>
-                        );
-                      }
-                      return (
-                        <td key={u} className="whitespace-nowrap px-3 py-2 text-xs">
-                          {dash(v)}
-                        </td>
-                      );
-                    })}
+                    {/* utm_source over utm_medium */}
+                    <td className="whitespace-nowrap px-3 py-2 text-xs">
+                      <div>{dash(s.attribution?.utm_source ?? null)}</div>
+                      <div className="opacity-70">{dash(s.attribution?.utm_medium ?? null)}</div>
+                    </td>
+                    {/* utm_campaign over utm_term */}
+                    <td className="px-3 py-2 text-xs">
+                      <div className="max-w-[180px] break-words line-clamp-2" title={s.attribution?.utm_campaign ?? ""}>
+                        {dash(s.attribution?.utm_campaign ?? null)}
+                      </div>
+                      <div className="max-w-[180px] break-words line-clamp-2 opacity-70" title={s.attribution?.utm_term ?? ""}>
+                        {dash(s.attribution?.utm_term ?? null)}
+                      </div>
+                    </td>
+                    {/* utm_content (wrapped, clamped) */}
+                    <td className="px-3 py-2 text-xs">
+                      <div className="max-w-[180px] break-words line-clamp-4" title={s.attribution?.utm_content ?? ""}>
+                        {dash(s.attribution?.utm_content ?? null)}
+                      </div>
+                    </td>
+                    {/* fbclid (truncate 1 line + Copy) */}
+                    <td className="px-3 py-2 text-xs">
+                      {s.attribution?.fbclid ? (
+                        <div className="flex items-center gap-1">
+                          <span className="max-w-[90px] truncate font-mono text-[11px]" title={s.attribution.fbclid}>
+                            {s.attribution.fbclid}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 shrink-0 px-1.5 text-[10px]"
+                            onClick={() => copy(`${s.id}:fbclid`, s.attribution!.fbclid as string)}
+                          >
+                            {copiedKey === `${s.id}:fbclid` ? "✓" : "Copy"}
+                          </Button>
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    {/* gclid */}
+                    <td className="whitespace-nowrap px-3 py-2 text-xs">{dash(s.attribution?.gclid ?? null)}</td>
                     {/* Other tracking */}
                     <td className="whitespace-nowrap px-3 py-2 text-xs">{dash(s.clientIp)}</td>
                     <td className="px-3 py-2 text-xs">

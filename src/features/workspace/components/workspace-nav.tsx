@@ -24,7 +24,6 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
     section: "Analytics",
     items: [
       { href: "/w/stats", label: "Stats" },
-      { href: "/w/contacts", label: "Contacts" },
       { href: "/w/data-window", label: "Data window" },
     ],
   },
