@@ -135,7 +135,7 @@ export const TIERS: ReadonlyArray<Tier> = [
     features: [
       "3 assessments",
       "300 responses / month",
-      "Conditional logic",
+      "Branded PDF reports",
       "Webhook / Zapier",
       "Lead export",
       "1 seat",
