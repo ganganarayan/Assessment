@@ -6,6 +6,8 @@ import { AssessmentScopeBar } from "@/features/admin/components/assessment-scope
 import { getStatsFloor } from "@/lib/stats-floor";
 import { formatIST } from "@/lib/date";
 import { labeledAnswers } from "@/features/assessment/custom-fields";
+import { normalizeAttribution } from "@/lib/events/payload";
+import { resultUrlFor } from "@/lib/events/completion";
 import {
   SubmissionsTable,
   type SubmissionRow,
@@ -50,23 +52,35 @@ export default async function SubmissionsPage({
       assessmentId: s.assessmentId,
       assessmentTitle: s.assessment.title,
       createdAt: s.createdAt.toISOString(),
+      completedAt: s.completedAt ? s.completedAt.toISOString() : null,
       firstName: s.leadFirstName,
       lastName: s.leadLastName,
       email: s.leadEmail,
       mobile: s.leadMobile,
       profession: s.leadProfession,
+      customerId: s.customerId,
       totalScore: s.totalScore,
       maxScore: s.maxScore,
       bandTitle: s.resultBand?.title ?? null,
       status: s.status,
+      resultUrl: s.status === "COMPLETED"
+        ? resultUrlFor(s.assessment.targetUrl, s.assessment.slug, s.id, s.resultToken)
+        : null,
       paidAmount: p?.amount ?? null,
       paidAt: p?.at ?? null,
+      vslLoads: s.resultFetchCount,
       deviceType: s.deviceType,
       browser: s.browser,
       os: s.os,
       country: s.country,
       city: s.city,
       region: s.region,
+      timezone: s.timezone,
+      attribution: normalizeAttribution(s.attribution),
+      fbclidTimestamp: s.fbclidTimestamp,
+      fbp: s.fbp,
+      clientIp: s.clientIp,
+      userAgent: s.userAgent,
       customAnswers: labeledAnswers({
         optinFields: s.assessment.optinFields,
         optinAnswers: s.optinAnswers,

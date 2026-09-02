@@ -3,34 +3,61 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { formatIST } from "@/lib/date";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { type PayloadAttribution } from "@/features/events/types";
 
 export interface SubmissionRow {
   id: string;
   slug: string;
   assessmentId: string;
   assessmentTitle: string;
-  createdAt: string; // ISO
+  createdAt: string; // ISO (opt-in)
+  completedAt: string | null; // ISO
   firstName: string | null;
   lastName: string | null;
   email: string | null;
   mobile: string | null;
   profession: string | null;
+  customerId: string | null;
   totalScore: number | null;
   maxScore: number | null;
   bandTitle: string | null;
   status: string;
+  /** Destination URL the contact lands on (targetUrl?t=token) — completed only. */
+  resultUrl: string | null;
   paidAmount: number | null;
   paidAt: string | null;
+  vslLoads: number;
   deviceType: string | null;
   browser: string | null;
   os: string | null;
   country: string | null;
   city: string | null;
   region: string | null;
+  timezone: string | null;
+  attribution: PayloadAttribution | null;
+  fbclidTimestamp: number | null;
+  fbp: string | null;
+  clientIp: string | null;
+  userAgent: string | null;
   customAnswers: { label: string; value: string }[];
 }
+
+type SortKey = "date" | "lead" | "score";
+
+/** utm columns pulled from the attribution blob (same set as Contacts). */
+const UTM = [
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_term",
+  "utm_content",
+  "fbclid",
+  "gclid",
+] as const;
+
+const dash = (v: string | null | undefined) => (v && String(v).trim() ? String(v) : "—");
 
 /** Join non-empty parts with a separator; em-dash when all are blank. */
 const join = (parts: (string | null)[], sep: string) => {
@@ -38,12 +65,12 @@ const join = (parts: (string | null)[], sep: string) => {
   return s || "—";
 };
 
-type SortKey = "date" | "lead" | "score" | "result" | "status";
-
-/** Submissions grouped by assessment (name shown once as a section header), with
- *  click-to-sort columns (toggles asc/desc, applied within each group).
- *  `exportBase`, when given, adds per-assessment "CSV" / "JSON" export links
- *  to each group header, pointing at `${exportBase}?assessment=<id>&format=...`. */
+/**
+ * Submissions grouped by assessment (name shown once as a section header), with
+ * click-to-sort columns (toggles asc/desc, applied within each group). This is the
+ * superset view: it also carries every opt-in/tracking field the Contacts page shows.
+ *  `exportBase`, when given, adds per-assessment "CSV" / "JSON" export links.
+ */
 export function SubmissionsTable({
   rows,
   exportBase,
@@ -53,6 +80,17 @@ export function SubmissionsTable({
 }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
   const [query, setQuery] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyUrl = (id: string, url: string) => {
+    navigator.clipboard
+      ?.writeText(url)
+      .then(() => {
+        setCopiedId(id);
+        setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
+      })
+      .catch(() => {});
+  };
 
   const toggle = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
@@ -64,7 +102,7 @@ export function SubmissionsTable({
     const q = query.trim().toLowerCase();
     const matches = (r: SubmissionRow) =>
       !q ||
-      [r.firstName, r.lastName, r.email, r.mobile, r.profession, r.assessmentTitle, r.bandTitle,
+      [r.firstName, r.lastName, r.email, r.mobile, r.profession, r.assessmentTitle, r.bandTitle, r.customerId,
         ...r.customAnswers.map((a) => `${a.label} ${a.value}`)]
         .filter(Boolean)
         .join(" ")
@@ -78,8 +116,6 @@ export function SubmissionsTable({
         case "date": return r.createdAt;
         case "lead": return name(r);
         case "score": return r.totalScore ?? -1;
-        case "result": return (r.bandTitle ?? "").toLowerCase();
-        case "status": return r.status;
       }
     };
     const cmp = (a: SubmissionRow, b: SubmissionRow) => {
@@ -135,18 +171,8 @@ export function SubmissionsTable({
             {exportBase ? (
               <div className="flex items-center gap-3 text-xs">
                 <span className="text-[var(--muted-foreground)]">Export:</span>
-                <a
-                  href={`${exportBase}?assessment=${assessmentId}&format=csv`}
-                  className="underline"
-                >
-                  CSV
-                </a>
-                <a
-                  href={`${exportBase}?assessment=${assessmentId}&format=json`}
-                  className="underline"
-                >
-                  JSON
-                </a>
+                <a href={`${exportBase}?assessment=${assessmentId}&format=csv`} className="underline">CSV</a>
+                <a href={`${exportBase}?assessment=${assessmentId}&format=json`} className="underline">JSON</a>
               </div>
             ) : null}
           </div>
@@ -154,26 +180,35 @@ export function SubmissionsTable({
             <table className="w-full text-sm">
               <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
                 <tr>
-                  <Th k="date" label="Date (IST)" className="whitespace-nowrap" />
-                  <Th k="lead" label="Lead" />
+                  <Th k="lead" label="Contact" />
                   <Th k="score" label="Score" />
-                  <Th k="result" label="Result" />
-                  <Th k="status" label="Status" />
-                  <th className="whitespace-nowrap px-3 py-2">Device</th>
+                  <th className="px-3 py-2">Result URL</th>
+                  <Th k="date" label="Opt-in (IST) / Completion" className="whitespace-nowrap" />
+                  <th className="whitespace-nowrap px-3 py-2">Completed / Paid</th>
+                  <th className="px-3 py-2 text-center">VSL</th>
+                  <th className="px-3 py-2">Result</th>
+                  <th className="px-3 py-2">PDF</th>
+                  <th className="px-3 py-2">Device</th>
+                  {UTM.map((u) => (
+                    <th key={u} className="whitespace-nowrap px-3 py-2">{u}</th>
+                  ))}
+                  <th className="whitespace-nowrap px-3 py-2">client_ip</th>
+                  <th className="whitespace-nowrap px-3 py-2">user_agent</th>
                   <th className="whitespace-nowrap px-3 py-2">Location</th>
-                  <th className="whitespace-nowrap px-3 py-2">Paid</th>
-                  <th className="px-3 py-2"></th>
+                  <th className="whitespace-nowrap px-3 py-2">timezone</th>
+                  <th className="whitespace-nowrap px-3 py-2">fbp</th>
+                  <th className="whitespace-nowrap px-3 py-2">fbclid_timestamp</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {group.rows.map((s) => (
                   <tr key={s.id}>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs">{formatIST(s.createdAt)}</td>
+                    {/* Contact */}
                     <td className="px-3 py-2">
                       <div className="flex flex-col">
-                        <span>{[s.firstName, s.lastName].filter(Boolean).join(" ") || "—"}</span>
+                        <span className="font-medium">{[s.firstName, s.lastName].filter(Boolean).join(" ") || "—"}</span>
                         <span className="text-xs text-[var(--muted-foreground)]">
-                          {s.email ?? ""} {s.mobile ? `· ${s.mobile}` : ""}
+                          {s.email ?? ""}{s.mobile ? ` · ${s.mobile}` : ""}
                         </span>
                         {s.profession ? (
                           <span className="text-xs text-[var(--muted-foreground)]">{s.profession}</span>
@@ -183,46 +218,101 @@ export function SubmissionsTable({
                             <span className="font-medium">{a.label}:</span> {a.value}
                           </span>
                         ))}
+                        {s.customerId ? (
+                          <span className="font-mono text-[10px] text-[var(--muted-foreground)]">{s.customerId}</span>
+                        ) : null}
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 tabular-nums">
-                      {s.totalScore != null ? `${s.totalScore} / ${s.maxScore ?? 0}` : "—"}
-                    </td>
-                    <td className="px-3 py-2">{s.bandTitle ?? "—"}</td>
-                    <td className="px-3 py-2">
-                      <Badge variant={s.status === "COMPLETED" ? "success" : "muted"}>{s.status}</Badge>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs">{join([s.deviceType, s.browser, s.os], " · ")}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs">{join([s.city, s.region, s.country], ", ")}</td>
+                    {/* Score + band */}
                     <td className="whitespace-nowrap px-3 py-2">
-                      {s.paidAmount != null ? (
-                        <div className="flex flex-col">
-                          <span className="font-medium text-green-600 tabular-nums">₹{s.paidAmount}</span>
-                          {s.paidAt ? (
-                            <span className="text-[10px] text-[var(--muted-foreground)]">{formatIST(s.paidAt)}</span>
-                          ) : null}
+                      <div className="flex flex-col">
+                        <span className="tabular-nums">
+                          {s.totalScore != null ? `${s.totalScore} / ${s.maxScore ?? 0}` : "—"}
+                        </span>
+                        {s.bandTitle ? (
+                          <span className="text-xs text-[var(--muted-foreground)]">{s.bandTitle}</span>
+                        ) : null}
+                      </div>
+                    </td>
+                    {/* Result URL */}
+                    <td className="px-3 py-2 align-top">
+                      {s.resultUrl ? (
+                        <div className="flex w-[200px] items-start gap-2">
+                          <span className="min-w-0 flex-1 break-all font-mono text-[11px] leading-snug" title={s.resultUrl}>
+                            {s.resultUrl}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 shrink-0 px-2"
+                            onClick={() => copyUrl(s.id, s.resultUrl as string)}
+                          >
+                            {copiedId === s.id ? "Copied" : "Copy"}
+                          </Button>
                         </div>
                       ) : (
                         "—"
                       )}
                     </td>
-                    <td className="px-3 py-2 text-right">
-                      {s.status === "COMPLETED" ? (
-                        <div className="flex items-center justify-end gap-3">
-                          <Link href={`/a/${s.slug}/r/${s.id}`} target="_blank" rel="noreferrer" className="text-xs underline">
-                            Result
-                          </Link>
-                          <a
-                            href={`/api/reports/${s.id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs underline"
-                          >
-                            PDF
-                          </a>
-                        </div>
-                      ) : null}
+                    {/* Opt-in / Completion times */}
+                    <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
+                      <div>{formatIST(s.createdAt)}</div>
+                      <div className="opacity-70">{s.completedAt ? formatIST(s.completedAt) : "—"}</div>
                     </td>
+                    {/* Completed tick / Paid */}
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <div className="flex flex-col">
+                        <span className={s.status === "COMPLETED" ? "text-green-600" : "text-[var(--muted-foreground)]"}>
+                          {s.status === "COMPLETED" ? "✓" : "—"}
+                        </span>
+                        <span className="text-xs">
+                          {s.paidAmount != null ? (
+                            <span className="font-medium text-green-600 tabular-nums">₹{s.paidAmount}</span>
+                          ) : (
+                            <span className="text-[var(--muted-foreground)]">—</span>
+                          )}
+                        </span>
+                      </div>
+                    </td>
+                    {/* VSL */}
+                    <td className="px-3 py-2 text-center tabular-nums">{s.vslLoads}</td>
+                    {/* Result link */}
+                    <td className="px-3 py-2">
+                      {s.status === "COMPLETED" ? (
+                        <Link href={`/a/${s.slug}/r/${s.id}`} target="_blank" rel="noreferrer" className="text-xs underline">
+                          Result
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    {/* PDF link */}
+                    <td className="px-3 py-2">
+                      {s.status === "COMPLETED" ? (
+                        <a href={`/api/reports/${s.id}`} target="_blank" rel="noreferrer" className="text-xs underline">
+                          PDF
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    {/* Device */}
+                    <td className="whitespace-nowrap px-3 py-2 text-xs">
+                      {join([s.deviceType, s.browser, s.os], " · ")}
+                    </td>
+                    {/* UTM */}
+                    {UTM.map((u) => (
+                      <td key={u} className="whitespace-nowrap px-3 py-2 text-xs">
+                        {dash(s.attribution?.[u] ?? null)}
+                      </td>
+                    ))}
+                    {/* Other tracking */}
+                    <td className="whitespace-nowrap px-3 py-2 text-xs">{dash(s.clientIp)}</td>
+                    <td className="max-w-[220px] truncate px-3 py-2 text-xs" title={s.userAgent ?? ""}>{dash(s.userAgent)}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-xs">{join([s.city, s.region, s.country], ", ")}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-xs">{dash(s.timezone)}</td>
+                    <td className="max-w-[160px] truncate px-3 py-2 text-xs" title={s.fbp ?? ""}>{dash(s.fbp)}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-xs tabular-nums">{s.fbclidTimestamp ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
