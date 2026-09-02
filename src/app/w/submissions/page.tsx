@@ -5,6 +5,7 @@ import { labeledAnswers } from "@/features/assessment/custom-fields";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { resultUrlFor } from "@/lib/events/completion";
 import { timezoneForCountry } from "@/lib/geo";
+import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import {
   SubmissionsTable,
   type SubmissionRow,
@@ -62,9 +63,21 @@ export default async function WorkspaceSubmissionsPage() {
     };
   });
 
+  const exportGroups = [
+    {
+      items: [
+        { label: "CSV", href: "/api/w/submissions/export?format=csv" },
+        { label: "JSON", href: "/api/w/submissions/export?format=json" },
+      ],
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
+        <AnalyticsToolbar exportGroups={exportGroups} />
+      </div>
       <p className="-mt-4 text-xs text-[var(--muted-foreground)]">
         Every submission to your assessments — private to this workspace. Type to search; click a
         column heading to sort.

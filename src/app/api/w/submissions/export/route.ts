@@ -21,10 +21,9 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const format = url.searchParams.get("format") === "json" ? "json" : "csv";
-  const assessmentId = url.searchParams.get("assessment");
-  if (!assessmentId) {
-    return NextResponse.json({ error: "Missing ?assessment=<id>" }, { status: 400 });
-  }
+  // ?assessment=<id> scopes to one assessment (the per-group links); omitted =
+  // every submission across this tenant's assessments (the top-level Export).
+  const assessmentId = url.searchParams.get("assessment") ?? undefined;
 
   // No "Data window" floor: /w/submissions shows every submission unfiltered.
   const rows = await listSubmissionsForExport({ tenantId, assessmentId, floor: null });
