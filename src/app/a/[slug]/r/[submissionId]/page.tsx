@@ -71,7 +71,7 @@ export default async function ResultPage({
           professionLabel: true,
           engine: true,
           tenantId: true,
-          categories: { select: { name: true, page: true } },
+          categories: { select: { name: true, page: true, displayOrder: true } },
         },
       },
     },
@@ -101,6 +101,14 @@ export default async function ResultPage({
   if (!canViewInternally) await markResultViewed(submissionId);
 
   const snap = submission.resultSnapshot as unknown as ResultSnapshot | null;
+
+  // Categories in the builder's order (displayOrder), not the stored snapshot's
+  // scoring-iteration order — so the serial numbers baked into names/questions read
+  // in sequence. Also repairs already-completed submissions saved before this fix.
+  const catOrder = new Map(submission.assessment.categories.map((c) => [c.name, c.displayOrder]));
+  const orderedCats = snap
+    ? [...snap.categories].sort((a, b) => (catOrder.get(a.name) ?? 0) - (catOrder.get(b.name) ?? 0))
+    : [];
 
   // ---- Clinic-audit engine: branded interactive result --------------------
   // Reachable by the submission id ALONE — no token, no sign-in. The id is an
@@ -331,13 +339,13 @@ export default async function ResultPage({
             </CardContent>
           </Card>
 
-          {snap.categories.length > 0 ? (
+          {orderedCats.length > 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Category breakdown</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4 text-sm">
-                {snap.categories.map((c, i) => {
+                {orderedCats.map((c, i) => {
                   const qs = questionsByCategory.get(c.name) ?? [];
                   return (
                     <div
@@ -400,7 +408,7 @@ export default async function ResultPage({
     // Group the category breakdown by page (1 = assessment, 2 = queries) so both
     // scored pages show as separate sections. Page is looked up by name at render time.
     const pageByName = new Map(submission.assessment.categories.map((c) => [c.name, c.page ?? 1]));
-    const cats = snap.categories ?? [];
+    const cats = orderedCats;
     const groups = [
       { key: 1, label: "Assessment", items: cats.filter((c) => (pageByName.get(c.name) ?? 1) === 1) },
       { key: 2, label: "Queries", items: cats.filter((c) => (pageByName.get(c.name) ?? 1) === 2) },

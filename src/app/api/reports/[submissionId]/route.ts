@@ -52,6 +52,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
           title: true,
           engine: true,
           tenantId: true,
+          categories: { select: { name: true, displayOrder: true } },
         },
       },
     },
@@ -110,6 +111,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
     const breakdown = await getSubmissionQuestionBreakdown(submissionId);
     const qsByCategory = new Map(breakdown.map((b) => [b.name, b.questions]));
 
+    // Categories in the builder's displayOrder (not the stored snapshot's scoring
+    // order), so the baked-in serial numbers read in sequence — also fixes reports
+    // for submissions completed before the ordering fix.
+    const catOrder = new Map(sub.assessment.categories.map((c) => [c.name, c.displayOrder]));
+    const orderedCats = Array.isArray(snap.categories)
+      ? [...snap.categories].sort((a, b) => (catOrder.get(a.name) ?? 0) - (catOrder.get(b.name) ?? 0))
+      : [];
+
     const data: ReportData = {
       name,
       profession: sub.leadProfession?.trim() || null,
@@ -121,8 +130,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
       aiStatement: sub.aiStatement ?? snap.aiStatement ?? null,
       resultSuggestion: snap.resultSuggestion ?? null,
       reportNote: sub.reportNote ?? null,
-      categories: Array.isArray(snap.categories)
-        ? snap.categories.map((c) => ({
+      categories: orderedCats.map((c) => ({
             name: c.name,
             score: c.score,
             max: c.max,
@@ -133,8 +141,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
               score: q.score,
               max: q.max,
             })),
-          }))
-        : [],
+          })),
     };
     pdf = await renderReportPdf(data);
   }

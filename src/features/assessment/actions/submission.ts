@@ -830,11 +830,16 @@ export async function completeSubmission(
       engineConfig: true,
       tenant: { select: { id: true, slug: true, name: true } },
       categories: {
+        // Order categories + their questions by displayOrder so scoring iterates in
+        // the SAME sequence the builder shows — the stored snapshot's category order
+        // then matches the builder (and the baked-in serial numbers stay in sequence).
+        orderBy: { displayOrder: "asc" },
         select: {
           id: true,
           name: true,
           page: true,
           questions: {
+            orderBy: { displayOrder: "asc" },
             select: {
               id: true,
               text: true,

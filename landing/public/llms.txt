@@ -1,0 +1,27 @@
+# Assess360
+
+> Assess360 is a lead-qualification scorecard platform for B2B teams. It scores
+> every prospect against your fit criteria so sales only talks to the leads that
+> are actually ready to buy — the opposite of a quiz tool that just grows an email list.
+
+## What it does
+- Build weighted scorecards with categories, per-answer scoring, and conditional branching.
+- Share one hosted link (email, ads, website) — no embedding or re-hosting required.
+- Score each response instantly and return a personalized, hosted result page.
+- Route or disqualify leads by fit, and push them to a CRM via webhook or Zapier, or export CSV.
+- Run on a custom domain with white-label branding; agencies can operate isolated client sub-accounts.
+
+## Who it is for
+- B2B service firms that want to confirm fit before booking a call.
+- Lead-generation and performance agencies turning ad traffic into scored, sales-ready leads.
+- Consultants screening inbound interest against their ideal engagement.
+
+## Pricing (USD, all countries)
+- Free — $0: 1 assessment, 25 responses/mo, hosted results page, email capture, Assess360 badge.
+- Starter — $39/mo: 3 assessments, 300 responses/mo, conditional logic, webhook/Zapier, lead export, 1 seat.
+- Growth — $89/mo (most popular): 15 assessments, 2,000 responses/mo, custom domain, branding removed, GA/Pixel, split testing, 3 seats.
+- Scale — $199/mo: unlimited assessments, 12,000 responses/mo, agency sub-accounts, API, white-label, 5+ seats, priority support.
+
+## Links
+- Home: https://assess.divineleads.guru/
+- Start free: https://assess.divineleads.guru/signup

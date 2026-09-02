@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://assess.divineleads.guru/sitemap.xml

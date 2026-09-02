@@ -1,0 +1,47 @@
+---
+import { SITE } from '../config';
+
+const nav = [
+  { label: 'How it works', href: '#how' },
+  { label: 'Capabilities', href: '#capabilities' },
+  { label: 'Pricing', href: '#pricing' },
+  { label: 'FAQ', href: '#faq' },
+];
+
+const year = new Date().getFullYear();
+---
+
+<footer class="bg-white">
+  <div class="mx-auto max-w-content px-5 py-14 sm:px-8">
+    <div class="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+      <a href="#top" class="flex items-center gap-2 font-display text-lg font-bold tracking-tight text-slate-900">
+        <span aria-hidden="true" class="grid h-7 w-7 place-items-center rounded-md bg-accent text-white">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.4" opacity="0.35" />
+            <path d="M12 3a9 9 0 0 1 8.49 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+          </svg>
+        </span>
+        Assess360
+      </a>
+
+      <nav class="flex flex-wrap gap-x-8 gap-y-3" aria-label="Footer">
+        {nav.map((l) => (
+          <a href={l.href} class="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900">
+            {l.label}
+          </a>
+        ))}
+        <a href={SITE.signupUrl} class="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900">
+          Start free
+        </a>
+      </nav>
+    </div>
+
+    <div class="mt-10 flex flex-col gap-4 border-t border-slate-200 pt-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+      <p>&copy; {year} Assess360. All rights reserved.</p>
+      <div class="flex gap-6">
+        <a href={`${SITE.domain}/privacy`} class="transition-colors hover:text-slate-800">Privacy</a>
+        <a href={`${SITE.domain}/terms`} class="transition-colors hover:text-slate-800">Terms</a>
+      </div>
+    </div>
+  </div>
+</footer>
