@@ -1,11 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  updateThemeColors,
-  DEFAULT_THEME_COLORS,
-  type ThemeColors,
-} from "@/features/workspace/actions/theme";
+import { updateThemeColors } from "@/features/workspace/actions/theme";
+import { DEFAULT_THEME_COLORS, type ThemeColors } from "@/features/workspace/theme-colors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

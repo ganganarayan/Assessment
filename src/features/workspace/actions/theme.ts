@@ -5,13 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireWorkspace, editDenied } from "@/lib/auth/guards";
 import { type ActionResult } from "@/features/assessment/actions/shared";
-
-export type ThemeColors = { primaryColor: string; secondaryColor: string };
-
-export const DEFAULT_THEME_COLORS: ThemeColors = {
-  primaryColor: "#0f172a",
-  secondaryColor: "#64748b",
-};
+import { DEFAULT_THEME_COLORS, type ThemeColors } from "@/features/workspace/theme-colors";
 
 const hex = z
   .string()
