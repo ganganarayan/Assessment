@@ -255,6 +255,10 @@ export function AssessmentRunner({
 
   // Honeypot input ref — hidden from humans; a filled value marks a bot opt-in.
   const hpRef = useRef<HTMLInputElement>(null);
+  // Pending auto-advance timer (paginated modes): picking an option moves to the
+  // next screen after a short beat. Held in a ref so a re-selection or a manual
+  // Next/Back cancels the in-flight advance instead of double-firing.
+  const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function submitLead(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -842,6 +846,7 @@ export function AssessmentRunner({
   const currentRequiredLeft = current.flatMap((g) => g.qs).filter((q) => q.required && !answers[q.id]).length;
 
   const goNext = () => {
+    if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
     if (currentRequiredLeft > 0) {
       setError(`Please answer all required questions (${currentRequiredLeft} left).`);
       return;
@@ -864,8 +869,34 @@ export function AssessmentRunner({
     setScreenIndex((i) => Math.min(i + 1, lastIdx));
   };
   const goBack = () => {
+    if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
     setError(null);
     setScreenIndex((i) => Math.max(i - 1, 0));
+  };
+
+  // Does the current screen carry an optional "actual number" field? If so we do
+  // NOT auto-advance — the respondent may still want to type that number.
+  const currentHasActualField = current
+    .flatMap((g) => g.qs)
+    .some((q) => q.scoringRole != null && CLINIC_ACTUAL_FIELD[q.scoringRole] != null);
+
+  // Record a chosen option and, in paginated modes, auto-advance once the screen
+  // is fully answered. Never in ALL ("one page") mode, never on the last screen
+  // (Submit stays a deliberate tap), never on clinic screens with an exact-number
+  // field. Manual Next/Back remain and cancel any pending advance.
+  const selectAnswer = (questionId: string, optionId: string) => {
+    const next = { ...answers, [questionId]: optionId };
+    setAnswers(next);
+    if (assessment.questionDisplayMode === "ALL" || isLast || currentHasActualField) return;
+    const requiredLeft = current
+      .flatMap((g) => g.qs)
+      .filter((q) => q.required && !next[q.id]).length;
+    if (requiredLeft > 0) return;
+    if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+    setError(null);
+    autoAdvanceRef.current = setTimeout(() => {
+      setScreenIndex((i) => Math.min(i + 1, lastIdx));
+    }, 250);
   };
 
   return (
@@ -905,7 +936,7 @@ export function AssessmentRunner({
                       type="radio"
                       name={q.id}
                       checked={answers[q.id] === o.id}
-                      onChange={() => setAnswers((a) => ({ ...a, [q.id]: o.id }))}
+                      onChange={() => selectAnswer(q.id, o.id)}
                     />
                     {o.label}
                   </label>
