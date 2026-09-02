@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { ImpersonationBanner } from "@/features/admin/components/impersonation-banner";
 import { WorkspaceNav } from "@/features/workspace/components/workspace-nav";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 /**
  * The tenant workspace shell. requireWorkspace resolves a CONCRETE acting tenant
@@ -34,7 +35,10 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       </aside>
       <main className="min-w-0 flex-1">
         {impersonating && tenant ? <ImpersonationBanner tenantName={tenant.name} /> : null}
-        <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">{children}</div>
+        <div className="flex justify-end px-4 pt-4 md:px-8">
+          <ThemeToggle />
+        </div>
+        <div className="mx-auto max-w-5xl px-4 pb-8 pt-4 md:px-8">{children}</div>
       </main>
     </div>
   );

@@ -1,13 +1,48 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
 import { getTenantContext } from "@/lib/tenant/context";
 import { buttonVariants } from "@/components/ui/button";
+import { Landing } from "@/components/marketing/Landing";
+import { MARKETING } from "@/lib/marketing/content";
+
+// Marketing metadata is applied only on the platform root domain. Tenant
+// (subdomain / custom-domain) roots keep the app's default metadata.
+export async function generateMetadata(): Promise<Metadata> {
+  const { source } = await getTenantContext();
+  if (source !== "root") return {};
+
+  return {
+    title: MARKETING.title,
+    description: MARKETING.description,
+    alternates: { canonical: MARKETING.domain + "/" },
+    openGraph: {
+      type: "website",
+      siteName: MARKETING.name,
+      title: MARKETING.title,
+      description: MARKETING.description,
+      url: MARKETING.domain + "/",
+      images: [MARKETING.domain + MARKETING.ogImage],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: MARKETING.title,
+      description: MARKETING.description,
+      images: [MARKETING.domain + MARKETING.ogImage],
+    },
+  };
+}
 
 export default async function HomePage() {
-  const [session, { slug, source }] = await Promise.all([
-    getSession(),
-    getTenantContext(),
-  ]);
+  const { slug, source } = await getTenantContext();
+
+  // Platform root (assess360.divineleads.guru) → marketing landing.
+  if (source === "root") {
+    return <Landing />;
+  }
+
+  // Tenant root (clinic subdomain / custom domain) → existing behavior. Untouched.
+  const session = await getSession();
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 px-6 py-16 text-center">

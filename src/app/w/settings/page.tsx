@@ -3,7 +3,9 @@ import { getAiSettings } from "@/features/admin/actions/ai-settings";
 import { getIntegrationSettings, updateMetaSettings, updateRazorpaySettings } from "@/features/workspace/actions/integrations";
 import { getDomainSettings } from "@/features/workspace/actions/domains";
 import { getBookingUrl } from "@/features/workspace/actions/booking";
+import { getThemeColors } from "@/features/workspace/actions/theme";
 import { BookingSettingsForm } from "@/features/workspace/components/booking-settings-form";
+import { ThemeColorForm } from "@/features/workspace/components/theme-color-form";
 import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
 import { DomainSettings } from "@/features/workspace/components/domain-settings";
@@ -30,6 +32,7 @@ export default async function WorkspaceSettingsPage() {
   const integrations = await getIntegrationSettings();
   const domains = await getDomainSettings();
   const bookingUrl = await getBookingUrl();
+  const themeColors = await getThemeColors();
 
   return (
     <div className="flex flex-col gap-6">
@@ -69,6 +72,19 @@ export default async function WorkspaceSettingsPage() {
             saveMetaAction={updateMetaSettings}
             saveRazorpayAction={updateRazorpaySettings}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Color</CardTitle>
+          <CardDescription>
+            Set your brand colors. Applied across your workspace and respondent-facing
+            pages, in both light and dark mode.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ThemeColorForm initial={themeColors} />
         </CardContent>
       </Card>
 
