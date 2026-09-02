@@ -42,30 +42,45 @@ export const STEPS: ReadonlyArray<{ n: string; title: string; body: string }> = 
   },
 ];
 
-export const CAPABILITIES: ReadonlyArray<{ title: string; body: string }> = [
+export type Capability = { title: string; body: string; soon?: boolean };
+
+export const CAPABILITIES: ReadonlyArray<Capability> = [
   {
     title: "Weighted scoring engine",
     body: "Assign points per answer and weight each category, so the final score reflects real fit — not just completion.",
-  },
-  {
-    title: "Conditional logic & branching",
-    body: "Show the next question based on the last answer. Shorter paths for respondents, sharper signal for you.",
   },
   {
     title: "Dynamic result pages",
     body: "Every respondent gets a personalized, hosted result: their score, their strengths, and a clear next step.",
   },
   {
+    title: "AI-written result reports",
+    body: "Connect your own OpenAI, Claude, or Gemini key and let it write a short, personalized report for each respondent.",
+  },
+  {
+    title: "Conversion tracking",
+    body: "Fire server-side lead and purchase events to Meta Pixel and the Conversions API, deduplicated, so your ad optimization sees real outcomes.",
+  },
+  {
+    title: "Branded PDF reports",
+    body: "Turn each scored result into a clean, branded PDF your respondents can download and your team can keep.",
+  },
+  {
+    title: "Result interpretation & bands",
+    body: "Map scores to named bands, each with its own tailored message and recommended next step.",
+  },
+  {
     title: "Lead export & integrations",
     body: "Push each scored lead to your CRM by webhook or Zapier, or export clean CSVs whenever you need them.",
   },
   {
-    title: "Custom domain & white-label",
-    body: "Run the whole experience on your own domain, with your branding and the Assess360 badge removed.",
+    title: "Custom domain & branding",
+    body: "Run the whole experience on your own domain, in your own brand colors and logo.",
   },
   {
-    title: "Agency sub-accounts",
-    body: "Spin up an isolated workspace per client — each with its own assessments, domains, seats, and data.",
+    title: "Conditional logic & branching",
+    body: "Show the next question based on the last answer — shorter paths for respondents, sharper signal for you.",
+    soon: true,
   },
 ];
 
@@ -138,7 +153,7 @@ export const TIERS: ReadonlyArray<Tier> = [
       "Custom domain",
       "Branding removed",
       "GA / Pixel tracking",
-      "Split testing",
+      "Split testing (coming soon)",
       "3 seats",
     ],
     cta: "Start free",
@@ -153,9 +168,9 @@ export const TIERS: ReadonlyArray<Tier> = [
     features: [
       "Unlimited assessments",
       "12,000 responses / month",
-      "Agency sub-accounts",
+      "Staff roles & permissions",
       "API access",
-      "White-label",
+      "AI result reports",
       "5+ seats",
       "Priority support",
     ],
@@ -180,8 +195,8 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
     a: "No. Every assessment is hosted for you on a single link, with a personalized result page for each respondent. Point a custom domain at it when you want it on your own brand.",
   },
   {
-    q: "Can agencies run client sub-accounts?",
-    a: "Yes, on the Scale plan. Each client gets an isolated sub-account with its own assessments, custom domain, seats, and data.",
+    q: "Can I run it on my own brand and domain?",
+    a: "Yes. Point a custom domain at your workspace and set your own brand colors and logo — the whole scorecard and result experience runs as yours.",
   },
   {
     q: "What happens at my response limit?",
