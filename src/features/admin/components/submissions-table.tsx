@@ -80,14 +80,14 @@ export function SubmissionsTable({
 }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
   const [query, setQuery] = useState("");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const copyUrl = (id: string, url: string) => {
+  const copy = (key: string, text: string) => {
     navigator.clipboard
-      ?.writeText(url)
+      ?.writeText(text)
       .then(() => {
-        setCopiedId(id);
-        setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
+        setCopiedKey(key);
+        setTimeout(() => setCopiedKey((c) => (c === key ? null : c)), 1500);
       })
       .catch(() => {});
   };
@@ -183,8 +183,17 @@ export function SubmissionsTable({
                   <Th k="lead" label="Contact" />
                   <Th k="score" label="Score" />
                   <th className="px-3 py-2">Result URL</th>
-                  <Th k="date" label="Opt-in (IST) / Completion" className="whitespace-nowrap" />
-                  <th className="whitespace-nowrap px-3 py-2">Completed / Paid</th>
+                  <th
+                    onClick={() => toggle("date")}
+                    className="cursor-pointer select-none whitespace-nowrap px-3 py-2 hover:text-[var(--foreground)]"
+                  >
+                    <div>Opt-in (IST){arrow("date")}</div>
+                    <div className="opacity-70">Completion</div>
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2">
+                    <div>Completed</div>
+                    <div className="opacity-70">Paid</div>
+                  </th>
                   <th className="px-3 py-2 text-center">VSL</th>
                   <th className="px-3 py-2">Result</th>
                   <th className="px-3 py-2">PDF</th>
@@ -245,9 +254,9 @@ export function SubmissionsTable({
                             size="sm"
                             variant="outline"
                             className="h-7 shrink-0 px-2"
-                            onClick={() => copyUrl(s.id, s.resultUrl as string)}
+                            onClick={() => copy(`${s.id}:result`, s.resultUrl as string)}
                           >
-                            {copiedId === s.id ? "Copied" : "Copy"}
+                            {copiedKey === `${s.id}:result` ? "Copied" : "Copy"}
                           </Button>
                         </div>
                       ) : (
@@ -300,15 +309,48 @@ export function SubmissionsTable({
                     <td className="whitespace-nowrap px-3 py-2 text-xs">
                       {join([s.deviceType, s.browser, s.os], " · ")}
                     </td>
-                    {/* UTM */}
-                    {UTM.map((u) => (
-                      <td key={u} className="whitespace-nowrap px-3 py-2 text-xs">
-                        {dash(s.attribution?.[u] ?? null)}
-                      </td>
-                    ))}
+                    {/* UTM — fbclid truncates to 1 line + Copy; utm_content wraps (clamped). */}
+                    {UTM.map((u) => {
+                      const v = s.attribution?.[u] ?? null;
+                      if (u === "fbclid") {
+                        return (
+                          <td key={u} className="px-3 py-2 text-xs">
+                            {v ? (
+                              <div className="flex items-center gap-1">
+                                <span className="max-w-[90px] truncate font-mono text-[11px]" title={v}>{v}</span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 shrink-0 px-1.5 text-[10px]"
+                                  onClick={() => copy(`${s.id}:fbclid`, v)}
+                                >
+                                  {copiedKey === `${s.id}:fbclid` ? "✓" : "Copy"}
+                                </Button>
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                        );
+                      }
+                      if (u === "utm_content") {
+                        return (
+                          <td key={u} className="px-3 py-2 text-xs">
+                            <div className="max-w-[180px] break-words line-clamp-4" title={v ?? ""}>{dash(v)}</div>
+                          </td>
+                        );
+                      }
+                      return (
+                        <td key={u} className="whitespace-nowrap px-3 py-2 text-xs">
+                          {dash(v)}
+                        </td>
+                      );
+                    })}
                     {/* Other tracking */}
                     <td className="whitespace-nowrap px-3 py-2 text-xs">{dash(s.clientIp)}</td>
-                    <td className="max-w-[220px] truncate px-3 py-2 text-xs" title={s.userAgent ?? ""}>{dash(s.userAgent)}</td>
+                    <td className="px-3 py-2 text-xs">
+                      <div className="max-w-[220px] break-words line-clamp-4" title={s.userAgent ?? ""}>{dash(s.userAgent)}</div>
+                    </td>
                     <td className="whitespace-nowrap px-3 py-2 text-xs">{join([s.city, s.region, s.country], ", ")}</td>
                     <td className="whitespace-nowrap px-3 py-2 text-xs">{dash(s.timezone)}</td>
                     <td className="max-w-[160px] truncate px-3 py-2 text-xs" title={s.fbp ?? ""}>{dash(s.fbp)}</td>
