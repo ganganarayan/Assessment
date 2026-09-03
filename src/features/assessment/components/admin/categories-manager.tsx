@@ -8,7 +8,8 @@ import {
   deleteCategory,
   reorderCategories,
 } from "@/features/assessment/actions/category";
-import { setAllQuestionWeights } from "@/features/assessment/actions/question";
+import { copyOptionsToAll, restoreOptions } from "@/features/assessment/actions/question";
+import { type OptionSnapshot } from "@/features/assessment/actions/shared";
 import {
   QuestionsManager,
   type QuestionData,
@@ -51,28 +52,53 @@ export function CategoriesManager({
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  // Bulk-set every question's weight in one click.
-  const [bulkWeight, setBulkWeight] = useState("1");
-  const [weightMsg, setWeightMsg] = useState<string | null>(null);
-  const totalQuestions = categories.reduce((n, c) => n + c.questions.length, 0);
+  // "Copy options → all": per-question undo snapshots (questionId → prior options),
+  // so each affected row can Revert just its own change.
+  const [undoByQ, setUndoByQ] = useState<Map<string, OptionSnapshot[]>>(new Map());
+  const [optMsg, setOptMsg] = useState<string | null>(null);
 
-  function applyWeightToAll() {
-    setWeightMsg(null);
-    const w = Number(bulkWeight);
-    if (!Number.isFinite(w) || w < 0 || w > 100) {
-      setWeightMsg("Enter a weight between 0 and 100.");
+  function copyOptionsFrom(sourceQuestionId: string) {
+    setOptMsg(null);
+    if (
+      !confirm(
+        "Copy this question's options (labels + scores) onto every other question? Matching option positions are overwritten; each question keeps its own option count.",
+      )
+    )
       return;
-    }
-    if (!confirm(`Set all ${totalQuestions} question${totalQuestions === 1 ? "" : "s"} in this assessment to weight ${w}?`)) {
-      return;
-    }
     start(async () => {
-      const res = await setAllQuestionWeights(assessmentId, w);
+      const res = await copyOptionsToAll(sourceQuestionId);
       if (!res.ok) {
-        setWeightMsg(res.error);
+        setOptMsg(res.error);
         return;
       }
-      setWeightMsg(`Updated ${res.data?.count ?? 0} question${(res.data?.count ?? 0) === 1 ? "" : "s"} to weight ${w}.`);
+      const m = new Map<string, OptionSnapshot[]>();
+      for (const s of res.data?.prev ?? []) {
+        const arr = m.get(s.questionId) ?? [];
+        arr.push(s);
+        m.set(s.questionId, arr);
+      }
+      setUndoByQ(m);
+      setOptMsg(`Copied options to ${res.data?.count ?? 0} question(s). Use Revert on a row to undo just that one.`);
+      router.refresh();
+    });
+  }
+
+  function revertOptionsFor(questionId: string) {
+    const snap = undoByQ.get(questionId);
+    if (!snap || snap.length === 0) return;
+    setOptMsg(null);
+    start(async () => {
+      const res = await restoreOptions(snap);
+      if (!res.ok) {
+        setOptMsg(res.error);
+        return;
+      }
+      setUndoByQ((m) => {
+        const n = new Map(m);
+        n.delete(questionId);
+        return n;
+      });
+      setOptMsg("Reverted that question's options.");
       router.refresh();
     });
   }
@@ -125,28 +151,9 @@ export function CategoriesManager({
           <> No Page-2 categories yet — add one, or edit an existing category and switch its Page.</>
         )}
       </p>
-
-      {totalQuestions > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
-          <span className="text-sm font-medium">Set all question weights</span>
-          <Input
-            type="number"
-            min={0}
-            max={100}
-            step="any"
-            value={bulkWeight}
-            onChange={(e) => setBulkWeight(e.target.value)}
-            className="h-9 w-24"
-            aria-label="Weight to apply to all questions"
-          />
-          <Button size="sm" variant="outline" disabled={pending} onClick={applyWeightToAll}>
-            {pending ? "Applying…" : `Apply to all questions (${totalQuestions})`}
-          </Button>
-          <span className="text-xs text-[var(--muted-foreground)]">Overwrites every question&apos;s weight in this assessment.</span>
-          {weightMsg ? <span className="text-xs text-[var(--foreground)]">{weightMsg}</span> : null}
-        </div>
+      {optMsg ? (
+        <p className="rounded-md border px-3 py-2 text-xs text-[var(--foreground)]">{optMsg}</p>
       ) : null}
-
       {categories.map((c, i) => (
         <div key={c.id} className="flex flex-col gap-3 rounded-lg border p-4">
           {editingId === c.id ? (
@@ -182,7 +189,15 @@ export function CategoriesManager({
             </div>
           )}
 
-          <QuestionsManager categoryId={c.id} questions={c.questions} engine={engine} />
+          <QuestionsManager
+            categoryId={c.id}
+            questions={c.questions}
+            engine={engine}
+            onCopyOptions={copyOptionsFrom}
+            onRevertOptions={revertOptionsFor}
+            revertableIds={undoByQ}
+            busy={pending}
+          />
         </div>
       ))}
 

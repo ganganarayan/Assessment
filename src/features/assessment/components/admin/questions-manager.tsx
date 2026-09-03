@@ -79,10 +79,22 @@ export function QuestionsManager({
   categoryId,
   questions,
   engine = "GENERIC",
+  onCopyOptions,
+  onRevertOptions,
+  revertableIds,
+  busy = false,
 }: {
   categoryId: string;
   questions: QuestionData[];
   engine?: BuilderEngine;
+  /** Copy THIS question's options onto every other question in the assessment. */
+  onCopyOptions?: (questionId: string) => void;
+  /** Undo the copy for one question row (restores its prior options). */
+  onRevertOptions?: (questionId: string) => void;
+  /** Question ids that currently have an undo snapshot (show a Revert button). */
+  revertableIds?: Map<string, unknown>;
+  /** A copy/revert is in flight (from the parent) — disable the row controls. */
+  busy?: boolean;
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
@@ -144,9 +156,32 @@ export function QuestionsManager({
                 {q.options.map((o) => `${o.label}(${o.value})`).join(", ")}
               </span>
             </div>
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
               <Button size="sm" variant="ghost" disabled={pending || i === 0} onClick={() => reorder(i, i - 1)}>↑</Button>
               <Button size="sm" variant="ghost" disabled={pending || i === questions.length - 1} onClick={() => reorder(i, i + 1)}>↓</Button>
+              {onCopyOptions ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={pending || busy}
+                  onClick={() => onCopyOptions(q.id)}
+                  title="Copy this question's options (labels + scores) onto every other question"
+                >
+                  Copy options → all
+                </Button>
+              ) : null}
+              {onRevertOptions && revertableIds?.has(q.id) ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={pending || busy}
+                  onClick={() => onRevertOptions(q.id)}
+                  className="text-amber-600 hover:text-amber-700"
+                  title="Undo the copied options for this question"
+                >
+                  Revert
+                </Button>
+              ) : null}
               <Button size="sm" variant="outline" onClick={() => setEditingId(q.id)}>Edit</Button>
               <Button size="sm" variant="ghost" disabled={pending} onClick={() => remove(q.id)}>Delete</Button>
             </div>

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { questionSchema, reorderSchema, type QuestionInput } from "@/features/assessment/schemas";
-import { type ActionResult } from "@/features/assessment/actions/shared";
+import { type ActionResult, type OptionSnapshot } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { assertEdit } from "@/lib/tenant/acting";
 import { isClinicRole, isClinicUnit } from "@/lib/scoring/clinic-audit";
@@ -151,32 +151,84 @@ export async function updateQuestion(
 }
 
 /**
- * Set EVERY question in an assessment to the same weight, in one pass. Only the
- * weight field changes — options, text, roles and past answers are untouched.
- * Edit-guarded + scope-checked like the single-question actions.
+ * Copy ONE question's option scale (labels + point values) onto every OTHER
+ * question in the same assessment. Overwrites matching positions in place only —
+ * it never adds or removes options, so option ids (and past respondents' answers)
+ * stay intact; a target with a different option count keeps its own count, with
+ * just the overlapping rows relabelled. Clinic per-option extras (diagnosis
+ * clause / "don't know") are left untouched. Edit-guarded + scope-checked.
  */
-export async function setAllQuestionWeights(
-  assessmentId: string,
-  weight: number,
-): Promise<ActionResult<{ count: number }>> {
+export async function copyOptionsToAll(
+  sourceQuestionId: string,
+): Promise<ActionResult<{ count: number; prev: OptionSnapshot[] }>> {
+  const source = await prisma.question.findUnique({
+    where: { id: sourceQuestionId },
+    select: {
+      category: { select: { assessmentId: true } },
+      options: { orderBy: { displayOrder: "asc" }, select: { label: true, value: true } },
+    },
+  });
+  if (!source) return { ok: false, error: "Question not found." };
+  const assessmentId = source.category.assessmentId;
   if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
   const denied = await assertEdit();
   if (denied) return denied;
 
-  const w = Number(weight);
-  if (!Number.isFinite(w) || w < 0 || w > 100) {
-    return { ok: false, error: "Weight must be a number between 0 and 100." };
-  }
-  const cats = await prisma.category.findMany({ where: { assessmentId }, select: { id: true } });
-  const catIds = cats.map((c) => c.id);
-  if (catIds.length === 0) return { ok: true, data: { count: 0 } };
-
-  const res = await prisma.question.updateMany({
-    where: { categoryId: { in: catIds } },
-    data: { weight: w },
+  const targets = await prisma.question.findMany({
+    where: { category: { assessmentId }, id: { not: sourceQuestionId } },
+    select: {
+      id: true,
+      options: { orderBy: { displayOrder: "asc" }, select: { id: true, label: true, value: true } },
+    },
   });
+
+  const prev: OptionSnapshot[] = [];
+  const ops: Prisma.PrismaPromise<unknown>[] = [];
+  for (const t of targets) {
+    const n = Math.min(source.options.length, t.options.length);
+    for (let i = 0; i < n; i++) {
+      const o = t.options[i]!;
+      // Snapshot the pre-overwrite value so Revert can restore it exactly (per row).
+      prev.push({ questionId: t.id, id: o.id, label: o.label, value: o.value });
+      ops.push(
+        prisma.option.update({
+          where: { id: o.id },
+          data: { label: source.options[i]!.label, value: source.options[i]!.value },
+        }),
+      );
+    }
+  }
+  if (ops.length > 0) await prisma.$transaction(ops);
+
   revalidatePath(`/admin/assessments/${assessmentId}`);
-  return { ok: true, data: { count: res.count } };
+  return { ok: true, data: { count: targets.length, prev } };
+}
+
+/** Restore a set of options to a prior snapshot — the Revert for copyOptionsToAll. */
+export async function restoreOptions(
+  snapshot: OptionSnapshot[],
+): Promise<ActionResult> {
+  const clean = (snapshot ?? []).filter((s) => s && typeof s.id === "string" && s.id.length > 0);
+  if (clean.length === 0) return { ok: true };
+
+  // Authorize via the assessment that owns these options (all from one copy, so one
+  // assessment). Reject if the first option can't be traced to an in-scope assessment.
+  const first = await prisma.option.findUnique({
+    where: { id: clean[0]!.id },
+    select: { question: { select: { category: { select: { assessmentId: true } } } } },
+  });
+  const assessmentId = first?.question.category.assessmentId;
+  if (!assessmentId || !(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
+  const denied = await assertEdit();
+  if (denied) return denied;
+
+  await prisma.$transaction(
+    clean.map((s) =>
+      prisma.option.update({ where: { id: s.id }, data: { label: s.label, value: s.value } }),
+    ),
+  );
+  revalidatePath(`/admin/assessments/${assessmentId}`);
+  return { ok: true };
 }
 
 export async function deleteQuestion(id: string): Promise<ActionResult> {
