@@ -150,6 +150,35 @@ export async function updateQuestion(
   return { ok: true };
 }
 
+/**
+ * Set EVERY question in an assessment to the same weight, in one pass. Only the
+ * weight field changes — options, text, roles and past answers are untouched.
+ * Edit-guarded + scope-checked like the single-question actions.
+ */
+export async function setAllQuestionWeights(
+  assessmentId: string,
+  weight: number,
+): Promise<ActionResult<{ count: number }>> {
+  if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
+  const denied = await assertEdit();
+  if (denied) return denied;
+
+  const w = Number(weight);
+  if (!Number.isFinite(w) || w < 0 || w > 100) {
+    return { ok: false, error: "Weight must be a number between 0 and 100." };
+  }
+  const cats = await prisma.category.findMany({ where: { assessmentId }, select: { id: true } });
+  const catIds = cats.map((c) => c.id);
+  if (catIds.length === 0) return { ok: true, data: { count: 0 } };
+
+  const res = await prisma.question.updateMany({
+    where: { categoryId: { in: catIds } },
+    data: { weight: w },
+  });
+  revalidatePath(`/admin/assessments/${assessmentId}`);
+  return { ok: true, data: { count: res.count } };
+}
+
 export async function deleteQuestion(id: string): Promise<ActionResult> {
   const question = await prisma.question.findUnique({
     where: { id },

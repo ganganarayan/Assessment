@@ -8,6 +8,7 @@ import {
   deleteCategory,
   reorderCategories,
 } from "@/features/assessment/actions/category";
+import { setAllQuestionWeights } from "@/features/assessment/actions/question";
 import {
   QuestionsManager,
   type QuestionData,
@@ -50,6 +51,31 @@ export function CategoriesManager({
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  // Bulk-set every question's weight in one click.
+  const [bulkWeight, setBulkWeight] = useState("1");
+  const [weightMsg, setWeightMsg] = useState<string | null>(null);
+  const totalQuestions = categories.reduce((n, c) => n + c.questions.length, 0);
+
+  function applyWeightToAll() {
+    setWeightMsg(null);
+    const w = Number(bulkWeight);
+    if (!Number.isFinite(w) || w < 0 || w > 100) {
+      setWeightMsg("Enter a weight between 0 and 100.");
+      return;
+    }
+    if (!confirm(`Set all ${totalQuestions} question${totalQuestions === 1 ? "" : "s"} in this assessment to weight ${w}?`)) {
+      return;
+    }
+    start(async () => {
+      const res = await setAllQuestionWeights(assessmentId, w);
+      if (!res.ok) {
+        setWeightMsg(res.error);
+        return;
+      }
+      setWeightMsg(`Updated ${res.data?.count ?? 0} question${(res.data?.count ?? 0) === 1 ? "" : "s"} to weight ${w}.`);
+      router.refresh();
+    });
+  }
 
   function add() {
     setError(null);
@@ -99,6 +125,28 @@ export function CategoriesManager({
           <> No Page-2 categories yet — add one, or edit an existing category and switch its Page.</>
         )}
       </p>
+
+      {totalQuestions > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
+          <span className="text-sm font-medium">Set all question weights</span>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            step="any"
+            value={bulkWeight}
+            onChange={(e) => setBulkWeight(e.target.value)}
+            className="h-9 w-24"
+            aria-label="Weight to apply to all questions"
+          />
+          <Button size="sm" variant="outline" disabled={pending} onClick={applyWeightToAll}>
+            {pending ? "Applying…" : `Apply to all questions (${totalQuestions})`}
+          </Button>
+          <span className="text-xs text-[var(--muted-foreground)]">Overwrites every question&apos;s weight in this assessment.</span>
+          {weightMsg ? <span className="text-xs text-[var(--foreground)]">{weightMsg}</span> : null}
+        </div>
+      ) : null}
+
       {categories.map((c, i) => (
         <div key={c.id} className="flex flex-col gap-3 rounded-lg border p-4">
           {editingId === c.id ? (
