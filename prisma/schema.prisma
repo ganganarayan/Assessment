@@ -43,6 +43,15 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Billing (Phase 1). The SaaS subscription plan for THIS tenant, billed on the
+  // PLATFORM-OWNER's Razorpay account in USD (NOT the tenant's own respondent keys).
+  // Default FREE. Changed only by the Razorpay subscription webhook or a super-admin
+  // override — never trusted from the client. razorpayCustomerId links this tenant to
+  // its Razorpay customer across the subscription lifecycle. The platform/Gita tenant
+  // (tenantId null) has no Tenant row and is treated as unlimited/unmetered in code.
+  plan               Plan    @default(FREE)
+  razorpayCustomerId String?
+
   users       User[]
   domains     Domain[]
   theme       Theme?
@@ -55,6 +64,8 @@ model Tenant {
   capiLogs    CapiLog[]
   setting     AppSetting?
   promptVersions AiPromptVersion[]
+  subscription   Subscription?
+  usageCounters  UsageCounter[]
 
   @@index([status])
   @@map("tenant")
@@ -63,6 +74,40 @@ model Tenant {
 enum TenantStatus {
   ACTIVE
   SUSPENDED
+}
+
+// ---------------------------------------------------------------------------
+// Billing (Phase 1) — SaaS subscription plan + usage metering. Phase 1 stores
+// state only; NOTHING is enforced yet (Phase 2 meters, Phase 4 gates). The plan
+// LIMITS themselves live in code (src/lib/billing/plans.ts) as the source of
+// truth; Subscription.limitsSnapshot freezes them at purchase time so a future
+// price/limit change never silently re-rates an existing customer (this is what
+// backs the "founding cohort locks this rate for life" promise).
+// ---------------------------------------------------------------------------
+
+enum Plan {
+  FREE
+  STARTER
+  GROWTH
+  SCALE
+}
+
+// Mirrors the Razorpay subscription lifecycle we care about. ACTIVE = paid & good;
+// PAST_DUE = a charge failed, still in grace; PENDING = awaiting first auth/charge;
+// HALTED = Razorpay gave up retrying (treat as lapsed); CANCELED = ended.
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  PENDING
+  HALTED
+  CANCELED
+}
+
+// Metered usage dimensions. Only RESPONSES is metered per-period (the hot path,
+// incremented on each submission). Assessments and seats are COUNT()ed on demand,
+// so they are NOT enumerated here.
+enum UsageMetric {
+  RESPONSES
 }
 
 // ---------------------------------------------------------------------------
@@ -112,6 +157,88 @@ model Theme {
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("theme")
+}
+
+// ---------------------------------------------------------------------------
+// Subscription — ONE per paid tenant. The Razorpay subscription is the source of
+// truth for status/period; this row mirrors it so the app can gate without a
+// Razorpay round-trip. A FREE tenant has NO Subscription row (absence = Free).
+// ---------------------------------------------------------------------------
+
+model Subscription {
+  id     String @id @default(cuid())
+  plan   Plan
+  status SubscriptionStatus @default(PENDING)
+
+  // Razorpay linkage (platform-owner account, USD). All nullable until the first
+  // checkout completes and the webhook fills them in.
+  razorpaySubscriptionId String? @unique
+  razorpayPlanId         String?
+
+  // Current billing period, copied from Razorpay. Also the window the RESPONSES
+  // usage counter resets on for a paid tenant (Free tenants use the calendar month).
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+
+  seats Int @default(1)
+
+  // Entitlements FROZEN at purchase (a copy of PLAN_LIMITS for `plan`). Resolution
+  // reads this first so a later catalog change never re-rates this customer.
+  limitsSnapshot Json
+  // Optional per-tenant overrides for one-off/enterprise deals — wins over the
+  // snapshot AND the code default. Null for everyone normally.
+  limitOverrides Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("subscription")
+}
+
+// ---------------------------------------------------------------------------
+// UsageCounter — metered usage per tenant, per metric, per period. RESPONSES is
+// incremented on each submission (Phase 2). periodKey = the billing-period start
+// (paid) or "YYYY-MM" calendar month (Free), so a new period starts a fresh row
+// at count 0. A nightly job reconciles counts against Submission.
+// ---------------------------------------------------------------------------
+
+model UsageCounter {
+  id        String      @id @default(cuid())
+  metric    UsageMetric
+  periodKey String
+  count     Int         @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, metric, periodKey])
+  @@index([tenantId])
+  @@map("usage_counter")
+}
+
+// ---------------------------------------------------------------------------
+// BillingEvent — idempotency ledger for Razorpay subscription webhooks. Every
+// processed event id is recorded so a redelivery is a no-op. Same discipline as
+// the CAPI/webhook dedupe elsewhere.
+// ---------------------------------------------------------------------------
+
+model BillingEvent {
+  id          String   @id @default(cuid())
+  // Razorpay webhook event id (x-razorpay-event-id header), globally unique.
+  eventId     String   @unique
+  type        String
+  processedAt DateTime @default(now())
+
+  @@index([type])
+  @@map("billing_event")
 }
 
 // ---------------------------------------------------------------------------
