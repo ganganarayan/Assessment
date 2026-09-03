@@ -16,10 +16,12 @@ export function LegalShell({
     <>
       <Nav />
       <main id="main" className="mx-auto max-w-3xl px-5 py-16 sm:px-8">
-        <nav className="mb-8 flex gap-4 text-sm">
+        <nav className="mb-8 flex flex-wrap gap-x-4 gap-y-2 text-sm">
           <Link href="/terms" className="text-[var(--muted-foreground)] hover:underline">Terms</Link>
           <Link href="/privacy" className="text-[var(--muted-foreground)] hover:underline">Privacy</Link>
           <Link href="/refund" className="text-[var(--muted-foreground)] hover:underline">Refunds</Link>
+          <Link href="/shipping" className="text-[var(--muted-foreground)] hover:underline">Shipping</Link>
+          <Link href="/contact" className="text-[var(--muted-foreground)] hover:underline">Contact</Link>
         </nav>
         <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
         <p className="mt-2 text-sm text-[var(--muted-foreground)]">Last updated: {updated}</p>

@@ -112,6 +112,8 @@ export async function updateLegalSettings(input: LegalSettingsView): Promise<Act
   revalidatePath("/privacy");
   revalidatePath("/terms");
   revalidatePath("/refund");
+  revalidatePath("/shipping");
+  revalidatePath("/contact");
   return { ok: true };
 }
 

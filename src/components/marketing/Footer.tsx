@@ -42,7 +42,7 @@ export function Footer() {
 
         <div className="mt-10 flex flex-col gap-4 border-t pt-6 text-sm text-[var(--muted-foreground)] sm:flex-row sm:items-center sm:justify-between">
           <p>&copy; {year} {MARKETING.name}. All rights reserved.</p>
-          <div className="flex gap-6">
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
             <Link href="/privacy" className="transition-colors hover:text-[var(--foreground)]">
               Privacy
             </Link>
@@ -51,6 +51,12 @@ export function Footer() {
             </Link>
             <Link href="/refund" className="transition-colors hover:text-[var(--foreground)]">
               Refunds
+            </Link>
+            <Link href="/shipping" className="transition-colors hover:text-[var(--foreground)]">
+              Shipping
+            </Link>
+            <Link href="/contact" className="transition-colors hover:text-[var(--foreground)]">
+              Contact
             </Link>
           </div>
         </div>
