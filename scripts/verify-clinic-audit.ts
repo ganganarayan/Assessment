@@ -11,6 +11,7 @@ import {
   resolveEngineConfig,
   scoreClinicAudit,
   computeResult,
+  deriveInputs,
   detectUnitFromQuestion,
   type RawAnswer,
   type ClinicRole,
@@ -373,6 +374,40 @@ console.log("Clinic Audit engine verification\n");
     treatmentValue: V, adBudget: 0, serviceFee: 0 });
   expect("0.3 patients shows 0 money, not a fraction",
     tiny.patientsNow === 0 && tiny.revenueNow === 0, `${tiny.patientsNow}/${tiny.revenueNow}`);
+}
+
+// ---------------------------------------------------------------------------
+// Rate ceiling: a rate can never exceed 100%. The real-world bug — 65 typed into
+// an "out of 10" close-rate question read as 6.5 (650%), a show-up of 7.5 (750%) —
+// must clamp to 1.0, and the funnel must never yield more cases than enquiries.
+// ---------------------------------------------------------------------------
+{
+  // 65 answered on a PER_10 close-rate question → 6.5 raw → must clamp to 1.0.
+  const bug: RawAnswer[] = [
+    { role: "ENQUIRIES", value: 300 },
+    { role: "BOOK_RATE", value: 20 }, // 20%
+    { role: "SHOWUP_RATE", value: 75, unit: "PER_10" }, // 7.5 → 750% → clamp 100%
+    { role: "CLOSE_RATE", value: 65, unit: "PER_10" }, // 6.5 → 650% → clamp 100%
+    { role: "TREATMENT_VALUE", value: 50_000 },
+    { role: "DORMANT", value: 0 },
+    { role: "CAPACITY", value: 10 },
+  ];
+  const r = computeResult(deriveInputs(bug, cfg), cfg);
+  expect("show-up rate clamps to 100%", r.showUpNow === 1, `${r.showUpNow}`);
+  expect("close rate clamps to 100%", r.closeRate === 1, `${r.closeRate}`);
+  expect("booking rate untouched (20%)", Math.abs(r.bookRateNow - 0.2) < 1e-9, `${r.bookRateNow}`);
+  expect("cases never exceed enquiries", r.casesNowExact <= r.enquiries, `${r.casesNowExact} > ${r.enquiries}`);
+  expect("revenue is sane, not crores", r.revenueNow === 300 * 0.2 * 1 * 1 * 50_000, `${r.revenueNow}`);
+
+  // computeResult also caps a snapshot that already stored a >1 rate (older builds).
+  const legacy = computeResult(
+    { E: 100, B: 3, S: 5, C: 2, V: 50_000, A: 0, D: 0, K: 10, bookUpliftPoints: 0,
+      assumptions: [], assumedRangeLabel: {}, suspectRoles: [], weakest: [] },
+    cfg,
+  );
+  expect("legacy snapshot: every rate capped at 100%",
+    legacy.bookRateNow <= 1 && legacy.showUpNow <= 1 && legacy.closeRate <= 1,
+    `${legacy.bookRateNow}/${legacy.showUpNow}/${legacy.closeRate}`);
 }
 
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILURE(S)`}\n`);

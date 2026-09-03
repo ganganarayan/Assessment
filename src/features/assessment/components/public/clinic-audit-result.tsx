@@ -116,11 +116,13 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
   // Editable inputs (strings while typing). C is 0..10 = closeRate × 10.
   const [eStr, setEStr] = useState(String(inputs.E));
   const [vStr, setVStr] = useState(String(inputs.V));
-  const [cStr, setCStr] = useState(String(Math.round(inputs.C * 10)));
+  const [cStr, setCStr] = useState(String(Math.round(inputs.C * 100)));
   // Committed, clamped numeric values that actually drive the math.
   const [E, setE] = useState(inputs.E);
   const [V, setV] = useState(inputs.V);
-  const [C10, setC10] = useState(Math.round(inputs.C * 10));
+  // Close rate is edited out of 100 (a percent), never out of 10 — an "out of 10"
+  // field invited answers like 65 that read as 650%. Capped at 100 = 100%.
+  const [C100, setC100] = useState(Math.round(inputs.C * 100));
   // Ad budget drives the performance-marketing projection. Editable so the
   // reader can dial their own number in and watch the whole offer move.
   const [adStr, setAdStr] = useState(String(config.adBudgetMonthly));
@@ -134,7 +136,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       const v = parseInt(vStr, 10);
       if (Number.isFinite(v) && v > 0) setV(clampNum(v, 1000, 1_000_000));
       const c = parseInt(cStr, 10);
-      if (Number.isFinite(c)) setC10(clampNum(c, 0, 10));
+      if (Number.isFinite(c)) setC100(clampNum(c, 0, 100));
       const ad = parseInt(adStr, 10);
       if (Number.isFinite(ad) && ad > 0) setAdBudget(clampNum(ad, 1000, 10_000_000));
     }, 400);
@@ -147,13 +149,12 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
 
   const eEdited = E !== inputs.E;
   const vEdited = V !== inputs.V;
-  // Close rate is edited via a 0–10 "out of 10" field, which cannot represent every
-  // real rate exactly (25% × 10 = 2.5, rounds to 3 = 30%). That rounding must NEVER
+  // Close rate is edited as a percent (0–100). Rounding to a whole percent must NEVER
   // leak into the actual math unless the reader genuinely typed a new value — so the
   // effective C stays the EXACT original rate (matching the PDF/submission bit-for-
-  // bit) until cEdited is true, only then switching to the (now intentional) C10/10.
-  const cEdited = C10 !== Math.round(inputs.C * 10);
-  const effectiveC = cEdited ? C10 / 10 : inputs.C;
+  // bit) until cEdited is true, only then switching to the (now intentional) C100/100.
+  const cEdited = C100 !== Math.round(inputs.C * 100);
+  const effectiveC = cEdited ? C100 / 100 : inputs.C;
 
   // The reader's ad budget overrides the configured one, so the projection below
   // responds to what THEY would actually spend.
@@ -201,13 +202,13 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
   const commit = () => {
     const e = parseInt(eStr, 10); if (Number.isFinite(e) && e > 0) { const c = clampNum(e, 1, 2000); setE(c); setEStr(String(c)); }
     const v = parseInt(vStr, 10); if (Number.isFinite(v) && v > 0) { const c = clampNum(v, 1000, 1_000_000); setV(c); setVStr(String(c)); }
-    const cc = parseInt(cStr, 10); if (Number.isFinite(cc)) { const c = clampNum(cc, 0, 10); setC10(c); setCStr(String(c)); }
+    const cc = parseInt(cStr, 10); if (Number.isFinite(cc)) { const c = clampNum(cc, 0, 100); setC100(c); setCStr(String(c)); }
     const ad = parseInt(adStr, 10); if (Number.isFinite(ad) && ad > 0) { const c = clampNum(ad, 1000, 10_000_000); setAdBudget(c); setAdStr(String(c)); }
   };
   const reset = () => {
     setEStr(String(inputs.E)); setE(inputs.E);
     setVStr(String(inputs.V)); setV(inputs.V);
-    setCStr(String(Math.round(inputs.C * 10))); setC10(Math.round(inputs.C * 10));
+    setCStr(String(Math.round(inputs.C * 100))); setC100(Math.round(inputs.C * 100));
     setAdStr(String(config.adBudgetMonthly)); setAdBudget(config.adBudgetMonthly);
   };
 
@@ -347,7 +348,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
             onChange={(e) => setVStr(e.target.value)} onBlur={commit} />
         </div>
         <div className={`field${cInvalid ? " invalid" : ""}`}>
-          <label htmlFor="dl-c">Treatments taken per 10 meetings</label>
+          <label htmlFor="dl-c">Treatments taken per 100 consultations</label>
           <input id="dl-c" inputMode="numeric" pattern="[0-9]*" value={cStr}
             onChange={(e) => setCStr(e.target.value)} onBlur={commit} />
         </div>

@@ -280,7 +280,13 @@ export function deriveInputs(answers: RawAnswer[], config: EngineConfig): Clinic
     // selected option's range midpoint (or "don't know" default) — and flag it, since
     // ANY unconfirmed range should read as an assumption, not just literal "I don't know".
     const hasActual = a.actualValue != null && Number.isFinite(a.actualValue);
-    const working = toWorking(a.role, hasActual ? (a.actualValue as number) : a.value, a.unit);
+    const rawWorking = toWorking(a.role, hasActual ? (a.actualValue as number) : a.value, a.unit);
+    // A funnel rate is a fraction in [0,1] — it can never exceed 100%. An answer that
+    // converts above that is a scale mistake (65 typed into an "out of 10" close-rate
+    // question → 6.5 = 650%; a show-up of 7.5 = 750%). Cap it at 100% here, at the
+    // single choke point every rate passes through, so an impossible rate can never
+    // cascade into impossible cases/revenue. Non-rate roles (₹, counts) pass untouched.
+    const working = RATE_ROLES.has(a.role) ? Math.min(rawWorking, 1) : rawWorking;
     base[a.role] = working;
     if (!hasActual) {
       assumptions.push(ROLE_LABEL[a.role]);
@@ -425,7 +431,15 @@ function round(n: number): number {
  * historical result page and PDF 500s the moment a new field ships.
  */
 export function computeResult(inputs: ClinicInputs, config: EngineConfig): ClinicAuditResult {
-  const { E, B, S, C, V, D, K } = inputs;
+  const { E, V, D, K } = inputs;
+  // Funnel rates are fractions in [0,1]. deriveInputs already caps fresh answers, but
+  // a snapshot persisted BEFORE rate-capping shipped can still carry a rate above 1.0
+  // (a 650% close rate, a 750% show-up) — so cap again here, the last gate every path
+  // (page, PDF, historical snapshot) shares, and no view can ever render above 100%.
+  const clampRate = (r: number) => (Number.isFinite(r) ? Math.min(Math.max(r, 0), 1) : 0);
+  const B = clampRate(inputs.B);
+  const S = clampRate(inputs.S);
+  const C = clampRate(inputs.C);
   const weakest = inputs.weakest ?? [];
   const assumptions = inputs.assumptions ?? [];
   const assumedRangeLabel = inputs.assumedRangeLabel ?? {};
