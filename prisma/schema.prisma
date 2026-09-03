@@ -1191,6 +1191,15 @@ model AppSetting {
 
   abandonedAfterHours Int      @default(24)
 
+  // Legal / company details shown ONLY on the public policy pages (/privacy,
+  // /terms, /refund) — never on the marketing landing. Read from the singleton row
+  // by those pages and substituted into the India-focused policy copy. Blank =
+  // a visible placeholder telling the owner to fill it in Settings.
+  legalEntityName       String?
+  legalAddress          String?
+  legalContactEmail     String?
+  legalGoverningLocation String? // e.g. "Bengaluru, Karnataka" — governing-law seat
+
   // AI personalized-statement config (platform-level). The API key is stored
   // ENCRYPTED at rest (see lib/crypto) and never returned to the client.
   aiEnabled   Boolean @default(false)

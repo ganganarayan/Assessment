@@ -49,6 +49,9 @@ export function Footer() {
             <Link href="/terms" className="transition-colors hover:text-[var(--foreground)]">
               Terms
             </Link>
+            <Link href="/refund" className="transition-colors hover:text-[var(--foreground)]">
+              Refunds
+            </Link>
           </div>
         </div>
       </div>

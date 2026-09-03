@@ -14,7 +14,9 @@ import {
   getPlatformIntegrationSettings,
   updatePlatformMetaSettings,
   updatePlatformRazorpaySettings,
+  getLegalSettings,
 } from "@/features/admin/actions/platform-integrations";
+import { LegalSettingsForm } from "@/features/admin/components/legal-settings-form";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
 import {
   Card,
@@ -37,9 +39,10 @@ export default async function SettingsPage() {
   const impersonating = actingId !== null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
-  const [integrations, domains] = await Promise.all([
+  const [integrations, domains, legal] = await Promise.all([
     impersonating ? getIntegrationSettings() : getPlatformIntegrationSettings(),
     impersonating ? getDomainSettings() : Promise.resolve(null),
+    impersonating ? Promise.resolve(null) : getLegalSettings(),
   ]);
 
   return (
@@ -80,6 +83,22 @@ export default async function SettingsPage() {
           />
         </CardContent>
       </Card>
+
+      {!impersonating && legal ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Legal &amp; company details</CardTitle>
+            <CardDescription>
+              Shown only on the public policy pages (Privacy, Terms, Refund) — never on the
+              marketing landing. Fill these before going live; blank fields show a placeholder
+              on those pages.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <LegalSettingsForm initial={legal} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {impersonating && domains ? (
         <Card>

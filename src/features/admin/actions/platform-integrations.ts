@@ -67,6 +67,54 @@ export async function updatePasswordResetWebhook(url: string): Promise<ActionRes
   return { ok: true };
 }
 
+export interface LegalSettingsView {
+  entityName: string;
+  address: string;
+  contactEmail: string;
+  governingLocation: string;
+}
+
+/** Company/legal details shown ONLY on the public policy pages. Singleton row. */
+export async function getLegalSettings(): Promise<LegalSettingsView> {
+  await requireSuperAdmin();
+  const s = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: {
+      legalEntityName: true,
+      legalAddress: true,
+      legalContactEmail: true,
+      legalGoverningLocation: true,
+    },
+  });
+  return {
+    entityName: s?.legalEntityName ?? "",
+    address: s?.legalAddress ?? "",
+    contactEmail: s?.legalContactEmail ?? "",
+    governingLocation: s?.legalGoverningLocation ?? "",
+  };
+}
+
+export async function updateLegalSettings(input: LegalSettingsView): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  const email = input.contactEmail.trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: "Enter a valid contact email." };
+  }
+  const data = {
+    legalEntityName: input.entityName.trim() || null,
+    legalAddress: input.address.trim() || null,
+    legalContactEmail: email || null,
+    legalGoverningLocation: input.governingLocation.trim() || null,
+  };
+  await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
+  revalidatePath("/admin/settings");
+  revalidatePath("/privacy");
+  revalidatePath("/terms");
+  revalidatePath("/refund");
+  return { ok: true };
+}
+
 export async function updatePlatformRazorpaySettings(
   keyId: string,
   keySecret: string,
