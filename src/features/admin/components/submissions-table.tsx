@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatIST } from "@/lib/date";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { deleteSubmissions } from "@/features/admin/actions/submissions";
 import { type PayloadAttribution } from "@/features/events/types";
 
 export interface SubmissionRow {
@@ -63,13 +65,51 @@ const join = (parts: (string | null)[], sep: string) => {
 export function SubmissionsTable({
   rows,
   exportBase,
+  canDelete = false,
 }: {
   rows: SubmissionRow[];
   exportBase?: string;
+  /** Show the select + delete controls. Super-admin only (the delete action is
+   *  super-admin-guarded), so the tenant workspace view leaves this off. */
+  canDelete?: boolean;
 }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
   const [query, setQuery] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  // Junk cleanup: multi-select + delete. Reuses the super-admin-guarded
+  // deleteSubmissions action (cascades to answers/scores/AI versions).
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [delMsg, setDelMsg] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+
+  const toggleRow = (id: string) =>
+    setSel((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+
+  const deleteIds = (ids: string[], noun: string) => {
+    if (!ids.length || pending) return;
+    if (
+      !confirm(
+        `Permanently delete ${ids.length} ${noun} and their results (answers, scores, AI messages)?\n\nThis cannot be undone.`,
+      )
+    )
+      return;
+    setDelMsg(null);
+    start(async () => {
+      const res = await deleteSubmissions(ids);
+      if (!res.ok) {
+        setDelMsg(res.error ?? "Delete failed.");
+        return;
+      }
+      setSel(new Set());
+      router.refresh();
+    });
+  };
 
   const copy = (key: string, text: string) => {
     navigator.clipboard
@@ -137,14 +177,30 @@ export function SubmissionsTable({
 
   return (
     <div className="flex flex-col gap-6">
-      <Input
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search name, email, phone, profession, assessment…"
-        className="max-w-md"
-        aria-label="Search submissions"
-      />
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search name, email, phone, profession, assessment…"
+          className="max-w-md flex-1 min-w-[220px]"
+          aria-label="Search submissions"
+        />
+        {canDelete ? (
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending || sel.size === 0}
+              onClick={() => deleteIds([...sel], "submission(s)")}
+              className="border-red-500 text-red-600 hover:bg-red-500/10 disabled:opacity-40"
+            >
+              {pending ? "Deleting…" : `Delete selected${sel.size ? ` (${sel.size})` : ""}`}
+            </Button>
+            {delMsg ? <span className="text-sm text-red-500">{delMsg}</span> : null}
+          </>
+        ) : null}
+      </div>
       {groups.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions match “{query}”.</p>
       ) : null}
@@ -169,6 +225,26 @@ export function SubmissionsTable({
             <table className="w-full text-sm">
               <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
                 <tr>
+                  {canDelete ? (
+                    <th className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={group.rows.length > 0 && group.rows.every((r) => sel.has(r.id))}
+                        onChange={() => {
+                          const allSel = group.rows.every((r) => sel.has(r.id));
+                          setSel((s) => {
+                            const n = new Set(s);
+                            for (const r of group.rows) {
+                              if (allSel) n.delete(r.id);
+                              else n.add(r.id);
+                            }
+                            return n;
+                          });
+                        }}
+                        aria-label="Select all in group"
+                      />
+                    </th>
+                  ) : null}
                   <Th k="lead" label="Contact" />
                   <Th k="score" label="Score" />
                   <th className="px-3 py-2">Result URL</th>
@@ -206,11 +282,23 @@ export function SubmissionsTable({
                   <th className="whitespace-nowrap px-3 py-2">timezone</th>
                   <th className="whitespace-nowrap px-3 py-2">fbp</th>
                   <th className="whitespace-nowrap px-3 py-2">fbclid_timestamp</th>
+                  {canDelete ? <th className="px-3 py-2 text-right">Actions</th> : null}
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {group.rows.map((s) => (
-                  <tr key={s.id}>
+                  <tr key={s.id} className={canDelete && sel.has(s.id) ? "bg-red-500/5" : undefined}>
+                    {/* Select */}
+                    {canDelete ? (
+                      <td className="px-3 py-2 align-top">
+                        <input
+                          type="checkbox"
+                          checked={sel.has(s.id)}
+                          onChange={() => toggleRow(s.id)}
+                          aria-label="Select submission"
+                        />
+                      </td>
+                    ) : null}
                     {/* Contact */}
                     <td className="px-3 py-2">
                       <div className="flex flex-col">
@@ -354,6 +442,20 @@ export function SubmissionsTable({
                     <td className="whitespace-nowrap px-3 py-2 text-xs">{dash(s.timezone)}</td>
                     <td className="max-w-[160px] truncate px-3 py-2 text-xs" title={s.fbp ?? ""}>{dash(s.fbp)}</td>
                     <td className="whitespace-nowrap px-3 py-2 text-xs tabular-nums">{s.fbclidTimestamp ?? "—"}</td>
+                    {/* Per-row delete */}
+                    {canDelete ? (
+                      <td className="px-3 py-2 align-top text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={pending}
+                          onClick={() => deleteIds([s.id], "submission")}
+                          className="h-7 shrink-0 border-red-500 px-2 text-red-600 hover:bg-red-500/10 disabled:opacity-40"
+                        >
+                          Delete
+                        </Button>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>

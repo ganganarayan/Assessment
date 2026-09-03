@@ -110,7 +110,7 @@ export default async function SubmissionsPage({
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions yet.</p>
       ) : (
-        <SubmissionsTable rows={rows} />
+        <SubmissionsTable rows={rows} canDelete />
       )}
     </div>
   );
