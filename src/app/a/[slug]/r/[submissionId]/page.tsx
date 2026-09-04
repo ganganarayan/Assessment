@@ -44,9 +44,32 @@ export default async function ResultPage({
   params: Promise<{ slug: string; submissionId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { slug, submissionId } = await params;
+  const { slug, submissionId: urlSubmissionId } = await params;
   const sp = await searchParams;
   const token = Array.isArray(sp.t) ? sp.t[0] : sp.t;
+  // A shared clinic link carries ?t=<token>, which identifies a PERSON. Resolve to
+  // that person's NEWEST completed attempt for this assessment, so a retake surfaces
+  // on the same already-shared link (mirrors /api/r). Every attempt stays stored with
+  // its own completedAt; only the latest is served here. Without a token we render
+  // the exact submission named in the URL (the admin's internal "Result" link).
+  let submissionId = urlSubmissionId;
+  if (token) {
+    const tokenRow = await prisma.submission.findUnique({
+      where: { resultToken: token },
+      select: { assessmentId: true, identifierValue: true, assessment: { select: { paidMode: true } } },
+    });
+    if (tokenRow?.identifierValue) {
+      const paid = tokenRow.assessment.paidMode;
+      const newest = await prisma.submission.findFirst({
+        where: paid
+          ? { assessmentId: tokenRow.assessmentId, identifierValue: tokenRow.identifierValue, completedPaidAt: { not: null } }
+          : { assessmentId: tokenRow.assessmentId, identifierValue: tokenRow.identifierValue, status: "COMPLETED" },
+        orderBy: paid ? { completedPaidAt: "desc" } : { completedAt: "desc" },
+        select: { id: true },
+      });
+      if (newest?.id) submissionId = newest.id;
+    }
+  }
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
     select: {
@@ -95,6 +118,12 @@ export default async function ResultPage({
     const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { tenantId: true } });
     canViewInternally = fresh?.tenantId === submission.assessment.tenantId;
   }
+
+  // A token link is the CLIENT-shareable one: never show the internal contact/band
+  // block on it, even to a signed-in admin, so the operator previewing the link sees
+  // exactly what the clinic owner will. The admin's full internal view is the same
+  // page WITHOUT ?t= (the "Result" link in Submissions).
+  const showInternal = canViewInternally && !token;
 
   // result.viewed represents the RESPONDENT opening their result — don't fire it
   // for an internal (admin/tenant) review.
@@ -172,7 +201,7 @@ export default async function ResultPage({
         {/* Colours come from the THEME tokens, never a hardcoded white — the app
             renders dark for signed-in staff, so a fixed white panel made every
             value (which inherits --foreground) white-on-white and invisible. */}
-        {canViewInternally ? (
+        {showInternal ? (
           <div className="border-b border-[var(--border)] bg-[var(--background)] text-[var(--foreground)]">
             <div className="mx-auto w-full max-w-2xl px-4 py-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">

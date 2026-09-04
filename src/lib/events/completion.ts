@@ -21,6 +21,37 @@ export function resultUrlFor(targetUrl: string | null, slug: string, submissionI
 }
 
 /**
+ * A client-shareable link to the result ON assess360 (never an external VSL). Carries
+ * the person's token so the page can serve their LATEST completed attempt and render
+ * the client view (no internal contact/band block). This is the link an operator
+ * hands the clinic owner to refer to and recalculate.
+ */
+export function shareableResultUrl(slug: string, submissionId: string, token: string | null): string {
+  const base = `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}`;
+  return token ? `${base}?t=${encodeURIComponent(token)}` : base;
+}
+
+/**
+ * Pick the Result URL shown in the Submissions table. A clinic audit (or any
+ * assessment set to show results on assess360) must NOT point at an external URL —
+ * its result only renders on our own page — so it gets the shareable token link.
+ * Everything else keeps the destination/VSL behaviour (targetUrl + token).
+ */
+export function pickResultUrl(args: {
+  engine: string | null;
+  nextStep: string | null;
+  targetUrl: string | null;
+  slug: string;
+  submissionId: string;
+  token: string | null;
+}): string {
+  const onAssess360 = args.engine === "CLINIC_AUDIT" || args.nextStep === "RESULTS";
+  return onAssess360
+    ? shareableResultUrl(args.slug, args.submissionId, args.token)
+    : resultUrlFor(args.targetUrl, args.slug, args.submissionId, args.token);
+}
+
+/**
  * Build the full completion EmitInput (score/band/categories/ai/lead/result url)
  * from a submission's stored snapshot — shared by the paid + unpaid emitters.
  */

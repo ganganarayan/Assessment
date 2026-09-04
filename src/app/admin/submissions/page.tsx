@@ -7,7 +7,7 @@ import { getStatsFloor } from "@/lib/stats-floor";
 import { formatIST } from "@/lib/date";
 import { labeledAnswers } from "@/features/assessment/custom-fields";
 import { normalizeAttribution } from "@/lib/events/payload";
-import { resultUrlFor } from "@/lib/events/completion";
+import { pickResultUrl } from "@/lib/events/completion";
 import { timezoneForCountry } from "@/lib/geo";
 import {
   SubmissionsTable,
@@ -65,7 +65,14 @@ export default async function SubmissionsPage({
       bandTitle: s.resultBand?.title ?? null,
       status: s.status,
       resultUrl: s.status === "COMPLETED"
-        ? resultUrlFor(s.assessment.targetUrl, s.assessment.slug, s.id, s.resultToken)
+        ? pickResultUrl({
+            engine: s.assessment.engine,
+            nextStep: s.assessment.nextStep,
+            targetUrl: s.assessment.targetUrl,
+            slug: s.assessment.slug,
+            submissionId: s.id,
+            token: s.resultToken,
+          })
         : null,
       paidAmount: p?.amount ?? null,
       paidAt: p?.at ?? null,

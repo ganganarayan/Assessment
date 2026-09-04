@@ -86,7 +86,7 @@ export async function listSubmissions(
     orderBy: { createdAt: "desc" },
     take,
     include: {
-      assessment: { select: { title: true, slug: true, targetUrl: true, optinFields: true, preResultFields: true } },
+      assessment: { select: { title: true, slug: true, targetUrl: true, engine: true, nextStep: true, optinFields: true, preResultFields: true } },
       resultBand: { select: { level: true, title: true } },
     },
   });

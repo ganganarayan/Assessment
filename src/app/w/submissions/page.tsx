@@ -3,7 +3,7 @@ import { listSubmissions } from "@/features/assessment/data";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { labeledAnswers } from "@/features/assessment/custom-fields";
 import { normalizeAttribution } from "@/lib/events/payload";
-import { resultUrlFor } from "@/lib/events/completion";
+import { pickResultUrl } from "@/lib/events/completion";
 import { timezoneForCountry } from "@/lib/geo";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import {
@@ -37,7 +37,14 @@ export default async function WorkspaceSubmissionsPage() {
       bandTitle: s.resultBand?.title ?? null,
       status: s.status,
       resultUrl: s.status === "COMPLETED"
-        ? resultUrlFor(s.assessment.targetUrl, s.assessment.slug, s.id, s.resultToken)
+        ? pickResultUrl({
+            engine: s.assessment.engine,
+            nextStep: s.assessment.nextStep,
+            targetUrl: s.assessment.targetUrl,
+            slug: s.assessment.slug,
+            submissionId: s.id,
+            token: s.resultToken,
+          })
         : null,
       paidAmount: p?.amount ?? null,
       paidAt: p?.at ?? null,
