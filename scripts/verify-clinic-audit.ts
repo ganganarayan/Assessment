@@ -12,6 +12,7 @@ import {
   scoreClinicAudit,
   computeResult,
   deriveInputs,
+  normalizeRateFraction,
   detectUnitFromQuestion,
   type RawAnswer,
   type ClinicRole,
@@ -377,27 +378,37 @@ console.log("Clinic Audit engine verification\n");
 }
 
 // ---------------------------------------------------------------------------
-// Rate ceiling: a rate can never exceed 100%. The real-world bug — 65 typed into
-// an "out of 10" close-rate question read as 6.5 (650%), a show-up of 7.5 (750%) —
-// must clamp to 1.0, and the funnel must never yield more cases than enquiries.
+// Rate normalization: a rate reads the number the way a human meant it and can
+// never exceed 100%. The real-world bug — a show-up midpoint of 7.5 passing through
+// undivided (750%), a close rate typed as 65 — must resolve to 75% / 65%, never to
+// impossible cases or crore revenue.
 // ---------------------------------------------------------------------------
 {
-  // 65 answered on a PER_10 close-rate question → 6.5 raw → must clamp to 1.0.
+  expect("normalize: 7.5 (COUNT, mis-set unit) → 75%", normalizeRateFraction(7.5, "COUNT") === 0.75, `${normalizeRateFraction(7.5, "COUNT")}`);
+  expect("normalize: 75 out of 10 → 75%", normalizeRateFraction(75, "PER_10") === 0.75, `${normalizeRateFraction(75, "PER_10")}`);
+  expect("normalize: 65 out of 100 → 65%", normalizeRateFraction(65, "PER_100") === 0.65, `${normalizeRateFraction(65, "PER_100")}`);
+  expect("normalize: 8 out of 10 → 80%", normalizeRateFraction(8, "PER_10") === 0.8, `${normalizeRateFraction(8, "PER_10")}`);
+  expect("normalize: 750 (absurd) → capped, never > 100%", normalizeRateFraction(750, "PER_100") <= 1, `${normalizeRateFraction(750, "PER_100")}`);
+  expect("normalize: 0 stays 0", normalizeRateFraction(0, "PER_100") === 0);
+
+  // A show-up option midpoint of 7.5 (label "7 or 8") on a mis-set COUNT unit, and a
+  // close rate typed as 65 — the exact shape that produced 750% / ₹14cr.
   const bug: RawAnswer[] = [
     { role: "ENQUIRIES", value: 300 },
-    { role: "BOOK_RATE", value: 20 }, // 20%
-    { role: "SHOWUP_RATE", value: 75, unit: "PER_10" }, // 7.5 → 750% → clamp 100%
-    { role: "CLOSE_RATE", value: 65, unit: "PER_10" }, // 6.5 → 650% → clamp 100%
+    { role: "BOOK_RATE", value: 20, unit: "PER_100" }, // 20%
+    { role: "SHOWUP_RATE", value: 7.5, unit: "COUNT" }, // undivided 7.5 → 75%
+    { role: "CLOSE_RATE", value: 0, actualValue: 65, unit: "PER_10" }, // typed 65 → 65%
     { role: "TREATMENT_VALUE", value: 50_000 },
     { role: "DORMANT", value: 0 },
     { role: "CAPACITY", value: 10 },
   ];
   const r = computeResult(deriveInputs(bug, cfg), cfg);
-  expect("show-up rate clamps to 100%", r.showUpNow === 1, `${r.showUpNow}`);
-  expect("close rate clamps to 100%", r.closeRate === 1, `${r.closeRate}`);
-  expect("booking rate untouched (20%)", Math.abs(r.bookRateNow - 0.2) < 1e-9, `${r.bookRateNow}`);
+  expect("show-up midpoint 7.5 → 75%", Math.abs(r.showUpNow - 0.75) < 1e-9, `${r.showUpNow}`);
+  expect("close rate typed 65 → 65%", Math.abs(r.closeRate - 0.65) < 1e-9, `${r.closeRate}`);
+  expect("booking rate stays 20%", Math.abs(r.bookRateNow - 0.2) < 1e-9, `${r.bookRateNow}`);
+  expect("no rate exceeds 100%", r.bookRateNow <= 1 && r.showUpNow <= 1 && r.closeRate <= 1);
   expect("cases never exceed enquiries", r.casesNowExact <= r.enquiries, `${r.casesNowExact} > ${r.enquiries}`);
-  expect("revenue is sane, not crores", r.revenueNow === 300 * 0.2 * 1 * 1 * 50_000, `${r.revenueNow}`);
+  expect("revenue is lakhs, not crores", r.revenueNow === Math.round(300 * 0.2 * 0.75 * 0.65 * 50_000), `${r.revenueNow}`);
 
   // computeResult also caps a snapshot that already stored a >1 rate (older builds).
   const legacy = computeResult(

@@ -117,6 +117,29 @@ export function toWorkingValue(value: number, unit: ClinicUnit): number {
 }
 
 /**
+ * Normalize any rate answer to a fraction in [0,1] that reads the number the way a
+ * human meant it — and that can never exceed 100%.
+ *
+ * A rate is fundamentally "out of 100" (a percent). But the source data arrives in
+ * whatever scale the builder question happened to use, and mistakes are common:
+ *   - a show-up option "7 or 8" on an out-of-10 question (midpoint 7.5 → 75%)
+ *   - a close rate typed as 65 meaning 65%
+ *   - the same 7.5 or 65 landing on a mis-set unit (COUNT) so nothing divided it,
+ *     which is exactly what produced the 750% / crore-revenue bug
+ *
+ * So: apply the declared unit, then step DOWN by tens until the value is a sane
+ * fraction (7.5 → 0.75, 65 → 0.65, 750 → 0.75), and finally hard-cap at 1.0 so a
+ * rate can never go beyond 10/10 or 100/100. This self-corrects a mis-scaled answer
+ * in either direction instead of trusting a unit that may be wrong.
+ */
+export function normalizeRateFraction(value: number, unit: ClinicUnit): number {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  let f = toWorkingValue(value, unit);
+  while (f > 1) f = f / 10;
+  return Math.min(f, 1);
+}
+
+/**
  * Lowest rate we treat as believable for a real clinic. Below this the input is
  * almost certainly a unit mix-up (7 meaning "7 out of 10" read as 7%) rather than
  * a genuine figure, so it's surfaced instead of silently producing absurd revenue.
@@ -280,13 +303,16 @@ export function deriveInputs(answers: RawAnswer[], config: EngineConfig): Clinic
     // selected option's range midpoint (or "don't know" default) — and flag it, since
     // ANY unconfirmed range should read as an assumption, not just literal "I don't know".
     const hasActual = a.actualValue != null && Number.isFinite(a.actualValue);
-    const rawWorking = toWorking(a.role, hasActual ? (a.actualValue as number) : a.value, a.unit);
-    // A funnel rate is a fraction in [0,1] — it can never exceed 100%. An answer that
-    // converts above that is a scale mistake (65 typed into an "out of 10" close-rate
-    // question → 6.5 = 650%; a show-up of 7.5 = 750%). Cap it at 100% here, at the
-    // single choke point every rate passes through, so an impossible rate can never
-    // cascade into impossible cases/revenue. Non-rate roles (₹, counts) pass untouched.
-    const working = RATE_ROLES.has(a.role) ? Math.min(rawWorking, 1) : rawWorking;
+    const rawValue = hasActual ? (a.actualValue as number) : a.value;
+    const unit = isClinicUnit(a.unit) ? a.unit : defaultUnitForRole(a.role);
+    // Rate roles are normalized to a [0,1] fraction that reads the number the way a
+    // human meant it — 75 out of 10 (→75%) or 65 out of 100 (→65%) both land on a
+    // sensible percent — and can never exceed 100%. This self-corrects a mis-scaled
+    // answer (the source of the 750% / crore-revenue bug) instead of trusting a unit
+    // that may be wrong. Non-rate roles (₹, counts) convert straight through.
+    const working = RATE_ROLES.has(a.role)
+      ? normalizeRateFraction(rawValue, unit)
+      : toWorkingValue(rawValue, unit);
     base[a.role] = working;
     if (!hasActual) {
       assumptions.push(ROLE_LABEL[a.role]);
