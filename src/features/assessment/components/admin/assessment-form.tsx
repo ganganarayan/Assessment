@@ -137,6 +137,8 @@ const DEFAULTS: AssessmentFormValues = {
   uniqueIdentifier: "EMAIL",
   trainingUrl: "",
   targetUrl: "",
+  resultsContinueUrl: "",
+  resultsContinueLabel: "",
   tokenTtlSeconds: undefined,
   vslCountdownSeconds: 10,
   questionDisplayMode: "ALL",
@@ -676,6 +678,34 @@ export function AssessmentForm({
                   <span className="block text-xs text-[var(--muted-foreground)]">No external VSL — show the results on our own result page. Webhooks/CRM firing stays the same.</span>
                 </span>
               </label>
+              {values.nextStep === "RESULTS" ? (
+                <div className="ml-6 flex flex-col gap-3 border-l-2 pl-4">
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Optional: add a button at the bottom of the results page that sends the respondent
+                    to your own page (e.g. a Power Tools page). Plain link — no token is appended.
+                    Leave blank for no button.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="resultsContinueUrl">After-results button link (https)</Label>
+                    <Input
+                      id="resultsContinueUrl"
+                      value={values.resultsContinueUrl ?? ""}
+                      onChange={(e) => set("resultsContinueUrl", e.target.value)}
+                      placeholder="https://your-page.com/power-tools"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="resultsContinueLabel">Button text</Label>
+                    <Input
+                      id="resultsContinueLabel"
+                      value={values.resultsContinueLabel ?? ""}
+                      onChange={(e) => set("resultsContinueLabel", e.target.value)}
+                      placeholder="Continue"
+                    />
+                    <p className="text-xs text-[var(--muted-foreground)]">Blank = &ldquo;Continue&rdquo;.</p>
+                  </div>
+                </div>
+              ) : null}
               <label className="flex items-start gap-2">
                 <input
                   type="radio"

@@ -71,6 +71,8 @@ export default async function WorkspaceEditAssessmentPage({
     uniqueIdentifier: a.uniqueIdentifier,
     trainingUrl: a.trainingUrl ?? "",
     targetUrl: a.targetUrl ?? "",
+    resultsContinueUrl: a.resultsContinueUrl ?? "",
+    resultsContinueLabel: a.resultsContinueLabel ?? "",
     tokenTtlSeconds: a.tokenTtlSeconds ?? undefined,
     vslCountdownSeconds: a.vslCountdownSeconds,
     questionDisplayMode: a.questionDisplayMode,

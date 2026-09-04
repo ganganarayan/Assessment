@@ -93,6 +93,15 @@ export const assessmentSchema = z.object({
     .optional()
     .or(z.literal("")),
   tokenTtlSeconds: z.coerce.number().int().min(60).max(7776000).optional(), // up to 90 days
+  // "Show results on assess360" onward button: an optional plain external link shown
+  // as a button under the result. https-only when present; blank => no button.
+  resultsContinueUrl: z
+    .string()
+    .url("Enter a valid URL.")
+    .startsWith("https://", "Continue URL must use https://")
+    .optional()
+    .or(z.literal("")),
+  resultsContinueLabel: z.string().max(80).optional().or(z.literal("")),
   // Anticipation countdown (seconds) before the destination/VSL loads. 0 = instant.
   vslCountdownSeconds: z.coerce
     .number()

@@ -90,6 +90,8 @@ export default async function ResultPage({
           title: true,
           targetUrl: true,
           nextStep: true,
+          resultsContinueUrl: true,
+          resultsContinueLabel: true,
           useAiStatement: true,
           professionLabel: true,
           engine: true,
@@ -124,6 +126,12 @@ export default async function ResultPage({
   // exactly what the clinic owner will. The admin's full internal view is the same
   // page WITHOUT ?t= (the "Result" link in Submissions).
   const showInternal = canViewInternally && !token;
+
+  // Optional "Show results on assess360" onward button — a PLAIN external link (no
+  // token appended) shown at the bottom of the result, on both the clinic recalc and
+  // the generic band result. Null => no button.
+  const continueUrl = submission.assessment.resultsContinueUrl?.trim() || null;
+  const continueLabel = submission.assessment.resultsContinueLabel?.trim() || "Continue";
 
   // result.viewed represents the RESPONDENT opening their result — don't fire it
   // for an internal (admin/tenant) review.
@@ -281,6 +289,8 @@ export default async function ResultPage({
           bookingUrl={setting?.bookingUrl ?? null}
           resultUrl={resultUrl}
           title={submission.assessment.title}
+          continueUrl={continueUrl}
+          continueLabel={continueLabel}
           answers={clinicAnswers.map((c) => ({
             name: c.name,
             rows: c.rows.map((r) => ({ text: r.text, answerLabel: r.answerLabel, role: r.role })),
@@ -484,6 +494,16 @@ export default async function ResultPage({
               </CardContent>
             </Card>
           ))}
+          {/* Onward button (nextStep RESULTS): a plain external link — no token —
+              e.g. to a Power Tools page where the respondent picks their next step. */}
+          {continueUrl ? (
+            <a
+              href={continueUrl}
+              className="inline-flex w-full items-center justify-center rounded-md bg-green-600 px-5 py-3 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+            >
+              {continueLabel} →
+            </a>
+          ) : null}
         </div>
       </main>
     );

@@ -100,6 +100,9 @@ interface Props {
   bookingUrl: string | null;
   resultUrl: string;
   title: string;
+  /** Optional onward button (nextStep RESULTS): a PLAIN external link, no token. */
+  continueUrl?: string | null;
+  continueLabel?: string;
   /** Their own answers, grouped by category — shown back to them so a typo in what
    *  they filled is visible and correctable (every figure here drives the maths). */
   answers?: {
@@ -112,7 +115,7 @@ interface Props {
 
 const clampNum = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
-export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl, resultUrl, title, answers, retakeUrl }: Props) {
+export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl, resultUrl, title, continueUrl, continueLabel, answers, retakeUrl }: Props) {
   // Editable inputs (strings while typing). C is 0..10 = closeRate × 10.
   const [eStr, setEStr] = useState(String(inputs.E));
   const [vStr, setVStr] = useState(String(inputs.V));
@@ -641,6 +644,14 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
             <a className="btn" href={bookingUrl} target="_blank" rel="noreferrer">Book an appointment</a>
           ) : null}
         </div>
+        {/* Onward button (nextStep RESULTS): a plain external link, no token. */}
+        {continueUrl ? (
+          <div style={{ marginTop: 14 }}>
+            <a className="btn" href={continueUrl} style={{ display: "block", textAlign: "center" }}>
+              {(continueLabel && continueLabel.trim()) || "Continue"} →
+            </a>
+          </div>
+        ) : null}
       </div>
     </div>
   );

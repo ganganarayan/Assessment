@@ -521,6 +521,13 @@ model Assessment {
   targetUrl       String?
   targetOrigin    String? // scheme://host[:port], derived from targetUrl
   tokenTtlSeconds Int? // result-token TTL; null => system default
+
+  // "Show results on assess360" (nextStep RESULTS) only: an OPTIONAL onward link
+  // rendered as a plain button at the bottom of the result page (both the generic
+  // band result and the clinic recalc). No token is appended — it points at a plain
+  // external landing page. Null/blank => no button (unchanged result page).
+  resultsContinueUrl   String?
+  resultsContinueLabel String? // button text; null/blank => "Continue"
   // Anticipation countdown (seconds) shown after Submit before the destination/VSL
   // loads. 0 = redirect immediately. Default 10.
   vslCountdownSeconds Int @default(10)
