@@ -12,6 +12,14 @@ export async function listAssessments(tenantId: string | null) {
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { categories: true, submissions: true } },
+      // Tenant + its verified domains, so a row can resolve its PUBLIC link:
+      // custom domain if the tenant has one, else the parent (subdomain) domain.
+      tenant: {
+        select: {
+          slug: true,
+          domains: { where: { verified: true }, select: { hostname: true, isPrimary: true } },
+        },
+      },
     },
   });
 }

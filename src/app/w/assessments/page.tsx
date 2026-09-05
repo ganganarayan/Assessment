@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { listAssessments } from "@/features/assessment/data";
+import { publicAssessmentBase } from "@/lib/public-url";
+import { CopyPublicLink } from "@/features/assessment/components/admin/copy-public-link";
 import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
@@ -49,17 +51,24 @@ export default async function WorkspaceAssessmentsPage() {
                   <td className="px-3 py-2">{a.status}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{a._count.categories}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{a._count.submissions}</td>
-                  <td className="px-3 py-2 text-right">
-                    {canEdit ? (
-                      <Link
-                        href={`/w/assessments/${a.id}`}
-                        className={buttonVariants({ variant: "outline", size: "sm" })}
-                      >
-                        Edit
-                      </Link>
-                    ) : (
-                      <span className="text-xs text-[var(--muted-foreground)]">View only</span>
-                    )}
+                  <td className="px-3 py-2">
+                    <div className="flex items-center justify-end gap-2">
+                      {/* Public link only makes sense once live — a draft's /a/{slug}
+                          isn't served yet. */}
+                      {a.status === "PUBLISHED" ? (
+                        <CopyPublicLink slug={a.slug} base={publicAssessmentBase(a.tenant)} />
+                      ) : null}
+                      {canEdit ? (
+                        <Link
+                          href={`/w/assessments/${a.id}`}
+                          className={buttonVariants({ variant: "outline", size: "sm" })}
+                        >
+                          Edit
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-[var(--muted-foreground)]">View only</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
