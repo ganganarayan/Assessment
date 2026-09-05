@@ -322,9 +322,17 @@ export function SubmissionsTable({
                     {/* Score + band */}
                     <td className="whitespace-nowrap px-3 py-2">
                       <div className="flex flex-col">
-                        <span className="tabular-nums">
-                          {s.totalScore != null ? `${s.totalScore} / ${s.maxScore ?? 0}` : "—"}
-                        </span>
+                        {s.totalScore != null ? (
+                          // Numerator above, denominator below (x / y stacked).
+                          <span className="tabular-nums leading-tight">
+                            {s.totalScore}
+                            <span className="block border-t border-[var(--border)] text-[var(--muted-foreground)]">
+                              {s.maxScore ?? 0}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="tabular-nums">—</span>
+                        )}
                         {s.bandTitle ? (
                           <span className="text-xs text-[var(--muted-foreground)]">{s.bandTitle}</span>
                         ) : null}

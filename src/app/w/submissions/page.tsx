@@ -1,4 +1,4 @@
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { listSubmissions } from "@/features/assessment/data";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { labeledAnswers } from "@/features/assessment/custom-fields";
@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function WorkspaceSubmissionsPage() {
   const { tenantId } = await requireWorkspace();
+  const canDelete = await currentUserCanEdit();
   const submissions = await listSubmissions(100_000, tenantId);
   const paid = await getPaidBySubmission(submissions.map((s) => s.id));
   const rows: SubmissionRow[] = submissions.map((s) => {
@@ -92,7 +93,7 @@ export default async function WorkspaceSubmissionsPage() {
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions yet.</p>
       ) : (
-        <SubmissionsTable rows={rows} exportBase="/api/w/submissions/export" />
+        <SubmissionsTable rows={rows} exportBase="/api/w/submissions/export" canDelete={canDelete} />
       )}
     </div>
   );
