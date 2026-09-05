@@ -323,10 +323,10 @@ export function SubmissionsTable({
                     <td className="whitespace-nowrap px-3 py-2">
                       <div className="flex flex-col">
                         {s.totalScore != null ? (
-                          // Numerator above, denominator below (x / y stacked).
+                          // Stacked for readability, keeping the slash: "x/" above, "y" below.
                           <span className="tabular-nums leading-tight">
-                            {s.totalScore}
-                            <span className="block border-t border-[var(--border)] text-[var(--muted-foreground)]">
+                            {s.totalScore}/
+                            <span className="block text-[var(--muted-foreground)]">
                               {s.maxScore ?? 0}
                             </span>
                           </span>
