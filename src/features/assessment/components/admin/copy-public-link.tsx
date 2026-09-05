@@ -4,19 +4,16 @@ import { useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
 
 /**
- * Copies an assessment's PUBLIC link (never the builder/preview link).
- *
- * `base` is resolved server-side from the assessment's tenant:
- *   - a custom/parent host string when the tenant has one, or
- *   - null for a platform assessment, in which case we use the browser's own
- *     origin — the exact host the operator is on, matching "copy from the address
- *     bar". So the copied link is the one that actually serves the page.
+ * Copies an assessment's PUBLIC link — the plain public page on the SAME host the
+ * operator is browsing (i.e. exactly what "View public page" opens, with no
+ * ?preview or other query). No custom-domain / subdomain manufacturing: whatever
+ * origin you're on is the origin that serves the page, so that's the link to share.
  */
-export function CopyPublicLink({ slug, base }: { slug: string; base: string | null }) {
+export function CopyPublicLink({ slug }: { slug: string }) {
   const [copied, setCopied] = useState(false);
 
   async function onCopy() {
-    const origin = base ?? (typeof window !== "undefined" ? window.location.origin : "");
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
     const url = `${origin}/a/${slug}`;
     try {
       await navigator.clipboard.writeText(url);

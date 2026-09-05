@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { listAssessments } from "@/features/assessment/data";
-import { publicAssessmentBase } from "@/lib/public-url";
 import { CopyPublicLink } from "@/features/assessment/components/admin/copy-public-link";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -56,7 +55,7 @@ export default async function WorkspaceAssessmentsPage() {
                       {/* Public link only makes sense once live — a draft's /a/{slug}
                           isn't served yet. */}
                       {a.status === "PUBLISHED" ? (
-                        <CopyPublicLink slug={a.slug} base={publicAssessmentBase(a.tenant)} />
+                        <CopyPublicLink slug={a.slug} />
                       ) : null}
                       {canEdit ? (
                         <Link

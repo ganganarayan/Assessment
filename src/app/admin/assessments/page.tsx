@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { listAssessments } from "@/features/assessment/data";
 import { actingTenantId } from "@/lib/tenant/acting";
-import { publicAssessmentBase } from "@/lib/public-url";
 import { CopyPublicLink } from "@/features/assessment/components/admin/copy-public-link";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,7 +49,7 @@ export default async function AssessmentsPage() {
                 >
                   View public page
                 </a>
-                <CopyPublicLink slug={a.slug} base={publicAssessmentBase(a.tenant)} />
+                <CopyPublicLink slug={a.slug} />
                 <Link
                   href={`/admin/assessments/${a.id}`}
                   className={buttonVariants({ variant: "outline", size: "sm" })}
