@@ -129,6 +129,11 @@ model Domain {
   railwayDomainId String?
   dnsTarget       String?
   certStatus      String?
+  // The DNS records the domain owner must add at their provider, as returned by
+  // Railway (normalized: [{ type, name, value, purpose, status }]). Persisted so the
+  // settings page can show them without re-hitting Railway on every load; refreshed
+  // on add + "Check status". Null on rows created before this shipped.
+  dnsRecords      Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

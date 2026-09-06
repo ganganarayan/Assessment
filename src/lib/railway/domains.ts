@@ -45,9 +45,13 @@ export function railwayConfigured(): boolean {
 
 interface DnsRecord {
   hostlabel?: string | null;
+  fqdn?: string | null;
+  recordType?: string | null;
   requiredValue?: string | null;
   currentValue?: string | null;
   status?: string | null;
+  purpose?: string | null;
+  zone?: string | null;
 }
 interface CustomDomainStatus {
   dnsRecords?: DnsRecord[] | null;
@@ -59,12 +63,23 @@ interface CustomDomain {
   status?: CustomDomainStatus | null;
 }
 
+/** One DNS record the domain owner must add at their provider, normalized for display. */
+export interface RailwayDnsRecord {
+  type: string; // CNAME / A / TXT …
+  name: string; // the host the record goes on (fqdn), e.g. assess.yourbrand.com
+  value: string; // the value to set (Railway's requiredValue)
+  purpose: string | null; // e.g. "routing" / "certificate" (when Railway says)
+  status: string | null; // per-record status when Railway reports it
+}
+
 export interface RailwayDomainResult {
   id: string;
   /** CNAME value the tenant must point their host at (from dnsRecords.requiredValue). */
   dnsTarget: string | null;
   /** Railway certificate status, e.g. "ISSUED" / "ISSUING" / "WAITING". */
   certStatus: string | null;
+  /** Every DNS record Railway needs the owner to add (CNAME + any verification). */
+  dnsRecords: RailwayDnsRecord[];
 }
 
 async function gql<T>(env: RailwayEnv, query: string, variables: Record<string, unknown>): Promise<T> {
@@ -86,10 +101,28 @@ async function gql<T>(env: RailwayEnv, query: string, variables: Record<string, 
   return json.data;
 }
 
+const clean = (s: string | null | undefined) => (s ?? "").trim().replace(/\.$/, "");
+
 function pickResult(cd: CustomDomain | null | undefined): RailwayDomainResult | null {
   if (!cd) return null;
-  const rec = cd.status?.dnsRecords?.find((r) => (r.requiredValue ?? "").length > 0) ?? cd.status?.dnsRecords?.[0];
-  return { id: cd.id, dnsTarget: rec?.requiredValue ?? null, certStatus: cd.status?.certificateStatus ?? null };
+  const raw = cd.status?.dnsRecords ?? [];
+  const dnsRecords: RailwayDnsRecord[] = raw
+    .filter((r) => clean(r.requiredValue).length > 0)
+    .map((r) => ({
+      type: (r.recordType ?? "CNAME").toUpperCase(),
+      name: clean(r.fqdn ?? r.hostlabel ?? cd.domain),
+      value: clean(r.requiredValue),
+      purpose: r.purpose ?? null,
+      status: r.status ?? null,
+    }));
+  // Prefer the CNAME/A routing record for the single dnsTarget summary.
+  const primary = dnsRecords.find((r) => r.type === "CNAME" || r.type === "A") ?? dnsRecords[0];
+  return {
+    id: cd.id,
+    dnsTarget: primary?.value ?? null,
+    certStatus: cd.status?.certificateStatus ?? null,
+    dnsRecords,
+  };
 }
 
 /** Register the host with Railway so it provisions a TLS cert. Idempotent-ish: if the
@@ -102,7 +135,7 @@ export async function railwayCreateCustomDomain(domain: string): Promise<Railway
     `mutation($input: CustomDomainCreateInput!) {
       customDomainCreate(input: $input) {
         id domain
-        status { certificateStatus dnsRecords { hostlabel requiredValue currentValue status } }
+        status { certificateStatus dnsRecords { hostlabel fqdn recordType requiredValue currentValue status purpose zone } }
       }
     }`,
     { input: { domain, projectId: env.projectId, environmentId: env.environmentId, serviceId: env.serviceId } },
@@ -119,7 +152,7 @@ export async function railwayCustomDomainStatus(railwayDomainId: string): Promis
     `query($id: String!, $projectId: String!) {
       customDomain(id: $id, projectId: $projectId) {
         id domain
-        status { certificateStatus dnsRecords { hostlabel requiredValue currentValue status } }
+        status { certificateStatus dnsRecords { hostlabel fqdn recordType requiredValue currentValue status purpose zone } }
       }
     }`,
     { id: railwayDomainId, projectId: env.projectId },

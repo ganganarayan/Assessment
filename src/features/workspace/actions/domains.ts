@@ -11,8 +11,10 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
 import {
   railwayConfigured,
   railwayCreateCustomDomain,
+  railwayCustomDomainStatus,
   railwayDeleteCustomDomain,
   certIsLive,
+  type RailwayDnsRecord,
 } from "@/lib/railway/domains";
 import {
   cloudflareConfigured,
@@ -28,56 +30,69 @@ import {
  *    shown to the tenant, and the DNS record is created for them automatically.
  * Verified (→ routable) once Cloudflare's proxied record + cert are in place.
  */
-async function provisionDomain(hostname: string): Promise<{
+async function provisionDomain(
+  hostname: string,
+  existingRailwayId?: string | null,
+): Promise<{
   verified: boolean;
   dnsTarget: string;
+  dnsRecords: RailwayDnsRecord[];
   railwayDomainId: string | null;
   certStatus: string;
   error?: string;
 }> {
   const origin = appHost();
 
-  // Routing (Railway) — REQUIRED: Railway routes by Host, so without registration the
-  // host 404s ("train has not arrived") even with a valid Cloudflare cert. Capture the
-  // error instead of swallowing it.
-  let railwayDomainId: string | null = null;
+  // Routing + TLS (Railway) — the SOURCE OF TRUTH. Railway routes by Host and issues
+  // the Let's Encrypt cert once DNS resolves; it also tells us the exact DNS records
+  // the domain owner must add. On "Check status" we POLL the existing record rather
+  // than re-create (customDomainCreate errors on an already-registered host).
+  let rw = null as Awaited<ReturnType<typeof railwayCreateCustomDomain>>;
   let railwayError: string | null = null;
   if (railwayConfigured()) {
     try {
-      railwayDomainId = (await railwayCreateCustomDomain(hostname))?.id ?? null;
-      if (!railwayDomainId) railwayError = "Railway returned no domain id.";
+      rw = existingRailwayId ? await railwayCustomDomainStatus(existingRailwayId) : null;
+      if (!rw) rw = await railwayCreateCustomDomain(hostname);
+      if (!rw) railwayError = "Railway returned no domain.";
     } catch (e) {
       railwayError = e instanceof Error ? e.message : String(e);
     }
   }
 
-  // TLS + DNS (Cloudflare).
-  let cfOk = false;
-  let cfError: string | null = null;
+  // TLS + DNS (Cloudflare) — only succeeds for zones on OUR Cloudflare account (the
+  // domains we host). For a client's OWN domain this simply fails, which is fine: the
+  // client adds the DNS records shown below instead. Never a verification gate.
   if (cloudflareConfigured()) {
     try {
-      const cf = await cloudflareProvisionDomain(hostname, origin);
-      cfOk = cf.ok;
-      cfError = cf.error ?? null;
-    } catch (e) {
-      cfError = e instanceof Error ? e.message : String(e);
+      await cloudflareProvisionDomain(hostname, origin);
+    } catch {
+      /* external zone — not ours to manage; the shown records are the path */
     }
   }
 
-  const routingOk = !railwayConfigured() || !!railwayDomainId;
-  const verified = cfOk && routingOk;
-  const notes: string[] = [];
-  if (railwayError) notes.push(`Routing (Railway): ${railwayError}`);
-  if (cfError) notes.push(`TLS (Cloudflare): ${cfError}`);
-  if (!railwayConfigured()) notes.push("Railway routing not configured (RAILWAY_API_TOKEN).");
-  if (!cloudflareConfigured()) notes.push("Cloudflare TLS not configured (CLOUDFLARE_API_TOKEN).");
+  const railwayDomainId = rw?.id ?? existingRailwayId ?? null;
+  const certLive = certIsLive(rw?.certStatus);
+  // Verified = the cert is live. When Railway manages routing that IS the truth; with
+  // no Railway token we fall back to the CNAME auto-detect path in verifyDomain.
+  const verified = railwayConfigured() ? certLive : false;
+
+  // Records to hand the owner: Railway's when managed; otherwise a single CNAME to us.
+  const dnsRecords: RailwayDnsRecord[] =
+    rw?.dnsRecords && rw.dnsRecords.length > 0
+      ? rw.dnsRecords
+      : railwayConfigured()
+        ? []
+        : [{ type: "CNAME", name: hostname, value: origin, purpose: null, status: null }];
 
   return {
     verified,
-    dnsTarget: origin,
+    dnsTarget: rw?.dnsTarget ?? origin,
+    dnsRecords,
     railwayDomainId,
-    certStatus: verified ? "active" : "pending",
-    error: notes.length ? notes.join(" · ") : undefined,
+    // Keep Railway's own words when present (ISSUING/ISSUED/…); else pending/active.
+    certStatus: rw?.certStatus ?? (verified ? "active" : "pending"),
+    // Only surface a real Railway error — a Cloudflare miss on an external zone is expected.
+    error: railwayError ?? undefined,
   };
 }
 
@@ -113,6 +128,8 @@ export interface DomainView {
   dnsTarget: string | null;
   certStatus: string | null;
   certLive: boolean;
+  /** DNS records the owner must add at their provider (shown until the domain is live). */
+  dnsRecords: RailwayDnsRecord[];
   createdAt: string;
 }
 
@@ -146,19 +163,31 @@ export async function getDomainSettings(): Promise<DomainSettingsView> {
   const rows = await prisma.domain.findMany({
     where: { tenantId },
     orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
-    select: { id: true, hostname: true, isPrimary: true, verified: true, dnsTarget: true, certStatus: true, createdAt: true },
+    select: { id: true, hostname: true, isPrimary: true, verified: true, dnsTarget: true, certStatus: true, dnsRecords: true, createdAt: true },
   });
   return {
-    domains: rows.map((d) => ({
-      id: d.id,
-      hostname: d.hostname,
-      isPrimary: d.isPrimary,
-      verified: d.verified,
-      dnsTarget: d.dnsTarget ?? (managed ? null : fallback),
-      certStatus: d.certStatus,
-      certLive: certIsLive(d.certStatus),
-      createdAt: d.createdAt.toISOString(),
-    })),
+    domains: rows.map((d) => {
+      const live = d.verified || certIsLive(d.certStatus);
+      const stored = (d.dnsRecords as unknown as RailwayDnsRecord[] | null) ?? [];
+      // Show records until the domain is live. Fall back to a single CNAME when none
+      // were stored (older rows, or no-Railway fallback), so there is always guidance.
+      const dnsRecords = live
+        ? []
+        : stored.length > 0
+          ? stored
+          : [{ type: "CNAME", name: d.hostname, value: d.dnsTarget ?? fallback, purpose: null, status: null }];
+      return {
+        id: d.id,
+        hostname: d.hostname,
+        isPrimary: d.isPrimary,
+        verified: d.verified,
+        dnsTarget: d.dnsTarget ?? (managed ? null : fallback),
+        certStatus: d.certStatus,
+        certLive: certIsLive(d.certStatus),
+        dnsRecords,
+        createdAt: d.createdAt.toISOString(),
+      };
+    }),
     cnameTarget: fallback,
     rootDomain: env.NEXT_PUBLIC_ROOT_DOMAIN.toLowerCase(),
     railwayManaged: managed,
@@ -196,7 +225,13 @@ export async function addDomain(rawHostname: string): Promise<ActionResult> {
   const p = await provisionDomain(hostname);
   await prisma.domain.update({
     where: { id: domainId },
-    data: { railwayDomainId: p.railwayDomainId, dnsTarget: p.dnsTarget, certStatus: p.certStatus, verified: p.verified },
+    data: {
+      railwayDomainId: p.railwayDomainId,
+      dnsTarget: p.dnsTarget,
+      dnsRecords: p.dnsRecords as unknown as Prisma.InputJsonValue,
+      certStatus: p.certStatus,
+      verified: p.verified,
+    },
   });
 
   revalidatePath("/w/settings");
@@ -243,16 +278,27 @@ export async function verifyDomain(id: string): Promise<ActionResult> {
   });
   if (!domain) return { ok: false, error: "Domain not found." };
 
-  // Auto-provisioned path (Cloudflare and/or Railway configured): (re)provision + refresh.
+  // Auto-provisioned path (Cloudflare and/or Railway configured): poll status + refresh.
   if (cloudflareConfigured() || railwayConfigured()) {
-    const p = await provisionDomain(domain.hostname);
+    const p = await provisionDomain(domain.hostname, domain.railwayDomainId);
     await prisma.domain.update({
       where: { id: domain.id },
-      data: { railwayDomainId: p.railwayDomainId, dnsTarget: p.dnsTarget, certStatus: p.certStatus, verified: p.verified },
+      data: {
+        railwayDomainId: p.railwayDomainId,
+        dnsTarget: p.dnsTarget,
+        dnsRecords: p.dnsRecords as unknown as Prisma.InputJsonValue,
+        certStatus: p.certStatus,
+        verified: p.verified,
+      },
     });
     revalidatePath("/w/settings");
     if (p.verified) return { ok: true };
-    return { ok: false, error: p.error ?? "Still provisioning — try Check status again in a minute." };
+    return {
+      ok: false,
+      error:
+        p.error ??
+        "Not live yet — add the DNS records shown below at your provider, then Check status again in a minute.",
+    };
   }
 
   // Last-resort fallback (no tokens at all): CNAME auto-detect against this app's host.
