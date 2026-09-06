@@ -42,6 +42,18 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
     setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1200);
   };
 
+  // Small green copy button (⧉ → ✓ on copy).
+  const copyBtn = (key: string, text: string) => (
+    <button
+      type="button"
+      onClick={() => copy(key, text)}
+      title="Copy"
+      className="shrink-0 rounded border border-green-500/40 px-1.5 py-0.5 text-[11px] font-semibold text-green-600 hover:bg-green-500/10"
+    >
+      {copiedKey === key ? "✓" : "⧉"}
+    </button>
+  );
+
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) =>
     start(async () => {
       setMsg(null);
@@ -120,30 +132,20 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
                 // Records the owner must add at their DNS provider. Copy each value.
                 <div className="flex flex-col gap-2 rounded-md border border-[var(--border)] bg-[var(--muted)]/30 px-3 py-2.5">
                   <p className="text-xs font-semibold">Add these DNS records at your domain provider</p>
-                  <div className="flex flex-col divide-y divide-[var(--border)]">
+                  <div className="flex flex-col gap-1.5">
                     {(d.dnsRecords.length > 0
                       ? d.dnsRecords
                       : [{ type: "CNAME", name: d.hostname, value: d.dnsTarget ?? initial.cnameTarget, purpose: null, status: null }]
                     ).map((rec, i) => (
-                      <div key={i} className="grid grid-cols-[64px_1fr] gap-x-3 gap-y-1 py-2 sm:grid-cols-[70px_minmax(0,1fr)_minmax(0,1.4fr)]">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Type</span>
-                        <span className="font-mono text-xs sm:col-span-2">{rec.type}</span>
-
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Name</span>
-                        <span className="col-span-1 flex min-w-0 items-center gap-1.5">
-                          <span className="truncate font-mono text-xs text-[var(--foreground)] select-all" title={rec.name}>{rec.name}</span>
-                          <button type="button" onClick={() => copy(`${d.id}-n-${i}`, rec.name)} className="shrink-0 rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] hover:bg-[var(--muted)]">
-                            {copiedKey === `${d.id}-n-${i}` ? "✓" : "Copy"}
-                          </button>
-                        </span>
-
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">Value</span>
-                        <span className="col-span-1 flex min-w-0 items-center gap-1.5">
-                          <span className="truncate font-mono text-xs text-[var(--foreground)] select-all" title={rec.value}>{rec.value}</span>
-                          <button type="button" onClick={() => copy(`${d.id}-v-${i}`, rec.value)} className="shrink-0 rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] hover:bg-[var(--muted)]">
-                            {copiedKey === `${d.id}-v-${i}` ? "✓" : "Copy"}
-                          </button>
-                        </span>
+                      // One record on a single line; scrolls horizontally if long.
+                      <div key={i} className="flex items-center gap-2 overflow-x-auto whitespace-nowrap rounded bg-[var(--muted)]/50 px-2 py-1.5 text-xs">
+                        <span className="shrink-0 rounded bg-[var(--muted)] px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase">{rec.type}</span>
+                        <span className="shrink-0 text-[10px] uppercase tracking-wide text-[var(--muted-foreground)]">Name</span>
+                        <span className="font-mono text-[var(--foreground)] select-all">{rec.name}</span>
+                        {copyBtn(`${d.id}-n-${i}`, rec.name)}
+                        <span className="shrink-0 text-[10px] uppercase tracking-wide text-[var(--muted-foreground)]">Value</span>
+                        <span className="font-mono text-[var(--foreground)] select-all">{rec.value}</span>
+                        {copyBtn(`${d.id}-v-${i}`, rec.value)}
                       </div>
                     ))}
                   </div>
