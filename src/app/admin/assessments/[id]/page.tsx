@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentUserCanEdit } from "@/lib/auth/guards";
-import { getAssessmentById } from "@/features/assessment/data";
+import { getAssessmentById, listAssessments } from "@/features/assessment/data";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { actingTenantId } from "@/lib/tenant/acting";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
@@ -86,7 +86,18 @@ export default async function EditAssessmentPage({
     paymentAmount: a.paymentAmount ?? undefined,
     paymentEventName: a.paymentEventName ?? "Purchase121",
     paymentIntroText: a.paymentIntroText ?? "",
+    audienceRoles: a.audienceRoles,
+    audienceGateHeading: a.audienceGateHeading ?? "",
+    audienceNoneLabel: a.audienceNoneLabel ?? "",
+    routeNextAssessmentId: a.routeNextAssessmentId ?? "",
+    routeNextUrl: a.routeNextUrl ?? "",
+    fireMetaCapi: a.fireMetaCapi,
   };
+
+  // Other assessments in this scope — targets for the audience gate's onward route.
+  const routeTargets = (await listAssessments(a.tenantId))
+    .filter((x) => x.id !== a.id)
+    .map((x) => ({ id: x.id, title: x.title, slug: x.slug }));
 
   const categories = a.categories.map((c) => ({
     id: c.id,
@@ -195,7 +206,7 @@ export default async function EditAssessmentPage({
 
   const assessmentTab = (
     <>
-      <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} />
+      <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Connect your destination page</h2>

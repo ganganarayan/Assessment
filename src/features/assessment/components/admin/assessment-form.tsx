@@ -152,6 +152,12 @@ const DEFAULTS: AssessmentFormValues = {
   paymentAmount: undefined,
   paymentEventName: "Purchase121",
   paymentIntroText: "",
+  audienceRoles: [],
+  audienceGateHeading: "",
+  audienceNoneLabel: "",
+  routeNextAssessmentId: "",
+  routeNextUrl: "",
+  fireMetaCapi: true,
 };
 
 export function AssessmentForm({
@@ -160,6 +166,7 @@ export function AssessmentForm({
   initial,
   basePath = "/admin/assessments",
   promptVersions = [],
+  assessmentOptions = [],
 }: {
   mode: "create" | "edit";
   id?: string;
@@ -169,6 +176,9 @@ export function AssessmentForm({
   basePath?: string;
   /** The tenant's AI instruction versions, for the per-assessment selector. */
   promptVersions?: { id: string; label: string }[];
+  /** Other assessments in scope (excluding this one) — targets for the audience
+   *  gate's "None of the above" onward route. */
+  assessmentOptions?: { id: string; title: string; slug: string }[];
 }) {
   const router = useRouter();
   const [values, setValues] = useState<AssessmentFormValues>(
@@ -194,6 +204,7 @@ export function AssessmentForm({
       const payload = {
         ...values,
         professionOptions: values.professionOptions.map((s) => s.trim()).filter(Boolean),
+        audienceRoles: values.audienceRoles.map((s) => s.trim()).filter(Boolean),
         preResultFields: cleanFields(values.preResultFields),
         optinFields: cleanFields(values.optinFields),
       };
@@ -346,6 +357,106 @@ export function AssessmentForm({
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="flex flex-col gap-4 rounded-lg border p-4">
+            <p className="text-sm font-medium">Audience gate &amp; cascade routing</p>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Optional. Shows a &ldquo;which best describes you?&rdquo; role picker as the FIRST
+              screen. If the respondent picks a listed role they continue with this assessment; if
+              they pick <em>None of the above</em> they&apos;re sent to the next assessment below,
+              which shows its own gate. Leave roles blank for no gate (the normal flow).
+            </p>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="audienceRoles">Roles shown in the gate</Label>
+              <Textarea
+                id="audienceRoles"
+                rows={5}
+                placeholder={"One role per line. Blank = no gate.\nClinic owner\nSolo practitioner\nMarketing manager"}
+                value={(values.audienceRoles ?? []).join("\n")}
+                onChange={(e) => set("audienceRoles", e.target.value.split("\n"))}
+              />
+              <p className="text-xs text-[var(--muted-foreground)]">
+                One role per line. The picked role is stored on the submission (for audience
+                interest), separate from Profession.
+              </p>
+            </div>
+
+            {(values.audienceRoles ?? []).some((r) => r.trim()) ? (
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="audienceGateHeading">Gate heading</Label>
+                    <Input
+                      id="audienceGateHeading"
+                      placeholder="Which best describes you?"
+                      value={values.audienceGateHeading ?? ""}
+                      onChange={(e) => set("audienceGateHeading", e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="audienceNoneLabel">&ldquo;None of the above&rdquo; label</Label>
+                    <Input
+                      id="audienceNoneLabel"
+                      placeholder="None of the above"
+                      value={values.audienceNoneLabel ?? ""}
+                      onChange={(e) => set("audienceNoneLabel", e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="routeNextAssessmentId">
+                    &ldquo;None of the above&rdquo; → next assessment
+                  </Label>
+                  <select
+                    id="routeNextAssessmentId"
+                    className="h-10 max-w-md rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+                    value={values.routeNextAssessmentId ?? ""}
+                    onChange={(e) => set("routeNextAssessmentId", e.target.value)}
+                  >
+                    <option value="">— none (use the fallback URL below) —</option>
+                    {assessmentOptions.map((o) => (
+                      <option key={o.id} value={o.id}>{o.title} (/a/{o.slug})</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Where non-matching respondents cascade to. Loops back to this assessment are
+                    blocked on save.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="routeNextUrl">Fallback URL (last level, when no next assessment)</Label>
+                  <Input
+                    id="routeNextUrl"
+                    placeholder="https://your-page.com/thank-you"
+                    value={values.routeNextUrl ?? ""}
+                    onChange={(e) => set("routeNextUrl", e.target.value)}
+                  />
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Used only when no next assessment is set. Blank + no next = the None option is hidden.
+                  </p>
+                </div>
+              </>
+            ) : null}
+
+            <label className="flex items-start gap-2 border-t pt-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={values.fireMetaCapi}
+                onChange={(e) => set("fireMetaCapi", e.target.checked)}
+              />
+              <span>
+                Fire Meta (CAPI + pixel) for this assessment
+                <span className="block text-xs text-[var(--muted-foreground)]">
+                  ON for the ad-entry (level 1) assessment. Turn OFF on routed (level 2+) assessments
+                  so onward routing never pollutes Meta&apos;s learning.
+                </span>
+              </span>
+            </label>
           </div>
 
           <div className="flex flex-col gap-4 rounded-lg border p-4">

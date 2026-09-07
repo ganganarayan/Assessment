@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getPublishedAssessmentBySlug } from "@/features/assessment/data";
+import { getPublishedAssessmentBySlug, getPublishedSlugById } from "@/features/assessment/data";
 import { pickAttribution } from "@/lib/attribution";
 import {
   AssessmentRunner,
@@ -26,6 +26,13 @@ export default async function PublicAssessmentPage({
   const preview = sp.preview === "1"; // admin-only bypass; verified server-side
   const a = await getPublishedAssessmentBySlug(slug);
   if (!a) notFound();
+
+  // Audience gate: resolve the "None of the above" onward target. A published next
+  // assessment wins; otherwise the external fallback URL (a draft target is ignored).
+  const routeNextSlug =
+    a.audienceRoles.length > 0 && a.routeNextAssessmentId
+      ? await getPublishedSlugById(a.routeNextAssessmentId)
+      : null;
 
   const assessment: PublicAssessment = {
     slug: a.slug,
@@ -71,6 +78,12 @@ export default async function PublicAssessmentPage({
     paymentHeadline: a.paymentHeadline,
     paymentButtonLabel: a.paymentButtonLabel,
     paymentIntroText: a.paymentIntroText,
+    // Audience gate (Phase 2).
+    audienceRoles: a.audienceRoles,
+    audienceGateHeading: a.audienceGateHeading,
+    audienceNoneLabel: a.audienceNoneLabel,
+    routeNextSlug,
+    routeNextUrl: a.routeNextUrl,
     // Public renders ONLY the published snapshot (never the draft rows).
     pages: readPublishedPages(a.publishedPages),
     categories: a.categories.map((c) => ({

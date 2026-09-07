@@ -283,16 +283,21 @@ async function fireRegistration(
   customerId: string,
   lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null; profession: string | null },
   attr: ReturnType<typeof normalizeAttribution>,
-): Promise<string> {
+  /** Phase 2: fire Meta (CAPI + return the pixel eventId) only when true. The CRM
+   *  lead event still fires regardless — routed assessments keep their leads, they
+   *  just don't tell Meta (keeps Meta's learning tied to the ad-entry assessment). */
+  fireMeta: boolean,
+): Promise<string | undefined> {
   const eventId = randomUUID();
   // The submission is ALREADY persisted before this runs, so no CRM/CAPI side-effect
   // may ever block the lead. Everything here is wrapped: a failure is logged and the
-  // opt-in still succeeds (the eventId is returned regardless for pixel dedup).
+  // opt-in still succeeds. The eventId is returned (for pixel dedup) ONLY when Meta
+  // firing is on; otherwise undefined so the browser pixel stays silent too.
   try {
     await emitStart(assessment, submissionId, customerId, lead, attr);
     // Server-side Meta CAPI. Inert unless configured; getMetaRequestContext is
     // fail-soft; the send is fire-and-forget so Meta's network never adds latency.
-    if (await isCapiConfigured(assessment.tenant?.id ?? null)) {
+    if (fireMeta && await isCapiConfigured(assessment.tenant?.id ?? null)) {
       const ctx = await getMetaRequestContext();
       void sendCapiEvent({
         eventName: "CompleteRegistration",
@@ -316,7 +321,7 @@ async function fireRegistration(
   } catch (e) {
     console.error("[start] fireRegistration side-effect failed (lead still captured):", e instanceof Error ? e.message : String(e));
   }
-  return eventId;
+  return fireMeta ? eventId : undefined;
 }
 
 /**
@@ -341,6 +346,9 @@ export async function startSubmission(
   preview?: boolean,
   honeypot?: string,
   optinAnswers?: Record<string, string>,
+  /** Audience-gate role the respondent picked (Phase 2). Validated against the
+   *  assessment's own role list; anything else is dropped. */
+  audienceRole?: string,
 ): Promise<ActionResult<StartResult>> {
   // Bot guard #1 — honeypot: a hidden form field no human fills. If it carries a
   // value, silently refuse (no submission created) so bot opt-ins never pollute the
@@ -372,9 +380,17 @@ export async function startSubmission(
       retakeDays: true,
       uniqueIdentifier: true,
       paidMode: true,
+      fireMetaCapi: true,
+      audienceRoles: true,
     },
   });
   if (!assessment) return { ok: false, error: "Assessment not available." };
+
+  // Audience-gate role: keep it only if it's one of THIS assessment's roles.
+  const cleanRole =
+    audienceRole && assessment.audienceRoles.includes(audienceRole.trim())
+      ? audienceRole.trim()
+      : null;
 
   const parsed = leadSchema.safeParse(lead);
   if (!parsed.success) {
@@ -460,6 +476,7 @@ export async function startSubmission(
     leadEmail: assessment.collectEmail ? email : null,
     leadMobile: assessment.collectMobile ? mobile : null,
     leadProfession: assessment.collectProfession ? profession : null,
+    audienceRole: cleanRole,
     identifierValue,
     editToken: newEditToken,
     clientIp: metaCtx.clientIpAddress,
@@ -522,6 +539,7 @@ export async function startSubmission(
         leadEmail: submissionData.leadEmail,
         leadMobile: submissionData.leadMobile,
         leadProfession: submissionData.leadProfession,
+        ...(cleanRole ? { audienceRole: cleanRole } : {}),
         ...optinData,
         ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
       };
@@ -565,7 +583,7 @@ export async function startSubmission(
     }
     let eventId: string | undefined;
     if (outcome.kind === "created") {
-      eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr);
+      eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, assessment.fireMetaCapi);
     }
     const answers = outcome.kind === "reused" ? await loadResumeAnswers(outcome.submissionId) : undefined;
     return {
@@ -585,8 +603,8 @@ export async function startSubmission(
     data: { ...submissionData, customerId: newCustomerId },
     select: { id: true },
   });
-  const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr);
-  return { ok: true, data: { status: "started", submissionId: created.id, editToken: newEditToken, eventId } };
+  const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr, assessment.fireMetaCapi);
+  return { ok: true, data: { status: "started", submissionId: created.id, editToken: newEditToken, ...(eventId ? { eventId } : {}) } };
 }
 
 /**
@@ -831,6 +849,8 @@ export async function completeSubmission(
       engineConfig: true,
       // Conditional routing is honored only in the SINGLE display mode.
       questionDisplayMode: true,
+      // Phase 2: routed assessments have this OFF → no completion CAPI/pixel.
+      fireMetaCapi: true,
       tenant: { select: { id: true, slug: true, name: true } },
       categories: {
         // Order categories + their questions by displayOrder so scoring iterates in
@@ -1241,8 +1261,10 @@ export async function completeSubmission(
   // Server-side Meta CAPI (AssessmentCompleted). Runs ONLY for the winning
   // writer (exactly-once); the returned eventId dedups the browser pixel.
   // Inert unless configured; fail-soft context; non-blocking send.
-  const eventId = randomUUID();
-  if (await isCapiConfigured(assessment.tenant?.id ?? null)) {
+  // Phase 2: routed (non-ad-entry) assessments don't tell Meta — no CAPI, no pixel
+  // eventId — so Meta's optimization stays tied to the ad-entry assessment only.
+  const eventId = assessment.fireMetaCapi ? randomUUID() : undefined;
+  if (assessment.fireMetaCapi && eventId && await isCapiConfigured(assessment.tenant?.id ?? null)) {
     const ctx = await getMetaRequestContext();
     void sendCapiEvent({
       eventName: "AssessmentCompleted",
@@ -1297,5 +1319,5 @@ export async function completeSubmission(
   });
   // On a PAID exit, omit the token-bearing resultUrl from the client response.
   const paidExit = !!(paid.payment || paid.paymentRedirectUrl);
-  return { ok: true, data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid, eventId } };
+  return { ok: true, data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid, ...(eventId ? { eventId } : {}) } };
 }

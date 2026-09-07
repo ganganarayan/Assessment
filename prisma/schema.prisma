@@ -567,6 +567,23 @@ model Assessment {
   // mode only) — sets the expectation up front so there are no surprises.
   paymentIntroText   String?
 
+  // ---- Audience gate + cascade routing (Phase 2) ----
+  // A role picker shown as the FIRST screen (before opt-in). If the respondent's
+  // role is listed they proceed with THIS assessment; if not, "None of the above"
+  // routes them to routeNext* (the next assessment in the cascade), which shows its
+  // own gate, and so on. Empty audienceRoles = no gate (unchanged flow).
+  audienceRoles       String[] @default([])
+  audienceGateHeading String? // e.g. "Which best describes you?" (null = default)
+  audienceNoneLabel   String? // "None of the above" (null = default)
+  // "None of the above" destination: another assessment (by id, scalar ref — no FK,
+  // validated + cycle-checked on save) OR an external URL fallback for the last level.
+  routeNextAssessmentId String?
+  routeNextUrl          String?
+  // Meta CAPI + browser pixel fire ONLY when true. The ad-entry (level-1) assessment
+  // is true; routed (level 2+) assessments are false, so onward routing never pollutes
+  // Meta's learning. Default true keeps every existing assessment firing as before.
+  fireMetaCapi Boolean @default(true)
+
   // Published snapshot of the result-page builder (array of AssessmentPageData).
   // The relational AssessmentPage/PageBlock rows are the editable DRAFT; the public
   // renders ONLY this snapshot, so unpublished edits never go live. Null = no pages
@@ -883,6 +900,10 @@ model Submission {
   leadEmail      String?
   leadMobile     String?
   leadProfession String?
+  // Audience gate (Phase 2): the role the respondent picked on the gate screen, if
+  // this assessment has one. Kept separate from leadProfession (which is mapped to
+  // the CRM verbatim) so the gate never disturbs that mapping. Null = no gate / skipped.
+  audienceRole   String?
 
   // Answers to the assessment's optional "pre-results" data-capture page, keyed by
   // the field id: { [fieldId]: string }. Null when the assessment has no such page.

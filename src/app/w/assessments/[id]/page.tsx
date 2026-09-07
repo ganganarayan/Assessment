@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
-import { getAssessmentById } from "@/features/assessment/data";
+import { getAssessmentById, listAssessments } from "@/features/assessment/data";
+import { buildSpine } from "@/lib/routing/engine";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
 import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
@@ -86,7 +87,18 @@ export default async function WorkspaceEditAssessmentPage({
     paymentAmount: a.paymentAmount ?? undefined,
     paymentEventName: a.paymentEventName ?? "Purchase121",
     paymentIntroText: a.paymentIntroText ?? "",
+    audienceRoles: a.audienceRoles,
+    audienceGateHeading: a.audienceGateHeading ?? "",
+    audienceNoneLabel: a.audienceNoneLabel ?? "",
+    routeNextAssessmentId: a.routeNextAssessmentId ?? "",
+    routeNextUrl: a.routeNextUrl ?? "",
+    fireMetaCapi: a.fireMetaCapi,
   };
+
+  // Other assessments in this workspace — targets for the audience gate onward route.
+  const routeTargets = (await listAssessments(tenantId))
+    .filter((x) => x.id !== a.id)
+    .map((x) => ({ id: x.id, title: x.title, slug: x.slug }));
 
   const categories = a.categories.map((c) => ({
     id: c.id,
@@ -106,9 +118,35 @@ export default async function WorkspaceEditAssessmentPage({
         value: o.value,
         diagnosisClause: o.diagnosisClause,
         isAssumption: o.isAssumption,
+        route: o.route
+          ? {
+              action: o.route.action,
+              targetQuestionId: o.route.targetQuestionId,
+              targetCategoryId: o.route.targetCategoryId,
+            }
+          : null,
       })),
     })),
   }));
+
+  // Conditional-routing (Phase 1) flow context for the per-question routing editor.
+  const spine = buildSpine(
+    a.categories.map((c) => ({ id: c.id, page: c.page, questions: c.questions.map((q) => ({ id: q.id })) })),
+  );
+  const questionText = new Map(a.categories.flatMap((c) => c.questions.map((q) => [q.id, q.text] as const)));
+  const routingFlow = spine.map((s, index) => {
+    const text = questionText.get(s.id) ?? "";
+    const short = text.length > 48 ? `${text.slice(0, 48)}…` : text;
+    return { id: s.id, index, label: `Q${index + 1} · ${short}` };
+  });
+  const routingCategories = a.categories
+    .map((c) => ({ id: c.id, name: c.name, firstIndex: spine.findIndex((s) => s.categoryId === c.id) }))
+    .filter((c) => c.firstIndex >= 0);
+  const routingContext = {
+    flow: routingFlow,
+    categoriesFlow: routingCategories,
+    displayMode: a.questionDisplayMode,
+  };
 
   const bands = a.resultBands.map((b) => ({
     id: b.id,
@@ -153,7 +191,7 @@ export default async function WorkspaceEditAssessmentPage({
 
   const assessmentTab = (
     <>
-      <AssessmentForm mode="edit" id={a.id} initial={initial} basePath="/w/assessments" promptVersions={promptVersions} />
+      <AssessmentForm mode="edit" id={a.id} initial={initial} basePath="/w/assessments" promptVersions={promptVersions} assessmentOptions={routeTargets} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Connect your destination page</h2>
@@ -165,7 +203,7 @@ export default async function WorkspaceEditAssessmentPage({
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Categories &amp; Questions</h2>
-        <CategoriesManager assessmentId={a.id} categories={categories} engine={a.engine} />
+        <CategoriesManager assessmentId={a.id} categories={categories} engine={a.engine} routing={routingContext} />
       </section>
 
       <section className="flex flex-col gap-3">

@@ -130,6 +130,21 @@ export const assessmentSchema = z.object({
   paymentEventName: z.string().max(80).optional().or(z.literal("")),
   // Payment notice on the opt-in form (above Start), paid mode only.
   paymentIntroText: z.string().max(2000).optional().or(z.literal("")),
+  // ---- Audience gate + cascade routing (Phase 2) ----
+  // Roles shown in the gate picker (empty = no gate). Trimmed, non-empty, capped.
+  audienceRoles: z.array(z.string().trim().min(1).max(120)).max(20).default([]),
+  audienceGateHeading: z.string().max(200).optional().or(z.literal("")),
+  audienceNoneLabel: z.string().max(120).optional().or(z.literal("")),
+  // "None of the above" onward target: an assessment id, or an external URL fallback.
+  routeNextAssessmentId: z.string().max(60).optional().or(z.literal("")),
+  routeNextUrl: z
+    .string()
+    .url("Enter a valid URL.")
+    .startsWith("https://", "Fallback URL must use https://")
+    .optional()
+    .or(z.literal("")),
+  // Meta CAPI + pixel fire only when true (ad-entry assessment). Routed ones = false.
+  fireMetaCapi: z.boolean().default(true),
 }).superRefine((d, ctx) => {
   if (d.nextStep === "PAYMENT" && !d.paymentAmount && !d.paymentUrl) {
     ctx.addIssue({

@@ -22,6 +22,34 @@ async function ownsAssessment(
   return !!found;
 }
 
+/** Validate the audience-gate onward route: the target must exist in scope, must
+ *  not be the assessment itself, and must not form a cascade loop back to it.
+ *  Returns an error string, or null when the route is fine (or unset). */
+async function validateOnwardRoute(
+  selfId: string | null,
+  nextId: string | null,
+  scope: Awaited<ReturnType<typeof resolveActingScope>>,
+): Promise<string | null> {
+  if (!nextId) return null;
+  if (selfId && nextId === selfId) return "An assessment can't route to itself.";
+  const exists = await prisma.assessment.findFirst({
+    where: { id: nextId, ...tenantScope(scope) },
+    select: { id: true },
+  });
+  if (!exists) return "The onward (None of the above) assessment wasn't found in your workspace.";
+  // Cycle guard: follow the chain from the target; if it returns to self, reject.
+  if (selfId) {
+    let cur: string | null = nextId;
+    for (let i = 0; i < 20 && cur; i++) {
+      if (cur === selfId) return "That onward route loops back to this assessment.";
+      const row: { routeNextAssessmentId: string | null } | null =
+        await prisma.assessment.findUnique({ where: { id: cur }, select: { routeNextAssessmentId: true } });
+      cur = row?.routeNextAssessmentId ?? null;
+    }
+  }
+  return null;
+}
+
 export async function createAssessment(
   input: AssessmentInput,
 ): Promise<ActionResult<{ id: string }>> {
@@ -39,6 +67,9 @@ export async function createAssessment(
 
   const existing = await prisma.assessment.findUnique({ where: { slug: d.slug } });
   if (existing) return { ok: false, error: "That slug is already in use." };
+
+  const routeErr = await validateOnwardRoute(null, nullifyEmpty(d.routeNextAssessmentId), scope);
+  if (routeErr) return { ok: false, error: routeErr };
 
   const created = await prisma.assessment.create({
     data: {
@@ -101,6 +132,12 @@ export async function createAssessment(
       paymentAmount: d.paymentAmount ?? null,
       paymentEventName: (d.paymentEventName?.trim() || "Purchase121"),
       paymentIntroText: nullifyEmpty(d.paymentIntroText),
+      audienceRoles: d.audienceRoles,
+      audienceGateHeading: nullifyEmpty(d.audienceGateHeading),
+      audienceNoneLabel: nullifyEmpty(d.audienceNoneLabel),
+      routeNextAssessmentId: nullifyEmpty(d.routeNextAssessmentId),
+      routeNextUrl: nullifyEmpty(d.routeNextUrl),
+      fireMetaCapi: d.fireMetaCapi,
       createdById: scope.user.id,
       tenantId: scope.tenantId,
     },
@@ -131,6 +168,9 @@ export async function updateAssessment(
   if (slugOwner && slugOwner.id !== id) {
     return { ok: false, error: "That slug is already in use." };
   }
+
+  const routeErr = await validateOnwardRoute(id, nullifyEmpty(d.routeNextAssessmentId), scope);
+  if (routeErr) return { ok: false, error: routeErr };
 
   await prisma.assessment.update({
     where: { id },
@@ -194,6 +234,12 @@ export async function updateAssessment(
       paymentAmount: d.paymentAmount ?? null,
       paymentEventName: (d.paymentEventName?.trim() || "Purchase121"),
       paymentIntroText: nullifyEmpty(d.paymentIntroText),
+      audienceRoles: d.audienceRoles,
+      audienceGateHeading: nullifyEmpty(d.audienceGateHeading),
+      audienceNoneLabel: nullifyEmpty(d.audienceNoneLabel),
+      routeNextAssessmentId: nullifyEmpty(d.routeNextAssessmentId),
+      routeNextUrl: nullifyEmpty(d.routeNextUrl),
+      fireMetaCapi: d.fireMetaCapi,
     },
   });
 
@@ -326,6 +372,12 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
       paymentAmount: src.paymentAmount,
       paymentEventName: src.paymentEventName,
       paymentIntroText: src.paymentIntroText,
+      audienceRoles: src.audienceRoles,
+      audienceGateHeading: src.audienceGateHeading,
+      audienceNoneLabel: src.audienceNoneLabel,
+      routeNextAssessmentId: src.routeNextAssessmentId,
+      routeNextUrl: src.routeNextUrl,
+      fireMetaCapi: src.fireMetaCapi,
       createdById: scope.user.id,
       tenantId: scope.tenantId,
       categories: {

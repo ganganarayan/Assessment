@@ -69,6 +69,17 @@ export async function getPublishedAssessmentBySlug(slug: string) {
   });
 }
 
+/** Public: the slug of an assessment IF it is PUBLISHED (else null). Used to
+ *  resolve the audience gate's "None of the above" onward assessment — a draft
+ *  target is treated as no target (falls back to the URL / hides the option). */
+export async function getPublishedSlugById(id: string): Promise<string | null> {
+  const a = await prisma.assessment.findFirst({
+    where: { id, status: "PUBLISHED" },
+    select: { slug: true },
+  });
+  return a?.slug ?? null;
+}
+
 export async function listSubmissions(
   take = 100,
   tenantId: string | null = null,

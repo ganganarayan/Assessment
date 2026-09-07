@@ -146,11 +146,18 @@ export interface PublicAssessment {
   paymentHeadline: string | null;
   paymentButtonLabel: string | null;
   paymentIntroText: string | null;
+  // Audience gate (Phase 2): roles shown as the first screen; None-of-the-above
+  // cascades to routeNextSlug (a published assessment) or routeNextUrl (fallback).
+  audienceRoles: string[];
+  audienceGateHeading: string | null;
+  audienceNoneLabel: string | null;
+  routeNextSlug: string | null;
+  routeNextUrl: string | null;
   categories: PublicCategory[];
   pages: AssessmentPageData[];
 }
 
-type Step = "intro" | "questions" | "leadForm" | "details" | "locked" | "evaluating" | "resultPages";
+type Step = "gate" | "intro" | "questions" | "leadForm" | "details" | "locked" | "evaluating" | "resultPages";
 
 /** Anticipation countdown shown after Submit before the VSL/destination loads.
  *  Single source of truth; promote to a per-assessment field if it needs to vary. */
@@ -181,7 +188,9 @@ export function AssessmentRunner({
   /** Admin preview flag (?preview=1); server verifies the caller before bypassing. */
   preview?: boolean;
 }) {
-  const [step, setStep] = useState<Step>("intro");
+  const [step, setStep] = useState<Step>(assessment.audienceRoles.length > 0 ? "gate" : "intro");
+  // Audience gate: the role the respondent picked (threaded to startSubmission).
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   // Answers to the optional pre-results details page, keyed by field id.
   const [detailAnswers, setDetailAnswers] = useState<Record<string, string>>({});
@@ -311,7 +320,7 @@ export function AssessmentRunner({
     const honeypot = hpRef.current?.value ?? "";
     const optin = Object.keys(optinAnswers).length ? optinAnswers : undefined;
     start(async () => {
-      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot, optin);
+      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot, optin, selectedRole ?? undefined);
       if (!res.ok) {
         setError(res.error);
         return;
@@ -353,6 +362,20 @@ export function AssessmentRunner({
       setPathStack([0]);
       setStep("questions");
     });
+  }
+
+  // Audience gate — "None of the above": cascade to the next assessment (carrying
+  // attribution so ad tracking survives the hop) or the external fallback URL.
+  function goToNextAssessment() {
+    if (assessment.routeNextSlug) {
+      const qs =
+        attribution && Object.keys(attribution).length
+          ? "?" + new URLSearchParams(attribution).toString()
+          : "";
+      window.location.href = `/a/${assessment.routeNextSlug}${qs}`;
+      return;
+    }
+    if (assessment.routeNextUrl) window.location.href = assessment.routeNextUrl;
   }
 
   function emailPreviousResults() {
@@ -605,6 +628,43 @@ export function AssessmentRunner({
           {pending ? "Please wait…" : assessment.resultsButtonLabel?.trim() || "Show my results"}
         </Button>
       </form>
+    );
+  }
+
+  if (step === "gate") {
+    const gateHeading = assessment.audienceGateHeading?.trim() || "Which best describes you?";
+    const noneLabel = assessment.audienceNoneLabel?.trim() || "None of the above";
+    const hasNext = !!(assessment.routeNextSlug || assessment.routeNextUrl);
+    return (
+      <div className="flex flex-col gap-6">
+        {assessment.eyebrow ? (
+          <p className="text-sm font-semibold uppercase tracking-wide text-[#D4AF37]">{assessment.eyebrow}</p>
+        ) : null}
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">{gateHeading}</h1>
+          {assessment.subheadline ? (
+            <p className="text-[var(--muted-foreground)]">{assessment.subheadline}</p>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-3">
+          {assessment.audienceRoles.map((role) => (
+            <Button
+              key={role}
+              size="lg"
+              type="button"
+              style={ctaStyle}
+              onClick={() => { setSelectedRole(role); setStep("intro"); }}
+            >
+              {role}
+            </Button>
+          ))}
+          {hasNext ? (
+            <Button size="lg" type="button" variant="ghost" onClick={goToNextAssessment}>
+              {noneLabel}
+            </Button>
+          ) : null}
+        </div>
+      </div>
     );
   }
 
