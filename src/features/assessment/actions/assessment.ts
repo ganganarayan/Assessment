@@ -25,10 +25,9 @@ async function ownsAssessment(
 /** Extract the routing target ids from a stored audienceGate JSON value. */
 function gateTargets(gate: unknown): string[] {
   if (!gate || typeof gate !== "object") return [];
-  const g = gate as { roles?: { target?: string }[]; noneEnabled?: boolean; noneTarget?: string };
+  const g = gate as { roles?: { target?: string }[] };
   const out: string[] = [];
   for (const r of g.roles ?? []) if (r?.target) out.push(r.target);
-  if (g.noneEnabled && g.noneTarget) out.push(g.noneTarget);
   return out;
 }
 
@@ -42,7 +41,6 @@ async function validateGate(
 ): Promise<string | null> {
   const targets = new Set<string>();
   for (const r of gate.roles) if (r.target) targets.add(r.target);
-  if (gate.noneEnabled && gate.noneTarget) targets.add(gate.noneTarget);
   if (targets.size === 0) return null;
 
   for (const t of targets) {

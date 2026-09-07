@@ -457,43 +457,12 @@ export function AssessmentForm({
             </div>
 
             {gateOn ? (
-              <div className="flex flex-col gap-2 border-t pt-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={gate.noneEnabled}
-                    onChange={(e) => setGate({ noneEnabled: e.target.checked })}
-                  />
-                  Show a &ldquo;None of the above&rdquo; option
-                </label>
-                {gate.noneEnabled ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Input
-                      className="min-w-[10rem] flex-1"
-                      placeholder="None of the above"
-                      value={gate.noneLabel ?? ""}
-                      onChange={(e) => setGate({ noneLabel: e.target.value })}
-                    />
-                    <select
-                      className="h-9 min-w-[14rem] flex-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
-                      value={gate.noneTarget ?? ""}
-                      onChange={(e) => setGate({ noneTarget: e.target.value })}
-                    >
-                      <option value="">— pick where it goes —</option>
-                      {assessmentOptions.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          Go to → {o.title}{o.published === false ? " (draft)" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
-                <p className="text-xs text-[var(--muted-foreground)]">
-                  Targets are picked from your assessments (link built automatically — never mistyped).
-                  A <strong>draft</strong> target is hidden to respondents until it&apos;s published.
-                  Loops back to this assessment are blocked on save.
-                </p>
-              </div>
+              <p className="border-t pt-3 text-xs text-[var(--muted-foreground)]">
+                To add a &ldquo;None of the above&rdquo; choice, add a role with that label and point
+                it at another assessment. Targets are picked from your assessments (the link is built
+                automatically — never mistyped). A <strong>draft</strong> target still shows in the
+                list but only works once you publish it. Loops back to this assessment are blocked on save.
+              </p>
             ) : null}
 
             <label className="flex items-start gap-2 border-t pt-3 text-sm">

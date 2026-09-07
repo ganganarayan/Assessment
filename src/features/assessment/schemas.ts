@@ -35,19 +35,15 @@ export type AudienceRoleInput = z.infer<typeof audienceRoleSchema>;
 export const audienceGateSchema = z.object({
   label: z.string().max(120).optional().or(z.literal("")).default(""),
   placeholder: z.string().max(120).optional().or(z.literal("")).default(""),
+  // Every choice (including "None of the above", if wanted) is just a role row with
+  // its own target. "" target = continue here; else an assessment id to redirect to.
   roles: z.array(audienceRoleSchema).max(30).default([]),
-  noneEnabled: z.boolean().default(false),
-  noneLabel: z.string().max(120).optional().or(z.literal("")).default(""),
-  noneTarget: z.string().max(60).optional().or(z.literal("")).default(""),
 });
 export type AudienceGateInput = z.infer<typeof audienceGateSchema>;
 export const EMPTY_AUDIENCE_GATE: AudienceGateInput = {
   label: "",
   placeholder: "",
   roles: [],
-  noneEnabled: false,
-  noneLabel: "",
-  noneTarget: "",
 };
 
 export const assessmentSchema = z.object({

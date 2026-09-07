@@ -69,15 +69,18 @@ export async function getPublishedAssessmentBySlug(slug: string) {
   });
 }
 
-/** Public: the slug of an assessment IF it is PUBLISHED (else null). Used to
- *  resolve the audience gate's "None of the above" onward assessment — a draft
- *  target is treated as no target (falls back to the URL / hides the option). */
-export async function getPublishedSlugById(id: string): Promise<string | null> {
-  const a = await prisma.assessment.findFirst({
-    where: { id, status: "PUBLISHED" },
-    select: { slug: true },
+/** Resolve an assessment id to its slug + published flag (any status), for the
+ *  audience gate's onward routing. The option is shown regardless of status (the
+ *  builder flags drafts); a draft target simply won't be publicly reachable until
+ *  it's published, but the option no longer silently disappears. Null = no such id. */
+export async function getSlugById(
+  id: string,
+): Promise<{ slug: string; published: boolean } | null> {
+  const a = await prisma.assessment.findUnique({
+    where: { id },
+    select: { slug: true, status: true },
   });
-  return a?.slug ?? null;
+  return a ? { slug: a.slug, published: a.status === "PUBLISHED" } : null;
 }
 
 export async function listSubmissions(

@@ -373,11 +373,10 @@ export function AssessmentRunner({
   // Audience gate: redirect to another assessment (carrying attribution so ad
   // tracking survives the hop).
   function redirectToAssessment(slug: string) {
-    const qs =
-      attribution && Object.keys(attribution).length
-        ? "?" + new URLSearchParams(attribution).toString()
-        : "";
-    window.location.href = `/a/${slug}${qs}`;
+    const params = new URLSearchParams(attribution ?? {});
+    if (preview) params.set("preview", "1"); // keep cascade testing in preview mode
+    const qs = params.toString();
+    window.location.href = `/a/${slug}${qs ? `?${qs}` : ""}`;
   }
 
   // Audience gate "Continue": a redirecting choice hops to its assessment; a

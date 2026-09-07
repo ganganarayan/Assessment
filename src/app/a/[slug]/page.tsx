@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getPublishedAssessmentBySlug, getPublishedSlugById } from "@/features/assessment/data";
+import { getPublishedAssessmentBySlug, getSlugById } from "@/features/assessment/data";
 import { pickAttribution } from "@/lib/attribution";
 import {
   AssessmentRunner,
@@ -27,16 +27,14 @@ export default async function PublicAssessmentPage({
   const a = await getPublishedAssessmentBySlug(slug);
   if (!a) notFound();
 
-  // Audience gate (Phase 2): resolve each choice's redirect target to a PUBLISHED
-  // slug (a draft target is dropped, so a respondent is never sent to a dead page).
-  // A role with no target continues in THIS assessment (redirectSlug null).
+  // Audience gate (Phase 2): each role either continues in THIS assessment
+  // (redirectSlug null) or redirects to another assessment. The option is shown
+  // regardless of the target's publish status (the builder flags drafts); only a
+  // role whose target id no longer exists is dropped.
   const gateRaw = (a.audienceGate ?? null) as {
     label?: string;
     placeholder?: string;
     roles?: { id: string; label: string; target?: string }[];
-    noneEnabled?: boolean;
-    noneLabel?: string;
-    noneTarget?: string;
   } | null;
   let audienceGate: PublicAssessment["audienceGate"] = null;
   if (gateRaw && Array.isArray(gateRaw.roles) && gateRaw.roles.length > 0) {
@@ -47,14 +45,8 @@ export default async function PublicAssessmentPage({
         options.push({ key: r.id, label: r.label, redirectSlug: null }); // continue here
         continue;
       }
-      const slug = await getPublishedSlugById(r.target);
-      if (slug) options.push({ key: r.id, label: r.label, redirectSlug: slug });
-    }
-    if (gateRaw.noneEnabled && gateRaw.noneTarget) {
-      const slug = await getPublishedSlugById(gateRaw.noneTarget);
-      if (slug) {
-        options.push({ key: "__none__", label: gateRaw.noneLabel?.trim() || "None of the above", redirectSlug: slug });
-      }
+      const t = await getSlugById(r.target);
+      if (t) options.push({ key: r.id, label: r.label, redirectSlug: t.slug });
     }
     if (options.length > 0) {
       audienceGate = {
