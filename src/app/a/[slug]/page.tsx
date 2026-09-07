@@ -83,7 +83,6 @@ export default async function PublicAssessmentPage({
     audienceGateHeading: a.audienceGateHeading,
     audienceNoneLabel: a.audienceNoneLabel,
     routeNextSlug,
-    routeNextUrl: a.routeNextUrl,
     // Public renders ONLY the published snapshot (never the draft rows).
     pages: readPublishedPages(a.publishedPages),
     categories: a.categories.map((c) => ({

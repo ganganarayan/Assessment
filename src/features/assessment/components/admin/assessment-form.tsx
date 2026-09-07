@@ -177,8 +177,9 @@ export function AssessmentForm({
   /** The tenant's AI instruction versions, for the per-assessment selector. */
   promptVersions?: { id: string; label: string }[];
   /** Other assessments in scope (excluding this one) — targets for the audience
-   *  gate's "None of the above" onward route. */
-  assessmentOptions?: { id: string; title: string; slug: string }[];
+   *  gate's "None of the above" onward route. `published` flags whether the target
+   *  is live (a draft can't be redirected to yet). */
+  assessmentOptions?: { id: string; title: string; slug: string; published?: boolean }[];
 }) {
   const router = useRouter();
   const [values, setValues] = useState<AssessmentFormValues>(
@@ -416,28 +417,26 @@ export function AssessmentForm({
                     value={values.routeNextAssessmentId ?? ""}
                     onChange={(e) => set("routeNextAssessmentId", e.target.value)}
                   >
-                    <option value="">— none (use the fallback URL below) —</option>
+                    <option value="">— none (no onward step) —</option>
                     {assessmentOptions.map((o) => (
-                      <option key={o.id} value={o.id}>{o.title} (/a/{o.slug})</option>
+                      <option key={o.id} value={o.id}>
+                        {o.title} (/a/{o.slug}){o.published === false ? " — draft" : ""}
+                      </option>
                     ))}
                   </select>
                   <p className="text-xs text-[var(--muted-foreground)]">
-                    Where non-matching respondents cascade to. Loops back to this assessment are
-                    blocked on save.
+                    Pick one of your assessments — the redirect link is built automatically from it,
+                    so it can never be mistyped. Loops back to this assessment are blocked on save.
                   </p>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="routeNextUrl">Fallback URL (last level, when no next assessment)</Label>
-                  <Input
-                    id="routeNextUrl"
-                    placeholder="https://your-page.com/thank-you"
-                    value={values.routeNextUrl ?? ""}
-                    onChange={(e) => set("routeNextUrl", e.target.value)}
-                  />
-                  <p className="text-xs text-[var(--muted-foreground)]">
-                    Used only when no next assessment is set. Blank + no next = the None option is hidden.
-                  </p>
+                  {(() => {
+                    const sel = assessmentOptions.find((o) => o.id === values.routeNextAssessmentId);
+                    return sel && sel.published === false ? (
+                      <p className="text-xs text-amber-600">
+                        This target is a <strong>draft</strong> — publish it, otherwise
+                        &ldquo;None of the above&rdquo; is hidden to respondents until it goes live.
+                      </p>
+                    ) : null;
+                  })()}
                 </div>
               </>
             ) : null}

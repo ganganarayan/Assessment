@@ -151,8 +151,9 @@ export interface PublicAssessment {
   audienceRoles: string[];
   audienceGateHeading: string | null;
   audienceNoneLabel: string | null;
+  /** Slug of the published onward assessment ("None of the above"), or null. Built
+   *  from the admin's dropdown pick — never a hand-typed link, so it can't misredirect. */
   routeNextSlug: string | null;
-  routeNextUrl: string | null;
   categories: PublicCategory[];
   pages: AssessmentPageData[];
 }
@@ -367,15 +368,12 @@ export function AssessmentRunner({
   // Audience gate — "None of the above": cascade to the next assessment (carrying
   // attribution so ad tracking survives the hop) or the external fallback URL.
   function goToNextAssessment() {
-    if (assessment.routeNextSlug) {
-      const qs =
-        attribution && Object.keys(attribution).length
-          ? "?" + new URLSearchParams(attribution).toString()
-          : "";
-      window.location.href = `/a/${assessment.routeNextSlug}${qs}`;
-      return;
-    }
-    if (assessment.routeNextUrl) window.location.href = assessment.routeNextUrl;
+    if (!assessment.routeNextSlug) return;
+    const qs =
+      attribution && Object.keys(attribution).length
+        ? "?" + new URLSearchParams(attribution).toString()
+        : "";
+    window.location.href = `/a/${assessment.routeNextSlug}${qs}`;
   }
 
   function emailPreviousResults() {
@@ -634,7 +632,7 @@ export function AssessmentRunner({
   if (step === "gate") {
     const gateHeading = assessment.audienceGateHeading?.trim() || "Which best describes you?";
     const noneLabel = assessment.audienceNoneLabel?.trim() || "None of the above";
-    const hasNext = !!(assessment.routeNextSlug || assessment.routeNextUrl);
+    const hasNext = !!assessment.routeNextSlug;
     return (
       <div className="flex flex-col gap-6">
         {assessment.eyebrow ? (

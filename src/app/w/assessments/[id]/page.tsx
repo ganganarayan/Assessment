@@ -98,7 +98,7 @@ export default async function WorkspaceEditAssessmentPage({
   // Other assessments in this workspace — targets for the audience gate onward route.
   const routeTargets = (await listAssessments(tenantId))
     .filter((x) => x.id !== a.id)
-    .map((x) => ({ id: x.id, title: x.title, slug: x.slug }));
+    .map((x) => ({ id: x.id, title: x.title, slug: x.slug, published: x.status === "PUBLISHED" }));
 
   const categories = a.categories.map((c) => ({
     id: c.id,

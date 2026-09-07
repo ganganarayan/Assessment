@@ -97,7 +97,7 @@ export default async function EditAssessmentPage({
   // Other assessments in this scope — targets for the audience gate's onward route.
   const routeTargets = (await listAssessments(a.tenantId))
     .filter((x) => x.id !== a.id)
-    .map((x) => ({ id: x.id, title: x.title, slug: x.slug }));
+    .map((x) => ({ id: x.id, title: x.title, slug: x.slug, published: x.status === "PUBLISHED" }));
 
   const categories = a.categories.map((c) => ({
     id: c.id,
