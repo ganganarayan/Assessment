@@ -8,7 +8,12 @@ import {
   deleteQuestion,
   reorderQuestions,
 } from "@/features/assessment/actions/question";
-import type { QuestionInput } from "@/features/assessment/schemas";
+import type { QuestionInput, RouteActionValue } from "@/features/assessment/schemas";
+import {
+  QuestionRoutingEditor,
+  type FlowQuestion,
+  type FlowCategory,
+} from "@/features/assessment/components/admin/question-routing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +24,19 @@ export interface QuestionOptionData {
   value: number;
   diagnosisClause?: string | null;
   isAssumption?: boolean;
+  /** Conditional-routing rule for this option (null/absent = default NEXT). */
+  route?: {
+    action: RouteActionValue;
+    targetQuestionId: string | null;
+    targetCategoryId: string | null;
+  } | null;
+}
+
+/** Assessment-wide flow context for the routing editor (forward destinations). */
+export interface RoutingContext {
+  flow: FlowQuestion[];
+  categoriesFlow: FlowCategory[];
+  displayMode: "ALL" | "CATEGORY" | "SINGLE";
 }
 export interface QuestionData {
   id: string;
@@ -79,6 +97,7 @@ export function QuestionsManager({
   categoryId,
   questions,
   engine = "GENERIC",
+  routing,
   onCopyOptions,
   onRevertOptions,
   revertableIds,
@@ -87,6 +106,8 @@ export function QuestionsManager({
   categoryId: string;
   questions: QuestionData[];
   engine?: BuilderEngine;
+  /** Assessment-wide flow context; enables the per-question routing editor. */
+  routing?: RoutingContext;
   /** Copy THIS question's options onto every other question in the assessment. */
   onCopyOptions?: (questionId: string) => void;
   /** Undo the copy for one question row (restores its prior options). */
@@ -99,6 +120,7 @@ export function QuestionsManager({
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [routingId, setRoutingId] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   function reorder(from: number, to: number) {
@@ -137,8 +159,8 @@ export function QuestionsManager({
             onCancel={() => setEditingId(null)}
           />
         ) : (
+          <div key={q.id} className="flex flex-col">
           <div
-            key={q.id}
             className="flex items-start justify-between gap-3 rounded-md border bg-[var(--background)] p-3 text-sm"
           >
             <div className="flex flex-col gap-1">
@@ -182,9 +204,30 @@ export function QuestionsManager({
                   Revert
                 </Button>
               ) : null}
+              {routing ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setRoutingId((cur) => (cur === q.id ? null : q.id))}
+                  title="Set where each answer leads next"
+                >
+                  {routingId === q.id ? "Routing ▴" : "Routing"}
+                </Button>
+              ) : null}
               <Button size="sm" variant="outline" onClick={() => setEditingId(q.id)}>Edit</Button>
               <Button size="sm" variant="ghost" disabled={pending} onClick={() => remove(q.id)}>Delete</Button>
             </div>
+          </div>
+          {routing && routingId === q.id ? (
+            <QuestionRoutingEditor
+              questionId={q.id}
+              options={q.options.map((o) => ({ id: o.id, label: o.label, route: o.route ?? null }))}
+              flow={routing.flow}
+              categoriesFlow={routing.categoriesFlow}
+              displayMode={routing.displayMode}
+              onDone={() => setRoutingId(null)}
+            />
+          ) : null}
           </div>
         ),
       )}

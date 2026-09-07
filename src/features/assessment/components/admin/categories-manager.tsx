@@ -14,6 +14,7 @@ import {
   QuestionsManager,
   type QuestionData,
   type BuilderEngine,
+  type RoutingContext,
 } from "@/features/assessment/components/admin/questions-manager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,10 +41,13 @@ export function CategoriesManager({
   assessmentId,
   categories,
   engine = "GENERIC",
+  routing,
 }: {
   assessmentId: string;
   categories: CategoryData[];
   engine?: BuilderEngine;
+  /** Assessment-wide flow context for the per-question routing editor. */
+  routing?: RoutingContext;
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -193,6 +197,7 @@ export function CategoriesManager({
             categoryId={c.id}
             questions={c.questions}
             engine={engine}
+            routing={routing}
             onCopyOptions={copyOptionsFrom}
             onRevertOptions={revertOptionsFor}
             revertableIds={undoByQ}

@@ -14,6 +14,7 @@ import { AssessmentRowActions } from "@/features/assessment/components/admin/ass
 import { PagesBuilder } from "@/features/assessment/components/admin/pages-builder";
 import { BuilderTabPanels } from "@/features/assessment/components/admin/builder-tab-panels";
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
+import { buildSpine } from "@/lib/routing/engine";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
@@ -105,9 +106,48 @@ export default async function EditAssessmentPage({
         value: o.value,
         diagnosisClause: o.diagnosisClause,
         isAssumption: o.isAssumption,
+        route: o.route
+          ? {
+              action: o.route.action,
+              targetQuestionId: o.route.targetQuestionId,
+              targetCategoryId: o.route.targetCategoryId,
+            }
+          : null,
       })),
     })),
   }));
+
+  // Conditional-routing flow context: the forward-ordered spine (page 1 then 2,
+  // each in displayOrder) with display labels, so the per-question routing editor
+  // can offer only LATER questions/categories as jump targets.
+  const spine = buildSpine(
+    a.categories.map((c) => ({
+      id: c.id,
+      page: c.page,
+      questions: c.questions.map((q) => ({ id: q.id })),
+    })),
+  );
+  const questionText = new Map(
+    a.categories.flatMap((c) => c.questions.map((q) => [q.id, q.text] as const)),
+  );
+  const categoryName = new Map(a.categories.map((c) => [c.id, c.name] as const));
+  const routingFlow = spine.map((s, index) => {
+    const text = questionText.get(s.id) ?? "";
+    const short = text.length > 48 ? `${text.slice(0, 48)}…` : text;
+    return { id: s.id, index, label: `Q${index + 1} · ${short}` };
+  });
+  const routingCategories = a.categories
+    .map((c) => ({
+      id: c.id,
+      name: categoryName.get(c.id) ?? c.name,
+      firstIndex: spine.findIndex((s) => s.categoryId === c.id),
+    }))
+    .filter((c) => c.firstIndex >= 0);
+  const routingContext = {
+    flow: routingFlow,
+    categoriesFlow: routingCategories,
+    displayMode: a.questionDisplayMode,
+  };
 
   const bands = a.resultBands.map((b) => ({
     id: b.id,
@@ -167,7 +207,7 @@ export default async function EditAssessmentPage({
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Categories &amp; Questions</h2>
-        <CategoriesManager assessmentId={a.id} categories={categories} engine={a.engine} />
+        <CategoriesManager assessmentId={a.id} categories={categories} engine={a.engine} routing={routingContext} />
       </section>
 
       <section className="flex flex-col gap-3">

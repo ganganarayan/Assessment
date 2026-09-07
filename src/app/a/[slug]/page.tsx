@@ -84,7 +84,18 @@ export default async function PublicAssessmentPage({
         required: q.required,
         scoringRole: q.scoringRole,
         scoringUnit: q.scoringUnit,
-        options: q.options.map((o) => ({ id: o.id, label: o.label, value: o.value })),
+        options: q.options.map((o) => ({
+          id: o.id,
+          label: o.label,
+          value: o.value,
+          route: o.route
+            ? {
+                action: o.route.action,
+                targetQuestionId: o.route.targetQuestionId,
+                targetCategoryId: o.route.targetCategoryId,
+              }
+            : null,
+        })),
       })),
     })),
   };

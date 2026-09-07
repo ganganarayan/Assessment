@@ -246,6 +246,31 @@ export const reorderSchema = z.object({
   ids: z.array(z.string().min(1)).min(1),
 });
 
+/** Conditional routing (Phase 1). One rule per answer option; the option is the
+ *  trigger. Target existence + forward-only ordering are enforced in the action
+ *  (which has the DB context); this shape validates the payload only. */
+export const routeActionSchema = z.enum([
+  "NEXT",
+  "JUMP_TO_QUESTION",
+  "JUMP_TO_CATEGORY",
+  "SKIP_TO_END",
+]);
+export type RouteActionValue = z.infer<typeof routeActionSchema>;
+
+export const questionRouteInputSchema = z.object({
+  optionId: z.string().min(1),
+  action: routeActionSchema,
+  targetQuestionId: z.string().max(60).optional().or(z.literal("")),
+  targetCategoryId: z.string().max(60).optional().or(z.literal("")),
+});
+export type QuestionRouteInput = z.infer<typeof questionRouteInputSchema>;
+
+/** All routes for ONE question (its options' rules), saved together. */
+export const questionRoutesInputSchema = z.object({
+  routes: z.array(questionRouteInputSchema).max(20),
+});
+export type QuestionRoutesInput = z.infer<typeof questionRoutesInputSchema>;
+
 /** Profession choices for the opt-in dropdown. The chosen LABEL is stored and
  * sent to the CRM verbatim, so this list is the single source of truth (form +
  * server-side membership check). */

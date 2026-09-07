@@ -35,7 +35,7 @@ export async function getAssessmentById(id: string) {
         include: {
           questions: {
             orderBy: { displayOrder: "asc" },
-            include: { options: { orderBy: { displayOrder: "asc" } } },
+            include: { options: { orderBy: { displayOrder: "asc" }, include: { route: true } } },
           },
           bands: { orderBy: { displayOrder: "asc" } },
         },
@@ -57,7 +57,7 @@ export async function getPublishedAssessmentBySlug(slug: string) {
         include: {
           questions: {
             orderBy: { displayOrder: "asc" },
-            include: { options: { orderBy: { displayOrder: "asc" } } },
+            include: { options: { orderBy: { displayOrder: "asc" }, include: { route: true } } },
           },
         },
       },

@@ -16,11 +16,18 @@ import { ResultPages } from "@/features/assessment/components/public/result-page
 import { type LeadInput, professionOptionsFor, type PreResultField } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { detectUnitFromQuestion, isClinicRole, type ClinicRole } from "@/lib/scoring/clinic-audit";
+import { buildSpine, nextIndex, walk, type RouteSpec } from "@/lib/routing/engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export interface PublicOption { id: string; label: string; value: number }
+export interface PublicOption {
+  id: string;
+  label: string;
+  value: number;
+  /** Conditional-routing rule for this option (null = default linear NEXT). */
+  route?: RouteSpec | null;
+}
 export interface PublicQuestion {
   id: string;
   text: string;
@@ -202,6 +209,9 @@ export function AssessmentRunner({
   const [error, setError] = useState<string | null>(null);
   const [lockout, setLockout] = useState<Lockout | null>(null);
   const [screenIndex, setScreenIndex] = useState(0); // current question page (paginated modes)
+  // Conditional routing (SINGLE mode): the stack of visited screen indices. Back
+  // pops; a branch pushes. Ignored unless routing is active (see routingActive).
+  const [pathStack, setPathStack] = useState<number[]>([0]);
   // Page-builder (page 2) state: the result for dynamic blocks + the deferred
   // payment (the pay button block triggers it) + a free-flow destination.
   const [pageResult, setPageResult] = useState<PageResultData | null>(null);
@@ -253,6 +263,32 @@ export function AssessmentRunner({
       actualAnswers[q.id] ?? "",
     );
   }, null);
+
+  // Conditional routing. The spine mirrors the SINGLE-mode screen order (page 1
+  // then 2, each in displayOrder), so a spine index equals a screen index. Routing
+  // is honored ONLY in SINGLE mode and only when at least one option carries a
+  // route — otherwise everything below is inert and the flow is unchanged.
+  const spine = buildSpine(
+    assessment.categories.map((c) => ({
+      id: c.id,
+      page: c.page,
+      questions: c.questions.map((q) => ({ id: q.id })),
+    })),
+  );
+  const byOption = new Map<string, RouteSpec>();
+  for (const c of assessment.categories)
+    for (const q of c.questions)
+      for (const o of q.options) if (o.route) byOption.set(o.id, o.route);
+  const routingActive = assessment.questionDisplayMode === "SINGLE" && byOption.size > 0;
+  // Reached set from the current answers (routing only): questions actually
+  // traversed. Required-answer enforcement counts only reached questions, so a
+  // question skipped by a jump never blocks submit.
+  const reachedSet = routingActive
+    ? walk(new Map(Object.entries(answers)), spine, byOption).reachedSet
+    : null;
+  const requiredUnansweredEffective = routingActive
+    ? questions.filter((q) => reachedSet!.has(q.id) && q.required && !answers[q.id]).length
+    : requiredUnanswered;
 
   // Honeypot input ref — hidden from humans; a filled value marks a bot opt-in.
   const hpRef = useRef<HTMLInputElement>(null);
@@ -314,6 +350,7 @@ export function AssessmentRunner({
         return;
       }
       setScreenIndex(0); // start at the first question page
+      setPathStack([0]);
       setStep("questions");
     });
   }
@@ -332,8 +369,8 @@ export function AssessmentRunner({
 
   function submitAnswers() {
     setError(null);
-    if (requiredUnanswered > 0) {
-      setError(`Please answer all required questions (${requiredUnanswered} left).`);
+    if (requiredUnansweredEffective > 0) {
+      setError(`Please answer all required questions (${requiredUnansweredEffective} left).`);
       return;
     }
     if (firstActualError) {
@@ -617,7 +654,7 @@ export function AssessmentRunner({
             type="button"
             disabled={pending}
             style={ctaStyle}
-            onClick={() => { setError(null); setScreenIndex(0); setStep("questions"); }}
+            onClick={() => { setError(null); setScreenIndex(0); setPathStack([0]); setStep("questions"); }}
           >
             {assessment.startButtonLabel?.trim() || "Start"}
           </Button>
@@ -841,8 +878,15 @@ export function AssessmentRunner({
         : [cats.map((c) => ({ cat: c, qs: c.questions }))],
   );
   const lastIdx = Math.max(0, screens.length - 1);
-  const idx = Math.min(screenIndex, lastIdx);
-  const isLast = idx >= lastIdx;
+  // Routing (SINGLE) navigates by a stack of visited screen indices; other modes
+  // step linearly by screenIndex.
+  const idx = routingActive
+    ? Math.min(pathStack[pathStack.length - 1] ?? 0, lastIdx)
+    : Math.min(screenIndex, lastIdx);
+  // Routing: where the CURRENT answer leads (END => this screen is terminal).
+  const currentChosen = routingActive ? answers[spine[idx]?.id ?? ""] : undefined;
+  const routedNext = routingActive ? nextIndex(idx, currentChosen, spine, byOption) : null;
+  const isLast = routingActive ? routedNext === "END" : idx >= lastIdx;
   const current = screens[idx] ?? [];
   const currentRequiredLeft = current.flatMap((g) => g.qs).filter((q) => q.required && !answers[q.id]).length;
 
@@ -867,11 +911,20 @@ export function AssessmentRunner({
       return;
     }
     setError(null);
+    if (routingActive) {
+      const nxt = nextIndex(idx, currentChosen, spine, byOption);
+      if (nxt !== "END") setPathStack((st) => [...st, nxt]);
+      return;
+    }
     setScreenIndex((i) => Math.min(i + 1, lastIdx));
   };
   const goBack = () => {
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
     setError(null);
+    if (routingActive) {
+      setPathStack((st) => (st.length > 1 ? st.slice(0, -1) : st));
+      return;
+    }
     setScreenIndex((i) => Math.max(i - 1, 0));
   };
 
@@ -888,7 +941,20 @@ export function AssessmentRunner({
   const selectAnswer = (questionId: string, optionId: string) => {
     const next = { ...answers, [questionId]: optionId };
     setAnswers(next);
-    if (assessment.questionDisplayMode === "ALL" || isLast || currentHasActualField) return;
+    if (assessment.questionDisplayMode === "ALL" || currentHasActualField) return;
+    // Routing (SINGLE): resolve the branch from THIS choice. A terminal choice
+    // (SKIP_TO_END / last question) reveals Submit instead of auto-advancing.
+    if (routingActive) {
+      const nxt = nextIndex(idx, optionId, spine, byOption);
+      if (nxt === "END") return;
+      if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+      setError(null);
+      autoAdvanceRef.current = setTimeout(() => {
+        setPathStack((st) => [...st, nxt]);
+      }, 250);
+      return;
+    }
+    if (isLast) return;
     const requiredLeft = current
       .flatMap((g) => g.qs)
       .filter((q) => q.required && !next[q.id]).length;
@@ -906,7 +972,8 @@ export function AssessmentRunner({
         <h2 className="text-xl font-semibold">{assessment.title}</h2>
         {screens.length > 1 ? (
           <span className="shrink-0 text-xs text-[var(--muted-foreground)]">
-            Step {idx + 1} of {screens.length}
+            {/* Routing makes the path length vary, so show only the step reached. */}
+            {routingActive ? `Step ${pathStack.length}` : `Step ${idx + 1} of ${screens.length}`}
           </span>
         ) : null}
       </div>
@@ -985,7 +1052,7 @@ export function AssessmentRunner({
       ) : null}
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex items-center justify-between gap-3">
-        {idx > 0 ? (
+        {(routingActive ? pathStack.length > 1 : idx > 0) ? (
           <Button size="lg" variant="outline" onClick={goBack} disabled={pending}>
             Back
           </Button>

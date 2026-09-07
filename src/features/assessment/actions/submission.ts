@@ -50,6 +50,7 @@ import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { type PaymentCheckout } from "@/lib/payments/types";
 
 const PAYMENT_BUSINESS_NAME = "Assess360";
+import { buildSpine, walk, type RouteSpec } from "@/lib/routing/engine";
 import { buildResultSnapshot, mapCategoryResult, type ClinicSnapshot } from "@/lib/result/snapshot";
 import { buildCategoryQuestionBreakdown, type ChosenAnswer } from "@/lib/result/questions";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
@@ -828,6 +829,8 @@ export async function completeSubmission(
       nextStep: true,
       engine: true,
       engineConfig: true,
+      // Conditional routing is honored only in the SINGLE display mode.
+      questionDisplayMode: true,
       tenant: { select: { id: true, slug: true, name: true } },
       categories: {
         // Order categories + their questions by displayOrder so scoring iterates in
@@ -885,9 +888,48 @@ export async function completeSubmission(
     optionByQuestionId.set(a.questionId, option.id);
   }
 
-  // Enforce required questions.
+  // Conditional routing (SINGLE mode only): compute the set of questions actually
+  // REACHED given these answers + the assessment's routes. Skipped-by-jump
+  // questions must not block submit (required-enforcement) or inflate scoring, so
+  // both consult this set. When there are no routes, reachedSet stays null and the
+  // flow is scored exactly as before (every answered question counts).
+  let reachedSet: Set<string> | null = null;
+  if (assessment.questionDisplayMode === "SINGLE") {
+    const routes = await prisma.questionRoute.findMany({
+      where: { question: { category: { assessmentId: assessment.id } } },
+      select: { optionId: true, action: true, targetQuestionId: true, targetCategoryId: true },
+    });
+    if (routes.length > 0) {
+      const byOption = new Map<string, RouteSpec>();
+      for (const r of routes) {
+        byOption.set(r.optionId, {
+          action: r.action,
+          targetQuestionId: r.targetQuestionId,
+          targetCategoryId: r.targetCategoryId,
+        });
+      }
+      const spine = buildSpine(
+        assessment.categories.map((c) => ({
+          id: c.id,
+          page: c.page,
+          questions: c.questions.map((q) => ({ id: q.id })),
+        })),
+      );
+      reachedSet = walk(optionByQuestionId, spine, byOption).reachedSet;
+      // Drop answers to questions that were NOT reached (a jump skipped them, or a
+      // stale/manipulated payload) so scoring + persistence reflect the real path.
+      for (const qid of [...answerValueByQuestionId.keys()]) {
+        if (!reachedSet.has(qid)) {
+          answerValueByQuestionId.delete(qid);
+          optionByQuestionId.delete(qid);
+        }
+      }
+    }
+  }
+
+  // Enforce required questions (only those actually reached, when routing applies).
   const missingRequired = questions.filter(
-    (q) => q.required && !answerValueByQuestionId.has(q.id),
+    (q) => (reachedSet ? reachedSet.has(q.id) : true) && q.required && !answerValueByQuestionId.has(q.id),
   );
   if (missingRequired.length > 0) {
     return {
@@ -990,6 +1032,7 @@ export async function completeSubmission(
     const config = resolveEngineConfig(assessment.engineConfig);
     const rawAnswers: RawAnswer[] = [];
     for (const a of parsed.data.answers) {
+      if (reachedSet && !reachedSet.has(a.questionId)) continue; // unreached (routing)
       const q = questionById.get(a.questionId);
       if (!q || !isClinicRole(q.scoringRole ?? "")) continue;
       const opt = q.options.find((o) => o.id === a.optionId);

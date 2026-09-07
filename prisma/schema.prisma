@@ -746,9 +746,49 @@ model Question {
 
   options Option[]
   answers SubmissionAnswer[]
+  // Conditional routing: rules that fire when one of THIS question's options is
+  // chosen (the option is the trigger). See QuestionRoute + lib/routing/engine.ts.
+  routes  QuestionRoute[] @relation("QuestionRoutes")
 
   @@index([categoryId])
   @@map("question")
+}
+
+// ---------------------------------------------------------------------------
+// QuestionRoute — conditional-routing rule (Phase 1). One per ANSWER OPTION
+// (optionId @unique): when the respondent picks that option, the flow does the
+// route's action — continue linearly (NEXT), jump forward to a specific question
+// or category, or end the questions (SKIP_TO_END). Targets are forward-only
+// (validated on save) and additive: an assessment with no routes behaves exactly
+// as before. targetQuestionId/targetCategoryId are plain scalar refs (no FK), so
+// deleting a target never cascades here; the engine treats a missing target as a
+// linear NEXT. Only honored in the SINGLE (one-question-per-page) display mode.
+// ---------------------------------------------------------------------------
+
+enum RouteAction {
+  NEXT // continue to the next question in order (same as no route)
+  JUMP_TO_QUESTION // jump forward to targetQuestionId
+  JUMP_TO_CATEGORY // jump forward to the first question of targetCategoryId
+  SKIP_TO_END // end the questions and go to submit/results
+}
+
+model QuestionRoute {
+  id               String      @id @default(cuid())
+  action           RouteAction @default(NEXT)
+  targetQuestionId String? // scalar ref (no FK); validated forward-only on save
+  targetCategoryId String? // scalar ref (no FK); validated forward-only on save
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  questionId String
+  question   Question @relation("QuestionRoutes", fields: [questionId], references: [id], onDelete: Cascade)
+
+  // The trigger option. Unique = at most one route per option (single-select).
+  optionId String @unique
+  option   Option @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("question_route")
 }
 
 // ---------------------------------------------------------------------------
@@ -776,6 +816,8 @@ model Option {
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   answers SubmissionAnswer[]
+  // Conditional routing: the rule that fires when THIS option is chosen (if any).
+  route   QuestionRoute?
 
   @@index([questionId])
   @@map("option")
