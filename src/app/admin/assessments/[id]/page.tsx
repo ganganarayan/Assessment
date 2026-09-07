@@ -15,6 +15,7 @@ import { PagesBuilder } from "@/features/assessment/components/admin/pages-build
 import { BuilderTabPanels } from "@/features/assessment/components/admin/builder-tab-panels";
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
 import { buildSpine } from "@/lib/routing/engine";
+import { EMPTY_AUDIENCE_GATE, type AudienceGateInput } from "@/features/assessment/schemas";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
@@ -86,11 +87,7 @@ export default async function EditAssessmentPage({
     paymentAmount: a.paymentAmount ?? undefined,
     paymentEventName: a.paymentEventName ?? "Purchase121",
     paymentIntroText: a.paymentIntroText ?? "",
-    audienceRoles: a.audienceRoles,
-    audienceGateHeading: a.audienceGateHeading ?? "",
-    audienceNoneLabel: a.audienceNoneLabel ?? "",
-    routeNextAssessmentId: a.routeNextAssessmentId ?? "",
-    routeNextUrl: a.routeNextUrl ?? "",
+    audienceGate: (a.audienceGate as unknown as AudienceGateInput | null) ?? EMPTY_AUDIENCE_GATE,
     fireMetaCapi: a.fireMetaCapi,
   };
 

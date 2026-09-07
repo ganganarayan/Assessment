@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { getAssessmentById } from "@/features/assessment/data";
-import { assessmentSchema, type AssessmentInput } from "@/features/assessment/schemas";
+import { assessmentSchema, type AssessmentInput, type AudienceGateInput } from "@/features/assessment/schemas";
 import { originOf } from "@/lib/result/cors";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 
@@ -22,29 +22,52 @@ async function ownsAssessment(
   return !!found;
 }
 
-/** Validate the audience-gate onward route: the target must exist in scope, must
- *  not be the assessment itself, and must not form a cascade loop back to it.
- *  Returns an error string, or null when the route is fine (or unset). */
-async function validateOnwardRoute(
+/** Extract the routing target ids from a stored audienceGate JSON value. */
+function gateTargets(gate: unknown): string[] {
+  if (!gate || typeof gate !== "object") return [];
+  const g = gate as { roles?: { target?: string }[]; noneEnabled?: boolean; noneTarget?: string };
+  const out: string[] = [];
+  for (const r of g.roles ?? []) if (r?.target) out.push(r.target);
+  if (g.noneEnabled && g.noneTarget) out.push(g.noneTarget);
+  return out;
+}
+
+/** Validate every audience-gate routing target (each role's + None's): it must
+ *  exist in scope, never be this assessment, and never form a cascade loop back to
+ *  it. Returns an error string, or null when the gate is fine. */
+async function validateGate(
   selfId: string | null,
-  nextId: string | null,
+  gate: AudienceGateInput,
   scope: Awaited<ReturnType<typeof resolveActingScope>>,
 ): Promise<string | null> {
-  if (!nextId) return null;
-  if (selfId && nextId === selfId) return "An assessment can't route to itself.";
-  const exists = await prisma.assessment.findFirst({
-    where: { id: nextId, ...tenantScope(scope) },
-    select: { id: true },
-  });
-  if (!exists) return "The onward (None of the above) assessment wasn't found in your workspace.";
-  // Cycle guard: follow the chain from the target; if it returns to self, reject.
+  const targets = new Set<string>();
+  for (const r of gate.roles) if (r.target) targets.add(r.target);
+  if (gate.noneEnabled && gate.noneTarget) targets.add(gate.noneTarget);
+  if (targets.size === 0) return null;
+
+  for (const t of targets) {
+    if (selfId && t === selfId) return "A role can't route back to this same assessment.";
+    const exists = await prisma.assessment.findFirst({
+      where: { id: t, ...tenantScope(scope) },
+      select: { id: true },
+    });
+    if (!exists) return "A routing target assessment wasn't found in your workspace.";
+  }
+
+  // Cycle guard: BFS over gate targets; if any path returns to self, reject.
   if (selfId) {
-    let cur: string | null = nextId;
-    for (let i = 0; i < 20 && cur; i++) {
-      if (cur === selfId) return "That onward route loops back to this assessment.";
-      const row: { routeNextAssessmentId: string | null } | null =
-        await prisma.assessment.findUnique({ where: { id: cur }, select: { routeNextAssessmentId: true } });
-      cur = row?.routeNextAssessmentId ?? null;
+    const seen = new Set<string>([selfId]);
+    let frontier = [...targets];
+    for (let depth = 0; depth < 30 && frontier.length; depth++) {
+      const next: string[] = [];
+      for (const id of frontier) {
+        if (id === selfId) return "These routes loop back to this assessment.";
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const row = await prisma.assessment.findUnique({ where: { id }, select: { audienceGate: true } });
+        for (const t of gateTargets(row?.audienceGate)) next.push(t);
+      }
+      frontier = next;
     }
   }
   return null;
@@ -68,8 +91,8 @@ export async function createAssessment(
   const existing = await prisma.assessment.findUnique({ where: { slug: d.slug } });
   if (existing) return { ok: false, error: "That slug is already in use." };
 
-  const routeErr = await validateOnwardRoute(null, nullifyEmpty(d.routeNextAssessmentId), scope);
-  if (routeErr) return { ok: false, error: routeErr };
+  const gateErr = await validateGate(null, d.audienceGate, scope);
+  if (gateErr) return { ok: false, error: gateErr };
 
   const created = await prisma.assessment.create({
     data: {
@@ -132,11 +155,7 @@ export async function createAssessment(
       paymentAmount: d.paymentAmount ?? null,
       paymentEventName: (d.paymentEventName?.trim() || "Purchase121"),
       paymentIntroText: nullifyEmpty(d.paymentIntroText),
-      audienceRoles: d.audienceRoles,
-      audienceGateHeading: nullifyEmpty(d.audienceGateHeading),
-      audienceNoneLabel: nullifyEmpty(d.audienceNoneLabel),
-      routeNextAssessmentId: nullifyEmpty(d.routeNextAssessmentId),
-      routeNextUrl: nullifyEmpty(d.routeNextUrl),
+      audienceGate: d.audienceGate as unknown as Prisma.InputJsonValue,
       fireMetaCapi: d.fireMetaCapi,
       createdById: scope.user.id,
       tenantId: scope.tenantId,
@@ -169,8 +188,8 @@ export async function updateAssessment(
     return { ok: false, error: "That slug is already in use." };
   }
 
-  const routeErr = await validateOnwardRoute(id, nullifyEmpty(d.routeNextAssessmentId), scope);
-  if (routeErr) return { ok: false, error: routeErr };
+  const gateErr = await validateGate(id, d.audienceGate, scope);
+  if (gateErr) return { ok: false, error: gateErr };
 
   await prisma.assessment.update({
     where: { id },
@@ -234,11 +253,7 @@ export async function updateAssessment(
       paymentAmount: d.paymentAmount ?? null,
       paymentEventName: (d.paymentEventName?.trim() || "Purchase121"),
       paymentIntroText: nullifyEmpty(d.paymentIntroText),
-      audienceRoles: d.audienceRoles,
-      audienceGateHeading: nullifyEmpty(d.audienceGateHeading),
-      audienceNoneLabel: nullifyEmpty(d.audienceNoneLabel),
-      routeNextAssessmentId: nullifyEmpty(d.routeNextAssessmentId),
-      routeNextUrl: nullifyEmpty(d.routeNextUrl),
+      audienceGate: d.audienceGate as unknown as Prisma.InputJsonValue,
       fireMetaCapi: d.fireMetaCapi,
     },
   });
@@ -372,11 +387,7 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
       paymentAmount: src.paymentAmount,
       paymentEventName: src.paymentEventName,
       paymentIntroText: src.paymentIntroText,
-      audienceRoles: src.audienceRoles,
-      audienceGateHeading: src.audienceGateHeading,
-      audienceNoneLabel: src.audienceNoneLabel,
-      routeNextAssessmentId: src.routeNextAssessmentId,
-      routeNextUrl: src.routeNextUrl,
+      audienceGate: (src.audienceGate ?? Prisma.DbNull) as Prisma.InputJsonValue,
       fireMetaCapi: src.fireMetaCapi,
       createdById: scope.user.id,
       tenantId: scope.tenantId,

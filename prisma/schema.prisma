@@ -568,17 +568,15 @@ model Assessment {
   paymentIntroText   String?
 
   // ---- Audience gate + cascade routing (Phase 2) ----
-  // A role picker shown as the FIRST screen (before opt-in). If the respondent's
-  // role is listed they proceed with THIS assessment; if not, "None of the above"
-  // routes them to routeNext* (the next assessment in the cascade), which shows its
-  // own gate, and so on. Empty audienceRoles = no gate (unchanged flow).
-  audienceRoles       String[] @default([])
-  audienceGateHeading String? // e.g. "Which best describes you?" (null = default)
-  audienceNoneLabel   String? // "None of the above" (null = default)
-  // "None of the above" destination: another assessment (by id, scalar ref — no FK,
-  // validated + cycle-checked on save) OR an external URL fallback for the last level.
-  routeNextAssessmentId String?
-  routeNextUrl          String?
+  // A first-screen role DROPDOWN. Each role (and an optional "None of the above")
+  // routes PER-CHOICE — either continue in THIS assessment (lead form + questions)
+  // or redirect to another assessment, which shows its own gate (cascade). Stored as
+  // JSON so the shape can evolve without a migration. Shape:
+  //   { label?, placeholder?, roles: [{ id, label, target }],
+  //     noneEnabled?, noneLabel?, noneTarget? }
+  // target / noneTarget: "" (or absent) = continue in THIS assessment; otherwise an
+  // assessment id to redirect to. Null / no roles = no gate (the normal opt-in flow).
+  audienceGate Json?
   // Meta CAPI + browser pixel fire ONLY when true. The ad-entry (level-1) assessment
   // is true; routed (level 2+) assessments are false, so onward routing never pollutes
   // Meta's learning. Default true keeps every existing assessment firing as before.

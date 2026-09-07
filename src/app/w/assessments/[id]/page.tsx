@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { getAssessmentById, listAssessments } from "@/features/assessment/data";
 import { buildSpine } from "@/lib/routing/engine";
+import { EMPTY_AUDIENCE_GATE, type AudienceGateInput } from "@/features/assessment/schemas";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
 import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
@@ -87,11 +88,7 @@ export default async function WorkspaceEditAssessmentPage({
     paymentAmount: a.paymentAmount ?? undefined,
     paymentEventName: a.paymentEventName ?? "Purchase121",
     paymentIntroText: a.paymentIntroText ?? "",
-    audienceRoles: a.audienceRoles,
-    audienceGateHeading: a.audienceGateHeading ?? "",
-    audienceNoneLabel: a.audienceNoneLabel ?? "",
-    routeNextAssessmentId: a.routeNextAssessmentId ?? "",
-    routeNextUrl: a.routeNextUrl ?? "",
+    audienceGate: (a.audienceGate as unknown as AudienceGateInput | null) ?? EMPTY_AUDIENCE_GATE,
     fireMetaCapi: a.fireMetaCapi,
   };
 

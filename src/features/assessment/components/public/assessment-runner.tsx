@@ -146,14 +146,15 @@ export interface PublicAssessment {
   paymentHeadline: string | null;
   paymentButtonLabel: string | null;
   paymentIntroText: string | null;
-  // Audience gate (Phase 2): roles shown as the first screen; None-of-the-above
-  // cascades to routeNextSlug (a published assessment) or routeNextUrl (fallback).
-  audienceRoles: string[];
-  audienceGateHeading: string | null;
-  audienceNoneLabel: string | null;
-  /** Slug of the published onward assessment ("None of the above"), or null. Built
-   *  from the admin's dropdown pick — never a hand-typed link, so it can't misredirect. */
-  routeNextSlug: string | null;
+  // Audience gate (Phase 2): a first-screen dropdown. Each option either continues
+  // in this assessment (redirectSlug null) or redirects to another assessment's
+  // published slug (built from the admin's pick — never a hand-typed link). Null =
+  // no gate. Options with an unpublished target are dropped server-side.
+  audienceGate: {
+    label: string | null;
+    placeholder: string | null;
+    options: { key: string; label: string; redirectSlug: string | null }[];
+  } | null;
   categories: PublicCategory[];
   pages: AssessmentPageData[];
 }
@@ -189,8 +190,12 @@ export function AssessmentRunner({
   /** Admin preview flag (?preview=1); server verifies the caller before bypassing. */
   preview?: boolean;
 }) {
-  const [step, setStep] = useState<Step>(assessment.audienceRoles.length > 0 ? "gate" : "intro");
-  // Audience gate: the role the respondent picked (threaded to startSubmission).
+  const gate = assessment.audienceGate;
+  const gated = !!(gate && gate.options.length > 0);
+  const [step, setStep] = useState<Step>(gated ? "gate" : "intro");
+  // Audience gate: the current dropdown selection (option key) + the role label the
+  // respondent picked (threaded to startSubmission; stored as their audience/role).
+  const [gateChoice, setGateChoice] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   // Answers to the optional pre-results details page, keyed by field id.
@@ -365,15 +370,32 @@ export function AssessmentRunner({
     });
   }
 
-  // Audience gate — "None of the above": cascade to the next assessment (carrying
-  // attribution so ad tracking survives the hop) or the external fallback URL.
-  function goToNextAssessment() {
-    if (!assessment.routeNextSlug) return;
+  // Audience gate: redirect to another assessment (carrying attribution so ad
+  // tracking survives the hop).
+  function redirectToAssessment(slug: string) {
     const qs =
       attribution && Object.keys(attribution).length
         ? "?" + new URLSearchParams(attribution).toString()
         : "";
-    window.location.href = `/a/${assessment.routeNextSlug}${qs}`;
+    window.location.href = `/a/${slug}${qs}`;
+  }
+
+  // Audience gate "Continue": a redirecting choice hops to its assessment; a
+  // "continue here" choice stores the picked role and enters the normal opt-in flow.
+  function submitGate() {
+    if (!gate) return;
+    const opt = gate.options.find((o) => o.key === gateChoice);
+    if (!opt) {
+      setError("Please choose an option to continue.");
+      return;
+    }
+    setError(null);
+    if (opt.redirectSlug) {
+      redirectToAssessment(opt.redirectSlug);
+      return;
+    }
+    setSelectedRole(opt.label); // continue in this assessment
+    setStep("intro");
   }
 
   function emailPreviousResults() {
@@ -598,7 +620,7 @@ export function AssessmentRunner({
       {assessment.collectMobile ? (
         <Field label={assessment.mobileLabel?.trim() || "Mobile"} required={assessment.mobileRequired} value={lead.mobile ?? ""} onChange={(v) => setLead((l) => ({ ...l, mobile: v }))} />
       ) : null}
-      {assessment.collectProfession ? (
+      {assessment.collectProfession && !gated ? (
         <SelectField label={assessment.professionLabel?.trim() || "Profession"} required={assessment.professionRequired} value={lead.profession ?? ""} options={professionOptionsFor(assessment.professionOptions)} placeholder={assessment.professionPlaceholder?.trim() || "Select your profession"} onChange={(v) => setLead((l) => ({ ...l, profession: v }))} />
       ) : null}
       {assessment.optinFields.map((f) =>
@@ -629,39 +651,38 @@ export function AssessmentRunner({
     );
   }
 
-  if (step === "gate") {
-    const gateHeading = assessment.audienceGateHeading?.trim() || "Which best describes you?";
-    const noneLabel = assessment.audienceNoneLabel?.trim() || "None of the above";
-    const hasNext = !!assessment.routeNextSlug;
+  if (step === "gate" && gate) {
+    const gateLabel = gate.label?.trim() || "Which best describes you?";
+    const placeholder = gate.placeholder?.trim() || "Select…";
     return (
       <div className="flex flex-col gap-6">
         {assessment.eyebrow ? (
           <p className="text-sm font-semibold uppercase tracking-wide text-[#D4AF37]">{assessment.eyebrow}</p>
         ) : null}
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">{gateHeading}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{assessment.title}</h1>
           {assessment.subheadline ? (
             <p className="text-[var(--muted-foreground)]">{assessment.subheadline}</p>
           ) : null}
         </div>
-        <div className="flex flex-col gap-3">
-          {assessment.audienceRoles.map((role) => (
-            <Button
-              key={role}
-              size="lg"
-              type="button"
-              style={ctaStyle}
-              onClick={() => { setSelectedRole(role); setStep("intro"); }}
-            >
-              {role}
-            </Button>
-          ))}
-          {hasNext ? (
-            <Button size="lg" type="button" variant="ghost" onClick={goToNextAssessment}>
-              {noneLabel}
-            </Button>
-          ) : null}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="audience-gate">{gateLabel}</Label>
+          <select
+            id="audience-gate"
+            value={gateChoice}
+            onChange={(e) => setGateChoice(e.target.value)}
+            className="flex h-11 w-full rounded-md border border-cyan-500 bg-[var(--background)] px-3 py-2 text-base text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
+          >
+            <option value="" disabled>{placeholder}</option>
+            {gate.options.map((o) => (
+              <option key={o.key} value={o.key}>{o.label}</option>
+            ))}
+          </select>
         </div>
+        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+        <Button size="lg" type="button" style={ctaStyle} disabled={!gateChoice} onClick={submitGate}>
+          {assessment.startButtonLabel?.trim() || "Continue"}
+        </Button>
       </div>
     );
   }
@@ -760,7 +781,7 @@ export function AssessmentRunner({
               onChange={(v) => setLead((l) => ({ ...l, mobile: v }))}
             />
           ) : null}
-          {assessment.collectProfession ? (
+          {assessment.collectProfession && !gated ? (
             <SelectField
               label={assessment.professionLabel?.trim() || "Profession"}
               required={assessment.professionRequired}

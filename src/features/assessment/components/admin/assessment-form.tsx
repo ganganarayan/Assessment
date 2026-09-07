@@ -6,7 +6,8 @@ import {
   createAssessment,
   updateAssessment,
 } from "@/features/assessment/actions/assessment";
-import type { AssessmentInput, PreResultField } from "@/features/assessment/schemas";
+import type { AssessmentInput, PreResultField, AudienceGateInput } from "@/features/assessment/schemas";
+import { EMPTY_AUDIENCE_GATE } from "@/features/assessment/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -152,11 +153,7 @@ const DEFAULTS: AssessmentFormValues = {
   paymentAmount: undefined,
   paymentEventName: "Purchase121",
   paymentIntroText: "",
-  audienceRoles: [],
-  audienceGateHeading: "",
-  audienceNoneLabel: "",
-  routeNextAssessmentId: "",
-  routeNextUrl: "",
+  audienceGate: EMPTY_AUDIENCE_GATE,
   fireMetaCapi: true,
 };
 
@@ -196,6 +193,22 @@ export function AssessmentForm({
     setValues((v) => ({ ...v, [key]: value }));
   }
 
+  // Audience-gate editors.
+  function setGate(patch: Partial<AudienceGateInput>) {
+    setValues((v) => ({ ...v, audienceGate: { ...v.audienceGate, ...patch } }));
+  }
+  function setRole(i: number, patch: Partial<AudienceGateInput["roles"][number]>) {
+    setValues((v) => ({
+      ...v,
+      audienceGate: {
+        ...v.audienceGate,
+        roles: v.audienceGate.roles.map((r, idx) => (idx === i ? { ...r, ...patch } : r)),
+      },
+    }));
+  }
+  const gate = values.audienceGate;
+  const gateOn = gate.roles.length > 0;
+
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -205,7 +218,13 @@ export function AssessmentForm({
       const payload = {
         ...values,
         professionOptions: values.professionOptions.map((s) => s.trim()).filter(Boolean),
-        audienceRoles: values.audienceRoles.map((s) => s.trim()).filter(Boolean),
+        audienceGate: {
+          ...values.audienceGate,
+          // Trim role labels and drop blank rows before validation.
+          roles: values.audienceGate.roles
+            .map((r) => ({ ...r, label: r.label.trim() }))
+            .filter((r) => r.label.length > 0),
+        },
         preResultFields: cleanFields(values.preResultFields),
         optinFields: cleanFields(values.optinFields),
       };
@@ -361,84 +380,120 @@ export function AssessmentForm({
           </div>
 
           <div className="flex flex-col gap-4 rounded-lg border p-4">
-            <p className="text-sm font-medium">Audience gate &amp; cascade routing</p>
+            <p className="text-sm font-medium">Audience selection (first screen)</p>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Optional. Shows a &ldquo;which best describes you?&rdquo; role picker as the FIRST
-              screen. If the respondent picks a listed role they continue with this assessment; if
-              they pick <em>None of the above</em> they&apos;re sent to the next assessment below,
-              which shows its own gate. Leave roles blank for no gate (the normal flow).
+              Optional. Shows a role <strong>dropdown</strong> as the FIRST screen (it replaces the
+              Profession field). For each role — and &ldquo;None of the above&rdquo; — choose where it
+              goes: <em>continue in this assessment</em> (lead form → questions) or <em>redirect to
+              another assessment</em>, which shows its own audience selection (cascade). No roles = the
+              normal opt-in (no gate).
             </p>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="audienceRoles">Roles shown in the gate</Label>
-              <Textarea
-                id="audienceRoles"
-                rows={5}
-                placeholder={"One role per line. Blank = no gate.\nClinic owner\nSolo practitioner\nMarketing manager"}
-                value={(values.audienceRoles ?? []).join("\n")}
-                onChange={(e) => set("audienceRoles", e.target.value.split("\n"))}
-              />
-              <p className="text-xs text-[var(--muted-foreground)]">
-                One role per line. The picked role is stored on the submission (for audience
-                interest), separate from Profession.
-              </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="gateLabel">Dropdown label</Label>
+                <Input
+                  id="gateLabel"
+                  placeholder="Which best describes you?"
+                  value={gate.label ?? ""}
+                  onChange={(e) => setGate({ label: e.target.value })}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="gatePlaceholder">Dropdown placeholder</Label>
+                <Input
+                  id="gatePlaceholder"
+                  placeholder="Select…"
+                  value={gate.placeholder ?? ""}
+                  onChange={(e) => setGate({ placeholder: e.target.value })}
+                />
+              </div>
             </div>
 
-            {(values.audienceRoles ?? []).some((r) => r.trim()) ? (
-              <>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="audienceGateHeading">Gate heading</Label>
-                    <Input
-                      id="audienceGateHeading"
-                      placeholder="Which best describes you?"
-                      value={values.audienceGateHeading ?? ""}
-                      onChange={(e) => set("audienceGateHeading", e.target.value)}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="audienceNoneLabel">&ldquo;None of the above&rdquo; label</Label>
-                    <Input
-                      id="audienceNoneLabel"
-                      placeholder="None of the above"
-                      value={values.audienceNoneLabel ?? ""}
-                      onChange={(e) => set("audienceNoneLabel", e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="routeNextAssessmentId">
-                    &ldquo;None of the above&rdquo; → next assessment
-                  </Label>
+            <div className="flex flex-col gap-2">
+              <Label>Roles &amp; where each one goes</Label>
+              {gate.roles.map((r, i) => (
+                <div key={r.id} className="flex flex-wrap items-center gap-2">
+                  <Input
+                    className="min-w-[10rem] flex-1"
+                    placeholder="Role label (e.g. Clinic owner)"
+                    value={r.label}
+                    onChange={(e) => setRole(i, { label: e.target.value })}
+                  />
                   <select
-                    id="routeNextAssessmentId"
-                    className="h-10 max-w-md rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
-                    value={values.routeNextAssessmentId ?? ""}
-                    onChange={(e) => set("routeNextAssessmentId", e.target.value)}
+                    className="h-9 min-w-[14rem] flex-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+                    value={r.target ?? ""}
+                    onChange={(e) => setRole(i, { target: e.target.value })}
                   >
-                    <option value="">— none (no onward step) —</option>
+                    <option value="">Continue in this assessment</option>
                     {assessmentOptions.map((o) => (
                       <option key={o.id} value={o.id}>
-                        {o.title} (/a/{o.slug}){o.published === false ? " — draft" : ""}
+                        Go to → {o.title}{o.published === false ? " (draft)" : ""}
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-[var(--muted-foreground)]">
-                    Pick one of your assessments — the redirect link is built automatically from it,
-                    so it can never be mistyped. Loops back to this assessment are blocked on save.
-                  </p>
-                  {(() => {
-                    const sel = assessmentOptions.find((o) => o.id === values.routeNextAssessmentId);
-                    return sel && sel.published === false ? (
-                      <p className="text-xs text-amber-600">
-                        This target is a <strong>draft</strong> — publish it, otherwise
-                        &ldquo;None of the above&rdquo; is hidden to respondents until it goes live.
-                      </p>
-                    ) : null;
-                  })()}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setGate({ roles: gate.roles.filter((_, idx) => idx !== i) })}
+                  >
+                    ✕
+                  </Button>
                 </div>
-              </>
+              ))}
+              <div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setGate({ roles: [...gate.roles, { id: crypto.randomUUID(), label: "", target: "" }] })
+                  }
+                >
+                  + Add role
+                </Button>
+              </div>
+            </div>
+
+            {gateOn ? (
+              <div className="flex flex-col gap-2 border-t pt-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={gate.noneEnabled}
+                    onChange={(e) => setGate({ noneEnabled: e.target.checked })}
+                  />
+                  Show a &ldquo;None of the above&rdquo; option
+                </label>
+                {gate.noneEnabled ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      className="min-w-[10rem] flex-1"
+                      placeholder="None of the above"
+                      value={gate.noneLabel ?? ""}
+                      onChange={(e) => setGate({ noneLabel: e.target.value })}
+                    />
+                    <select
+                      className="h-9 min-w-[14rem] flex-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+                      value={gate.noneTarget ?? ""}
+                      onChange={(e) => setGate({ noneTarget: e.target.value })}
+                    >
+                      <option value="">— pick where it goes —</option>
+                      {assessmentOptions.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          Go to → {o.title}{o.published === false ? " (draft)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Targets are picked from your assessments (link built automatically — never mistyped).
+                  A <strong>draft</strong> target is hidden to respondents until it&apos;s published.
+                  Loops back to this assessment are blocked on save.
+                </p>
+              </div>
             ) : null}
 
             <label className="flex items-start gap-2 border-t pt-3 text-sm">
@@ -487,7 +542,14 @@ export function AssessmentForm({
               />
             </div>
 
-            {values.collectProfession ? (
+            {gateOn ? (
+              <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-xs text-[var(--muted-foreground)]">
+                The <strong>Profession</strong> field is replaced by the audience-selection dropdown
+                above for this assessment. The picked role is stored (and sent to your CRM in place of
+                profession).
+              </p>
+            ) : null}
+            {values.collectProfession && !gateOn ? (
               <>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="professionPlaceholder">Profession dropdown placeholder</Label>

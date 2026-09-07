@@ -381,16 +381,19 @@ export async function startSubmission(
       uniqueIdentifier: true,
       paidMode: true,
       fireMetaCapi: true,
-      audienceRoles: true,
+      audienceGate: true,
     },
   });
   if (!assessment) return { ok: false, error: "Assessment not available." };
 
-  // Audience-gate role: keep it only if it's one of THIS assessment's roles.
+  // Audience-gate role: keep it only if it's one of THIS assessment's gate roles.
+  const gateRoleLabels = new Set(
+    (((assessment.audienceGate as { roles?: { label?: string }[] } | null)?.roles) ?? [])
+      .map((r) => (r?.label ?? "").trim())
+      .filter(Boolean),
+  );
   const cleanRole =
-    audienceRole && assessment.audienceRoles.includes(audienceRole.trim())
-      ? audienceRole.trim()
-      : null;
+    audienceRole && gateRoleLabels.has(audienceRole.trim()) ? audienceRole.trim() : null;
 
   const parsed = leadSchema.safeParse(lead);
   if (!parsed.success) {
@@ -475,7 +478,9 @@ export async function startSubmission(
     leadLastName: assessment.collectLastName ? lastName : null,
     leadEmail: assessment.collectEmail ? email : null,
     leadMobile: assessment.collectMobile ? mobile : null,
-    leadProfession: assessment.collectProfession ? profession : null,
+    // On a gated assessment the audience dropdown replaces Profession, so mirror the
+    // picked role into leadProfession (keeps the CRM/analytics profession field fed).
+    leadProfession: cleanRole ?? (assessment.collectProfession ? profession : null),
     audienceRole: cleanRole,
     identifierValue,
     editToken: newEditToken,

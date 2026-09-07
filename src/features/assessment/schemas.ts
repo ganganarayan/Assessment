@@ -22,6 +22,34 @@ export const preResultFieldSchema = z.object({
 });
 export type PreResultField = z.infer<typeof preResultFieldSchema>;
 
+/** Audience gate (Phase 2). One role row in the first-screen dropdown. `target`
+ *  is "" to continue in THIS assessment, else the id of the assessment to redirect
+ *  to (existence + no-cycle enforced in the action, which has the DB). */
+export const audienceRoleSchema = z.object({
+  id: z.string().min(1).max(60),
+  label: z.string().trim().min(1, "Role label is required.").max(120),
+  target: z.string().max(60).optional().or(z.literal("")).default(""),
+});
+export type AudienceRoleInput = z.infer<typeof audienceRoleSchema>;
+
+export const audienceGateSchema = z.object({
+  label: z.string().max(120).optional().or(z.literal("")).default(""),
+  placeholder: z.string().max(120).optional().or(z.literal("")).default(""),
+  roles: z.array(audienceRoleSchema).max(30).default([]),
+  noneEnabled: z.boolean().default(false),
+  noneLabel: z.string().max(120).optional().or(z.literal("")).default(""),
+  noneTarget: z.string().max(60).optional().or(z.literal("")).default(""),
+});
+export type AudienceGateInput = z.infer<typeof audienceGateSchema>;
+export const EMPTY_AUDIENCE_GATE: AudienceGateInput = {
+  label: "",
+  placeholder: "",
+  roles: [],
+  noneEnabled: false,
+  noneLabel: "",
+  noneTarget: "",
+};
+
 export const assessmentSchema = z.object({
   title: z.string().min(2, "Title is required.").max(160),
   slug: slugSchema,
@@ -131,18 +159,10 @@ export const assessmentSchema = z.object({
   // Payment notice on the opt-in form (above Start), paid mode only.
   paymentIntroText: z.string().max(2000).optional().or(z.literal("")),
   // ---- Audience gate + cascade routing (Phase 2) ----
-  // Roles shown in the gate picker (empty = no gate). Trimmed, non-empty, capped.
-  audienceRoles: z.array(z.string().trim().min(1).max(120)).max(20).default([]),
-  audienceGateHeading: z.string().max(200).optional().or(z.literal("")),
-  audienceNoneLabel: z.string().max(120).optional().or(z.literal("")),
-  // "None of the above" onward target: an assessment id, or an external URL fallback.
-  routeNextAssessmentId: z.string().max(60).optional().or(z.literal("")),
-  routeNextUrl: z
-    .string()
-    .url("Enter a valid URL.")
-    .startsWith("https://", "Fallback URL must use https://")
-    .optional()
-    .or(z.literal("")),
+  // A first-screen role dropdown with per-choice routing. Empty roles = no gate.
+  // Each role's `target` (and noneTarget) is "" = continue in this assessment, else
+  // an assessment id to redirect to (existence + no-cycle validated in the action).
+  audienceGate: audienceGateSchema.default(EMPTY_AUDIENCE_GATE),
   // Meta CAPI + pixel fire only when true (ad-entry assessment). Routed ones = false.
   fireMetaCapi: z.boolean().default(true),
 }).superRefine((d, ctx) => {

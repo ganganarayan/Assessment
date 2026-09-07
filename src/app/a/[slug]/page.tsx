@@ -27,12 +27,43 @@ export default async function PublicAssessmentPage({
   const a = await getPublishedAssessmentBySlug(slug);
   if (!a) notFound();
 
-  // Audience gate: resolve the "None of the above" onward target. A published next
-  // assessment wins; otherwise the external fallback URL (a draft target is ignored).
-  const routeNextSlug =
-    a.audienceRoles.length > 0 && a.routeNextAssessmentId
-      ? await getPublishedSlugById(a.routeNextAssessmentId)
-      : null;
+  // Audience gate (Phase 2): resolve each choice's redirect target to a PUBLISHED
+  // slug (a draft target is dropped, so a respondent is never sent to a dead page).
+  // A role with no target continues in THIS assessment (redirectSlug null).
+  const gateRaw = (a.audienceGate ?? null) as {
+    label?: string;
+    placeholder?: string;
+    roles?: { id: string; label: string; target?: string }[];
+    noneEnabled?: boolean;
+    noneLabel?: string;
+    noneTarget?: string;
+  } | null;
+  let audienceGate: PublicAssessment["audienceGate"] = null;
+  if (gateRaw && Array.isArray(gateRaw.roles) && gateRaw.roles.length > 0) {
+    const options: { key: string; label: string; redirectSlug: string | null }[] = [];
+    for (const r of gateRaw.roles) {
+      if (!r?.label) continue;
+      if (!r.target) {
+        options.push({ key: r.id, label: r.label, redirectSlug: null }); // continue here
+        continue;
+      }
+      const slug = await getPublishedSlugById(r.target);
+      if (slug) options.push({ key: r.id, label: r.label, redirectSlug: slug });
+    }
+    if (gateRaw.noneEnabled && gateRaw.noneTarget) {
+      const slug = await getPublishedSlugById(gateRaw.noneTarget);
+      if (slug) {
+        options.push({ key: "__none__", label: gateRaw.noneLabel?.trim() || "None of the above", redirectSlug: slug });
+      }
+    }
+    if (options.length > 0) {
+      audienceGate = {
+        label: gateRaw.label?.trim() || null,
+        placeholder: gateRaw.placeholder?.trim() || null,
+        options,
+      };
+    }
+  }
 
   const assessment: PublicAssessment = {
     slug: a.slug,
@@ -79,10 +110,7 @@ export default async function PublicAssessmentPage({
     paymentButtonLabel: a.paymentButtonLabel,
     paymentIntroText: a.paymentIntroText,
     // Audience gate (Phase 2).
-    audienceRoles: a.audienceRoles,
-    audienceGateHeading: a.audienceGateHeading,
-    audienceNoneLabel: a.audienceNoneLabel,
-    routeNextSlug,
+    audienceGate,
     // Public renders ONLY the published snapshot (never the draft rows).
     pages: readPublishedPages(a.publishedPages),
     categories: a.categories.map((c) => ({
