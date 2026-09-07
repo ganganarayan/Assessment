@@ -109,7 +109,9 @@ function pickResult(cd: CustomDomain | null | undefined): RailwayDomainResult | 
   const dnsRecords: RailwayDnsRecord[] = raw
     .filter((r) => clean(r.requiredValue).length > 0)
     .map((r) => ({
-      type: (r.recordType ?? "CNAME").toUpperCase(),
+      // Railway hands back an enum like "DNS_RECORD_TYPE_CNAME"/"…_TXT" — show the
+      // bare record type (CNAME / TXT / A) the DNS provider actually expects.
+      type: (r.recordType ?? "CNAME").replace(/^DNS_RECORD_TYPE_/i, "").toUpperCase(),
       name: clean(r.fqdn ?? r.hostlabel ?? cd.domain),
       value: clean(r.requiredValue),
       purpose: r.purpose ?? null,
@@ -143,21 +145,40 @@ export async function railwayCreateCustomDomain(domain: string): Promise<Railway
   return pickResult(data.customDomainCreate);
 }
 
-/** Poll a Railway custom domain's status (cert + DNS). */
-export async function railwayCustomDomainStatus(railwayDomainId: string): Promise<RailwayDomainResult | null> {
+/**
+ * Poll a Railway custom domain's CURRENT status (cert + the full DNS record set,
+ * including the ownership-verification TXT that only appears once validation starts).
+ *
+ * Railway has no `customDomain(id)` query — the working read is the service's domain
+ * LIST (`domains(project, environment, service)`), from which we pick our row by id
+ * (falling back to the hostname). This is what makes "Check status" actually refresh
+ * the records/cert instead of silently erroring.
+ */
+export async function railwayCustomDomainStatus(
+  railwayDomainId: string,
+  hostname?: string,
+): Promise<RailwayDomainResult | null> {
   const env = railwayEnv();
   if (!env) return null;
-  const data = await gql<{ customDomain: CustomDomain | null }>(
+  const data = await gql<{ domains: { customDomains: CustomDomain[] } }>(
     env,
-    `query($id: String!, $projectId: String!) {
-      customDomain(id: $id, projectId: $projectId) {
-        id domain
-        status { certificateStatus dnsRecords { hostlabel fqdn recordType requiredValue currentValue status purpose zone } }
+    `query($projectId: String!, $environmentId: String!, $serviceId: String!) {
+      domains(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId) {
+        customDomains {
+          id domain
+          status { certificateStatus dnsRecords { hostlabel fqdn recordType requiredValue currentValue status purpose zone } }
+        }
       }
     }`,
-    { id: railwayDomainId, projectId: env.projectId },
+    { projectId: env.projectId, environmentId: env.environmentId, serviceId: env.serviceId },
   );
-  return pickResult(data.customDomain);
+  const list = data.domains?.customDomains ?? [];
+  const host = (hostname ?? "").trim().toLowerCase();
+  const cd =
+    list.find((c) => c.id === railwayDomainId) ??
+    (host ? list.find((c) => (c.domain ?? "").toLowerCase() === host) : undefined) ??
+    null;
+  return pickResult(cd);
 }
 
 /** Deregister the host from Railway (on domain removal). Never throws to the caller —

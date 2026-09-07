@@ -51,7 +51,7 @@ async function provisionDomain(
   let railwayError: string | null = null;
   if (railwayConfigured()) {
     try {
-      rw = existingRailwayId ? await railwayCustomDomainStatus(existingRailwayId) : null;
+      rw = existingRailwayId ? await railwayCustomDomainStatus(existingRailwayId, hostname) : null;
       if (!rw) rw = await railwayCreateCustomDomain(hostname);
       if (!rw) railwayError = "Railway returned no domain.";
     } catch (e) {
@@ -169,12 +169,18 @@ export async function getDomainSettings(): Promise<DomainSettingsView> {
     domains: rows.map((d) => {
       const live = d.verified || certIsLive(d.certStatus);
       const stored = (d.dnsRecords as unknown as RailwayDnsRecord[] | null) ?? [];
+      // Rows written before the label fix stored the raw enum ("DNS_RECORD_TYPE_CNAME").
+      // Clean it on read too, so existing domains show the bare record type (CNAME/TXT).
+      const norm = stored.map((r) => ({
+        ...r,
+        type: (r.type || "CNAME").replace(/^DNS_RECORD_TYPE_/i, "").toUpperCase(),
+      }));
       // Show records until the domain is live. Fall back to a single CNAME when none
       // were stored (older rows, or no-Railway fallback), so there is always guidance.
       const dnsRecords = live
         ? []
-        : stored.length > 0
-          ? stored
+        : norm.length > 0
+          ? norm
           : [{ type: "CNAME", name: d.hostname, value: d.dnsTarget ?? fallback, purpose: null, status: null }];
       return {
         id: d.id,
