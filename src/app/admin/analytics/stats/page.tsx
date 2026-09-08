@@ -7,8 +7,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
-import { AssessmentScopeBar } from "@/features/admin/components/assessment-scope-bar";
-import { getAssessmentForAnalytics } from "@/features/assessment/data";
+import { AssessmentPicker } from "@/features/admin/components/assessment-picker";
+import { getAssessmentForAnalytics, listAssessments } from "@/features/assessment/data";
 import { formatIST } from "@/lib/date";
 import { getStatsFloor } from "@/lib/stats-floor";
 import { actingTenantId } from "@/lib/tenant/acting";
@@ -38,6 +38,7 @@ export default async function StatsPage({
   const range = { from: sp.from, to: sp.to };
   const t = await actingTenantId();
   const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, t) : null;
+  const assessmentOptions = (await listAssessments(t)).map((a) => ({ id: a.id, title: a.title }));
   const aScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : undefined;
   const pvScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {};
   const [s, utm, log, botRows] = await Promise.all([
@@ -101,9 +102,7 @@ export default async function StatsPage({
         {scoped ? null : <AnalyticsToolbar exportGroups={exportGroups} />}
       </div>
 
-      {scoped ? (
-        <AssessmentScopeBar assessmentTitle={scoped.title} allHref="/admin/analytics/stats" />
-      ) : null}
+      <AssessmentPicker assessments={assessmentOptions} selectedId={scoped?.id ?? null} basePath="/admin/analytics/stats" />
 
       <DateRangeFilter
         basePath="/admin/analytics/stats"

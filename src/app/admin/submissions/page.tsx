@@ -1,8 +1,8 @@
-import { listSubmissions, getAssessmentForAnalytics } from "@/features/assessment/data";
+import { listSubmissions, getAssessmentForAnalytics, listAssessments } from "@/features/assessment/data";
 import { actingTenantId } from "@/lib/tenant/acting";
+import { AssessmentPicker } from "@/features/admin/components/assessment-picker";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
-import { AssessmentScopeBar } from "@/features/admin/components/assessment-scope-bar";
 import { getStatsFloor } from "@/lib/stats-floor";
 import { formatIST } from "@/lib/date";
 import { labeledAnswers } from "@/features/assessment/custom-fields";
@@ -36,6 +36,7 @@ export default async function SubmissionsPage({
   const sp = await searchParams;
   const t = await actingTenantId();
   const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, t) : null;
+  const assessmentOptions = (await listAssessments(t)).map((a) => ({ id: a.id, title: a.title }));
   // Load all so the live search box can match across every submission, not just a page.
   const submissions = await listSubmissions(
     100_000,
@@ -104,11 +105,9 @@ export default async function SubmissionsPage({
         <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
         <AnalyticsToolbar exportGroups={exportGroups(scoped?.id)} />
       </div>
-      {scoped ? (
-        <AssessmentScopeBar assessmentTitle={scoped.title} allHref="/admin/submissions" />
-      ) : null}
-      <p className="-mt-4 text-xs text-[var(--muted-foreground)]">
-        Grouped by assessment. Type to search; click a column heading to sort.
+      <AssessmentPicker assessments={assessmentOptions} selectedId={scoped?.id ?? null} basePath="/admin/submissions" />
+      <p className="-mt-2 text-xs text-[var(--muted-foreground)]">
+        {scoped ? "Showing one assessment. " : "Grouped by assessment. "}Type to search; click a column heading to sort.
         {effectiveFloor
           ? ` · Showing from ${formatIST(effectiveFloor.toISOString())} IST (Data window).`
           : ""}
