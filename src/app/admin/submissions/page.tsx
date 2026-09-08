@@ -36,8 +36,11 @@ export default async function SubmissionsPage({
 }) {
   const sp = await searchParams;
   const t = await actingTenantId();
-  const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, t) : null;
   const assessmentOptions = (await listAssessments(t)).map((a) => ({ id: a.id, title: a.title }));
+  // Submissions is always scoped to one assessment (no cross-assessment "All" view):
+  // use the URL id, else default to the newest assessment (list is createdAt desc).
+  const scopedId = sp.assessment ?? assessmentOptions[0]?.id;
+  const scoped = scopedId ? await getAssessmentForAnalytics(scopedId, t) : null;
   // Load all so the live search box can match across every submission, not just a page.
   // Scoped: the assessment's saved reporting start (statsResetAt) IS the "from", so the
   // URL from is ignored (it's the sticky per-assessment date). To stays an ad-hoc end.
@@ -114,6 +117,7 @@ export default async function SubmissionsPage({
         assessments={assessmentOptions}
         selectedId={scoped?.id ?? null}
         basePath="/admin/submissions"
+        allowAll={false}
       />
 
       <DateRangeFilter

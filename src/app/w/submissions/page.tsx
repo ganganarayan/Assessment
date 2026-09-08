@@ -24,9 +24,12 @@ export default async function WorkspaceSubmissionsPage({
   const { tenantId } = await requireWorkspace();
   const canDelete = await currentUserCanEdit();
   const sp = await searchParams;
-  // Tenant-scoped: a foreign/bad id resolves to null (no leak) → falls back to all.
-  const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, tenantId) : null;
   const assessmentOptions = (await listAssessments(tenantId)).map((a) => ({ id: a.id, title: a.title }));
+  // Submissions is always scoped to one assessment (no cross-assessment "All" view):
+  // use the URL id, else default to the newest assessment (list is createdAt desc).
+  // A foreign/bad id resolves to null (no leak) → falls back to the newest.
+  const scopedId = sp.assessment ?? assessmentOptions[0]?.id;
+  const scoped = scopedId ? await getAssessmentForAnalytics(scopedId, tenantId) : null;
   // Scoped: the assessment's saved reporting start (statsResetAt) IS the "from"; the URL
   // from is ignored (it's the sticky per-assessment date). To stays an ad-hoc end date.
   const submissions = await listSubmissions(100_000, tenantId, {
@@ -109,6 +112,7 @@ export default async function WorkspaceSubmissionsPage({
         assessments={assessmentOptions}
         selectedId={scoped?.id ?? null}
         basePath="/w/submissions"
+        allowAll={false}
       />
 
       <DateRangeFilter

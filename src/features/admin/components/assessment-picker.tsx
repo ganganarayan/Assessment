@@ -15,6 +15,7 @@ export function AssessmentPicker({
   label = "Assessment",
   variant = "default",
   preserveParams,
+  allowAll = true,
 }: {
   assessments: { id: string; title: string }[];
   selectedId: string | null;
@@ -23,6 +24,9 @@ export function AssessmentPicker({
   variant?: "default" | "heading";
   /** Query params to keep across a change (e.g. { from, to } date range). */
   preserveParams?: Record<string, string | undefined>;
+  /** Offer the "All assessments" choice. Off for Submissions, where a merged
+   *  cross-assessment list isn't meaningful — one assessment is always scoped. */
+  allowAll?: boolean;
 }) {
   const router = useRouter();
   const go = (id: string) => {
@@ -41,7 +45,7 @@ export function AssessmentPicker({
         onChange={(e) => go(e.target.value)}
         className="max-w-full cursor-pointer truncate border-0 bg-transparent p-0 text-2xl font-bold tracking-tight text-[var(--foreground)] focus:outline-none focus:ring-0"
       >
-        <option value="">All assessments</option>
+        {allowAll && <option value="">All assessments</option>}
         {assessments.map((a) => (
           <option key={a.id} value={a.id}>{a.title}</option>
         ))}
@@ -60,7 +64,7 @@ export function AssessmentPicker({
         onChange={(e) => go(e.target.value)}
         className="h-10 w-full max-w-md rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
       >
-        <option value="">All assessments</option>
+        {allowAll && <option value="">All assessments</option>}
         {assessments.map((a) => (
           <option key={a.id} value={a.id}>{a.title}</option>
         ))}
