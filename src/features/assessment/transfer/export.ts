@@ -51,6 +51,7 @@ async function buildAssessmentBody(
     subheadline: a.subheadline,
     buttonColor: a.buttonColor,
     buttonTextColor: a.buttonTextColor,
+    heatmapCode: a.heatmapCode,
     firstNameLabel: a.firstNameLabel,
     lastNameLabel: a.lastNameLabel,
     emailLabel: a.emailLabel,

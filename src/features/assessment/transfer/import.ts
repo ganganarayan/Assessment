@@ -66,6 +66,7 @@ function createData(
     subheadline: body.subheadline ?? null,
     buttonColor: body.buttonColor ?? null,
     buttonTextColor: body.buttonTextColor ?? null,
+    heatmapCode: body.heatmapCode ?? null,
     firstNameLabel: body.firstNameLabel ?? null,
     lastNameLabel: body.lastNameLabel ?? null,
     emailLabel: body.emailLabel ?? null,

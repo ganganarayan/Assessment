@@ -39,6 +39,7 @@ export default async function EditAssessmentPage({
     description: a.description ?? "",
     buttonColor: a.buttonColor ?? "",
     buttonTextColor: a.buttonTextColor ?? "",
+    heatmapCode: a.heatmapCode ?? "",
     preResultHeading: a.preResultHeading ?? "",
     preResultSubtext: a.preResultSubtext ?? "",
     preResultFields: (a.preResultFields as AssessmentFormValues["preResultFields"] | null) ?? [],

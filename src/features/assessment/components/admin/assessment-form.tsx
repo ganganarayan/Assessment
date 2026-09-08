@@ -105,6 +105,7 @@ const DEFAULTS: AssessmentFormValues = {
   description: "",
   buttonColor: "",
   buttonTextColor: "",
+  heatmapCode: "",
   preResultHeading: "",
   preResultSubtext: "",
   preResultFields: [],
@@ -604,6 +605,24 @@ export function AssessmentForm({
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-3 rounded-lg border p-4">
+            <p className="text-sm font-medium">Heatmap / session recording</p>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Paste a recording snippet (e.g. MS Clarity) for THIS assessment. It runs across the
+              whole funnel — opt-in, each question, and the result. Blank = use the workspace
+              default from Settings (if any).
+            </p>
+            <Textarea
+              id="heatmapCode"
+              rows={5}
+              spellCheck={false}
+              className="font-mono text-xs"
+              placeholder={'<script>...clarity...</script>'}
+              value={values.heatmapCode ?? ""}
+              onChange={(e) => set("heatmapCode", e.target.value)}
+            />
           </div>
 
           <div className="flex flex-col gap-4 rounded-lg border p-4">

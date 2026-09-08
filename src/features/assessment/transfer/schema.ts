@@ -81,6 +81,7 @@ export const assessmentBodyExport = z.object({
   subheadline: z.string().nullable().optional(),
   buttonColor: z.string().nullable().optional(),
   buttonTextColor: z.string().nullable().optional(),
+  heatmapCode: z.string().nullable().optional(),
   firstNameLabel: z.string().nullable().optional(),
   lastNameLabel: z.string().nullable().optional(),
   emailLabel: z.string().nullable().optional(),

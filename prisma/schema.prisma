@@ -442,6 +442,11 @@ model Assessment {
   buttonColor     String?
   buttonTextColor String?
 
+  // Per-assessment heatmap/session-recording snippet (e.g. MS Clarity), set in the
+  // builder. Injected on THIS assessment's funnel; null/blank falls back to the tenant's
+  // Settings-level snippet (resolveHeatmapCode), so a workspace default still applies.
+  heatmapCode     String?
+
   // Optional "pre-results" data-capture page shown AFTER the questions, BEFORE the
   // results. preResultFields = ordered JSON [{ id, label, type: "text"|"select",
   // options: string[], required: boolean }]. Null/empty = no extra page (unchanged flow).

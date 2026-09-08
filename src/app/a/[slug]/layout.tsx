@@ -16,12 +16,14 @@ export default async function AssessmentSlugLayout({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const a = await prisma.assessment.findFirst({ where: { slug }, select: { tenantId: true } });
+  const a = await prisma.assessment.findFirst({ where: { slug }, select: { tenantId: true, heatmapCode: true } });
   const tenantId = a?.tenantId ?? null;
-  const [{ pixelId }, heatmapCode] = await Promise.all([
+  const [{ pixelId }, tenantHeatmap] = await Promise.all([
     resolveMetaConfig(tenantId),
     resolveHeatmapCode(tenantId),
   ]);
+  // This assessment's own recording snippet wins; else fall back to the tenant default.
+  const heatmapCode = a?.heatmapCode?.trim() || tenantHeatmap;
   return (
     <>
       <MetaPixel pixelId={pixelId} />

@@ -55,6 +55,9 @@ export const assessmentSchema = z.object({
   // Funnel CTA styling (hex like "#16a34a"); blank = default green/white theme.
   buttonColor: z.string().max(20).optional().or(z.literal("")),
   buttonTextColor: z.string().max(20).optional().or(z.literal("")),
+  // Per-assessment heatmap/recording snippet (e.g. MS Clarity). Blank = fall back to
+  // the tenant's Settings-level snippet. Generous cap for a pasted vendor <script>.
+  heatmapCode: z.string().max(20000).optional().or(z.literal("")),
   // Optional pre-results data-capture page.
   preResultHeading: z.string().max(200).optional().or(z.literal("")),
   preResultSubtext: z.string().max(1000).optional().or(z.literal("")),
