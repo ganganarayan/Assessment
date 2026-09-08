@@ -105,7 +105,6 @@ export default async function WorkspaceSubmissionsPage({
         assessments={assessmentOptions}
         selectedId={scoped?.id ?? null}
         basePath="/w/submissions"
-        preserveParams={{ from: sp.from, to: sp.to }}
       />
 
       <DateRangeFilter

@@ -111,7 +111,6 @@ export default async function SubmissionsPage({
         assessments={assessmentOptions}
         selectedId={scoped?.id ?? null}
         basePath="/admin/submissions"
-        preserveParams={{ from: sp.from, to: sp.to }}
       />
 
       <DateRangeFilter

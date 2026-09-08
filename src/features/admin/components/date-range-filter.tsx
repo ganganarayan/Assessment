@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "./date-picker";
@@ -31,6 +31,12 @@ export function DateRangeFilter({
   const router = useRouter();
   const [f, setF] = useState(from ?? "");
   const [t, setT] = useState(to ?? "");
+  // Keep the fields in sync with the URL. Client navigation (e.g. switching the
+  // assessment, which drops the range) reuses this component, so without this the
+  // inputs would keep a STALE date from the previous view and Apply would filter by
+  // the wrong date. Syncing to the props makes the fields always match the URL.
+  useEffect(() => { setF(from ?? ""); }, [from]);
+  useEffect(() => { setT(to ?? ""); }, [to]);
   const active = Boolean(from || to);
   const extras = Object.entries(extraQuery ?? {});
   const clearHref = extras.length
