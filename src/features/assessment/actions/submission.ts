@@ -394,6 +394,10 @@ export async function startSubmission(
   );
   const cleanRole =
     audienceRole && gateRoleLabels.has(audienceRole.trim()) ? audienceRole.trim() : null;
+  // When the assessment has an audience gate, the role picker REPLACES the
+  // profession field (hidden client-side, fed into leadProfession below), so the
+  // profession-required check must not fire — otherwise gated assessments hard-block.
+  const gated = gateRoleLabels.size > 0;
 
   const parsed = leadSchema.safeParse(lead);
   if (!parsed.success) {
@@ -415,7 +419,7 @@ export async function startSubmission(
     return { ok: false, error: "Email is required." };
   if (assessment.collectMobile && assessment.mobileRequired && !mobile)
     return { ok: false, error: "Mobile number is required." };
-  if (assessment.collectProfession && assessment.professionRequired && !profession)
+  if (assessment.collectProfession && assessment.professionRequired && !profession && !gated)
     return { ok: false, error: "Profession is required." };
   // Membership check: the value must be one of THIS assessment's options (custom
   // list, else the default) — guards a direct POST bypassing the dropdown. An
