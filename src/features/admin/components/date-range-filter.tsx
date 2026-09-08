@@ -37,7 +37,7 @@ export function DateRangeFilter({
         <input key={k} type="hidden" name={k} value={v} />
       ))}
       <DatePicker name="from" label="From (IST)" value={f} onChange={setF} />
-      <DatePicker name="to" label="To (IST)" value={t} onChange={setT} />
+      <DatePicker name="to" label="To (IST) — optional" value={t} onChange={setT} />
       <Button type="submit" size="sm">
         Apply
       </Button>

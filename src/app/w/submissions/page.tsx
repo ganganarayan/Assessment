@@ -7,6 +7,7 @@ import { normalizeAttribution } from "@/lib/events/payload";
 import { pickResultUrl } from "@/lib/events/completion";
 import { timezoneForCountry } from "@/lib/geo";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
+import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import {
   SubmissionsTable,
   type SubmissionRow,
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function WorkspaceSubmissionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ assessment?: string }>;
+  searchParams: Promise<{ assessment?: string; from?: string; to?: string }>;
 }) {
   const { tenantId } = await requireWorkspace();
   const canDelete = await currentUserCanEdit();
@@ -25,11 +26,11 @@ export default async function WorkspaceSubmissionsPage({
   // Tenant-scoped: a foreign/bad id resolves to null (no leak) → falls back to all.
   const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, tenantId) : null;
   const assessmentOptions = (await listAssessments(tenantId)).map((a) => ({ id: a.id, title: a.title }));
-  const submissions = await listSubmissions(
-    100_000,
-    tenantId,
-    scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : undefined,
-  );
+  const submissions = await listSubmissions(100_000, tenantId, {
+    ...(scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {}),
+    from: sp.from,
+    to: sp.to,
+  });
   const paid = await getPaidBySubmission(submissions.map((s) => s.id));
   const rows: SubmissionRow[] = submissions.map((s) => {
     const p = paid.get(s.id);
@@ -94,20 +95,38 @@ export default async function WorkspaceSubmissionsPage({
   ];
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+            Submissions
+          </span>
+          <AssessmentPicker
+            variant="heading"
+            assessments={assessmentOptions}
+            selectedId={scoped?.id ?? null}
+            basePath="/w/submissions"
+            preserveParams={{ from: sp.from, to: sp.to }}
+          />
+        </div>
         <AnalyticsToolbar exportGroups={exportGroups} />
       </div>
-      <AssessmentPicker assessments={assessmentOptions} selectedId={scoped?.id ?? null} basePath="/w/submissions" />
-      <p className="-mt-2 text-xs text-[var(--muted-foreground)]">
+
+      <DateRangeFilter
+        basePath="/w/submissions"
+        from={sp.from}
+        to={sp.to}
+        extraQuery={scoped ? { assessment: scoped.id } : undefined}
+      />
+
+      <p className="text-xs text-[var(--muted-foreground)]">
         Every submission to your assessments — private to this workspace. Type to search; click a
         column heading to sort.
       </p>
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions yet.</p>
       ) : (
-        <SubmissionsTable rows={rows} exportBase="/api/w/submissions/export" canDelete={canDelete} />
+        <SubmissionsTable rows={rows} exportBase="/api/w/submissions/export" canDelete={canDelete} hideGroupTitle={!!scoped} />
       )}
     </div>
   );

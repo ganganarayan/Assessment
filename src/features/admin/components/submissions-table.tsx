@@ -66,12 +66,16 @@ export function SubmissionsTable({
   rows,
   exportBase,
   canDelete = false,
+  hideGroupTitle = false,
 }: {
   rows: SubmissionRow[];
   exportBase?: string;
   /** Show the select + delete controls. Super-admin only (the delete action is
    *  super-admin-guarded), so the tenant workspace view leaves this off. */
   canDelete?: boolean;
+  /** When a single assessment is already named above (e.g. the heading dropdown),
+   *  suppress the per-group name so it isn't shown twice — just the count remains. */
+  hideGroupTitle?: boolean;
 }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
   const [query, setQuery] = useState("");
@@ -207,12 +211,18 @@ export function SubmissionsTable({
       {groups.map(([assessmentId, group]) => (
         <div key={assessmentId} className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-lg font-semibold">
-              {group.title}{" "}
-              <span className="text-sm font-normal text-[var(--muted-foreground)]">
-                ({group.rows.length})
-              </span>
-            </h2>
+            {hideGroupTitle ? (
+              <p className="text-sm text-[var(--muted-foreground)]">
+                {group.rows.length} submission{group.rows.length === 1 ? "" : "s"}
+              </p>
+            ) : (
+              <h2 className="text-lg font-semibold">
+                {group.title}{" "}
+                <span className="text-sm font-normal text-[var(--muted-foreground)]">
+                  ({group.rows.length})
+                </span>
+              </h2>
+            )}
             {exportBase ? (
               <div className="flex items-center gap-3 text-xs">
                 <span className="text-[var(--muted-foreground)]">Export:</span>

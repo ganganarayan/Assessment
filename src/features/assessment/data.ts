@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { getStatsFloor } from "@/lib/stats-floor";
+import { istDateRangeToUtc } from "@/lib/date";
 
 /** Query helpers for admin pages and the public flow. UI-agnostic. */
 
@@ -86,14 +87,23 @@ export async function getSlugById(
 export async function listSubmissions(
   take = 100,
   tenantId: string | null = null,
-  opts?: { assessmentId?: string | null; floor?: Date | null },
+  opts?: { assessmentId?: string | null; floor?: Date | null; from?: string; to?: string },
 ) {
   // The stats-floor "reset to 0" baseline is the platform/Gita setting — apply it
   // only to the platform view. An assessment-scoped view passes its own floor.
   const floor = opts && "floor" in opts ? opts.floor ?? null : await getStatsFloor(tenantId);
+  // Optional user-picked date range (IST). Combine with the floor: the lower bound
+  // is the LATER of the two (both constraints apply). `to` is optional (open-ended).
+  const { gte: rangeGte, lte: rangeLte } = istDateRangeToUtc(opts?.from, opts?.to);
+  const lowerBounds = [floor, rangeGte].filter((d): d is Date => d instanceof Date);
+  const gte = lowerBounds.length
+    ? new Date(Math.max(...lowerBounds.map((d) => d.getTime())))
+    : null;
+  const createdAt =
+    gte || rangeLte ? { ...(gte ? { gte } : {}), ...(rangeLte ? { lte: rangeLte } : {}) } : undefined;
   return prisma.submission.findMany({
     where: {
-      ...(floor ? { createdAt: { gte: floor } } : {}),
+      ...(createdAt ? { createdAt } : {}),
       tenantId,
       ...(opts?.assessmentId ? { assessmentId: opts.assessmentId } : {}),
     },

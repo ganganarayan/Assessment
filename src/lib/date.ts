@@ -1,12 +1,14 @@
 /**
- * Format an instant as "YYYY-MM-DD HH:MM" in IST (UTC+5:30, no DST).
+ * Format an instant as "DD-MM-YYYY HH:MM" in IST (UTC+5:30, no DST).
  *
  * Uses a fixed manual offset rather than Intl/timeZone so the result is correct
  * regardless of the server's locale or ICU timezone data (Railway/Node).
  */
 export function formatIST(d: Date | string): string {
   const ms = new Date(d).getTime() + 5.5 * 60 * 60 * 1000;
-  return new Date(ms).toISOString().slice(0, 16).replace("T", " ");
+  const [date, time] = new Date(ms).toISOString().slice(0, 16).split("T");
+  const [y, m, day] = date!.split("-");
+  return `${day}-${m}-${y} ${time}`;
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

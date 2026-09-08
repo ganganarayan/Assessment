@@ -99,7 +99,7 @@ export default async function StatsPage({
           <h1 className="text-2xl font-bold tracking-tight">Stats</h1>
           <p className="text-sm text-[var(--muted-foreground)]">{note}</p>
         </div>
-        {scoped ? null : <AnalyticsToolbar exportGroups={exportGroups} />}
+        <AnalyticsToolbar exportGroups={exportGroups} />
       </div>
 
       <AssessmentPicker assessments={assessmentOptions} selectedId={scoped?.id ?? null} basePath="/admin/analytics/stats" />

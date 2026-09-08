@@ -3,6 +3,7 @@ import { actingTenantId } from "@/lib/tenant/acting";
 import { AssessmentPicker } from "@/features/admin/components/assessment-picker";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
+import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { getStatsFloor } from "@/lib/stats-floor";
 import { formatIST } from "@/lib/date";
 import { labeledAnswers } from "@/features/assessment/custom-fields";
@@ -31,18 +32,18 @@ function exportGroups(assessmentId?: string) {
 export default async function SubmissionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ assessment?: string }>;
+  searchParams: Promise<{ assessment?: string; from?: string; to?: string }>;
 }) {
   const sp = await searchParams;
   const t = await actingTenantId();
   const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, t) : null;
   const assessmentOptions = (await listAssessments(t)).map((a) => ({ id: a.id, title: a.title }));
   // Load all so the live search box can match across every submission, not just a page.
-  const submissions = await listSubmissions(
-    100_000,
-    t,
-    scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : undefined,
-  );
+  const submissions = await listSubmissions(100_000, t, {
+    ...(scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {}),
+    from: sp.from,
+    to: sp.to,
+  });
   // Effective reporting floor (Data window) actually applied to this list.
   const effectiveFloor: Date | null = scoped ? scoped.statsResetAt : await getStatsFloor(t);
   const paid = await getPaidBySubmission(submissions.map((s) => s.id));
@@ -100,23 +101,42 @@ export default async function SubmissionsPage({
   });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+            Submissions
+          </span>
+          <AssessmentPicker
+            variant="heading"
+            assessments={assessmentOptions}
+            selectedId={scoped?.id ?? null}
+            basePath="/admin/submissions"
+            preserveParams={{ from: sp.from, to: sp.to }}
+          />
+        </div>
         <AnalyticsToolbar exportGroups={exportGroups(scoped?.id)} />
       </div>
-      <AssessmentPicker assessments={assessmentOptions} selectedId={scoped?.id ?? null} basePath="/admin/submissions" />
-      <p className="-mt-2 text-xs text-[var(--muted-foreground)]">
-        {scoped ? "Showing one assessment. " : "Grouped by assessment. "}Type to search; click a column heading to sort.
-        {effectiveFloor
-          ? ` · Showing from ${formatIST(effectiveFloor.toISOString())} IST (Data window).`
-          : ""}
-      </p>
+
+      <DateRangeFilter
+        basePath="/admin/submissions"
+        from={sp.from}
+        to={sp.to}
+        extraQuery={scoped ? { assessment: scoped.id } : undefined}
+      />
+
+      {effectiveFloor ? (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Showing from {formatIST(effectiveFloor.toISOString())} IST (Data window). Type to search; click a column heading to sort.
+        </p>
+      ) : (
+        <p className="text-xs text-[var(--muted-foreground)]">Type to search; click a column heading to sort.</p>
+      )}
 
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions yet.</p>
       ) : (
-        <SubmissionsTable rows={rows} canDelete />
+        <SubmissionsTable rows={rows} canDelete hideGroupTitle={!!scoped} />
       )}
     </div>
   );
