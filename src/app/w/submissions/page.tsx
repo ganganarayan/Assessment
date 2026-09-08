@@ -6,6 +6,7 @@ import { labeledAnswers } from "@/features/assessment/custom-fields";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { pickResultUrl } from "@/lib/events/completion";
 import { timezoneForCountry } from "@/lib/geo";
+import { formatIST } from "@/lib/date";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import {
@@ -26,11 +27,14 @@ export default async function WorkspaceSubmissionsPage({
   // Tenant-scoped: a foreign/bad id resolves to null (no leak) → falls back to all.
   const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, tenantId) : null;
   const assessmentOptions = (await listAssessments(tenantId)).map((a) => ({ id: a.id, title: a.title }));
+  // Scoped: the assessment's saved reporting start (statsResetAt) IS the "from"; the URL
+  // from is ignored (it's the sticky per-assessment date). To stays an ad-hoc end date.
   const submissions = await listSubmissions(100_000, tenantId, {
     ...(scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {}),
-    from: sp.from,
+    from: scoped ? undefined : sp.from,
     to: sp.to,
   });
+  const stickyStart = scoped?.statsResetAt ? formatIST(scoped.statsResetAt.toISOString()).split(" ")[0] : "";
   const paid = await getPaidBySubmission(submissions.map((s) => s.id));
   const rows: SubmissionRow[] = submissions.map((s) => {
     const p = paid.get(s.id);
@@ -112,9 +116,16 @@ export default async function WorkspaceSubmissionsPage({
         from={sp.from}
         to={sp.to}
         extraQuery={scoped ? { assessment: scoped.id } : undefined}
+        stickyStartAssessmentId={scoped?.id}
+        stickyStartValue={stickyStart}
       />
 
-      {sp.from || sp.to ? (
+      {scoped ? (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Showing this assessment from {stickyStart || "the beginning"}
+          {sp.to ? ` → ${sp.to}` : ""} (IST). Type to search; click a column heading to sort.
+        </p>
+      ) : sp.from || sp.to ? (
         <p className="text-xs text-[var(--muted-foreground)]">
           Showing {sp.from ?? "start"} → {sp.to ?? "today"} (IST). Type to search; click a column heading to sort.
         </p>

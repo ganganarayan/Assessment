@@ -39,11 +39,14 @@ export default async function SubmissionsPage({
   const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, t) : null;
   const assessmentOptions = (await listAssessments(t)).map((a) => ({ id: a.id, title: a.title }));
   // Load all so the live search box can match across every submission, not just a page.
+  // Scoped: the assessment's saved reporting start (statsResetAt) IS the "from", so the
+  // URL from is ignored (it's the sticky per-assessment date). To stays an ad-hoc end.
   const submissions = await listSubmissions(100_000, t, {
     ...(scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {}),
-    from: sp.from,
+    from: scoped ? undefined : sp.from,
     to: sp.to,
   });
+  const stickyStart = scoped?.statsResetAt ? formatIST(scoped.statsResetAt.toISOString()).split(" ")[0] : "";
   // Effective reporting floor (Data window) actually applied to this list.
   const effectiveFloor: Date | null = scoped ? scoped.statsResetAt : await getStatsFloor(t);
   const paid = await getPaidBySubmission(submissions.map((s) => s.id));
@@ -118,9 +121,16 @@ export default async function SubmissionsPage({
         from={sp.from}
         to={sp.to}
         extraQuery={scoped ? { assessment: scoped.id } : undefined}
+        stickyStartAssessmentId={scoped?.id}
+        stickyStartValue={stickyStart}
       />
 
-      {sp.from || sp.to ? (
+      {scoped ? (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Showing this assessment from {stickyStart || "the beginning"}
+          {sp.to ? ` → ${sp.to}` : ""} (IST). Type to search; click a column heading to sort.
+        </p>
+      ) : sp.from || sp.to ? (
         <p className="text-xs text-[var(--muted-foreground)]">
           Showing {sp.from ?? "start"} → {sp.to ?? "today"} (IST). Type to search; click a column heading to sort.
         </p>

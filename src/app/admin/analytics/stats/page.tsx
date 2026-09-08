@@ -35,9 +35,12 @@ export default async function StatsPage({
   searchParams: Promise<{ from?: string; to?: string; assessment?: string }>;
 }) {
   const sp = await searchParams;
-  const range = { from: sp.from, to: sp.to };
   const t = await actingTenantId();
   const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, t) : null;
+  // Scoped: the assessment's saved reporting start (statsResetAt, applied via aScope
+  // floor) IS the "from", so the URL from is ignored. To stays an ad-hoc end date.
+  const range = { from: scoped ? undefined : sp.from, to: sp.to };
+  const stickyStart = scoped?.statsResetAt ? formatIST(scoped.statsResetAt.toISOString()).split(" ")[0] : "";
   const assessmentOptions = (await listAssessments(t)).map((a) => ({ id: a.id, title: a.title }));
   const aScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : undefined;
   const pvScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {};
@@ -60,8 +63,9 @@ export default async function StatsPage({
   // own Data window when scoped, else the global one (skipped while impersonating).
   const effectiveFloor: Date | null = scoped ? scoped.statsResetAt : await getStatsFloor(t);
   const scopeLabel = scoped ? "Funnel numbers for this assessment" : "Funnel numbers across all assessments";
-  const note =
-    sp.from || sp.to
+  const note = scoped
+    ? `${scopeLabel} from ${stickyStart || "the beginning"}${sp.to ? ` → ${sp.to}` : ""} (IST) — saved for this assessment.`
+    : sp.from || sp.to
       ? `Showing ${sp.from ?? "start"} → ${sp.to ?? "today"} (IST).`
       : effectiveFloor
         ? `${scopeLabel} from ${formatIST(effectiveFloor.toISOString())} IST onward (Data window).`
@@ -109,6 +113,8 @@ export default async function StatsPage({
         from={sp.from}
         to={sp.to}
         extraQuery={scoped ? { assessment: scoped.id } : undefined}
+        stickyStartAssessmentId={scoped?.id}
+        stickyStartValue={stickyStart}
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
