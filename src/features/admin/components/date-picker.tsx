@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const pad = (n: number) => String(n).padStart(2, "0");
-const toYMD = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
+// Canonical picker string is DD-MM-YYYY (IST calendar date; see istDateRangeToUtc).
+const toDMY = (y: number, m: number, d: number) => `${pad(d)}-${pad(m + 1)}-${y}`;
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -18,20 +19,20 @@ function istToday(): { y: number; m: number; d: number } {
   return { y: ist.getUTCFullYear(), m: ist.getUTCMonth(), d: ist.getUTCDate() };
 }
 
-/** Parse a strict YYYY-MM-DD string; rejects impossible dates (e.g. 02-31). */
-function parseYMD(s: string): { y: number; m: number; d: number } | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
+/** Parse a strict DD-MM-YYYY string; rejects impossible dates (e.g. 31-02). */
+function parseDMY(s: string): { y: number; m: number; d: number } | null {
+  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s.trim());
   if (!m) return null;
-  const y = Number(m[1]);
+  const d = Number(m[1]);
   const mo = Number(m[2]) - 1;
-  const d = Number(m[3]);
+  const y = Number(m[3]);
   const dt = new Date(y, mo, d);
   if (dt.getFullYear() !== y || dt.getMonth() !== mo || dt.getDate() !== d) return null;
   return { y, m: mo, d };
 }
 
 /**
- * A date field you can BOTH type into (YYYY-MM-DD) and pick from a calendar.
+ * A date field you can BOTH type into (DD-MM-YYYY) and pick from a calendar.
  * Dependency-free; themed via CSS vars so it works in dark mode. The rendered
  * <input name> lets it submit inside a plain GET form. The string value is
  * interpreted as an IST calendar date downstream (see istDateRangeToUtc).
@@ -50,7 +51,7 @@ export function DatePicker({
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  const parsed = parseYMD(value);
+  const parsed = parseDMY(value);
   const invalid = value.trim() !== "" && !parsed;
 
   const today = istToday();
@@ -59,7 +60,7 @@ export function DatePicker({
 
   // When the typed value becomes a valid date, jump the calendar to its month.
   useEffect(() => {
-    const p = parseYMD(value);
+    const p = parseDMY(value);
     if (p) setView({ y: p.y, m: p.m });
   }, [value]);
 
@@ -96,7 +97,7 @@ export function DatePicker({
     setView({ y: base.getFullYear(), m: base.getMonth() });
   };
   const pick = (d: number) => {
-    onChange(toYMD(view.y, view.m, d));
+    onChange(toDMY(view.y, view.m, d));
     setOpen(false);
   };
 
@@ -112,7 +113,7 @@ export function DatePicker({
           type="text"
           inputMode="numeric"
           autoComplete="off"
-          placeholder="YYYY-MM-DD"
+          placeholder="DD-MM-YYYY"
           value={value}
           aria-invalid={invalid}
           onChange={(e) => onChange(e.target.value)}
@@ -183,7 +184,7 @@ export function DatePicker({
               <button
                 type="button"
                 onClick={() => {
-                  onChange(toYMD(today.y, today.m, today.d));
+                  onChange(toDMY(today.y, today.m, today.d));
                   setOpen(false);
                 }}
                 className="text-cyan-600 hover:underline"

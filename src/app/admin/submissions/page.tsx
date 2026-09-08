@@ -101,22 +101,18 @@ export default async function SubmissionsPage({
   });
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
-            Submissions
-          </span>
-          <AssessmentPicker
-            variant="heading"
-            assessments={assessmentOptions}
-            selectedId={scoped?.id ?? null}
-            basePath="/admin/submissions"
-            preserveParams={{ from: sp.from, to: sp.to }}
-          />
-        </div>
+    <div className="flex flex-col gap-4">
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
         <AnalyticsToolbar exportGroups={exportGroups(scoped?.id)} />
       </div>
+
+      <AssessmentPicker
+        assessments={assessmentOptions}
+        selectedId={scoped?.id ?? null}
+        basePath="/admin/submissions"
+        preserveParams={{ from: sp.from, to: sp.to }}
+      />
 
       <DateRangeFilter
         basePath="/admin/submissions"

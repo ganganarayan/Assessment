@@ -11,21 +11,23 @@ export function formatIST(d: Date | string): string {
   return `${day}-${m}-${y} ${time}`;
 }
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DATE_RE = /^(\d{2})-(\d{2})-(\d{4})$/;
 
 /**
- * Convert IST (UTC+5:30) calendar dates from a date-range picker into UTC
- * instant bounds for a DB query (createdAt is stored UTC). `to` is inclusive
- * to end-of-day. Invalid/blank inputs are ignored; if from > to they swap, so
- * picking the same date for both yields that single full day.
+ * Convert IST (UTC+5:30) calendar dates (DD-MM-YYYY) from a date-range picker into
+ * UTC instant bounds for a DB query (createdAt is stored UTC). `to` is inclusive to
+ * end-of-day. Invalid/blank inputs are ignored; if from > to they swap, so picking
+ * the same date for both yields that single full day.
  */
 export function istDateRangeToUtc(
   from?: string | null,
   to?: string | null,
 ): { gte: Date | null; lte: Date | null } {
   const parse = (s: string | null | undefined, end: boolean): Date | null => {
-    if (!s || !DATE_RE.test(s)) return null;
-    const d = new Date(`${s}T${end ? "23:59:59.999" : "00:00:00.000"}+05:30`);
+    const m = s ? DATE_RE.exec(s.trim()) : null;
+    if (!m) return null;
+    const [, dd, mm, yyyy] = m;
+    const d = new Date(`${yyyy}-${mm}-${dd}T${end ? "23:59:59.999" : "00:00:00.000"}+05:30`);
     return Number.isNaN(d.getTime()) ? null : d;
   };
   let gte = parse(from, false);
