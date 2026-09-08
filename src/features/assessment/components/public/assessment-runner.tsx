@@ -666,17 +666,21 @@ export function AssessmentRunner({
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="audience-gate">{gateLabel}</Label>
-          <select
-            id="audience-gate"
-            value={gateChoice}
-            onChange={(e) => setGateChoice(e.target.value)}
-            className="flex h-11 w-full rounded-md border border-cyan-500 bg-[var(--background)] px-3 py-2 text-base text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
-          >
-            <option value="" disabled>{placeholder}</option>
-            {gate.options.map((o) => (
-              <option key={o.key} value={o.key}>{o.label}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              id="audience-gate"
+              value={gateChoice}
+              onChange={(e) => setGateChoice(e.target.value)}
+              className={SELECT_CLASS}
+            >
+              <option value="" disabled>{placeholder}</option>
+              {gate.options.map((o) => (
+                <option key={o.key} value={o.key}>{o.label}</option>
+              ))}
+            </select>
+            <SelectChevron />
+          </div>
+          <p className="text-xs text-cyan-400">Tap to choose from the list ▾</p>
         </div>
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         <Button size="lg" type="button" style={ctaStyle} disabled={!gateChoice} onClick={submitGate}>
@@ -1218,6 +1222,28 @@ function Field({
   );
 }
 
+/** Shared native-<select> styling. appearance-none + a chevron + pointer cursor
+ *  make it obviously a tappable dropdown (native selects otherwise read as static
+ *  boxes on the dark theme, so respondents miss them). border-2 + hover + shadow
+ *  give it a clear interactive affordance. */
+const SELECT_CLASS =
+  "flex h-11 w-full appearance-none cursor-pointer rounded-md border-2 border-cyan-500 bg-[var(--background)] px-3 pr-10 text-base text-[var(--foreground)] shadow-sm transition-colors hover:border-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 disabled:cursor-not-allowed disabled:opacity-50";
+
+/** Down-chevron overlaid on a native select (pointer-events-none so clicks fall
+ *  through to the select). Wrap the <select> in a `relative` container. */
+function SelectChevron() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-cyan-400"
+    >
+      <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 /** Native <select> styled to match Input (dependency-free, mobile-first). The
  *  required empty option keeps the browser's "please select" validation honest. */
 function SelectField({
@@ -1240,21 +1266,24 @@ function SelectField({
       <Label>
         {label} {required ? <span className="text-red-500">*</span> : null}
       </Label>
-      <select
-        value={value}
-        required={required}
-        onChange={(e) => onChange(e.target.value)}
-        className="flex h-10 w-full rounded-md border border-cyan-500 bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <option value="" disabled={required}>
-          {placeholder}
-        </option>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
+      <div className="relative">
+        <select
+          value={value}
+          required={required}
+          onChange={(e) => onChange(e.target.value)}
+          className={SELECT_CLASS}
+        >
+          <option value="" disabled={required}>
+            {placeholder}
           </option>
-        ))}
-      </select>
+          {options.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+        <SelectChevron />
+      </div>
     </div>
   );
 }
