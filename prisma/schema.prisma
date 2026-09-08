@@ -1439,6 +1439,13 @@ model AppSetting {
   // records at/after this instant (a non-destructive "reset to 0").
   statsResetAt DateTime?
 
+  // Heatmap / session-recording snippet (e.g. MS Clarity) injected on this tenant's
+  // public funnel pages (/a/[slug] + result) so the whole opt-in → questions → submit
+  // journey records. Stored verbatim (the admin pastes the vendor snippet); the outer
+  // <script> wrapper is stripped at inject time so the inline JS runs. null/blank = off.
+  // Platform/Gita assessments read the singleton row's value.
+  heatmapCode String?
+
   // Purchase CAPI: captured amounts (₹, CSV) that AUTO-FIRE the Purchase event on
   // payment.captured. Every other captured amount is logged as "pending" for manual
   // firing. Amounts strictly above the high-ticket threshold fire under a distinct

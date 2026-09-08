@@ -30,7 +30,18 @@ export async function getPlatformIntegrationSettings(): Promise<IntegrationSetti
     hasRazorpayWebhookSecret: !!s?.razorpayWebhookSecretEnc,
     // The platform/Gita webhook is the un-suffixed route.
     webhookUrl: `${env.NEXT_PUBLIC_APP_URL}/api/payments/razorpay`,
+    heatmapCode: s?.heatmapCode ?? "",
   };
+}
+
+/** Save (or clear) the platform/Gita heatmap-recording snippet (singleton row). */
+export async function updatePlatformHeatmapSettings(code: string): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  const data = { heatmapCode: code.trim() || null };
+  await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
+  revalidatePath("/admin/settings");
+  return { ok: true };
 }
 
 export async function updatePlatformMetaSettings(pixelId: string, capiToken: string): Promise<ActionResult> {

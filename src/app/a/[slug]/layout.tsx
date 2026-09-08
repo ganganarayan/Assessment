@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
-import { resolveMetaConfig } from "@/lib/settings/config";
+import { resolveMetaConfig, resolveHeatmapCode } from "@/lib/settings/config";
 import { MetaPixel } from "@/components/meta-pixel";
+import { HeatmapRecording } from "@/components/heatmap-recording";
 
 /**
  * Per-assessment funnel layout: loads THIS assessment's tenant and mounts its Meta
@@ -16,10 +17,15 @@ export default async function AssessmentSlugLayout({
 }) {
   const { slug } = await params;
   const a = await prisma.assessment.findFirst({ where: { slug }, select: { tenantId: true } });
-  const { pixelId } = await resolveMetaConfig(a?.tenantId ?? null);
+  const tenantId = a?.tenantId ?? null;
+  const [{ pixelId }, heatmapCode] = await Promise.all([
+    resolveMetaConfig(tenantId),
+    resolveHeatmapCode(tenantId),
+  ]);
   return (
     <>
       <MetaPixel pixelId={pixelId} />
+      <HeatmapRecording code={heatmapCode} />
       {children}
     </>
   );

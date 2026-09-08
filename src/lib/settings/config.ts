@@ -56,6 +56,16 @@ export async function resolveMetaConfig(tenantId: string | null): Promise<MetaCo
   return { pixelId, capiToken, datasetId };
 }
 
+/**
+ * Resolve a tenant's heatmap/recording snippet (e.g. MS Clarity). Read from the
+ * tenant's own AppSetting row; the platform/Gita path reads the singleton. No env
+ * fallback (new feature) — null/blank means the funnel injects nothing.
+ */
+export async function resolveHeatmapCode(tenantId: string | null): Promise<string | null> {
+  const s = (await settingRow(tenantId, { heatmapCode: true })) as { heatmapCode: string | null } | null;
+  return s?.heatmapCode?.trim() || null;
+}
+
 export interface RazorpayConfig {
   keyId: string | null;
   keySecret: string | null;

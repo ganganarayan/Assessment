@@ -8,12 +8,15 @@ import {
   getIntegrationSettings,
   updateMetaSettings,
   updateRazorpaySettings,
+  updateHeatmapSettings,
 } from "@/features/workspace/actions/integrations";
+import { HeatmapSettingsForm } from "@/features/workspace/components/heatmap-settings-form";
 import { getDomainSettings } from "@/features/workspace/actions/domains";
 import {
   getPlatformIntegrationSettings,
   updatePlatformMetaSettings,
   updatePlatformRazorpaySettings,
+  updatePlatformHeatmapSettings,
   getLegalSettings,
 } from "@/features/admin/actions/platform-integrations";
 import { LegalSettingsForm } from "@/features/admin/components/legal-settings-form";
@@ -80,6 +83,23 @@ export default async function SettingsPage() {
                 ? "Live for this tenant: its funnel fires this pixel, CAPI sends with this token, and payments run on this Razorpay account. Secrets are encrypted and never shown again."
                 : "Platform/Gita keys. Values here take priority over the env vars (which stay as the fallback), so you can move Gita off env without a redeploy. Secrets are encrypted and never shown again."
             }
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Heatmap &amp; session recording {impersonating ? "(this tenant)" : "(platform · Gita)"}</CardTitle>
+          <CardDescription>
+            Paste a recording snippet (e.g. MS Clarity). It runs on every funnel page
+            (opt-in → each question → result), so the whole session records —
+            {impersonating ? " for the tenant you're currently in." : " for your platform (Gita) assessments."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <HeatmapSettingsForm
+            initial={integrations.heatmapCode}
+            saveAction={impersonating ? updateHeatmapSettings : updatePlatformHeatmapSettings}
           />
         </CardContent>
       </Card>

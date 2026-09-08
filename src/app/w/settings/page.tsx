@@ -1,6 +1,7 @@
 import { requireWorkspace } from "@/lib/auth/guards";
 import { getAiSettings } from "@/features/admin/actions/ai-settings";
-import { getIntegrationSettings, updateMetaSettings, updateRazorpaySettings } from "@/features/workspace/actions/integrations";
+import { getIntegrationSettings, updateMetaSettings, updateRazorpaySettings, updateHeatmapSettings } from "@/features/workspace/actions/integrations";
+import { HeatmapSettingsForm } from "@/features/workspace/components/heatmap-settings-form";
 import { getDomainSettings } from "@/features/workspace/actions/domains";
 import { getBookingUrl } from "@/features/workspace/actions/booking";
 import { getThemeColors } from "@/features/workspace/actions/theme";
@@ -72,6 +73,19 @@ export default async function WorkspaceSettingsPage() {
             saveMetaAction={updateMetaSettings}
             saveRazorpayAction={updateRazorpaySettings}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Heatmap &amp; session recording</CardTitle>
+          <CardDescription>
+            Paste a recording snippet (e.g. MS Clarity) to record every respondent&apos;s session
+            across your funnel — opt-in, each question, and the result page.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <HeatmapSettingsForm initial={integrations.heatmapCode} saveAction={updateHeatmapSettings} />
         </CardContent>
       </Card>
 

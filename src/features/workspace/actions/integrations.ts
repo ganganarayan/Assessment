@@ -27,6 +27,8 @@ export interface IntegrationSettingsView {
   hasRazorpayWebhookSecret: boolean;
   /** Where THIS tenant must point Razorpay → Settings → Webhooks. */
   webhookUrl: string;
+  /** Heatmap/recording snippet (e.g. MS Clarity), shown as-is so it can be edited. */
+  heatmapCode: string;
 }
 
 export async function getIntegrationSettings(): Promise<IntegrationSettingsView> {
@@ -51,7 +53,19 @@ export async function getIntegrationSettings(): Promise<IntegrationSettingsView>
     hasRazorpaySecret: !!s?.razorpayKeySecretEnc,
     hasRazorpayWebhookSecret: !!s?.razorpayWebhookSecretEnc,
     webhookUrl: `${base}/api/payments/razorpay/${tenant?.slug ?? ""}`,
+    heatmapCode: s?.heatmapCode ?? "",
   };
+}
+
+/** Save (or clear) this tenant's heatmap/recording snippet. Stored verbatim. */
+export async function updateHeatmapSettings(code: string): Promise<ActionResult> {
+  const { user, tenantId } = await requireWorkspace();
+  const denied = editDenied(user);
+  if (denied) return denied;
+  const data = { heatmapCode: code.trim() || null };
+  await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { id: tenantAppSettingId(tenantId), tenantId, ...data } });
+  revalidatePath("/w/settings");
+  return { ok: true };
 }
 
 export async function updateMetaSettings(pixelId: string, capiToken: string): Promise<ActionResult> {
