@@ -114,10 +114,16 @@ export default async function WorkspaceSubmissionsPage({
         extraQuery={scoped ? { assessment: scoped.id } : undefined}
       />
 
-      <p className="text-xs text-[var(--muted-foreground)]">
-        Every submission to your assessments — private to this workspace. Type to search; click a
-        column heading to sort.
-      </p>
+      {sp.from || sp.to ? (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Showing {sp.from ?? "start"} → {sp.to ?? "today"} (IST). Type to search; click a column heading to sort.
+        </p>
+      ) : (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Every submission to your assessments — private to this workspace. Type to search; click a
+          column heading to sort.
+        </p>
+      )}
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions yet.</p>
       ) : (

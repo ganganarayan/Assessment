@@ -120,7 +120,11 @@ export default async function SubmissionsPage({
         extraQuery={scoped ? { assessment: scoped.id } : undefined}
       />
 
-      {effectiveFloor ? (
+      {sp.from || sp.to ? (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Showing {sp.from ?? "start"} → {sp.to ?? "today"} (IST). Type to search; click a column heading to sort.
+        </p>
+      ) : effectiveFloor ? (
         <p className="text-xs text-[var(--muted-foreground)]">
           Showing from {formatIST(effectiveFloor.toISOString())} IST (Data window). Type to search; click a column heading to sort.
         </p>
