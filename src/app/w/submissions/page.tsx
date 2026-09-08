@@ -1,5 +1,6 @@
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
-import { listSubmissions } from "@/features/assessment/data";
+import { listSubmissions, getAssessmentForAnalytics, listAssessments } from "@/features/assessment/data";
+import { AssessmentPicker } from "@/features/admin/components/assessment-picker";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { labeledAnswers } from "@/features/assessment/custom-fields";
 import { normalizeAttribution } from "@/lib/events/payload";
@@ -13,10 +14,22 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function WorkspaceSubmissionsPage() {
+export default async function WorkspaceSubmissionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ assessment?: string }>;
+}) {
   const { tenantId } = await requireWorkspace();
   const canDelete = await currentUserCanEdit();
-  const submissions = await listSubmissions(100_000, tenantId);
+  const sp = await searchParams;
+  // Tenant-scoped: a foreign/bad id resolves to null (no leak) → falls back to all.
+  const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, tenantId) : null;
+  const assessmentOptions = (await listAssessments(tenantId)).map((a) => ({ id: a.id, title: a.title }));
+  const submissions = await listSubmissions(
+    100_000,
+    tenantId,
+    scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : undefined,
+  );
   const paid = await getPaidBySubmission(submissions.map((s) => s.id));
   const rows: SubmissionRow[] = submissions.map((s) => {
     const p = paid.get(s.id);
@@ -86,7 +99,8 @@ export default async function WorkspaceSubmissionsPage() {
         <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
         <AnalyticsToolbar exportGroups={exportGroups} />
       </div>
-      <p className="-mt-4 text-xs text-[var(--muted-foreground)]">
+      <AssessmentPicker assessments={assessmentOptions} selectedId={scoped?.id ?? null} basePath="/w/submissions" />
+      <p className="-mt-2 text-xs text-[var(--muted-foreground)]">
         Every submission to your assessments — private to this workspace. Type to search; click a
         column heading to sort.
       </p>
