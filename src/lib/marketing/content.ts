@@ -50,24 +50,36 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
     body: "Assign points per answer and weight each category, so the final score reflects real fit — not just completion.",
   },
   {
+    title: "Conditional logic & branching",
+    body: "Route each respondent by their answers — skip or jump questions so everyone gets the shortest relevant path to their score.",
+  },
+  {
     title: "Dynamic result pages",
     body: "Every respondent gets a personalized, hosted result: their score, their strengths, and a clear next step.",
+  },
+  {
+    title: "AI question generation",
+    body: "Generate a first draft of your questions and answer options with AI, then edit — a full scorecard in minutes.",
   },
   {
     title: "AI-written result reports",
     body: "Connect your own OpenAI, Claude, or Gemini key and let it write a short, personalized report for each respondent.",
   },
   {
-    title: "Conversion tracking",
-    body: "Fire server-side lead and purchase events to Meta Pixel and the Conversions API, deduplicated, so your ad optimization sees real outcomes.",
+    title: "Result interpretation & bands",
+    body: "Map scores to named bands, each with its own tailored message and recommended next step.",
+  },
+  {
+    title: "Meta Pixel + Conversions API",
+    body: "Fire browser and server-side lead and purchase events to Meta — Pixel plus the Conversions API, deduplicated — so your ad optimization learns from real outcomes.",
+  },
+  {
+    title: "Heatmap & session recording",
+    body: "Drop in your Microsoft Clarity (or any heatmap / recording) snippet — per workspace or per assessment — and see exactly how respondents move through the funnel.",
   },
   {
     title: "Branded PDF reports",
     body: "Turn each scored result into a clean, branded PDF your respondents can download and your team can keep.",
-  },
-  {
-    title: "Result interpretation & bands",
-    body: "Map scores to named bands, each with its own tailored message and recommended next step.",
   },
   {
     title: "Lead export & integrations",
@@ -78,9 +90,8 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
     body: "Run the whole experience on your own domain, in your own brand colors and logo.",
   },
   {
-    title: "Conditional logic & branching",
-    body: "Show the next question based on the last answer — shorter paths for respondents, sharper signal for you.",
-    soon: true,
+    title: "Team roles & access",
+    body: "Invite teammates into your workspace, with edit permissions you control.",
   },
 ];
 
@@ -150,9 +161,12 @@ export const TIERS: ReadonlyArray<Tier> = [
     features: [
       "15 assessments",
       "2,000 responses / month",
+      "Conditional logic & branching",
+      "AI reports + question generation",
+      "Heatmap & session recording",
       "Custom domain",
       "Branding removed",
-      "GA / Pixel tracking",
+      "Meta Pixel + Conversions API",
       "Split testing (coming soon)",
       "3 seats",
     ],
@@ -168,9 +182,11 @@ export const TIERS: ReadonlyArray<Tier> = [
     features: [
       "Unlimited assessments",
       "12,000 responses / month",
+      "Conditional logic & branching",
+      "AI reports + question generation",
+      "Heatmap & session recording",
       "Staff roles & permissions",
       "API access",
-      "AI result reports",
       "5+ seats",
       "Priority support",
     ],
