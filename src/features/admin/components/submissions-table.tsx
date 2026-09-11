@@ -213,6 +213,7 @@ export function SubmissionsTable({
           <div className="flex items-baseline justify-between gap-4">
             {hideGroupTitle ? (
               <p className="text-sm text-[var(--muted-foreground)]">
+                {group.rows.filter((r) => r.status === "COMPLETED").length} completions ·{" "}
                 {group.rows.length} submission{group.rows.length === 1 ? "" : "s"}
               </p>
             ) : (

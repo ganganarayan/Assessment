@@ -51,7 +51,7 @@ export function AiRerun({ assessmentId }: { assessmentId: string }) {
       setErr(r.error);
       return;
     }
-    setTotal(r.data?.total ?? 0);
+    setTotal(r.data?.completions ?? 0);
     setDone(0);
     setSucceeded(0);
     setFailed(0);

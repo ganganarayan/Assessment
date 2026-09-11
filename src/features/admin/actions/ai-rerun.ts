@@ -8,6 +8,7 @@ import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission
 import { type StatementInput } from "@/lib/ai/types";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { floorCreatedAt } from "@/lib/stats-floor";
 
 /** Per-round result for the client-driven progress loop. */
 export interface AiRerunBatchResult {
@@ -23,11 +24,35 @@ export interface AiRerunBatchResult {
  *  round stays well under any request timeout and we don't hammer the LLM. */
 const BATCH = 5;
 
-/** Count of completed contacts (for the preview / estimate). */
-export async function aiRerunCount(assessmentId: string): Promise<ActionResult<{ total: number }>> {
+/**
+ * The saved reporting-start floor for this assessment (Assessment.statsResetAt),
+ * as a `createdAt` where-fragment. Every count and the re-run itself apply this so
+ * the numbers match the Submissions page and we never touch pre-window contacts.
+ * Module-local (not exported) — this "use server" file exports only async actions.
+ */
+async function assessmentFloor(assessmentId: string): Promise<Record<string, unknown>> {
+  const a = await prisma.assessment.findUnique({
+    where: { id: assessmentId },
+    select: { statsResetAt: true },
+  });
+  return floorCreatedAt(a?.statsResetAt ?? null);
+}
+
+/**
+ * Completions + total submissions for the selected assessment, both scoped to the
+ * assessment's saved reporting-start date. `completions` is exactly what the re-run
+ * will process (the rest have no score snapshot). Drives the auto-loaded readout.
+ */
+export async function aiRerunCount(
+  assessmentId: string,
+): Promise<ActionResult<{ completions: number; submissions: number }>> {
   await requireSuperAdmin();
-  const total = await prisma.submission.count({ where: { assessmentId, status: "COMPLETED" } });
-  return { ok: true, data: { total } };
+  const floor = await assessmentFloor(assessmentId);
+  const [completions, submissions] = await Promise.all([
+    prisma.submission.count({ where: { assessmentId, status: "COMPLETED", ...floor } }),
+    prisma.submission.count({ where: { assessmentId, ...floor } }),
+  ]);
+  return { ok: true, data: { completions, submissions } };
 }
 
 export interface AiSample {
@@ -51,8 +76,9 @@ export async function previewAiSamples(
 ): Promise<ActionResult<{ samples: AiSample[] }>> {
   assertCanEditOrThrow(await requireSuperAdmin());
 
+  const floor = await assessmentFloor(assessmentId);
   const subs = await prisma.submission.findMany({
-    where: { assessmentId, status: "COMPLETED" },
+    where: { assessmentId, status: "COMPLETED", ...floor },
     orderBy: { createdAt: "desc" },
     take: 60,
     select: {
@@ -140,9 +166,11 @@ export async function regenerateAiBatch(
 ): Promise<ActionResult<AiRerunBatchResult>> {
   assertCanEditOrThrow(await requireSuperAdmin());
 
-  const total = await prisma.submission.count({ where: { assessmentId, status: "COMPLETED" } });
+  const floor = await assessmentFloor(assessmentId);
+  const where = { assessmentId, status: "COMPLETED" as const, ...floor };
+  const total = await prisma.submission.count({ where });
   const subs = await prisma.submission.findMany({
-    where: { assessmentId, status: "COMPLETED" },
+    where,
     orderBy: { createdAt: "asc" },
     skip: Math.max(0, offset),
     take: BATCH,

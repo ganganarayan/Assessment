@@ -7,6 +7,7 @@ import { ReconstructAnswers } from "@/features/assessment/components/admin/recon
 import { AiRerun } from "@/features/assessment/components/admin/ai-rerun";
 import { CrmResend } from "@/features/assessment/components/admin/crm-resend";
 import { CustomSender } from "@/features/assessment/components/admin/custom-sender";
+import { aiRerunCount } from "@/features/admin/actions/ai-rerun";
 
 export interface OpAssessment {
   id: string;
@@ -24,6 +25,26 @@ const DEFAULT_KEY = "assess360.opsDefaultAssessment";
 export function OperationsPanel({ assessments }: { assessments: OpAssessment[] }) {
   const [sel, setSel] = useState(assessments[0]?.id ?? "");
   const [savedDefault, setSavedDefault] = useState(false);
+  const [counts, setCounts] = useState<{ completions: number; submissions: number } | null>(null);
+  const [countErr, setCountErr] = useState<string | null>(null);
+
+  // Auto-load the completions / submissions count whenever the selected assessment
+  // changes — no button. Same per-assessment reporting-start floor as the count the
+  // re-run uses, so what's shown is exactly what a re-run would process.
+  useEffect(() => {
+    if (!sel) return;
+    let cancelled = false;
+    setCounts(null);
+    setCountErr(null);
+    aiRerunCount(sel).then((r) => {
+      if (cancelled) return;
+      if (r.ok) setCounts(r.data ?? null);
+      else setCountErr(r.error);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sel]);
 
   // Apply the saved default assessment on mount (client-only, so no SSR mismatch).
   useEffect(() => {
@@ -72,9 +93,24 @@ export function OperationsPanel({ assessments }: { assessments: OpAssessment[] }
             {savedDefault ? "Saved ✓" : "Set as default"}
           </Button>
         </div>
+        <p className="text-sm" aria-live="polite">
+          {countErr ? (
+            <span className="text-red-500">{countErr}</span>
+          ) : counts ? (
+            <>
+              <span className="text-green-600">●</span>{" "}
+              <strong>{counts.completions}</strong> completions / <strong>{counts.submissions}</strong>{" "}
+              submissions for this assessment
+            </>
+          ) : (
+            <span className="text-[var(--muted-foreground)]">Loading counts…</span>
+          )}
+        </p>
         <p className="text-xs text-[var(--muted-foreground)]">
           These tools run against the selected assessment (the Score sender is global — every changed
-          contact). Switching assessments resets the panels below.
+          contact). The count above uses this assessment&apos;s saved reporting-start date; recompute
+          and the AI re-run process the completions only (the rest have no stored result). Switching
+          assessments resets the panels below.
         </p>
       </div>
 
