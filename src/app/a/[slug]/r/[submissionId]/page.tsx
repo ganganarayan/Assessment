@@ -127,11 +127,14 @@ export default async function ResultPage({
   // page WITHOUT ?t= (the "Result" link in Submissions).
   const showInternal = canViewInternally && !token;
 
-  // Optional "Show results on assess360" onward button — a PLAIN external link (no
-  // token appended) shown at the bottom of the result, on both the clinic recalc and
-  // the generic band result. Null => no button.
+  // Optional "Show results on assess360" onward button, shown at the bottom of the
+  // result on both the clinic recalc and the generic band result. Null => no button.
   const continueUrl = submission.assessment.resultsContinueUrl?.trim() || null;
   const continueLabel = submission.assessment.resultsContinueLabel?.trim() || "Continue";
+  // The button routes through /api/onward/:id (not the raw external URL) so the click
+  // is tracked server-side (bumps the VSL counter) and the token rides along to the
+  // destination — with NO code required on the destination page. Null => no button.
+  const onwardHref = continueUrl ? `/api/onward/${submissionId}` : null;
 
   // result.viewed represents the RESPONDENT opening their result — don't fire it
   // for an internal (admin/tenant) review.
@@ -289,7 +292,7 @@ export default async function ResultPage({
           bookingUrl={setting?.bookingUrl ?? null}
           resultUrl={resultUrl}
           title={submission.assessment.title}
-          continueUrl={continueUrl}
+          continueUrl={onwardHref}
           continueLabel={continueLabel}
           answers={clinicAnswers.map((c) => ({
             name: c.name,
@@ -494,11 +497,12 @@ export default async function ResultPage({
               </CardContent>
             </Card>
           ))}
-          {/* Onward button (nextStep RESULTS): a plain external link — no token —
-              e.g. to a Power Tools page where the respondent picks their next step. */}
-          {continueUrl ? (
+          {/* Onward button (nextStep RESULTS): routes via /api/onward/:id so the
+              click is tracked (VSL) and the token rides along — no code needed on
+              the destination page. */}
+          {onwardHref ? (
             <a
-              href={continueUrl}
+              href={onwardHref}
               className="inline-flex w-full items-center justify-center rounded-md bg-green-600 px-5 py-3 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
             >
               {continueLabel} →
