@@ -1451,6 +1451,14 @@ model AppSetting {
   // Platform/Gita assessments read the singleton row's value.
   heatmapCode String?
 
+  // VidaPulse identity bridge: after the assessment, the in-app VSL page embeds a
+  // VidaPulse video (iframe). When enabled, the opaque Submission.customerId (never
+  // any PII) is appended to that embed's src under vidapulseParam, so VidaPulse can
+  // bind its own customer/click record to ours. Enabled + "cid" by default (harmless
+  // on any player — an unknown query param is ignored). null tenant => singleton value.
+  vidapulseTrackingEnabled Boolean @default(true)
+  vidapulseParam           String  @default("cid")
+
   // Purchase CAPI: captured amounts (₹, CSV) that AUTO-FIRE the Purchase event on
   // payment.captured. Every other captured amount is logged as "pending" for manual
   // firing. Amounts strictly above the high-ticket threshold fire under a distinct

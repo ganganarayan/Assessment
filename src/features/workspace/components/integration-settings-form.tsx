@@ -9,6 +9,7 @@ import { type IntegrationSettingsView } from "@/features/workspace/actions/integ
 type SaveResult = { ok: boolean; error?: string };
 type SaveMeta = (pixelId: string, capiToken: string) => Promise<SaveResult>;
 type SaveRazorpay = (keyId: string, keySecret: string, webhookSecret: string) => Promise<SaveResult>;
+type SaveVidapulse = (param: string, enabled: boolean) => Promise<SaveResult>;
 
 /**
  * Shared Meta + Razorpay key editor. The SAVE actions are injected so the same form
@@ -20,11 +21,13 @@ export function IntegrationSettingsForm({
   initial,
   saveMetaAction,
   saveRazorpayAction,
+  saveVidapulseAction,
   banner,
 }: {
   initial: IntegrationSettingsView;
   saveMetaAction: SaveMeta;
   saveRazorpayAction: SaveRazorpay;
+  saveVidapulseAction: SaveVidapulse;
   banner?: string;
 }) {
   const [pixelId, setPixelId] = useState(initial.metaPixelId);
@@ -32,6 +35,8 @@ export function IntegrationSettingsForm({
   const [keyId, setKeyId] = useState(initial.razorpayKeyId);
   const [keySecret, setKeySecret] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
+  const [vpParam, setVpParam] = useState(initial.vidapulseParam);
+  const [vpEnabled, setVpEnabled] = useState(initial.vidapulseTrackingEnabled);
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -52,6 +57,13 @@ export function IntegrationSettingsForm({
         setKeySecret("");
         setWebhookSecret("");
       }
+    });
+
+  const saveVidapulse = () =>
+    start(async () => {
+      setMsg(null);
+      const r = await saveVidapulseAction(vpParam, vpEnabled);
+      setMsg(r.ok ? "VidaPulse settings saved." : r.error ?? "Something went wrong.");
     });
 
   return (
@@ -109,6 +121,28 @@ export function IntegrationSettingsForm({
         </div>
         <div>
           <Button size="sm" onClick={saveRazorpay} disabled={pending}>Save Razorpay settings</Button>
+        </div>
+      </div>
+
+      {/* VidaPulse */}
+      <div className="flex flex-col gap-3 border-t pt-4">
+        <p className="text-sm font-medium">VidaPulse video tracking</p>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Passes the respondent&apos;s opaque customer ID (no name/email/phone) into the VSL
+          video embed on the result page, so VidaPulse can match its own viewer to this person.
+          In VidaPulse, capture this URL parameter against the customer.
+        </p>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={vpEnabled} onChange={(e) => setVpEnabled(e.target.checked)} />
+          Add the customer ID to VidaPulse embeds
+        </label>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">URL parameter name</Label>
+          <Input value={vpParam} onChange={(e) => setVpParam(e.target.value)} placeholder="cid" className="font-mono text-xs" />
+          <p className="text-xs text-[var(--muted-foreground)]">Default is cid — e.g. the embed loads as …/embed/&lt;id&gt;?cid=&lt;customer id&gt;.</p>
+        </div>
+        <div>
+          <Button size="sm" onClick={saveVidapulse} disabled={pending}>Save VidaPulse settings</Button>
         </div>
       </div>
 

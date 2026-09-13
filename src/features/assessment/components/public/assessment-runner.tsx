@@ -15,6 +15,7 @@ import { type PaymentCheckout } from "@/lib/payments/types";
 import { ResultPages } from "@/features/assessment/components/public/result-pages";
 import { type LeadInput, professionOptionsFor, type PreResultField } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
+import { appendVidapulseId } from "@/lib/vidapulse";
 import { detectUnitFromQuestion, isClinicRole, type ClinicRole } from "@/lib/scoring/clinic-audit";
 import { buildSpine, nextIndex, walk, type RouteSpec } from "@/lib/routing/engine";
 import { Button } from "@/components/ui/button";
@@ -571,7 +572,10 @@ export function AssessmentRunner({
       return;
     }
     if (pageResultDest) {
-      const u = pageResultDest + (pageResultDest.includes("?") ? "&" : "?") + "event=1";
+      // If the destination is an EXTERNAL VSL page (its own VidaPulse embed), carry the
+      // opaque customerId there too, so that page can bind it. No-op when tracking is off.
+      const dest = appendVidapulseId(pageResultDest, pageResult?.vidapulseParam ?? null, pageResult?.customerId ?? null);
+      const u = dest + (dest.includes("?") ? "&" : "?") + "event=1";
       window.location.replace(u);
     }
   }
@@ -580,7 +584,7 @@ export function AssessmentRunner({
     return (
       <ResultPages
         pages={assessment.pages}
-        result={pageResult ?? { overallBandTitle: null, overallBandLevel: null, categories: [] }}
+        result={pageResult ?? { overallBandTitle: null, overallBandLevel: null, categories: [], customerId: null, vidapulseParam: null }}
         onPay={payFromPage}
         payPending={payPending}
         payError={payError}

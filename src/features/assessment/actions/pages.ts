@@ -7,6 +7,7 @@ import { assertEdit } from "@/lib/tenant/acting";
 import { isBlockType, defaultConfig, readPublishedPages, type BlockType, type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { resolveVidapulseParam } from "@/lib/vidapulse";
 
 /** Result data the public page-2 needs for dynamic blocks. Bands only — the real
  *  numeric scores are NEVER sent (the teaser blurs them; the VSL shows them after
@@ -15,18 +16,32 @@ export interface PageResultData {
   overallBandTitle: string | null;
   overallBandLevel: string | null;
   categories: { name: string; band: string | null }[];
+  // VidaPulse identity bridge: the opaque customerId + the tenant's effective param
+  // name, so the VSL video block can carry the id into the embed. param null = off.
+  customerId: string | null;
+  vidapulseParam: string | null;
 }
 
 export async function getResultForPages(submissionId: string): Promise<ActionResult<PageResultData>> {
-  const s = await prisma.submission.findUnique({ where: { id: submissionId }, select: { resultSnapshot: true } });
+  const s = await prisma.submission.findUnique({
+    where: { id: submissionId },
+    select: { resultSnapshot: true, customerId: true, assessment: { select: { tenantId: true } } },
+  });
   const snap = (s?.resultSnapshot ?? null) as ResultSnapshot | null;
   if (!snap) return { ok: false, error: "No result yet." };
+  // Resolve the tenant's VidaPulse param (singleton for platform/Gita assessments).
+  const tenantId = s?.assessment.tenantId ?? null;
+  const setting = tenantId
+    ? await prisma.appSetting.findUnique({ where: { tenantId }, select: { vidapulseTrackingEnabled: true, vidapulseParam: true } })
+    : await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { vidapulseTrackingEnabled: true, vidapulseParam: true } });
   return {
     ok: true,
     data: {
       overallBandTitle: snap.resultBand ?? null,
       overallBandLevel: snap.resultBandLevel ?? null,
       categories: (Array.isArray(snap.categories) ? snap.categories : []).map((c) => ({ name: c.name, band: c.band })),
+      customerId: s?.customerId ?? null,
+      vidapulseParam: resolveVidapulseParam(setting),
     },
   };
 }

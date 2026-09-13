@@ -31,7 +31,19 @@ export async function getPlatformIntegrationSettings(): Promise<IntegrationSetti
     // The platform/Gita webhook is the un-suffixed route.
     webhookUrl: `${env.NEXT_PUBLIC_APP_URL}/api/payments/razorpay`,
     heatmapCode: s?.heatmapCode ?? "",
+    vidapulseTrackingEnabled: s?.vidapulseTrackingEnabled ?? true,
+    vidapulseParam: s?.vidapulseParam ?? "cid",
   };
+}
+
+/** Save the platform/Gita VidaPulse embed-tracking config (singleton row). */
+export async function updatePlatformVidapulseSettings(param: string, enabled: boolean): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  const data = { vidapulseTrackingEnabled: enabled, vidapulseParam: param.trim() || "cid" };
+  await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
+  revalidatePath("/admin/settings");
+  return { ok: true };
 }
 
 /** Save (or clear) the platform/Gita heatmap-recording snippet (singleton row). */

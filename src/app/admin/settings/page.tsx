@@ -9,6 +9,7 @@ import {
   updateMetaSettings,
   updateRazorpaySettings,
   updateHeatmapSettings,
+  updateVidapulseSettings,
 } from "@/features/workspace/actions/integrations";
 import { HeatmapSettingsForm } from "@/features/workspace/components/heatmap-settings-form";
 import { getDomainSettings } from "@/features/workspace/actions/domains";
@@ -17,6 +18,7 @@ import {
   updatePlatformMetaSettings,
   updatePlatformRazorpaySettings,
   updatePlatformHeatmapSettings,
+  updatePlatformVidapulseSettings,
   getLegalSettings,
 } from "@/features/admin/actions/platform-integrations";
 import { LegalSettingsForm } from "@/features/admin/components/legal-settings-form";
@@ -78,6 +80,7 @@ export default async function SettingsPage() {
             initial={integrations}
             saveMetaAction={impersonating ? updateMetaSettings : updatePlatformMetaSettings}
             saveRazorpayAction={impersonating ? updateRazorpaySettings : updatePlatformRazorpaySettings}
+            saveVidapulseAction={impersonating ? updateVidapulseSettings : updatePlatformVidapulseSettings}
             banner={
               impersonating
                 ? "Live for this tenant: its funnel fires this pixel, CAPI sends with this token, and payments run on this Razorpay account. Secrets are encrypted and never shown again."

@@ -6,11 +6,15 @@ import {
   type PageBlockData,
   type BandLevel,
 } from "@/features/assessment/pages/blocks";
+import { appendVidapulseId } from "@/lib/vidapulse";
 
 export interface ResultForPages {
   overallBandTitle: string | null;
   overallBandLevel: string | null;
   categories: { name: string; band: string | null }[];
+  // VidaPulse identity bridge (see @/lib/vidapulse): carried into the video embed src.
+  customerId: string | null;
+  vidapulseParam: string | null;
 }
 
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
@@ -77,10 +81,13 @@ function Block({
     case "video": {
       const url = str(c.embedUrl);
       if (!isHttp(url)) return null;
+      // Carry the opaque customerId into the (VidaPulse) embed so it can bind its
+      // own customer record to ours. No-op for any player that ignores the param.
+      const src = appendVidapulseId(url, result.vidapulseParam, result.customerId);
       return (
         <div className="aspect-video w-full overflow-hidden rounded-lg border">
           <iframe
-            src={url}
+            src={src}
             className="h-full w-full"
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
             allowFullScreen

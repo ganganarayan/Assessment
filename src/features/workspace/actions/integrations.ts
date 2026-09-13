@@ -29,6 +29,9 @@ export interface IntegrationSettingsView {
   webhookUrl: string;
   /** Heatmap/recording snippet (e.g. MS Clarity), shown as-is so it can be edited. */
   heatmapCode: string;
+  /** VidaPulse identity bridge: pass the opaque customerId into the VSL embed. */
+  vidapulseTrackingEnabled: boolean;
+  vidapulseParam: string;
 }
 
 export async function getIntegrationSettings(): Promise<IntegrationSettingsView> {
@@ -54,7 +57,20 @@ export async function getIntegrationSettings(): Promise<IntegrationSettingsView>
     hasRazorpayWebhookSecret: !!s?.razorpayWebhookSecretEnc,
     webhookUrl: `${base}/api/payments/razorpay/${tenant?.slug ?? ""}`,
     heatmapCode: s?.heatmapCode ?? "",
+    vidapulseTrackingEnabled: s?.vidapulseTrackingEnabled ?? true,
+    vidapulseParam: s?.vidapulseParam ?? "cid",
   };
+}
+
+/** Save this tenant's VidaPulse embed-tracking config (param name + on/off). */
+export async function updateVidapulseSettings(param: string, enabled: boolean): Promise<ActionResult> {
+  const { user, tenantId } = await requireWorkspace();
+  const denied = editDenied(user);
+  if (denied) return denied;
+  const data = { vidapulseTrackingEnabled: enabled, vidapulseParam: param.trim() || "cid" };
+  await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { id: tenantAppSettingId(tenantId), tenantId, ...data } });
+  revalidatePath("/w/settings");
+  return { ok: true };
 }
 
 /** Save (or clear) this tenant's heatmap/recording snippet. Stored verbatim. */
