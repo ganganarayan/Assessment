@@ -354,6 +354,11 @@ export async function startSubmission(
   /** Audience-gate role the respondent picked (Phase 2). Validated against the
    *  assessment's own role list; anything else is dropped. */
   audienceRole?: string,
+  /** When the respondent actually began the assessment (client clock, ISO). In
+   *  lead-capture-after mode the questions run anonymously BEFORE this row exists,
+   *  so without it startedAt/createdAt would equal completedAt (row is created at
+   *  the very end). Clamped server-side; ignored when absent/implausible. */
+  startedAtClient?: string,
 ): Promise<ActionResult<StartResult>> {
   // Bot guard #1 — honeypot: a hidden form field no human fills. If it carries a
   // value, silently refuse (no submission created) so bot opt-ins never pollute the
@@ -479,10 +484,25 @@ export async function startSubmission(
     : {};
   const optinData = Object.keys(cleanOptin).length ? { optinAnswers: cleanOptin as unknown as Prisma.InputJsonValue } : {};
 
+  // Real start of the assessment (lead-capture-after: when the anonymous question
+  // phase began, sent by the client). Trust it only when it parses and sits in a
+  // sane window — at or before now, and no older than 12h — else let the DB default
+  // (now) stand. Never in the future.
+  const clientStart = startedAtClient ? new Date(startedAtClient) : null;
+  const now = Date.now();
+  const startedAt =
+    clientStart && !isNaN(clientStart.getTime()) &&
+    clientStart.getTime() <= now &&
+    clientStart.getTime() >= now - 12 * 60 * 60 * 1000
+      ? clientStart
+      : null;
+  const startedAtData = startedAt ? { startedAt } : {};
+
   const submissionData = {
     assessmentId: assessment.id,
     tenantId: assessment.tenantId,
     status: "STARTED" as const,
+    ...startedAtData,
     leadFirstName: assessment.collectFirstName ? firstName : null,
     leadLastName: assessment.collectLastName ? lastName : null,
     leadEmail: assessment.collectEmail ? email : null,

@@ -14,7 +14,8 @@ export interface SubmissionRow {
   slug: string;
   assessmentId: string;
   assessmentTitle: string;
-  createdAt: string; // ISO (opt-in)
+  createdAt: string; // ISO (row created)
+  startedAt: string; // ISO (assessment actually begun — precedes completion)
   completedAt: string | null; // ISO
   firstName: string | null;
   lastName: string | null;
@@ -158,7 +159,7 @@ export function SubmissionsTable({
     const name = (r: SubmissionRow) => [r.firstName, r.lastName].filter(Boolean).join(" ").toLowerCase();
     const val = (r: SubmissionRow): string | number => {
       switch (sort.key) {
-        case "date": return r.createdAt;
+        case "date": return r.startedAt;
         case "lead": return name(r);
         case "score": return r.totalScore ?? -1;
       }
@@ -282,7 +283,7 @@ export function SubmissionsTable({
                     onClick={() => toggle("date")}
                     className="cursor-pointer select-none whitespace-nowrap px-3 py-2 hover:text-[var(--foreground)]"
                   >
-                    <div>Opt-in (IST){arrow("date")}</div>
+                    <div>Started (IST){arrow("date")}</div>
                     <div className="opacity-70">Completion</div>
                   </th>
                   <th className="whitespace-nowrap px-3 py-2">
@@ -388,9 +389,9 @@ export function SubmissionsTable({
                         "—"
                       )}
                     </td>
-                    {/* Opt-in / Completion times */}
+                    {/* Started / Completion times */}
                     <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
-                      <div>{formatIST(s.createdAt)}</div>
+                      <div>{formatIST(s.startedAt)}</div>
                       <div className="opacity-70">{s.completedAt ? formatIST(s.completedAt) : "—"}</div>
                     </td>
                     {/* Completed tick / Paid */}

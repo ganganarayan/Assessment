@@ -265,6 +265,15 @@ export function AssessmentRunner({
     return () => clearTimeout(t);
   }, [answers, submissionId, step, preview, editToken]);
 
+  // Stamp the true start the first time questions are shown (any mode). Captured in
+  // a ref (not state) so it survives to the eventual startSubmission call without
+  // re-rendering; only the first entry counts.
+  useEffect(() => {
+    if (step === "questions" && !startedAtRef.current) {
+      startedAtRef.current = new Date().toISOString();
+    }
+  }, [step]);
+
   const questions = assessment.categories.flatMap((c) => c.questions);
   const requiredUnanswered = questions.filter(
     (q) => q.required && !answers[q.id],
@@ -308,6 +317,12 @@ export function AssessmentRunner({
 
   // Honeypot input ref — hidden from humans; a filled value marks a bot opt-in.
   const hpRef = useRef<HTMLInputElement>(null);
+  // When the respondent actually began the assessment (first question shown).
+  // In lead-capture-after mode the row is created only at the end, so we pass this
+  // to startSubmission as the true start — otherwise opt-in time == completion time.
+  // Stays null until questions begin, so in lead-capture-before mode (where the row
+  // is created at opt-in, before questions) the server default (now) still applies.
+  const startedAtRef = useRef<string | null>(null);
   // Pending auto-advance timer (paginated modes): picking an option moves to the
   // next screen after a short beat. Held in a ref so a re-selection or a manual
   // Next/Back cancels the in-flight advance instead of double-firing.
@@ -327,7 +342,7 @@ export function AssessmentRunner({
     const honeypot = hpRef.current?.value ?? "";
     const optin = Object.keys(optinAnswers).length ? optinAnswers : undefined;
     start(async () => {
-      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot, optin, selectedRole ?? undefined);
+      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot, optin, selectedRole ?? undefined, startedAtRef.current ?? undefined);
       if (!res.ok) {
         setError(res.error);
         return;

@@ -65,6 +65,7 @@ export default async function SubmissionsPage({
       assessmentId: s.assessmentId,
       assessmentTitle: s.assessment.title,
       createdAt: s.createdAt.toISOString(),
+      startedAt: s.startedAt.toISOString(),
       completedAt: s.completedAt ? s.completedAt.toISOString() : null,
       firstName: s.leadFirstName,
       lastName: s.leadLastName,
