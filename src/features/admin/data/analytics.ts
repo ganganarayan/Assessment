@@ -2,6 +2,8 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { normalizeAttribution } from "@/lib/events/payload";
+import { appendVidapulseId } from "@/lib/vidapulse";
+import { vidapulseParamForTenant } from "@/lib/events/completion";
 import { istDateRangeToUtc, formatIST } from "@/lib/date";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { getStatsFloor, floorCreatedAt } from "@/lib/stats-floor";
@@ -9,19 +11,29 @@ import type { PayloadAttribution } from "@/features/events/types";
 import { labeledAnswers, labeledAnswersText, type LabeledAnswer } from "@/features/assessment/custom-fields";
 import { botSourceFromUserAgent } from "@/lib/bots";
 
-/** The destination URL a contact lands on (targetUrl?t=token), falling back to the
- *  internal result page. Same rule as the completion/CRM builders. */
-function buildResultUrl(targetUrl: string | null, slug: string, submissionId: string, token: string | null): string {
+/** The destination URL a contact lands on (targetUrl?t=token&cid=<customerId>),
+ *  falling back to the internal result page. Same rule as the completion/CRM builders;
+ *  appends the opaque customerId (VidaPulse `cid`) when tracking is on so the operator's
+ *  copied/exported link carries the id into VidaPulse for VSL nurture. */
+function buildResultUrl(
+  targetUrl: string | null,
+  slug: string,
+  submissionId: string,
+  token: string | null,
+  customerId: string | null = null,
+  vidapulseParam: string | null = null,
+): string {
+  let url = `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}`;
   if (targetUrl && token) {
     try {
       const u = new URL(targetUrl);
       u.searchParams.set("t", token);
-      return u.toString();
+      url = u.toString();
     } catch {
-      /* malformed targetUrl — fall back to the internal result page */
+      /* malformed targetUrl — keep the internal result-page fallback */
     }
   }
-  return `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}`;
+  return appendVidapulseId(url, vidapulseParam, customerId);
 }
 
 /**
@@ -501,11 +513,18 @@ export async function listContacts(opts: {
       os: true,
       optinAnswers: true,
       preResultAnswers: true,
-      assessment: { select: { slug: true, targetUrl: true, optinFields: true, preResultFields: true } },
+      assessment: { select: { slug: true, targetUrl: true, tenantId: true, optinFields: true, preResultFields: true } },
     },
   });
 
   const paid = await getPaidBySubmission(rows.map((r) => r.id));
+
+  // VidaPulse `cid` param per distinct tenant (a platform page may span tenants), so
+  // each contact's Result URL carries the customer id alongside the token.
+  const paramByTenant = new Map<string | null, string | null>();
+  for (const tid of new Set(rows.map((r) => r.assessment?.tenantId ?? null))) {
+    paramByTenant.set(tid, await vidapulseParamForTenant(tid));
+  }
 
   return {
     total,
@@ -527,7 +546,7 @@ export async function listContacts(opts: {
         // row stays blank (no misleading link).
         resultUrl:
           r.status === "COMPLETED"
-            ? buildResultUrl(r.assessment?.targetUrl ?? null, r.assessment?.slug ?? "", r.id, r.resultToken)
+            ? buildResultUrl(r.assessment?.targetUrl ?? null, r.assessment?.slug ?? "", r.id, r.resultToken, r.customerId, paramByTenant.get(r.assessment?.tenantId ?? null) ?? null)
             : null,
         completed: r.status === "COMPLETED",
         paidAmount: p?.amount ?? null,

@@ -4,7 +4,7 @@ import { AssessmentPicker } from "@/features/admin/components/assessment-picker"
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { labeledAnswers } from "@/features/assessment/custom-fields";
 import { normalizeAttribution } from "@/lib/events/payload";
-import { pickResultUrl } from "@/lib/events/completion";
+import { pickResultUrl, vidapulseParamForTenant } from "@/lib/events/completion";
 import { timezoneForCountry } from "@/lib/geo";
 import { formatIST } from "@/lib/date";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
@@ -24,6 +24,9 @@ export default async function WorkspaceSubmissionsPage({
   const { tenantId } = await requireWorkspace();
   const canDelete = await currentUserCanEdit();
   const sp = await searchParams;
+  // The VSL `cid` param for this tenant — appended to each row's Result URL so the
+  // "Copy" link an operator sends for nurture carries the customer id to VidaPulse.
+  const vidapulseParam = await vidapulseParamForTenant(tenantId);
   const assessmentOptions = (await listAssessments(tenantId)).map((a) => ({ id: a.id, title: a.title }));
   // Submissions is always scoped to one assessment (no cross-assessment "All" view):
   // use the URL id, else default to the newest assessment (list is createdAt desc).
@@ -66,6 +69,8 @@ export default async function WorkspaceSubmissionsPage({
             slug: s.assessment.slug,
             submissionId: s.id,
             token: s.resultToken,
+            customerId: s.customerId,
+            vidapulseParam,
           })
         : null,
       paidAmount: p?.amount ?? null,

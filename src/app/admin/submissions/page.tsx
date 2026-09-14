@@ -8,7 +8,7 @@ import { getStatsFloor } from "@/lib/stats-floor";
 import { formatIST } from "@/lib/date";
 import { labeledAnswers } from "@/features/assessment/custom-fields";
 import { normalizeAttribution } from "@/lib/events/payload";
-import { pickResultUrl } from "@/lib/events/completion";
+import { pickResultUrl, vidapulseParamForTenant } from "@/lib/events/completion";
 import { timezoneForCountry } from "@/lib/geo";
 import {
   SubmissionsTable,
@@ -36,6 +36,10 @@ export default async function SubmissionsPage({
 }) {
   const sp = await searchParams;
   const t = await actingTenantId();
+  // The VSL `cid` param for this tenant (submissions are scoped to one tenant's
+  // assessment) — appended to each row's Result URL so the "Copy" link an operator
+  // sends for nurture carries the customer id into VidaPulse.
+  const vidapulseParam = await vidapulseParamForTenant(t);
   const assessmentOptions = (await listAssessments(t)).map((a) => ({ id: a.id, title: a.title }));
   // Submissions is always scoped to one assessment (no cross-assessment "All" view):
   // use the URL id, else default to the newest assessment (list is createdAt desc).
@@ -80,6 +84,8 @@ export default async function SubmissionsPage({
             slug: s.assessment.slug,
             submissionId: s.id,
             token: s.resultToken,
+            customerId: s.customerId,
+            vidapulseParam,
           })
         : null,
       paidAmount: p?.amount ?? null,

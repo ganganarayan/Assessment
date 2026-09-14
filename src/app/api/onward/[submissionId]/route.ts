@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
+import { appendVidapulseId } from "@/lib/vidapulse";
+import { vidapulseParamForTenant } from "@/lib/events/completion";
 
 /**
  * Onward redirect for the "Show results on assess360" flow. The result page's
@@ -23,7 +25,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ submissionId: 
     where: { id: submissionId },
     select: {
       resultToken: true,
-      assessment: { select: { resultsContinueUrl: true } },
+      customerId: true,
+      assessment: { select: { resultsContinueUrl: true, tenantId: true } },
     },
   });
 
@@ -59,6 +62,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ submissionId: 
       /* keep target as-is */
     }
   }
+  // Carry the opaque customerId (VidaPulse `cid`) too, so the VSL on the destination
+  // page can bind this viewer — matching the token-gated result link. No-op when off.
+  dest = appendVidapulseId(dest, await vidapulseParamForTenant(sub.assessment.tenantId), sub.customerId);
 
   return NextResponse.redirect(dest, 302);
 }

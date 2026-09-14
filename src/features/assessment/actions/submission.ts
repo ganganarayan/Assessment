@@ -17,7 +17,8 @@ import {
 } from "@/features/assessment/scoring";
 import { EventType, Prisma } from "@prisma/client";
 import { emitEvent } from "@/lib/events/emit";
-import { resultUrlFor } from "@/lib/events/completion";
+import { resultUrlFor, vidapulseParamForTenant } from "@/lib/events/completion";
+import { appendVidapulseId } from "@/lib/vidapulse";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { type EmitInput, type PayloadCategory } from "@/features/events/types";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -61,25 +62,29 @@ import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/s
  *  per-submission id behind which only that person's own result sits. */
 const DEFAULT_RESULT_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
-/** Destination URL the respondent lands on; falls back to the internal result page. */
+/** Destination URL the respondent lands on; falls back to the internal result page.
+ *  Appends the opaque customerId (VidaPulse `cid`) alongside the token when tracking
+ *  is on, so the id rides on the URL the CRM stores + the operator re-sends for VSL
+ *  nurture. No-op when the param/customerId is absent. */
 function buildResultUrl(
   targetUrl: string | null,
   slug: string,
   submissionId: string,
   token: string | null,
+  customerId: string | null = null,
+  vidapulseParam: string | null = null,
 ): string {
+  let url = `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}${token ? `?t=${encodeURIComponent(token)}` : ""}`;
   if (targetUrl && token) {
     try {
       const u = new URL(targetUrl);
       u.searchParams.set("t", token); // correct even if targetUrl already has a query/fragment
-      return u.toString();
+      url = u.toString();
     } catch {
-      /* malformed targetUrl — fall back to the internal result page */
+      /* malformed targetUrl — keep the internal result-page fallback */
     }
   }
-  // Internal result page (used for "Show results on assess360" + as a fallback). Carry
-  // the token so the respondent can view their results in-platform (token-gated).
-  return `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}${token ? `?t=${encodeURIComponent(token)}` : ""}`;
+  return appendVidapulseId(url, vidapulseParam, customerId);
 }
 
 /**
@@ -655,6 +660,7 @@ export async function requestPreviousResults(
     select: {
       id: true,
       resultToken: true,
+      customerId: true,
       leadFirstName: true,
       leadLastName: true,
       leadEmail: true,
@@ -683,9 +689,16 @@ export async function requestPreviousResults(
       },
       score: { total, max, percentage },
       resultBand: last.resultBand ? { level: last.resultBand.level, title: last.resultBand.title } : null,
-      // Send the SAME token-gated respondent link completion sends (targetUrl?t=token),
-      // never the admin-only /r/ page. This is what the CRM emails to the client.
-      resultUrl: resultUrlFor(assessment.targetUrl, assessment.slug, last.id, last.resultToken),
+      // Send the SAME token-gated respondent link completion sends (targetUrl?t=token
+      // &cid=<customerId>), never the admin-only /r/ page. This is what the CRM emails.
+      resultUrl: resultUrlFor(
+        assessment.targetUrl,
+        assessment.slug,
+        last.id,
+        last.resultToken,
+        last.customerId,
+        await vidapulseParamForTenant(assessment.tenant?.id ?? null),
+      ),
       attribution: normalizeAttribution(last.attribution) ?? undefined,
     } satisfies EmitInput);
   }
@@ -761,6 +774,11 @@ export async function completeSubmission(
     return { ok: false, error: "Not authorized." };
   }
 
+  // Resolve the tenant's VidaPulse param once; threaded into every result-URL build
+  // below so the opaque customerId rides on the URL (and the CRM completion webhook),
+  // which the operator re-sends via WABA/email to nurture non-watchers to the VSL.
+  const vidapulseParam = await vidapulseParamForTenant(submission.tenantId);
+
   // Persist the optional pre-results details (sanitized + capped — untrusted client
   // input). Saved regardless of the completion branch; non-fatal on failure.
   if (preResultAnswers && typeof preResultAnswers === "object") {
@@ -806,7 +824,7 @@ export async function completeSubmission(
   // result/checkout. A paid-mode completion that is NOT yet paid is re-doable
   // (edit until pay): reset it to STARTED so the scoring flow below re-runs.
   const returnCompleted = async () => {
-    const resultUrl = buildResultUrl(submission.assessment.targetUrl, submission.assessment.slug, submissionId, submission.resultToken);
+    const resultUrl = buildResultUrl(submission.assessment.targetUrl, submission.assessment.slug, submissionId, submission.resultToken, submission.customerId, vidapulseParam);
     const paid = await resolvePaidCheckout({
       tenantId: submission.tenantId,
       paidMode: submission.assessment.paidMode,
@@ -1036,6 +1054,8 @@ export async function completeSubmission(
       assessment.slug,
       submissionId,
       recheck.resultToken,
+      customerId,
+      vidapulseParam,
     );
     return {
       ok: true,
@@ -1128,7 +1148,7 @@ export async function completeSubmission(
     categories: categoryResults,
     clinic: clinicSnap ?? undefined,
   });
-  const resultUrl = buildResultUrl(vslTarget, assessment.slug, submissionId, token);
+  const resultUrl = buildResultUrl(vslTarget, assessment.slug, submissionId, token, customerId, vidapulseParam);
 
   // Persist atomically. The final statement is a compare-and-swap on status:
   // only a writer that flips STARTED -> COMPLETED "wins". This makes scoring
@@ -1193,7 +1213,7 @@ export async function completeSubmission(
       customer,
     });
     const paidExit = !!(paid.payment || paid.paymentRedirectUrl);
-    const resultUrl = buildResultUrl(vslTarget, assessment.slug, submissionId, existing?.resultToken ?? null);
+    const resultUrl = buildResultUrl(vslTarget, assessment.slug, submissionId, existing?.resultToken ?? null, customerId, vidapulseParam);
     return {
       ok: true,
       data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid },

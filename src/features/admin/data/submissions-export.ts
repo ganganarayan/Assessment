@@ -7,7 +7,7 @@ import { EXPORT_CAP } from "@/features/admin/data/analytics";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { getStatsFloor } from "@/lib/stats-floor";
 import { labeledAnswers, labeledAnswersText } from "@/features/assessment/custom-fields";
-import { resultUrlFor } from "@/lib/events/completion";
+import { resultUrlFor, vidapulseParamForTenant } from "@/lib/events/completion";
 
 export interface SubmissionExportCategory {
   name: string;
@@ -118,7 +118,7 @@ export async function listSubmissionsForExport(
       resultSnapshot: true,
       resultToken: true,
       assessment: {
-        select: { title: true, slug: true, targetUrl: true, optinFields: true, preResultFields: true },
+        select: { title: true, slug: true, targetUrl: true, tenantId: true, optinFields: true, preResultFields: true },
       },
       resultBand: { select: { level: true, title: true } },
       aiStatements: {
@@ -129,6 +129,14 @@ export async function listSubmissionsForExport(
   });
 
   const paid = await getPaidBySubmission(subs.map((s) => s.id));
+
+  // Resolve the VidaPulse `cid` param per distinct tenant (an export may span tenants
+  // in the platform view), so each row's Result URL carries the customer id alongside
+  // the token — the link operators re-send for VSL nurture.
+  const paramByTenant = new Map<string | null, string | null>();
+  for (const tid of new Set(subs.map((s) => s.assessment?.tenantId ?? null))) {
+    paramByTenant.set(tid, await vidapulseParamForTenant(tid));
+  }
 
   return subs.map((s) => {
     const snap = (s.resultSnapshot ?? null) as ResultSnapshot | null;
@@ -183,7 +191,7 @@ export async function listSubmissionsForExport(
       overallBandLevel: s.resultBand?.level ?? snap?.resultBandLevel ?? null,
       paidAmount: p?.amount ?? null,
       paidAtIST: p?.at ? formatIST(new Date(p.at)) : null,
-      resultUrl: resultUrlFor(s.assessment.targetUrl, s.assessment.slug, s.id, s.resultToken),
+      resultUrl: resultUrlFor(s.assessment.targetUrl, s.assessment.slug, s.id, s.resultToken, s.customerId, paramByTenant.get(s.assessment?.tenantId ?? null) ?? null),
       utm_source: a?.utm_source ?? null,
       utm_medium: a?.utm_medium ?? null,
       utm_campaign: a?.utm_campaign ?? null,
