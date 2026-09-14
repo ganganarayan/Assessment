@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatIST } from "@/lib/date";
@@ -48,6 +48,10 @@ export interface SubmissionRow {
 
 type SortKey = "date" | "lead" | "score";
 
+/** Rows rendered per page. Search/sort still span every record; only the visible
+ *  slice is paginated so the DOM stays small (thousands of rows was the slowdown). */
+const PAGE_SIZE = 25;
+
 const dash = (v: string | null | undefined) => (v && String(v).trim() ? String(v) : "—");
 
 /** Join non-empty parts with a separator; em-dash when all are blank. */
@@ -79,6 +83,9 @@ export function SubmissionsTable({
 }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
   const [query, setQuery] = useState("");
+  // Current page per assessment group (0-based). Reset whenever the filtered/sorted
+  // set changes so we never linger on a page that no longer exists.
+  const [pages, setPages] = useState<Record<string, number>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   // Junk cleanup: multi-select + delete. Reuses the super-admin-guarded
   // deleteSubmissions action (cascades to answers/scores/AI versions).
@@ -124,6 +131,11 @@ export function SubmissionsTable({
       })
       .catch(() => {});
   };
+
+  // Back to page 1 in every group when the search or sort changes.
+  useEffect(() => {
+    setPages({});
+  }, [query, sort]);
 
   const toggle = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
@@ -208,7 +220,14 @@ export function SubmissionsTable({
       {groups.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions match “{query}”.</p>
       ) : null}
-      {groups.map(([assessmentId, group]) => (
+      {groups.map(([assessmentId, group]) => {
+        const totalPages = Math.max(1, Math.ceil(group.rows.length / PAGE_SIZE));
+        const page = Math.min(pages[assessmentId] ?? 0, totalPages - 1);
+        const start = page * PAGE_SIZE;
+        const pageRows = group.rows.slice(start, start + PAGE_SIZE);
+        const goTo = (p: number) =>
+          setPages((m) => ({ ...m, [assessmentId]: Math.max(0, Math.min(p, totalPages - 1)) }));
+        return (
         <div key={assessmentId} className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between gap-4">
             {hideGroupTitle ? (
@@ -297,7 +316,7 @@ export function SubmissionsTable({
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {group.rows.map((s) => (
+                {pageRows.map((s) => (
                   <tr key={s.id} className={canDelete && sel.has(s.id) ? "bg-red-500/5" : undefined}>
                     {/* Select */}
                     {canDelete ? (
@@ -480,8 +499,39 @@ export function SubmissionsTable({
               </tbody>
             </table>
           </div>
+          {totalPages > 1 ? (
+            <div className="flex items-center justify-between gap-3 text-xs text-[var(--muted-foreground)]">
+              <span className="tabular-nums">
+                {start + 1}–{Math.min(start + PAGE_SIZE, group.rows.length)} of {group.rows.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2"
+                  disabled={page <= 0}
+                  onClick={() => goTo(page - 1)}
+                >
+                  Prev
+                </Button>
+                <span className="tabular-nums">
+                  Page {page + 1} of {totalPages}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2"
+                  disabled={page >= totalPages - 1}
+                  onClick={() => goTo(page + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
