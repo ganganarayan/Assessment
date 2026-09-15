@@ -35,6 +35,10 @@ export function resultUrlFor(
     try {
       const u = new URL(targetUrl);
       u.searchParams.set("t", token);
+      // r = the SAME result token. Our funnel builder forwards the page URL's ?r=
+      // onto the embedded VidaPulse iframe's own src, so it maps the viewer even in
+      // Facebook/Instagram in-app browsers (no referrer). Duplicate of t by design.
+      u.searchParams.set("r", token);
       url = u.toString();
     } catch {
       /* malformed targetUrl — keep the internal result-page fallback */
@@ -59,7 +63,10 @@ export function shareableResultUrl(
   vidapulseParam: string | null = null,
 ): string {
   const base = `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}`;
-  const withToken = token ? `${base}?t=${encodeURIComponent(token)}` : base;
+  // r duplicates t (same result token) so the VidaPulse ?r= reader maps this viewer.
+  const withToken = token
+    ? `${base}?t=${encodeURIComponent(token)}&r=${encodeURIComponent(token)}`
+    : base;
   return appendVidapulseId(withToken, vidapulseParam, customerId);
 }
 

@@ -74,11 +74,16 @@ function buildResultUrl(
   customerId: string | null = null,
   vidapulseParam: string | null = null,
 ): string {
-  let url = `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}${token ? `?t=${encodeURIComponent(token)}` : ""}`;
+  // r duplicates t (same result token): our builder forwards the page URL's ?r= onto
+  // the VidaPulse iframe src, so it maps the viewer even in FB/IG in-app browsers.
+  let url = `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}${
+    token ? `?t=${encodeURIComponent(token)}&r=${encodeURIComponent(token)}` : ""
+  }`;
   if (targetUrl && token) {
     try {
       const u = new URL(targetUrl);
       u.searchParams.set("t", token); // correct even if targetUrl already has a query/fragment
+      u.searchParams.set("r", token); // same token, for VidaPulse ?r= capture
       url = u.toString();
     } catch {
       /* malformed targetUrl — keep the internal result-page fallback */

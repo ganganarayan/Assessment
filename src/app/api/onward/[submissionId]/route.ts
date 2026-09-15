@@ -57,6 +57,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ submissionId: 
     try {
       const u = new URL(target);
       u.searchParams.set("t", sub.resultToken);
+      // r = the same result token: our builder forwards ?r= onto the VidaPulse iframe
+      // src, mapping the viewer even in FB/IG in-app browsers (no referrer).
+      u.searchParams.set("r", sub.resultToken);
       dest = u.toString();
     } catch {
       /* keep target as-is */
