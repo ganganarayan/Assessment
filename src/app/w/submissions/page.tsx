@@ -57,6 +57,7 @@ export default async function WorkspaceSubmissionsPage({
       mobile: s.leadMobile,
       profession: s.leadProfession,
       customerId: s.customerId,
+      resultToken: s.resultToken,
       totalScore: s.totalScore,
       maxScore: s.maxScore,
       bandTitle: s.resultBand?.title ?? null,

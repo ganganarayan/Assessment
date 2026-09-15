@@ -22,6 +22,8 @@ export interface SubmissionRow {
   mobile: string | null;
   profession: string | null;
   customerId: string | null;
+  /** 16-char result token (?t= on every VSL/nurture link; VidaPulse captures it). */
+  resultToken: string | null;
   totalScore: number | null;
   maxScore: number | null;
   bandTitle: string | null;
@@ -143,11 +145,13 @@ export function SubmissionsTable({
 
   const groups = useMemo(() => {
     // Live substring search: any contiguous run of the typed letters, anywhere in
-    // name / email / phone / profession / assessment / result (case-insensitive).
+    // name / email / phone / profession / assessment / customer id / result token
+    // (case-insensitive). The token is searchable so a VidaPulse row (which now
+    // captures the ?t= token as its viewer id) can be traced back to this lead.
     const q = query.trim().toLowerCase();
     const matches = (r: SubmissionRow) =>
       !q ||
-      [r.firstName, r.lastName, r.email, r.mobile, r.profession, r.assessmentTitle, r.bandTitle, r.customerId,
+      [r.firstName, r.lastName, r.email, r.mobile, r.profession, r.assessmentTitle, r.bandTitle, r.customerId, r.resultToken,
         ...r.customAnswers.map((a) => `${a.label} ${a.value}`)]
         .filter(Boolean)
         .join(" ")
