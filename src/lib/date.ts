@@ -1,12 +1,15 @@
 /**
- * Format an instant as "DD-MM-YYYY HH:MM" in IST (UTC+5:30, no DST).
+ * Format an instant as "DD-MM-YYYY HH:MM" in IST (UTC+5:30, no DST), or
+ * "DD-MM-YYYY HH:MM:SS" with `withSeconds` — needed where two nearby instants
+ * (e.g. opt-in vs completion on a lead-capture-after assessment) would otherwise
+ * round to the same minute and look identical.
  *
  * Uses a fixed manual offset rather than Intl/timeZone so the result is correct
  * regardless of the server's locale or ICU timezone data (Railway/Node).
  */
-export function formatIST(d: Date | string): string {
+export function formatIST(d: Date | string, withSeconds = false): string {
   const ms = new Date(d).getTime() + 5.5 * 60 * 60 * 1000;
-  const [date, time] = new Date(ms).toISOString().slice(0, 16).split("T");
+  const [date, time] = new Date(ms).toISOString().slice(0, withSeconds ? 19 : 16).split("T");
   const [y, m, day] = date!.split("-");
   return `${day}-${m}-${y} ${time}`;
 }
