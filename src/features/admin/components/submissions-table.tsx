@@ -7,6 +7,8 @@ import { formatIST } from "@/lib/date";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { deleteSubmissions } from "@/features/admin/actions/submissions";
+import { lookupSubmissionRef } from "@/features/admin/actions/lookup";
+import { type LookupHit } from "@/features/admin/lookup-types";
 import { type PayloadAttribution } from "@/features/events/types";
 
 export interface SubmissionRow {
@@ -73,6 +75,7 @@ export function SubmissionsTable({
   exportBase,
   canDelete = false,
   hideGroupTitle = false,
+  basePath = "/admin/submissions",
 }: {
   rows: SubmissionRow[];
   exportBase?: string;
@@ -82,6 +85,8 @@ export function SubmissionsTable({
   /** When a single assessment is already named above (e.g. the heading dropdown),
    *  suppress the per-group name so it isn't shown twice — just the count remains. */
   hideGroupTitle?: boolean;
+  /** Base for the "View in Submissions" jump on a cross-assessment trace hit. */
+  basePath?: string;
 }) {
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
   const [query, setQuery] = useState("");
@@ -94,7 +99,22 @@ export function SubmissionsTable({
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [delMsg, setDelMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  // Cross-assessment fallback: when the local filter finds nothing here, one click
+  // resolves the query (a result token or customer id) across EVERY assessment and
+  // date — so a VidaPulse-captured id that lives in another assessment still traces.
+  const [xHit, setXHit] = useState<LookupHit | null>(null);
+  const [xLooked, setXLooked] = useState(false);
+  const [xPending, startLook] = useTransition();
   const router = useRouter();
+
+  const traceAll = () =>
+    startLook(async () => {
+      const r = await lookupSubmissionRef(query);
+      if (r.ok) {
+        setXHit(r.hit);
+        setXLooked(true);
+      }
+    });
 
   const toggleRow = (id: string) =>
     setSel((s) => {
@@ -134,9 +154,12 @@ export function SubmissionsTable({
       .catch(() => {});
   };
 
-  // Back to page 1 in every group when the search or sort changes.
+  // Back to page 1 in every group when the search or sort changes. Also clear any
+  // prior cross-assessment trace so it never lingers against a new query.
   useEffect(() => {
     setPages({});
+    setXHit(null);
+    setXLooked(false);
   }, [query, sort]);
 
   const toggle = (key: SortKey) =>
@@ -202,7 +225,7 @@ export function SubmissionsTable({
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search name, email, phone, profession, assessment…"
+          placeholder="Search name, email, phone, profession, token or customer ID…"
           className="max-w-md flex-1 min-w-[220px]"
           aria-label="Search submissions"
         />
@@ -221,8 +244,58 @@ export function SubmissionsTable({
           </>
         ) : null}
       </div>
-      {groups.length === 0 ? (
-        <p className="text-sm text-[var(--muted-foreground)]">No submissions match “{query}”.</p>
+      {groups.length === 0 && query.trim() ? (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-[var(--muted-foreground)]">
+              No submissions match “{query}” in this view.
+            </p>
+            {/* Fallback: this list is scoped to one assessment + date window. A result
+                token or customer id (e.g. one VidaPulse captured) may live in another
+                assessment — resolve it across the whole workspace in one click. */}
+            <Button size="sm" variant="outline" onClick={traceAll} disabled={xPending}>
+              {xPending ? "Searching…" : "Search all assessments"}
+            </Button>
+          </div>
+
+          {xLooked && !xHit ? (
+            <p className="text-sm text-[var(--muted-foreground)]">
+              Not found in any assessment or date in this workspace.
+            </p>
+          ) : null}
+
+          {xHit ? (
+            <div className="flex max-w-xl flex-col gap-1 rounded-md border border-[var(--border)] bg-[var(--background)] p-3 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-semibold">
+                  {join([xHit.firstName, xHit.lastName], " ")}
+                </span>
+                <span className="text-xs text-[var(--muted-foreground)]">
+                  {xHit.status}
+                  {xHit.completedAt ? ` · completed ${new Date(xHit.completedAt).toLocaleString()}` : ""}
+                </span>
+              </div>
+              <div className="text-xs text-[var(--muted-foreground)]">
+                {join([xHit.email, xHit.mobile, xHit.profession], " · ")}
+              </div>
+              <div className="text-xs">
+                <span className="text-[var(--muted-foreground)]">Assessment: </span>
+                {xHit.assessmentTitle}
+              </div>
+              <div className="font-mono text-[11px] text-[var(--muted-foreground)]">
+                cid {dash(xHit.customerId)} · token {dash(xHit.resultToken)}
+              </div>
+              <div className="mt-1 flex gap-3">
+                <Link href={`/a/${xHit.slug}/r/${xHit.submissionId}`} className="text-xs font-medium text-green-600 underline">
+                  Open result
+                </Link>
+                <Link href={`${basePath}?assessment=${xHit.assessmentId}`} className="text-xs underline">
+                  View in Submissions
+                </Link>
+              </div>
+            </div>
+          ) : null}
+        </div>
       ) : null}
       {groups.map(([assessmentId, group]) => {
         const totalPages = Math.max(1, Math.ceil(group.rows.length / PAGE_SIZE));

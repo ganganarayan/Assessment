@@ -9,7 +9,6 @@ import { timezoneForCountry } from "@/lib/geo";
 import { formatIST } from "@/lib/date";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
-import { SubmissionLookup } from "@/features/admin/components/submission-lookup";
 import {
   SubmissionsTable,
   type SubmissionRow,
@@ -115,8 +114,6 @@ export default async function WorkspaceSubmissionsPage({
         <AnalyticsToolbar exportGroups={exportGroups} />
       </div>
 
-      <SubmissionLookup basePath="/w/submissions" />
-
       <AssessmentPicker
         assessments={assessmentOptions}
         selectedId={scoped?.id ?? null}
@@ -151,7 +148,7 @@ export default async function WorkspaceSubmissionsPage({
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions yet.</p>
       ) : (
-        <SubmissionsTable rows={rows} exportBase="/api/w/submissions/export" canDelete={canDelete} hideGroupTitle={!!scoped} />
+        <SubmissionsTable rows={rows} exportBase="/api/w/submissions/export" canDelete={canDelete} hideGroupTitle={!!scoped} basePath="/w/submissions" />
       )}
     </div>
   );
