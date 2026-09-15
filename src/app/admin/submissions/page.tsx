@@ -14,6 +14,7 @@ import {
   SubmissionsTable,
   type SubmissionRow,
 } from "@/features/admin/components/submissions-table";
+import { SubmissionLookup } from "@/features/admin/components/submission-lookup";
 
 export const dynamic = "force-dynamic";
 
@@ -119,6 +120,8 @@ export default async function SubmissionsPage({
         <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
         <AnalyticsToolbar exportGroups={exportGroups(scoped?.id)} />
       </div>
+
+      <SubmissionLookup basePath="/admin/submissions" />
 
       <AssessmentPicker
         assessments={assessmentOptions}
