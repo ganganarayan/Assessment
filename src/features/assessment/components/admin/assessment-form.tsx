@@ -208,7 +208,10 @@ export function AssessmentForm({
     }));
   }
   const gate = values.audienceGate;
-  const gateOn = gate.roles.length > 0;
+  const freeMode = gate.mode === "FREETEXT";
+  // The first screen replaces Profession when it's a free-text field OR a dropdown
+  // that actually has roles.
+  const gateOn = freeMode || gate.roles.length > 0;
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -383,16 +386,30 @@ export function AssessmentForm({
           <div className="flex flex-col gap-4 rounded-lg border p-4">
             <p className="text-sm font-medium">Audience selection (first screen)</p>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Optional. Shows a role <strong>dropdown</strong> as the FIRST screen (it replaces the
-              Profession field). For each role — and &ldquo;None of the above&rdquo; — choose where it
-              goes: <em>continue in this assessment</em> (lead form → questions) or <em>redirect to
-              another assessment</em>, which shows its own audience selection (cascade). No roles = the
-              normal opt-in (no gate).
+              Optional. Shows an audience question as the FIRST screen (it replaces the Profession
+              field). Choose how it&apos;s answered:
             </p>
+
+            <div className="flex flex-wrap gap-2">
+              {([
+                ["DROPDOWN", "Dropdown", "Pick from a fixed list of roles. Supports routing to other assessments."],
+                ["FREETEXT", "Free field", "They type it, with live suggestions from your default list. Non-matches are still accepted."],
+              ] as const).map(([m, title, desc]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setGate({ mode: m })}
+                  className={`flex-1 min-w-[12rem] rounded-md border p-3 text-left text-xs ${gate.mode === m ? "border-emerald-500 bg-emerald-500/10" : "border-[var(--border)]"}`}
+                >
+                  <span className="block text-sm font-medium">{title}</span>
+                  <span className="mt-1 block text-[var(--muted-foreground)]">{desc}</span>
+                </button>
+              ))}
+            </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="gateLabel">Dropdown label</Label>
+                <Label htmlFor="gateLabel">{freeMode ? "Field label" : "Dropdown label"}</Label>
                 <Input
                   id="gateLabel"
                   placeholder="Which best describes you?"
@@ -401,16 +418,40 @@ export function AssessmentForm({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="gatePlaceholder">Dropdown placeholder</Label>
+                <Label htmlFor="gatePlaceholder">{freeMode ? "Field placeholder" : "Dropdown placeholder"}</Label>
                 <Input
                   id="gatePlaceholder"
-                  placeholder="Select…"
+                  placeholder={freeMode ? "Start typing your role…" : "Select…"}
                   value={gate.placeholder ?? ""}
                   onChange={(e) => setGate({ placeholder: e.target.value })}
                 />
               </div>
             </div>
 
+            {freeMode ? (
+              <div className="flex flex-col gap-3">
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={gate.freeTextRequired}
+                    onChange={(e) => setGate({ freeTextRequired: e.target.checked })}
+                  />
+                  <span>
+                    Make this field compulsory
+                    <span className="block text-xs text-[var(--muted-foreground)]">
+                      When on, the respondent must fill it before continuing. Off = optional.
+                    </span>
+                  </span>
+                </label>
+                <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-xs text-[var(--muted-foreground)]">
+                  Suggestions come from your <strong>default audience list</strong> — edit it and clean
+                  up typed answers on the <strong>Audiences</strong> screen. Values that don&apos;t match
+                  a suggestion are still saved. Free text can&apos;t route to another assessment; use
+                  Dropdown mode for that.
+                </p>
+              </div>
+            ) : (
             <div className="flex flex-col gap-2">
               <Label>Roles &amp; where each one goes</Label>
               {gate.roles.map((r, i) => (
@@ -456,8 +497,9 @@ export function AssessmentForm({
                 </Button>
               </div>
             </div>
+            )}
 
-            {gateOn ? (
+            {!freeMode && gate.roles.length > 0 ? (
               <p className="border-t pt-3 text-xs text-[var(--muted-foreground)]">
                 To add a &ldquo;None of the above&rdquo; choice, add a role with that label and point
                 it at another assessment. Targets are picked from your assessments (the link is built
@@ -514,9 +556,9 @@ export function AssessmentForm({
 
             {gateOn ? (
               <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-xs text-[var(--muted-foreground)]">
-                The <strong>Profession</strong> field is replaced by the audience-selection dropdown
-                above for this assessment. The picked role is stored (and sent to your CRM in place of
-                profession).
+                The <strong>Profession</strong> field is replaced by the audience-selection field
+                above for this assessment. The chosen/typed value is stored (and sent to your CRM in
+                place of profession).
               </p>
             ) : null}
             {values.collectProfession && !gateOn ? (

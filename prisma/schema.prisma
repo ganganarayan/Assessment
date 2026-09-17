@@ -1476,6 +1476,11 @@ model AppSetting {
   // results page renders a "Book a 1-on-1 call" CTA pointing here; null = hide it.
   bookingUrl String?
 
+  // Canonical audience list ("your default list of roles"). Powers the free-text
+  // audience field's live suggestions AND the normalize screen that cleans up typed
+  // values. Stored as a JSON array of trimmed labels. null tenant => singleton row.
+  audienceCanonical Json?
+
   // CRM "score_updated" resend: the destination endpoint (separate from the
   // configured webhooks) and a persisted "drip is active" flag for status/resume.
   // crmDripActive doubles as the SCORE worker's "armed" flag (boot-resume).

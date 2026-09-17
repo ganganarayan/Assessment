@@ -6,6 +6,7 @@ import {
   type PublicAssessment,
 } from "@/features/assessment/components/public/assessment-runner";
 import { readPublishedPages } from "@/features/assessment/pages/blocks";
+import { resolveAudienceCanonical } from "@/lib/settings/config";
 import { type PreResultField } from "@/features/assessment/schemas";
 
 export const dynamic = "force-dynamic";
@@ -32,12 +33,26 @@ export default async function PublicAssessmentPage({
   // regardless of the target's publish status (the builder flags drafts); only a
   // role whose target id no longer exists is dropped.
   const gateRaw = (a.audienceGate ?? null) as {
+    mode?: string;
     label?: string;
     placeholder?: string;
+    freeTextRequired?: boolean;
     roles?: { id: string; label: string; target?: string }[];
   } | null;
   let audienceGate: PublicAssessment["audienceGate"] = null;
-  if (gateRaw && Array.isArray(gateRaw.roles) && gateRaw.roles.length > 0) {
+  if (gateRaw && gateRaw.mode === "FREETEXT") {
+    // Free-text audience field: no options/routing — just capture, with live
+    // suggestions from the tenant's canonical list.
+    const suggestions = await resolveAudienceCanonical(a.tenantId);
+    audienceGate = {
+      mode: "FREETEXT",
+      label: gateRaw.label?.trim() || null,
+      placeholder: gateRaw.placeholder?.trim() || null,
+      required: gateRaw.freeTextRequired === true,
+      suggestions,
+      options: [],
+    };
+  } else if (gateRaw && Array.isArray(gateRaw.roles) && gateRaw.roles.length > 0) {
     const options: { key: string; label: string; redirectSlug: string | null }[] = [];
     for (const r of gateRaw.roles) {
       if (!r?.label) continue;
@@ -50,8 +65,11 @@ export default async function PublicAssessmentPage({
     }
     if (options.length > 0) {
       audienceGate = {
+        mode: "DROPDOWN",
         label: gateRaw.label?.trim() || null,
         placeholder: gateRaw.placeholder?.trim() || null,
+        required: false,
+        suggestions: [],
         options,
       };
     }

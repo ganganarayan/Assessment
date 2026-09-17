@@ -396,18 +396,28 @@ export async function startSubmission(
   });
   if (!assessment) return { ok: false, error: "Assessment not available." };
 
-  // Audience-gate role: keep it only if it's one of THIS assessment's gate roles.
+  // Audience-gate role. In DROPDOWN mode, keep it only if it's one of THIS
+  // assessment's gate roles (guards against a tampered client). In FREETEXT mode the
+  // respondent types their own value, so accept any non-empty input (trimmed, capped)
+  // — the admin cleans it up later on the normalize screen.
+  const gateCfg = assessment.audienceGate as
+    | { mode?: string; roles?: { label?: string }[] }
+    | null;
   const gateRoleLabels = new Set(
-    (((assessment.audienceGate as { roles?: { label?: string }[] } | null)?.roles) ?? [])
-      .map((r) => (r?.label ?? "").trim())
-      .filter(Boolean),
+    (gateCfg?.roles ?? []).map((r) => (r?.label ?? "").trim()).filter(Boolean),
   );
+  const trimmedRole = audienceRole?.trim() ?? "";
   const cleanRole =
-    audienceRole && gateRoleLabels.has(audienceRole.trim()) ? audienceRole.trim() : null;
-  // When the assessment has an audience gate, the role picker REPLACES the
-  // profession field (hidden client-side, fed into leadProfession below), so the
-  // profession-required check must not fire — otherwise gated assessments hard-block.
-  const gated = gateRoleLabels.size > 0;
+    gateCfg?.mode === "FREETEXT"
+      ? trimmedRole.slice(0, 120) || null
+      : trimmedRole && gateRoleLabels.has(trimmedRole)
+        ? trimmedRole
+        : null;
+  // When the assessment has an audience gate (a role dropdown OR a free-text field),
+  // the audience input REPLACES the profession field (hidden client-side, fed into
+  // leadProfession below), so the profession-required check must not fire — otherwise
+  // gated assessments hard-block.
+  const gated = gateCfg?.mode === "FREETEXT" || gateRoleLabels.size > 0;
 
   const parsed = leadSchema.safeParse(lead);
   if (!parsed.success) {

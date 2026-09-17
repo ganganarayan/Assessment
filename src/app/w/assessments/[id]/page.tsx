@@ -89,7 +89,9 @@ export default async function WorkspaceEditAssessmentPage({
     paymentAmount: a.paymentAmount ?? undefined,
     paymentEventName: a.paymentEventName ?? "Purchase121",
     paymentIntroText: a.paymentIntroText ?? "",
-    audienceGate: (a.audienceGate as unknown as AudienceGateInput | null) ?? EMPTY_AUDIENCE_GATE,
+    // Merge onto the defaults so a legacy gate (no mode/freeTextRequired) loads as a
+    // well-formed DROPDOWN rather than with undefined fields.
+    audienceGate: { ...EMPTY_AUDIENCE_GATE, ...((a.audienceGate as unknown as Partial<AudienceGateInput> | null) ?? {}) },
     fireMetaCapi: a.fireMetaCapi,
   };
 

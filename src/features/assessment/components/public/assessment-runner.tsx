@@ -147,13 +147,19 @@ export interface PublicAssessment {
   paymentHeadline: string | null;
   paymentButtonLabel: string | null;
   paymentIntroText: string | null;
-  // Audience gate (Phase 2): a first-screen dropdown. Each option either continues
-  // in this assessment (redirectSlug null) or redirects to another assessment's
-  // published slug (built from the admin's pick — never a hand-typed link). Null =
-  // no gate. Options with an unpublished target are dropped server-side.
+  // Audience gate (Phase 2): a first screen that replaces Profession. Two modes:
+  //  - DROPDOWN: pick an option; each either continues here (redirectSlug null) or
+  //    redirects to another assessment's published slug (built from the admin's pick,
+  //    never a hand-typed link). Options with an unpublished target are dropped.
+  //  - FREETEXT: type a value, with live suggestions from the tenant's canonical
+  //    list; a non-matching value is accepted as-is. `required` gates Continue.
+  // Null = no gate (normal opt-in).
   audienceGate: {
+    mode: "DROPDOWN" | "FREETEXT";
     label: string | null;
     placeholder: string | null;
+    required: boolean;
+    suggestions: string[];
     options: { key: string; label: string; redirectSlug: string | null }[];
   } | null;
   categories: PublicCategory[];
@@ -192,11 +198,15 @@ export function AssessmentRunner({
   preview?: boolean;
 }) {
   const gate = assessment.audienceGate;
-  const gated = !!(gate && gate.options.length > 0);
+  const freeMode = gate?.mode === "FREETEXT";
+  // A free-text gate shows even with no options; a dropdown needs at least one.
+  const gated = !!(gate && (freeMode || gate.options.length > 0));
   const [step, setStep] = useState<Step>(gated ? "gate" : "intro");
   // Audience gate: the current dropdown selection (option key) + the role label the
   // respondent picked (threaded to startSubmission; stored as their audience/role).
   const [gateChoice, setGateChoice] = useState<string>("");
+  // Free-text gate: the typed audience value (suggestions from the canonical list).
+  const [freeAudience, setFreeAudience] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   // Answers to the optional pre-results details page, keyed by field id.
@@ -384,6 +394,19 @@ export function AssessmentRunner({
   // "continue here" choice stores the picked role and enters the normal opt-in flow.
   function submitGate() {
     if (!gate) return;
+    // Free-text mode: accept whatever they typed (or picked from suggestions). No
+    // routing — always continue in this assessment.
+    if (gate.mode === "FREETEXT") {
+      const typed = freeAudience.trim();
+      if (gate.required && !typed) {
+        setError("Please fill this in to continue.");
+        return;
+      }
+      setError(null);
+      setSelectedRole(typed || null);
+      setStep("intro");
+      return;
+    }
     const opt = gate.options.find((o) => o.key === gateChoice);
     if (!opt) {
       setError("Please choose an option to continue.");
@@ -655,8 +678,10 @@ export function AssessmentRunner({
   }
 
   if (step === "gate" && gate) {
+    const isFree = gate.mode === "FREETEXT";
     const gateLabel = gate.label?.trim() || "Which best describes you?";
-    const placeholder = gate.placeholder?.trim() || "Select…";
+    const placeholder = gate.placeholder?.trim() || (isFree ? "Start typing…" : "Select…");
+    const continueDisabled = isFree ? gate.required && !freeAudience.trim() : !gateChoice;
     return (
       <div className="flex flex-col gap-6">
         {assessment.eyebrow ? (
@@ -669,25 +694,55 @@ export function AssessmentRunner({
           ) : null}
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="audience-gate">{gateLabel}</Label>
-          <div className="relative">
-            <select
-              id="audience-gate"
-              value={gateChoice}
-              onChange={(e) => setGateChoice(e.target.value)}
-              className={SELECT_CLASS}
-            >
-              <option value="" disabled>{placeholder}</option>
-              {gate.options.map((o) => (
-                <option key={o.key} value={o.key}>{o.label}</option>
-              ))}
-            </select>
-            <SelectChevron />
-          </div>
-          <p className="text-xs text-cyan-400">Tap to choose from the list ▾</p>
+          <Label htmlFor="audience-gate">
+            {gateLabel}
+            {isFree && !gate.required ? (
+              <span className="ml-1 text-xs font-normal text-[var(--muted-foreground)]">(optional)</span>
+            ) : null}
+          </Label>
+          {isFree ? (
+            <>
+              <Input
+                id="audience-gate"
+                list={gate.suggestions.length > 0 ? "audience-suggestions" : undefined}
+                value={freeAudience}
+                placeholder={placeholder}
+                autoComplete="off"
+                onChange={(e) => setFreeAudience(e.target.value)}
+              />
+              {gate.suggestions.length > 0 ? (
+                <datalist id="audience-suggestions">
+                  {gate.suggestions.map((s) => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
+              ) : null}
+              {gate.suggestions.length > 0 ? (
+                <p className="text-xs text-cyan-400">Start typing to see suggestions — or enter your own.</p>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <div className="relative">
+                <select
+                  id="audience-gate"
+                  value={gateChoice}
+                  onChange={(e) => setGateChoice(e.target.value)}
+                  className={SELECT_CLASS}
+                >
+                  <option value="" disabled>{placeholder}</option>
+                  {gate.options.map((o) => (
+                    <option key={o.key} value={o.key}>{o.label}</option>
+                  ))}
+                </select>
+                <SelectChevron />
+              </div>
+              <p className="text-xs text-cyan-400">Tap to choose from the list ▾</p>
+            </>
+          )}
         </div>
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
-        <Button size="lg" type="button" style={ctaStyle} disabled={!gateChoice} onClick={submitGate}>
+        <Button size="lg" type="button" style={ctaStyle} disabled={continueDisabled} onClick={submitGate}>
           {assessment.startButtonLabel?.trim() || "Continue"}
         </Button>
       </div>

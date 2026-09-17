@@ -32,19 +32,40 @@ export const audienceRoleSchema = z.object({
 });
 export type AudienceRoleInput = z.infer<typeof audienceRoleSchema>;
 
+/** How the first-screen audience question is answered:
+ *  - DROPDOWN: pick one of the `roles` (supports per-choice cascade routing).
+ *  - FREETEXT: type a value, with live suggestions from the tenant's canonical
+ *    list; a non-matching value is still accepted. Free text can't route. */
+export const AUDIENCE_MODES = ["DROPDOWN", "FREETEXT"] as const;
+export const audienceModeSchema = z.enum(AUDIENCE_MODES).default("DROPDOWN");
+export type AudienceMode = (typeof AUDIENCE_MODES)[number];
+
 export const audienceGateSchema = z.object({
+  // Which input the first screen shows. DROPDOWN keeps the existing role picker +
+  // routing; FREETEXT shows a type-ahead text field (capture only, no routing).
+  mode: audienceModeSchema,
   label: z.string().max(120).optional().or(z.literal("")).default(""),
   placeholder: z.string().max(120).optional().or(z.literal("")).default(""),
+  // FREETEXT only: whether the respondent must fill the field to continue.
+  freeTextRequired: z.boolean().default(false),
   // Every choice (including "None of the above", if wanted) is just a role row with
   // its own target. "" target = continue here; else an assessment id to redirect to.
   roles: z.array(audienceRoleSchema).max(30).default([]),
 });
 export type AudienceGateInput = z.infer<typeof audienceGateSchema>;
 export const EMPTY_AUDIENCE_GATE: AudienceGateInput = {
+  mode: "DROPDOWN",
   label: "",
   placeholder: "",
+  freeTextRequired: false,
   roles: [],
 };
+
+/** The tenant's canonical audience list (AppSetting.audienceCanonical): the
+ *  default roles that feed both the free-field suggestions and the normalize
+ *  screen. Trimmed, de-duped and capped in the settings action. */
+export const audienceCanonicalSchema = z.array(z.string().trim().min(1).max(120)).max(200).default([]);
+export type AudienceCanonicalInput = z.infer<typeof audienceCanonicalSchema>;
 
 export const assessmentSchema = z.object({
   title: z.string().min(2, "Title is required.").max(160),

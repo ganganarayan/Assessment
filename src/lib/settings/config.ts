@@ -66,6 +66,21 @@ export async function resolveHeatmapCode(tenantId: string | null): Promise<strin
   return s?.heatmapCode?.trim() || null;
 }
 
+/**
+ * Resolve a tenant's canonical audience list (the "default list of roles"). Feeds
+ * the free-text audience field's suggestions and the normalize screen. Stored as a
+ * JSON array of labels on the tenant's own AppSetting row (platform => singleton).
+ * Anything non-string / blank is dropped; null/absent => empty list.
+ */
+export async function resolveAudienceCanonical(tenantId: string | null): Promise<string[]> {
+  const s = (await settingRow(tenantId, { audienceCanonical: true })) as { audienceCanonical: unknown } | null;
+  const raw = s?.audienceCanonical;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((v) => (typeof v === "string" ? v.trim() : ""))
+    .filter((v) => v.length > 0);
+}
+
 export interface RazorpayConfig {
   keyId: string | null;
   keySecret: string | null;
