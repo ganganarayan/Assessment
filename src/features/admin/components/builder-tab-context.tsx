@@ -28,4 +28,5 @@ export function useBuilderTab(): BuilderTabState | null {
 export const BUILDER_TABS = [
   { key: "assessment", label: "Assessment" },
   { key: "results", label: "Results" },
+  { key: "resultPage", label: "Result Page" },
 ] as const;

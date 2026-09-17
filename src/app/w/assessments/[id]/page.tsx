@@ -12,7 +12,9 @@ import { env } from "@/lib/env";
 import { ResultBandsManager } from "@/features/assessment/components/admin/result-bands-manager";
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
 import { PagesBuilder } from "@/features/assessment/components/admin/pages-builder";
+import { ResultPageBuilder } from "@/features/assessment/components/admin/result-page-builder";
 import { BuilderTabPanels } from "@/features/assessment/components/admin/builder-tab-panels";
+import { readResultPage } from "@/features/assessment/result-page/blocks";
 import { WorkspaceAssessmentActions } from "@/features/workspace/components/workspace-assessment-actions";
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
 import { Badge } from "@/components/ui/badge";
@@ -247,6 +249,23 @@ export default async function WorkspaceEditAssessmentPage({
     </section>
   );
 
+  const resultPageTab = (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-lg font-semibold">Result page (VSL)</h2>
+      <p className="text-xs text-[var(--muted-foreground)]">
+        The marketing page shown when <em>Next step</em> is <strong>Show results on assess360</strong>
+        — eyebrow, headline, the respondent&apos;s AI statement, your VSL video (embed code), buttons
+        and YouTube testimonials. Publish to make it live; unpublished falls back to the score cards.
+      </p>
+      <ResultPageBuilder
+        assessmentId={a.id}
+        initial={readResultPage(a.resultPage ?? null)}
+        initialPublished={!!a.resultPagePublished}
+        lastPublishedAt={a.resultPagePublishedAt ? a.resultPagePublishedAt.toISOString() : null}
+      />
+    </section>
+  );
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
@@ -269,6 +288,7 @@ export default async function WorkspaceEditAssessmentPage({
         tabs={[
           { key: "assessment", content: assessmentTab },
           { key: "results", content: resultsTab },
+          { key: "resultPage", content: resultPageTab },
         ]}
       />
     </div>

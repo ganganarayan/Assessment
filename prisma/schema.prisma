@@ -594,6 +594,15 @@ model Assessment {
   publishedPages   Json?
   pagesPublishedAt DateTime?
 
+  // VSL result page (RESULTS mode): a self-contained marketing page — eyebrow,
+  // headline, the respondent's AI statement, a VSL video embed, styled buttons and
+  // YouTube testimonials — shown at /a/:slug/r/:id?t=… . resultPage is the editable
+  // DRAFT (theme + ordered blocks JSON); resultPagePublished is the live snapshot the
+  // token page renders. Null published = fall back to the default score cards.
+  resultPage            Json?
+  resultPagePublished   Json?
+  resultPagePublishedAt DateTime?
+
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

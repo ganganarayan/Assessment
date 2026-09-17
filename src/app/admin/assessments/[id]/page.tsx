@@ -12,8 +12,10 @@ import { ResultBandsManager } from "@/features/assessment/components/admin/resul
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { PagesBuilder } from "@/features/assessment/components/admin/pages-builder";
+import { ResultPageBuilder } from "@/features/assessment/components/admin/result-page-builder";
 import { BuilderTabPanels } from "@/features/assessment/components/admin/builder-tab-panels";
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
+import { readResultPage } from "@/features/assessment/result-page/blocks";
 import { buildSpine } from "@/lib/routing/engine";
 import { EMPTY_AUDIENCE_GATE, type AudienceGateInput } from "@/features/assessment/schemas";
 import { Badge } from "@/components/ui/badge";
@@ -270,6 +272,25 @@ export default async function EditAssessmentPage({
     </section>
   );
 
+  const resultPageTab = (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-lg font-semibold">Result page (VSL)</h2>
+      <p className="text-xs text-[var(--muted-foreground)]">
+        The marketing page shown to the respondent when <em>Next step</em> is
+        <strong> Show results on assess360</strong>. Build it from blocks — eyebrow, headline, the
+        respondent&apos;s AI statement, your VSL video (paste the embed code), styled buttons and
+        YouTube testimonials, footer. Delivered on the token link (opens in the Instagram in-app
+        browser, no sign-in). Publish to make it live; unpublished falls back to the score cards.
+      </p>
+      <ResultPageBuilder
+        assessmentId={a.id}
+        initial={readResultPage(a.resultPage ?? null)}
+        initialPublished={!!a.resultPagePublished}
+        lastPublishedAt={a.resultPagePublishedAt ? a.resultPagePublishedAt.toISOString() : null}
+      />
+    </section>
+  );
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
@@ -294,6 +315,7 @@ export default async function EditAssessmentPage({
         tabs={[
           { key: "assessment", content: assessmentTab },
           { key: "results", content: resultsTab },
+          { key: "resultPage", content: resultPageTab },
         ]}
       />
     </div>

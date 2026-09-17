@@ -11,6 +11,9 @@ import { resultUrlFor } from "@/lib/events/completion";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isSuperAdmin } from "@/lib/auth/guards";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
+import { VslResultPage } from "@/features/assessment/components/public/vsl-result-page";
+import { readResultPage } from "@/features/assessment/result-page/blocks";
+import { resolveVidapulseParam } from "@/lib/vidapulse";
 import { getAiStatements } from "@/features/admin/data/ai-statements";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
 import { getClinicAnswers, getClinicRawAnswers } from "@/features/admin/data/clinic-answers";
@@ -96,6 +99,7 @@ export default async function ResultPage({
           professionLabel: true,
           engine: true,
           tenantId: true,
+          resultPagePublished: true,
           categories: { select: { name: true, page: true, displayOrder: true } },
         },
       },
@@ -447,6 +451,24 @@ export default async function ResultPage({
     snap &&
     (canViewInternally || (!!token && token === submission.resultToken))
   ) {
+    // Published VSL result page (marketing layout) takes precedence over the default
+    // score cards when the assessment has one. Delivered by the same token gate, so it
+    // opens in the IG in-app browser with no sign-in.
+    const publishedResultPage = readResultPage(submission.assessment.resultPagePublished ?? null);
+    if (publishedResultPage.blocks.length > 0) {
+      const tid = submission.assessment.tenantId ?? null;
+      const vpSetting = tid
+        ? await prisma.appSetting.findUnique({ where: { tenantId: tid }, select: { vidapulseTrackingEnabled: true, vidapulseParam: true } })
+        : await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { vidapulseTrackingEnabled: true, vidapulseParam: true } });
+      return (
+        <VslResultPage
+          page={publishedResultPage}
+          aiStatement={submission.assessment.useAiStatement ? snap.aiStatement ?? null : null}
+          customerId={submission.customerId ?? null}
+          vidapulseParam={resolveVidapulseParam(vpSetting)}
+        />
+      );
+    }
     // Group the category breakdown by page (1 = assessment, 2 = queries) so both
     // scored pages show as separate sections. Page is looked up by name at render time.
     const pageByName = new Map(submission.assessment.categories.map((c) => [c.name, c.page ?? 1]));
