@@ -11,6 +11,43 @@ import { lookupSubmissionRef } from "@/features/admin/actions/lookup";
 import { type LookupHit } from "@/features/admin/lookup-types";
 import { type PayloadAttribution } from "@/features/events/types";
 
+/** Show only the token tail of a result link (from "?t" on) — the base before it is
+ *  identical for every row, so trimming it makes the per-person part readable. */
+function linkTail(url: string): string {
+  const i = url.indexOf("?t");
+  return i >= 0 ? url.slice(i) : url;
+}
+
+/** One result link inside the Result-URL cell: an optional Ext/App tag, the token
+ *  tail (full link on hover + in the copy), and a Copy button. */
+function ResultUrlLine({
+  label,
+  full,
+  copied,
+  onCopy,
+}: {
+  label: string | null;
+  full: string;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="min-w-0 flex-1 break-all font-mono text-[11px] leading-snug" title={full}>
+        {label ? (
+          <span className="mr-1 rounded bg-[var(--muted)] px-1 py-0.5 text-[10px] font-semibold uppercase text-[var(--muted-foreground)]">
+            {label}
+          </span>
+        ) : null}
+        {linkTail(full)}
+      </span>
+      <Button size="sm" variant="outline" className="h-7 shrink-0 px-2" onClick={onCopy}>
+        {copied ? "Copied" : "Copy"}
+      </Button>
+    </div>
+  );
+}
+
 export interface SubmissionRow {
   id: string;
   slug: string;
@@ -32,6 +69,9 @@ export interface SubmissionRow {
   status: string;
   /** Destination URL the contact lands on (targetUrl?t=token) — completed only. */
   resultUrl: string | null;
+  /** The native assess360 result link, shown as a second copy option when the
+   *  assessment has a published native page and the primary link is external. */
+  resultUrlNative?: string | null;
   paidAmount: number | null;
   paidAt: string | null;
   vslLoads: number;
@@ -445,21 +485,26 @@ export function SubmissionsTable({
                         ) : null}
                       </div>
                     </td>
-                    {/* Result URL */}
+                    {/* Result URL — shows only the ?t… tail (the base before it is the
+                        same for every row); Copy still copies the FULL link. When the
+                        assessment also has a native page, a second line + Copy is shown. */}
                     <td className="px-3 py-2 align-top">
                       {s.resultUrl ? (
-                        <div className="flex w-[200px] items-start gap-2">
-                          <span className="min-w-0 flex-1 break-all font-mono text-[11px] leading-snug" title={s.resultUrl}>
-                            {s.resultUrl}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 shrink-0 px-2"
-                            onClick={() => copy(`${s.id}:result`, s.resultUrl as string)}
-                          >
-                            {copiedKey === `${s.id}:result` ? "Copied" : "Copy"}
-                          </Button>
+                        <div className="flex w-[210px] flex-col gap-1.5">
+                          <ResultUrlLine
+                            label={s.resultUrlNative ? "Ext" : null}
+                            full={s.resultUrl}
+                            copied={copiedKey === `${s.id}:result`}
+                            onCopy={() => copy(`${s.id}:result`, s.resultUrl as string)}
+                          />
+                          {s.resultUrlNative ? (
+                            <ResultUrlLine
+                              label="App"
+                              full={s.resultUrlNative}
+                              copied={copiedKey === `${s.id}:resultNative`}
+                              onCopy={() => copy(`${s.id}:resultNative`, s.resultUrlNative as string)}
+                            />
+                          ) : null}
                         </div>
                       ) : (
                         "—"

@@ -16,6 +16,7 @@ import {
   type TextAlign,
 } from "@/features/assessment/result-page/blocks";
 import { saveResultPage, publishResultPage, unpublishResultPage } from "@/features/assessment/actions/result-page";
+import { VslResultPage } from "@/features/assessment/components/public/vsl-result-page";
 
 /**
  * Basic VSL result-page builder. The whole page (theme + ordered blocks) is one JSON
@@ -138,6 +139,22 @@ export function ResultPageBuilder({
           <Button disabled={pending || (!dirtyPub && isLive)} onClick={publish}>
             {isLive && !dirtyPub ? "Published ✓" : "Publish changes"}
           </Button>
+        </div>
+      </div>
+
+      {/* Live preview — reflects the current draft (blank until you add blocks). The
+          respondent's real AI statement is substituted here with placeholder text. */}
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium">Preview</span>
+        <div className="overflow-hidden rounded-lg border">
+          <div className="max-h-[560px] overflow-y-auto">
+            <VslResultPage
+              page={page}
+              aiStatement={"[ The respondent's personalized AI statement appears here. ]"}
+              customerId={null}
+              vidapulseParam={null}
+            />
+          </div>
         </div>
       </div>
 

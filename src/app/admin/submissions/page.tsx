@@ -8,7 +8,7 @@ import { getStatsFloor } from "@/lib/stats-floor";
 import { formatIST } from "@/lib/date";
 import { labeledAnswers } from "@/features/assessment/custom-fields";
 import { normalizeAttribution } from "@/lib/events/payload";
-import { pickResultUrl, vidapulseParamForTenant } from "@/lib/events/completion";
+import { pickResultUrl, shareableResultUrl, vidapulseParamForTenant } from "@/lib/events/completion";
 import { timezoneForCountry } from "@/lib/geo";
 import {
   SubmissionsTable,
@@ -57,8 +57,14 @@ export default async function SubmissionsPage({
   // Effective reporting floor (Data window) actually applied to this list.
   const effectiveFloor: Date | null = scoped ? scoped.statsResetAt : await getStatsFloor(t);
   const paid = await getPaidBySubmission(submissions.map((s) => s.id));
+  // Does this (scoped) assessment have a published native VSL result page? If so, the
+  // Result-URL cell shows BOTH the primary link and the native /a/…/r link (each with
+  // its own Copy), except when the primary link IS already the native one (RESULTS mode
+  // / clinic engine), where there is no separate external link to add.
+  const hasNativeResultPage = !!scoped?.resultPagePublished;
   const rows: SubmissionRow[] = submissions.map((s) => {
     const p = paid.get(s.id);
+    const primaryIsNative = s.assessment.nextStep === "RESULTS" || s.assessment.engine === "CLINIC_AUDIT";
     return {
       id: s.id,
       slug: s.assessment.slug,
@@ -89,6 +95,12 @@ export default async function SubmissionsPage({
             vidapulseParam,
           })
         : null,
+      // The native assess360 result link, shown as a SECOND copy option only when the
+      // assessment has a published native page and its primary link is the external one.
+      resultUrlNative:
+        s.status === "COMPLETED" && hasNativeResultPage && !primaryIsNative
+          ? shareableResultUrl(s.assessment.slug, s.id, s.resultToken, s.customerId, vidapulseParam)
+          : null,
       paidAmount: p?.amount ?? null,
       paidAt: p?.at ?? null,
       vslLoads: s.resultFetchCount,
@@ -120,38 +132,41 @@ export default async function SubmissionsPage({
         <AnalyticsToolbar exportGroups={exportGroups(scoped?.id)} />
       </div>
 
-      <AssessmentPicker
-        assessments={assessmentOptions}
-        selectedId={scoped?.id ?? null}
-        basePath="/admin/submissions"
-        allowAll={false}
-      />
-
-      <DateRangeFilter
-        basePath="/admin/submissions"
-        from={sp.from}
-        to={sp.to}
-        extraQuery={scoped ? { assessment: scoped.id } : undefined}
-        stickyStartAssessmentId={scoped?.id}
-        stickyStartValue={stickyStart}
-      />
-
-      {scoped ? (
-        <p className="text-xs text-[var(--muted-foreground)]">
-          Showing this assessment from {stickyStart || "the beginning"}
-          {sp.to ? ` → ${sp.to}` : ""} (IST). Type to search; click a column heading to sort.
-        </p>
-      ) : sp.from || sp.to ? (
-        <p className="text-xs text-[var(--muted-foreground)]">
-          Showing {sp.from ?? "start"} → {sp.to ?? "today"} (IST). Type to search; click a column heading to sort.
-        </p>
-      ) : effectiveFloor ? (
-        <p className="text-xs text-[var(--muted-foreground)]">
-          Showing from {formatIST(effectiveFloor.toISOString())} IST (Data window). Type to search; click a column heading to sort.
-        </p>
-      ) : (
-        <p className="text-xs text-[var(--muted-foreground)]">Type to search; click a column heading to sort.</p>
-      )}
+      {/* Filters on the left; the two explanatory notes stacked on the right, so the
+          table sits higher with less vertical text stacked above it. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="flex flex-col gap-3">
+          <AssessmentPicker
+            assessments={assessmentOptions}
+            selectedId={scoped?.id ?? null}
+            basePath="/admin/submissions"
+            allowAll={false}
+          />
+          <DateRangeFilter
+            basePath="/admin/submissions"
+            from={sp.from}
+            to={sp.to}
+            extraQuery={scoped ? { assessment: scoped.id } : undefined}
+            stickyStartAssessmentId={scoped?.id}
+            stickyStartValue={stickyStart}
+            hideNote
+          />
+        </div>
+        <div className="flex max-w-xs flex-col gap-1 text-right text-xs text-[var(--muted-foreground)]">
+          {scoped ? (
+            <p>This start date is saved for this assessment and won&apos;t change when you switch to another.</p>
+          ) : null}
+          <p>
+            {scoped
+              ? `Showing this assessment from ${stickyStart || "the beginning"}${sp.to ? ` → ${sp.to}` : ""} (IST). Type to search; click a column heading to sort.`
+              : sp.from || sp.to
+                ? `Showing ${sp.from ?? "start"} → ${sp.to ?? "today"} (IST). Type to search; click a column heading to sort.`
+                : effectiveFloor
+                  ? `Showing from ${formatIST(effectiveFloor.toISOString())} IST (Data window). Type to search; click a column heading to sort.`
+                  : "Type to search; click a column heading to sort."}
+          </p>
+        </div>
+      </div>
 
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions yet.</p>

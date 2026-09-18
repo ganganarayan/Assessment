@@ -35,6 +35,7 @@ export function DateRangeFilter({
   extraQuery,
   stickyStartAssessmentId,
   stickyStartValue,
+  hideNote,
 }: {
   basePath: string;
   from?: string;
@@ -45,6 +46,8 @@ export function DateRangeFilter({
   stickyStartAssessmentId?: string;
   /** The saved start as DD-MM-YYYY (from the assessment's statsResetAt); "" if none. */
   stickyStartValue?: string;
+  /** Suppress the "saved for this assessment" note (caller renders it elsewhere). */
+  hideNote?: boolean;
 }) {
   const router = useRouter();
   const sticky = Boolean(stickyStartAssessmentId);
@@ -155,7 +158,7 @@ export function DateRangeFilter({
           )
         ) : null}
       </div>
-      {sticky ? (
+      {sticky && !hideNote ? (
         <p className="text-xs text-[var(--muted-foreground)]">
           This start date is saved for this assessment and won&apos;t change when you switch to another.
         </p>

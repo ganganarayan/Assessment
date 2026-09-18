@@ -23,7 +23,9 @@ export async function listAssessments(tenantId: string | null) {
 export async function getAssessmentForAnalytics(assessmentId: string, tenantId: string | null) {
   return prisma.assessment.findFirst({
     where: { id: assessmentId, tenantId },
-    select: { id: true, title: true, slug: true, statsResetAt: true },
+    // resultPagePublished is selected only to know IF a native VSL page is live (so the
+    // Submissions Result-URL cell can also offer its native link) — not its contents.
+    select: { id: true, title: true, slug: true, statsResetAt: true, resultPagePublished: true },
   });
 }
 

@@ -274,7 +274,7 @@ export default async function EditAssessmentPage({
 
   const resultPageTab = (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">Result page (VSL)</h2>
+      <h2 className="text-lg font-semibold">VSL Result Page</h2>
       <p className="text-xs text-[var(--muted-foreground)]">
         The marketing page shown to the respondent when <em>Next step</em> is
         <strong> Show results on assess360</strong>. Build it from blocks — eyebrow, headline, the

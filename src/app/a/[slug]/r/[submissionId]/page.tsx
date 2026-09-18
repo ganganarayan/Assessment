@@ -328,6 +328,15 @@ export default async function ResultPage({
   ) {
     const vslPage = readResultPage(submission.assessment.resultPagePublished ?? null);
     if (vslPage.blocks.length > 0) {
+      // A real respondent reaching the native VSL page counts as a VSL load — the SAME
+      // resultFetchCount the external destination bumps via /api/r — so the "VSL" column
+      // reflects native and external views alike. Admin previews (canViewInternally) are
+      // excluded. Fire-and-forget so a count write never blocks the render.
+      if (!canViewInternally) {
+        void prisma.submission
+          .updateMany({ where: { id: submissionId }, data: { resultFetchCount: { increment: 1 } } })
+          .catch(() => {});
+      }
       const tid = submission.assessment.tenantId ?? null;
       const vpSetting = tid
         ? await prisma.appSetting.findUnique({ where: { tenantId: tid }, select: { vidapulseTrackingEnabled: true, vidapulseParam: true } })
