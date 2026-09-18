@@ -3,6 +3,7 @@ import {
   themeOf,
   extractEmbedSrc,
   youtubeEmbedUrl,
+  normalizeHref,
   type ResultPageData,
   type ResultBlock,
   type TextAlign,
@@ -34,8 +35,17 @@ export function VslResultPage({
   const t = themeOf(page.theme);
   return (
     <main style={{ minHeight: "100vh", background: t.bg, color: t.text }}>
+      {/* Fluid container: fills the available width with responsive left/right gutters
+          (16px on a phone → up to ~64px on a wide screen), capped so text stays
+          readable on very large monitors instead of being a narrow fixed column. */}
       <div
-        style={{ maxWidth: 640, margin: "0 auto", padding: "32px 16px 56px" }}
+        style={{
+          width: "100%",
+          maxWidth: 1200,
+          margin: "0 auto",
+          padding: "32px clamp(16px, 5vw, 64px) 64px",
+          boxSizing: "border-box",
+        }}
         className="flex flex-col gap-6"
       >
         {page.blocks.map((b) => (
@@ -130,7 +140,8 @@ function Block({
 
 function ButtonBlock({ config, theme }: { config: ButtonConfig; theme: ReturnType<typeof themeOf> }) {
   const label = (config.label ?? "").trim();
-  const url = (config.url ?? "").trim();
+  // The link is used EXACTLY as typed (normalizeHref only fixes a missing scheme).
+  const href = normalizeHref(config.url);
   if (!label) return null;
   const bg = (config.bg ?? "").trim() || theme.cta;
   const color = (config.color ?? "").trim() || theme.ctaText;
@@ -140,9 +151,9 @@ function ButtonBlock({ config, theme }: { config: ButtonConfig; theme: ReturnTyp
   return (
     <div style={{ display: "flex", justifyContent: justify }}>
       <a
-        href={url || "#"}
-        target={url ? "_blank" : undefined}
-        rel={url ? "noreferrer" : undefined}
+        href={href ?? "#"}
+        target={href ? "_blank" : undefined}
+        rel={href ? "noreferrer" : undefined}
         style={{
           display: "inline-block",
           background: bg,
@@ -176,14 +187,16 @@ function VideoBlock({
   // non-absolute src or when tracking is off / no customerId.
   const finalSrc = appendVidapulseId(src, vidapulseParam, customerId);
   return (
-    <div style={{ position: "relative", width: "100%", paddingTop: "56.25%", borderRadius: 12, overflow: "hidden" }}>
-      <iframe
-        src={finalSrc}
-        title="Video"
-        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-        allowFullScreen
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
-      />
+    <div style={{ width: "100%", maxWidth: 820, margin: "0 auto" }}>
+      <div style={{ position: "relative", width: "100%", paddingTop: "56.25%", borderRadius: 12, overflow: "hidden" }}>
+        <iframe
+          src={finalSrc}
+          title="Video"
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+          allowFullScreen
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
+        />
+      </div>
     </div>
   );
 }
@@ -236,17 +249,20 @@ function FooterBlock({ config, theme }: { config: FooterConfig; theme: ReturnTyp
     <footer style={{ borderTop: `1px solid ${theme.border}`, paddingTop: 20, marginTop: 8 }} className="flex flex-col gap-3">
       {links.length > 0 ? (
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
-          {links.map((l, i) => (
-            <a
-              key={i}
-              href={(l.url ?? "").trim() || "#"}
-              target={(l.url ?? "").trim() ? "_blank" : undefined}
-              rel={(l.url ?? "").trim() ? "noreferrer" : undefined}
-              style={{ color: theme.muted, fontSize: 13, textDecoration: "none", textTransform: "uppercase", letterSpacing: "0.04em" }}
-            >
-              {(l.label ?? "").trim()}
-            </a>
-          ))}
+          {links.map((l, i) => {
+            const href = normalizeHref(l.url);
+            return (
+              <a
+                key={i}
+                href={href ?? "#"}
+                target={href ? "_blank" : undefined}
+                rel={href ? "noreferrer" : undefined}
+                style={{ color: theme.muted, fontSize: 13, textDecoration: "none", textTransform: "uppercase", letterSpacing: "0.04em" }}
+              >
+                {(l.label ?? "").trim()}
+              </a>
+            );
+          })}
         </div>
       ) : null}
       {disclaimer ? <p style={{ textAlign: "center", fontSize: 12, color: theme.muted, margin: 0, lineHeight: 1.5 }}>{disclaimer}</p> : null}

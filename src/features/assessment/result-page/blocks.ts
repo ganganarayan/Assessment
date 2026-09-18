@@ -231,3 +231,15 @@ export function youtubeEmbedUrl(url: string | null | undefined): string | null {
   const id = youtubeId(url);
   return id ? `https://www.youtube-nocookie.com/embed/${id}` : null;
 }
+
+/** Use a link EXACTLY as the admin typed it — never append or rewrite. The only
+ *  adjustment is prefixing https:// to a bare host (e.g. "site.com/x"), otherwise the
+ *  browser would treat it as relative and stick it onto the current page's path. Real
+ *  schemes (http, https, mailto, tel), anchors and root-relative paths pass untouched.
+ *  Returns null for a blank link (so the caller can render a non-clickable button). */
+export function normalizeHref(url: string | null | undefined): string | null {
+  const u = (url ?? "").trim();
+  if (!u) return null;
+  if (/^(https?:|mailto:|tel:|#|\/)/i.test(u)) return u;
+  return `https://${u}`;
+}
