@@ -50,6 +50,10 @@ export default async function ResultPage({
   const { slug, submissionId: urlSubmissionId } = await params;
   const sp = await searchParams;
   const token = Array.isArray(sp.t) ? sp.t[0] : sp.t;
+  // Admin-only: force the native VSL page to render (any next-step) so it can be
+  // previewed while the assessment still points at an external URL. Gated on
+  // canViewInternally below, so it is never a public bypass.
+  const preview = sp.preview === "1";
   // A shared clinic link carries ?t=<token>, which identifies a PERSON. Resolve to
   // that person's NEWEST completed attempt for this assessment, so a retake surfaces
   // on the same already-shared link (mirrors /api/r). Every attempt stays stored with
@@ -308,6 +312,37 @@ export default async function ResultPage({
     );
   }
 
+  // ---- Native VSL result page (RESULTS mode, builder-built) ----------------
+  // Rendered whenever the TOKEN (respondent) link is used — including by a signed-in
+  // admin previewing via ?t=. It must come BEFORE the admin-review branch below, which
+  // otherwise intercepts every super-admin visit (even with a token) and shows the raw
+  // admin view instead of the page the respondent actually sees. The no-token internal
+  // "Result" link still falls through to the admin view for data review.
+  // An admin can also force a preview with ?preview=1 (any next-step), so the builder
+  // page can be checked while an assessment still points at an external URL.
+  if (
+    submission.status === "COMPLETED" &&
+    snap &&
+    ((submission.assessment.nextStep === "RESULTS" && !!token && token === submission.resultToken) ||
+      (canViewInternally && preview))
+  ) {
+    const vslPage = readResultPage(submission.assessment.resultPagePublished ?? null);
+    if (vslPage.blocks.length > 0) {
+      const tid = submission.assessment.tenantId ?? null;
+      const vpSetting = tid
+        ? await prisma.appSetting.findUnique({ where: { tenantId: tid }, select: { vidapulseTrackingEnabled: true, vidapulseParam: true } })
+        : await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { vidapulseTrackingEnabled: true, vidapulseParam: true } });
+      return (
+        <VslResultPage
+          page={vslPage}
+          aiStatement={submission.assessment.useAiStatement ? snap.aiStatement ?? null : null}
+          customerId={submission.customerId ?? null}
+          vidapulseParam={resolveVidapulseParam(vpSetting)}
+        />
+      );
+    }
+  }
+
   // ---- Admin review: full result (super admin only — see canViewInternally note
   //      above re: AiStatementManager's actions being super-admin-gated) ---------
   if (isSuperOwner && submission.status === "COMPLETED" && snap) {
@@ -451,24 +486,9 @@ export default async function ResultPage({
     snap &&
     (canViewInternally || (!!token && token === submission.resultToken))
   ) {
-    // Published VSL result page (marketing layout) takes precedence over the default
-    // score cards when the assessment has one. Delivered by the same token gate, so it
-    // opens in the IG in-app browser with no sign-in.
-    const publishedResultPage = readResultPage(submission.assessment.resultPagePublished ?? null);
-    if (publishedResultPage.blocks.length > 0) {
-      const tid = submission.assessment.tenantId ?? null;
-      const vpSetting = tid
-        ? await prisma.appSetting.findUnique({ where: { tenantId: tid }, select: { vidapulseTrackingEnabled: true, vidapulseParam: true } })
-        : await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { vidapulseTrackingEnabled: true, vidapulseParam: true } });
-      return (
-        <VslResultPage
-          page={publishedResultPage}
-          aiStatement={submission.assessment.useAiStatement ? snap.aiStatement ?? null : null}
-          customerId={submission.customerId ?? null}
-          vidapulseParam={resolveVidapulseParam(vpSetting)}
-        />
-      );
-    }
+    // (The published VSL page, when present, is rendered earlier — before the admin
+    // branch — so the token link shows it even to a signed-in admin. This branch is the
+    // score-cards fallback for RESULTS assessments with no published result page.)
     // Group the category breakdown by page (1 = assessment, 2 = queries) so both
     // scored pages show as separate sections. Page is looked up by name at render time.
     const pageByName = new Map(submission.assessment.categories.map((c) => [c.name, c.page ?? 1]));
