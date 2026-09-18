@@ -81,10 +81,87 @@ export async function resolveAudienceCanonical(tenantId: string | null): Promise
     .filter((v) => v.length > 0);
 }
 
+/** Resolve a tenant's Nurture message config (the email + WhatsApp content/toggles). */
+export async function resolveNurtureConfig(tenantId: string | null) {
+  const s = (await settingRow(tenantId, { nurtureConfig: true })) as { nurtureConfig: unknown } | null;
+  const { readNurtureConfig } = await import("@/features/nurture/config");
+  return readNurtureConfig(s?.nurtureConfig ?? null);
+}
+
 export interface RazorpayConfig {
   keyId: string | null;
   keySecret: string | null;
   webhookSecret: string | null;
+}
+
+export interface SmtpConfig {
+  host: string | null;
+  port: number | null;
+  secure: boolean;
+  user: string | null;
+  pass: string | null;
+  fromName: string | null;
+  fromEmail: string | null;
+}
+
+/** Resolve a tenant's SMTP config (its own row; singleton for platform). No env
+ *  fallback — an unconfigured tenant simply cannot send email. */
+export async function resolveSmtpConfig(tenantId: string | null): Promise<SmtpConfig> {
+  const s = (await settingRow(tenantId, {
+    smtpHost: true,
+    smtpPort: true,
+    smtpSecure: true,
+    smtpUser: true,
+    smtpPassEnc: true,
+    smtpFromName: true,
+    smtpFromEmail: true,
+  })) as {
+    smtpHost: string | null;
+    smtpPort: number | null;
+    smtpSecure: boolean;
+    smtpUser: string | null;
+    smtpPassEnc: string | null;
+    smtpFromName: string | null;
+    smtpFromEmail: string | null;
+  } | null;
+  return {
+    host: s?.smtpHost?.trim() || null,
+    port: s?.smtpPort ?? null,
+    secure: s?.smtpSecure ?? false,
+    user: s?.smtpUser?.trim() || null,
+    pass: safeDecrypt(s?.smtpPassEnc),
+    fromName: s?.smtpFromName?.trim() || null,
+    fromEmail: s?.smtpFromEmail?.trim() || null,
+  };
+}
+
+export interface WabaConfig {
+  phoneNumberId: string | null;
+  accessToken: string | null;
+  apiVersion: string;
+  defaultCountryCode: string;
+}
+
+/** Resolve a tenant's Meta WhatsApp Cloud API config (its own row; singleton for
+ *  platform). apiVersion/countryCode fall back to sane defaults when blank. */
+export async function resolveWabaConfig(tenantId: string | null): Promise<WabaConfig> {
+  const s = (await settingRow(tenantId, {
+    wabaPhoneNumberId: true,
+    wabaAccessTokenEnc: true,
+    wabaApiVersion: true,
+    wabaDefaultCountryCode: true,
+  })) as {
+    wabaPhoneNumberId: string | null;
+    wabaAccessTokenEnc: string | null;
+    wabaApiVersion: string | null;
+    wabaDefaultCountryCode: string | null;
+  } | null;
+  return {
+    phoneNumberId: s?.wabaPhoneNumberId?.trim() || null,
+    accessToken: safeDecrypt(s?.wabaAccessTokenEnc),
+    apiVersion: s?.wabaApiVersion?.trim() || "v21.0",
+    defaultCountryCode: s?.wabaDefaultCountryCode?.trim() || "91",
+  };
 }
 
 /** Resolve a tenant's Razorpay config (null = platform/Gita → env fallback). */

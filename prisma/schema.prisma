@@ -66,6 +66,7 @@ model Tenant {
   promptVersions AiPromptVersion[]
   subscription   Subscription?
   usageCounters  UsageCounter[]
+  nurtureLogs    NurtureLog[]
 
   @@index([status])
   @@map("tenant")
@@ -1009,6 +1010,9 @@ model Submission {
   resultViewedAt DateTime? // set once when the internal result page is first viewed
   resultFetchedAt DateTime? // set on first /api/r read = the VSL page pulled the result
   resultFetchCount Int @default(0) // total /api/r reads = how many times the VSL loaded
+  // Nurture (one-shot Email + WhatsApp on opt-in): stamped when nurture is FIRST
+  // attempted for this submission, so a re-submit/edit never re-sends. Null = not run.
+  nurtureSentAt  DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -1026,6 +1030,7 @@ model Submission {
   categoryScores SubmissionCategoryScore[]
   aiStatements   AiStatement[]
   crmSendJobs    CrmSendQueue[]
+  nurtureLogs    NurtureLog[]
 
   @@index([assessmentId])
   @@index([leadEmail])
@@ -1034,6 +1039,28 @@ model Submission {
   @@index([assessmentId, identifierValue, status]) // retake lockout + trend
   @@index([crmDirty]) // CRM resend drip queue
   @@map("submission")
+}
+
+// ---------------------------------------------------------------------------
+// NurtureLog — one row per Email/WhatsApp send attempt fired on opt-in (or a
+// manual resend/test). Best-effort delivery: failures are recorded here (no auto
+// retry) so an operator can see and re-send. Scoped per tenant.
+// ---------------------------------------------------------------------------
+model NurtureLog {
+  id           String   @id @default(cuid())
+  tenantId     String?
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  submissionId String?
+  submission   Submission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  channel      String // "EMAIL" | "WABA"
+  status       String // "SENT" | "FAILED" | "SKIPPED"
+  toAddress    String? // destination email or phone, for the log view
+  error        String?
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([submissionId])
+  @@map("nurture_log")
 }
 
 // ---------------------------------------------------------------------------
@@ -1489,6 +1516,27 @@ model AppSetting {
   // audience field's live suggestions AND the normalize screen that cleans up typed
   // values. Stored as a JSON array of trimmed labels. null tenant => singleton row.
   audienceCanonical Json?
+
+  // ---- Nurture (one-shot Email + WhatsApp on opt-in) — PER TENANT -----------
+  // SMTP transactional email. Password ENCRYPTED at rest, never returned to the
+  // client. Each tenant has its OWN sender; the singleton row is the platform/Gita
+  // sender. No env fallback (new feature) — unconfigured => that channel just no-ops.
+  smtpHost      String?
+  smtpPort      Int?
+  smtpSecure    Boolean @default(false)
+  smtpUser      String?
+  smtpPassEnc   String?
+  smtpFromName  String?
+  smtpFromEmail String?
+  // Meta WhatsApp Cloud API (business-initiated = approved TEMPLATE messages only).
+  // Access token ENCRYPTED. apiVersion/countryCode fall back to code defaults when blank.
+  wabaPhoneNumberId      String?
+  wabaAccessTokenEnc     String?
+  wabaApiVersion         String? // e.g. "v21.0"
+  wabaDefaultCountryCode String? // e.g. "91" — prepended to bare local mobiles for E.164
+  // The Nurture messages + on/off toggles, as JSON:
+  //   { email: { enabled, subject, body }, waba: { enabled, template, lang, vars: string[] } }
+  nurtureConfig Json?
 
   // CRM "score_updated" resend: the destination endpoint (separate from the
   // configured webhooks) and a persisted "drip is active" flag for status/resume.

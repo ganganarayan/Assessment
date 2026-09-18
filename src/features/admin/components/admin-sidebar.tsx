@@ -43,6 +43,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
   {
     section: "Automation",
     items: [
+      { href: "/admin/nurture", label: "Nurture" },
       { href: "/admin/webhooks", label: "Webhooks" },
       { href: "/admin/webhook-logs", label: "Webhook Logs" },
       { href: "/admin/pixel-test", label: "Pixel Tester" },

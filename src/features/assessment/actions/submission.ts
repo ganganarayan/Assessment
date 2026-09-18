@@ -17,6 +17,7 @@ import {
 } from "@/features/assessment/scoring";
 import { EventType, Prisma } from "@prisma/client";
 import { emitEvent } from "@/lib/events/emit";
+import { sendNurtureForSubmission } from "@/lib/nurture/send";
 import { resultUrlFor, vidapulseParamForTenant } from "@/lib/events/completion";
 import { appendVidapulseId } from "@/lib/vidapulse";
 import { normalizeAttribution } from "@/lib/events/payload";
@@ -614,6 +615,11 @@ export async function startSubmission(
     if (outcome.kind === "created") {
       eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, assessment.fireMetaCapi);
     }
+    // Nurture (one-shot Email + WhatsApp) on opt-in. Fire-and-forget so it never
+    // blocks the respondent; the sender's once-guard makes a resume/edit a no-op.
+    if (!adminPreview) {
+      void sendNurtureForSubmission(outcome.submissionId).catch(() => {});
+    }
     const answers = outcome.kind === "reused" ? await loadResumeAnswers(outcome.submissionId) : undefined;
     return {
       ok: true,
@@ -633,6 +639,10 @@ export async function startSubmission(
     select: { id: true },
   });
   const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr, assessment.fireMetaCapi);
+  // Nurture (one-shot Email + WhatsApp) on opt-in — fire-and-forget; never on preview.
+  if (!adminPreview) {
+    void sendNurtureForSubmission(created.id).catch(() => {});
+  }
   return { ok: true, data: { status: "started", submissionId: created.id, editToken: newEditToken, ...(eventId ? { eventId } : {}) } };
 }
 

@@ -22,6 +22,8 @@ import {
   getLegalSettings,
 } from "@/features/admin/actions/platform-integrations";
 import { LegalSettingsForm } from "@/features/admin/components/legal-settings-form";
+import { NurtureConnectionSettings } from "@/features/nurture/components/nurture-connection-settings";
+import { getNurtureSettings } from "@/features/nurture/actions";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
 import {
   Card,
@@ -40,7 +42,7 @@ export const dynamic = "force-dynamic";
  * Custom domains are per-tenant, so that card only shows while impersonating.
  */
 export default async function SettingsPage() {
-  const [setting, actingId] = await Promise.all([getAppSetting(), actingTenantId()]);
+  const [setting, actingId, nurtureSettings] = await Promise.all([getAppSetting(), actingTenantId(), getNurtureSettings()]);
   const impersonating = actingId !== null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
@@ -104,6 +106,20 @@ export default async function SettingsPage() {
             initial={integrations.heatmapCode}
             saveAction={impersonating ? updateHeatmapSettings : updatePlatformHeatmapSettings}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Nurture connection {impersonating ? "(this tenant)" : "(platform · Gita)"}</CardTitle>
+          <CardDescription>
+            Email (SMTP) + WhatsApp (Meta Cloud API) credentials used for the one-shot message that
+            fires on opt-in. Per tenant; secrets are encrypted and never shown again. The messages
+            themselves are set under <a className="underline" href="/admin/nurture">Nurture</a>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <NurtureConnectionSettings initial={nurtureSettings} />
         </CardContent>
       </Card>
 
