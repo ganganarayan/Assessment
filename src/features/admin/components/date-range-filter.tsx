@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "./date-picker";
@@ -36,6 +36,7 @@ export function DateRangeFilter({
   stickyStartAssessmentId,
   stickyStartValue,
   hideNote,
+  rightSlot,
 }: {
   basePath: string;
   from?: string;
@@ -48,6 +49,9 @@ export function DateRangeFilter({
   stickyStartValue?: string;
   /** Suppress the "saved for this assessment" note (caller renders it elsewhere). */
   hideNote?: boolean;
+  /** Content rendered at the right end of the From/To/Apply row (bottom-aligned to
+   *  the Apply button), e.g. the "showing…" notes. */
+  rightSlot?: ReactNode;
 }) {
   const router = useRouter();
   const sticky = Boolean(stickyStartAssessmentId);
@@ -157,6 +161,7 @@ export function DateRangeFilter({
             </Link>
           )
         ) : null}
+        {rightSlot ? <div className="ml-auto self-end pb-1">{rightSlot}</div> : null}
       </div>
       {sticky && !hideNote ? (
         <p className="text-xs text-[var(--muted-foreground)]">

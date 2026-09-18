@@ -132,41 +132,38 @@ export default async function SubmissionsPage({
         <AnalyticsToolbar exportGroups={exportGroups(scoped?.id)} />
       </div>
 
-      {/* Filters on the left; the two explanatory notes stacked on the right, so the
-          table sits higher with less vertical text stacked above it. */}
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-        <div className="flex flex-col gap-3">
-          <AssessmentPicker
-            assessments={assessmentOptions}
-            selectedId={scoped?.id ?? null}
-            basePath="/admin/submissions"
-            allowAll={false}
-          />
-          <DateRangeFilter
-            basePath="/admin/submissions"
-            from={sp.from}
-            to={sp.to}
-            extraQuery={scoped ? { assessment: scoped.id } : undefined}
-            stickyStartAssessmentId={scoped?.id}
-            stickyStartValue={stickyStart}
-            hideNote
-          />
-        </div>
-        <div className="flex max-w-xs flex-col gap-1 text-right text-xs text-[var(--muted-foreground)]">
-          {scoped ? (
-            <p>This start date is saved for this assessment and won&apos;t change when you switch to another.</p>
-          ) : null}
-          <p>
-            {scoped
-              ? `Showing this assessment from ${stickyStart || "the beginning"}${sp.to ? ` → ${sp.to}` : ""} (IST). Type to search; click a column heading to sort.`
-              : sp.from || sp.to
-                ? `Showing ${sp.from ?? "start"} → ${sp.to ?? "today"} (IST). Type to search; click a column heading to sort.`
-                : effectiveFloor
-                  ? `Showing from ${formatIST(effectiveFloor.toISOString())} IST (Data window). Type to search; click a column heading to sort.`
-                  : "Type to search; click a column heading to sort."}
-          </p>
-        </div>
-      </div>
+      <AssessmentPicker
+        assessments={assessmentOptions}
+        selectedId={scoped?.id ?? null}
+        basePath="/admin/submissions"
+        allowAll={false}
+      />
+
+      <DateRangeFilter
+        basePath="/admin/submissions"
+        from={sp.from}
+        to={sp.to}
+        extraQuery={scoped ? { assessment: scoped.id } : undefined}
+        stickyStartAssessmentId={scoped?.id}
+        stickyStartValue={stickyStart}
+        hideNote
+        rightSlot={
+          <div className="max-w-sm text-right text-xs leading-snug text-[var(--muted-foreground)]">
+            {scoped ? (
+              <p>This start date is saved for this assessment and won&apos;t change when you switch to another.</p>
+            ) : null}
+            <p>
+              {scoped
+                ? `Showing this assessment from ${stickyStart || "the beginning"}${sp.to ? ` → ${sp.to}` : ""} (IST). Type to search; click a column heading to sort.`
+                : sp.from || sp.to
+                  ? `Showing ${sp.from ?? "start"} → ${sp.to ?? "today"} (IST). Type to search; click a column heading to sort.`
+                  : effectiveFloor
+                    ? `Showing from ${formatIST(effectiveFloor.toISOString())} IST (Data window). Type to search; click a column heading to sort.`
+                    : "Type to search; click a column heading to sort."}
+            </p>
+          </div>
+        }
+      />
 
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions yet.</p>
