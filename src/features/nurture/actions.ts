@@ -158,11 +158,12 @@ export async function sendTestEmail(to: string): Promise<ActionResult> {
   if (!dest) return { ok: false, error: "Enter an email address to test." };
   const cfg = (await getNurtureSettings()).config;
   const sample = { firstName: "Test", lastName: "Lead", email: dest, mobile: "", profession: "Founder" };
+  const sampleExtra = { resultUrl: `${env.NEXT_PUBLIC_APP_URL}/a/sample/r/sample-result` };
   const err = await sendEmail(
     scope.tenantId,
     dest,
-    fillPlaceholders(cfg.email.subject || "Test email", sample),
-    fillPlaceholders(cfg.email.body || "<p>This is a test.</p>", sample),
+    fillPlaceholders(cfg.email.subject || "Test email", sample, sampleExtra),
+    fillPlaceholders(cfg.email.body || "<p>This is a test.</p>", sample, sampleExtra),
   );
   await prisma.nurtureLog.create({
     data: { tenantId: scope.tenantId, channel: "EMAIL", status: err ? "FAILED" : "SENT", toAddress: dest, error: err?.slice(0, 500) ?? null },
@@ -181,7 +182,8 @@ export async function sendTestWaba(to: string): Promise<ActionResult> {
   if (!digits) return { ok: false, error: "Enter a valid mobile number to test." };
   if (!cfg.waba.template.trim()) return { ok: false, error: "Set the WhatsApp template name first." };
   const sample = { firstName: "Test", lastName: "Lead", email: "", mobile: to, profession: "Founder" };
-  const vars = cfg.waba.vars.map((v) => fillPlaceholders(v, sample));
+  const sampleExtra = { resultUrl: `${env.NEXT_PUBLIC_APP_URL}/a/sample/r/sample-result` };
+  const vars = cfg.waba.vars.map((v) => fillPlaceholders(v, sample, sampleExtra));
   const err = await sendWaba(scope.tenantId, digits, cfg.waba.template, cfg.waba.lang, vars);
   await prisma.nurtureLog.create({
     data: { tenantId: scope.tenantId, channel: "WABA", status: err ? "FAILED" : "SENT", toAddress: digits, error: err?.slice(0, 500) ?? null },

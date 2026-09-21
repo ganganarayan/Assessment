@@ -45,7 +45,8 @@ export function NurtureComposer({
   return (
     <div className="flex flex-col gap-6">
       <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-xs text-[var(--muted-foreground)]">
-        These fire <strong>once, immediately when a lead opts in</strong> (the lead form submit). Set the
+        These fire <strong>once, as soon as a respondent completes the assessment</strong>. Use{" "}
+        <strong>{"{{resultUrl}}"}</strong> to send the person their personal result link. Set the
         SMTP + WhatsApp connection in <a className="underline" href="/admin/settings">Settings</a> first.
         Placeholders: {NURTURE_PLACEHOLDERS.map((p) => `{{${p}}}`).join("  ")}
       </p>
@@ -54,7 +55,7 @@ export function NurtureComposer({
       <section className="flex flex-col gap-3 rounded-lg border p-4">
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" checked={cfg.email.enabled} onChange={(e) => setEmail({ enabled: e.target.checked })} />
-          Email — send on opt-in
+          Email — send on completion
         </label>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Subject</Label>
@@ -62,7 +63,7 @@ export function NurtureComposer({
         </div>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Body (HTML allowed)</Label>
-          <Textarea rows={7} value={cfg.email.body} placeholder={"<p>Hi {{firstName}},</p>\n<p>Thanks for taking the assessment…</p>"} onChange={(e) => setEmail({ body: e.target.value })} spellCheck={false} />
+          <Textarea rows={7} value={cfg.email.body} placeholder={"<p>Hi {{firstName}},</p>\n<p>Your results are ready — view them here:</p>\n<p><a href=\"{{resultUrl}}\">{{resultUrl}}</a></p>"} onChange={(e) => setEmail({ body: e.target.value })} spellCheck={false} />
         </div>
         <TestSend kind="email" />
       </section>
@@ -71,7 +72,7 @@ export function NurtureComposer({
       <section className="flex flex-col gap-3 rounded-lg border p-4">
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" checked={cfg.waba.enabled} onChange={(e) => setWaba({ enabled: e.target.checked })} />
-          WhatsApp — send on opt-in
+          WhatsApp — send on completion
         </label>
         <p className="text-xs text-[var(--muted-foreground)]">
           WhatsApp business-initiated messages must use a <strong>pre-approved template</strong> from your

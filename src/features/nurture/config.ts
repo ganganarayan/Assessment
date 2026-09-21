@@ -54,11 +54,20 @@ export interface LeadFields {
   profession?: string | null;
 }
 
-export const NURTURE_PLACEHOLDERS = ["firstName", "lastName", "name", "email", "mobile", "profession"] as const;
+export const NURTURE_PLACEHOLDERS = [
+  "firstName",
+  "lastName",
+  "name",
+  "email",
+  "mobile",
+  "profession",
+  "resultUrl",
+] as const;
 
 /** Replace {{firstName}} etc. with the lead's values (blank when unknown). Unknown
- *  placeholders are left as-is so a typo is visible rather than silently dropped. */
-export function fillPlaceholders(template: string, lead: LeadFields): string {
+ *  placeholders are left as-is so a typo is visible rather than silently dropped.
+ *  `extra` carries non-lead values such as the completion result URL ({{resultUrl}}). */
+export function fillPlaceholders(template: string, lead: LeadFields, extra?: { resultUrl?: string | null }): string {
   const name = [lead.firstName, lead.lastName].filter(Boolean).join(" ").trim();
   const map: Record<string, string> = {
     firstName: (lead.firstName ?? "").trim(),
@@ -67,6 +76,7 @@ export function fillPlaceholders(template: string, lead: LeadFields): string {
     email: (lead.email ?? "").trim(),
     mobile: (lead.mobile ?? "").trim(),
     profession: (lead.profession ?? "").trim(),
+    resultUrl: (extra?.resultUrl ?? "").trim(),
   };
   return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (whole, key: string) => map[key] ?? whole);
 }

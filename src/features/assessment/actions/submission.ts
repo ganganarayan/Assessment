@@ -615,11 +615,8 @@ export async function startSubmission(
     if (outcome.kind === "created") {
       eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, assessment.fireMetaCapi);
     }
-    // Nurture (one-shot Email + WhatsApp) on opt-in. Fire-and-forget so it never
-    // blocks the respondent; the sender's once-guard makes a resume/edit a no-op.
-    if (!adminPreview) {
-      void sendNurtureForSubmission(outcome.submissionId).catch(() => {});
-    }
+    // Nurture (one-shot Email + WhatsApp) now fires on COMPLETION, not here, so the
+    // {{resultUrl}} placeholder resolves to the finished result — see completeSubmission.
     const answers = outcome.kind === "reused" ? await loadResumeAnswers(outcome.submissionId) : undefined;
     return {
       ok: true,
@@ -639,10 +636,7 @@ export async function startSubmission(
     select: { id: true },
   });
   const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr, assessment.fireMetaCapi);
-  // Nurture (one-shot Email + WhatsApp) on opt-in — fire-and-forget; never on preview.
-  if (!adminPreview) {
-    void sendNurtureForSubmission(created.id).catch(() => {});
-  }
+  // Nurture now fires on COMPLETION (see completeSubmission) so {{resultUrl}} resolves.
   return { ok: true, data: { status: "started", submissionId: created.id, editToken: newEditToken, ...(eventId ? { eventId } : {}) } };
 }
 
@@ -1244,6 +1238,12 @@ export async function completeSubmission(
       data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid },
     };
   }
+
+  // Nurture (one-shot Email + WhatsApp) on COMPLETION — fire-and-forget, winning
+  // writer only (exactly-once), plus the sender's own nurtureSentAt guard. Fires for
+  // paid + free; the result token/snapshot are already persisted, so {{resultUrl}}
+  // resolves to the person's finished result.
+  void sendNurtureForSubmission(submissionId).catch(() => {});
 
   // Emit assessment.completed. EventLog is always written; webhook delivery
   // (incl. the CRM endpoint) is non-blocking and never fails this flow. Run only

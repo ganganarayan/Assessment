@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 import { prisma } from "@/lib/db/prisma";
 import { resolveSmtpConfig, resolveWabaConfig, resolveNurtureConfig } from "@/lib/settings/config";
 import { fillPlaceholders, toE164Digits, type LeadFields, type NurtureConfig } from "@/features/nurture/config";
+import { pickResultUrl, vidapulseParamForTenant } from "@/lib/events/completion";
 
 /**
  * Nurture sender — one-shot Email (SMTP) + WhatsApp (Meta Cloud API) fired on opt-in.
@@ -123,6 +124,12 @@ export async function sendNurtureForSubmission(submissionId: string, opts?: { fo
       leadEmail: true,
       leadMobile: true,
       leadProfession: true,
+      customerId: true,
+      resultToken: true,
+      status: true,
+      assessment: {
+        select: { slug: true, engine: true, nextStep: true, targetUrl: true },
+      },
     },
   });
   if (!s) return;
@@ -143,6 +150,24 @@ export async function sendNurtureForSubmission(submissionId: string, opts?: { fo
   const cfg: NurtureConfig = await resolveNurtureConfig(s.tenantId);
   const lead = leadOf(s);
 
+  // The person's own result URL ({{resultUrl}} in the draft). Only meaningful once
+  // the assessment is completed; blank otherwise so a half-finished send has no link.
+  let resultUrl: string | null = null;
+  if (s.assessment && s.status === "COMPLETED") {
+    const vidapulseParam = await vidapulseParamForTenant(s.tenantId);
+    resultUrl = pickResultUrl({
+      engine: s.assessment.engine,
+      nextStep: s.assessment.nextStep,
+      targetUrl: s.assessment.targetUrl,
+      slug: s.assessment.slug,
+      submissionId: s.id,
+      token: s.resultToken,
+      customerId: s.customerId,
+      vidapulseParam,
+    });
+  }
+  const extra = { resultUrl };
+
   // Email
   if (cfg.email.enabled) {
     const to = (s.leadEmail ?? "").trim();
@@ -152,8 +177,8 @@ export async function sendNurtureForSubmission(submissionId: string, opts?: { fo
       const err = await sendEmail(
         s.tenantId,
         to,
-        fillPlaceholders(cfg.email.subject, lead),
-        fillPlaceholders(cfg.email.body, lead),
+        fillPlaceholders(cfg.email.subject, lead, extra),
+        fillPlaceholders(cfg.email.body, lead, extra),
       );
       await log(s.tenantId, s.id, "EMAIL", err ? "FAILED" : "SENT", to, err ?? undefined);
     }
@@ -166,7 +191,7 @@ export async function sendNurtureForSubmission(submissionId: string, opts?: { fo
     if (!digits) {
       await log(s.tenantId, s.id, "WABA", "SKIPPED", s.leadMobile ?? null, "No/invalid mobile.");
     } else {
-      const vars = cfg.waba.vars.map((v) => fillPlaceholders(v, lead));
+      const vars = cfg.waba.vars.map((v) => fillPlaceholders(v, lead, extra));
       const err = await sendWaba(s.tenantId, digits, cfg.waba.template, cfg.waba.lang, vars);
       await log(s.tenantId, s.id, "WABA", err ? "FAILED" : "SENT", digits, err ?? undefined);
     }
