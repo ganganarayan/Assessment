@@ -207,6 +207,9 @@ export function AssessmentRunner({
   const [gateChoice, setGateChoice] = useState<string>("");
   // Free-text gate: the typed audience value (suggestions from the canonical list).
   const [freeAudience, setFreeAudience] = useState<string>("");
+  // Custom suggestion dropdown open state (native <datalist> is unreliable on mobile
+  // and dead in the IG/FB in-app browser, so we render our own list).
+  const [audienceFocused, setAudienceFocused] = useState<boolean>(false);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   // Answers to the optional pre-results details page, keyed by field id.
@@ -702,21 +705,60 @@ export function AssessmentRunner({
           </Label>
           {isFree ? (
             <>
-              <Input
-                id="audience-gate"
-                list={gate.suggestions.length > 0 ? "audience-suggestions" : undefined}
-                value={freeAudience}
-                placeholder={placeholder}
-                autoComplete="off"
-                onChange={(e) => setFreeAudience(e.target.value)}
-              />
-              {gate.suggestions.length > 0 ? (
-                <datalist id="audience-suggestions">
-                  {gate.suggestions.map((s) => (
-                    <option key={s} value={s} />
-                  ))}
-                </datalist>
-              ) : null}
+              {(() => {
+                const q = freeAudience.trim().toLowerCase();
+                // Substring match; show all on focus with empty input. Custom dropdown
+                // (not native <datalist>) so it works on mobile + in-app browsers.
+                const matches = gate.suggestions
+                  .filter((s) => (q ? s.toLowerCase().includes(q) : true))
+                  // Don't show a single suggestion identical to what's already typed.
+                  .filter((s) => s.toLowerCase() !== q)
+                  .slice(0, 8);
+                const open = audienceFocused && matches.length > 0;
+                return (
+                  <div className="relative">
+                    <Input
+                      id="audience-gate"
+                      value={freeAudience}
+                      placeholder={placeholder}
+                      autoComplete="off"
+                      role="combobox"
+                      aria-expanded={open}
+                      aria-autocomplete="list"
+                      onChange={(e) => setFreeAudience(e.target.value)}
+                      onFocus={() => setAudienceFocused(true)}
+                      // Delay close so a tap on an option registers before blur.
+                      onBlur={() => setTimeout(() => setAudienceFocused(false), 150)}
+                    />
+                    {open ? (
+                      <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-auto rounded-md border border-[var(--border)] bg-[var(--background)] py-1 shadow-lg">
+                        {matches.map((s) => (
+                          <li key={s}>
+                            <button
+                              type="button"
+                              className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--muted)] active:bg-[var(--muted)]"
+                              // onMouseDown/onTouchStart fire before the input's blur,
+                              // so preventDefault keeps focus and the pick lands.
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setFreeAudience(s);
+                                setAudienceFocused(false);
+                              }}
+                              onTouchStart={(e) => {
+                                e.preventDefault();
+                                setFreeAudience(s);
+                                setAudienceFocused(false);
+                              }}
+                            >
+                              {s}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                );
+              })()}
               {gate.suggestions.length > 0 ? (
                 <p className="text-xs text-cyan-400">Start typing to see suggestions — or enter your own.</p>
               ) : null}
