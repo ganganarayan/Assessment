@@ -201,9 +201,13 @@ export async function listDeletedUsers(): Promise<ActionResult<PlatformUserRow[]
 /** Assign a login to a tenant as its ADMIN (or unassign with tenantId=null). */
 export async function assignUserToTenant(userId: string, tenantId: string | null): Promise<ActionResult> {
   if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
-  const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, role: true } });
   if (!target) return { ok: false, error: "User not found." };
   if (isPlatformOwner(target.email)) return { ok: false, error: "The platform owner isn't a tenant admin." };
+  // Never silently demote a super admin into a tenant — demote explicitly first.
+  if (tenantId && target.role === Role.SUPER_ADMIN) {
+    return { ok: false, error: "Remove super-admin access before assigning this login to a tenant." };
+  }
   if (tenantId) {
     const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
     if (!t) return { ok: false, error: "Tenant not found." };

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireUser, isSuperAdmin } from "@/lib/auth/guards";
+import { isPlatformOwner } from "@/lib/auth/platform";
 import { generateId } from "@/lib/ids";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
@@ -19,7 +20,9 @@ function slugFrom(seed: string): string {
  */
 export async function provisionMyWorkspace(): Promise<ActionResult> {
   const user = await requireUser();
-  if (isSuperAdmin(user)) {
+  // The platform owner is never a tenant — guard by email too, in case the DB
+  // role has drifted (a demoted owner must not be re-tenanted here).
+  if (isSuperAdmin(user) || isPlatformOwner(user.email)) {
     return { ok: false, error: "Super admins manage tenants from the platform console." };
   }
   // Read the live record (the session copy of tenantId can be stale after login).

@@ -6,6 +6,22 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { generateId } from "@/lib/ids";
+import { sendEmail } from "@/lib/nurture/send";
+
+/** Minimal branded HTML for the password-reset email (link valid ~10 min). */
+function resetPasswordEmailHtml(name: string | null | undefined, url: string): string {
+  const hi = name ? `Hi ${name},` : "Hi,";
+  return `<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:480px;margin:0 auto;color:#111">
+    <p>${hi}</p>
+    <p>We received a request to reset your password. Click the button below to choose a new one. This link expires in about 10 minutes.</p>
+    <p style="margin:24px 0">
+      <a href="${url}" style="background:#16a34a;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block">Reset password</a>
+    </p>
+    <p style="font-size:13px;color:#555">If the button doesn't work, paste this link into your browser:<br>
+      <a href="${url}">${url}</a></p>
+    <p style="font-size:13px;color:#555">If you didn't request this, you can safely ignore this email.</p>
+  </div>`;
+}
 
 /** Slug from a name/email: lowercase, alphanumeric + hyphens, capped. */
 function tenantSlugFrom(seed: string): string {
@@ -57,17 +73,32 @@ export const auth = betterAuth({
     // in directly. Flip to true once EMAIL_VERIFY_WEBHOOK_URL is live to enforce it.
     // Password reset: the link is valid for 10 minutes.
     resetPasswordTokenExpiresIn: 600,
-    // Delegate the reset email to the owner's CRM (same pattern as verification):
-    // POST the reset link to the configured webhook; the CRM emails the user, who
-    // clicks it and lands on /reset-password. URL from the super-admin Settings field
-    // (AppSetting singleton), falling back to PASSWORD_RESET_WEBHOOK_URL (env).
+    // Send the reset email NATIVELY via SMTP (no CRM dependency). Resolve the
+    // sender from the user's own tenant SMTP; the platform owner / super admin
+    // (tenantId null) uses the singleton SMTP row. If SMTP is unconfigured or the
+    // send fails, fall back to the legacy CRM webhook so we never silently drop it.
     sendResetPassword: async ({ user, url, token }) => {
-      const row = await prisma.appSetting
+      // The user's tenant decides which SMTP config sends the mail.
+      const row = await prisma.user
+        .findUnique({ where: { id: user.id }, select: { tenantId: true } })
+        .catch(() => null);
+      const tenantId = row?.tenantId ?? null;
+
+      const smtpErr = await sendEmail(
+        tenantId,
+        user.email,
+        "Reset your password",
+        resetPasswordEmailHtml(user.name, url),
+      );
+      if (!smtpErr) return; // sent via SMTP
+
+      console.error("[auth] SMTP reset email failed, trying webhook fallback:", smtpErr);
+      const setting = await prisma.appSetting
         .findUnique({ where: { id: "singleton" }, select: { passwordResetWebhookUrl: true } })
         .catch(() => null);
-      const hook = row?.passwordResetWebhookUrl?.trim() || env.PASSWORD_RESET_WEBHOOK_URL;
+      const hook = setting?.passwordResetWebhookUrl?.trim() || env.PASSWORD_RESET_WEBHOOK_URL;
       if (!hook) {
-        console.error("[auth] password-reset requested but no webhook configured");
+        console.error("[auth] password-reset: SMTP unavailable and no webhook configured");
         return;
       }
       try {
