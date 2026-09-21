@@ -29,7 +29,7 @@ import { isCrawlerUserAgent } from "@/lib/bots";
 import { generateCustomerId, generateToken } from "@/lib/ids";
 import { env } from "@/lib/env";
 import { randomUUID } from "crypto";
-import { sendCapiEvent, isCapiConfigured } from "@/lib/meta/send";
+import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
 import { fbcCreationMs } from "@/lib/meta/capi";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { generatePersonalStatement, generateClinicStatement } from "@/lib/ai/generate";
@@ -306,28 +306,36 @@ async function fireRegistration(
   // firing is on; otherwise undefined so the browser pixel stays silent too.
   try {
     await emitStart(assessment, submissionId, customerId, lead, attr);
-    // Server-side Meta CAPI. Inert unless configured; getMetaRequestContext is
-    // fail-soft; the send is fire-and-forget so Meta's network never adds latency.
-    if (fireMeta && await isCapiConfigured(assessment.tenant?.id ?? null)) {
+    // Server-side Meta CAPI. Fire-and-forget + LOGGED: every opt-in send (and its
+    // Meta response) is recorded to the CAPI log. The wrapper checks config itself
+    // and logs a "not configured" row, so a silent drop is now visible.
+    if (fireMeta) {
       const ctx = await getMetaRequestContext();
-      void sendCapiEvent({
-        eventName: "CompleteRegistration",
-        eventId,
-        eventTimeMs: Date.now(),
-        eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
-        user: {
-          email: lead.email,
-          phone: lead.mobile,
-          firstName: lead.firstName,
-          lastName: lead.lastName,
-          ...ctx,
-          // Map CF geo names to Meta's advanced-matching fields (city/country flow
-          // via the spread; state/zip need the region/postalCode mapping).
-          state: ctx.region,
-          zip: ctx.postalCode,
+      void sendAndLogLifecycleCapi(
+        {
+          eventName: "CompleteRegistration",
+          eventId,
+          eventTimeMs: Date.now(),
+          eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
+          user: {
+            email: lead.email,
+            phone: lead.mobile,
+            firstName: lead.firstName,
+            lastName: lead.lastName,
+            ...ctx,
+            // Map CF geo names to Meta's advanced-matching fields (city/country flow
+            // via the spread; state/zip need the region/postalCode mapping).
+            state: ctx.region,
+            zip: ctx.postalCode,
+          },
+          customData: { content_name: assessment.title, assessment_name: assessment.title },
         },
-        customData: { content_name: assessment.title, assessment_name: assessment.title },
-      }, assessment.tenant?.id ?? null).catch(() => {});
+        {
+          tenantId: assessment.tenant?.id ?? null,
+          submissionId,
+          name: [lead.firstName, lead.lastName].filter(Boolean).join(" ") || null,
+        },
+      ).catch(() => {});
     }
   } catch (e) {
     console.error("[start] fireRegistration side-effect failed (lead still captured):", e instanceof Error ? e.message : String(e));
@@ -1318,24 +1326,31 @@ export async function completeSubmission(
   // Phase 2: routed (non-ad-entry) assessments don't tell Meta — no CAPI, no pixel
   // eventId — so Meta's optimization stays tied to the ad-entry assessment only.
   const eventId = assessment.fireMetaCapi ? randomUUID() : undefined;
-  if (assessment.fireMetaCapi && eventId && await isCapiConfigured(assessment.tenant?.id ?? null)) {
+  if (assessment.fireMetaCapi && eventId) {
     const ctx = await getMetaRequestContext();
-    void sendCapiEvent({
-      eventName: "AssessmentCompleted",
-      eventId,
-      eventTimeMs: Date.now(),
-      eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
-      user: {
-        email: full?.leadEmail ?? null,
-        phone: full?.leadMobile ?? null,
-        firstName: full?.leadFirstName ?? null,
-        lastName: full?.leadLastName ?? null,
-        ...ctx,
-        state: ctx.region,
-        zip: ctx.postalCode,
+    void sendAndLogLifecycleCapi(
+      {
+        eventName: "AssessmentCompleted",
+        eventId,
+        eventTimeMs: Date.now(),
+        eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
+        user: {
+          email: full?.leadEmail ?? null,
+          phone: full?.leadMobile ?? null,
+          firstName: full?.leadFirstName ?? null,
+          lastName: full?.leadLastName ?? null,
+          ...ctx,
+          state: ctx.region,
+          zip: ctx.postalCode,
+        },
+        customData: { content_name: assessment.title, assessment_name: assessment.title },
       },
-      customData: { content_name: assessment.title, assessment_name: assessment.title },
-    }, assessment.tenant?.id ?? null).catch(() => {});
+      {
+        tenantId: assessment.tenant?.id ?? null,
+        submissionId,
+        name: [full?.leadFirstName, full?.leadLastName].filter(Boolean).join(" ") || null,
+      },
+    ).catch(() => {});
   }
 
   // Backfill Meta match signals if the Start capture missed them (e.g. the _fbp

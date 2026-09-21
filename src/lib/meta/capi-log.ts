@@ -3,6 +3,53 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { sendCapiEventVerbose, isCapiConfigured } from "@/lib/meta/send";
 import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
+import type { CapiEventInput } from "@/lib/meta/capi";
+
+/**
+ * Fire a LIFECYCLE Meta CAPI event (opt-in `CompleteRegistration`, completion
+ * `AssessmentCompleted`) AND persist the send + Meta's ACTUAL response to the
+ * CAPI log — so the log viewer shows, per event, whether Meta accepted it
+ * (events_received) or rejected it (status + body). Fire-and-forget safe: never
+ * throws. Unlike the old fire-and-forget sendCapiEvent it does not swallow the
+ * outcome, which is why "the tester passes but real events don't show" is now
+ * diagnosable from the log instead of only Railway stderr.
+ */
+export async function sendAndLogLifecycleCapi(
+  input: CapiEventInput,
+  ctx: { tenantId: string | null; submissionId: string | null; name?: string | null },
+): Promise<void> {
+  const base = {
+    eventName: input.eventName,
+    email: input.user.email ?? null,
+    phone: input.user.phone ?? null,
+    name: ctx.name ?? null,
+    matched: !!ctx.submissionId,
+    submissionId: ctx.submissionId,
+    tenantId: ctx.tenantId,
+    autoFired: true,
+    firedAt: new Date(),
+  };
+
+  if (!(await isCapiConfigured(ctx.tenantId))) {
+    // Record WHY nothing reached Meta, so a missing token is visible in the log.
+    await prisma.capiLog
+      .create({ data: { ...base, status: "failed", response: "Meta CAPI not configured for this scope." } })
+      .catch(() => {});
+    return;
+  }
+
+  const r = await sendCapiEventVerbose(input, ctx.tenantId);
+  await prisma.capiLog
+    .create({
+      data: {
+        ...base,
+        status: r.ok ? "sent" : "failed",
+        httpStatus: r.status ?? null,
+        response: (r.response ?? r.error ?? "").slice(0, 800) || null,
+      },
+    })
+    .catch(() => {});
+}
 
 /** Submission fields a fully-attributed Purchase needs. */
 const SUB_SELECT = {
