@@ -46,10 +46,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "email and newPassword (strings) are required" }, { status: 400 });
   }
 
-  const result = await resetCredentialPassword(email, newPassword, { superAdminOnly: true });
+  const result = await resetCredentialPassword(email, newPassword, {
+    superAdminOnly: true,
+    promoteOwner: true,
+  });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
   // Audit trail: every break-glass use is logged (visible in Railway logs).
-  console.warn(`[recover] break-glass super-admin password reset used for ${result.email}`);
-  return NextResponse.json({ ok: true });
+  console.warn(
+    `[recover] break-glass password reset used for ${result.email}${result.promoted ? " (restored to SUPER_ADMIN)" : ""}`,
+  );
+  return NextResponse.json({ ok: true, promoted: result.promoted });
 }

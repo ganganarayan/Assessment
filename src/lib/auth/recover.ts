@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
+import { isPlatformOwner } from "@/lib/auth/platform";
 
 /**
  * Break-glass password recovery. Sets a NEW password on a user's credential
@@ -11,14 +12,20 @@ import { prisma } from "@/lib/db/prisma";
  * Business logic only — callers (the CLI script, the gated /api/admin/recover
  * route) decide WHO is allowed to invoke it. Pass `superAdminOnly` to refuse
  * anything but a SUPER_ADMIN account (limits the blast radius of a leaked
- * recovery secret to the platform owner, never a tenant admin).
+ * recovery secret to the platform owner, never a tenant admin). Pass
+ * `promoteOwner` so that, when the target email is the configured platform
+ * owner (PLATFORM_OWNER_EMAIL) but has been demoted, it is restored to
+ * SUPER_ADMIN (tenantId → null) as part of the reset — the owner can always
+ * self-restore, and the reachable set stays limited to that one email.
  */
-export type RecoverResult = { ok: true; email: string } | { ok: false; error: string };
+export type RecoverResult =
+  | { ok: true; email: string; promoted: boolean }
+  | { ok: false; error: string };
 
 export async function resetCredentialPassword(
   emailRaw: string,
   newPassword: string,
-  opts: { superAdminOnly?: boolean } = {},
+  opts: { superAdminOnly?: boolean; promoteOwner?: boolean } = {},
 ): Promise<RecoverResult> {
   const email = emailRaw.trim();
   if (!email) return { ok: false, error: "Email is required." };
@@ -32,7 +39,11 @@ export async function resetCredentialPassword(
     select: { id: true, email: true, role: true },
   });
   if (!user) return { ok: false, error: "No user with that email." };
-  if (opts.superAdminOnly && user.role !== Role.SUPER_ADMIN) {
+
+  const isSuper = user.role === Role.SUPER_ADMIN;
+  // The configured platform owner may self-restore even if currently demoted.
+  const willPromote = !isSuper && !!opts.promoteOwner && isPlatformOwner(user.email);
+  if (opts.superAdminOnly && !isSuper && !willPromote) {
     return { ok: false, error: "That account is not a super admin." };
   }
 
@@ -51,10 +62,18 @@ export async function resetCredentialPassword(
     });
   }
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { emailVerified: true, mustChangePassword: false },
-  });
+  if (willPromote) {
+    // Restore full platform-owner scope alongside the password reset.
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerified: true, mustChangePassword: false, role: Role.SUPER_ADMIN, tenantId: null },
+    });
+  } else {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerified: true, mustChangePassword: false },
+    });
+  }
 
-  return { ok: true, email: user.email };
+  return { ok: true, email: user.email, promoted: willPromote };
 }

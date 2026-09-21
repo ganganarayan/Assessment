@@ -31,12 +31,14 @@ async function main() {
   }
 
   // No superAdminOnly gate here — running this already requires DB access.
-  const result = await resetCredentialPassword(email, newPassword);
+  // promoteOwner restores the platform owner to SUPER_ADMIN if it was demoted.
+  const result = await resetCredentialPassword(email, newPassword, { promoteOwner: true });
   if (!result.ok) {
     console.error(`Reset failed: ${result.error}`);
     process.exit(1);
   }
-  console.log(`Password reset for ${result.email}. You can sign in now.`);
+  const note = result.promoted ? " (restored to SUPER_ADMIN)" : "";
+  console.log(`Password reset for ${result.email}${note}. You can sign in now.`);
 }
 
 main()
