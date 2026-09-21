@@ -11,6 +11,16 @@ import { resolveMetaConfig } from "@/lib/settings/config";
 
 const TIMEOUT_MS = 4_000;
 
+/**
+ * Guarantee `event_source_url` on EVERY event. Meta blocks website events without
+ * it (for restricted ad categories), so this is the single choke point: any caller
+ * that passes an empty/whitespace/missing URL gets the app URL as a safe fallback.
+ */
+function withSourceUrl(input: CapiEventInput): CapiEventInput {
+  const src = input.eventSourceUrl?.trim();
+  return { ...input, eventSourceUrl: src && src.length > 0 ? src : env.NEXT_PUBLIC_APP_URL };
+}
+
 /** Resolve the CAPI config for a tenant from Settings (null = platform/Gita, which
  *  falls back to env). Token/pixel/dataset are per-tenant; version + test code stay
  *  global (env). */
@@ -111,7 +121,7 @@ export async function sendCapiEventVerbose(input: CapiEventInput, tenantId: stri
   if (!cfg) {
     return { ok: false, error: "META_CAPI_ACCESS_TOKEN (and a dataset/pixel id) is NOT set on this environment." };
   }
-  const body = JSON.stringify({ data: [buildCapiEvent(input)] }); // real conversion — no test code
+  const body = JSON.stringify({ data: [buildCapiEvent(withSourceUrl(input))] }); // real conversion — no test code
   const url = `https://graph.facebook.com/${cfg.version}/${cfg.datasetId}/events?access_token=${encodeURIComponent(cfg.accessToken)}`;
   try {
     const res = await fetch(url, {
@@ -135,7 +145,7 @@ export async function sendCapiEvent(input: CapiEventInput, tenantId: string | nu
   // (Purchase121, AssessmentCompleted…) to Events Manager → Test Events, where
   // the campaign can't count it. The CAPI Tester uses its own (testCapi) path.
   const body = JSON.stringify({
-    data: [buildCapiEvent(input)],
+    data: [buildCapiEvent(withSourceUrl(input))],
   });
 
   const url = `https://graph.facebook.com/${cfg.version}/${cfg.datasetId}/events?access_token=${encodeURIComponent(cfg.accessToken)}`;
