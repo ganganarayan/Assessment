@@ -1,7 +1,7 @@
 import "server-only";
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/db/prisma";
-import { resolveSmtpConfig, resolveWabaConfig, resolveNurtureConfig } from "@/lib/settings/config";
+import { resolveSmtpConfig, resolveWabaConfig, resolveNurtureConfig, type SmtpConfig } from "@/lib/settings/config";
 import { fillPlaceholders, toE164Digits, type LeadFields, type NurtureConfig } from "@/features/nurture/config";
 import { pickResultUrl, vidapulseParamForTenant } from "@/lib/events/completion";
 
@@ -36,12 +36,26 @@ export async function sendEmail(
 ): Promise<string | null> {
   const smtp = await resolveSmtpConfig(tenantId);
   if (!smtp.host || !smtp.port || !smtp.fromEmail) return "SMTP is not configured.";
+
+  // ZeptoMail: PaaS hosts (Railway) often block outbound SMTP ports, which shows
+  // up as "Connection timeout". Send via ZeptoMail's HTTPS API (port 443, never
+  // blocked) instead — same Send-Mail token as the SMTP password.
+  if (/(^|\.)zeptomail\./i.test(smtp.host)) {
+    return sendViaZeptoMailApi(smtp, to, subject, htmlBody);
+  }
+
   try {
     const transport = nodemailer.createTransport({
       host: smtp.host,
       port: smtp.port,
       secure: smtp.secure,
       auth: smtp.user && smtp.pass ? { user: smtp.user, pass: smtp.pass } : undefined,
+      // Fail fast with a clear error instead of hanging for ~2 minutes.
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 15_000,
+      // On 587 (secure=false) enforce the STARTTLS upgrade.
+      ...(smtp.secure ? {} : { requireTLS: true }),
     });
     await transport.sendMail({
       from: smtp.fromName ? `"${smtp.fromName}" <${smtp.fromEmail}>` : smtp.fromEmail,
@@ -50,6 +64,40 @@ export async function sendEmail(
       html: htmlBody,
     });
     return null;
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e);
+  }
+}
+
+/** Send via the ZeptoMail HTTPS API (bypasses blocked SMTP ports). The API key is
+ *  the same "Send Mail" token stored as the SMTP password. Returns error or null. */
+async function sendViaZeptoMailApi(
+  smtp: SmtpConfig,
+  to: string,
+  subject: string,
+  htmlBody: string,
+): Promise<string | null> {
+  if (!smtp.host) return "SMTP host is not set.";
+  if (!smtp.pass) return "ZeptoMail token (the SMTP password) is not set.";
+  if (!smtp.fromEmail) return "From email is not set.";
+  // smtp.zeptomail.in -> api.zeptomail.in (handles .in / .com); already-api hosts stay.
+  const apiHost = smtp.host.replace(/^smtp\./i, "api.");
+  const auth = /^zoho-enczapikey\s/i.test(smtp.pass) ? smtp.pass : `Zoho-enczapikey ${smtp.pass}`;
+  try {
+    const res = await fetch(`https://${apiHost}/v1.1/email`, {
+      method: "POST",
+      headers: { Authorization: auth, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        from: { address: smtp.fromEmail, ...(smtp.fromName ? { name: smtp.fromName } : {}) },
+        to: [{ email_address: { address: to } }],
+        subject,
+        htmlbody: htmlBody,
+      }),
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (res.ok) return null;
+    const text = (await res.text()).slice(0, 400);
+    return `ZeptoMail API ${res.status}: ${text}`;
   } catch (e) {
     return e instanceof Error ? e.message : String(e);
   }
