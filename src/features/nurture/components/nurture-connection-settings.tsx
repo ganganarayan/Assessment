@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { updateSmtpSettings, updateWabaSettings, type NurtureSettingsView } from "@/features/nurture/actions";
+import { updateSmtpSettings, updateWabaSettings, sendSmtpTest, type NurtureSettingsView } from "@/features/nurture/actions";
 
 /**
  * SMTP + WhatsApp (Meta Cloud API) connection settings for the acting scope. Secrets
@@ -43,6 +43,17 @@ function SmtpForm({ initial }: { initial: NurtureSettingsView["smtp"] }) {
       const r = await updateSmtpSettings(v);
       setMsg(r.ok ? "Email (SMTP) settings saved." : r.error);
     });
+
+  const [testTo, setTestTo] = useState(initial.fromEmail);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
+  const [testPending, startTest] = useTransition();
+  const sendTest = () =>
+    startTest(async () => {
+      setTestMsg(null);
+      const r = await sendSmtpTest(testTo);
+      setTestMsg(r.ok ? `Test email sent to ${testTo.trim()}. Check the inbox.` : r.error);
+    });
+
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm font-medium">Email — SMTP</p>
@@ -64,6 +75,33 @@ function SmtpForm({ initial }: { initial: NurtureSettingsView["smtp"] }) {
         <Button size="sm" onClick={save} disabled={pending}>Save email settings</Button>
       </div>
       {msg ? <p className="text-sm text-[var(--muted-foreground)]">{msg}</p> : null}
+
+      <div className="mt-1 flex flex-col gap-2 border-t pt-4">
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Send a test email using the saved settings. Save first, then test.
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <Field label="Send test email to">
+              <Input
+                type="email"
+                value={testTo}
+                placeholder="you@example.com"
+                onChange={(e) => setTestTo(e.target.value)}
+              />
+            </Field>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={sendTest}
+            disabled={testPending || !testTo.trim()}
+          >
+            {testPending ? "Sending…" : "Send test email"}
+          </Button>
+        </div>
+        {testMsg ? <p className="text-sm text-[var(--muted-foreground)]">{testMsg}</p> : null}
+      </div>
     </div>
   );
 }

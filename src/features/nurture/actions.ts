@@ -92,6 +92,36 @@ export async function updateSmtpSettings(input: {
   return { ok: true };
 }
 
+/** Send a simple connectivity test email using the SAVED SMTP settings for the
+ *  acting scope. Save the settings first, then test. */
+export async function sendSmtpTest(to: string): Promise<ActionResult> {
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
+  const dest = to.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dest)) {
+    return { ok: false, error: "Enter a valid email address to send the test to." };
+  }
+  const html = `<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;color:#111">
+    <p style="font-size:16px">✅ Your SMTP settings are working.</p>
+    <p>This is a test email from your Assessment app, sent to confirm the mail server configuration.
+    If you received it, password-reset and nurture emails will send from here.</p>
+  </div>`;
+  const err = await sendEmail(scope.tenantId, dest, "SMTP test — your settings work", html);
+  await prisma.nurtureLog
+    .create({
+      data: {
+        tenantId: scope.tenantId,
+        channel: "EMAIL",
+        status: err ? "FAILED" : "SENT",
+        toAddress: dest,
+        error: err?.slice(0, 500) ?? null,
+      },
+    })
+    .catch(() => {});
+  return err ? { ok: false, error: err } : { ok: true };
+}
+
 export async function updateWabaSettings(input: {
   phoneNumberId: string; accessToken: string; apiVersion: string; defaultCountryCode: string;
 }): Promise<ActionResult> {
