@@ -47,6 +47,10 @@ const serverSchema = z.object({
   // Password-reset webhook fallback (the super-admin Settings field overrides it):
   // assess360 POSTs the reset link here; the CRM emails the user.
   PASSWORD_RESET_WEBHOOK_URL: z.string().url().optional(),
+  // Break-glass super-admin recovery. When set (long random string), enables
+  // POST /api/admin/recover to reset a SUPER_ADMIN password via Bearer <secret>.
+  // Unset => the route is disabled (404). Rotate/unset to revoke.
+  ADMIN_RECOVERY_SECRET: z.string().min(24).optional(),
   // Reserved for the future Starter/Pro tiers — leave unset for now.
   RAZORPAY_PLAN_ID_STARTER: z.string().min(1).optional(),
   RAZORPAY_PLAN_ID_PRO: z.string().min(1).optional(),
