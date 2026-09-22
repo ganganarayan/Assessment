@@ -54,9 +54,11 @@ async function main() {
   let createdAssessmentId: string | null = null;
   let submissionId: string | null = null;
   let oldSubmissionId: string | null = null;
-  const originalEndpoint = await prisma.webhook.findUnique({
-    where: { name: "assessment.completed" },
+  // Name is no longer globally unique — operate on the row by id.
+  const originalEndpoint = await prisma.webhook.findFirst({
+    where: { name: "assessment.completed", tenantId: null },
   });
+  let testWebhookId: string | null = originalEndpoint?.id ?? null;
 
   try {
     line("============ CHECK 1: EventLog total count ============");
@@ -76,11 +78,18 @@ async function main() {
 
     // Temporarily redirect assessment.completed -> in-process receiver.
     const testSecret = generateWebhookSecret();
-    await prisma.webhook.upsert({
-      where: { name: "assessment.completed" },
-      update: { url: receiverUrl, secret: testSecret, status: "ACTIVE" },
-      create: { eventType: "ASSESSMENT_COMPLETED", name: "assessment.completed", url: receiverUrl, secret: testSecret, status: "ACTIVE" },
-    });
+    if (testWebhookId) {
+      await prisma.webhook.update({
+        where: { id: testWebhookId },
+        data: { url: receiverUrl, secret: testSecret, status: "ACTIVE" },
+      });
+    } else {
+      const created = await prisma.webhook.create({
+        data: { eventType: "ASSESSMENT_COMPLETED", name: "assessment.completed", url: receiverUrl, secret: testSecret, status: "ACTIVE" },
+        select: { id: true },
+      });
+      testWebhookId = created.id;
+    }
     line(`\n(temporarily pointed assessment.completed -> ${receiverUrl})`);
 
     // Build a published test assessment: 1 category, 2 questions (1..4), 2 bands.
@@ -215,16 +224,16 @@ async function main() {
     // Restore the original assessment.completed endpoint (never leave the test URL).
     if (originalEndpoint) {
       await prisma.webhook.update({
-        where: { name: "assessment.completed" },
+        where: { id: originalEndpoint.id },
         data: {
           url: originalEndpoint.url,
           secret: originalEndpoint.secret,
           status: originalEndpoint.status,
         },
       });
-    } else {
+    } else if (testWebhookId) {
       await prisma.webhook
-        .delete({ where: { name: "assessment.completed" } })
+        .delete({ where: { id: testWebhookId } })
         .catch(() => {});
     }
 

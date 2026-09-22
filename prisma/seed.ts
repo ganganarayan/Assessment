@@ -97,17 +97,22 @@ async function main() {
     create: { id: "singleton" },
   });
   if (process.env.CRM_WEBHOOK_URL) {
-    await prisma.webhook.upsert({
-      where: { name: "assessment.completed" },
-      update: {},
-      create: {
-        eventType: "ASSESSMENT_COMPLETED",
-        name: "assessment.completed",
-        url: process.env.CRM_WEBHOOK_URL,
-        status: "ACTIVE",
-        secret: generateWebhookSecret(),
-      },
+    // Name is no longer globally unique, so upsert-by-name is gone: find-then-create.
+    const existing = await prisma.webhook.findFirst({
+      where: { name: "assessment.completed", tenantId: null },
+      select: { id: true },
     });
+    if (!existing) {
+      await prisma.webhook.create({
+        data: {
+          eventType: "ASSESSMENT_COMPLETED",
+          name: "assessment.completed",
+          url: process.env.CRM_WEBHOOK_URL,
+          status: "ACTIVE",
+          secret: generateWebhookSecret(),
+        },
+      });
+    }
   }
 
   console.log("Seed complete:");

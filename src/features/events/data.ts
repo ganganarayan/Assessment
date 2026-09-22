@@ -3,8 +3,10 @@ import { prisma } from "@/lib/db/prisma";
 import { EVENT_LABEL } from "@/features/events/types";
 import type { WebhookRow, EventActivityRow } from "@/features/events/types";
 
-/** Webhooks split into active/inactive, enriched with delivery count + last fired
- *  (counted PER WEBHOOK by webhookId, since names are now free/per-CRM). */
+/** Webhooks split into active/inactive, enriched with delivery count + last fired.
+ *  Counts are keyed by the (event name + endpoint URL) combination, NOT by webhook
+ *  id: re-pointing a webhook's URL therefore starts a fresh count for the new
+ *  endpoint while the previous name+URL keeps its own count in the log history. */
 export async function getWebhooks(tenantId: string | null): Promise<{
   active: WebhookRow[];
   inactive: WebhookRow[];
@@ -12,14 +14,16 @@ export async function getWebhooks(tenantId: string | null): Promise<{
   const [webhooks, counts] = await Promise.all([
     prisma.webhook.findMany({ where: { tenantId }, orderBy: { name: "asc" } }),
     prisma.webhookLog.groupBy({
-      by: ["webhookId"],
+      by: ["eventName", "endpoint"],
+      where: { tenantId },
       _count: { _all: true },
       _max: { createdAt: true },
     }),
   ]);
-  const byId = new Map(counts.map((c) => [c.webhookId, c]));
+  // Key each count by "name|url" so it maps to the webhook's CURRENT endpoint only.
+  const byCombo = new Map(counts.map((c) => [`${c.eventName}|${c.endpoint}`, c]));
   const rows: WebhookRow[] = webhooks.map((w) => {
-    const c = byId.get(w.id);
+    const c = byCombo.get(`${w.name}|${w.url}`);
     return {
       id: w.id,
       eventType: w.eventType,

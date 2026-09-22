@@ -20,8 +20,8 @@ async function main() {
     return;
   }
 
-  const existing = await prisma.webhook.findUnique({
-    where: { name: "assessment.completed" },
+  const existing = await prisma.webhook.findFirst({
+    where: { name: "assessment.completed", tenantId: null },
   });
   if (existing) {
     console.log("[seed-webhooks] assessment.completed webhook already exists; left as-is.");

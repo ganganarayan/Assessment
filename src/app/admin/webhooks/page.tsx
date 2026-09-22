@@ -1,7 +1,7 @@
 import { getWebhooks } from "@/features/events/data";
 import { WebhooksManager } from "@/features/events/components/webhooks-manager";
 import { ACTIVE_EVENT_TYPES, EVENT_LABEL, DEFAULT_EVENT_NAME } from "@/features/events/types";
-import { actingTenantId } from "@/lib/tenant/acting";
+import { resolveActingScope } from "@/lib/tenant/acting";
 import { getPasswordResetWebhook } from "@/features/admin/actions/platform-integrations";
 import { PasswordResetWebhookForm } from "@/features/admin/components/password-reset-webhook-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 
 export default async function WebhooksPage() {
   // Scope to the entered tenant when impersonating; null = platform/Gita.
-  const actingId = await actingTenantId();
+  const scope = await resolveActingScope();
+  const actingId = scope.tenantId;
   const { active, inactive } = await getWebhooks(actingId);
   // Password reset is a PLATFORM-level auth webhook (login is platform-wide), so it's
   // shown only in the platform view (not while impersonating a tenant).
@@ -32,11 +33,12 @@ export default async function WebhooksPage() {
         <p className="text-sm text-[var(--muted-foreground)]">
           A webhook = a <strong>trigger</strong> (an app event) delivered under a name you choose for
           your CRM. Pick the trigger, name it dotted or underscore — your choice. Payloads are signed
-          (HMAC-SHA256) in the <span className="font-mono">X-Assess-Signature</span> header. The name +
-          URL are editable until the first successful delivery, then locked (create a new one to change).
+          (HMAC-SHA256) in the <span className="font-mono">X-Assess-Signature</span> header. The same event
+          can fan out to several URLs. A name is editable until its first successful delivery, then locked;
+          the URL stays editable, and each name+URL keeps its own fire count.
         </p>
       </div>
-      <WebhooksManager active={active} inactive={inactive} triggers={triggers} />
+      <WebhooksManager active={active} inactive={inactive} triggers={triggers} canUnlock={scope.isSuper} />
 
       {resetHook ? (
         <Card>

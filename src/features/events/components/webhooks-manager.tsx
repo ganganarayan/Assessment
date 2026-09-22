@@ -9,6 +9,7 @@ import {
   activateWebhook,
   deactivateWebhook,
   purgeWebhook,
+  unlockWebhook,
 } from "@/features/events/actions/webhooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,10 +29,13 @@ export function WebhooksManager({
   active,
   inactive,
   triggers,
+  canUnlock = false,
 }: {
   active: WebhookRow[];
   inactive: WebhookRow[];
   triggers: TriggerOption[];
+  /** Super admin only: allow clearing a delivered webhook's lock to rename it. */
+  canUnlock?: boolean;
 }) {
   const router = useRouter();
   const [trigger, setTrigger] = useState(triggers[0]?.value ?? "");
@@ -73,12 +77,10 @@ export function WebhooksManager({
   }
 
   function beginEdit(r: WebhookRow) {
-    if (
-      !confirm(
-        "Editing the event name or URL can BREAK delivery to your CRM until you re-map it there.\n\nThis is only allowed before the first successful delivery. Continue?",
-      )
-    )
-      return;
+    const msg = r.locked
+      ? "This webhook has delivered, so its event name is locked. You can re-point the URL (fires start a fresh count for the new endpoint; the old one keeps its count in the logs). Continue?"
+      : "Editing the event name or URL can BREAK delivery to your CRM until you re-map it there. Continue?";
+    if (!confirm(msg)) return;
     setErr(null);
     setEditingId(r.id);
     setEditName(r.name);
@@ -95,6 +97,16 @@ export function WebhooksManager({
     });
   }
 
+  function unlock(r: WebhookRow) {
+    if (
+      !confirm(
+        "Unlock this webhook so its event name can be edited again?\n\nA live CRM maps on the current name — renaming it can BREAK that automation until you re-map it there.",
+      )
+    )
+      return;
+    run(() => unlockWebhook(r.id));
+  }
+
   const rowProps = {
     editingId,
     editName,
@@ -104,6 +116,8 @@ export function WebhooksManager({
     beginEdit,
     saveEdit,
     cancelEdit: () => setEditingId(null),
+    unlock,
+    canUnlock,
     pending,
   };
 
@@ -148,8 +162,10 @@ export function WebhooksManager({
         <p className="px-1 text-xs text-[var(--muted-foreground)]">
           Pick the <strong>trigger</strong> (which app event fires it), then name the event however your
           CRM expects — dotted (<span className="font-mono">lead.created</span>) or underscore
-          (<span className="font-mono">completed_paid</span>). Editable until the first successful
-          delivery, then locked.
+          (<span className="font-mono">completed_paid</span>). The <strong>same trigger can fan out to
+          several endpoints</strong> — add another webhook with the same name and a different URL to send
+          the same event to multiple places. After the first successful delivery the name is locked (the
+          URL stays editable); each name+URL keeps its own fire count.
         </p>
       </div>
       {err ? <p className="text-sm text-red-500">{err}</p> : null}
@@ -195,6 +211,8 @@ function Table({
   beginEdit,
   saveEdit,
   cancelEdit,
+  unlock,
+  canUnlock,
   pending,
 }: {
   title: string;
@@ -208,6 +226,8 @@ function Table({
   beginEdit: (r: WebhookRow) => void;
   saveEdit: (id: string) => void;
   cancelEdit: () => void;
+  unlock: (r: WebhookRow) => void;
+  canUnlock: boolean;
   pending: boolean;
 }) {
   return (
@@ -237,7 +257,13 @@ function Table({
                   <tr key={r.id} className="bg-[var(--muted)]/30">
                     <td className="px-3 py-1.5 text-xs">{r.eventLabel}</td>
                     <td className="px-3 py-1.5">
-                      <Input className="h-8" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                      <Input
+                        className="h-8"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        disabled={r.locked}
+                        title={r.locked ? "Name is locked after first delivery — Unlock to rename" : undefined}
+                      />
                     </td>
                     <td className="px-3 py-1.5" colSpan={3}>
                       <Input className="h-8" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} />
@@ -269,9 +295,12 @@ function Table({
                     <td className="whitespace-nowrap px-3 py-1.5 text-xs">{fmt(r.lastFired)}</td>
                     <td className="px-3 py-1.5 text-right">
                       <div className="flex justify-end gap-2">
-                        {!r.locked ? (
-                          <Button size="sm" variant="outline" disabled={pending} onClick={() => beginEdit(r)}>
-                            Edit
+                        <Button size="sm" variant="outline" disabled={pending} onClick={() => beginEdit(r)}>
+                          Edit
+                        </Button>
+                        {r.locked && canUnlock ? (
+                          <Button size="sm" variant="outline" disabled={pending} onClick={() => unlock(r)}>
+                            Unlock
                           </Button>
                         ) : null}
                         {secondary(r)}

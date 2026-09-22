@@ -1193,9 +1193,13 @@ model Webhook {
   // on name) — so the name is free for the CRM. Many webhooks may share a trigger.
   eventType EventType
   // The delivered event identifier (free format: lowercase, "." or "_"). Becomes
-  // event / event_type / contact.event_type in the payload. Editable only until
-  // the first successful delivery (then frozen to protect a working CRM mapping).
-  name      String        @unique
+  // event / event_type / contact.event_type in the payload. Name is editable only
+  // until the first successful delivery (then frozen to protect a working CRM
+  // mapping); the URL stays editable. The name is NO LONGER globally unique — the
+  // same event may fan out to several endpoints (multiple CRMs). Only an exact
+  // (tenant, name, url) triple is blocked (see @@unique), so a duplicate endpoint
+  // can't be added twice.
+  name      String
   url       String
   status    WebhookStatus @default(ACTIVE)
   secret    String // HMAC-SHA256 signing secret for X-Assess-Signature
@@ -1209,6 +1213,10 @@ model Webhook {
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  // Block an exact duplicate endpoint for the same tenant. NOTE: Postgres treats
+  // NULLs as distinct, so this does NOT catch dupes among null-tenant (platform)
+  // rows — createWebhook/editWebhook enforce that case at the application layer.
+  @@unique([tenantId, name, url])
   @@index([status])
   @@index([eventType, status])
   @@index([tenantId, eventType, status])

@@ -46,9 +46,15 @@ export async function createWebhook(
   const u = urlSchema.safeParse(url);
   if (!u.success) return { ok: false, error: u.error.issues[0]?.message ?? "Invalid URL." };
 
-  // Delivered event name is globally unique (a single shared namespace for now).
-  const existing = await prisma.webhook.findUnique({ where: { name: n.data } });
-  if (existing) return { ok: false, error: "A webhook with that name already exists." };
+  // Fan-out: the same delivered name MAY fire to several endpoints (multiple CRMs).
+  // Only an exact duplicate endpoint (same name AND url) in this scope is blocked.
+  const existing = await prisma.webhook.findFirst({
+    where: { tenantId: scope.tenantId, name: n.data, url: u.data },
+    select: { id: true },
+  });
+  if (existing) {
+    return { ok: false, error: "That event name is already sent to this exact URL. Use a different URL to fan out." };
+  }
 
   const created = await prisma.webhook.create({
     data: {
@@ -67,9 +73,13 @@ export async function createWebhook(
 }
 
 /**
- * Edit name + URL — allowed ONLY before the first successful delivery. After that
- * the name/url are frozen (a working CRM mapping must not silently break); create
- * a new webhook instead.
+ * Edit name + URL.
+ *  - Before the first successful delivery: both name and URL are editable.
+ *  - After it (locked): the URL stays editable (re-point the endpoint), but the
+ *    delivered NAME is frozen — a live CRM maps on it, so a silent rename would
+ *    break their automation. Renaming a locked webhook needs unlockWebhook first.
+ * Fire counts are tracked per (name, url) combination, so re-pointing the URL
+ * starts a fresh count and preserves the previous endpoint's count in the logs.
  */
 export async function editWebhook(
   id: string,
@@ -79,20 +89,46 @@ export async function editWebhook(
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
-  const wh = await prisma.webhook.findFirst({ where: { id, ...tenantScope(scope) }, select: { firstDeliveredAt: true } });
+  const wh = await prisma.webhook.findFirst({
+    where: { id, ...tenantScope(scope) },
+    select: { firstDeliveredAt: true, name: true, tenantId: true },
+  });
   if (!wh) return { ok: false, error: "Webhook not found." };
-  if (wh.firstDeliveredAt) {
-    return { ok: false, error: "This webhook has delivered successfully and is locked. Create a new webhook instead." };
-  }
   const n = nameSchema.safeParse(name);
   if (!n.success) return { ok: false, error: n.error.issues[0]?.message ?? "Invalid event name." };
   const u = urlSchema.safeParse(url);
   if (!u.success) return { ok: false, error: u.error.issues[0]?.message ?? "Invalid URL." };
 
-  const clash = await prisma.webhook.findUnique({ where: { name: n.data } });
-  if (clash && clash.id !== id) return { ok: false, error: "A webhook with that name already exists." };
+  // Locked: URL may change, name may not.
+  if (wh.firstDeliveredAt && n.data !== wh.name) {
+    return { ok: false, error: "This webhook has delivered, so its event name is locked (only the URL can change). Unlock it first to rename." };
+  }
+
+  // Block collapsing into an existing exact endpoint (same name + url) in this scope.
+  const clash = await prisma.webhook.findFirst({
+    where: { tenantId: wh.tenantId, name: n.data, url: u.data, id: { not: id } },
+    select: { id: true },
+  });
+  if (clash) return { ok: false, error: "That event name is already sent to this exact URL." };
 
   await prisma.webhook.update({ where: { id }, data: { name: n.data, url: u.data } });
+  revalidatePath("/admin/webhooks");
+  revalidatePath("/w/webhooks");
+  return { ok: true };
+}
+
+/**
+ * Unlock a delivered webhook so its name can be edited again (super admin only).
+ * Clears firstDeliveredAt. The delivered name a CRM maps on can then change, so
+ * this is a deliberate, gated action — the UI confirms the break-your-CRM risk.
+ */
+export async function unlockWebhook(id: string): Promise<ActionResult> {
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
+  if (!scope.isSuper) return { ok: false, error: "Only a super admin can unlock a delivered webhook." };
+  if (!(await ownsWebhook(id, scope))) return { ok: false, error: "Webhook not found." };
+  await prisma.webhook.update({ where: { id }, data: { firstDeliveredAt: null } });
   revalidatePath("/admin/webhooks");
   revalidatePath("/w/webhooks");
   return { ok: true };
