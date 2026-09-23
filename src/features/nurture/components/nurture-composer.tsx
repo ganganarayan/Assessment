@@ -127,6 +127,7 @@ export function NurtureComposer({
                   <th className="px-3 py-2">Channel</th>
                   <th className="px-3 py-2">To</th>
                   <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Link clicked</th>
                   <th className="px-3 py-2">Error</th>
                 </tr>
               </thead>
@@ -140,6 +141,17 @@ export function NurtureComposer({
                       <span className={r.status === "SENT" ? "text-green-600" : r.status === "FAILED" ? "text-red-600" : "text-[var(--muted-foreground)]"}>
                         {r.status}
                       </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      {r.channel === "EMAIL" && r.status === "SENT" ? (
+                        r.clickedAt ? (
+                          <span className="text-green-600" title={`Link clicked ${new Date(r.clickedAt).toLocaleString()}`}>✓</span>
+                        ) : (
+                          <span className="text-red-600" title="No tracked link clicked yet">✗</span>
+                        )
+                      ) : (
+                        <span className="text-[var(--muted-foreground)]" title="Click tracking applies to sent emails only">—</span>
+                      )}
                     </td>
                     <td className="max-w-[280px] break-words px-3 py-2 text-[var(--muted-foreground)]">{r.error ?? "—"}</td>
                   </tr>

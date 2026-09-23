@@ -1,9 +1,12 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/db/prisma";
+import { env } from "@/lib/env";
 import { resolveSmtpConfig, resolveWabaConfig, resolveNurtureConfig, type SmtpConfig } from "@/lib/settings/config";
 import { fillPlaceholders, toE164Digits, type LeadFields, type NurtureConfig } from "@/features/nurture/config";
 import { pickResultUrl, vidapulseParamForTenant } from "@/lib/events/completion";
+import { instrumentEmailLinks } from "@/lib/nurture/tracking";
 
 /**
  * Nurture sender — one-shot Email (SMTP) + WhatsApp (Meta Cloud API) fired on opt-in.
@@ -25,6 +28,37 @@ async function log(
   await prisma.nurtureLog
     .create({ data: { tenantId, submissionId, channel, status, toAddress, error: error?.slice(0, 500) ?? null } })
     .catch(() => {});
+}
+
+/**
+ * Send a nurture email with click tracking, and log the attempt in ONE step.
+ * The log id is generated up front so it can be baked into the rewritten links,
+ * then the row is written with that same id. Returns the send error, or null.
+ */
+export async function sendTrackedEmail(
+  tenantId: string | null,
+  submissionId: string | null,
+  to: string,
+  subject: string,
+  htmlBody: string,
+): Promise<string | null> {
+  const logId = randomUUID();
+  const html = instrumentEmailLinks(htmlBody, logId, env.NEXT_PUBLIC_APP_URL);
+  const err = await sendEmail(tenantId, to, subject, html);
+  await prisma.nurtureLog
+    .create({
+      data: {
+        id: logId,
+        tenantId,
+        submissionId,
+        channel: "EMAIL",
+        status: err ? "FAILED" : "SENT",
+        toAddress: to,
+        error: err?.slice(0, 500) ?? null,
+      },
+    })
+    .catch(() => {});
+  return err;
 }
 
 /** Send one email through the tenant's SMTP. Returns an error string, or null on success. */
@@ -222,13 +256,14 @@ export async function sendNurtureForSubmission(submissionId: string, opts?: { fo
     if (!to) {
       await log(s.tenantId, s.id, "EMAIL", "SKIPPED", null, "No lead email.");
     } else {
-      const err = await sendEmail(
+      // sendTrackedEmail rewrites links for click tracking AND writes the log row.
+      await sendTrackedEmail(
         s.tenantId,
+        s.id,
         to,
         fillPlaceholders(cfg.email.subject, lead, extra),
         fillPlaceholders(cfg.email.body, lead, extra),
       );
-      await log(s.tenantId, s.id, "EMAIL", err ? "FAILED" : "SENT", to, err ?? undefined);
     }
   }
 

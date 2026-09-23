@@ -1056,6 +1056,10 @@ model NurtureLog {
   status       String // "SENT" | "FAILED" | "SKIPPED"
   toAddress    String? // destination email or phone, for the log view
   error        String?
+  // First time a tracked link in this email was clicked (EMAIL only). Set by the
+  // /e/c/[id] click-redirect; null = not clicked (or not an email). Opens are not
+  // tracked (deliberately — pixel opens are noisy); a click is the reliable signal.
+  clickedAt    DateTime?
   createdAt    DateTime @default(now())
 
   @@index([tenantId, createdAt])

@@ -10,7 +10,7 @@ import { tenantAppSettingId } from "@/lib/settings/tenant-row";
 import { resolveWabaConfig } from "@/lib/settings/config";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { readNurtureConfig, fillPlaceholders, toE164Digits, type NurtureConfig } from "@/features/nurture/config";
-import { sendEmail, sendWaba, sendNurtureForSubmission } from "@/lib/nurture/send";
+import { sendEmail, sendWaba, sendTrackedEmail, sendNurtureForSubmission } from "@/lib/nurture/send";
 
 /**
  * Nurture admin actions — connection settings (SMTP + WhatsApp), the message config,
@@ -159,15 +159,13 @@ export async function sendTestEmail(to: string): Promise<ActionResult> {
   const cfg = (await getNurtureSettings()).config;
   const sample = { firstName: "Test", lastName: "Lead", email: dest, mobile: "", profession: "Founder" };
   const sampleExtra = { resultUrl: `${env.NEXT_PUBLIC_APP_URL}/a/sample/r/sample-result` };
-  const err = await sendEmail(
+  const err = await sendTrackedEmail(
     scope.tenantId,
+    null,
     dest,
     fillPlaceholders(cfg.email.subject || "Test email", sample, sampleExtra),
     fillPlaceholders(cfg.email.body || "<p>This is a test.</p>", sample, sampleExtra),
   );
-  await prisma.nurtureLog.create({
-    data: { tenantId: scope.tenantId, channel: "EMAIL", status: err ? "FAILED" : "SENT", toAddress: dest, error: err?.slice(0, 500) ?? null },
-  }).catch(() => {});
   return err ? { ok: false, error: err } : { ok: true };
 }
 
@@ -208,7 +206,7 @@ export async function resendNurture(submissionId: string): Promise<ActionResult>
 
 export interface NurtureLogRow {
   id: string; channel: string; status: string; toAddress: string | null;
-  error: string | null; createdAt: string;
+  error: string | null; createdAt: string; clickedAt: string | null;
 }
 
 /** Recent send attempts for the acting scope. */
@@ -218,7 +216,11 @@ export async function getNurtureLogs(limit = 50): Promise<NurtureLogRow[]> {
     where: tenantScope(scope),
     orderBy: { createdAt: "desc" },
     take: Math.min(limit, 200),
-    select: { id: true, channel: true, status: true, toAddress: true, error: true, createdAt: true },
+    select: { id: true, channel: true, status: true, toAddress: true, error: true, createdAt: true, clickedAt: true },
   });
-  return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
+  return rows.map((r) => ({
+    ...r,
+    createdAt: r.createdAt.toISOString(),
+    clickedAt: r.clickedAt ? r.clickedAt.toISOString() : null,
+  }));
 }
