@@ -223,6 +223,8 @@ export function parseAssessmentText(input: string): ParseResult {
   });
 
   // ---- structural validation ----
+  // Only the ASSESSMENT structure blocks step 1. Bands are handled in step 2
+  // (suggested → edited → imported), so any band problem here is a WARNING only.
   if (!title.trim()) errors.push('Missing "Title:" line.');
   if (categories.length === 0) errors.push("No categories found (use ## Category headings).");
 
@@ -236,27 +238,17 @@ export function parseAssessmentText(input: string): ParseResult {
       }
     }
     if (c.bands.length > 0) {
-      checkBands(
-        c.bands.map((b) => ({ min: b.min, max: b.max })),
-        `Category "${c.name}" bands`,
-        errors,
-        warnings,
-      );
+      const a = analyzeBands(c.bands, `Category "${c.name}" bands`);
+      warnings.push(...a.errors, ...a.warnings); // fixable in step 2
     }
   }
 
-  if (overallBands.length === 0) {
-    errors.push("No overall result bands found (add a ## Bands section).");
-  } else {
-    checkBands(
-      overallBands.map((b) => ({ min: b.min, max: b.max })),
-      "Overall bands",
-      errors,
-      warnings,
-    );
+  if (overallBands.length > 0) {
+    const a = analyzeBands(overallBands, "Overall bands");
+    warnings.push(...a.errors, ...a.warnings);
     const seen = new Set<OverallLevel>();
     for (const b of overallBands) {
-      if (!LEVELS.includes(b.level)) errors.push(`Overall band level "${b.level}" is not LOW/MEDIUM/HIGH/CRITICAL.`);
+      if (!LEVELS.includes(b.level)) warnings.push(`Overall band level "${b.level}" is not LOW/MEDIUM/HIGH/CRITICAL.`);
       if (seen.has(b.level)) warnings.push(`Overall band level "${b.level}" is used more than once.`);
       seen.add(b.level);
     }
@@ -270,14 +262,15 @@ export function parseAssessmentText(input: string): ParseResult {
   };
 }
 
-/** Range sanity for a band set: 0–100, min≤max, no overlap (error); gaps / not
- *  covering 0–100 are warnings only. */
-function checkBands(
+/** Range sanity for a band set: 0–100 + min≤max + no overlap are ERRORS; gaps and
+ *  not covering 0–100 are WARNINGS. Returned (not pushed) so callers decide whether
+ *  band issues block (step-2 import) or only warn (step-1 parse). */
+export function analyzeBands(
   ranges: { min: number; max: number }[],
   label: string,
-  errors: string[],
-  warnings: string[],
-): void {
+): { errors: string[]; warnings: string[] } {
+  const errors: string[] = [];
+  const warnings: string[] = [];
   for (const r of ranges) {
     if (r.min < 0 || r.max > 100) errors.push(`${label}: range ${r.min}-${r.max} is outside 0–100.`);
     if (r.min > r.max) errors.push(`${label}: range ${r.min}-${r.max} has min greater than max.`);
@@ -294,4 +287,5 @@ function checkBands(
   }
   if (sorted.length && sorted[0]!.min > 0) warnings.push(`${label}: does not start at 0.`);
   if (sorted.length && sorted[sorted.length - 1]!.max < 100) warnings.push(`${label}: does not reach 100.`);
+  return { errors, warnings };
 }
