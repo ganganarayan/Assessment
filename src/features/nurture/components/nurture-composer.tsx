@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { NURTURE_PLACEHOLDERS, type NurtureConfig } from "@/features/nurture/config";
+import { formatIST } from "@/lib/date";
 import {
   updateNurtureConfig,
   sendTestEmail,
@@ -145,7 +146,7 @@ export function NurtureComposer({
                     <td className="whitespace-nowrap px-3 py-2">
                       {r.channel === "EMAIL" && r.status === "SENT" ? (
                         r.clickedAt ? (
-                          <span className="text-green-600" title={`Link clicked ${new Date(r.clickedAt).toLocaleString()}`}>✓</span>
+                          <span className="text-green-600">✓, {formatIST(r.clickedAt)}</span>
                         ) : (
                           <span className="text-red-600" title="No tracked link clicked yet">✗</span>
                         )
