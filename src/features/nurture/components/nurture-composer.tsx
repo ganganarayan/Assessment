@@ -12,7 +12,9 @@ import {
   updateNurtureConfig,
   sendTestEmail,
   sendTestWaba,
+  fetchWabaTemplates,
   type NurtureLogRow,
+  type WabaTemplateOption,
 } from "@/features/nurture/actions";
 
 /**
@@ -34,6 +36,42 @@ export function NurtureComposer({
 
   const setEmail = (patch: Partial<NurtureConfig["email"]>) => setCfg((c) => ({ ...c, email: { ...c.email, ...patch } }));
   const setWaba = (patch: Partial<NurtureConfig["waba"]>) => setCfg((c) => ({ ...c, waba: { ...c.waba, ...patch } }));
+
+  // Approved WhatsApp templates pulled from Meta (Settings → WhatsApp must be filled).
+  const [templates, setTemplates] = useState<WabaTemplateOption[] | null>(null);
+  const [tplMsg, setTplMsg] = useState<string | null>(null);
+  const [tplPending, startTpl] = useTransition();
+
+  const loadTemplates = () =>
+    startTpl(async () => {
+      setTplMsg(null);
+      const r = await fetchWabaTemplates();
+      if (!r.ok) {
+        setTemplates(null);
+        setTplMsg(r.error);
+        return;
+      }
+      const data = r.data ?? [];
+      setTemplates(data);
+      setTplMsg(data.length ? `Loaded ${data.length} approved template(s).` : "No approved templates found on this WABA.");
+    });
+
+  // Pick a template: fill name + language, and size the variable slots to its body,
+  // keeping any mappings you already typed.
+  const pickTemplate = (name: string) => {
+    const t = templates?.find((x) => x.name === name);
+    if (!t) return;
+    setCfg((c) => ({
+      ...c,
+      waba: {
+        ...c.waba,
+        template: t.name,
+        lang: t.language || c.waba.lang,
+        vars: Array.from({ length: t.varCount }, (_, i) => c.waba.vars[i] ?? ""),
+      },
+    }));
+  };
+  const selectedTemplate = templates?.find((x) => x.name === cfg.waba.template) ?? null;
 
   const save = () =>
     start(async () => {
@@ -80,6 +118,35 @@ export function NurtureComposer({
           Meta WhatsApp account. Enter its exact name + language, then map its body variables
           (&#123;&#123;1&#125;&#125;, &#123;&#123;2&#125;&#125;…) below — each can be plain text or a placeholder.
         </p>
+        {/* Pull approved templates from Meta so you can pick instead of typing. */}
+        <div className="flex flex-col gap-2 rounded-md border border-dashed p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={loadTemplates} disabled={tplPending}>
+              {tplPending ? "Loading…" : "Load approved templates"}
+            </Button>
+            {templates && templates.length > 0 ? (
+              <select
+                className="h-9 rounded-md border bg-[var(--background)] px-2 text-sm text-[var(--foreground)] sm:w-72"
+                value={cfg.waba.template}
+                onChange={(e) => pickTemplate(e.target.value)}
+                aria-label="Approved template"
+              >
+                <option value="">Select a template…</option>
+                {templates.map((t) => (
+                  <option key={`${t.name}:${t.language}`} value={t.name}>
+                    {t.name} ({t.language}) · {t.varCount} var{t.varCount === 1 ? "" : "s"}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+          </div>
+          {tplMsg ? <p className="text-xs text-[var(--muted-foreground)]">{tplMsg}</p> : null}
+          {selectedTemplate ? (
+            <p className="whitespace-pre-wrap rounded bg-[var(--muted)]/40 px-2 py-1 text-xs text-[var(--muted-foreground)]">
+              {selectedTemplate.bodyText || "(no body text)"}
+            </p>
+          ) : null}
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
             <Label className="text-xs">Template name</Label>

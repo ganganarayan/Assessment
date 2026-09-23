@@ -1543,6 +1543,10 @@ model AppSetting {
   // Meta WhatsApp Cloud API (business-initiated = approved TEMPLATE messages only).
   // Access token ENCRYPTED. apiVersion/countryCode fall back to code defaults when blank.
   wabaPhoneNumberId      String?
+  // WhatsApp Business Account (WABA) id — the parent of the phone number. Needed to
+  // LIST approved message templates (GET /{wabaId}/message_templates). Optional; only
+  // the template picker uses it (sending needs just the phone number id + token).
+  wabaBusinessAccountId  String?
   wabaAccessTokenEnc     String?
   wabaApiVersion         String? // e.g. "v21.0"
   wabaDefaultCountryCode String? // e.g. "91" — prepended to bare local mobiles for E.164

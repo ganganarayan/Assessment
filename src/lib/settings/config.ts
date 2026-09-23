@@ -137,6 +137,7 @@ export async function resolveSmtpConfig(tenantId: string | null): Promise<SmtpCo
 
 export interface WabaConfig {
   phoneNumberId: string | null;
+  businessAccountId: string | null;
   accessToken: string | null;
   apiVersion: string;
   defaultCountryCode: string;
@@ -147,17 +148,20 @@ export interface WabaConfig {
 export async function resolveWabaConfig(tenantId: string | null): Promise<WabaConfig> {
   const s = (await settingRow(tenantId, {
     wabaPhoneNumberId: true,
+    wabaBusinessAccountId: true,
     wabaAccessTokenEnc: true,
     wabaApiVersion: true,
     wabaDefaultCountryCode: true,
   })) as {
     wabaPhoneNumberId: string | null;
+    wabaBusinessAccountId: string | null;
     wabaAccessTokenEnc: string | null;
     wabaApiVersion: string | null;
     wabaDefaultCountryCode: string | null;
   } | null;
   return {
     phoneNumberId: s?.wabaPhoneNumberId?.trim() || null,
+    businessAccountId: s?.wabaBusinessAccountId?.trim() || null,
     accessToken: safeDecrypt(s?.wabaAccessTokenEnc),
     apiVersion: s?.wabaApiVersion?.trim() || "v21.0",
     defaultCountryCode: s?.wabaDefaultCountryCode?.trim() || "91",

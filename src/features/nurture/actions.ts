@@ -37,7 +37,7 @@ export interface NurtureSettingsView {
     host: string; port: number | null; secure: boolean; user: string;
     fromName: string; fromEmail: string; hasPass: boolean;
   };
-  waba: { phoneNumberId: string; apiVersion: string; defaultCountryCode: string; hasToken: boolean };
+  waba: { phoneNumberId: string; businessAccountId: string; apiVersion: string; defaultCountryCode: string; hasToken: boolean };
   config: NurtureConfig;
 }
 
@@ -49,7 +49,7 @@ export async function getNurtureSettings(): Promise<NurtureSettingsView> {
     select: {
       smtpHost: true, smtpPort: true, smtpSecure: true, smtpUser: true, smtpPassEnc: true,
       smtpFromName: true, smtpFromEmail: true,
-      wabaPhoneNumberId: true, wabaAccessTokenEnc: true, wabaApiVersion: true, wabaDefaultCountryCode: true,
+      wabaPhoneNumberId: true, wabaBusinessAccountId: true, wabaAccessTokenEnc: true, wabaApiVersion: true, wabaDefaultCountryCode: true,
       nurtureConfig: true,
     },
   });
@@ -60,7 +60,8 @@ export async function getNurtureSettings(): Promise<NurtureSettingsView> {
       hasPass: !!s?.smtpPassEnc,
     },
     waba: {
-      phoneNumberId: s?.wabaPhoneNumberId ?? "", apiVersion: s?.wabaApiVersion ?? "",
+      phoneNumberId: s?.wabaPhoneNumberId ?? "", businessAccountId: s?.wabaBusinessAccountId ?? "",
+      apiVersion: s?.wabaApiVersion ?? "",
       defaultCountryCode: s?.wabaDefaultCountryCode ?? "", hasToken: !!s?.wabaAccessTokenEnc,
     },
     config: readNurtureConfig(s?.nurtureConfig ?? null),
@@ -123,13 +124,14 @@ export async function sendSmtpTest(to: string): Promise<ActionResult> {
 }
 
 export async function updateWabaSettings(input: {
-  phoneNumberId: string; accessToken: string; apiVersion: string; defaultCountryCode: string;
+  phoneNumberId: string; businessAccountId: string; accessToken: string; apiVersion: string; defaultCountryCode: string;
 }): Promise<ActionResult> {
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
   await upsert(scope.tenantId, {
     wabaPhoneNumberId: input.phoneNumberId.trim() || null,
+    wabaBusinessAccountId: input.businessAccountId.trim() || null,
     wabaApiVersion: input.apiVersion.trim() || null,
     wabaDefaultCountryCode: input.defaultCountryCode.trim() || null,
     ...(input.accessToken.trim() ? { wabaAccessTokenEnc: enc(input.accessToken) } : {}),
@@ -207,6 +209,82 @@ export async function resendNurture(submissionId: string): Promise<ActionResult>
 export interface NurtureLogRow {
   id: string; channel: string; status: string; toAddress: string | null;
   error: string | null; createdAt: string; clickedAt: string | null;
+}
+
+/** One approved WhatsApp template, shaped for the composer's picker. */
+export interface WabaTemplateOption {
+  name: string;
+  language: string;
+  category: string;
+  bodyText: string; // BODY component text (with {{1}} placeholders)
+  varCount: number; // number of body variables to map
+}
+
+// Minimal typing of the Graph message_templates response (no `any`).
+interface GraphTemplateComponent {
+  type?: string;
+  text?: string;
+}
+interface GraphTemplate {
+  name?: string;
+  language?: string;
+  status?: string;
+  category?: string;
+  components?: GraphTemplateComponent[];
+}
+interface GraphTemplatesResponse {
+  data?: GraphTemplate[];
+  error?: { message?: string };
+}
+
+/**
+ * Pull the APPROVED WhatsApp message templates from the acting scope's Meta WABA
+ * (GET /{wabaId}/message_templates). Needs the WhatsApp Business Account ID +
+ * an access token with whatsapp_business_management. Read-only.
+ */
+export async function fetchWabaTemplates(): Promise<ActionResult<WabaTemplateOption[]>> {
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
+  const waba = await resolveWabaConfig(scope.tenantId);
+  if (!waba.businessAccountId) {
+    return { ok: false, error: "Add your WhatsApp Business Account ID in Settings → WhatsApp first." };
+  }
+  if (!waba.accessToken) {
+    return { ok: false, error: "Add your WhatsApp access token in Settings first." };
+  }
+  const url = `https://graph.facebook.com/${waba.apiVersion}/${waba.businessAccountId}/message_templates?fields=name,language,status,category,components&limit=200`;
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${waba.accessToken}` },
+      signal: AbortSignal.timeout(12_000),
+    });
+    const json = (await res.json().catch(() => null)) as GraphTemplatesResponse | null;
+    if (!res.ok) {
+      const m = json?.error?.message ?? `HTTP ${res.status}`;
+      // A management-scope error is the common cause — nudge toward it.
+      return { ok: false, error: `WhatsApp API: ${String(m).slice(0, 220)}` };
+    }
+    const rows = Array.isArray(json?.data) ? json!.data! : [];
+    const out: WabaTemplateOption[] = rows
+      // Only approved templates can actually be sent.
+      .filter((t) => (t.status ?? "").toUpperCase() === "APPROVED" && typeof t.name === "string" && t.name)
+      .map((t): WabaTemplateOption => {
+        const body = (t.components ?? []).find((c) => c.type === "BODY");
+        const bodyText = typeof body?.text === "string" ? body.text : "";
+        return {
+          name: t.name as string,
+          language: typeof t.language === "string" ? t.language : "",
+          category: typeof t.category === "string" ? t.category : "",
+          bodyText,
+          varCount: (bodyText.match(/\{\{\s*\d+\s*\}\}/g) ?? []).length,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return { ok: true, data: out };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
 }
 
 /** Recent send attempts for the acting scope. */

@@ -108,7 +108,7 @@ function SmtpForm({ initial }: { initial: NurtureSettingsView["smtp"] }) {
 
 function WabaForm({ initial }: { initial: NurtureSettingsView["waba"] }) {
   const [v, setV] = useState({
-    phoneNumberId: initial.phoneNumberId, accessToken: "",
+    phoneNumberId: initial.phoneNumberId, businessAccountId: initial.businessAccountId, accessToken: "",
     apiVersion: initial.apiVersion || "v21.0", defaultCountryCode: initial.defaultCountryCode || "91",
   });
   const [msg, setMsg] = useState<string | null>(null);
@@ -124,6 +124,7 @@ function WabaForm({ initial }: { initial: NurtureSettingsView["waba"] }) {
       <p className="text-sm font-medium">WhatsApp — Meta Cloud API</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Phone number ID"><Input value={v.phoneNumberId} onChange={(e) => setV({ ...v, phoneNumberId: e.target.value })} /></Field>
+        <Field label="Business Account ID (for templates)"><Input value={v.businessAccountId} placeholder="WABA id from WhatsApp Manager" onChange={(e) => setV({ ...v, businessAccountId: e.target.value })} /></Field>
         <Field label={`Access token ${initial.hasToken ? "(saved — leave blank to keep)" : ""}`}>
           <Input type="password" value={v.accessToken} placeholder={initial.hasToken ? "••••••••" : ""} onChange={(e) => setV({ ...v, accessToken: e.target.value })} />
         </Field>
@@ -132,7 +133,9 @@ function WabaForm({ initial }: { initial: NurtureSettingsView["waba"] }) {
       </div>
       <p className="text-xs text-[var(--muted-foreground)]">
         The token is a permanent WhatsApp Cloud API access token. Default country code is prepended to
-        local mobiles (e.g. a 10-digit Indian number) so WhatsApp gets a full international number.
+        local mobiles (e.g. a 10-digit Indian number) so WhatsApp gets a full international number. The
+        <strong> Business Account ID</strong> (WABA id, from Meta WhatsApp Manager) is only needed to load
+        your approved templates on the Nurture page — the token must have <strong>whatsapp_business_management</strong>.
       </p>
       <div>
         <Button size="sm" onClick={save} disabled={pending}>Save WhatsApp settings</Button>
