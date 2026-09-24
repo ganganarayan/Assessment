@@ -34,6 +34,7 @@ export interface MetaMatchRecord {
   fbclidTimestamp: number | null;
   startedAt: Date | null;
   attribution: unknown;
+  metaExternalId: string | null;
 }
 
 /** Stable response shape — every field always present (null when unknown). */
@@ -48,6 +49,9 @@ export interface MetaMatchResponse {
   fbc: string | null;
   client_ip: string | null;
   user_agent: string | null;
+  /** First-party id (raw UUID). n8n hashes it (lowercase+trim, SHA-256) as external_id
+   *  so the external Purchase matches the browser pixel + the app's own CAPI events. */
+  external_id: string | null;
   utm_campaign: string | null;
   utm_content: string | null;
   utm_term: string | null;
@@ -66,6 +70,7 @@ const NOT_FOUND: MetaMatchResponse = {
   fbc: null,
   client_ip: null,
   user_agent: null,
+  external_id: null,
   utm_campaign: null,
   utm_content: null,
   utm_term: null,
@@ -88,6 +93,7 @@ export function buildMetaMatchResponse(rec: MetaMatchRecord | null): MetaMatchRe
     fbc: rec.fbc ?? null,
     client_ip: rec.clientIp ?? null,
     user_agent: rec.userAgent ?? null,
+    external_id: rec.metaExternalId ?? null,
     utm_campaign: str(a.utm_campaign),
     utm_content: str(a.utm_content),
     utm_term: str(a.utm_term),

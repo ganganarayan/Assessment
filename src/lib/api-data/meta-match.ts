@@ -32,6 +32,7 @@ const SELECT = {
   fbclidTimestamp: true,
   startedAt: true,
   attribution: true,
+  metaExternalId: true,
 } as const;
 
 const NO_STORE = { "Cache-Control": "no-store" } as const;

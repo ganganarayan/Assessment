@@ -49,6 +49,7 @@ const rec: MetaMatchRecord = {
   fbclidTimestamp: 1751020800000,
   startedAt,
   attribution: { utm_source: "fb", utm_medium: "paid_social", fbclid: "IwAR0xyz", gclid: "" },
+  metaExternalId: "3f2a9c1d-7b4e-4a11-9e22-abcdef012345",
 };
 const out = buildMetaMatchResponse(rec);
 eq("found true", out.found, true);
