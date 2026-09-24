@@ -389,6 +389,8 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
       paymentEventName: src.paymentEventName,
       paymentIntroText: src.paymentIntroText,
       audienceGate: (src.audienceGate ?? Prisma.DbNull) as Prisma.InputJsonValue,
+      qualification: (src.qualification ?? Prisma.DbNull) as Prisma.InputJsonValue,
+      disqualifiedContent: (src.disqualifiedContent ?? Prisma.DbNull) as Prisma.InputJsonValue,
       fireMetaCapi: src.fireMetaCapi,
       createdById: scope.user.id,
       tenantId: scope.tenantId,
