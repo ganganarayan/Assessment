@@ -25,6 +25,8 @@ export interface PurchaseAttributionSource {
   city?: string | null;
   region?: string | null;
   postalCode?: string | null;
+  // First-party id captured at opt-in → CAPI external_id (matches the browser pixel).
+  metaExternalId?: string | null;
 }
 
 /**
@@ -50,5 +52,6 @@ export function buildPurchaseUserData(s: PurchaseAttributionSource): CapiUserDat
     state: s.region ?? null,
     country: s.country ?? null,
     zip: s.postalCode ?? null,
+    externalId: s.metaExternalId ?? null,
   };
 }

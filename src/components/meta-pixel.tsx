@@ -22,7 +22,7 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window,document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '${id}');
+fbq('init', '${id}', (function(){try{var k='a360_xid';var v=localStorage.getItem(k);if(!v){v=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():(Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem(k,v);}return {external_id:v};}catch(e){return {};}})());
 fbq('track', 'PageView');`}
       </Script>
       <noscript>

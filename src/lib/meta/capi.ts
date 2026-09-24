@@ -1,4 +1,4 @@
-import { hashEmail, hashPhone, hashName, hashCityState, hashCountry, hashZip } from "@/lib/meta/hash";
+import { hashEmail, hashPhone, hashName, hashCityState, hashCountry, hashZip, hashExternalId } from "@/lib/meta/hash";
 
 /**
  * Pure builder for a single Meta Conversions API (server-side) event. No env, no
@@ -26,6 +26,9 @@ export interface CapiUserData {
   state?: string | null; // region / province
   country?: string | null; // 2-letter ISO
   zip?: string | null; // postal code
+  /** First-party id (per-visitor UUID). A standalone Meta match key — no PII needed;
+   *  matches the browser pixel's advanced-matching external_id. */
+  externalId?: string | null;
 }
 
 export interface CapiEventInput {
@@ -54,6 +57,7 @@ export interface CapiUserDataPayload {
   st?: string[]; // state/region (hashed)
   country?: string[]; // 2-letter (hashed)
   zp?: string[]; // zip/postal (hashed)
+  external_id?: string[]; // first-party id (hashed)
 }
 
 export interface CapiEventPayload {
@@ -88,6 +92,8 @@ function buildUserData(u: CapiUserData): CapiUserDataPayload {
   if (st) out.st = [st];
   if (country) out.country = [country];
   if (zp) out.zp = [zp];
+  const xid = hashExternalId(u.externalId);
+  if (xid) out.external_id = [xid];
   return out;
 }
 

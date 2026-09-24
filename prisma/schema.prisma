@@ -955,6 +955,10 @@ model Submission {
   userAgent       String?
   fbp             String?
   fbc             String?
+  // First-party id (per-visitor UUID from the browser's localStorage), captured at
+  // Start. Sent as external_id in Meta CAPI user_data (a standalone match key, no PII)
+  // and matches the browser pixel's advanced-matching external_id.
+  metaExternalId  String?
   // Geo (Cloudflare) + device (parsed UA), captured at Start. region/postalCode feed
   // Meta CAPI advanced matching (st/zp); country is the 2-letter ISO code.
   country         String?

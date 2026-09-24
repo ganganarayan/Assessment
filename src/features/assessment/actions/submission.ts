@@ -298,6 +298,8 @@ async function fireRegistration(
    *  lead event still fires regardless — routed assessments keep their leads, they
    *  just don't tell Meta (keeps Meta's learning tied to the ad-entry assessment). */
   fireMeta: boolean,
+  /** First-party visitor id (from the browser) → CAPI external_id. */
+  externalId: string | null,
 ): Promise<string | undefined> {
   const eventId = randomUUID();
   // The submission is ALREADY persisted before this runs, so no CRM/CAPI side-effect
@@ -327,6 +329,7 @@ async function fireRegistration(
             // via the spread; state/zip need the region/postalCode mapping).
             state: ctx.region,
             zip: ctx.postalCode,
+            externalId,
           },
           customData: { content_name: assessment.title, assessment_name: assessment.title },
         },
@@ -368,6 +371,8 @@ export async function startSubmission(
   /** Audience-gate role the respondent picked (Phase 2). Validated against the
    *  assessment's own role list; anything else is dropped. */
   audienceRole?: string,
+  /** First-party visitor id (browser UUID) → stored + sent as CAPI external_id. */
+  externalId?: string,
 ): Promise<ActionResult<StartResult>> {
   // Bot guard #1 — honeypot: a hidden form field no human fills. If it carries a
   // value, silently refuse (no submission created) so bot opt-ins never pollute the
@@ -503,6 +508,9 @@ export async function startSubmission(
     : {};
   const optinData = Object.keys(cleanOptin).length ? { optinAnswers: cleanOptin as unknown as Prisma.InputJsonValue } : {};
 
+  // First-party id (browser UUID). Trim + length-cap untrusted client input.
+  const cleanXid = typeof externalId === "string" ? externalId.trim().slice(0, 64) || null : null;
+
   const submissionData = {
     assessmentId: assessment.id,
     tenantId: assessment.tenantId,
@@ -530,6 +538,7 @@ export async function startSubmission(
     browser: metaCtx.browser,
     os: metaCtx.os,
     fbclidTimestamp,
+    metaExternalId: cleanXid,
     ...optinData,
     ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
   };
@@ -621,7 +630,7 @@ export async function startSubmission(
     }
     let eventId: string | undefined;
     if (outcome.kind === "created") {
-      eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, assessment.fireMetaCapi);
+      eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, assessment.fireMetaCapi, cleanXid);
     }
     // Nurture (one-shot Email + WhatsApp) now fires on COMPLETION, not here, so the
     // {{resultUrl}} placeholder resolves to the finished result — see completeSubmission.
@@ -643,7 +652,7 @@ export async function startSubmission(
     data: { ...submissionData, customerId: newCustomerId },
     select: { id: true },
   });
-  const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr, assessment.fireMetaCapi);
+  const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr, assessment.fireMetaCapi, cleanXid);
   // Nurture now fires on COMPLETION (see completeSubmission) so {{resultUrl}} resolves.
   return { ok: true, data: { status: "started", submissionId: created.id, editToken: newEditToken, ...(eventId ? { eventId } : {}) } };
 }
@@ -1267,6 +1276,7 @@ export async function completeSubmission(
       leadLastName: true,
       leadEmail: true,
       leadMobile: true,
+      metaExternalId: true,
     },
   });
 
@@ -1342,6 +1352,7 @@ export async function completeSubmission(
           ...ctx,
           state: ctx.region,
           zip: ctx.postalCode,
+          externalId: full?.metaExternalId ?? null,
         },
         customData: { content_name: assessment.title, assessment_name: assessment.title },
       },

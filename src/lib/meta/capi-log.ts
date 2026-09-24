@@ -69,6 +69,7 @@ const SUB_SELECT = {
   region: true,
   postalCode: true,
   fbclidTimestamp: true,
+  metaExternalId: true,
   createdAt: true,
   assessment: { select: { targetUrl: true } },
 } as const;

@@ -40,6 +40,14 @@ export function hashName(name: string | null | undefined): string | null {
   return c ? sha256Hex(c.toLowerCase()) : null;
 }
 
+/** external_id (a first-party id, e.g. a per-visitor UUID): trim + lowercase, then
+ *  hash. Same normalization the browser pixel applies to its advanced-matching
+ *  external_id, so a CAPI event and the pixel event join on the same value. */
+export function hashExternalId(value: string | null | undefined): string | null {
+  const c = clean(value);
+  return c ? sha256Hex(c.toLowerCase()) : null;
+}
+
 /** City / state: Meta wants lowercase a-z only (no spaces/punctuation), then hash. */
 export function hashCityState(value: string | null | undefined): string | null {
   const c = clean(value);

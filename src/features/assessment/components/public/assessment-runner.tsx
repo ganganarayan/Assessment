@@ -15,6 +15,7 @@ import { type PaymentCheckout } from "@/lib/payments/types";
 import { ResultPages } from "@/features/assessment/components/public/result-pages";
 import { type LeadInput, professionOptionsFor, type PreResultField } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
+import { getOrCreateExternalId } from "@/lib/external-id";
 import { appendVidapulseId } from "@/lib/vidapulse";
 import { detectUnitFromQuestion, isClinicRole, type ClinicRole } from "@/lib/scoring/clinic-audit";
 import { buildSpine, nextIndex, walk, type RouteSpec } from "@/lib/routing/engine";
@@ -387,7 +388,7 @@ export function AssessmentRunner({
     const honeypot = hpRef.current?.value ?? "";
     const optin = Object.keys(optinAnswers).length ? optinAnswers : undefined;
     start(async () => {
-      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot, optin, selectedRole ?? undefined);
+      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot, optin, selectedRole ?? undefined, getOrCreateExternalId() ?? undefined);
       if (!res.ok) {
         setError(res.error);
         return;
