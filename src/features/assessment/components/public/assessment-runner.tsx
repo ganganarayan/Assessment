@@ -162,11 +162,25 @@ export interface PublicAssessment {
     suggestions: string[];
     options: { key: string; label: string; redirectSlug: string | null }[];
   } | null;
+  // Qualification gate (Page 1): questions shown one-at-a-time before the assessment.
+  // A disqualifying answer routes to the disqualified page — no lead/submission/result.
+  qualification: {
+    enabled: boolean;
+    questions: { id: string; text: string; options: { id: string; label: string; disqualifies: boolean }[] }[];
+  } | null;
+  disqualified: {
+    heading: string;
+    subtext: string;
+    bodyHtml: string;
+    buttonLabel: string;
+    buttonUrl: string;
+    fireDisqualifiedEvent: boolean;
+  } | null;
   categories: PublicCategory[];
   pages: AssessmentPageData[];
 }
 
-type Step = "gate" | "intro" | "questions" | "leadForm" | "details" | "locked" | "evaluating" | "resultPages";
+type Step = "qualify" | "disqualified" | "gate" | "intro" | "questions" | "leadForm" | "details" | "locked" | "evaluating" | "resultPages";
 
 /** Anticipation countdown shown after Submit before the VSL/destination loads.
  *  Single source of truth; promote to a per-assessment field if it needs to vary. */
@@ -201,7 +215,14 @@ export function AssessmentRunner({
   const freeMode = gate?.mode === "FREETEXT";
   // A free-text gate shows even with no options; a dropdown needs at least one.
   const gated = !!(gate && (freeMode || gate.options.length > 0));
-  const [step, setStep] = useState<Step>(gated ? "gate" : "intro");
+  // Qualification gate (Page 1): active only when enabled with at least one question.
+  const qual =
+    assessment.qualification && assessment.qualification.enabled && assessment.qualification.questions.length > 0
+      ? assessment.qualification
+      : null;
+  const [step, setStep] = useState<Step>(qual ? "qualify" : gated ? "gate" : "intro");
+  // Current qualification question index (one at a time, auto-advance).
+  const [qualIndex, setQualIndex] = useState(0);
   // Audience gate: the current dropdown selection (option key) + the role label the
   // respondent picked (threaded to startSubmission; stored as their audience/role).
   const [gateChoice, setGateChoice] = useState<string>("");
@@ -391,6 +412,24 @@ export function AssessmentRunner({
     if (preview) params.set("preview", "1"); // keep cascade testing in preview mode
     const qs = params.toString();
     window.location.href = `/a/${slug}${qs ? `?${qs}` : ""}`;
+  }
+
+  // Qualification (Page 1): pick an answer. A disqualifying option routes to the
+  // disqualified page — NO lead / submission / result is ever created (optionally
+  // fires a custom "Disqualified" pixel event for ad exclusion). A qualifying answer
+  // auto-advances to the next question, then enters the assessment after the last.
+  function pickQualOption(disqualifies: boolean) {
+    setError(null);
+    if (disqualifies) {
+      if (assessment.disqualified?.fireDisqualifiedEvent) {
+        pixelTrackCustom("Disqualified", { assessment: assessment.slug });
+      }
+      setStep("disqualified");
+      return;
+    }
+    if (!qual) return;
+    if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
+    else setStep(gated ? "gate" : "intro");
   }
 
   // Audience gate "Continue": a redirecting choice hops to its assessment; a
@@ -677,6 +716,76 @@ export function AssessmentRunner({
           {pending ? "Please wait…" : assessment.resultsButtonLabel?.trim() || "Show my results"}
         </Button>
       </form>
+    );
+  }
+
+  if (step === "qualify" && qual) {
+    // qualIndex only advances within bounds via pickQualOption, so this is defensive.
+    const question = qual.questions[qualIndex] ?? qual.questions[0]!;
+    return (
+      <div className="flex flex-col gap-6">
+        {assessment.eyebrow ? (
+          <p className="text-sm font-semibold uppercase tracking-wide text-[#D4AF37]">{assessment.eyebrow}</p>
+        ) : null}
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">{assessment.title}</h1>
+          {assessment.subheadline ? (
+            <p className="text-[var(--muted-foreground)]">{assessment.subheadline}</p>
+          ) : null}
+        </div>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Question {qualIndex + 1} of {qual.questions.length}
+        </p>
+        <div className="flex flex-col gap-3">
+          <Label>{question.text}</Label>
+          <div className="flex flex-col gap-2">
+            {question.options.map((o) => (
+              <Button
+                key={o.id}
+                size="lg"
+                type="button"
+                variant="outline"
+                className="justify-start text-left"
+                onClick={() => pickQualOption(o.disqualifies)}
+              >
+                {o.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "disqualified") {
+    const dq = assessment.disqualified;
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">
+            {dq?.heading?.trim() || "Thanks for your interest."}
+          </h1>
+          {dq?.subtext?.trim() ? (
+            <p className="text-[var(--muted-foreground)]">{dq.subtext}</p>
+          ) : null}
+          {dq?.bodyHtml?.trim() ? (
+            <div
+              className="prose prose-sm max-w-none text-[var(--foreground)]"
+              // Admin-authored (super-admin) content, same trust as other builder HTML.
+              dangerouslySetInnerHTML={{ __html: dq.bodyHtml }}
+            />
+          ) : null}
+        </div>
+        {dq?.buttonUrl?.trim() ? (
+          <a
+            href={dq.buttonUrl}
+            className="inline-flex items-center justify-center rounded-md px-6 py-3 text-sm font-semibold text-white"
+            style={{ backgroundColor: "#16a34a", ...ctaStyle }}
+          >
+            {dq.buttonLabel?.trim() || "Continue"}
+          </a>
+        ) : null}
+      </div>
     );
   }
 

@@ -7,7 +7,11 @@ import {
 } from "@/features/assessment/components/public/assessment-runner";
 import { readPublishedPages } from "@/features/assessment/pages/blocks";
 import { resolveAudienceCanonical } from "@/lib/settings/config";
-import { type PreResultField } from "@/features/assessment/schemas";
+import {
+  type PreResultField,
+  qualificationSchema,
+  disqualifiedContentSchema,
+} from "@/features/assessment/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -121,6 +125,15 @@ export default async function PublicAssessmentPage({
     paymentIntroText: a.paymentIntroText,
     // Audience gate (Phase 2).
     audienceGate,
+    // Qualification gate (Page 1): only pass it when enabled with questions.
+    qualification: (() => {
+      const p = qualificationSchema.safeParse(a.qualification);
+      return p.success && p.data.enabled && p.data.questions.length > 0 ? p.data : null;
+    })(),
+    disqualified: (() => {
+      const p = disqualifiedContentSchema.safeParse(a.disqualifiedContent);
+      return p.success ? p.data : null;
+    })(),
     // Public renders ONLY the published snapshot (never the draft rows).
     pages: readPublishedPages(a.publishedPages),
     categories: a.categories.map((c) => ({
