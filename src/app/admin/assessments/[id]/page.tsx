@@ -17,7 +17,15 @@ import { BuilderTabPanels } from "@/features/assessment/components/admin/builder
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
 import { readResultPage } from "@/features/assessment/result-page/blocks";
 import { buildSpine } from "@/lib/routing/engine";
-import { EMPTY_AUDIENCE_GATE, type AudienceGateInput } from "@/features/assessment/schemas";
+import {
+  EMPTY_AUDIENCE_GATE,
+  EMPTY_QUALIFICATION,
+  EMPTY_DISQUALIFIED,
+  qualificationSchema,
+  disqualifiedContentSchema,
+  type AudienceGateInput,
+} from "@/features/assessment/schemas";
+import { QualificationManager } from "@/features/assessment/components/admin/qualification-manager";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
@@ -206,9 +214,28 @@ export default async function EditAssessmentPage({
     })),
   );
 
+  const qualParsed = qualificationSchema.safeParse(a.qualification);
+  const qualification = qualParsed.success ? qualParsed.data : EMPTY_QUALIFICATION;
+  const disqParsed = disqualifiedContentSchema.safeParse(a.disqualifiedContent);
+  const disqualified = disqParsed.success ? disqParsed.data : EMPTY_DISQUALIFIED;
+
   const assessmentTab = (
     <>
       <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} />
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Qualification gate (Page 1)</h2>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Screen respondents <strong>before</strong> the assessment. A disqualifying answer sends them to a
+          separate page and creates <strong>no lead, submission or result</strong> — only an optional
+          &quot;Disqualified&quot; Meta pixel event so you can exclude them from ads.
+        </p>
+        <QualificationManager
+          assessmentId={a.id}
+          initialQualification={qualification}
+          initialDisqualified={disqualified}
+        />
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Connect your destination page</h2>

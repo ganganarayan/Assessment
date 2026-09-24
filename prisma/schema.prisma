@@ -588,6 +588,17 @@ model Assessment {
   // Meta's learning. Default true keeps every existing assessment firing as before.
   fireMetaCapi Boolean @default(true)
 
+  // ---- Qualification gate (Page 1) + disqualified page ----
+  // Page-1 gating questions shown one-at-a-time BEFORE the assessment. Each option
+  // qualifies or disqualifies. Shape: { enabled, questions: [{ id, text, options:
+  // [{ id, label, disqualifies }] }] }. A disqualifying answer routes to the
+  // disqualified page and creates NO lead / submission / result / Lead-CAPI — only
+  // an optional custom "Disqualified" Meta pixel event (for ad exclusion). Null = no gate.
+  qualification       Json?
+  // Content shown to a disqualified visitor (heading/subtext/body/button + the
+  // fire-"Disqualified"-event toggle). Nothing about the visitor is stored.
+  disqualifiedContent Json?
+
   // Published snapshot of the result-page builder (array of AssessmentPageData).
   // The relational AssessmentPage/PageBlock rows are the editable DRAFT; the public
   // renders ONLY this snapshot, so unpublished edits never go live. Null = no pages

@@ -61,6 +61,53 @@ export const EMPTY_AUDIENCE_GATE: AudienceGateInput = {
   roles: [],
 };
 
+/* ---- Qualification gate (Page 1) --------------------------------------- */
+
+/** One selectable answer on a qualification question; `disqualifies` routes the
+ *  respondent to the disqualified page (no lead / submission / result created). */
+export const qualOptionSchema = z.object({
+  id: z.string().min(1).max(60),
+  label: z.string().trim().min(1, "Option label is required.").max(200),
+  disqualifies: z.boolean().default(false),
+});
+export type QualOptionInput = z.infer<typeof qualOptionSchema>;
+
+/** One Page-1 gating question (shown one at a time, auto-advance). */
+export const qualQuestionSchema = z.object({
+  id: z.string().min(1).max(60),
+  text: z.string().trim().min(1, "Question text is required.").max(400),
+  options: z.array(qualOptionSchema).min(2, "Add at least two options.").max(20),
+});
+export type QualQuestionInput = z.infer<typeof qualQuestionSchema>;
+
+export const qualificationSchema = z.object({
+  enabled: z.boolean().default(false),
+  questions: z.array(qualQuestionSchema).max(20).default([]),
+});
+export type QualificationInput = z.infer<typeof qualificationSchema>;
+export const EMPTY_QUALIFICATION: QualificationInput = { enabled: false, questions: [] };
+
+/** Content of the disqualified page. Nothing about the visitor is stored when it
+ *  shows; `fireDisqualifiedEvent` fires a custom "Disqualified" Meta pixel event
+ *  (for building an exclusion audience) — the only outward signal. */
+export const disqualifiedContentSchema = z.object({
+  heading: z.string().max(200).optional().or(z.literal("")).default(""),
+  subtext: z.string().max(500).optional().or(z.literal("")).default(""),
+  bodyHtml: z.string().max(10000).optional().or(z.literal("")).default(""),
+  buttonLabel: z.string().max(80).optional().or(z.literal("")).default(""),
+  buttonUrl: z.string().max(2000).optional().or(z.literal("")).default(""),
+  fireDisqualifiedEvent: z.boolean().default(true),
+});
+export type DisqualifiedContentInput = z.infer<typeof disqualifiedContentSchema>;
+export const EMPTY_DISQUALIFIED: DisqualifiedContentInput = {
+  heading: "",
+  subtext: "",
+  bodyHtml: "",
+  buttonLabel: "",
+  buttonUrl: "",
+  fireDisqualifiedEvent: true,
+};
+
 /** The tenant's canonical audience list (AppSetting.audienceCanonical): the
  *  default roles that feed both the free-field suggestions and the normalize
  *  screen. Trimmed, de-duped and capped in the settings action. */
