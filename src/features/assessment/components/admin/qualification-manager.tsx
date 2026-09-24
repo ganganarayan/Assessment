@@ -32,14 +32,23 @@ export function QualificationManager({
 
   // ---- qualification editing helpers ----
   const addQuestion = () =>
-    setQ((s) => ({ ...s, questions: [...s.questions, { id: uid(), text: "", options: [
-      { id: uid(), label: "", disqualifies: false },
-      { id: uid(), label: "", disqualifies: false },
-    ] }] }));
+    setQ((s) => ({ ...s, questions: [...s.questions, {
+      id: uid(), text: "", type: "choice", placeholder: "", required: false,
+      options: [
+        { id: uid(), label: "", disqualifies: false },
+        { id: uid(), label: "", disqualifies: false },
+      ],
+    }] }));
+  const addTextQuestion = () =>
+    setQ((s) => ({ ...s, questions: [...s.questions, {
+      id: uid(), text: "", type: "text", placeholder: "", required: false, options: [],
+    }] }));
   const removeQuestion = (qi: number) =>
     setQ((s) => ({ ...s, questions: s.questions.filter((_, i) => i !== qi) }));
   const setQuestionText = (qi: number, text: string) =>
     setQ((s) => ({ ...s, questions: s.questions.map((x, i) => (i === qi ? { ...x, text } : x)) }));
+  const patchQuestion = (qi: number, patch: Partial<{ placeholder: string; required: boolean }>) =>
+    setQ((s) => ({ ...s, questions: s.questions.map((x, i) => (i === qi ? { ...x, ...patch } : x)) }));
   const addOption = (qi: number) =>
     setQ((s) => ({ ...s, questions: s.questions.map((x, i) => (i === qi ? { ...x, options: [...x.options, { id: uid(), label: "", disqualifies: false }] } : x)) }));
   const removeOption = (qi: number, oi: number) =>
@@ -78,42 +87,67 @@ export function QualificationManager({
         {q.questions.map((question, qi) => (
           <div key={question.id} className="flex flex-col gap-2 rounded-md border border-dashed p-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--muted-foreground)]">Q{qi + 1}</span>
+              <span className="whitespace-nowrap text-xs text-[var(--muted-foreground)]">
+                Q{qi + 1} · {question.type === "text" ? "text" : "choice"}
+              </span>
               <Input
                 value={question.text}
-                placeholder="Which describes you?"
+                placeholder={question.type === "text" ? "In one line, what does the business do?" : "Which describes you?"}
                 onChange={(e) => setQuestionText(qi, e.target.value)}
               />
               <Button size="sm" variant="ghost" onClick={() => removeQuestion(qi)}>✕</Button>
             </div>
-            <div className="flex flex-col gap-1 pl-6">
-              {question.options.map((opt, oi) => (
-                <div key={opt.id} className="flex items-center gap-2">
-                  <Input
-                    className="flex-1"
-                    value={opt.label}
-                    placeholder="Answer option"
-                    onChange={(e) => setOption(qi, oi, { label: e.target.value })}
+            {question.type === "text" ? (
+              <div className="flex flex-col gap-2 pl-6">
+                <Input
+                  value={question.placeholder}
+                  placeholder="Placeholder (e.g. We manufacture industrial valves for oil & gas.)"
+                  onChange={(e) => patchQuestion(qi, { placeholder: e.target.value })}
+                />
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={question.required}
+                    onChange={(e) => patchQuestion(qi, { required: e.target.checked })}
                   />
-                  <label className="flex items-center gap-1 whitespace-nowrap text-xs">
-                    <input
-                      type="checkbox"
-                      checked={opt.disqualifies}
-                      onChange={(e) => setOption(qi, oi, { disqualifies: e.target.checked })}
-                    />
-                    Disqualifies
-                  </label>
-                  <Button size="sm" variant="ghost" onClick={() => removeOption(qi, oi)}>✕</Button>
-                </div>
-              ))}
-              <div>
-                <Button size="sm" variant="outline" onClick={() => addOption(qi)}>+ Add option</Button>
+                  Required
+                </label>
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Free text for your <strong>manual review</strong> — never qualifies/disqualifies. Shows in the
+                  submission&apos;s Custom details.
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className="flex flex-col gap-1 pl-6">
+                {question.options.map((opt, oi) => (
+                  <div key={opt.id} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1"
+                      value={opt.label}
+                      placeholder="Answer option"
+                      onChange={(e) => setOption(qi, oi, { label: e.target.value })}
+                    />
+                    <label className="flex items-center gap-1 whitespace-nowrap text-xs">
+                      <input
+                        type="checkbox"
+                        checked={opt.disqualifies}
+                        onChange={(e) => setOption(qi, oi, { disqualifies: e.target.checked })}
+                      />
+                      Disqualifies
+                    </label>
+                    <Button size="sm" variant="ghost" onClick={() => removeOption(qi, oi)}>✕</Button>
+                  </div>
+                ))}
+                <div>
+                  <Button size="sm" variant="outline" onClick={() => addOption(qi)}>+ Add option</Button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={addQuestion}>+ Add question</Button>
+          <Button size="sm" variant="outline" onClick={addTextQuestion}>+ Add text question</Button>
           <Button size="sm" onClick={saveQual} disabled={pending}>{pending ? "Saving…" : "Save qualification"}</Button>
           {qMsg ? <span className="text-sm text-[var(--muted-foreground)]">{qMsg}</span> : null}
         </div>

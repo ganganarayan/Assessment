@@ -959,6 +959,9 @@ model Submission {
   // Start. Sent as external_id in Meta CAPI user_data (a standalone match key, no PII)
   // and matches the browser pixel's advanced-matching external_id.
   metaExternalId  String?
+  // Answers to the qualification gate's TEXT questions (keyed by question id). For
+  // MANUAL review only (never qualifies) — surfaced in the Submissions "Custom details".
+  qualificationAnswers Json?
   // Geo (Cloudflare) + device (parsed UA), captured at Start. region/postalCode feed
   // Meta CAPI advanced matching (st/zp); country is the 2-letter ISO code.
   country         String?

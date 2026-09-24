@@ -72,12 +72,23 @@ export const qualOptionSchema = z.object({
 });
 export type QualOptionInput = z.infer<typeof qualOptionSchema>;
 
-/** One Page-1 gating question (shown one at a time, auto-advance). */
-export const qualQuestionSchema = z.object({
-  id: z.string().min(1).max(60),
-  text: z.string().trim().min(1, "Question text is required.").max(400),
-  options: z.array(qualOptionSchema).min(2, "Add at least two options.").max(20),
-});
+/** One Page-1 gating question (shown one at a time).
+ *  - "choice": options with qualify/disqualify (auto-advance on pick).
+ *  - "text": a free-text input for MANUAL review — never qualifies/disqualifies;
+ *    the answer is stored on the submission (Custom details) for the owner to read. */
+export const qualQuestionSchema = z
+  .object({
+    id: z.string().min(1).max(60),
+    text: z.string().trim().min(1, "Question text is required.").max(400),
+    type: z.enum(["choice", "text"]).default("choice"),
+    placeholder: z.string().max(200).optional().or(z.literal("")).default(""),
+    required: z.boolean().default(false),
+    options: z.array(qualOptionSchema).max(20).default([]),
+  })
+  .refine((q) => q.type === "text" || q.options.length >= 2, {
+    message: "A choice question needs at least two options.",
+    path: ["options"],
+  });
 export type QualQuestionInput = z.infer<typeof qualQuestionSchema>;
 
 export const qualificationSchema = z.object({

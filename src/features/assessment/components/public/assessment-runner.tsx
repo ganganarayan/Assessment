@@ -167,7 +167,14 @@ export interface PublicAssessment {
   // A disqualifying answer routes to the disqualified page — no lead/submission/result.
   qualification: {
     enabled: boolean;
-    questions: { id: string; text: string; options: { id: string; label: string; disqualifies: boolean }[] }[];
+    questions: {
+      id: string;
+      text: string;
+      type: "choice" | "text";
+      placeholder: string;
+      required: boolean;
+      options: { id: string; label: string; disqualifies: boolean }[];
+    }[];
   } | null;
   disqualified: {
     heading: string;
@@ -224,6 +231,8 @@ export function AssessmentRunner({
   const [step, setStep] = useState<Step>(qual ? "qualify" : gated ? "gate" : "intro");
   // Current qualification question index (one at a time, auto-advance).
   const [qualIndex, setQualIndex] = useState(0);
+  // Answers to qualification TEXT questions (keyed by question id) — manual review.
+  const [qualTextAnswers, setQualTextAnswers] = useState<Record<string, string>>({});
   // Audience gate: the current dropdown selection (option key) + the role label the
   // respondent picked (threaded to startSubmission; stored as their audience/role).
   const [gateChoice, setGateChoice] = useState<string>("");
@@ -388,7 +397,7 @@ export function AssessmentRunner({
     const honeypot = hpRef.current?.value ?? "";
     const optin = Object.keys(optinAnswers).length ? optinAnswers : undefined;
     start(async () => {
-      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot, optin, selectedRole ?? undefined, getOrCreateExternalId() ?? undefined);
+      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot, optin, selectedRole ?? undefined, getOrCreateExternalId() ?? undefined, Object.keys(qualTextAnswers).length ? qualTextAnswers : undefined);
       if (!res.ok) {
         setError(res.error);
         return;
@@ -461,6 +470,20 @@ export function AssessmentRunner({
       setStep("disqualified"); // the GateDisqualified pixel event fires in an effect
       return;
     }
+    if (!qual) return;
+    if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
+    else setStep(gated ? "gate" : "intro");
+  }
+
+  // Qualification TEXT question "Continue": validate required, then advance (these
+  // never qualify/disqualify — the answer is stored for the owner's manual review).
+  function submitQualText(questionId: string, required: boolean) {
+    const v = (qualTextAnswers[questionId] ?? "").trim();
+    if (required && !v) {
+      setError("Please fill this in to continue.");
+      return;
+    }
+    setError(null);
     if (!qual) return;
     if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
     else setStep(gated ? "gate" : "intro");
@@ -771,21 +794,40 @@ export function AssessmentRunner({
           Question {qualIndex + 1} of {qual.questions.length}
         </p>
         <div className="flex flex-col gap-3">
-          <Label>{question.text}</Label>
-          <div className="flex flex-col gap-2">
-            {question.options.map((o) => (
-              <Button
-                key={o.id}
-                size="lg"
-                type="button"
-                variant="outline"
-                className="justify-start text-left"
-                onClick={() => pickQualOption(o.disqualifies)}
-              >
-                {o.label}
+          <Label>
+            {question.text}
+            {question.type === "text" && !question.required ? (
+              <span className="ml-1 text-xs font-normal text-[var(--muted-foreground)]">(optional)</span>
+            ) : null}
+          </Label>
+          {question.type === "text" ? (
+            <>
+              <Input
+                value={qualTextAnswers[question.id] ?? ""}
+                placeholder={question.placeholder || undefined}
+                onChange={(e) => setQualTextAnswers((a) => ({ ...a, [question.id]: e.target.value }))}
+              />
+              {error ? <p className="text-sm text-red-500">{error}</p> : null}
+              <Button size="lg" type="button" style={ctaStyle} onClick={() => submitQualText(question.id, question.required)}>
+                Continue
               </Button>
-            ))}
-          </div>
+            </>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {question.options.map((o) => (
+                <Button
+                  key={o.id}
+                  size="lg"
+                  type="button"
+                  variant="outline"
+                  className="justify-start text-left"
+                  onClick={() => pickQualOption(o.disqualifies)}
+                >
+                  {o.label}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );

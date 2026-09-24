@@ -104,6 +104,7 @@ export async function listSubmissionsForExport(
       leadProfession: true,
       optinAnswers: true,
       preResultAnswers: true,
+      qualificationAnswers: true,
       totalScore: true,
       maxScore: true,
       attribution: true,
@@ -118,7 +119,7 @@ export async function listSubmissionsForExport(
       resultSnapshot: true,
       resultToken: true,
       assessment: {
-        select: { title: true, slug: true, targetUrl: true, tenantId: true, optinFields: true, preResultFields: true },
+        select: { title: true, slug: true, targetUrl: true, tenantId: true, optinFields: true, preResultFields: true, qualification: true },
       },
       resultBand: { select: { level: true, title: true } },
       aiStatements: {
@@ -182,6 +183,8 @@ export async function listSubmissionsForExport(
           optinAnswers: s.optinAnswers,
           preResultFields: s.assessment.preResultFields,
           preResultAnswers: s.preResultAnswers,
+          qualification: s.assessment.qualification,
+          qualificationAnswers: s.qualificationAnswers,
         }),
       ),
       scoreRaw: snap?.scoreRaw ?? s.totalScore ?? null,

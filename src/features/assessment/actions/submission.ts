@@ -375,6 +375,8 @@ export async function startSubmission(
   audienceRole?: string,
   /** First-party visitor id (browser UUID) → stored + sent as CAPI external_id. */
   externalId?: string,
+  /** Qualification gate TEXT answers (manual review), keyed by question id. */
+  qualAnswers?: Record<string, string>,
 ): Promise<ActionResult<StartResult>> {
   // Bot guard #1 — honeypot: a hidden form field no human fills. If it carries a
   // value, silently refuse (no submission created) so bot opt-ins never pollute the
@@ -510,6 +512,18 @@ export async function startSubmission(
     : {};
   const optinData = Object.keys(cleanOptin).length ? { optinAnswers: cleanOptin as unknown as Prisma.InputJsonValue } : {};
 
+  // Qualification gate TEXT answers (manual-review) — sanitized + capped, keyed by
+  // question id. Never gates; stored for the owner to read in Custom details.
+  const cleanQual = qualAnswers && typeof qualAnswers === "object"
+    ? Object.fromEntries(
+        Object.entries(qualAnswers)
+          .filter(([, v]) => typeof v === "string" && v.trim())
+          .slice(0, 30)
+          .map(([k, v]) => [String(k).slice(0, 60), String(v).slice(0, 1000)]),
+      )
+    : {};
+  const qualData = Object.keys(cleanQual).length ? { qualificationAnswers: cleanQual as unknown as Prisma.InputJsonValue } : {};
+
   // First-party id (browser UUID). Trim + length-cap untrusted client input.
   const cleanXid = typeof externalId === "string" ? externalId.trim().slice(0, 64) || null : null;
 
@@ -542,6 +556,7 @@ export async function startSubmission(
     fbclidTimestamp,
     metaExternalId: cleanXid,
     ...optinData,
+    ...qualData,
     ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
   };
 

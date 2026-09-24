@@ -406,7 +406,8 @@ export async function listContactsForExport(range?: {
       os: true,
       optinAnswers: true,
       preResultAnswers: true,
-      assessment: { select: { slug: true, targetUrl: true, optinFields: true, preResultFields: true } },
+      qualificationAnswers: true,
+      assessment: { select: { slug: true, targetUrl: true, optinFields: true, preResultFields: true, qualification: true } },
     },
   });
   const paid = await getPaidBySubmission(rows.map((r) => r.id));
@@ -426,6 +427,8 @@ export async function listContactsForExport(range?: {
           optinAnswers: r.optinAnswers,
           preResultFields: r.assessment?.preResultFields,
           preResultAnswers: r.preResultAnswers,
+          qualification: r.assessment?.qualification,
+          qualificationAnswers: r.qualificationAnswers,
         }),
       ),
       customerId: r.customerId ?? "",
@@ -513,7 +516,8 @@ export async function listContacts(opts: {
       os: true,
       optinAnswers: true,
       preResultAnswers: true,
-      assessment: { select: { slug: true, targetUrl: true, tenantId: true, optinFields: true, preResultFields: true } },
+      qualificationAnswers: true,
+      assessment: { select: { slug: true, targetUrl: true, tenantId: true, optinFields: true, preResultFields: true, qualification: true } },
     },
   });
 
@@ -568,6 +572,8 @@ export async function listContacts(opts: {
           optinAnswers: r.optinAnswers,
           preResultFields: r.assessment?.preResultFields,
           preResultAnswers: r.preResultAnswers,
+          qualification: r.assessment?.qualification,
+          qualificationAnswers: r.qualificationAnswers,
         }),
       };
     }),
