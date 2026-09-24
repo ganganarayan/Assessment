@@ -460,13 +460,13 @@ model Assessment {
 
   // Lead-capture configuration: enable + require each field independently.
   collectFirstName  Boolean @default(true)
-  firstNameRequired Boolean @default(false)
+  firstNameRequired Boolean @default(true) // name mandatory by default; unset per assessment if not needed
   collectLastName   Boolean @default(true)
   lastNameRequired  Boolean @default(false)
   collectEmail      Boolean @default(true)
   emailRequired     Boolean @default(true)
   collectMobile     Boolean @default(true)
-  mobileRequired    Boolean @default(false)
+  mobileRequired    Boolean @default(true) // phone mandatory by default; unset per assessment if not needed
   collectProfession  Boolean @default(true)
   professionRequired Boolean @default(true)
   // Custom profession dropdown options. Empty = the built-in default list.

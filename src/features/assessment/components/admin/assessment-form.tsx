@@ -113,13 +113,13 @@ const DEFAULTS: AssessmentFormValues = {
   estimatedMinutes: undefined,
   thankYouMessage: "",
   collectFirstName: true,
-  firstNameRequired: false,
+  firstNameRequired: true, // name mandatory by default (uncheck per assessment if not needed)
   collectLastName: true,
   lastNameRequired: false,
   collectEmail: true,
   emailRequired: true,
   collectMobile: true,
-  mobileRequired: false,
+  mobileRequired: true, // phone mandatory by default (uncheck per assessment if not needed)
   collectProfession: true,
   professionRequired: true,
   professionOptions: [],
