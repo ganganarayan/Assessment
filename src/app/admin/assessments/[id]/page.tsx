@@ -241,7 +241,7 @@ export default async function EditAssessmentPage({
           0–100), and a suggestion. Ranges must not overlap within a category. Applies to
           <strong> new submissions</strong> (results are captured at completion).
         </p>
-        <CategoryBandsManager categories={categoryOptions} bands={categoryBands} />
+        <CategoryBandsManager assessmentId={a.id} categories={categoryOptions} bands={categoryBands} />
       </section>
 
       <p className="text-xs text-[var(--muted-foreground)]">

@@ -6,6 +6,7 @@ import { categoryBandSchema, type CategoryBandInput } from "@/features/assessmen
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { assertEdit } from "@/lib/tenant/acting";
+import { parseCompactBands } from "@/lib/import/parse-bands-text";
 
 /**
  * Per-category evaluation bands (CategoryResultBand). The chosen LEVEL is stored
@@ -71,6 +72,54 @@ export async function createCategoryBand(
 
   revalidatePath(`/admin/assessments/${assessmentId}`);
   return { ok: true, data: { id: created.id } };
+}
+
+/**
+ * Bulk-fill per-category evaluation bands from a compact text spec (ranges + names).
+ * Category bands are capped at 4 (one per LEVEL), so at most 4 ranges: level is the
+ * band's LABEL (auto LOW→CRITICAL) and the name becomes its suggestion (meaning).
+ * REPLACES the bands for the target category, or for ALL categories at once.
+ */
+export async function importCategoryBandsFromText(
+  assessmentId: string,
+  text: string,
+  target: "ALL" | string,
+): Promise<ActionResult<{ categories: number; bandsPerCategory: number }>> {
+  if (!(await assessmentInScope(assessmentId))) {
+    return { ok: false, error: "Not found." };
+  }
+  const denied = await assertEdit();
+  if (denied) return denied;
+
+  const { bands, errors } = parseCompactBands(text);
+  if (errors.length > 0) return { ok: false, error: errors[0]! };
+  if (bands.length === 0) return { ok: false, error: "No bands found in the text." };
+  if (bands.length > 4) {
+    return { ok: false, error: "Category bands support up to 4 ranges (one per level). Use 4 or fewer." };
+  }
+
+  const cats = await prisma.category.findMany({ where: { assessmentId }, select: { id: true } });
+  const catIds = target === "ALL" ? cats.map((c) => c.id) : cats.filter((c) => c.id === target).map((c) => c.id);
+  if (catIds.length === 0) return { ok: false, error: "No matching category in this assessment." };
+
+  await prisma.$transaction(async (tx) => {
+    for (const cid of catIds) {
+      await tx.categoryResultBand.deleteMany({ where: { categoryId: cid } });
+      await tx.categoryResultBand.createMany({
+        data: bands.map((b, i) => ({
+          categoryId: cid,
+          label: b.level, // level is the category band's label (unique per category)
+          meaning: b.title || null, // the name becomes the per-category suggestion
+          minScore: b.min,
+          maxScore: b.max,
+          displayOrder: i,
+        })),
+      });
+    }
+  });
+
+  revalidatePath(`/admin/assessments/${assessmentId}`);
+  return { ok: true, data: { categories: catIds.length, bandsPerCategory: bands.length } };
 }
 
 export async function updateCategoryBand(

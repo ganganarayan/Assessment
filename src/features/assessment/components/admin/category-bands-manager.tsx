@@ -6,6 +6,7 @@ import {
   createCategoryBand,
   updateCategoryBand,
   deleteCategoryBand,
+  importCategoryBandsFromText,
 } from "@/features/assessment/actions/category-band";
 import type { CategoryBandInput } from "@/features/assessment/schemas";
 import { Button } from "@/components/ui/button";
@@ -59,15 +60,22 @@ function freeLevels(bands: CategoryBandData[], categoryId: string, excludeId?: s
 }
 
 export function CategoryBandsManager({
+  assessmentId,
   categories,
   bands,
 }: {
+  assessmentId: string;
   categories: CategoryOption[];
   bands: CategoryBandData[];
 }) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pending, start] = useTransition();
+
+  const [showImport, setShowImport] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importTarget, setImportTarget] = useState("ALL");
+  const [importErr, setImportErr] = useState<string | null>(null);
 
   if (categories.length === 0) {
     return (
@@ -85,8 +93,59 @@ export function CategoryBandsManager({
     });
   }
 
+  function runImport() {
+    if (!importText.trim()) return;
+    const where = importTarget === "ALL" ? "every category" : "the selected category";
+    if (!confirm(`This replaces the bands for ${where} with the ones from your text. Continue?`)) return;
+    setImportErr(null);
+    start(async () => {
+      const res = await importCategoryBandsFromText(assessmentId, importText, importTarget);
+      if (!res.ok) { setImportErr(res.error ?? "Import failed."); return; }
+      setImportText("");
+      setShowImport(false);
+      router.refresh();
+    });
+  }
+
   return (
     <div className="flex flex-col gap-3">
+      {/* Bulk import from a compact text spec (ranges + names), per category or all. */}
+      <div className="rounded-md border border-dashed p-3">
+        <button type="button" className="text-sm font-medium underline" onClick={() => setShowImport((v) => !v)}>
+          {showImport ? "Hide import" : "Import bands from text"}
+        </button>
+        {showImport ? (
+          <div className="mt-3 flex flex-col gap-2">
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Up to 4 ranges (one per level). Levels auto-assign LOW→CRITICAL; the name becomes the
+              category&apos;s suggestion for that level. Everything stays editable below. Example:
+              <br />
+              <span className="font-mono">0-40, 41-55, 56-75, 76-100. Holding, Load-Bearing, Running Hot, Redlined</span>
+            </p>
+            <Textarea
+              rows={3}
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder="0-40, 41-55, 56-75, 76-100. Holding, Load-Bearing, Running Hot, Redlined"
+              spellCheck={false}
+              className="font-mono text-xs"
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <select className={SELECT_CLASS} value={importTarget} onChange={(e) => setImportTarget(e.target.value)}>
+                <option value="ALL">All categories</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <Button size="sm" onClick={runImport} disabled={pending || !importText.trim()}>
+                {pending ? "Filling…" : "Fill bands"}
+              </Button>
+              {importErr ? <span className="text-sm text-red-500">{importErr}</span> : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       {bands.map((b) =>
         editingId === b.id ? (
           <BandForm

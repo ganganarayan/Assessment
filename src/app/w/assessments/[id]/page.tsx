@@ -225,7 +225,7 @@ export default async function WorkspaceEditAssessmentPage({
           level, the <strong>category&apos;s own</strong> score range (its score ÷ its max,
           0–100), and a suggestion. Ranges must not overlap within a category.
         </p>
-        <CategoryBandsManager categories={categoryOptions} bands={categoryBands} />
+        <CategoryBandsManager assessmentId={a.id} categories={categoryOptions} bands={categoryBands} />
       </section>
     </>
   );
