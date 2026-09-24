@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { BandLevel } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { resultBandSchema, type ResultBandInput } from "@/features/assessment/schemas";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { assertEdit } from "@/lib/tenant/acting";
+import { parseCompactBands } from "@/lib/import/parse-bands-text";
 
 export async function createResultBand(
   assessmentId: string,
@@ -45,6 +47,44 @@ export async function createResultBand(
 
   revalidatePath(`/admin/assessments/${assessmentId}`);
   return { ok: true, data: { id: created.id } };
+}
+
+/**
+ * Bulk-fill the overall result bands from a compact text spec (ranges + names).
+ * REPLACES the current result bands for the assessment (idempotent, editable
+ * afterward). Ranges are validated (0–100, no overlap); a gap is only a warning.
+ */
+export async function importResultBandsFromText(
+  assessmentId: string,
+  text: string,
+): Promise<ActionResult<{ count: number }>> {
+  if (!(await assessmentInScope(assessmentId))) {
+    return { ok: false, error: "Not found." };
+  }
+  const denied = await assertEdit();
+  if (denied) return denied;
+
+  const { bands, errors } = parseCompactBands(text);
+  if (errors.length > 0) return { ok: false, error: errors[0]! };
+  if (bands.length === 0) return { ok: false, error: "No bands found in the text." };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.resultBand.deleteMany({ where: { assessmentId } });
+    await tx.resultBand.createMany({
+      data: bands.map((b, i) => ({
+        assessmentId,
+        level: b.level as BandLevel,
+        title: b.title || b.level, // blank name falls back to the level; edit after
+        description: null,
+        minScore: b.min,
+        maxScore: b.max,
+        displayOrder: i,
+      })),
+    });
+  });
+
+  revalidatePath(`/admin/assessments/${assessmentId}`);
+  return { ok: true, data: { count: bands.length } };
 }
 
 export async function updateResultBand(

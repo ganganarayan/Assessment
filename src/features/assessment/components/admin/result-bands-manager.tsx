@@ -6,6 +6,7 @@ import {
   createResultBand,
   updateResultBand,
   deleteResultBand,
+  importResultBandsFromText,
 } from "@/features/assessment/actions/result-band";
 import type { ResultBandInput } from "@/features/assessment/schemas";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,10 @@ export function ResultBandsManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
+  const [importText, setImportText] = useState("");
+  const [importErr, setImportErr] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
+
   function remove(id: string) {
     if (!confirm("Delete this result band?")) return;
     start(async () => {
@@ -45,8 +50,56 @@ export function ResultBandsManager({
     });
   }
 
+  function runImport() {
+    if (!importText.trim()) return;
+    if (bands.length > 0 && !confirm(`This replaces the current ${bands.length} result band(s) with the ones from your text. Continue?`)) return;
+    setImportErr(null);
+    start(async () => {
+      const res = await importResultBandsFromText(assessmentId, importText);
+      if (!res.ok) { setImportErr(res.error ?? "Import failed."); return; }
+      setImportText("");
+      setShowImport(false);
+      router.refresh();
+    });
+  }
+
   return (
     <div className="flex flex-col gap-3">
+      {/* Bulk import from a compact text spec (ranges + names). */}
+      <div className="rounded-md border border-dashed p-3">
+        <button
+          type="button"
+          className="text-sm font-medium underline"
+          onClick={() => setShowImport((v) => !v)}
+        >
+          {showImport ? "Hide import" : "Import bands from text"}
+        </button>
+        {showImport ? (
+          <div className="mt-3 flex flex-col gap-2">
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Type the score ranges and the band names — the parser fills the rest and levels auto-assign
+              (LOW→CRITICAL). Everything stays editable below. Example:
+              <br />
+              <span className="font-mono">0-40% low, 41-55, 56-75, 76-100. Holding, Load-Bearing, Running Hot, Redlined</span>
+            </p>
+            <Textarea
+              rows={3}
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder="0-40, 41-55, 56-75, 76-100. Holding, Load-Bearing, Running Hot, Redlined"
+              spellCheck={false}
+              className="font-mono text-xs"
+            />
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={runImport} disabled={pending || !importText.trim()}>
+                {pending ? "Filling…" : "Fill bands"}
+              </Button>
+              {importErr ? <span className="text-sm text-red-500">{importErr}</span> : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       {bands.map((b) =>
         editingId === b.id ? (
           <BandForm
