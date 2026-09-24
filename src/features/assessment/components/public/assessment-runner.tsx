@@ -284,6 +284,32 @@ export function AssessmentRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preview, assessment.slug]);
 
+  // Early-skip: a visitor already rejected by the gate (localStorage flag) goes
+  // straight to the exit page without seeing the questions again. Checked after mount
+  // (localStorage isn't available during SSR). Cheap client-side layer that works from
+  // the first rejection, before the Meta exclusion audience has populated.
+  useEffect(() => {
+    if (!qual || preview) return;
+    try {
+      if (localStorage.getItem("gate_dq") === "1") setStep("disqualified");
+    } catch {
+      /* blocked storage — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fire the GateDisqualified exclusion pixel event once, whenever the exit page shows
+  // (from a fresh rejection or the early-skip). Meta builds the exclusion audience
+  // from this custom event.
+  const dqFiredRef = useRef(false);
+  useEffect(() => {
+    if (step !== "disqualified" || dqFiredRef.current) return;
+    dqFiredRef.current = true;
+    if (assessment.disqualified?.fireDisqualifiedEvent) {
+      pixelTrackCustom("GateDisqualified", { assessment: assessment.slug });
+    }
+  }, [step, assessment.disqualified?.fireDisqualifiedEvent, assessment.slug]);
+
   // Autosave progress (debounced) so a returning unpaid respondent resumes where
   // they left off. Only while answering, only once they've picked something.
   useEffect(() => {
@@ -421,10 +447,14 @@ export function AssessmentRunner({
   function pickQualOption(disqualifies: boolean) {
     setError(null);
     if (disqualifies) {
-      if (assessment.disqualified?.fireDisqualifiedEvent) {
-        pixelTrackCustom("Disqualified", { assessment: assessment.slug });
+      // Remember the rejection so a repeat visit skips straight to the exit page
+      // (free client-side layer; fires instantly, before the Meta audience populates).
+      try {
+        localStorage.setItem("gate_dq", "1");
+      } catch {
+        /* private mode / blocked storage — non-fatal */
       }
-      setStep("disqualified");
+      setStep("disqualified"); // the GateDisqualified pixel event fires in an effect
       return;
     }
     if (!qual) return;
