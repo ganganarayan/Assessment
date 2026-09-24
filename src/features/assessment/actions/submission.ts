@@ -7,6 +7,8 @@ import {
   leadSchema,
   answersSchema,
   professionOptionsFor,
+  isQualificationActive,
+  completionEventName,
   type LeadInput,
   type AnswersInput,
 } from "@/features/assessment/schemas";
@@ -914,6 +916,8 @@ export async function completeSubmission(
       questionDisplayMode: true,
       // Phase 2: routed assessments have this OFF → no completion CAPI/pixel.
       fireMetaCapi: true,
+      // Gated funnels fire QualifiedCompletion instead of AssessmentCompleted.
+      qualification: true,
       tenant: { select: { id: true, slug: true, name: true } },
       categories: {
         // Order categories + their questions by displayOrder so scoring iterates in
@@ -1340,7 +1344,7 @@ export async function completeSubmission(
     const ctx = await getMetaRequestContext();
     void sendAndLogLifecycleCapi(
       {
-        eventName: "AssessmentCompleted",
+        eventName: completionEventName(isQualificationActive(assessment.qualification)),
         eventId,
         eventTimeMs: Date.now(),
         eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,

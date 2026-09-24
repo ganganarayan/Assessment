@@ -13,7 +13,7 @@ import { type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
 import { type PaymentCheckout } from "@/lib/payments/types";
 import { ResultPages } from "@/features/assessment/components/public/result-pages";
-import { type LeadInput, professionOptionsFor, type PreResultField } from "@/features/assessment/schemas";
+import { type LeadInput, professionOptionsFor, completionEventName, type PreResultField } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { getOrCreateExternalId } from "@/lib/external-id";
 import { appendVidapulseId } from "@/lib/vidapulse";
@@ -581,7 +581,7 @@ export function AssessmentRunner({
       // redirect, ONLY for the winning completion (server returns an eventId
       // then). The eventId dedups against the server-side CAPI event.
       if (res.data?.eventId) {
-        pixelTrackCustom("AssessmentCompleted", { content_name: assessment.title }, res.data.eventId);
+        pixelTrackCustom(completionEventName(!!qual), { content_name: assessment.title }, res.data.eventId);
       }
       // Page builder: if pages are configured, show them (results teaser + the pay
       // button block) instead of going straight to payment/VSL. Defer the payment

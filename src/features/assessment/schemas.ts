@@ -87,6 +87,23 @@ export const qualificationSchema = z.object({
 export type QualificationInput = z.infer<typeof qualificationSchema>;
 export const EMPTY_QUALIFICATION: QualificationInput = { enabled: false, questions: [] };
 
+/** True when an assessment's qualification gate is actually live (enabled + has at
+ *  least one question). Pure — safe on client and server. */
+export function isQualificationActive(q: unknown): boolean {
+  const p = qualificationSchema.safeParse(q);
+  return p.success && p.data.enabled && p.data.questions.length > 0;
+}
+
+/** Completion event name. Gated funnels fire QualifiedCompletion (a fresh signal for
+ *  Meta, kept separate from the legacy AssessmentCompleted); ungated funnels keep
+ *  firing AssessmentCompleted exactly as before. Used by BOTH the browser pixel and
+ *  the server CAPI so the two dedup on the same name. */
+export const COMPLETION_EVENT_DEFAULT = "AssessmentCompleted";
+export const COMPLETION_EVENT_GATED = "QualifiedCompletion";
+export function completionEventName(gateActive: boolean): string {
+  return gateActive ? COMPLETION_EVENT_GATED : COMPLETION_EVENT_DEFAULT;
+}
+
 /** Content of the disqualified page. Nothing about the visitor is stored when it
  *  shows; `fireDisqualifiedEvent` fires a custom "Disqualified" Meta pixel event
  *  (for building an exclusion audience) — the only outward signal. */
