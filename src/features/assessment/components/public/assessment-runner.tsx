@@ -291,7 +291,7 @@ export function AssessmentRunner({
   useEffect(() => {
     if (!qual || preview) return;
     try {
-      if (localStorage.getItem("gate_dq") === "1") setStep("disqualified");
+      if (localStorage.getItem(`gate_dq:${assessment.slug}`) === "1") setStep("disqualified");
     } catch {
       /* blocked storage — ignore */
     }
@@ -449,10 +449,13 @@ export function AssessmentRunner({
     if (disqualifies) {
       // Remember the rejection so a repeat visit skips straight to the exit page
       // (free client-side layer; fires instantly, before the Meta audience populates).
-      try {
-        localStorage.setItem("gate_dq", "1");
-      } catch {
-        /* private mode / blocked storage — non-fatal */
+      // Scoped per-assessment so one funnel's rejection doesn't block another.
+      if (!preview) {
+        try {
+          localStorage.setItem(`gate_dq:${assessment.slug}`, "1");
+        } catch {
+          /* private mode / blocked storage — non-fatal */
+        }
       }
       setStep("disqualified"); // the GateDisqualified pixel event fires in an effect
       return;

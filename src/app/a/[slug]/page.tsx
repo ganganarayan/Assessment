@@ -11,6 +11,7 @@ import {
   type PreResultField,
   qualificationSchema,
   disqualifiedContentSchema,
+  EMPTY_DISQUALIFIED,
 } from "@/features/assessment/schemas";
 
 export const dynamic = "force-dynamic";
@@ -131,8 +132,11 @@ export default async function PublicAssessmentPage({
       return p.success && p.data.enabled && p.data.questions.length > 0 ? p.data : null;
     })(),
     disqualified: (() => {
-      const p = disqualifiedContentSchema.safeParse(a.disqualifiedContent);
-      return p.success ? p.data : null;
+      // Parse against {} when unset so defaults (incl. fireDisqualifiedEvent: true)
+      // apply — otherwise enabling the gate without saving the exit page would
+      // silently never fire the GateDisqualified exclusion event.
+      const p = disqualifiedContentSchema.safeParse(a.disqualifiedContent ?? {});
+      return p.success ? p.data : EMPTY_DISQUALIFIED;
     })(),
     // Public renders ONLY the published snapshot (never the draft rows).
     pages: readPublishedPages(a.publishedPages),
