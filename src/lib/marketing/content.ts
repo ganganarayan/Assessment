@@ -54,6 +54,18 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
     body: "Route each respondent by their answers — skip or jump questions so everyone gets the shortest relevant path to their score.",
   },
   {
+    title: "Pre-assessment qualification gate",
+    body: "Screen every visitor before the assessment even starts. Unfit traffic — wrong role, size, or intent — is routed to a separate exit page with no lead, no result and nothing stored, so your pipeline only fills with people who actually fit.",
+  },
+  {
+    title: "Manual-review screening questions",
+    body: "Add free-text questions — company name, website, what the business does — captured with each qualified lead, so you can eyeball the ones who slip through and disqualify fakers by hand.",
+  },
+  {
+    title: "Repeat & back-button protection",
+    body: "A rejected visitor can't refresh, back-button, or return to sneak a second attempt at the gate — they're re-locked to the exit page instantly.",
+  },
+  {
     title: "Dynamic result pages",
     body: "Every respondent gets a personalized, hosted result: their score, their strengths, and a clear next step.",
   },
@@ -72,6 +84,18 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
   {
     title: "Meta Pixel + Conversions API",
     body: "Fire browser and server-side lead and purchase events to Meta — Pixel plus the Conversions API, deduplicated — so your ad optimization learns from real outcomes.",
+  },
+  {
+    title: "Qualified-only optimization signal",
+    body: "Gated funnels report a distinct qualified-completion event to Meta, so the algorithm optimizes toward people who actually pass your bar — not toward form-fillers — while your legacy events stay untouched.",
+  },
+  {
+    title: "Auto-exclude the unqualified",
+    body: "Every disqualified visitor fires a custom exclusion event. Build one Meta audience from it and stop paying to show your ad to people who will never qualify.",
+  },
+  {
+    title: "First-party match keys",
+    body: "A durable first-party ID rides along on every Pixel and Conversions API event — including your external CRM sends — lifting Meta match quality and attribution without collecting any extra personal data.",
   },
   {
     title: "Heatmap & session recording",
