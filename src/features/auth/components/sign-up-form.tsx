@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth/auth-client";
 import { signUpSchema } from "@/features/auth/schemas";
+import { trackSaasRegistration } from "@/features/billing/actions/platform-track";
+import { firePlatformBrowserEvent } from "@/lib/meta/platform-pixel-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -47,6 +49,15 @@ export function SignUpForm() {
     if (authError) {
       setError(authError.message ?? "Sign up failed.");
       return;
+    }
+
+    // SaaS funnel: fire CompleteRegistration on the platform pixel (server CAPI +
+    // matching browser event, deduped by eventId). Best-effort — never blocks signup.
+    try {
+      const { eventId, pixelId } = await trackSaasRegistration(parsed.data.email);
+      firePlatformBrowserEvent(pixelId, "CompleteRegistration", {}, eventId);
+    } catch {
+      /* tracking is non-critical */
     }
 
     router.push("/dashboard");

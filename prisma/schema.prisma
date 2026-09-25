@@ -1534,8 +1534,17 @@ model AppSetting {
   // the platform env (NEXT_PUBLIC_META_PIXEL_ID / META_CAPI_ACCESS_TOKEN); a tenant
   // stores its OWN. The CAPI token is ENCRYPTED at rest. Wiring (client pixel + CAPI
   // fire) resolves these per tenant — null tenant => env, unchanged.
+  // NOTE: this pixel tracks ASSESSMENT RESPONDENTS (the Gita funnel).
   metaPixelId      String?
   metaCapiTokenEnc String?
+
+  // Platform / app SUBSCRIPTION funnel pixel — a SEPARATE Meta pixel for Assess360's
+  // own SaaS funnel: landing PageView, free-signup CompleteRegistration, and the
+  // subscription Purchase. Distinct from metaPixelId above (which is the Gita
+  // assessment pixel). Only meaningful on the singleton row (platform-owned); the
+  // CAPI token is ENCRYPTED at rest. No env fallback — unset = the funnel fires nothing.
+  platformPixelId      String?
+  platformCapiTokenEnc String?
 
   // Per-tenant Razorpay config (all ENCRYPTED except the public key id). null on the
   // singleton => platform env. Webhook routing per tenant is part of the fire wiring.

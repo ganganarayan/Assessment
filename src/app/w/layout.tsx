@@ -4,6 +4,8 @@ import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { ImpersonationBanner } from "@/features/admin/components/impersonation-banner";
 import { WorkspaceNav } from "@/features/workspace/components/workspace-nav";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { PlatformPixel } from "@/components/platform-pixel";
+import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 
 /**
  * The tenant workspace shell. requireWorkspace resolves a CONCRETE acting tenant
@@ -13,10 +15,14 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
  */
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { tenantId, impersonating } = await requireWorkspace();
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
+  const [tenant, platformMeta] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
+    resolvePlatformMetaConfig(),
+  ]);
 
   return (
     <div className="md:flex md:min-h-screen">
+      <PlatformPixel pixelId={platformMeta.pixelId} />
       <aside className="shrink-0 border-b md:sticky md:top-0 md:h-screen md:w-56 md:border-b-0 md:border-r">
         <div className="flex h-full flex-col gap-4 p-4">
           <div className="px-2">

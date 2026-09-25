@@ -68,6 +68,37 @@ export async function updatePlatformMetaSettings(pixelId: string, capiToken: str
   return { ok: true };
 }
 
+export interface PlatformPixelView {
+  pixelId: string;
+  hasCapiToken: boolean;
+}
+
+/** The Assess360 SaaS-funnel pixel (landing / signup / subscription) — SEPARATE from
+ *  the Gita assessment pixel above. Singleton row; token never returned. */
+export async function getPlatformSubscriptionPixel(): Promise<PlatformPixelView> {
+  await requireSuperAdmin();
+  const s = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: { platformPixelId: true, platformCapiTokenEnc: true },
+  });
+  return { pixelId: s?.platformPixelId ?? "", hasCapiToken: !!s?.platformCapiTokenEnc };
+}
+
+/** Save the Assess360 SaaS-funnel pixel + CAPI token (singleton row). A blank token
+ *  is left unchanged (so re-saving the pixel id alone never wipes the stored token);
+ *  the token is encrypted at rest and never shown again. */
+export async function updatePlatformSubscriptionPixel(pixelId: string, capiToken: string): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  const data = {
+    platformPixelId: pixelId.trim() || null,
+    ...(capiToken.trim() ? { platformCapiTokenEnc: encryptWithSecret(capiToken.trim(), env.BETTER_AUTH_SECRET) } : {}),
+  };
+  await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
+  revalidatePath("/admin/settings");
+  return { ok: true };
+}
+
 export async function getPasswordResetWebhook(): Promise<{ url: string }> {
   await requireSuperAdmin();
   const s = await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { passwordResetWebhookUrl: true } });

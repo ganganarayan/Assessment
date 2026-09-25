@@ -20,7 +20,9 @@ import {
   updatePlatformHeatmapSettings,
   updatePlatformVidapulseSettings,
   getLegalSettings,
+  getPlatformSubscriptionPixel,
 } from "@/features/admin/actions/platform-integrations";
+import { PlatformPixelForm } from "@/features/admin/components/platform-pixel-form";
 import { LegalSettingsForm } from "@/features/admin/components/legal-settings-form";
 import { NurtureConnectionSettings } from "@/features/nurture/components/nurture-connection-settings";
 import { getNurtureSettings } from "@/features/nurture/actions";
@@ -46,10 +48,11 @@ export default async function SettingsPage() {
   const impersonating = actingId !== null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
-  const [integrations, domains, legal] = await Promise.all([
+  const [integrations, domains, legal, platformPixel] = await Promise.all([
     impersonating ? getIntegrationSettings() : getPlatformIntegrationSettings(),
     impersonating ? getDomainSettings() : Promise.resolve(null),
     impersonating ? Promise.resolve(null) : getLegalSettings(),
+    impersonating ? Promise.resolve(null) : getPlatformSubscriptionPixel(),
   ]);
 
   return (
@@ -91,6 +94,22 @@ export default async function SettingsPage() {
           />
         </CardContent>
       </Card>
+
+      {!impersonating && platformPixel ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>App / subscription pixel (Assess360 SaaS)</CardTitle>
+            <CardDescription>
+              A separate Meta pixel for the Assess360 SaaS funnel — landing PageView, free
+              sign-up CompleteRegistration, and subscription Purchase. Distinct from the Gita
+              assessment pixel above. No env fallback: unset means the funnel fires nothing.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PlatformPixelForm initial={platformPixel} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

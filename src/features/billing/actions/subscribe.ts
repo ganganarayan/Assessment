@@ -6,7 +6,9 @@ import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { resolvePlan } from "@/lib/billing/entitlements";
-import { PLAN_IDS, type PlanId } from "@/lib/billing/plans";
+import { resolvePlatformMetaConfig } from "@/lib/settings/config";
+import { firePlatformPurchase } from "@/lib/billing/platform-events";
+import { PLAN_IDS, PLAN_LABEL, PLAN_PRICE_USD, type PlanId } from "@/lib/billing/plans";
 import {
   createSubscription,
   activateSubscription,
@@ -82,13 +84,18 @@ export interface VerifyInput {
   plan: string;
 }
 
+export interface VerifyResult {
+  /** So the browser can fire the matching Purchase pixel event (deduped by eventId). */
+  purchase?: { eventId: string; value: number; pixelId: string | null };
+}
+
 /**
  * Verify a subscription payment right after Razorpay Checkout succeeds and activate the
  * plan immediately, so the tenant gets access without waiting on the webhook (which the
  * webhook still backstops + owns for renewals). Razorpay signs subscription payments as
  * HMAC_SHA256(payment_id + "|" + subscription_id, key_secret).
  */
-export async function verifySubscriptionPayment(input: VerifyInput): Promise<ActionResult> {
+export async function verifySubscriptionPayment(input: VerifyInput): Promise<ActionResult<VerifyResult>> {
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
@@ -134,6 +141,18 @@ export async function verifySubscriptionPayment(input: VerifyInput): Promise<Act
     razorpaySubscriptionId: input.razorpay_subscription_id,
     razorpayPlanId: sub?.razorpayPlanId ?? null,
   });
+
+  // SaaS funnel: fire Purchase on the platform pixel (server CAPI), keyed by the
+  // Razorpay payment id so the webhook + the browser event dedup to one Purchase.
+  const value = PLAN_PRICE_USD[plan];
+  await firePlatformPurchase({
+    email: scope.user.email,
+    value,
+    eventId: input.razorpay_payment_id,
+    planLabel: `Assess360 ${PLAN_LABEL[plan]}`,
+  });
+  const { pixelId } = await resolvePlatformMetaConfig();
+
   revalidatePath("/w/billing");
-  return { ok: true };
+  return { ok: true, data: { purchase: { eventId: input.razorpay_payment_id, value, pixelId } } };
 }

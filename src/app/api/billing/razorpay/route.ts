@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { verifyWebhookSignature } from "@/lib/payments/razorpay";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
-import { PLAN_IDS, type PlanId } from "@/lib/billing/plans";
+import { PLAN_IDS, PLAN_LABEL, PLAN_PRICE_USD, type PlanId } from "@/lib/billing/plans";
 import {
   activateSubscription,
   markPastDue,
@@ -10,6 +10,7 @@ import {
   isPaidPlan,
   type PaidPlanId,
 } from "@/lib/billing/razorpay-subscriptions";
+import { firePlatformPurchase } from "@/lib/billing/platform-events";
 
 /**
  * Platform SaaS subscription webhook — POST /api/billing/razorpay.
@@ -121,6 +122,19 @@ export async function POST(req: Request) {
       currentPeriodStart: asDateFromUnix(subEntity.current_start),
       currentPeriodEnd: asDateFromUnix(subEntity.current_end),
     });
+
+    // SaaS funnel: fire Purchase on the platform pixel (server CAPI), keyed by the
+    // Razorpay payment id so it dedups with the in-app /verify + browser events.
+    const paymentId = asStr(paymentEntity.id);
+    if (paymentId) {
+      await firePlatformPurchase({
+        email: asStr(paymentEntity.email),
+        phone: asStr(paymentEntity.contact),
+        value: PLAN_PRICE_USD[plan],
+        eventId: paymentId,
+        planLabel: `Assess360 ${PLAN_LABEL[plan]}`,
+      });
+    }
     return NextResponse.json({ ok: true, activated: true });
   }
 

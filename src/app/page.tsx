@@ -4,6 +4,8 @@ import { getSession } from "@/lib/auth/session";
 import { getTenantContext } from "@/lib/tenant/context";
 import { buttonVariants } from "@/components/ui/button";
 import { Landing } from "@/components/marketing/Landing";
+import { PlatformPixel } from "@/components/platform-pixel";
+import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { MARKETING } from "@/lib/marketing/content";
 
 // Marketing metadata is applied only on the platform root domain. Tenant
@@ -36,9 +38,16 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function HomePage() {
   const { slug, source } = await getTenantContext();
 
-  // Platform root (assess360.divineleads.guru) → marketing landing.
+  // Platform root (assess360.divineleads.guru) → marketing landing. The SaaS pixel
+  // fires PageView here (separate from the Gita assessment pixel).
   if (source === "root") {
-    return <Landing />;
+    const { pixelId } = await resolvePlatformMetaConfig();
+    return (
+      <>
+        <PlatformPixel pixelId={pixelId} />
+        <Landing />
+      </>
+    );
   }
 
   // Tenant root (clinic subdomain / custom domain) → existing behavior. Untouched.

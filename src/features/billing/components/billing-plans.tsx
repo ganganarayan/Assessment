@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { startSubscriptionCheckout, verifySubscriptionPayment } from "@/features/billing/actions/subscribe";
+import { firePlatformBrowserEvent } from "@/lib/meta/platform-pixel-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -105,6 +106,12 @@ export function BillingPlans({
               razorpay_signature: response.razorpay_signature,
               plan: plan.id,
             });
+            // Fire the matching browser Purchase on the platform pixel (deduped with
+            // the server CAPI by the returned eventId).
+            if (v.ok && v.data?.purchase) {
+              const p = v.data.purchase;
+              firePlatformBrowserEvent(p.pixelId, "Purchase", { value: p.value, currency: "USD" }, p.eventId);
+            }
             setMsg(
               v.ok
                 ? { ok: true, text: `You're on ${plan.name}. It may take a moment to reflect everywhere.` }

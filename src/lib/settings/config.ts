@@ -56,6 +56,25 @@ export async function resolveMetaConfig(tenantId: string | null): Promise<MetaCo
   return { pixelId, capiToken, datasetId };
 }
 
+export interface PlatformMetaConfig {
+  pixelId: string | null;
+  capiToken: string | null;
+}
+
+/**
+ * The Assess360 SaaS-funnel pixel (landing / signup / subscription) — a SEPARATE
+ * Meta pixel from the Gita assessment one resolved by resolveMetaConfig. Read ONLY
+ * from the singleton row; NO env fallback (a brand-new pixel), so it stays inert
+ * until the super admin sets it in Settings. Never throws.
+ */
+export async function resolvePlatformMetaConfig(): Promise<PlatformMetaConfig> {
+  const s = (await settingRow(null, { platformPixelId: true, platformCapiTokenEnc: true })) as {
+    platformPixelId: string | null;
+    platformCapiTokenEnc: string | null;
+  } | null;
+  return { pixelId: s?.platformPixelId?.trim() || null, capiToken: safeDecrypt(s?.platformCapiTokenEnc) };
+}
+
 /**
  * Resolve a tenant's heatmap/recording snippet (e.g. MS Clarity). Read from the
  * tenant's own AppSetting row; the platform/Gita path reads the singleton. No env

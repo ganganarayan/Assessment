@@ -1,6 +1,6 @@
 import { env } from "@/lib/env";
 import { buildCapiEvent, resolveCapiConfig, type CapiEventInput } from "@/lib/meta/capi";
-import { resolveMetaConfig } from "@/lib/settings/config";
+import { resolveMetaConfig, resolvePlatformMetaConfig } from "@/lib/settings/config";
 
 /**
  * Network sender for Meta Conversions API. Imports env (so it is NOT imported by
@@ -134,6 +134,48 @@ export async function sendCapiEventVerbose(input: CapiEventInput, tenantId: stri
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/**
+ * Send a CAPI event on the PLATFORM/app SUBSCRIPTION pixel (Assess360 SaaS funnel) —
+ * a separate pixel + token from the Gita assessment one. Returns Meta's real response.
+ * Inert (ok:false) until the super admin configures the platform pixel in Settings.
+ * Never throws.
+ */
+export async function sendPlatformCapiEvent(input: CapiEventInput): Promise<{
+  ok: boolean;
+  status?: number;
+  response?: string;
+  error?: string;
+}> {
+  const m = await resolvePlatformMetaConfig();
+  const cfg = resolveCapiConfig({
+    accessToken: m.capiToken,
+    datasetId: m.pixelId,
+    pixelId: m.pixelId,
+    version: env.META_GRAPH_API_VERSION,
+    testEventCode: env.META_CAPI_TEST_EVENT_CODE,
+  });
+  if (!cfg) return { ok: false, error: "Platform pixel / CAPI token not configured in Settings." };
+  const body = JSON.stringify({ data: [buildCapiEvent(withSourceUrl(input))] });
+  const url = `https://graph.facebook.com/${cfg.version}/${cfg.datasetId}/events?access_token=${encodeURIComponent(cfg.accessToken)}`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+      signal: AbortSignal.timeout(8_000),
+    });
+    return { ok: res.ok, status: res.status, response: (await res.text()).slice(0, 800) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** True when the platform SaaS pixel + CAPI token are configured. */
+export async function isPlatformCapiConfigured(): Promise<boolean> {
+  const m = await resolvePlatformMetaConfig();
+  return !!(m.pixelId && m.capiToken);
 }
 
 export async function sendCapiEvent(input: CapiEventInput, tenantId: string | null = null): Promise<void> {
