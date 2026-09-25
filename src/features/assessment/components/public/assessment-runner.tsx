@@ -294,6 +294,20 @@ export function AssessmentRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preview, assessment.slug]);
 
+  // Back/forward hardening: if the browser restores this page from its back-forward
+  // cache (bfcache), the funnel's JS mount effects don't re-run, so a disqualified or
+  // completed person could resurface a stale mid-flow page. Force a FRESH reload on a
+  // bfcache restore — the fresh load re-runs the gate (disqualified → exit via the
+  // gate_dq flag) and the retake lockout, so the previous page can't be reused.
+  useEffect(() => {
+    if (preview) return;
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) window.location.reload();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [preview]);
+
   // Early-skip: a visitor already rejected by the gate (localStorage flag) goes
   // straight to the exit page without seeing the questions again. Checked after mount
   // (localStorage isn't available during SSR). Cheap client-side layer that works from

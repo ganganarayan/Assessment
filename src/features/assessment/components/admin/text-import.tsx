@@ -48,7 +48,7 @@ Bands:
 - MEDIUM 41-70 = Steady | Room to grow
 - HIGH 71-100 = Resilient | A strong foundation`;
 
-export function TextImport() {
+export function TextImport({ basePath = "/admin/assessments" }: { basePath?: string } = {}) {
   const router = useRouter();
   const [text, setText] = useState("");
   const [fileName, setFileName] = useState("");
@@ -191,7 +191,7 @@ export function TextImport() {
 
             <div className="flex flex-wrap items-center gap-2 border-t pt-3">
               <Button onClick={importBands} disabled={pending}>{pending ? "Importing…" : "Import bands"}</Button>
-              <Link href={`/admin/assessments/${created.id}`} className="text-sm underline">Open assessment in builder →</Link>
+              <Link href={`${basePath}/${created.id}`} className="text-sm underline">Open assessment in builder →</Link>
               {bandsMsg ? <span className="text-sm text-green-600">🟢 {bandsMsg}</span> : null}
               {bandsErr ? <span className="text-sm text-red-500">{bandsErr}</span> : null}
             </div>

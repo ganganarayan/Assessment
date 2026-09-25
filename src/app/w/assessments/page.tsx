@@ -20,9 +20,14 @@ export default async function WorkspaceAssessmentsPage() {
           </p>
         </div>
         {canEdit ? (
-          <Link href="/w/assessments/new" className={buttonVariants({ size: "sm" })}>
-            + New assessment
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/w/import" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              Import
+            </Link>
+            <Link href="/w/assessments/new" className={buttonVariants({ size: "sm" })}>
+              + New assessment
+            </Link>
+          </div>
         ) : null}
       </div>
       {assessments.length === 0 ? (

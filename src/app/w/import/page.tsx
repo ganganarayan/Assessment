@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { requireWorkspace } from "@/lib/auth/guards";
+import { redirect } from "next/navigation";
+import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { ImportWizard } from "@/features/assessment/components/admin/import-wizard";
-import { previewTenantImport, importTenantAssessments } from "@/features/assessment/actions/transfer";
+import { TextImport } from "@/features/assessment/components/admin/text-import";
 
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceImportPage() {
   await requireWorkspace();
+  if (!(await currentUserCanEdit())) redirect("/w/assessments");
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -15,15 +17,17 @@ export default async function WorkspaceImportPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-bold tracking-tight">Import assessment</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Upload a JSON export (authoritative) or a CSV. Imported assessments are added to
-          your workspace as drafts. The file is validated and previewed before anything is written.
+          Plain text / Markdown you write yourself, or a JSON/CSV export. Both are validated and previewed
+          before anything is written — into this workspace.
         </p>
       </div>
-      <ImportWizard
-        previewAction={previewTenantImport}
-        importAction={importTenantAssessments}
-        doneHref="/w/assessments"
-      />
+
+      <TextImport basePath="/w/assessments" />
+
+      <div className="border-t pt-6">
+        <h2 className="mb-3 text-lg font-semibold">From a JSON / CSV export</h2>
+        <ImportWizard doneHref="/w/assessments" />
+      </div>
     </div>
   );
 }

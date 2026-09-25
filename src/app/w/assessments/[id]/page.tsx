@@ -3,7 +3,15 @@ import { notFound, redirect } from "next/navigation";
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { getAssessmentById, listAssessments } from "@/features/assessment/data";
 import { buildSpine } from "@/lib/routing/engine";
-import { EMPTY_AUDIENCE_GATE, type AudienceGateInput } from "@/features/assessment/schemas";
+import {
+  EMPTY_AUDIENCE_GATE,
+  EMPTY_QUALIFICATION,
+  EMPTY_DISQUALIFIED,
+  qualificationSchema,
+  disqualifiedContentSchema,
+  type AudienceGateInput,
+} from "@/features/assessment/schemas";
+import { QualificationManager } from "@/features/assessment/components/admin/qualification-manager";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
 import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
@@ -191,9 +199,29 @@ export default async function WorkspaceEditAssessmentPage({
     })),
   );
 
+  const qualParsed = qualificationSchema.safeParse(a.qualification);
+  const qualification = qualParsed.success ? qualParsed.data : EMPTY_QUALIFICATION;
+  const disqParsed = disqualifiedContentSchema.safeParse(a.disqualifiedContent);
+  const disqualified = disqParsed.success ? disqParsed.data : EMPTY_DISQUALIFIED;
+
   const assessmentTab = (
     <>
       <AssessmentForm mode="edit" id={a.id} initial={initial} basePath="/w/assessments" promptVersions={promptVersions} assessmentOptions={routeTargets} />
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Qualification gate (Page 1)</h2>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Screen respondents <strong>before</strong> the assessment. A disqualifying answer sends them to a
+          separate page and creates <strong>no lead, submission or result</strong> — only an optional
+          &quot;Disqualified&quot; Meta pixel event so you can exclude them from ads. Add text questions for
+          info you&apos;ll review manually.
+        </p>
+        <QualificationManager
+          assessmentId={a.id}
+          initialQualification={qualification}
+          initialDisqualified={disqualified}
+        />
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Connect your destination page</h2>
