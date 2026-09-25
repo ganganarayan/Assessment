@@ -3,6 +3,8 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requireSuperAdmin, requireWorkspace, editDenied } from "@/lib/auth/guards";
+import { prisma } from "@/lib/db/prisma";
+import { resolvePlan } from "@/lib/billing/entitlements";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import {
   parseImportText,
@@ -144,7 +146,7 @@ export async function importTenantAssessments(
   format: Format,
   mode: ImportMode,
 ): Promise<ActionResult<{ count: number }> & { errors?: string[] }> {
-  const { user, tenantId } = await requireWorkspace();
+  const { user, tenantId, impersonating } = await requireWorkspace();
   { const __d = editDenied(user); if (__d) return __d; }
   const parsed = parseImportText(raw, format);
   if (!parsed.ok) return { ok: false, error: "Validation failed.", errors: parsed.errors };
@@ -176,6 +178,25 @@ export async function importTenantAssessments(
       ok: false,
       error: `These slugs already exist: ${conflicts.join(", ")}. Choose “Create copy” or “Replace existing”.`,
     };
+  }
+
+  // Billing gate — an import that ADDS assessments (create/copy; replaces reuse a slug)
+  // must fit the plan cap. Super admins (impersonating) are never limited.
+  if (!impersonating) {
+    const adding = items.filter((i) => !i.replace).length;
+    if (adding > 0) {
+      const { limits } = await resolvePlan(tenantId);
+      const limit = limits.maxAssessments;
+      if (limit !== null) {
+        const used = await prisma.assessment.count({ where: { tenantId } });
+        if (used + adding > limit) {
+          return {
+            ok: false,
+            error: `Your plan allows ${limit} assessment${limit === 1 ? "" : "s"}; this import would add ${adding}. Upgrade your plan to import more.`,
+          };
+        }
+      }
+    }
   }
 
   try {

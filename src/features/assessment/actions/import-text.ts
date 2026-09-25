@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { BandLevel } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
+import { assertCanCreateAssessment } from "@/lib/billing/gate";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { parseAssessmentText, analyzeBands, type OverallLevel } from "@/lib/import/parse-assessment-text";
 
@@ -107,6 +108,17 @@ export async function createAssessmentFromText(text: string): Promise<ActionResu
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
   if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
+
+  // Billing gate — an import is a new assessment, so it counts against the cap.
+  if (!scope.isSuper) {
+    const cap = await assertCanCreateAssessment(scope.tenantId);
+    if (!cap.ok) {
+      return {
+        ok: false,
+        error: `You've reached your plan's limit of ${cap.limit} assessment${cap.limit === 1 ? "" : "s"}. Upgrade your plan to create more.`,
+      };
+    }
+  }
 
   const { draft, errors } = parseAssessmentText(text);
   if (errors.length > 0 || !draft) {

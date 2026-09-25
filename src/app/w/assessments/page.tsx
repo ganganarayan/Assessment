@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
+import { assertCanCreateAssessment } from "@/lib/billing/gate";
 import { listAssessments } from "@/features/assessment/data";
 import { CopyPublicLink } from "@/features/assessment/components/admin/copy-public-link";
 import { buttonVariants } from "@/components/ui/button";
@@ -7,8 +8,11 @@ import { buttonVariants } from "@/components/ui/button";
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceAssessmentsPage() {
-  const { tenantId } = await requireWorkspace();
+  const { tenantId, impersonating } = await requireWorkspace();
   const [assessments, canEdit] = await Promise.all([listAssessments(tenantId), currentUserCanEdit()]);
+  // At the plan cap, the "New assessment" button points to Billing instead — so the
+  // limit is clear before the form, not only at save. Super admins aren't limited.
+  const cap = impersonating ? ({ ok: true } as const) : await assertCanCreateAssessment(tenantId);
 
   return (
     <div className="flex flex-col gap-4">
@@ -21,12 +25,20 @@ export default async function WorkspaceAssessmentsPage() {
         </div>
         {canEdit ? (
           <div className="flex items-center gap-2">
-            <Link href="/w/import" className={buttonVariants({ variant: "outline", size: "sm" })}>
-              Import
-            </Link>
-            <Link href="/w/assessments/new" className={buttonVariants({ size: "sm" })}>
-              + New assessment
-            </Link>
+            {cap.ok ? (
+              <Link href="/w/import" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                Import
+              </Link>
+            ) : null}
+            {cap.ok ? (
+              <Link href="/w/assessments/new" className={buttonVariants({ size: "sm" })}>
+                + New assessment
+              </Link>
+            ) : (
+              <Link href="/w/billing" className={buttonVariants({ size: "sm" })} title={`Plan limit: ${cap.limit} assessment${cap.limit === 1 ? "" : "s"}`}>
+                Upgrade to add more
+              </Link>
+            )}
           </div>
         ) : null}
       </div>
