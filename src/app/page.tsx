@@ -5,6 +5,7 @@ import { getTenantContext } from "@/lib/tenant/context";
 import { buttonVariants } from "@/components/ui/button";
 import { Landing } from "@/components/marketing/Landing";
 import { PlatformPixel } from "@/components/platform-pixel";
+import { LandingTracker } from "@/features/billing/components/landing-tracker";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { MARKETING } from "@/lib/marketing/content";
 
@@ -45,6 +46,7 @@ export default async function HomePage() {
     return (
       <>
         <PlatformPixel pixelId={pixelId} />
+        <LandingTracker />
         <Landing />
       </>
     );

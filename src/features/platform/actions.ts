@@ -69,6 +69,8 @@ export interface TenantRow {
   assessmentCount: number;
   submissionCount: number;
   createdAt: string;
+  /** Acquisition source (utm_source · campaign) captured at signup; null = organic. */
+  source: string | null;
 }
 
 export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
@@ -92,6 +94,7 @@ export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
         assessmentCount: t._count.assessments,
         submissionCount: t._count.submissions,
         createdAt: t.createdAt.toISOString(),
+        source: [t.acqUtmSource, t.acqUtmCampaign].filter((v) => v && v.trim()).join(" · ") || null,
       })),
     };
   } catch (e) {

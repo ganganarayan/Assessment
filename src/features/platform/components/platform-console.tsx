@@ -165,13 +165,14 @@ export function PlatformConsole({
                 <th className="px-3 py-1.5 text-center">Admins</th>
                 <th className="px-3 py-1.5 text-center">Assessments</th>
                 <th className="px-3 py-1.5 text-center">Submissions</th>
+                <th className="px-3 py-1.5">Source</th>
                 <th className="px-3 py-1.5">Status</th>
                 <th className="px-3 py-1.5" />
               </tr>
             </thead>
             <tbody className="divide-y">
               {tenants.length === 0 ? (
-                <tr><td colSpan={7} className="px-3 py-4 text-center text-[var(--muted-foreground)]">No tenants yet.</td></tr>
+                <tr><td colSpan={8} className="px-3 py-4 text-center text-[var(--muted-foreground)]">No tenants yet.</td></tr>
               ) : (
                 tenants.map((t) => (
                   <tr key={t.id}>
@@ -180,6 +181,7 @@ export function PlatformConsole({
                     <td className="px-3 py-2 text-center tabular-nums">{t.adminCount}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.assessmentCount}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.submissionCount}</td>
+                    <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]">{t.source ?? "—"}</td>
                     <td className="px-3 py-2">{t.status}</td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex justify-end gap-2">

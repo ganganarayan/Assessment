@@ -23,6 +23,9 @@ export default async function PlatformPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link href="/platform/stats" className="text-sm underline">
+            Marketing stats →
+          </Link>
           <Link href="/admin" className="text-sm underline">
             Assessment admin →
           </Link>

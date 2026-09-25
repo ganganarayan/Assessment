@@ -52,6 +52,17 @@ model Tenant {
   plan               Plan    @default(FREE)
   razorpayCustomerId String?
 
+  // Acquisition attribution — the ad/campaign this tenant (a self-serve signup) came
+  // from, captured from the last-touch UTM cookie at signup. The full set is kept as
+  // JSON; the common fields are denormalized for fast grouping in the platform funnel
+  // dashboard. Null = organic / pre-dating this tracking.
+  acquisitionAttribution Json?
+  acqUtmSource   String?
+  acqUtmMedium   String?
+  acqUtmCampaign String?
+  acqUtmTerm     String?
+  acqUtmContent  String?
+
   users       User[]
   domains     Domain[]
   theme       Theme?
@@ -254,6 +265,47 @@ model BillingEvent {
 // every subsequent subscription. Platform-level (billed on the platform-owner's
 // Razorpay account in USD), so it is a small global table, not per-tenant.
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// PlatformPageView — analytics for the Assess360 SaaS MARKETING landing (the root
+// site). Parallel to PageView (which is assessment-scoped): this one has no
+// assessment — it tracks the top of the SaaS funnel (landing views + UTM) before
+// any signup, so ad traffic is visible even with zero conversions. Feeds the
+// super-admin platform funnel dashboard.
+// ---------------------------------------------------------------------------
+
+model PlatformPageView {
+  id        String   @id @default(cuid())
+  visitorId String
+  path      String?
+  createdAt DateTime @default(now())
+
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
+  fbclid      String?
+  gclid       String?
+  referrerHost String?
+
+  // Bot flag (excluded from human-facing metrics) + enrichment, mirroring PageView.
+  isBot     Boolean @default(false)
+  userAgent String?
+  ip        String?
+  country    String?
+  city       String?
+  region     String?
+  deviceType String?
+  browser    String?
+  os         String?
+
+  @@index([createdAt])
+  @@index([visitorId])
+  @@index([utmSource])
+  @@index([utmCampaign])
+  @@map("platform_page_view")
+}
 
 model RazorpayPlan {
   // Our plan id ("STARTER" | "GROWTH" | "SCALE") — never FREE (nothing to charge).

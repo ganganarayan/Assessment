@@ -1,12 +1,46 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { generateId } from "@/lib/ids";
+import { ATTR_COOKIE } from "@/lib/attribution";
+import { normalizeAttribution } from "@/lib/events/payload";
 import { sendEmail } from "@/lib/nurture/send";
+
+/**
+ * Read the last-touch UTM attribution cookie (set in middleware) and shape it for a
+ * Tenant create — the ad/campaign a self-serve signup came from. Best-effort: returns
+ * {} when there is no cookie / it is malformed, so provisioning never breaks.
+ */
+async function readAcquisitionAttribution(): Promise<{
+  acquisitionAttribution?: Prisma.InputJsonValue;
+  acqUtmSource?: string | null;
+  acqUtmMedium?: string | null;
+  acqUtmCampaign?: string | null;
+  acqUtmTerm?: string | null;
+  acqUtmContent?: string | null;
+}> {
+  try {
+    const raw = (await cookies()).get(ATTR_COOKIE)?.value;
+    if (!raw) return {};
+    const attr = normalizeAttribution(JSON.parse(raw));
+    if (!attr) return {};
+    return {
+      acquisitionAttribution: attr as unknown as Prisma.InputJsonValue,
+      acqUtmSource: attr.utm_source ?? null,
+      acqUtmMedium: attr.utm_medium ?? null,
+      acqUtmCampaign: attr.utm_campaign ?? null,
+      acqUtmTerm: attr.utm_term ?? null,
+      acqUtmContent: attr.utm_content ?? null,
+    };
+  } catch {
+    return {};
+  }
+}
 
 /** Minimal branded HTML for the password-reset email (link valid ~10 min). */
 function resetPasswordEmailHtml(name: string | null | undefined, url: string): string {
@@ -185,7 +219,13 @@ export const auth = betterAuth({
               if (!clash) break;
               slug = `${tenantSlugFrom(seed)}-${generateId(4).toLowerCase()}`;
             }
-            const tenant = await prisma.tenant.create({ data: { name: user.name || user.email, slug } });
+            // Stamp acquisition attribution (the ad/campaign this signup came from)
+            // from the last-touch UTM cookie set in middleware, so every tenant is
+            // traceable to its source. Best-effort — never blocks provisioning.
+            const acq = await readAcquisitionAttribution();
+            const tenant = await prisma.tenant.create({
+              data: { name: user.name || user.email, slug, ...acq },
+            });
             await prisma.user.update({ where: { id: user.id }, data: { tenantId: tenant.id, role: Role.ADMIN } });
           } catch (e) {
             console.error("[auth] tenant auto-provision failed:", e instanceof Error ? e.message : String(e));
