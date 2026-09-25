@@ -65,7 +65,7 @@ export async function getOrCreatePlan(plan: PaidPlanId): Promise<string> {
     return cached.razorpayPlanId;
   }
 
-  const created = await razorpayRequest<RazorpayPlanCreated>("POST", "/v1/plans", await platformKeys(), {
+  const created = await razorpayRequest<RazorpayPlanCreated>("POST", "/plans", await platformKeys(), {
     period: "monthly",
     interval: 1,
     item: {
@@ -102,7 +102,7 @@ interface RazorpayCustomerCreated {
 export async function getOrCreateCustomer(tenant: TenantForBilling): Promise<string> {
   if (tenant.razorpayCustomerId) return tenant.razorpayCustomerId;
 
-  const customer = await razorpayRequest<RazorpayCustomerCreated>("POST", "/v1/customers", await platformKeys(), {
+  const customer = await razorpayRequest<RazorpayCustomerCreated>("POST", "/customers", await platformKeys(), {
     name: tenant.name || tenant.ownerEmail || `Tenant ${tenant.id}`,
     email: tenant.ownerEmail || undefined,
     fail_existing: "0",
@@ -132,7 +132,7 @@ export interface CreatedCheckout {
 export async function createSubscription(tenant: TenantForBilling, plan: PaidPlanId): Promise<CreatedCheckout> {
   const [customerId, planId] = await Promise.all([getOrCreateCustomer(tenant), getOrCreatePlan(plan)]);
 
-  const sub = await razorpayRequest<RazorpaySubscriptionCreated>("POST", "/v1/subscriptions", await platformKeys(), {
+  const sub = await razorpayRequest<RazorpaySubscriptionCreated>("POST", "/subscriptions", await platformKeys(), {
     plan_id: planId,
     customer_id: customerId,
     quantity: 1,
@@ -165,7 +165,7 @@ export async function createSubscription(tenant: TenantForBilling, plan: PaidPla
 
 /** Cancel a Razorpay subscription immediately (used when replacing it on an upgrade). */
 export async function cancelRazorpaySubscription(subscriptionId: string): Promise<void> {
-  await razorpayRequest("POST", `/v1/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, await platformKeys(), {
+  await razorpayRequest("POST", `/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, await platformKeys(), {
     cancel_at_cycle_end: 0,
   });
 }
