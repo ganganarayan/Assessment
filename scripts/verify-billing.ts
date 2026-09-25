@@ -9,6 +9,7 @@
  */
 import {
   PLAN_LIMITS,
+  PLAN_PRICE_USD,
   PAID_BASE_FEATURES,
   UNLIMITED_LIMITS,
   FEATURES,
@@ -109,6 +110,17 @@ console.log("Period keys");
 check("calendarMonthKey pads month", calendarMonthKey(new Date(Date.UTC(2026, 2, 9))) === "2026-03");
 check("Free tenant → calendar month key", usagePeriodKey(null, new Date(Date.UTC(2026, 8, 3))) === "2026-09");
 check("paid tenant → period-start key", usagePeriodKey(new Date(Date.UTC(2026, 8, 3)), new Date(Date.UTC(2026, 8, 20))) === "2026-09-03");
+
+console.log("Subscription pricing (USD → Razorpay Plan cents, no dashboard plans)");
+// The subscription service creates each Razorpay Plan at PLAN_PRICE_USD * 100 cents.
+check("Free = $0 (nothing to charge)", PLAN_PRICE_USD.FREE === 0);
+check("Starter/Growth/Scale = $39/$89/$199",
+  PLAN_PRICE_USD.STARTER === 39 && PLAN_PRICE_USD.GROWTH === 89 && PLAN_PRICE_USD.SCALE === 199);
+check("cents mapping: Growth → 8900 cents", PLAN_PRICE_USD.GROWTH * 100 === 8900);
+check("price is strictly increasing across tiers",
+  PLAN_PRICE_USD.FREE < PLAN_PRICE_USD.STARTER &&
+  PLAN_PRICE_USD.STARTER < PLAN_PRICE_USD.GROWTH &&
+  PLAN_PRICE_USD.GROWTH < PLAN_PRICE_USD.SCALE);
 
 console.log("Platform (unlimited) scope");
 check("UNLIMITED grants every feature", FEATURES.every((f) => hasFeature(UNLIMITED_LIMITS, f)));

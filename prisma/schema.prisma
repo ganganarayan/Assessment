@@ -248,6 +248,29 @@ model BillingEvent {
 }
 
 // ---------------------------------------------------------------------------
+// RazorpayPlan — cache of the Razorpay Plan objects we create via the API at
+// runtime (the VidaPulse model: no Plans are hand-made in the dashboard). Keyed
+// by our PlanId; created once on the first checkout for that tier and reused on
+// every subsequent subscription. Platform-level (billed on the platform-owner's
+// Razorpay account in USD), so it is a small global table, not per-tenant.
+// ---------------------------------------------------------------------------
+
+model RazorpayPlan {
+  // Our plan id ("STARTER" | "GROWTH" | "SCALE") — never FREE (nothing to charge).
+  planKey        String @id
+  razorpayPlanId String @unique
+  // The amount the Razorpay Plan was created with, in the smallest USD unit (cents),
+  // so a later price change is detectable (a mismatch means: create a new Plan).
+  amountCents    Int
+  currency       String @default("USD")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("razorpay_plan")
+}
+
+// ---------------------------------------------------------------------------
 // User — application users. SUPER_ADMIN has tenantId = null (global).
 // Fields below also satisfy Better Auth's "user" model contract.
 // ---------------------------------------------------------------------------

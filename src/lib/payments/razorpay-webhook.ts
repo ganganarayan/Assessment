@@ -71,6 +71,14 @@ export async function handleRazorpayWebhook(req: Request, tenantId: string | nul
   const currency = asStr(payment.currency) ?? "INR";
   const submissionId = asStr(notes.submissionId);
 
+  // ISOLATION: an Assess360 SaaS subscription charge (USD) also emits payment.captured
+  // and carries an invoice_id. That is NOT a Gita funnel purchase — it must never enter
+  // this INR Purchase-CAPI pipeline (it would pollute the Gita Purchase audience). The
+  // subscription lifecycle is handled entirely by /api/billing/razorpay. Skip it here.
+  if (asStr(payment.invoice_id)) {
+    return NextResponse.json({ ok: true, ignored: "subscription/invoice payment" });
+  }
+
   // A settled one-time payment is "captured" (order/checkout) or "paid" (payment link).
   // Store the CANONICAL "captured" so consumers that filter on "captured" alone don't
   // miss link sales — a "paid" row would otherwise vanish from revenue AND get the

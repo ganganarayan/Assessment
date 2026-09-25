@@ -42,6 +42,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
       { href: "/w/conversions", label: "Conversions" },
       { href: "/w/operations", label: "Operations" },
       { href: "/w/staff", label: "Staff" },
+      { href: "/w/billing", label: "Billing" },
       { href: "/w/settings", label: "Settings" },
     ],
   },

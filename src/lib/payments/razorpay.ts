@@ -25,7 +25,7 @@ function authHeader(keys: RazorpayKeys): string {
   return `Basic ${token}`;
 }
 
-async function razorpayRequest<T>(method: string, path: string, keys: RazorpayKeys, body?: unknown): Promise<T> {
+export async function razorpayRequest<T>(method: string, path: string, keys: RazorpayKeys, body?: unknown): Promise<T> {
   if (!isRazorpayConfigured(keys)) throw new Error("Razorpay API keys not configured.");
   const res = await fetch(`${API_BASE}${path}`, {
     method,

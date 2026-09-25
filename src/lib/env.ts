@@ -51,9 +51,13 @@ const serverSchema = z.object({
   // POST /api/admin/recover to reset a SUPER_ADMIN password via Bearer <secret>.
   // Unset => the route is disabled (404). Rotate/unset to revoke.
   ADMIN_RECOVERY_SECRET: z.string().min(24).optional(),
-  // Reserved for the future Starter/Pro tiers — leave unset for now.
+  // Optional Razorpay Plan-id overrides for the SaaS subscription tiers. LEAVE UNSET
+  // to have the app create the Plans via the Razorpay API on first checkout and cache
+  // them (the "no dashboard plans" model). Set one only to pin a tier to a specific
+  // pre-made Razorpay Plan id.
   RAZORPAY_PLAN_ID_STARTER: z.string().min(1).optional(),
-  RAZORPAY_PLAN_ID_PRO: z.string().min(1).optional(),
+  RAZORPAY_PLAN_ID_GROWTH: z.string().min(1).optional(),
+  RAZORPAY_PLAN_ID_SCALE: z.string().min(1).optional(),
 });
 
 const publicSchema = z.object({
