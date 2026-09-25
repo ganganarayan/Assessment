@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
+import { tenantCan } from "@/lib/billing/entitlements";
 import { sendCapiEventVerbose, isCapiConfigured } from "@/lib/meta/send";
 import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
 import type { CapiEventInput } from "@/lib/meta/capi";
@@ -29,6 +30,16 @@ export async function sendAndLogLifecycleCapi(
     autoFired: true,
     firedAt: new Date(),
   };
+
+  // Billing gate: server-side Conversions API is a Growth+ capability. A tenant without
+  // it never reaches Meta (the browser Pixel stays available — that is analyticsTracking,
+  // not gated here). Platform/Gita scope (tenantId null) is unlimited and passes.
+  if (!(await tenantCan(ctx.tenantId, "capi"))) {
+    await prisma.capiLog
+      .create({ data: { ...base, status: "failed", response: "Conversions API requires the Growth plan or higher." } })
+      .catch(() => {});
+    return;
+  }
 
   if (!(await isCapiConfigured(ctx.tenantId))) {
     // Record WHY nothing reached Meta, so a missing token is visible in the log.

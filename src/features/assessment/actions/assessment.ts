@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
+import { assertCanCreateAssessment } from "@/lib/billing/gate";
 import { getAssessmentById } from "@/features/assessment/data";
 import { assessmentSchema, type AssessmentInput, type AudienceGateInput } from "@/features/assessment/schemas";
 import { originOf } from "@/lib/result/cors";
@@ -88,6 +89,18 @@ export async function createAssessment(
 
   const existing = await prisma.assessment.findUnique({ where: { slug: d.slug } });
   if (existing) return { ok: false, error: "That slug is already in use." };
+
+  // Billing gate — assessment cap (HARD). The app owner (super admin) is never limited;
+  // a tenant is blocked at its plan's maxAssessments.
+  if (!scope.isSuper) {
+    const cap = await assertCanCreateAssessment(scope.tenantId);
+    if (!cap.ok) {
+      return {
+        ok: false,
+        error: `You've reached your plan's limit of ${cap.limit} assessment${cap.limit === 1 ? "" : "s"}. Upgrade your plan to create more.`,
+      };
+    }
+  }
 
   const gateErr = await validateGate(null, d.audienceGate, scope);
   if (gateErr) return { ok: false, error: gateErr };
@@ -313,6 +326,17 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
   if (!(await ownsAssessment(id, scope))) return { ok: false, error: "Not found." };
   const src = await getAssessmentById(id);
   if (!src) return { ok: false, error: "Not found." };
+
+  // Billing gate — a duplicate is a new assessment, so it counts against the cap too.
+  if (!scope.isSuper) {
+    const cap = await assertCanCreateAssessment(scope.tenantId);
+    if (!cap.ok) {
+      return {
+        ok: false,
+        error: `You've reached your plan's limit of ${cap.limit} assessment${cap.limit === 1 ? "" : "s"}. Upgrade your plan to create more.`,
+      };
+    }
+  }
 
   // Unique slug: "<slug>-copy", then "-copy-2", "-copy-3", … (slug is globally unique).
   const base = `${src.slug}-copy`;

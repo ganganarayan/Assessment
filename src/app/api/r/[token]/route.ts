@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { isOriginAllowed } from "@/lib/result/cors";
 import { readResult, chooseServedRow } from "@/lib/result/read";
 import { rateLimit } from "@/lib/rate-limit";
+import { isResponseLocked } from "@/lib/billing/gate";
 import { loadPurchaseSettings, resolvePurchasePlan } from "@/lib/meta/capi-log";
 
 /**
@@ -48,6 +49,7 @@ interface TokenRow {
   assessmentId: string;
   identifierValue: string | null;
   resultSnapshot: unknown;
+  periodSeq: number | null;
   assessment: { targetOrigin: string | null; paidMode: boolean };
 }
 
@@ -61,6 +63,7 @@ async function lookupToken(token: string): Promise<TokenRow | null> {
       assessmentId: true,
       identifierValue: true,
       resultSnapshot: true,
+      periodSeq: true,
       assessment: { select: { targetOrigin: true, paidMode: true } },
     },
   });
@@ -70,6 +73,7 @@ interface ServedRow {
   id: string;
   tenantId: string | null;
   resultSnapshot: unknown;
+  periodSeq: number | null;
 }
 
 /**
@@ -87,7 +91,7 @@ async function newestForPerson(row: TokenRow): Promise<ServedRow | null> {
       ? { assessmentId: row.assessmentId, identifierValue: row.identifierValue, completedPaidAt: { not: null } }
       : { assessmentId: row.assessmentId, identifierValue: row.identifierValue, status: "COMPLETED" },
     orderBy: paid ? { completedPaidAt: "desc" } : { completedAt: "desc" },
-    select: { id: true, tenantId: true, resultSnapshot: true },
+    select: { id: true, tenantId: true, resultSnapshot: true, periodSeq: true },
   });
 }
 
@@ -138,9 +142,17 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
   // row when there's nothing newer (or it's anonymous).
   const newest = tokenRow ? await newestForPerson(tokenRow) : null;
   const served = chooseServedRow<ServedRow>(
-    tokenRow ? { id: tokenRow.id, tenantId: tokenRow.tenantId, resultSnapshot: tokenRow.resultSnapshot } : null,
+    tokenRow
+      ? { id: tokenRow.id, tenantId: tokenRow.tenantId, resultSnapshot: tokenRow.resultSnapshot, periodSeq: tokenRow.periodSeq }
+      : null,
     newest,
   );
+
+  // Billing gate: never serve a result that is over the tenant's response cap — the
+  // lead's result stays locked until the workspace upgrades. Treated as "no result".
+  if (served && (await isResponseLocked(served.tenantId, served.periodSeq))) {
+    return NextResponse.json({ error: "Result not available" }, { status: 404, headers });
+  }
 
   const outcome = readResult(served);
 

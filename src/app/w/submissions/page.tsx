@@ -1,4 +1,5 @@
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
+import { responseLimitFor } from "@/lib/billing/gate";
 import { listSubmissions, getAssessmentForAnalytics, listAssessments } from "@/features/assessment/data";
 import { AssessmentPicker } from "@/features/admin/components/assessment-picker";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
@@ -41,8 +42,17 @@ export default async function WorkspaceSubmissionsPage({
     to: sp.to,
   });
   const stickyStart = scoped?.statsResetAt ? formatIST(scoped.statsResetAt.toISOString()).split(" ")[0] : "";
-  const paid = await getPaidBySubmission(submissions.map((s) => s.id));
-  const rows: SubmissionRow[] = submissions.map((s) => {
+  // Billing gate: over-cap completions are captured but LOCKED — the tenant can neither
+  // view nor export them until they upgrade. Partition them out here and surface only a
+  // padlocked count. `periodSeq` is stamped on the winning completion; a null seq
+  // (in-progress or grandfathered) is always visible.
+  const respLimit = await responseLimitFor(tenantId);
+  const isLockedLead = (s: (typeof submissions)[number]) =>
+    s.periodSeq != null && respLimit != null && s.periodSeq > respLimit;
+  const lockedCount = submissions.reduce((n, s) => (isLockedLead(s) ? n + 1 : n), 0);
+  const visibleSubmissions = submissions.filter((s) => !isLockedLead(s));
+  const paid = await getPaidBySubmission(visibleSubmissions.map((s) => s.id));
+  const rows: SubmissionRow[] = visibleSubmissions.map((s) => {
     const p = paid.get(s.id);
     return {
       id: s.id,
@@ -113,6 +123,21 @@ export default async function WorkspaceSubmissionsPage({
         <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
         <AnalyticsToolbar exportGroups={exportGroups} />
       </div>
+
+      {lockedCount > 0 ? (
+        <div className="flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm">
+          <span aria-hidden className="mt-0.5 text-base leading-none">🔒</span>
+          <p className="text-[var(--muted-foreground)]">
+            <span className="font-semibold text-[var(--foreground)]">
+              {lockedCount} lead{lockedCount === 1 ? "" : "s"} locked
+            </span>{" "}
+            — you&apos;ve gone past your plan&apos;s response limit
+            {respLimit != null ? ` of ${respLimit.toLocaleString()} / month` : ""}. These responses
+            were captured and are safe, but you can&apos;t view or export them until you upgrade.
+            Upgrade to unlock every lead instantly.
+          </p>
+        </div>
+      ) : null}
 
       <AssessmentPicker
         assessments={assessmentOptions}

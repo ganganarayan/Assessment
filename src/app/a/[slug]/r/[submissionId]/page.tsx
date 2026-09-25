@@ -10,6 +10,7 @@ import { markResultViewed } from "@/features/events/record";
 import { resultUrlFor } from "@/lib/events/completion";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isSuperAdmin } from "@/lib/auth/guards";
+import { isResponseLocked, supportEmailFor } from "@/lib/billing/gate";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { VslResultPage } from "@/features/assessment/components/public/vsl-result-page";
 import { readResultPage } from "@/features/assessment/result-page/blocks";
@@ -85,6 +86,7 @@ export default async function ResultPage({
       resultToken: true,
       reportNote: true,
       customerId: true,
+      periodSeq: true,
       leadFirstName: true,
       leadLastName: true,
       leadEmail: true,
@@ -143,6 +145,33 @@ export default async function ResultPage({
   // is tracked server-side (bumps the VSL counter) and the token rides along to the
   // destination — with NO code required on the destination page. Null => no button.
   const onwardHref = continueUrl ? `/api/onward/${submissionId}` : null;
+
+  // Billing gate: a result over the tenant's response cap is LOCKED — neither the
+  // respondent nor the tenant admin may see it (only the platform owner, who is never
+  // limited, can review). Show a neutral "results unavailable — contact support" page.
+  const locked = await isResponseLocked(submission.assessment.tenantId, submission.periodSeq);
+  if (locked && !isSuperOwner) {
+    const supportEmail = await supportEmailFor(submission.assessment.tenantId);
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-md flex-col justify-center gap-4 px-4 py-16">
+        <h1 className="text-2xl font-bold tracking-tight">Thanks — your responses are in.</h1>
+        <p className="text-[var(--muted-foreground)]">
+          Your results aren&apos;t available to view right now. If you&apos;d like your results,
+          please reach out and we&apos;ll help you out.
+        </p>
+        {supportEmail ? (
+          <p className="text-sm text-[var(--muted-foreground)]">
+            Contact support:{" "}
+            <a href={`mailto:${supportEmail}`} className="font-semibold text-[var(--foreground)] underline">
+              {supportEmail}
+            </a>
+          </p>
+        ) : (
+          <p className="text-sm text-[var(--muted-foreground)]">Please contact support for your results.</p>
+        )}
+      </div>
+    );
+  }
 
   // result.viewed represents the RESPONDENT opening their result — don't fire it
   // for an internal (admin/tenant) review.

@@ -23,6 +23,13 @@ export type PlanId = (typeof PLAN_IDS)[number];
 // Enforceable feature gates. Each maps to a real capability the app can withhold.
 // "prioritySupport" is informational (shown, not code-gated) but kept here so the
 // catalog is the single list of per-plan capabilities.
+//
+// Gating policy (see the four PLAN_LIMITS entries below): the platform sells on
+// VOLUME first — every PAID tier (Starter/Growth/Scale) carries the full set of
+// "everyday" features, and only FIVE capabilities are actually tier-gated:
+//   qualificationGate, conditionalRouting, capi, heatmap  -> GROWTH and up
+//   apiAccess                                              -> SCALE only
+// Free is deliberately lean (a funnel-in tier): no paid features at all.
 export const FEATURES = [
   "pdfReports",
   "webhooks",
@@ -34,8 +41,28 @@ export const FEATURES = [
   "apiAccess",
   "aiReports",
   "prioritySupport",
+  // Tier-gated premium capabilities (Growth+):
+  "qualificationGate", // the pre-assessment disqualify / audience gate
+  "conditionalRouting", // conditional logic & branching between questions/assessments
+  "capi", // server-side Meta Conversions API (audience exclusion + retargeting)
+  "heatmap", // heatmap / session-recording snippet injection
 ] as const;
 export type Feature = (typeof FEATURES)[number];
+
+// The "everyday" features every PAID plan carries (Starter and up). Anything NOT in
+// this list is either tier-gated (the five above) or off on Free. Kept as one list so
+// a plan definition can't silently drift from the "all paid plans get these" rule.
+export const PAID_BASE_FEATURES = [
+  "pdfReports",
+  "webhooks",
+  "leadExport",
+  "customDomain",
+  "brandingRemoved",
+  "analyticsTracking",
+  "staffRoles",
+  "aiReports",
+  "prioritySupport",
+] as const satisfies ReadonlyArray<Feature>;
 
 export type FeatureFlags = Record<Feature, boolean>;
 
@@ -50,62 +77,56 @@ export interface PlanLimits {
 }
 
 /** Every feature off — the Free baseline; higher tiers switch individual flags on. */
-const NO_FEATURES: FeatureFlags = {
-  pdfReports: false,
-  webhooks: false,
-  leadExport: false,
-  customDomain: false,
-  brandingRemoved: false,
-  analyticsTracking: false,
-  staffRoles: false,
-  apiAccess: false,
-  aiReports: false,
-  prioritySupport: false,
+const NO_FEATURES: FeatureFlags = Object.fromEntries(
+  FEATURES.map((f) => [f, false]),
+) as FeatureFlags;
+
+/** The everyday features on (the "all paid plans get these" set) — the paid baseline. */
+const PAID_BASE: FeatureFlags = {
+  ...NO_FEATURES,
+  ...(Object.fromEntries(PAID_BASE_FEATURES.map((f) => [f, true])) as Partial<FeatureFlags>),
 };
 
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
+  // Free — lean funnel-in tier: no paid features, smallest volume.
   FREE: {
     responsesPerMonth: 25,
     maxAssessments: 1,
     seats: 1,
     features: { ...NO_FEATURES },
   },
+  // Starter — every everyday feature; NONE of the five gated caps.
   STARTER: {
     responsesPerMonth: 300,
     maxAssessments: 3,
     seats: 1,
-    features: { ...NO_FEATURES, pdfReports: true, webhooks: true, leadExport: true },
+    features: { ...PAID_BASE },
   },
+  // Growth — everyday features + the four Growth-gated caps (still no API access).
   GROWTH: {
     responsesPerMonth: 2000,
     maxAssessments: 15,
     seats: 3,
     features: {
-      ...NO_FEATURES,
-      pdfReports: true,
-      webhooks: true,
-      leadExport: true,
-      customDomain: true,
-      brandingRemoved: true,
-      analyticsTracking: true,
+      ...PAID_BASE,
+      qualificationGate: true,
+      conditionalRouting: true,
+      capi: true,
+      heatmap: true,
     },
   },
+  // Scale — everything, including API access.
   SCALE: {
     responsesPerMonth: 12000,
     maxAssessments: null, // unlimited
     seats: 5, // "5+" — additional seats handled as an override/add-on later
     features: {
-      ...NO_FEATURES,
-      pdfReports: true,
-      webhooks: true,
-      leadExport: true,
-      customDomain: true,
-      brandingRemoved: true,
-      analyticsTracking: true,
-      staffRoles: true,
+      ...PAID_BASE,
+      qualificationGate: true,
+      conditionalRouting: true,
+      capi: true,
+      heatmap: true,
       apiAccess: true,
-      aiReports: true,
-      prioritySupport: true,
     },
   },
 };

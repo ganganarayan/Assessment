@@ -1031,6 +1031,13 @@ model Submission {
   // Nurture (one-shot Email + WhatsApp on opt-in): stamped when nurture is FIRST
   // attempted for this submission, so a re-submit/edit never re-sends. Null = not run.
   nurtureSentAt  DateTime?
+  // Billing gate: the 1-based index of this completion WITHIN its tenant's billing
+  // period (stamped once, at the winning STARTED->COMPLETED flip, from the RESPONSES
+  // usage counter). A response is "over cap / locked" when periodSeq > the tenant's
+  // CURRENT responsesPerMonth limit — compared live, so raising the plan instantly
+  // unlocks past leads with no backfill. null = completed before this gate shipped
+  // (grandfathered visible) or an unmetered platform/Gita submission.
+  periodSeq      Int?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -1470,6 +1477,13 @@ model AppSetting {
   legalAddress          String?
   legalContactEmail     String?
   legalGoverningLocation String? // e.g. "Bengaluru, Karnataka" — governing-law seat
+
+  // Support contact shown to RESPONDENTS. When a tenant is over its response cap, a
+  // lead who finishes the assessment sees a neutral "results unavailable — contact
+  // support" screen instead of their scorecard, with this address. Blank = no address
+  // shown (the screen still renders, just without a mailto). Per-tenant; the singleton
+  // row holds the platform/Gita fallback.
+  supportEmail          String?
 
   // AI personalized-statement config (platform-level). The API key is stored
   // ENCRYPTED at rest (see lib/crypto) and never returned to the client.

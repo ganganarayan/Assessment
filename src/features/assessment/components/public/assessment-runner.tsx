@@ -188,7 +188,7 @@ export interface PublicAssessment {
   pages: AssessmentPageData[];
 }
 
-type Step = "qualify" | "disqualified" | "gate" | "intro" | "questions" | "leadForm" | "details" | "locked" | "evaluating" | "resultPages";
+type Step = "qualify" | "disqualified" | "gate" | "intro" | "questions" | "leadForm" | "details" | "locked" | "capLocked" | "evaluating" | "resultPages";
 
 /** Anticipation countdown shown after Submit before the VSL/destination loads.
  *  Single source of truth; promote to a per-assessment field if it needs to vary. */
@@ -268,6 +268,9 @@ export function AssessmentRunner({
   const [actualAnswers, setActualAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [lockout, setLockout] = useState<Lockout | null>(null);
+  // Billing gate: the tenant's support email, shown on the "results unavailable" screen
+  // when their response cap is hit (the completion was captured but is locked).
+  const [capLockedSupportEmail, setCapLockedSupportEmail] = useState<string | null>(null);
   const [screenIndex, setScreenIndex] = useState(0); // current question page (paginated modes)
   // Conditional routing (SINGLE mode): the stack of visited screen indices. Back
   // pops; a branch pushes. Ignored unless routing is active (see routingActive).
@@ -614,6 +617,15 @@ export function AssessmentRunner({
         setStep("questions");
         return;
       }
+      // Billing gate: the workspace is over its response cap. The answers were captured,
+      // but the result is locked — show a neutral "results unavailable" screen with the
+      // support email. No pixel, no payment, no redirect (the server suppressed the
+      // whole fan-out too).
+      if (res.data?.capLocked) {
+        setCapLockedSupportEmail(res.data.supportEmail ?? null);
+        setStep("capLocked");
+        return;
+      }
       // Meta Pixel: assessment finished (custom event) — fire before the
       // redirect, ONLY for the winning completion (server returns an eventId
       // then). The eventId dedups against the server-side CAPI event.
@@ -841,6 +853,37 @@ export function AssessmentRunner({
                 </Button>
               ))}
             </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "capLocked") {
+    // Over-cap completion: the lead's answers are stored, but results are unavailable
+    // until the workspace upgrades. Neutral, non-alarming copy + a support contact.
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">Thanks — your responses are in.</h1>
+          <p className="text-[var(--muted-foreground)]">
+            Your results aren&apos;t available to view right now. If you&apos;d like your
+            results, please reach out and we&apos;ll help you out.
+          </p>
+          {capLockedSupportEmail ? (
+            <p className="text-sm text-[var(--muted-foreground)]">
+              Contact support:{" "}
+              <a
+                href={`mailto:${capLockedSupportEmail}`}
+                className="font-semibold text-[var(--foreground)] underline"
+              >
+                {capLockedSupportEmail}
+              </a>
+            </p>
+          ) : (
+            <p className="text-sm text-[var(--muted-foreground)]">
+              Please contact support for your results.
+            </p>
           )}
         </div>
       </div>

@@ -1,5 +1,7 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { responseLimitFor } from "@/lib/billing/gate";
 import { formatIST } from "@/lib/date";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
@@ -83,11 +85,20 @@ export async function listSubmissionsForExport(
   filter: SubmissionExportFilter = {},
 ): Promise<SubmissionExportRow[]> {
   const floor = filter.floor !== undefined ? filter.floor : await getStatsFloor();
+  // Billing gate: a TENANT export never includes over-cap (locked) leads — excluded at
+  // query time so the EXPORT_CAP still fills with visible rows. The platform/super-admin
+  // export (no tenantId filter) is never capped. A null periodSeq is always included.
+  let capWhere: Prisma.SubmissionWhereInput = {};
+  if (filter.tenantId) {
+    const limit = await responseLimitFor(filter.tenantId);
+    if (limit != null) capWhere = { OR: [{ periodSeq: null }, { periodSeq: { lte: limit } }] };
+  }
   const subs = await prisma.submission.findMany({
     where: {
       ...(floor ? { createdAt: { gte: floor } } : {}),
       ...(filter.assessmentId ? { assessmentId: filter.assessmentId } : {}),
       ...(filter.tenantId ? { tenantId: filter.tenantId } : {}),
+      ...capWhere,
     },
     orderBy: { createdAt: "desc" },
     take: EXPORT_CAP,

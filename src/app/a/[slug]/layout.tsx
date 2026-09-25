@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { resolveMetaConfig, resolveHeatmapCode } from "@/lib/settings/config";
+import { tenantCan } from "@/lib/billing/entitlements";
 import { MetaPixel } from "@/components/meta-pixel";
 import { HeatmapRecording } from "@/components/heatmap-recording";
 
@@ -18,12 +19,16 @@ export default async function AssessmentSlugLayout({
   const { slug } = await params;
   const a = await prisma.assessment.findFirst({ where: { slug }, select: { tenantId: true, heatmapCode: true } });
   const tenantId = a?.tenantId ?? null;
-  const [{ pixelId }, tenantHeatmap] = await Promise.all([
+  const [{ pixelId }, tenantHeatmap, canHeatmap] = await Promise.all([
     resolveMetaConfig(tenantId),
     resolveHeatmapCode(tenantId),
+    // Billing gate: heatmap / session recording is a Growth+ capability. Platform/Gita
+    // scope (tenantId null) is unlimited and always allowed.
+    tenantCan(tenantId, "heatmap"),
   ]);
   // This assessment's own recording snippet wins; else fall back to the tenant default.
-  const heatmapCode = a?.heatmapCode?.trim() || tenantHeatmap;
+  // Suppressed entirely when the tenant's plan doesn't include heatmap recording.
+  const heatmapCode = canHeatmap ? (a?.heatmapCode?.trim() || tenantHeatmap) : null;
   return (
     <>
       <MetaPixel pixelId={pixelId} />

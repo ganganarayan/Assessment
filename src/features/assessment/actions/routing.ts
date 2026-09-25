@@ -9,7 +9,8 @@ import {
 } from "@/features/assessment/schemas";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
-import { assertEdit } from "@/lib/tenant/acting";
+import { assertEdit, resolveActingScope } from "@/lib/tenant/acting";
+import { tenantCan } from "@/lib/billing/entitlements";
 import { buildSpine } from "@/lib/routing/engine";
 
 /**
@@ -94,6 +95,16 @@ export async function setQuestionRoutes(
       if (ci <= currentIndex) return { ok: false, error: "You can only jump to a LATER category." };
       upserts.push({ optionId: r.optionId, action: RouteAction.JUMP_TO_CATEGORY, targetQuestionId: null, targetCategoryId: t });
       continue;
+    }
+  }
+
+  // Billing gate: conditional logic & branching is a Growth+ capability. Adding a real
+  // route (a JUMP or SKIP_TO_END) needs the feature; clearing routes back to the linear
+  // default is always allowed. The app owner (super admin) is never limited.
+  if (upserts.length > 0) {
+    const scope = await resolveActingScope();
+    if (!scope.isSuper && !(await tenantCan(scope.tenantId, "conditionalRouting"))) {
+      return { ok: false, error: "Conditional logic & branching is available on the Growth plan and up. Upgrade to add routing." };
     }
   }
 

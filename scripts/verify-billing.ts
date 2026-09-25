@@ -9,6 +9,7 @@
  */
 import {
   PLAN_LIMITS,
+  PAID_BASE_FEATURES,
   UNLIMITED_LIMITS,
   FEATURES,
   applyOverrides,
@@ -20,8 +21,12 @@ import {
   parseLimitsSnapshot,
   usageFraction,
   usagePeriodKey,
+  type Feature,
   type PlanLimits,
 } from "../src/lib/billing/plans";
+
+// The five tier-gated capabilities (everything NOT in the paid-base everyday set).
+const GROWTH_CAPS: Feature[] = ["qualificationGate", "conditionalRouting", "capi", "heatmap"];
 
 let failed = 0;
 function check(name: string, cond: boolean): void {
@@ -44,17 +49,37 @@ check("Growth = 2000 / 15 / 3",
 check("Scale = 12000 / unlimited assessments / 5 seats",
   PLAN_LIMITS.SCALE.responsesPerMonth === 12000 && isUnlimited(PLAN_LIMITS.SCALE.maxAssessments) && PLAN_LIMITS.SCALE.seats === 5);
 
-console.log("Feature gates");
+console.log("Feature gates (volume-first: paid plans share every everyday feature; 5 caps gated)");
 check("Free grants no features", FEATURES.every((f) => !hasFeature(PLAN_LIMITS.FREE, f)));
-check("Starter: pdfReports yes, customDomain no",
-  hasFeature(PLAN_LIMITS.STARTER, "pdfReports") && !hasFeature(PLAN_LIMITS.STARTER, "customDomain"));
-check("Growth: customDomain yes, apiAccess no",
-  hasFeature(PLAN_LIMITS.GROWTH, "customDomain") && !hasFeature(PLAN_LIMITS.GROWTH, "apiAccess"));
-check("Scale: apiAccess + aiReports + staffRoles yes",
-  hasFeature(PLAN_LIMITS.SCALE, "apiAccess") && hasFeature(PLAN_LIMITS.SCALE, "aiReports") && hasFeature(PLAN_LIMITS.SCALE, "staffRoles"));
+// Every PAID plan carries the full everyday set — including custom domain, branding
+// removed, AI reports, staff roles (the ones that used to be Growth/Scale-only).
+check("Starter has EVERY everyday feature",
+  PAID_BASE_FEATURES.every((f) => hasFeature(PLAN_LIMITS.STARTER, f)));
+check("Starter: customDomain + brandingRemoved + aiReports + staffRoles now yes",
+  hasFeature(PLAN_LIMITS.STARTER, "customDomain") && hasFeature(PLAN_LIMITS.STARTER, "brandingRemoved") &&
+  hasFeature(PLAN_LIMITS.STARTER, "aiReports") && hasFeature(PLAN_LIMITS.STARTER, "staffRoles"));
+check("Starter has NONE of the 5 gated caps",
+  GROWTH_CAPS.every((f) => !hasFeature(PLAN_LIMITS.STARTER, f)) && !hasFeature(PLAN_LIMITS.STARTER, "apiAccess"));
+check("Growth adds the 4 Growth caps (qualification, routing, capi, heatmap)",
+  GROWTH_CAPS.every((f) => hasFeature(PLAN_LIMITS.GROWTH, f)));
+check("Growth still WITHOUT apiAccess", !hasFeature(PLAN_LIMITS.GROWTH, "apiAccess"));
+check("Scale is the only plan with apiAccess",
+  hasFeature(PLAN_LIMITS.SCALE, "apiAccess") &&
+  !hasFeature(PLAN_LIMITS.FREE, "apiAccess") && !hasFeature(PLAN_LIMITS.STARTER, "apiAccess") && !hasFeature(PLAN_LIMITS.GROWTH, "apiAccess"));
+check("Scale grants every feature", FEATURES.every((f) => hasFeature(PLAN_LIMITS.SCALE, f)));
 check("higher tiers are supersets of lower",
   FEATURES.every((f) => !hasFeature(PLAN_LIMITS.STARTER, f) || hasFeature(PLAN_LIMITS.GROWTH, f)) &&
   FEATURES.every((f) => !hasFeature(PLAN_LIMITS.GROWTH, f) || hasFeature(PLAN_LIMITS.SCALE, f)));
+
+console.log("Response cap lock rule (periodSeq > CURRENT limit; null seq never locked)");
+// Pure mirror of gate.isResponseLocked's predicate — proves the capture-but-lock math.
+const lockedBySeq = (seq: number | null, limit: number | null): boolean =>
+  seq != null && limit != null && seq > limit;
+check("seq 301 over Starter's 300 → locked", lockedBySeq(301, PLAN_LIMITS.STARTER.responsesPerMonth));
+check("seq 300 at the cap → NOT locked", !lockedBySeq(300, PLAN_LIMITS.STARTER.responsesPerMonth));
+check("null seq (pre-gate/in-progress) → never locked", !lockedBySeq(null, 25));
+check("unlimited scope (null limit) → never locked", !lockedBySeq(999_999, null));
+check("upgrade unlocks: seq 301 within Growth's 2000", !lockedBySeq(301, PLAN_LIMITS.GROWTH.responsesPerMonth));
 
 console.log("Limit math");
 check("isOverLimit: 25/25 over, 24/25 not", isOverLimit(25, 25) && !isOverLimit(24, 25));

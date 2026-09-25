@@ -4,8 +4,10 @@ import { getIntegrationSettings, updateMetaSettings, updateRazorpaySettings, upd
 import { HeatmapSettingsForm } from "@/features/workspace/components/heatmap-settings-form";
 import { getDomainSettings } from "@/features/workspace/actions/domains";
 import { getBookingUrl } from "@/features/workspace/actions/booking";
+import { getSupportEmail } from "@/features/workspace/actions/support";
 import { getThemeColors } from "@/features/workspace/actions/theme";
 import { BookingSettingsForm } from "@/features/workspace/components/booking-settings-form";
+import { SupportSettingsForm } from "@/features/workspace/components/support-settings-form";
 import { ThemeColorForm } from "@/features/workspace/components/theme-color-form";
 import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
@@ -33,6 +35,7 @@ export default async function WorkspaceSettingsPage() {
   const integrations = await getIntegrationSettings();
   const domains = await getDomainSettings();
   const bookingUrl = await getBookingUrl();
+  const supportEmail = await getSupportEmail();
   const themeColors = await getThemeColors();
 
   return (
@@ -113,6 +116,19 @@ export default async function WorkspaceSettingsPage() {
         </CardHeader>
         <CardContent>
           <BookingSettingsForm initial={bookingUrl} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Support email</CardTitle>
+          <CardDescription>
+            The address respondents are pointed to if their results can&apos;t be shown —
+            for example when your plan&apos;s monthly response limit is reached.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SupportSettingsForm initial={supportEmail} />
         </CardContent>
       </Card>
 

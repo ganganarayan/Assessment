@@ -34,6 +34,7 @@ import { randomUUID } from "crypto";
 import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
 import { fbcCreationMs } from "@/lib/meta/capi";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
+import { isResponseLocked, meterResponse, responsesOverCap, supportEmailFor } from "@/lib/billing/gate";
 import { generatePersonalStatement, generateClinicStatement } from "@/lib/ai/generate";
 import {
   resolveEngineConfig,
@@ -781,6 +782,11 @@ export async function completeSubmission(
     payment?: PaymentCheckout;
     paymentRedirectUrl?: string;
     eventId?: string;
+    // Billing gate: the tenant is over its response cap, so this completion is locked.
+    // The lead is shown a neutral "results unavailable — contact support" screen with
+    // `supportEmail` instead of a result/VSL. No other data fields are returned.
+    capLocked?: boolean;
+    supportEmail?: string | null;
   }>
 > {
   const parsed = answersSchema.safeParse(input);
@@ -817,6 +823,9 @@ export async function completeSubmission(
       deviceType: true,
       browser: true,
       os: true,
+      // Billing gate: already-stamped period index. Guards against double-metering on
+      // a paid re-completion (we meter only when this is still null).
+      periodSeq: true,
       assessment: { select: { slug: true, targetUrl: true, paidMode: true, paymentUrl: true, paymentAmount: true, aiPromptVersionId: true } },
     },
   });
@@ -966,6 +975,14 @@ export async function completeSubmission(
     },
   });
   if (!assessment) return { ok: false, error: "Assessment not found." };
+
+  // Billing gate — response cap. Peek (non-consuming) whether the tenant is already at
+  // its response limit, so we can skip the expensive AI statement for a completion that
+  // is about to be locked. The AUTHORITATIVE lock decision is `meterResponse`, taken
+  // once below for the winning STARTED->COMPLETED writer. Platform/unlimited → false.
+  const gateTenantId = assessment.tenant?.id ?? null;
+  const overCap = await responsesOverCap(gateTenantId);
+
   // Re-check publication: an admin may have unpublished it mid-flight, in which
   // case we must not score or emit a lead to the CRM.
   if (assessment.status !== "PUBLISHED") {
@@ -1163,14 +1180,14 @@ export async function completeSubmission(
     clinicResult = result;
     clinicBandName = result.band;
     matchedClinicBand = matchClinicResultBand(result.band, assessment.resultBands);
-    if (assessment.useAiStatement) {
+    if (assessment.useAiStatement && !overCap) {
       const ctx = buildClinicPromptContext(result, questions, optionByQuestionId, submission.leadProfession);
       aiStatement = await generateClinicStatement(buildClinicContext(ctx), submission.tenantId);
     }
     clinicSnap = { inputs, config, prose: aiStatement };
   } else {
     // GENERIC: the personalized statement over the overall + per-category bands.
-    aiStatement = assessment.useAiStatement
+    aiStatement = assessment.useAiStatement && !overCap
       ? await generatePersonalStatement({
           firstName: submission.leadFirstName,
           profession: submission.leadProfession,
@@ -1273,6 +1290,30 @@ export async function completeSubmission(
       ok: true,
       data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid },
     };
+  }
+
+  // Billing gate — response cap (CAPTURE-BUT-LOCK). The lead's answers + category
+  // scores are ALREADY persisted by the transaction above, so no data is ever lost.
+  // Meter this completion EXACTLY ONCE (winning writer only): stamp its 1-based index
+  // within the tenant's billing period. A paid re-completion keeps its original index
+  // (never re-metered). If this response is OVER the cap — now, or still over after a
+  // re-completion — STOP here: no nurture (Email/WABA), no webhook/EventLog, no CAPI,
+  // no payment prompt, and the lead sees a neutral "results unavailable — contact
+  // support" screen (see the runner + result page). Raising the plan later unlocks
+  // these leads, because the lock is `periodSeq > CURRENT limit`, compared live.
+  let effectiveSeq = submission.periodSeq;
+  if (effectiveSeq == null) {
+    const meter = await meterResponse(gateTenantId);
+    if (meter.metered) {
+      effectiveSeq = meter.seq;
+      await prisma.submission
+        .updateMany({ where: { id: submissionId }, data: { periodSeq: meter.seq } })
+        .catch(() => {});
+    }
+  }
+  if (await isResponseLocked(gateTenantId, effectiveSeq)) {
+    const supportEmail = await supportEmailFor(gateTenantId);
+    return { ok: true, data: { submissionId, capLocked: true, supportEmail } };
   }
 
   // Nurture (one-shot Email + WhatsApp) on COMPLETION — fire-and-forget, winning
