@@ -271,6 +271,9 @@ export function AssessmentRunner({
   // Billing gate: the tenant's support email, shown on the "results unavailable" screen
   // when their response cap is hit (the completion was captured but is locked).
   const [capLockedSupportEmail, setCapLockedSupportEmail] = useState<string | null>(null);
+  // Qualify step: the option just picked, so its radio fills for a beat before the
+  // question auto-advances (a single-select affordance on every option).
+  const [qualPickedId, setQualPickedId] = useState<string | null>(null);
   const [screenIndex, setScreenIndex] = useState(0); // current question page (paginated modes)
   // Conditional routing (SINGLE mode): the stack of visited screen indices. Back
   // pops; a branch pushes. Ignored unless routing is active (see routingActive).
@@ -471,25 +474,30 @@ export function AssessmentRunner({
   // disqualified page — NO lead / submission / result is ever created (optionally
   // fires a custom "Disqualified" pixel event for ad exclusion). A qualifying answer
   // auto-advances to the next question, then enters the assessment after the last.
-  function pickQualOption(disqualifies: boolean) {
+  function pickQualOption(option: { id: string; disqualifies: boolean }) {
     setError(null);
-    if (disqualifies) {
-      // Remember the rejection so a repeat visit skips straight to the exit page
-      // (free client-side layer; fires instantly, before the Meta audience populates).
-      // Scoped per-assessment so one funnel's rejection doesn't block another.
-      if (!preview) {
-        try {
-          localStorage.setItem(`gate_dq:${assessment.slug}`, "1");
-        } catch {
-          /* private mode / blocked storage — non-fatal */
+    // Fill the picked radio, then advance a beat later so the selection registers.
+    setQualPickedId(option.id);
+    window.setTimeout(() => {
+      setQualPickedId(null);
+      if (option.disqualifies) {
+        // Remember the rejection so a repeat visit skips straight to the exit page
+        // (free client-side layer; fires instantly, before the Meta audience populates).
+        // Scoped per-assessment so one funnel's rejection doesn't block another.
+        if (!preview) {
+          try {
+            localStorage.setItem(`gate_dq:${assessment.slug}`, "1");
+          } catch {
+            /* private mode / blocked storage — non-fatal */
+          }
         }
+        setStep("disqualified"); // the GateDisqualified pixel event fires in an effect
+        return;
       }
-      setStep("disqualified"); // the GateDisqualified pixel event fires in an effect
-      return;
-    }
-    if (!qual) return;
-    if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
-    else setStep(gated ? "gate" : "intro");
+      if (!qual) return;
+      if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
+      else setStep(gated ? "gate" : "intro");
+    }, 160);
   }
 
   // Qualification TEXT question "Continue": validate required, then advance (these
@@ -840,18 +848,29 @@ export function AssessmentRunner({
             </>
           ) : (
             <div className="flex flex-col gap-2">
-              {question.options.map((o) => (
-                <Button
-                  key={o.id}
-                  size="lg"
-                  type="button"
-                  variant="outline"
-                  className="justify-start text-left"
-                  onClick={() => pickQualOption(o.disqualifies)}
-                >
-                  {o.label}
-                </Button>
-              ))}
+              {question.options.map((o) => {
+                const picked = qualPickedId === o.id;
+                return (
+                  <Button
+                    key={o.id}
+                    size="lg"
+                    type="button"
+                    variant="outline"
+                    className="justify-start gap-3 text-left"
+                    onClick={() => pickQualOption(o)}
+                  >
+                    <span
+                      aria-hidden
+                      className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                        picked ? "border-[#16a34a]" : "border-[var(--muted-foreground)]"
+                      }`}
+                    >
+                      {picked ? <span className="h-2 w-2 rounded-full bg-[#16a34a]" /> : null}
+                    </span>
+                    <span>{o.label}</span>
+                  </Button>
+                );
+              })}
             </div>
           )}
         </div>
