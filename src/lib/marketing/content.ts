@@ -111,7 +111,7 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
   },
   {
     title: "Lead export & integrations",
-    body: "Push each scored lead to your CRM by webhook or Zapier, or export clean CSVs whenever you need them.",
+    body: "Push each scored lead to your CRM by webhook, or export clean CSVs whenever you need them.",
   },
   {
     title: "Custom domain & branding",
@@ -176,7 +176,7 @@ export const TIERS: ReadonlyArray<Tier> = [
       "300 responses / month",
       "Branded PDF reports",
       "AI reports + question generation",
-      "Webhook / Zapier + lead export",
+      "Webhook + lead export",
       "Custom domain + branding removed",
       "Team roles & priority support",
     ],
