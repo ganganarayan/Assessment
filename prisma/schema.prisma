@@ -706,6 +706,7 @@ model Assessment {
   submissions Submission[]
   pageViews   PageView[]
   pages       AssessmentPage[]
+  gateEntries GateEntry[]
 
   @@index([tenantId])
   @@index([status])
@@ -1094,6 +1095,12 @@ model Submission {
   startedAt      DateTime  @default(now())
   completedAt    DateTime?
   abandonedAt    DateTime? // set by the abandonment sweep when STARTED past the delay
+  // Manual Meta review (Submissions table buttons). The owner reads the lead and
+  // fires QualifiedCompletion or GateDisqualified by hand — for the gate's TEXT
+  // answers, which never auto-qualify. Stamps exist so a reviewed row is visibly
+  // different from an untouched one; re-clicking is allowed and re-stamps.
+  metaQualifiedAt    DateTime?
+  metaDisqualifiedAt DateTime?
   // Paid-mode pipeline guards (compare-and-swap so each event fires once):
   completedPaidAt   DateTime? // set when completed_paid fired (payment verified)
   completedUnpaidAt DateTime? // set when completed_unpaid fired (sweep, 30 min unpaid)
@@ -1139,6 +1146,54 @@ model Submission {
   @@index([assessmentId, identifierValue, status]) // retake lockout + trend
   @@index([crmDirty]) // CRM resend drip queue
   @@map("submission")
+}
+
+// ---------------------------------------------------------------------------
+// GateEntry — one row per visitor who PASSED the qualification gate (page 1).
+//
+// Why this exists: passing page 1 creates no Submission (that happens at the
+// opt-in, which is the LAST step), so someone who qualifies and then leaves is
+// invisible — exactly the person worth retargeting. This row is the only record
+// they leave.
+//
+// It is deliberately NOT a Submission: it holds no lead, no answers, no score,
+// and never appears in the Submissions table, counts, billing caps or stats. It
+// exists solely to carry the Meta match signals (fbp/fbc/ip/ua/geo — captured
+// server-side at pass time, because the browser is gone by the time we fire) so
+// the abandonment sweep can send AssessmentAbandoned hours later.
+//
+// visitorId is the browser's first-party localStorage id (the same value that
+// lands on Submission.metaExternalId), which is how the sweep tells "abandoned"
+// from "went on to complete" without any lead data.
+// ---------------------------------------------------------------------------
+model GateEntry {
+  id           String     @id @default(cuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  /// Browser first-party visitor id → Submission.metaExternalId → CAPI external_id.
+  visitorId String
+
+  // Meta match signals, captured server-side when the gate was passed.
+  clientIp   String?
+  userAgent  String?
+  fbp        String?
+  fbc        String?
+  country    String?
+  city       String?
+  region     String?
+  postalCode String?
+  attribution Json?
+
+  passedAt DateTime @default(now())
+  /// Compare-and-swap guard: set when AssessmentAbandoned fired, so it fires once.
+  abandonedFiredAt DateTime?
+
+  // One row per visitor per assessment — a re-entry updates the existing row
+  // rather than queueing a second abandonment event for the same person.
+  @@unique([assessmentId, visitorId])
+  @@index([abandonedFiredAt, passedAt]) // the sweep's scan
+  @@map("gate_entry")
 }
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,9 @@
-import "server-only";
+// Deliberately NOT `server-only`. The Railway cron (tsx scripts/sweep-abandoned.ts)
+// reaches this module through the completed_unpaid sweep, and that process runs
+// outside Next, where the `server-only` package does not resolve — importing it is
+// a hard crash at load, which takes down every sweep in the script, not just one.
+// The guard only ever prevented CLIENT bundling, which the prisma/env imports below
+// already make impossible in a browser build.
 import { EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";

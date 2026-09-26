@@ -1,4 +1,9 @@
-import "server-only";
+// Deliberately NOT `server-only`. The Railway cron (tsx scripts/sweep-abandoned.ts)
+// resolves a tenant's Meta config to fire AssessmentAbandoned, and that process runs
+// outside Next, where the `server-only` package does not resolve at all — importing
+// it there is a hard crash that would take the whole cron down, existing sweeps
+// included. The guard only ever prevented CLIENT bundling, which the prisma/env/
+// crypto imports below already make impossible in a browser build.
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { decryptWithSecret } from "@/lib/crypto";

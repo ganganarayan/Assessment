@@ -22,62 +22,13 @@ import {
  */
 
 /**
- * The plan a subscription actually ENTITLES to, given its status. A canceled/halted
- * subscription (lapsed) or a still-pending one (never paid) falls back to FREE;
- * PAST_DUE keeps the plan (dunning grace). Pure, centralized so Phase 4 reuses it.
+ * Plan resolution + the feature gate live in plan-resolve.ts, which is NOT
+ * server-only: the Railway cron runs outside Next, where the `server-only`
+ * package does not resolve, and a sweep still has to honour the gate. They are
+ * re-exported here so every existing caller keeps importing from entitlements.
  */
-export function entitledPlan(plan: Plan, status: SubscriptionStatus): PlanId {
-  if (status === "CANCELED" || status === "HALTED" || status === "PENDING") return "FREE";
-  return plan as PlanId;
-}
-
-export interface ResolvedPlan {
-  /** null = platform/Gita scope (unlimited). */
-  plan: PlanId | null;
-  status: SubscriptionStatus | null;
-  limits: PlanLimits;
-  isPlatform: boolean;
-}
-
-/**
- * Resolve a tenant's effective plan + limits. Order of precedence for limits:
- * per-tenant overrides > frozen snapshot (subscription) > code default (PLAN_LIMITS).
- * Never throws — a corrupt snapshot degrades to the catalog value.
- */
-export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan> {
-  if (tenantId === null) {
-    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: true };
-  }
-
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { plan: true, subscription: true },
-  });
-
-  // Unknown tenant → treat as Free (safest; a gate would deny extras, never a respondent).
-  if (!tenant) {
-    return { plan: "FREE", status: null, limits: PLAN_LIMITS.FREE, isPlatform: false };
-  }
-
-  const sub = tenant.subscription;
-  const effective = sub ? entitledPlan(sub.plan, sub.status) : (tenant.plan as PlanId);
-
-  // If the subscription lapsed to FREE, use the FREE catalog (not the paid snapshot).
-  const base =
-    sub && effective !== "FREE"
-      ? parseLimitsSnapshot(sub.limitsSnapshot, effective)
-      : PLAN_LIMITS[effective];
-
-  const limits = sub?.limitOverrides != null ? applyOverrides(base, sub.limitOverrides) : base;
-
-  return { plan: effective, status: sub?.status ?? null, limits, isPlatform: false };
-}
-
-/** Whether a tenant is entitled to a feature. Platform scope → always true. */
-export async function tenantCan(tenantId: string | null, feature: Feature): Promise<boolean> {
-  const { limits } = await resolvePlan(tenantId);
-  return hasFeature(limits, feature);
-}
+import { resolvePlan } from "@/lib/billing/plan-resolve";
+export { entitledPlan, resolvePlan, tenantCan, type ResolvedPlan } from "@/lib/billing/plan-resolve";
 
 export interface UsageLine {
   used: number;

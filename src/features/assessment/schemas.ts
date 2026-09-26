@@ -115,6 +115,21 @@ export function completionEventName(gateActive: boolean): string {
   return gateActive ? COMPLETION_EVENT_GATED : COMPLETION_EVENT_DEFAULT;
 }
 
+/**
+ * Meta event names used outside the completion path. Named here (not inline at
+ * the call sites) because the ad account's audiences are built on these exact
+ * strings — renaming one silently stops populating an audience, with no error
+ * anywhere.
+ *
+ * GATE_DISQUALIFIED_EVENT — fired by the browser pixel when the page-1 gate
+ *   rejects someone, and by the owner's manual Disqualify button (server CAPI).
+ * ABANDONED_EVENT — fired by the sweep for a visitor who PASSED the gate and
+ *   then never completed. Server-side only: a browser cannot reliably report
+ *   its own departure, so this is decided later by the sweep, not by the page.
+ */
+export const GATE_DISQUALIFIED_EVENT = "GateDisqualified";
+export const ABANDONED_EVENT = "AssessmentAbandoned";
+
 /** Content of the disqualified page. Nothing about the visitor is stored when it
  *  shows; `fireDisqualifiedEvent` fires a custom "Disqualified" Meta pixel event
  *  (for building an exclusion audience) — the only outward signal. */
