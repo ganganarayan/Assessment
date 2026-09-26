@@ -153,6 +153,9 @@ export function buildEnvelope(
   // (both use Math.round(percentage)); metadata.score keeps the precise value.
   const pctRounded = score && score.percentage != null ? Math.round(score.percentage) : null;
   envelope["contact.customer_id"] = input.customerId ?? null;
+  // Stored so a CRM page can hand it back to VidaPulse.setId() and make its own
+  // CTA links traceable — see EmitInput.resultToken.
+  envelope["contact.result_token"] = input.resultToken ?? null;
   // snake_case fields (the CRM maps these); camelCase kept for back-compat.
   envelope["contact.assessment_score"] = pctRounded;
   envelope["contact.score_percent"] = pctRounded;

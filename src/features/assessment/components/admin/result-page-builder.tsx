@@ -152,6 +152,7 @@ export function ResultPageBuilder({
               page={page}
               aiStatement={"[ The respondent's personalized AI statement appears here. ]"}
               customerId={null}
+              resultToken={null}
               vidapulseParam={null}
             />
           </div>
@@ -293,6 +294,11 @@ function BlockEditor({
         <div className="flex flex-col gap-2">
           <Input placeholder="Button text" value={str(c.label)} onChange={(e) => set({ label: e.target.value })} onBlur={onBlur} />
           <Input placeholder="Link URL (https://…)" value={str(c.url)} onChange={(e) => set({ url: e.target.value })} onBlur={onBlur} />
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Paste a VidaPulse CTA tracking link here and each click is recorded against this
+            respondent — their id is added to the link automatically. Any other link is used
+            exactly as typed.
+          </p>
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1 text-xs">
               Background colour

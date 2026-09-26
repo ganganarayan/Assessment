@@ -97,6 +97,7 @@ export async function sendScoreUpdate(submissionId: string): Promise<CrmSendResu
   const input: EmitInput = {
     submissionId,
     customerId: s.customerId,
+    resultToken: s.resultToken,
     tenant: s.assessment.tenant,
     assessment: { id: s.assessment.id, slug: s.assessment.slug, title: s.assessment.title },
     lead: {
@@ -164,6 +165,7 @@ export async function sendCustomUpdate(submissionId: string): Promise<CrmSendRes
     scoreRaw: snap?.scoreRaw ?? null,
     scoreMax: snap?.max ?? null,
     customerId: s.customerId ?? null,
+    resultToken: s.resultToken ?? null,
     resultUrl: s.assessment
       ? destinationUrl(s.assessment.targetUrl, s.assessment.slug, submissionId, s.resultToken, baseUrl)
       : null,

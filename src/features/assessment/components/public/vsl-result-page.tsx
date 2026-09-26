@@ -1,4 +1,4 @@
-import { appendVidapulseId } from "@/lib/vidapulse";
+import { appendVidapulseId, stampVidapulseCtaUrl } from "@/lib/vidapulse";
 import {
   themeOf,
   extractEmbedSrc,
@@ -25,11 +25,13 @@ export function VslResultPage({
   page,
   aiStatement,
   customerId,
+  resultToken,
   vidapulseParam,
 }: {
   page: ResultPageData;
   aiStatement: string | null;
   customerId: string | null;
+  resultToken: string | null;
   vidapulseParam: string | null;
 }) {
   const t = themeOf(page.theme);
@@ -55,6 +57,7 @@ export function VslResultPage({
             theme={t}
             aiStatement={aiStatement}
             customerId={customerId}
+            resultToken={resultToken}
             vidapulseParam={vidapulseParam}
           />
         ))}
@@ -72,12 +75,14 @@ function Block({
   theme,
   aiStatement,
   customerId,
+  resultToken,
   vidapulseParam,
 }: {
   block: ResultBlock;
   theme: ReturnType<typeof themeOf>;
   aiStatement: string | null;
   customerId: string | null;
+  resultToken: string | null;
   vidapulseParam: string | null;
 }) {
   const c = block.config as Record<string, unknown>;
@@ -126,7 +131,14 @@ function Block({
       );
     }
     case "button":
-      return <ButtonBlock config={c as ButtonConfig} theme={theme} />;
+      return (
+        <ButtonBlock
+          config={c as ButtonConfig}
+          theme={theme}
+          customerId={customerId}
+          resultToken={resultToken}
+        />
+      );
     case "video":
       return <VideoBlock code={str("embedCode")} customerId={customerId} vidapulseParam={vidapulseParam} />;
     case "testimonials":
@@ -138,10 +150,24 @@ function Block({
   }
 }
 
-function ButtonBlock({ config, theme }: { config: ButtonConfig; theme: ReturnType<typeof themeOf> }) {
+function ButtonBlock({
+  config,
+  theme,
+  customerId,
+  resultToken,
+}: {
+  config: ButtonConfig;
+  theme: ReturnType<typeof themeOf>;
+  customerId: string | null;
+  resultToken: string | null;
+}) {
   const label = (config.label ?? "").trim();
-  // The link is used EXACTLY as typed (normalizeHref only fixes a missing scheme).
-  const href = normalizeHref(config.url);
+  // The link is used EXACTLY as typed (normalizeHref only fixes a missing scheme),
+  // with one exception: a VidaPulse CTA tracking link is stamped with who is
+  // clicking it. That has to happen here, server-side, because the anchor below
+  // carries rel="noreferrer" — without the ids in the URL, the click arrives at
+  // VidaPulse anonymous. Any other link is returned untouched.
+  const href = stampVidapulseCtaUrl(normalizeHref(config.url), customerId, resultToken);
   if (!label) return null;
   const bg = (config.bg ?? "").trim() || theme.cta;
   const color = (config.color ?? "").trim() || theme.ctaText;

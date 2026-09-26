@@ -14,7 +14,7 @@ import { isResponseLocked, supportEmailFor } from "@/lib/billing/gate";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { VslResultPage } from "@/features/assessment/components/public/vsl-result-page";
 import { readResultPage } from "@/features/assessment/result-page/blocks";
-import { resolveVidapulseParam } from "@/lib/vidapulse";
+import { resolveVidapulseParam, stampVidapulseCtaUrl } from "@/lib/vidapulse";
 import { getAiStatements } from "@/features/admin/data/ai-statements";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
 import { getClinicAnswers, getClinicRawAnswers } from "@/features/admin/data/clinic-answers";
@@ -326,7 +326,15 @@ export default async function ResultPage({
           config={liveConfig}
           original={original}
           prose={snap.clinic.prose}
-          bookingUrl={setting?.bookingUrl ?? null}
+          // A booking URL may itself be a VidaPulse CTA tracking link, in which case
+          // the click is stamped with this respondent's ids (the anchor below carries
+          // rel="noreferrer", so they have to be in the URL). Any other URL is passed
+          // through untouched.
+          bookingUrl={stampVidapulseCtaUrl(
+            setting?.bookingUrl ?? null,
+            submission.customerId ?? null,
+            submission.resultToken ?? null,
+          )}
           resultUrl={resultUrl}
           title={submission.assessment.title}
           continueUrl={onwardHref}
@@ -375,6 +383,11 @@ export default async function ResultPage({
           page={vslPage}
           aiStatement={submission.assessment.useAiStatement ? snap.aiStatement ?? null : null}
           customerId={submission.customerId ?? null}
+          // Stamped onto any VidaPulse CTA button on the page. The token is the
+          // one id present on EVERY link this app emits (fresh completions and
+          // nurture links alike), so it is what makes the click traceable even
+          // when an older link carries no cid.
+          resultToken={submission.resultToken ?? null}
           vidapulseParam={resolveVidapulseParam(vpSetting)}
         />
       );

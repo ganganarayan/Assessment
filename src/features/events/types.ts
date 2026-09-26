@@ -194,6 +194,13 @@ export interface EventEnvelope {
 export interface EmitInput {
   submissionId?: string | null;
   customerId?: string | null;
+  /**
+   * The result token. Present inside resultUrl already, but sent as its own
+   * field so a CRM can store it and merge it into a page that has no way to
+   * identify the visitor otherwise — VidaPulse.setId('<token>', '<cid>') on a
+   * landing page makes its CTA links traceable back to this respondent.
+   */
+  resultToken?: string | null;
   tenant?: PayloadTenant | null;
   assessment?: { id: string; slug: string; title: string } | null;
   lead?: Partial<PayloadLead> | null;

@@ -72,6 +72,7 @@ const data: CustomFieldData = {
   scoreRaw: 33,
   scoreMax: 60,
   customerId: "CUST1",
+  resultToken: "TOKEN1",
   resultUrl: "https://x/r/1",
   aiStatement: "hello",
   profession: "Home Maker (House Wife)",

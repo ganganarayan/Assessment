@@ -121,6 +121,7 @@ export async function loadCompletionInput(submissionId: string): Promise<EmitInp
   return {
     submissionId,
     customerId: s.customerId,
+    resultToken: s.resultToken,
     tenant: s.assessment.tenant,
     assessment: { id: s.assessment.id, slug: s.assessment.slug, title: s.assessment.title },
     lead: {

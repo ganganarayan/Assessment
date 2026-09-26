@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
-import { appendVidapulseId } from "@/lib/vidapulse";
+import { appendVidapulseId, stampVidapulseCtaUrl } from "@/lib/vidapulse";
 import { vidapulseParamForTenant } from "@/lib/events/completion";
 
 /**
@@ -68,6 +68,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ submissionId: 
   // Carry the opaque customerId (VidaPulse `cid`) too, so the VSL on the destination
   // page can bind this viewer — matching the token-gated result link. No-op when off.
   dest = appendVidapulseId(dest, await vidapulseParamForTenant(sub.assessment.tenantId), sub.customerId);
+  // When the onward URL IS a VidaPulse CTA tracking link, make sure it carries the
+  // canonical `cid` too: the append above uses the tenant's (renameable) embed param,
+  // which VidaPulse's CTA endpoint does not read. No-op for every other destination.
+  dest = stampVidapulseCtaUrl(dest, sub.customerId, sub.resultToken) ?? dest;
 
   return NextResponse.redirect(dest, 302);
 }

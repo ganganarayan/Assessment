@@ -25,6 +25,7 @@
     "verify:retake": "tsx scripts/verify-retake.ts",
     "verify:result": "tsx scripts/verify-result.ts",
     "verify:vsl": "tsx scripts/verify-vsl.ts",
+    "verify:cta-stamp": "tsx scripts/verify-cta-stamp.ts",
     "verify:capi": "tsx scripts/verify-capi.ts",
     "verify:ai": "tsx scripts/verify-ai.ts",
     "verify:report": "tsx scripts/verify-report.ts",

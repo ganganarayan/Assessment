@@ -15,6 +15,7 @@ export const CUSTOM_FIELD_KEYS = [
   "contact.score_raw",
   "contact.score_max",
   "contact.customer_id",
+  "contact.result_token",
   "contact.result_url",
   "contact.ai_statement",
   "contact.assess_profession",
@@ -33,6 +34,7 @@ export const CUSTOM_FIELD_LABELS: Record<CustomFieldKey, string> = {
   "contact.score_raw": "Score (raw)",
   "contact.score_max": "Score (max)",
   "contact.customer_id": "Customer ID",
+  "contact.result_token": "Result token (identifies CTA clicks)",
   "contact.result_url": "Result URL",
   "contact.ai_statement": "AI statement",
   "contact.assess_profession": "Profession",
@@ -62,6 +64,8 @@ export interface CustomFieldData {
   scoreRaw: number | null;
   scoreMax: number | null;
   customerId: string | null;
+  /** Stored on the contact so a CRM page can identify CTA clicks — see EmitInput.resultToken. */
+  resultToken: string | null;
   resultUrl: string | null;
   aiStatement: string | null;
   profession: string | null;
@@ -87,6 +91,7 @@ export function buildCustomPayload(
     "contact.score_raw": d.scoreRaw,
     "contact.score_max": d.scoreMax,
     "contact.customer_id": d.customerId,
+    "contact.result_token": d.resultToken,
     "contact.result_url": d.resultUrl,
     "contact.ai_statement": d.aiStatement,
     "contact.assess_profession": d.profession,

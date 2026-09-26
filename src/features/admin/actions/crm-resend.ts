@@ -375,6 +375,7 @@ export async function sendTestCustom(input: {
     scoreRaw: 46,
     scoreMax: 60,
     customerId: "TESTSEND",
+    resultToken: "TESTSENDTOKEN",
     resultUrl: `${env.NEXT_PUBLIC_APP_URL}/a/test/r/test_send`,
     aiStatement: "Test statement.",
     profession: "Test",
