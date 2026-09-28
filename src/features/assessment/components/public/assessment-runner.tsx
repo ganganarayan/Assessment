@@ -7,7 +7,8 @@ import {
   requestPreviousResults,
   saveDraftAnswers,
 } from "@/features/assessment/actions/submission";
-import { recordOptinView, recordGatePass } from "@/features/assessment/actions/track";
+import { recordOptinView, recordGatePass, recordGateDisqualification } from "@/features/assessment/actions/track";
+import { gateFlagKey, readGateRejection, writeGateRejection, shouldFireDisqualified, stampGateRejectionFired } from "@/lib/gate-flag";
 import { getResultForPages, type PageResultData } from "@/features/assessment/actions/pages";
 import { type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
@@ -314,6 +315,12 @@ export function AssessmentRunner({
     return () => window.removeEventListener("pageshow", onPageShow);
   }, [preview]);
 
+  // The rejection that put this visitor on the exit page. A fresh one carries the
+  // answer that caused it; a `repeat` is a revisit short-circuited by the stored flag,
+  // which must NOT re-fire the pixel (re-firing on every revisit is what inflated
+  // Meta's exclusion count over the real number of people rejected).
+  const dqCauseRef = useRef<{ questionId?: string; optionId?: string; repeat: boolean } | null>(null);
+
   // Early-skip: a visitor already rejected by the gate (localStorage flag) goes
   // straight to the exit page without seeing the questions again. Checked after mount
   // (localStorage isn't available during SSR). Cheap client-side layer that works from
@@ -321,24 +328,52 @@ export function AssessmentRunner({
   useEffect(() => {
     if (!qual || preview) return;
     try {
-      if (localStorage.getItem(`gate_dq:${assessment.slug}`) === "1") setStep("disqualified");
+      // A stored rejection never expires — a rejected visitor stays out of the funnel,
+      // and the bfcache reload above routes a back-navigation through here too.
+      if (readGateRejection(localStorage.getItem(gateFlagKey(assessment.slug))) !== null) {
+        dqCauseRef.current = { repeat: true };
+        setStep("disqualified");
+      }
     } catch {
       /* blocked storage — ignore */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fire the GateDisqualified exclusion pixel event once, whenever the exit page shows
-  // (from a fresh rejection or the early-skip). Meta builds the exclusion audience
-  // from this custom event.
+  // Record the rejection (the gate creates no lead or submission, so this row is the
+  // only trace) and send GateDisqualified when the exclusion audience needs it: on a
+  // fresh rejection, and again once membership is old enough to be worth renewing.
+  // Every other revisit stays silent — firing on each one is what inflated Meta's
+  // count past the number of people actually rejected.
   const dqFiredRef = useRef(false);
   useEffect(() => {
     if (step !== "disqualified" || dqFiredRef.current) return;
     dqFiredRef.current = true;
+    if (preview) return; // previewing the exit page is not a rejection
+    const cause = dqCauseRef.current ?? { repeat: true };
+
     if (assessment.disqualified?.fireDisqualifiedEvent) {
-      pixelTrackCustom(GATE_DISQUALIFIED_EVENT, { assessment: assessment.slug });
+      try {
+        const key = gateFlagKey(assessment.slug);
+        const rejection = readGateRejection(localStorage.getItem(key)) ?? { at: Date.now(), firedAt: null };
+        if (shouldFireDisqualified(rejection)) {
+          pixelTrackCustom(GATE_DISQUALIFIED_EVENT, { assessment: assessment.slug });
+          // Stamp only after the send, so a blocked pixel retries on the next visit
+          // rather than silently marking this visitor as reported.
+          localStorage.setItem(key, stampGateRejectionFired(rejection));
+        }
+      } catch {
+        /* blocked storage — fire nothing rather than fire on every visit */
+      }
     }
-  }, [step, assessment.disqualified?.fireDisqualifiedEvent, assessment.slug]);
+
+    void recordGateDisqualification(
+      assessment.slug,
+      { questionId: cause.questionId, optionId: cause.optionId, repeat: cause.repeat },
+      attribution,
+    ).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   // Record that the page-1 gate was PASSED — the only trace left by someone who
   // qualifies and then leaves before the opt-in (which is the last step, so no
@@ -510,12 +545,16 @@ export function AssessmentRunner({
         // Scoped per-assessment so one funnel's rejection doesn't block another.
         if (!preview) {
           try {
-            localStorage.setItem(`gate_dq:${assessment.slug}`, "1");
+            // Locks this browser out for good; the effect below sends the
+            // GateDisqualified event and stamps the flag once it has.
+            localStorage.setItem(gateFlagKey(assessment.slug), writeGateRejection());
           } catch {
             /* private mode / blocked storage — non-fatal */
           }
         }
-        setStep("disqualified"); // the GateDisqualified pixel event fires in an effect
+        // A fresh rejection: the effect fires the pixel event and records the row.
+        dqCauseRef.current = { questionId: qual?.questions[qualIndex]?.id, optionId: option.id, repeat: false };
+        setStep("disqualified");
         return;
       }
       if (!qual) return;

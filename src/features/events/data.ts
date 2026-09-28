@@ -256,8 +256,19 @@ export interface CapiLogRow {
 }
 
 /** Every captured payment's Purchase CAPI record + Meta's response (newest first). */
-export async function listCapiLogs(tenantId: string | null, take = 100): Promise<CapiLogRow[]> {
-  const rows = await prisma.capiLog.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take });
+/**
+ * CAPI log rows for one funnel. `scope` defaults to the assessment (respondent) funnel
+ * so the existing Conversions views keep showing what they always showed; the Assess360
+ * SaaS funnel's own signups and subscriptions live under scope "platform" and are read
+ * explicitly. Without the split both would appear here as bare "CompleteRegistration"
+ * rows with nothing to tell them apart.
+ */
+export async function listCapiLogs(
+  tenantId: string | null,
+  take = 100,
+  scope: "assessment" | "platform" = "assessment",
+): Promise<CapiLogRow[]> {
+  const rows = await prisma.capiLog.findMany({ where: { tenantId, scope }, orderBy: { createdAt: "desc" }, take });
   return rows.map((r) => ({
     id: r.id,
     providerPaymentId: r.providerPaymentId,
