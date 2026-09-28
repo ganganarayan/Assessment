@@ -35,13 +35,13 @@ enum StaffPermission {
 // ---------------------------------------------------------------------------
 
 model Tenant {
-  id        String       @id @default(cuid())
+  id        String   @id @default(cuid())
   // Unique subdomain slug, e.g. "acme" -> acme.example.com
-  slug      String       @unique
+  slug      String   @unique
   name      String
   status    TenantStatus @default(ACTIVE)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Billing (Phase 1). The SaaS subscription plan for THIS tenant, billed on the
   // PLATFORM-OWNER's Razorpay account in USD (NOT the tenant's own respondent keys).
@@ -57,23 +57,23 @@ model Tenant {
   // JSON; the common fields are denormalized for fast grouping in the platform funnel
   // dashboard. Null = organic / pre-dating this tracking.
   acquisitionAttribution Json?
-  acqUtmSource           String?
-  acqUtmMedium           String?
-  acqUtmCampaign         String?
-  acqUtmTerm             String?
-  acqUtmContent          String?
+  acqUtmSource   String?
+  acqUtmMedium   String?
+  acqUtmCampaign String?
+  acqUtmTerm     String?
+  acqUtmContent  String?
 
-  users          User[]
-  domains        Domain[]
-  theme          Theme?
-  assessments    Assessment[]
-  submissions    Submission[]
-  apiTokens      ApiToken[]
-  webhooks       Webhook[]
-  webhookLogs    WebhookLog[]
-  payments       Payment[]
-  capiLogs       CapiLog[]
-  setting        AppSetting?
+  users       User[]
+  domains     Domain[]
+  theme       Theme?
+  assessments Assessment[]
+  submissions Submission[]
+  apiTokens   ApiToken[]
+  webhooks    Webhook[]
+  webhookLogs WebhookLog[]
+  payments    Payment[]
+  capiLogs    CapiLog[]
+  setting     AppSetting?
   promptVersions AiPromptVersion[]
   subscription   Subscription?
   usageCounters  UsageCounter[]
@@ -127,11 +127,11 @@ enum UsageMetric {
 // ---------------------------------------------------------------------------
 
 model Domain {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   // Full hostname, e.g. "assess.acme.com"
-  hostname  String  @unique
-  isPrimary Boolean @default(false)
-  verified  Boolean @default(false)
+  hostname  String   @unique
+  isPrimary Boolean  @default(false)
+  verified  Boolean  @default(false)
 
   // Railway custom-domain provisioning. When RAILWAY_API_TOKEN is configured the app
   // registers this host with Railway (customDomainCreate) so Railway issues the TLS
@@ -183,7 +183,7 @@ model Theme {
 // ---------------------------------------------------------------------------
 
 model Subscription {
-  id     String             @id @default(cuid())
+  id     String @id @default(cuid())
   plan   Plan
   status SubscriptionStatus @default(PENDING)
 
@@ -280,19 +280,19 @@ model PlatformPageView {
   path      String?
   createdAt DateTime @default(now())
 
-  utmSource    String?
-  utmMedium    String?
-  utmCampaign  String?
-  utmTerm      String?
-  utmContent   String?
-  fbclid       String?
-  gclid        String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
+  fbclid      String?
+  gclid       String?
   referrerHost String?
 
   // Bot flag (excluded from human-facing metrics) + enrichment, mirroring PageView.
-  isBot      Boolean @default(false)
-  userAgent  String?
-  ip         String?
+  isBot     Boolean @default(false)
+  userAgent String?
+  ip        String?
   country    String?
   city       String?
   region     String?
@@ -328,22 +328,22 @@ model RazorpayPlan {
 // ---------------------------------------------------------------------------
 
 model User {
-  id                 String           @id @default(cuid())
-  name               String
-  email              String           @unique
-  emailVerified      Boolean          @default(false)
-  image              String?
-  role               Role             @default(ADMIN)
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  role          Role     @default(ADMIN)
   // NULL = full-access owner/admin. Set = staff member (VIEW read-only / EDIT).
-  staffPermission    StaffPermission?
+  staffPermission StaffPermission?
   // Soft delete: set = removed (hidden from active logins, unassigned from tenant,
   // sessions revoked) but recoverable from the "Deleted users" section.
-  deletedAt          DateTime?
+  deletedAt     DateTime?
   // TRUE after a super admin sets the password — the user is forced to change it on
   // next login before reaching the app; cleared once they set their own.
-  mustChangePassword Boolean          @default(false)
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  mustChangePassword Boolean @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Null for SUPER_ADMIN (platform-wide); set for ADMIN (tenant-scoped).
   tenantId String?
@@ -371,7 +371,7 @@ model Session {
   updatedAt DateTime @updatedAt
 
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("session")
@@ -392,7 +392,7 @@ model Account {
   updatedAt             DateTime  @updatedAt
 
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("account")
@@ -503,15 +503,15 @@ enum NextStep {
 // ---------------------------------------------------------------------------
 
 model Assessment {
-  id            String  @id @default(cuid())
-  slug          String  @unique
-  title         String
+  id               String           @id @default(cuid())
+  slug             String           @unique
+  title            String
   // Opt-in hero copy shown around the headline (title): eyebrow is a small kicker
   // ABOVE it, subheadline a secondary line BELOW it. Both optional; null = hidden.
-  eyebrow       String?
-  subheadline   String?
-  description   String?
-  coverImageUrl String?
+  eyebrow          String?
+  subheadline      String?
+  description      String?
+  coverImageUrl    String?
 
   // Funnel CTA styling: primary-button background + text colour (hex, e.g. "#16a34a").
   // Null = the default green/white theme, so existing funnels are unchanged.
@@ -521,7 +521,7 @@ model Assessment {
   // Per-assessment heatmap/session-recording snippet (e.g. MS Clarity), set in the
   // builder. Injected on THIS assessment's funnel; null/blank falls back to the tenant's
   // Settings-level snippet (resolveHeatmapCode), so a workspace default still applies.
-  heatmapCode String?
+  heatmapCode     String?
 
   // Optional "pre-results" data-capture page shown AFTER the questions, BEFORE the
   // results. preResultFields = ordered JSON [{ id, label, type: "text"|"select",
@@ -534,26 +534,26 @@ model Assessment {
   thankYouMessage  String?
 
   // Lead-capture configuration: enable + require each field independently.
-  collectFirstName   Boolean  @default(true)
-  firstNameRequired  Boolean  @default(true) // name mandatory by default; unset per assessment if not needed
-  collectLastName    Boolean  @default(true)
-  lastNameRequired   Boolean  @default(false)
-  collectEmail       Boolean  @default(true)
-  emailRequired      Boolean  @default(true)
-  collectMobile      Boolean  @default(true)
-  mobileRequired     Boolean  @default(true) // phone mandatory by default; unset per assessment if not needed
-  collectProfession  Boolean  @default(true)
-  professionRequired Boolean  @default(true)
+  collectFirstName  Boolean @default(true)
+  firstNameRequired Boolean @default(true) // name mandatory by default; unset per assessment if not needed
+  collectLastName   Boolean @default(true)
+  lastNameRequired  Boolean @default(false)
+  collectEmail      Boolean @default(true)
+  emailRequired     Boolean @default(true)
+  collectMobile     Boolean @default(true)
+  mobileRequired    Boolean @default(true) // phone mandatory by default; unset per assessment if not needed
+  collectProfession  Boolean @default(true)
+  professionRequired Boolean @default(true)
   // Custom profession dropdown options. Empty = the built-in default list.
   professionOptions  String[] @default([])
 
   // Editable lead-field LABELS on the opt-in form. Null = the built-in default
   // ("First name", "Email", "Profession", …). Only the label changes, not the field.
-  firstNameLabel        String?
-  lastNameLabel         String?
-  emailLabel            String?
-  mobileLabel           String?
-  professionLabel       String?
+  firstNameLabel  String?
+  lastNameLabel   String?
+  emailLabel      String?
+  mobileLabel     String?
+  professionLabel String?
   // Placeholder shown in the profession dropdown (null = "Select your profession").
   professionPlaceholder String?
 
@@ -570,8 +570,8 @@ model Assessment {
   // Editable intro copy. introNotice overrides the auto retake message on the
   // opt-in screen (null = the computed message). startButtonLabel overrides the
   // opt-in button text (null/empty = "Start").
-  introNotice        String?
-  startButtonLabel   String?
+  introNotice      String?
+  startButtonLabel String?
   // Lead-capture-AFTER only: the opt-in button shown AFTER the questions. Distinct
   // from startButtonLabel (the landing's Start). null/empty = "Show my results".
   resultsButtonLabel String?
@@ -599,7 +599,7 @@ model Assessment {
   // Explicit "next step" after the Results page. Source of truth for the flow;
   // paidMode below is kept in sync (PAYMENT => paidMode true) so existing payment,
   // event, and runner logic keeps working unchanged.
-  nextStep            NextStep            @default(DESTINATION)
+  nextStep            NextStep           @default(DESTINATION)
 
   // Destination page the respondent lands on after completing (with ?t=<token>).
   // Its ORIGIN (derived on save) is what authorizes the public read endpoint's
@@ -616,7 +616,7 @@ model Assessment {
   resultsContinueLabel String? // button text; null/blank => "Continue"
   // Anticipation countdown (seconds) shown after Submit before the destination/VSL
   // loads. 0 = redirect immediately. Default 10.
-  vslCountdownSeconds  Int     @default(10)
+  vslCountdownSeconds Int @default(10)
 
   // Per-assessment reporting floor ("Data window"). When set, this assessment's own
   // Stats/Submissions/Contacts count only records at/after this instant. Independent
@@ -701,14 +701,14 @@ model Assessment {
   createdById String?
   createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
-  categories            Category[]
-  resultBands           ResultBand[]
-  submissions           Submission[]
-  pageViews             PageView[]
+  categories  Category[]
+  resultBands ResultBand[]
+  submissions Submission[]
+  pageViews   PageView[]
   gateDisqualifications GateDisqualification[]
-  ctaClicks             CtaClick[]
-  pages                 AssessmentPage[]
-  gateEntries           GateEntry[]
+  ctaClicks   CtaClick[]
+  pages       AssessmentPage[]
+  gateEntries GateEntry[]
 
   @@index([tenantId])
   @@index([status])
@@ -758,11 +758,11 @@ model PageBlock {
 // ---------------------------------------------------------------------------
 
 model PageView {
-  id           String     @id @default(cuid())
+  id           String   @id @default(cuid())
   assessmentId String
   assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   visitorId    String
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime @default(now())
 
   // Marketing attribution captured at page-view time (before any lead exists),
   // so traffic-source counts populate even with zero opt-ins.
@@ -778,11 +778,11 @@ model PageView {
   // (e.g. Meta's ad-review agent, which hits the bare URL with no UTM). Recorded
   // for audit but excluded from every human-facing metric. userAgent kept so a
   // misclassification is inspectable.
-  isBot      Boolean @default(false)
-  userAgent  String?
+  isBot     Boolean @default(false)
+  userAgent String?
   // Client IP (x-forwarded-for first hop). Captured for the log + bot triage; not
   // shown publicly. Admin-only visibility.
-  ip         String?
+  ip        String?
   // Geo (Cloudflare headers) + device (parsed UA). Enrichment for the log/export;
   // all null when the CF location-headers transform is off / UA is unknown.
   country    String?
@@ -867,7 +867,7 @@ model Question {
   answers SubmissionAnswer[]
   // Conditional routing: rules that fire when one of THIS question's options is
   // chosen (the option is the trigger). See QuestionRoute + lib/routing/engine.ts.
-  routes  QuestionRoute[]    @relation("QuestionRoutes")
+  routes  QuestionRoute[] @relation("QuestionRoutes")
 
   @@index([categoryId])
   @@map("question")
@@ -915,21 +915,21 @@ model QuestionRoute {
 // ---------------------------------------------------------------------------
 
 model Option {
-  id              String   @id @default(cuid())
-  label           String
+  id           String   @id @default(cuid())
+  label        String
   // GENERIC engine: the score point (1..4). CLINIC_AUDIT engine: the working figure
   // for the question's scoringRole — rupees/counts as-is (90000, 90), rates & uplift
   // as whole-number percent (32 = 0.32 book rate, 6 = +0.06 uplift). Int-only.
-  value           Int
+  value        Int
   // CLINIC_AUDIT: fixed "weakest area" diagnosis line shown when this answer is one
   // of the two weakest (assembled, never AI-generated). Null = no clause.
   diagnosisClause String?
   // CLINIC_AUDIT: marks an "I don't know / not sure" option, so the engine uses this
   // value as a fallback assumption and surfaces it on the result page for correction.
-  isAssumption    Boolean  @default(false)
-  displayOrder    Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  isAssumption Boolean  @default(false)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -997,9 +997,9 @@ model Submission {
   id     String           @id @default(cuid())
   status SubmissionStatus @default(STARTED)
 
-  /// First time this respondent clicked a result-page booking CTA. Denormalized from
-  /// CtaClick so the Submissions table can show and sort a "Booking requested" column
-  /// without a join. Null = never asked for a call.
+  // First time this respondent clicked a result-page booking CTA. Denormalized from
+  // CtaClick so the Submissions table can show and sort a "Booking requested" column
+  // without a join. Null = never asked for a call.
   ctaClickedAt DateTime?
 
   leadFirstName  String?
@@ -1034,31 +1034,31 @@ model Submission {
   // cookie was set late. Exposed via /api/meta-match for an external CAPI sender
   // (n8n). fbclidTimestamp = unix seconds when the fbclid was first recorded, so
   // fbc can be rebuilt as fb.1.<ts>.<fbclid> when the _fbc cookie is absent.
-  clientIp             String?
-  userAgent            String?
-  fbp                  String?
-  fbc                  String?
+  clientIp        String?
+  userAgent       String?
+  fbp             String?
+  fbc             String?
   // First-party id (per-visitor UUID from the browser's localStorage), captured at
   // Start. Sent as external_id in Meta CAPI user_data (a standalone match key, no PII)
   // and matches the browser pixel's advanced-matching external_id.
-  metaExternalId       String?
+  metaExternalId  String?
   // Answers to the qualification gate's TEXT questions (keyed by question id). For
   // MANUAL review only (never qualifies) — surfaced in the Submissions "Custom details".
   qualificationAnswers Json?
   // Geo (Cloudflare) + device (parsed UA), captured at Start. region/postalCode feed
   // Meta CAPI advanced matching (st/zp); country is the 2-letter ISO code.
-  country              String?
-  city                 String?
-  region               String?
-  postalCode           String?
-  timezone             String?
-  deviceType           String?
-  browser              String?
-  os                   String?
+  country         String?
+  city            String?
+  region          String?
+  postalCode      String?
+  timezone        String?
+  deviceType      String?
+  browser         String?
+  os              String?
   // Unix MILLISECONDS (matches Meta's fbc format fb.1.<ms>.<fbclid> exactly, so no
   // unit conversion anywhere). Double, because a ms epoch overflows Int4 — the value
   // is always an integer and is exact in a double well beyond any realistic date.
-  fbclidTimestamp      Float?
+  fbclidTimestamp Float?
 
   // Normalized retake/dedup key (lowercased email or digits-only mobile),
   // captured at start per the assessment's uniqueIdentifier. Indexed for the
@@ -1081,7 +1081,7 @@ model Submission {
   aiStatement String?
   // Admin-authored "Add to PDF" note — the post-call action items / meeting summary
   // appended at the bottom of the PDF report. Not shown to the respondent elsewhere.
-  reportNote  String? @db.Text
+  reportNote String? @db.Text
 
   totalScore Float?
   maxScore   Float?
@@ -1099,9 +1099,9 @@ model Submission {
   // started — never contacts dirtied later. Cleared on successful send.
   crmQueuedAt  DateTime?
 
-  startedAt          DateTime  @default(now())
-  completedAt        DateTime?
-  abandonedAt        DateTime? // set by the abandonment sweep when STARTED past the delay
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  abandonedAt    DateTime? // set by the abandonment sweep when STARTED past the delay
   // Manual Meta review (Submissions table buttons). The owner reads the lead and
   // fires QualifiedCompletion or GateDisqualified by hand — for the gate's TEXT
   // answers, which never auto-qualify. Stamps exist so a reviewed row is visibly
@@ -1109,26 +1109,26 @@ model Submission {
   metaQualifiedAt    DateTime?
   metaDisqualifiedAt DateTime?
   // Paid-mode pipeline guards (compare-and-swap so each event fires once):
-  completedPaidAt    DateTime? // set when completed_paid fired (payment verified)
-  completedUnpaidAt  DateTime? // set when completed_unpaid fired (sweep, 30 min unpaid)
+  completedPaidAt   DateTime? // set when completed_paid fired (payment verified)
+  completedUnpaidAt DateTime? // set when completed_unpaid fired (sweep, 30 min unpaid)
   // Autosaved in-progress answers (questionId -> optionId) so a returning unpaid
   // respondent resumes + edits where they left off, until they pay.
-  draftAnswers       Json?
-  resultViewedAt     DateTime? // set once when the internal result page is first viewed
-  resultFetchedAt    DateTime? // set on first /api/r read = the VSL page pulled the result
-  resultFetchCount   Int       @default(0) // total /api/r reads = how many times the VSL loaded
+  draftAnswers      Json?
+  resultViewedAt DateTime? // set once when the internal result page is first viewed
+  resultFetchedAt DateTime? // set on first /api/r read = the VSL page pulled the result
+  resultFetchCount Int @default(0) // total /api/r reads = how many times the VSL loaded
   // Nurture (one-shot Email + WhatsApp on opt-in): stamped when nurture is FIRST
   // attempted for this submission, so a re-submit/edit never re-sends. Null = not run.
-  nurtureSentAt      DateTime?
+  nurtureSentAt  DateTime?
   // Billing gate: the 1-based index of this completion WITHIN its tenant's billing
   // period (stamped once, at the winning STARTED->COMPLETED flip, from the RESPONSES
   // usage counter). A response is "over cap / locked" when periodSeq > the tenant's
   // CURRENT responsesPerMonth limit — compared live, so raising the plan instantly
   // unlocks past leads with no backfill. null = completed before this gate shipped
   // (grandfathered visible) or an unmetered platform/Gita submission.
-  periodSeq          Int?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  periodSeq      Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   assessmentId String
   assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
@@ -1145,12 +1145,13 @@ model Submission {
   aiStatements   AiStatement[]
   crmSendJobs    CrmSendQueue[]
   nurtureLogs    NurtureLog[]
-  ctaClicks      CtaClick[]
 
   @@index([assessmentId])
   @@index([leadEmail])
   @@index([createdAt])
   @@index([status, startedAt]) // abandonment sweep
+  ctaClicks CtaClick[]
+
   @@index([assessmentId, identifierValue, status]) // retake lockout + trend
   @@index([crmDirty]) // CRM resend drip queue
   @@map("submission")
@@ -1183,17 +1184,17 @@ model GateEntry {
   visitorId String
 
   // Meta match signals, captured server-side when the gate was passed.
-  clientIp    String?
-  userAgent   String?
-  fbp         String?
-  fbc         String?
-  country     String?
-  city        String?
-  region      String?
-  postalCode  String?
+  clientIp   String?
+  userAgent  String?
+  fbp        String?
+  fbc        String?
+  country    String?
+  city       String?
+  region     String?
+  postalCode String?
   attribution Json?
 
-  passedAt         DateTime  @default(now())
+  passedAt DateTime @default(now())
   /// Compare-and-swap guard: set when AssessmentAbandoned fired, so it fires once.
   abandonedFiredAt DateTime?
 
@@ -1210,9 +1211,9 @@ model GateEntry {
 // retry) so an operator can see and re-send. Scoped per tenant.
 // ---------------------------------------------------------------------------
 model NurtureLog {
-  id           String      @id @default(cuid())
+  id           String   @id @default(cuid())
   tenantId     String?
-  tenant       Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   submissionId String?
   submission   Submission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
   channel      String // "EMAIL" | "WABA"
@@ -1223,7 +1224,7 @@ model NurtureLog {
   // /e/c/[id] click-redirect; null = not clicked (or not an email). Opens are not
   // tracked (deliberately — pixel opens are noisy); a click is the reliable signal.
   clickedAt    DateTime?
-  createdAt    DateTime    @default(now())
+  createdAt    DateTime @default(now())
 
   @@index([tenantId, createdAt])
   @@index([submissionId])
@@ -1238,15 +1239,15 @@ model NurtureLog {
 // ---------------------------------------------------------------------------
 
 model AiStatement {
-  id            String     @id @default(cuid())
+  id            String   @id @default(cuid())
   submissionId  String
   submission    Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   text          String
-  source        String     @default("ai") // "ai" | "manual"
+  source        String   @default("ai") // "ai" | "manual"
   instruction   String? // admin steering (source=ai); null for manual / original
   promptVersion String? // base prompt version id (source=ai)
-  isDefault     Boolean    @default(false)
-  createdAt     DateTime   @default(now())
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
 
   @@index([submissionId])
   @@map("ai_statement")
@@ -1323,12 +1324,12 @@ enum EventType {
 // ---------------------------------------------------------------------------
 
 model EventLog {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   type      EventType
   name      String // dotted public name, e.g. "assessment.completed"
   payload   Json
-  source    String    @default("assess360") // future: "external" for ingested events
-  createdAt DateTime  @default(now())
+  source    String   @default("assess360") // future: "external" for ingested events
+  createdAt DateTime @default(now())
 
   submissionId String?
   assessmentId String?
@@ -1356,10 +1357,10 @@ enum WebhookStatus {
 }
 
 model Webhook {
-  id               String        @id @default(cuid())
+  id String @id @default(cuid())
   // The internal event that TRIGGERS this webhook (delivery matches on this, not
   // on name) — so the name is free for the CRM. Many webhooks may share a trigger.
-  eventType        EventType
+  eventType EventType
   // The delivered event identifier (free format: lowercase, "." or "_"). Becomes
   // event / event_type / contact.event_type in the payload. Name is editable only
   // until the first successful delivery (then frozen to protect a working CRM
@@ -1367,14 +1368,14 @@ model Webhook {
   // same event may fan out to several endpoints (multiple CRMs). Only an exact
   // (tenant, name, url) triple is blocked (see @@unique), so a duplicate endpoint
   // can't be added twice.
-  name             String
-  url              String
-  status           WebhookStatus @default(ACTIVE)
-  secret           String // HMAC-SHA256 signing secret for X-Assess-Signature
+  name      String
+  url       String
+  status    WebhookStatus @default(ACTIVE)
+  secret    String // HMAC-SHA256 signing secret for X-Assess-Signature
   // Set on the first successful (2xx) delivery; once set, name/url are locked.
   firstDeliveredAt DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   // Owning tenant. null = platform/Gita (the existing global webhooks). Delivery
   // fires only to webhooks whose tenantId matches the emitting submission's tenant.
@@ -1504,16 +1505,16 @@ model CrmSendQueue {
 // ---------------------------------------------------------------------------
 
 model Payment {
-  id                String    @id @default(cuid())
-  provider          String    @default("razorpay")
-  providerPaymentId String?   @unique // razorpay payment id — dedups webhook retries
+  id                String   @id @default(cuid())
+  provider          String   @default("razorpay")
+  providerPaymentId String?  @unique // razorpay payment id — dedups webhook retries
   providerOrderId   String?
   providerLinkId    String? // razorpay payment_link id
   purpose           String // "assessment_unlock" | (future) "subscription"
   plan              String? // future: "starter" | "pro"
   submissionId      String?
   amount            Int? // paise
-  currency          String    @default("INR")
+  currency          String   @default("INR")
   status            String // "paid" | "captured" | …
   method            String? // card / upi / netbanking / …
   event             String? // razorpay event that recorded it
@@ -1521,8 +1522,8 @@ model Payment {
   // Set when the Meta Purchase conversion (CAPI) was confirmed sent for this
   // payment — null = never fired. Authoritative answer to "did Meta get this sale".
   metaConversionAt  DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   // Owning tenant (denormalized from the submission; null = platform/Gita).
   tenantId String?
@@ -1550,17 +1551,17 @@ model Payment {
 // ---------------------------------------------------------------------------
 
 model CapiLog {
-  id                String    @id @default(cuid())
-  providerPaymentId String?   @unique // razorpay payment id = the Meta event_id
+  id                String  @id @default(cuid())
+  providerPaymentId String? @unique // razorpay payment id = the Meta event_id
   email             String?
   phone             String?
   name              String?
   amountPaise       Int?
-  currency          String    @default("INR")
+  currency          String  @default("INR")
   eventName         String // Purchase, or the high-ticket event name
-  matched           Boolean   @default(false) // attribution found from a submission
-  autoFired         Boolean   @default(false) // fired automatically (vs manual)
-  status            String    @default("pending") // pending | sent | failed
+  matched           Boolean @default(false) // attribution found from a submission
+  autoFired         Boolean @default(false) // fired automatically (vs manual)
+  status            String  @default("pending") // pending | sent | failed
   httpStatus        Int?
   response          String? // Meta's response body (truncated) or the error
   submissionId      String?
@@ -1607,22 +1608,22 @@ model AiPromptVersion {
 }
 
 model AppSetting {
-  id       String  @id @default("singleton")
+  id                  String   @id @default("singleton")
   // Owning tenant. The platform/Gita config is the id="singleton" row (tenantId null),
   // unchanged; each tenant gets ONE additional row. A tenant NEVER reads the singleton
   // (so Gita's API keys/config stay private) — an unconfigured tenant simply has no AI.
   tenantId String? @unique
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  abandonedAfterHours Int @default(24)
+  abandonedAfterHours Int      @default(24)
 
   // Legal / company details shown ONLY on the public policy pages (/privacy,
   // /terms, /refund) — never on the marketing landing. Read from the singleton row
   // by those pages and substituted into the India-focused policy copy. Blank =
   // a visible placeholder telling the owner to fill it in Settings.
-  legalEntityName        String?
-  legalAddress           String?
-  legalContactEmail      String?
+  legalEntityName       String?
+  legalAddress          String?
+  legalContactEmail     String?
   legalGoverningLocation String? // e.g. "Bengaluru, Karnataka" — governing-law seat
 
   // Support contact shown to RESPONDENTS. When a tenant is over its response cap, a
@@ -1630,29 +1631,29 @@ model AppSetting {
   // support" screen instead of their scorecard, with this address. Blank = no address
   // shown (the screen still renders, just without a mailto). Per-tenant; the singleton
   // row holds the platform/Gita fallback.
-  supportEmail String?
+  supportEmail          String?
 
   // AI personalized-statement config (platform-level). The API key is stored
   // ENCRYPTED at rest (see lib/crypto) and never returned to the client.
-  aiEnabled       Boolean @default(false)
-  aiProvider      String? // "claude" | "openai" | "gemini" — which provider to USE
-  aiModel         String?
+  aiEnabled   Boolean @default(false)
+  aiProvider  String? // "claude" | "openai" | "gemini" — which provider to USE
+  aiModel     String?
   // Legacy single key (kept for back-compat/fallback). New keys are stored PER
   // provider below, so switching provider/model never re-prompts or breaks.
-  aiApiKeyEnc     String?
+  aiApiKeyEnc String?
   // One ENCRYPTED key per provider, saved once and reused. The active provider
   // (aiProvider) selects which of these is used at generation time.
-  aiClaudeKeyEnc  String?
-  aiOpenAiKeyEnc  String?
-  aiGeminiKeyEnc  String?
-  aiGuidance      String?
+  aiClaudeKeyEnc String?
+  aiOpenAiKeyEnc String?
+  aiGeminiKeyEnc String?
+  aiGuidance  String?
   // Default result-statement prompt version — the tenant-wide default that a new
   // assessment inherits (an assessment can override via Assessment.aiPromptVersionId).
   // May be a built-in code id ("v1-mentor"/"v2-easy-read") or an AiPromptVersion id.
   aiPromptVersion String?
   // Tenant-wide word-count window the assembled system prompt asks the model for.
-  aiWordMin       Int     @default(200)
-  aiWordMax       Int     @default(280)
+  aiWordMin Int @default(200)
+  aiWordMax Int @default(280)
 
   // Per-tenant Meta (ads) config. On the singleton these stay null and the code uses
   // the platform env (NEXT_PUBLIC_META_PIXEL_ID / META_CAPI_ACCESS_TOKEN); a tenant
@@ -1721,13 +1722,13 @@ model AppSetting {
   // SMTP transactional email. Password ENCRYPTED at rest, never returned to the
   // client. Each tenant has its OWN sender; the singleton row is the platform/Gita
   // sender. No env fallback (new feature) — unconfigured => that channel just no-ops.
-  smtpHost               String?
-  smtpPort               Int?
-  smtpSecure             Boolean @default(false)
-  smtpUser               String?
-  smtpPassEnc            String?
-  smtpFromName           String?
-  smtpFromEmail          String?
+  smtpHost      String?
+  smtpPort      Int?
+  smtpSecure    Boolean @default(false)
+  smtpUser      String?
+  smtpPassEnc   String?
+  smtpFromName  String?
+  smtpFromEmail String?
   // Meta WhatsApp Cloud API (business-initiated = approved TEMPLATE messages only).
   // Access token ENCRYPTED. apiVersion/countryCode fall back to code defaults when blank.
   wabaPhoneNumberId      String?
@@ -1740,23 +1741,23 @@ model AppSetting {
   wabaDefaultCountryCode String? // e.g. "91" — prepended to bare local mobiles for E.164
   // The Nurture messages + on/off toggles, as JSON:
   //   { email: { enabled, subject, body }, waba: { enabled, template, lang, vars: string[] } }
-  nurtureConfig          Json?
+  nurtureConfig Json?
 
   // CRM "score_updated" resend: the destination endpoint (separate from the
   // configured webhooks) and a persisted "drip is active" flag for status/resume.
   // crmDripActive doubles as the SCORE worker's "armed" flag (boot-resume).
-  crmResendUrl      String?
-  crmDripActive     Boolean @default(false)
+  crmResendUrl  String?
+  crmDripActive Boolean @default(false)
   // SCORE sender daily window (IST hours) + random delay between sends (minutes).
-  crmScoreStartHour Int     @default(9) // inclusive, 0-23 IST
-  crmScoreEndHour   Int     @default(21) // exclusive, 0-23 IST
-  crmScoreDelayMin  Int     @default(10)
-  crmScoreDelayMax  Int     @default(12)
+  crmScoreStartHour Int @default(9)  // inclusive, 0-23 IST
+  crmScoreEndHour   Int @default(21) // exclusive, 0-23 IST
+  crmScoreDelayMin  Int @default(10)
+  crmScoreDelayMax  Int @default(12)
 
   // CRM "diagnosis_update" backfill: its OWN automation endpoint, distinct from
   // crmResendUrl (which is the WhatsApp-firing score_updated automation). This is
   // now the generic CUSTOM sender's endpoint — refuses to run until set.
-  crmDiagnosisUrl    String?
+  crmDiagnosisUrl String?
   // CUSTOM sender (was "Diagnosis"): fully configurable name, routing event_type,
   // selected payload fields, daily IST window, random delay, and armed flag.
   crmCustomName      String   @default("Diagnosis")
@@ -1768,8 +1769,8 @@ model AppSetting {
   crmCustomDelayMax  Int      @default(12)
   crmCustomActive    Boolean  @default(false)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@map("app_setting")
 }
@@ -1780,11 +1781,11 @@ model AppSetting {
 /// ASSESSMENT FUNNEL ONLY — the SaaS signup + subscription paths have no gate and
 /// never write here. High-write + fail-soft, mirroring PageView's conventions.
 model GateDisqualification {
-  id           String     @id @default(cuid())
+  id           String   @id @default(cuid())
   assessmentId String
   assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   visitorId    String
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime @default(now())
 
   // Which gate answer rejected them. Null on a `repeat` row, where the visitor is
   // skipped straight to the exit page from the stored flag without re-answering.
@@ -1808,9 +1809,9 @@ model GateDisqualification {
   gclid       String?
 
   // Automated-client flag + enrichment, identical in meaning to PageView's.
-  isBot      Boolean @default(false)
-  userAgent  String?
-  ip         String?
+  isBot     Boolean @default(false)
+  userAgent String?
+  ip        String?
   country    String?
   city       String?
   region     String?
@@ -1849,13 +1850,13 @@ model CtaClick {
   submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   assessmentId String
   assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  /// Owning tenant (denormalized from the submission; null = platform/Gita).
+  // Owning tenant (denormalized from the submission; null = platform/Gita).
   tenantId     String?
   createdAt    DateTime   @default(now())
 
-  /// Which button block was clicked, and what it said/pointed at when clicked — the
-  /// page is editable, so the label and destination are snapshotted rather than looked
-  /// up later against a block that may have changed or been deleted.
+  // Which button block was clicked, and what it said/pointed at when clicked — the
+  // page is editable, so the label and destination are snapshotted rather than looked
+  // up later against a block that may have changed or been deleted.
   blockId        String
   label          String?
   destinationUrl String?
@@ -1863,8 +1864,8 @@ model CtaClick {
   ip        String?
   userAgent String?
 
-  /// Durable owner notification (native SMTP). "pending" until it lands; the cron
-  /// retries on the backoff below and marks "dead" only once the schedule is spent.
+  // Durable owner notification (native SMTP). "pending" until it lands; the cron
+  // retries on the backoff below and marks "dead" only once the schedule is spent.
   notifyEmail         String?
   notifyStatus        String    @default("pending") // pending | sent | dead | skipped
   notifyAttempts      Int       @default(0)
