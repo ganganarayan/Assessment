@@ -7,14 +7,14 @@ import {
   requestPreviousResults,
   saveDraftAnswers,
 } from "@/features/assessment/actions/submission";
-import { recordOptinView, recordGateDisqualification } from "@/features/assessment/actions/track";
+import { recordOptinView, recordGatePass, recordGateDisqualification } from "@/features/assessment/actions/track";
 import { gateFlagKey, readGateRejection, writeGateRejection } from "@/lib/gate-flag";
 import { getResultForPages, type PageResultData } from "@/features/assessment/actions/pages";
 import { type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
 import { type PaymentCheckout } from "@/lib/payments/types";
 import { ResultPages } from "@/features/assessment/components/public/result-pages";
-import { type LeadInput, professionOptionsFor, completionEventName, type PreResultField } from "@/features/assessment/schemas";
+import { type LeadInput, professionOptionsFor, completionEventName, GATE_DISQUALIFIED_EVENT, type PreResultField } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { getOrCreateExternalId } from "@/lib/external-id";
 import { appendVidapulseId } from "@/lib/vidapulse";
@@ -340,19 +340,18 @@ export function AssessmentRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Record the rejection (so the gate's reach is visible in-app — the gate creates no
-  // lead or submission, so this row is the only trace) and fire the GateDisqualified
-  // exclusion event ONLY on a fresh rejection. A revisit inside the TTL is already in
-  // Meta's audience; once the TTL lapses the visitor re-answers the gate and a fresh
-  // rejection refreshes it.
+  // Record the rejection (the gate creates no lead or submission, so this row is the
+  // only trace) and fire the GateDisqualified exclusion event ONLY on a fresh
+  // rejection. A revisit inside the TTL is already in Meta's audience; once the TTL
+  // lapses the visitor re-answers the gate and a fresh rejection refreshes it.
   const dqFiredRef = useRef(false);
   useEffect(() => {
     if (step !== "disqualified" || dqFiredRef.current) return;
     dqFiredRef.current = true;
-    const cause = dqCauseRef.current ?? { repeat: true };
     if (preview) return; // previewing the exit page is not a rejection
+    const cause = dqCauseRef.current ?? { repeat: true };
     if (!cause.repeat && assessment.disqualified?.fireDisqualifiedEvent) {
-      pixelTrackCustom("GateDisqualified", { assessment: assessment.slug });
+      pixelTrackCustom(GATE_DISQUALIFIED_EVENT, { assessment: assessment.slug });
     }
     void recordGateDisqualification(
       assessment.slug,
@@ -361,6 +360,30 @@ export function AssessmentRunner({
     ).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
+
+  // Record that the page-1 gate was PASSED — the only trace left by someone who
+  // qualifies and then leaves before the opt-in (which is the last step, so no
+  // Submission exists yet). Nothing is sent to Meta here: AssessmentAbandoned is
+  // fired later by the sweep, once it can tell an abandoner from a completer.
+  //
+  // Called from BOTH gate exits (the last radio question and the text-question
+  // Continue), guarded by a ref for this mount and by localStorage across mounts,
+  // so a refresh or a return visit doesn't re-record. Fire-and-forget — the
+  // respondent never waits on it, and a failure never blocks entry.
+  const gatePassFiredRef = useRef(false);
+  function markGatePassed() {
+    if (preview || gatePassFiredRef.current) return;
+    gatePassFiredRef.current = true;
+    try {
+      if (localStorage.getItem(`gate_pass:${assessment.slug}`) === "1") return;
+      localStorage.setItem(`gate_pass:${assessment.slug}`, "1");
+    } catch {
+      /* private mode / blocked storage — fall through and record anyway */
+    }
+    const vid = getOrCreateExternalId();
+    if (!vid) return; // no first-party id → nothing Meta could match on later
+    void recordGatePass(assessment.slug, vid, attribution).catch(() => {});
+  }
 
   // Autosave progress (debounced) so a returning unpaid respondent resumes where
   // they left off. Only while answering, only once they've picked something.
@@ -508,8 +531,8 @@ export function AssessmentRunner({
         // Scoped per-assessment so one funnel's rejection doesn't block another.
         if (!preview) {
           try {
-            // Timestamped, so the rejection expires instead of shutting this browser
-            // out of the funnel permanently.
+            // Timestamped, so the rejection expires instead of shutting this
+            // browser out of the funnel permanently.
             localStorage.setItem(gateFlagKey(assessment.slug), writeGateRejection());
           } catch {
             /* private mode / blocked storage — non-fatal */
@@ -522,7 +545,10 @@ export function AssessmentRunner({
       }
       if (!qual) return;
       if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
-      else setStep(gated ? "gate" : "intro");
+      else {
+        markGatePassed(); // cleared the whole gate — they are now in the funnel
+        setStep(gated ? "gate" : "intro");
+      }
     }, 160);
   }
 
@@ -537,7 +563,10 @@ export function AssessmentRunner({
     setError(null);
     if (!qual) return;
     if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
-    else setStep(gated ? "gate" : "intro");
+    else {
+      markGatePassed(); // cleared the whole gate — they are now in the funnel
+      setStep(gated ? "gate" : "intro");
+    }
   }
 
   // Audience gate "Continue": a redirecting choice hops to its assessment; a

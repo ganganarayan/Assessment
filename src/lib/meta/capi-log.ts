@@ -1,10 +1,22 @@
-import "server-only";
+// Deliberately NOT `server-only`: the Railway cron (tsx scripts/sweep-abandoned.ts)
+// fires AssessmentAbandoned through here, and that process runs outside Next, where
+// the `server-only` package does not resolve at all. Client bundling is still
+// impossible — this module pulls in prisma and env, which fail loudly in a browser
+// build — so the guard was buying nothing the imports below don't already enforce.
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
-import { tenantCan } from "@/lib/billing/entitlements";
+import { tenantCan } from "@/lib/billing/plan-resolve";
 import { sendCapiEventVerbose, isCapiConfigured } from "@/lib/meta/send";
 import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
 import type { CapiEventInput } from "@/lib/meta/capi";
+
+/** Outcome of a logged CAPI send. Returned so a UI that fires one BY HAND can
+ *  report what actually happened, instead of claiming success and leaving the
+ *  truth only in the log. Auto callers keep ignoring it (`void …catch()`). */
+export interface CapiSendOutcome {
+  ok: boolean;
+  error?: string;
+}
 
 /**
  * Fire a LIFECYCLE Meta CAPI event (opt-in `CompleteRegistration`, completion
@@ -18,7 +30,7 @@ import type { CapiEventInput } from "@/lib/meta/capi";
 export async function sendAndLogLifecycleCapi(
   input: CapiEventInput,
   ctx: { tenantId: string | null; submissionId: string | null; name?: string | null },
-): Promise<void> {
+): Promise<CapiSendOutcome> {
   const base = {
     eventName: input.eventName,
     email: input.user.email ?? null,
@@ -38,7 +50,7 @@ export async function sendAndLogLifecycleCapi(
     await prisma.capiLog
       .create({ data: { ...base, status: "failed", response: "Conversions API requires the Growth plan or higher." } })
       .catch(() => {});
-    return;
+    return { ok: false, error: "Conversions API requires the Growth plan or higher." };
   }
 
   if (!(await isCapiConfigured(ctx.tenantId))) {
@@ -46,7 +58,7 @@ export async function sendAndLogLifecycleCapi(
     await prisma.capiLog
       .create({ data: { ...base, status: "failed", response: "Meta CAPI not configured for this scope." } })
       .catch(() => {});
-    return;
+    return { ok: false, error: "Meta CAPI is not configured for this scope (Settings → Integrations)." };
   }
 
   const r = await sendCapiEventVerbose(input, ctx.tenantId);
@@ -60,6 +72,9 @@ export async function sendAndLogLifecycleCapi(
       },
     })
     .catch(() => {});
+  return r.ok
+    ? { ok: true }
+    : { ok: false, error: (r.error ?? r.response ?? "Meta rejected the event.").slice(0, 300) };
 }
 
 /** Submission fields a fully-attributed Purchase needs. */
