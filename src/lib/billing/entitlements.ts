@@ -1,18 +1,7 @@
 import "server-only";
-import { Prisma, type Plan, type SubscriptionStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import {
-  PLAN_LIMITS,
-  UNLIMITED_LIMITS,
-  applyOverrides,
-  hasFeature,
-  parseLimitsSnapshot,
-  usageFraction,
-  usagePeriodKey,
-  type Feature,
-  type PlanId,
-  type PlanLimits,
-} from "@/lib/billing/plans";
+import { PLAN_LIMITS, usageFraction, usagePeriodKey, type PlanId } from "@/lib/billing/plans";
 
 /**
  * Server-side entitlement + usage resolution for a tenant. Mirrors the shape of
