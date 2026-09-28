@@ -22,6 +22,7 @@
  *
  * TIP: make sure the right environment is linked first — `railway status`.
  */
+import "./public-db-url";
 import { PrismaClient } from "@prisma/client";
 import { resetCredentialPassword } from "../src/lib/auth/recover";
 

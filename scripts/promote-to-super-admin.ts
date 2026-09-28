@@ -10,6 +10,7 @@
  *
  * On Railway (orbitq-assess env): `railway run npx tsx scripts/promote-to-super-admin.ts`
  */
+import "./public-db-url";
 import { PrismaClient, Role } from "@prisma/client";
 
 const prisma = new PrismaClient();
