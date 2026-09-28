@@ -1,15 +1,24 @@
 /**
  * Qualification-gate rejection-flag verification (no DB). Exercises the pure helper in
- * src/lib/gate-flag.ts, which decides how long a gate rejection keeps a visitor on the
- * exit page — and therefore whether the GateDisqualified pixel event re-fires.
+ * src/lib/gate-flag.ts, which holds two decisions that must stay independent:
  *
- * The behaviour that matters: a rejection expires (a mis-click must not shut a browser
- * out of the funnel forever), and the legacy permanent "1" flag reads as expired so the
- * cohort locked out before the TTL existed gets one clean retry.
+ *   1. Is the visitor locked out?       -> permanent, for as long as the flag survives.
+ *   2. Should GateDisqualified fire?    -> only when the exclusion audience needs it.
+ *
+ * Tying those together is the original bug in both directions: firing on every revisit
+ * inflated Meta's count far past the number of people rejected, and expiring the
+ * lockout would walk a rejected visitor back into the funnel.
  *
  *   npx tsx scripts/verify-gate-flag.ts
  */
-import { GATE_DQ_TTL_MS, gateFlagKey, readGateRejection, writeGateRejection } from "../src/lib/gate-flag";
+import {
+  GATE_DQ_AUDIENCE_REFRESH_MS,
+  gateFlagKey,
+  readGateRejection,
+  shouldFireDisqualified,
+  stampGateRejectionFired,
+  writeGateRejection,
+} from "../src/lib/gate-flag";
 
 let failures = 0;
 const ok = (n: string) => console.log(`  PASS  ${n}`);
@@ -22,46 +31,85 @@ const expect = (n: string, cond: boolean, d = "") => (cond ? ok(n) : fail(n, d))
 console.log("Gate rejection flag verification\n");
 
 const NOW = 1_800_000_000_000;
+const DAY = 24 * 60 * 60 * 1000;
 
 // --- Key scoping: one funnel's rejection must never block another ---
 expect("key is per-assessment", gateFlagKey("gita-clarity") === "gate_dq:gita-clarity");
 expect("key differs per slug", gateFlagKey("a") !== gateFlagKey("b"));
 
 // --- Absent / unreadable flags mean "not rejected" ---
-expect("null reads as no rejection", readGateRejection(null, NOW) === null);
-expect("undefined reads as no rejection", readGateRejection(undefined, NOW) === null);
-expect("empty string reads as no rejection", readGateRejection("", NOW) === null);
-expect("garbage reads as no rejection", readGateRejection("not json", NOW) === null);
-expect("JSON non-object reads as no rejection", readGateRejection("42", NOW) === null);
-expect("JSON null reads as no rejection", readGateRejection("null", NOW) === null);
-expect("object without `at` reads as no rejection", readGateRejection('{"x":1}', NOW) === null);
-expect("non-numeric `at` reads as no rejection", readGateRejection('{"at":"yesterday"}', NOW) === null);
-expect("NaN `at` reads as no rejection", readGateRejection('{"at":null}', NOW) === null);
+for (const [label, raw] of [
+  ["null", null],
+  ["undefined", undefined],
+  ["empty string", ""],
+  ["garbage", "not json"],
+  ["JSON non-object", "42"],
+  ["JSON null", "null"],
+  ["object without `at`", '{"x":1}'],
+  ["non-numeric `at`", '{"at":"yesterday"}'],
+  ["null `at`", '{"at":null}'],
+] as const) {
+  expect(`${label} reads as no rejection`, readGateRejection(raw) === null);
+}
 
-// --- The legacy permanent flag: deliberately treated as expired ---
-expect(
-  'legacy "1" reads as expired (one clean retry)',
-  readGateRejection("1", NOW) === null,
-  "a permanent legacy flag would keep the pre-fix cohort locked out forever",
-);
-
-// --- A fresh rejection is remembered ---
+// --- LOCKOUT IS PERMANENT: a stored rejection never expires ---
 const fresh = writeGateRejection(NOW);
-expect("fresh rejection round-trips", readGateRejection(fresh, NOW) === NOW, `got ${readGateRejection(fresh, NOW)}`);
+expect("a fresh rejection is stored", readGateRejection(fresh)?.at === NOW);
+expect("fresh rejection has not been reported yet", readGateRejection(fresh)?.firedAt === null);
+for (const days of [1, 31, 200, 3650]) {
+  expect(
+    `still locked out after ${days} day(s)`,
+    readGateRejection(writeGateRejection(NOW - days * DAY)) !== null,
+    "an expiring lockout walks a rejected visitor back into the funnel",
+  );
+}
+
+// --- The legacy "1" flag: honoured as a real, undated rejection ---
+const legacy = readGateRejection("1");
+expect('legacy "1" still locks the visitor out', legacy !== null);
+expect('legacy "1" has an unknown rejection date', legacy?.at === 0);
+expect('legacy "1" has no recorded send', legacy?.firedAt === null);
 expect(
-  "rejection still holds just inside the TTL",
-  readGateRejection(fresh, NOW + GATE_DQ_TTL_MS - 1) === NOW,
+  'legacy "1" fires once, since Meta may never have received it',
+  legacy !== null && shouldFireDisqualified(legacy, NOW),
 );
 
-// --- ...and expires, so the visitor re-answers the gate ---
-expect("rejection expires exactly at the TTL", readGateRejection(fresh, NOW + GATE_DQ_TTL_MS) === null);
-expect("rejection expires past the TTL", readGateRejection(fresh, NOW + GATE_DQ_TTL_MS * 2) === null);
+// --- FIRING IS SEPARATE: only when the audience needs it ---
+const unreported = readGateRejection(writeGateRejection(NOW));
+expect("fires when never reported", unreported !== null && shouldFireDisqualified(unreported, NOW));
 
-// --- A clock that moved backwards must not resurrect an expired flag as "future" ---
-expect("future timestamp is still treated as a live rejection", readGateRejection(writeGateRejection(NOW + 5_000), NOW) === NOW + 5_000);
+const justFired = readGateRejection(stampGateRejectionFired({ at: NOW, firedAt: null }, NOW));
+expect("records the send", justFired?.firedAt === NOW);
+expect("does NOT re-fire on an immediate revisit", justFired !== null && !shouldFireDisqualified(justFired, NOW));
+expect(
+  "does NOT re-fire a day later",
+  justFired !== null && !shouldFireDisqualified(justFired, NOW + DAY),
+  "re-firing per visit is what inflated Meta's count",
+);
+expect(
+  "does NOT re-fire just inside the refresh window",
+  justFired !== null && !shouldFireDisqualified(justFired, NOW + GATE_DQ_AUDIENCE_REFRESH_MS - 1),
+);
+expect(
+  "DOES re-fire once the refresh window is reached",
+  justFired !== null && shouldFireDisqualified(justFired, NOW + GATE_DQ_AUDIENCE_REFRESH_MS),
+  "without a refresh the visitor ages out of the exclusion audience and sees the ad again",
+);
 
-// --- The TTL is the documented 30 days ---
-expect("TTL is 30 days", GATE_DQ_TTL_MS === 30 * 24 * 60 * 60 * 1000, `got ${GATE_DQ_TTL_MS}ms`);
+// --- Stamping keeps the original rejection date ---
+const restamped = readGateRejection(stampGateRejectionFired({ at: NOW - 90 * DAY, firedAt: NOW - 90 * DAY }, NOW));
+expect("re-stamping preserves the original rejection date", restamped?.at === NOW - 90 * DAY);
+expect("re-stamping updates the send time", restamped?.firedAt === NOW);
+const stampedLegacy = readGateRejection(stampGateRejectionFired({ at: 0, firedAt: null }, NOW));
+expect("stamping a legacy flag gives it a real date", stampedLegacy?.at === NOW);
+
+// --- The refresh window must stay inside Meta's audience retention (180 days) ---
+expect(
+  "refresh interval is well inside Meta's 180-day retention",
+  GATE_DQ_AUDIENCE_REFRESH_MS < 180 * DAY,
+  `${GATE_DQ_AUDIENCE_REFRESH_MS / DAY} days would let membership lapse before renewal`,
+);
+expect("refresh interval is 60 days", GATE_DQ_AUDIENCE_REFRESH_MS === 60 * DAY);
 
 console.log(`\n${failures === 0 ? "ALL PASS" : `${failures} FAILURE(S)`}`);
 process.exit(failures === 0 ? 0 : 1);

@@ -1,19 +1,39 @@
 /**
  * Client-side memory of a qualification-gate rejection.
  *
- * A rejection used to be stored as a permanent `"1"`, never cleared anywhere, which
- * meant two things: a visitor who mis-clicked a disqualifying option could never
- * re-enter that funnel from the same browser, and every later visit re-fired the
- * `GateDisqualified` pixel event, inflating Meta's exclusion count far above the
- * number of people actually rejected.
+ * The lockout is deliberately permanent for as long as the flag survives: a rejected
+ * visitor should not get back into the funnel, and the back button must not walk them
+ * out of it (the funnel forces a reload on a bfcache restore so this is re-read). A
+ * cleared cookie or a new device loses it, and nothing can be done about that — a
+ * non-opt-in leaves no PII to match on. The real exclusion is the Meta custom audience
+ * that GateDisqualified populates; this flag is the instant local layer in front of it.
  *
- * The flag now carries the rejection time and expires. Pure + storage-agnostic so it
- * is unit-testable and safe on either side of the render boundary.
+ * So the flag answers two separate questions, and conflating them is what caused the
+ * original bug:
+ *   1. Is this visitor locked out?        -> any stored rejection, forever.
+ *   2. Should GateDisqualified fire now?  -> only when the audience needs it.
+ * Firing on every revisit (the old behaviour) inflated Meta's count well past the
+ * number of people actually rejected; never re-firing lets them age out of the
+ * exclusion audience and start seeing the ad again. Hence a refresh interval.
+ *
+ * Pure + storage-agnostic, so it is unit-testable and safe on either side of render.
  */
 
-/** How long a gate rejection keeps a visitor on the exit page. After this they get a
- *  clean run at the gate, and a fresh rejection refreshes the Meta exclusion audience. */
-export const GATE_DQ_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+/**
+ * How long before GateDisqualified is sent again for a visitor who is still being
+ * turned away. Comfortably inside Meta's 180-day website-event audience retention, so
+ * membership is renewed before it lapses, while a returning visitor costs one event
+ * every couple of months instead of one per visit.
+ */
+export const GATE_DQ_AUDIENCE_REFRESH_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
+
+/** A stored rejection. `at` is 0 for a legacy flag written before timestamps existed. */
+export interface GateRejection {
+  /** When the visitor was rejected (0 = unknown, legacy flag). */
+  at: number;
+  /** When GateDisqualified was last sent for this rejection; null = never. */
+  firedAt: number | null;
+}
 
 /** localStorage key for one assessment's rejection (scoped per funnel). */
 export function gateFlagKey(slug: string): string {
@@ -21,29 +41,46 @@ export function gateFlagKey(slug: string): string {
 }
 
 /**
- * The stored rejection time, or null when there is none, it is unreadable, or it has
- * expired.
+ * The stored rejection, or null when there is none / it is unreadable.
  *
- * A legacy `"1"` (written before the TTL existed) reads as null ON PURPOSE: those
- * flags are permanent and include everyone locked out by the gate's pre-fix UI, where
- * options rendered without a visible radio. Treating them as expired gives that cohort
- * one clean retry; every write from here on carries a timestamp.
+ * Never expires: a non-null result means locked out. A legacy `"1"` (written before
+ * this carried any structure) is honoured as a real rejection with an unknown date and
+ * no recorded send — so the visitor stays locked out, and the audience refresh below
+ * will fire once for them, since there is no evidence Meta ever received their event.
  */
-export function readGateRejection(raw: string | null | undefined, now: number = Date.now()): number | null {
-  if (!raw || raw === "1") return null;
+export function readGateRejection(raw: string | null | undefined): GateRejection | null {
+  if (!raw) return null;
+  if (raw === "1") return { at: 0, firedAt: null };
   try {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null) return null;
-    const at = (parsed as { at?: unknown }).at;
+    const { at, firedAt } = parsed as { at?: unknown; firedAt?: unknown };
     if (typeof at !== "number" || !Number.isFinite(at)) return null;
-    if (now - at >= GATE_DQ_TTL_MS) return null;
-    return at;
+    return {
+      at,
+      firedAt: typeof firedAt === "number" && Number.isFinite(firedAt) ? firedAt : null,
+    };
   } catch {
     return null;
   }
 }
 
-/** The value to store for a rejection happening now. */
+/**
+ * Whether GateDisqualified should be sent for this rejection now: when it has never
+ * been sent, or when the last send is old enough that audience membership is worth
+ * renewing. Everything in between is a revisit Meta already knows about.
+ */
+export function shouldFireDisqualified(rejection: GateRejection, now: number = Date.now()): boolean {
+  if (rejection.firedAt === null) return true;
+  return now - rejection.firedAt >= GATE_DQ_AUDIENCE_REFRESH_MS;
+}
+
+/** The value to store for a rejection happening now, not yet reported to Meta. */
 export function writeGateRejection(now: number = Date.now()): string {
-  return JSON.stringify({ at: now });
+  return JSON.stringify({ at: now, firedAt: null } satisfies GateRejection);
+}
+
+/** The same rejection, stamped with the moment GateDisqualified was just sent. */
+export function stampGateRejectionFired(rejection: GateRejection, now: number = Date.now()): string {
+  return JSON.stringify({ at: rejection.at || now, firedAt: now } satisfies GateRejection);
 }

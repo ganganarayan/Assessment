@@ -8,7 +8,7 @@ import {
   saveDraftAnswers,
 } from "@/features/assessment/actions/submission";
 import { recordOptinView, recordGatePass, recordGateDisqualification } from "@/features/assessment/actions/track";
-import { gateFlagKey, readGateRejection, writeGateRejection } from "@/lib/gate-flag";
+import { gateFlagKey, readGateRejection, writeGateRejection, shouldFireDisqualified, stampGateRejectionFired } from "@/lib/gate-flag";
 import { getResultForPages, type PageResultData } from "@/features/assessment/actions/pages";
 import { type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
@@ -328,8 +328,8 @@ export function AssessmentRunner({
   useEffect(() => {
     if (!qual || preview) return;
     try {
-      // An expired (or legacy permanent) flag reads as null, so the visitor gets a
-      // clean run at the gate instead of being shut out of this funnel forever.
+      // A stored rejection never expires — a rejected visitor stays out of the funnel,
+      // and the bfcache reload above routes a back-navigation through here too.
       if (readGateRejection(localStorage.getItem(gateFlagKey(assessment.slug))) !== null) {
         dqCauseRef.current = { repeat: true };
         setStep("disqualified");
@@ -341,18 +341,32 @@ export function AssessmentRunner({
   }, []);
 
   // Record the rejection (the gate creates no lead or submission, so this row is the
-  // only trace) and fire the GateDisqualified exclusion event ONLY on a fresh
-  // rejection. A revisit inside the TTL is already in Meta's audience; once the TTL
-  // lapses the visitor re-answers the gate and a fresh rejection refreshes it.
+  // only trace) and send GateDisqualified when the exclusion audience needs it: on a
+  // fresh rejection, and again once membership is old enough to be worth renewing.
+  // Every other revisit stays silent — firing on each one is what inflated Meta's
+  // count past the number of people actually rejected.
   const dqFiredRef = useRef(false);
   useEffect(() => {
     if (step !== "disqualified" || dqFiredRef.current) return;
     dqFiredRef.current = true;
     if (preview) return; // previewing the exit page is not a rejection
     const cause = dqCauseRef.current ?? { repeat: true };
-    if (!cause.repeat && assessment.disqualified?.fireDisqualifiedEvent) {
-      pixelTrackCustom(GATE_DISQUALIFIED_EVENT, { assessment: assessment.slug });
+
+    if (assessment.disqualified?.fireDisqualifiedEvent) {
+      try {
+        const key = gateFlagKey(assessment.slug);
+        const rejection = readGateRejection(localStorage.getItem(key)) ?? { at: Date.now(), firedAt: null };
+        if (shouldFireDisqualified(rejection)) {
+          pixelTrackCustom(GATE_DISQUALIFIED_EVENT, { assessment: assessment.slug });
+          // Stamp only after the send, so a blocked pixel retries on the next visit
+          // rather than silently marking this visitor as reported.
+          localStorage.setItem(key, stampGateRejectionFired(rejection));
+        }
+      } catch {
+        /* blocked storage — fire nothing rather than fire on every visit */
+      }
     }
+
     void recordGateDisqualification(
       assessment.slug,
       { questionId: cause.questionId, optionId: cause.optionId, repeat: cause.repeat },
@@ -531,8 +545,8 @@ export function AssessmentRunner({
         // Scoped per-assessment so one funnel's rejection doesn't block another.
         if (!preview) {
           try {
-            // Timestamped, so the rejection expires instead of shutting this
-            // browser out of the funnel permanently.
+            // Locks this browser out for good; the effect below sends the
+            // GateDisqualified event and stamps the flag once it has.
             localStorage.setItem(gateFlagKey(assessment.slug), writeGateRejection());
           } catch {
             /* private mode / blocked storage — non-fatal */
