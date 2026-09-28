@@ -705,6 +705,7 @@ model Assessment {
   resultBands ResultBand[]
   submissions Submission[]
   pageViews   PageView[]
+  gateDisqualifications GateDisqualification[]
   pages       AssessmentPage[]
   gateEntries GateEntry[]
 
@@ -1562,9 +1563,17 @@ model CapiLog {
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
+  // Which funnel this event belongs to. Both funnels write rows with tenantId null
+  // and the same standard event names, so without this they are indistinguishable —
+  // an assessment opt-in and an Assess360 signup both read "CompleteRegistration".
+  // "assessment" = the respondent funnel (per-tenant / Gita pixel).
+  // "platform"   = the Assess360 SaaS funnel (signup + subscription, platform pixel).
+  scope String @default("assessment")
+
   @@index([status])
   @@index([createdAt])
   @@index([tenantId, createdAt])
+  @@index([scope, createdAt])
   @@map("capi_log")
 }
 
@@ -1757,3 +1766,61 @@ model AppSetting {
   @@map("app_setting")
 }
 
+/// One rejection by the Page-1 qualification gate. The gate creates NO lead /
+/// submission / result, so before this model a disqualified visitor left no trace at
+/// all and every in-app counter read 0 while Meta still counted the exclusion event.
+/// ASSESSMENT FUNNEL ONLY — the SaaS signup + subscription paths have no gate and
+/// never write here. High-write + fail-soft, mirroring PageView's conventions.
+model GateDisqualification {
+  id           String   @id @default(cuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  visitorId    String
+  createdAt    DateTime @default(now())
+
+  // Which gate answer rejected them. Null on a `repeat` row, where the visitor is
+  // skipped straight to the exit page from the stored flag without re-answering.
+  questionId String?
+  optionId   String?
+
+  // FALSE = a fresh rejection (a person answered a disqualifying option just now).
+  // TRUE  = a revisit by an already-rejected visitor, short-circuited to the exit
+  // page. Splitting these is the whole point: the Meta event count mixes both, so
+  // "63 disqualified" can really be a dozen people returning. Human-facing metrics
+  // count fresh rows only.
+  repeat Boolean @default(false)
+
+  // Marketing attribution, so a gate that rejects an entire campaign is visible.
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
+  fbclid      String?
+  gclid       String?
+
+  // Automated-client flag + enrichment, identical in meaning to PageView's.
+  isBot     Boolean @default(false)
+  userAgent String?
+  ip        String?
+  country    String?
+  city       String?
+  region     String?
+  postalCode String?
+  timezone   String?
+  deviceType String?
+  browser    String?
+  os         String?
+
+  // Owning tenant (denormalized from the assessment; null = platform/Gita). Scalar
+  // only — no FK — matching PageView: high-write, already cascades via assessment.
+  tenantId String?
+
+  @@index([assessmentId])
+  @@index([visitorId])
+  @@index([createdAt])
+  @@index([utmSource])
+  @@index([utmCampaign])
+  @@index([tenantId, createdAt])
+  @@map("gate_disqualification")
+}

@@ -6,7 +6,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { tenantCan } from "@/lib/billing/plan-resolve";
-import { sendCapiEventVerbose, isCapiConfigured } from "@/lib/meta/send";
+import { sendCapiEventVerbose, isCapiConfigured, sendPlatformCapiEvent, isPlatformCapiConfigured } from "@/lib/meta/send";
 import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
 import type { CapiEventInput } from "@/lib/meta/capi";
 
@@ -62,6 +62,68 @@ export async function sendAndLogLifecycleCapi(
   }
 
   const r = await sendCapiEventVerbose(input, ctx.tenantId);
+  await prisma.capiLog
+    .create({
+      data: {
+        ...base,
+        status: r.ok ? "sent" : "failed",
+        httpStatus: r.status ?? null,
+        response: (r.response ?? r.error ?? "").slice(0, 800) || null,
+      },
+    })
+    .catch(() => {});
+  return r.ok
+    ? { ok: true }
+    : { ok: false, error: (r.error ?? r.response ?? "Meta rejected the event.").slice(0, 300) };
+}
+
+/**
+ * Fire a PLATFORM (Assess360 SaaS) CAPI event and persist the send plus Meta's actual
+ * response — the sibling of sendAndLogLifecycleCapi for the other pixel.
+ *
+ * The SaaS funnel used to call sendPlatformCapiEvent directly as `void ….catch(() => {})`,
+ * so a signup or subscription reached Meta while the app kept no record of it at all:
+ * no row, no response, not even a console line. The Conversions log therefore read 0
+ * registrations no matter what Meta received, which is indistinguishable from "nobody
+ * signed up" — exactly the gap that makes an app number and a Meta number impossible
+ * to reconcile.
+ *
+ * Rows are written with scope "platform" so they are never confused with an assessment
+ * opt-in, which carries the same standard event name. No tenant plan gate applies: this
+ * is the app owner's own funnel, not a tenant's. Never throws.
+ */
+export async function sendAndLogPlatformCapi(
+  input: CapiEventInput,
+  ctx?: { name?: string | null; amountPaise?: number | null; currency?: string; providerPaymentId?: string | null },
+): Promise<CapiSendOutcome> {
+  const base = {
+    scope: "platform",
+    eventName: input.eventName,
+    email: input.user.email ?? null,
+    phone: input.user.phone ?? null,
+    name: ctx?.name ?? null,
+    // The SaaS funnel has no Submission to attribute against, so a row is "matched"
+    // when it carries an identifier Meta can actually match on.
+    matched: !!(input.user.email || input.user.phone),
+    submissionId: null,
+    tenantId: null,
+    amountPaise: ctx?.amountPaise ?? null,
+    ...(ctx?.currency ? { currency: ctx.currency } : {}),
+    ...(ctx?.providerPaymentId ? { providerPaymentId: ctx.providerPaymentId } : {}),
+    autoFired: true,
+    firedAt: new Date(),
+  };
+
+  if (!(await isPlatformCapiConfigured())) {
+    // Record WHY nothing reached Meta, so an unset platform pixel is visible in the
+    // log instead of looking like an empty funnel.
+    await prisma.capiLog
+      .create({ data: { ...base, status: "failed", response: "Platform pixel / CAPI token not configured in Settings." } })
+      .catch(() => {});
+    return { ok: false, error: "Platform pixel / CAPI token is not configured (super-admin Settings)." };
+  }
+
+  const r = await sendPlatformCapiEvent(input);
   await prisma.capiLog
     .create({
       data: {
