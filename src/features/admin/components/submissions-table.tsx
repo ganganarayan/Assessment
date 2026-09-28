@@ -6,10 +6,82 @@ import Link from "next/link";
 import { formatIST } from "@/lib/date";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { deleteSubmissions } from "@/features/admin/actions/submissions";
+import { deleteSubmissions, sendMetaVerdict } from "@/features/admin/actions/submissions";
 import { lookupSubmissionRef } from "@/features/admin/actions/lookup";
 import { type LookupHit } from "@/features/admin/lookup-types";
 import { type PayloadAttribution } from "@/features/events/types";
+
+/**
+ * The two manual Meta verdict buttons for one row, stacked.
+ *
+ * Qualify sends QualifiedCompletion, Disqualify sends GateDisqualified — the
+ * SAME events the funnel fires automatically, so they land in the audiences that
+ * already exist instead of creating review-only ones.
+ *
+ * Both stay clickable after firing: a verdict can be revised, and Meta collapses
+ * a repeat inside its dedup window rather than counting it twice. The stamp under
+ * the buttons is what makes a reviewed row visibly different from an untouched
+ * one — without it a long list gives you no way to remember where you were.
+ */
+function MetaVerdictCell({
+  submissionId,
+  qualifiedAt,
+  disqualifiedAt,
+}: {
+  submissionId: string;
+  qualifiedAt: string | null;
+  disqualifiedAt: string | null;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState<"QUALIFIED" | "DISQUALIFIED" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function fire(verdict: "QUALIFIED" | "DISQUALIFIED") {
+    setBusy(verdict);
+    setError(null);
+    const res = await sendMetaVerdict(submissionId, verdict);
+    setBusy(null);
+    if (!res.ok) {
+      setError(res.error ?? "Failed to send.");
+      return;
+    }
+    router.refresh(); // pick up the new stamp
+  }
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-6 w-full px-2 text-[11px]"
+        disabled={busy !== null}
+        onClick={() => fire("QUALIFIED")}
+      >
+        {busy === "QUALIFIED" ? "Sending…" : "Qualify"}
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-6 w-full px-2 text-[11px]"
+        disabled={busy !== null}
+        onClick={() => fire("DISQUALIFIED")}
+      >
+        {busy === "DISQUALIFIED" ? "Sending…" : "Disqualify"}
+      </Button>
+      {qualifiedAt ? (
+        <span className="text-[10px] text-green-600" title={formatIST(qualifiedAt)}>
+          ✓ qualified
+        </span>
+      ) : null}
+      {disqualifiedAt ? (
+        <span className="text-[10px] text-amber-600" title={formatIST(disqualifiedAt)}>
+          ✓ disqualified
+        </span>
+      ) : null}
+      {error ? <span className="text-[10px] text-red-500">{error}</span> : null}
+    </div>
+  );
+}
 
 /** Show only the token tail of a result link (from "?t" on) — the base before it is
  *  identical for every row, so trimming it makes the per-person part readable. */
@@ -75,6 +147,9 @@ export interface SubmissionRow {
   paidAmount: number | null;
   paidAt: string | null;
   vslLoads: number;
+  /** Manual Meta review stamps — ISO strings, null until the owner fires one. */
+  metaQualifiedAt: string | null;
+  metaDisqualifiedAt: string | null;
   deviceType: string | null;
   browser: string | null;
   os: string | null;
@@ -411,6 +486,7 @@ export function SubmissionsTable({
                     <div>Result</div>
                     <div className="opacity-70">PDF</div>
                   </th>
+                  <th className="whitespace-nowrap px-3 py-2">Meta verdict</th>
                   <th className="px-3 py-2">Device</th>
                   <th className="whitespace-nowrap px-3 py-2">
                     <div>utm_source</div>
@@ -548,6 +624,14 @@ export function SubmissionsTable({
                       ) : (
                         "—"
                       )}
+                    </td>
+                    {/* Meta verdict — send this lead's judgement to the ad account */}
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <MetaVerdictCell
+                        submissionId={s.id}
+                        qualifiedAt={s.metaQualifiedAt}
+                        disqualifiedAt={s.metaDisqualifiedAt}
+                      />
                     </td>
                     {/* Device */}
                     <td className="whitespace-nowrap px-3 py-2 text-xs">

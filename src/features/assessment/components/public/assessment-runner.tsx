@@ -7,13 +7,13 @@ import {
   requestPreviousResults,
   saveDraftAnswers,
 } from "@/features/assessment/actions/submission";
-import { recordOptinView } from "@/features/assessment/actions/track";
+import { recordOptinView, recordGatePass } from "@/features/assessment/actions/track";
 import { getResultForPages, type PageResultData } from "@/features/assessment/actions/pages";
 import { type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
 import { type PaymentCheckout } from "@/lib/payments/types";
 import { ResultPages } from "@/features/assessment/components/public/result-pages";
-import { type LeadInput, professionOptionsFor, completionEventName, type PreResultField } from "@/features/assessment/schemas";
+import { type LeadInput, professionOptionsFor, completionEventName, GATE_DISQUALIFIED_EVENT, type PreResultField } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { getOrCreateExternalId } from "@/lib/external-id";
 import { appendVidapulseId } from "@/lib/vidapulse";
@@ -336,9 +336,33 @@ export function AssessmentRunner({
     if (step !== "disqualified" || dqFiredRef.current) return;
     dqFiredRef.current = true;
     if (assessment.disqualified?.fireDisqualifiedEvent) {
-      pixelTrackCustom("GateDisqualified", { assessment: assessment.slug });
+      pixelTrackCustom(GATE_DISQUALIFIED_EVENT, { assessment: assessment.slug });
     }
   }, [step, assessment.disqualified?.fireDisqualifiedEvent, assessment.slug]);
+
+  // Record that the page-1 gate was PASSED — the only trace left by someone who
+  // qualifies and then leaves before the opt-in (which is the last step, so no
+  // Submission exists yet). Nothing is sent to Meta here: AssessmentAbandoned is
+  // fired later by the sweep, once it can tell an abandoner from a completer.
+  //
+  // Called from BOTH gate exits (the last radio question and the text-question
+  // Continue), guarded by a ref for this mount and by localStorage across mounts,
+  // so a refresh or a return visit doesn't re-record. Fire-and-forget — the
+  // respondent never waits on it, and a failure never blocks entry.
+  const gatePassFiredRef = useRef(false);
+  function markGatePassed() {
+    if (preview || gatePassFiredRef.current) return;
+    gatePassFiredRef.current = true;
+    try {
+      if (localStorage.getItem(`gate_pass:${assessment.slug}`) === "1") return;
+      localStorage.setItem(`gate_pass:${assessment.slug}`, "1");
+    } catch {
+      /* private mode / blocked storage — fall through and record anyway */
+    }
+    const vid = getOrCreateExternalId();
+    if (!vid) return; // no first-party id → nothing Meta could match on later
+    void recordGatePass(assessment.slug, vid, attribution).catch(() => {});
+  }
 
   // Autosave progress (debounced) so a returning unpaid respondent resumes where
   // they left off. Only while answering, only once they've picked something.
@@ -496,7 +520,10 @@ export function AssessmentRunner({
       }
       if (!qual) return;
       if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
-      else setStep(gated ? "gate" : "intro");
+      else {
+        markGatePassed(); // cleared the whole gate — they are now in the funnel
+        setStep(gated ? "gate" : "intro");
+      }
     }, 160);
   }
 
@@ -511,7 +538,10 @@ export function AssessmentRunner({
     setError(null);
     if (!qual) return;
     if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
-    else setStep(gated ? "gate" : "intro");
+    else {
+      markGatePassed(); // cleared the whole gate — they are now in the funnel
+      setStep(gated ? "gate" : "intro");
+    }
   }
 
   // Audience gate "Continue": a redirecting choice hops to its assessment; a

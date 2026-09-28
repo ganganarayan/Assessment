@@ -26,6 +26,7 @@
     "verify:result": "tsx scripts/verify-result.ts",
     "verify:vsl": "tsx scripts/verify-vsl.ts",
     "verify:cta-stamp": "tsx scripts/verify-cta-stamp.ts",
+    "verify:gate-abandoned": "tsx scripts/verify-gate-abandoned.ts",
     "verify:capi": "tsx scripts/verify-capi.ts",
     "verify:ai": "tsx scripts/verify-ai.ts",
     "verify:report": "tsx scripts/verify-report.ts",

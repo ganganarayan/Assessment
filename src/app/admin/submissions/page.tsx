@@ -104,6 +104,8 @@ export default async function SubmissionsPage({
       paidAmount: p?.amount ?? null,
       paidAt: p?.at ?? null,
       vslLoads: s.resultFetchCount,
+      metaQualifiedAt: s.metaQualifiedAt?.toISOString() ?? null,
+      metaDisqualifiedAt: s.metaDisqualifiedAt?.toISOString() ?? null,
       deviceType: s.deviceType,
       browser: s.browser,
       os: s.os,
