@@ -14,10 +14,20 @@ import { generateWebhookSecret } from "../src/lib/webhooks/sign";
 
 const prisma = new PrismaClient();
 
+/**
+ * The platform owner is whoever PLATFORM_OWNER_EMAIL says it is (same env var
+ * the app's isPlatformOwner() check reads), so a freshly seeded database — a
+ * new laptop, a rebuilt staging DB — always comes up with an owner account the
+ * owner can actually sign in to. Hardcoding owner@example.com here is what
+ * produced a login nobody knew the password to.
+ *
+ * Override the seeded password with SEED_OWNER_PASSWORD; change it after first
+ * sign-in. Seeding never touches an account that already exists.
+ */
 const SUPER_ADMIN = {
   name: "Platform Owner",
-  email: "owner@example.com",
-  password: "ChangeMe123!",
+  email: (process.env.PLATFORM_OWNER_EMAIL ?? "owner@example.com").toLowerCase(),
+  password: process.env.SEED_OWNER_PASSWORD ?? "ChangeMe123!",
 };
 
 const ADMIN = {

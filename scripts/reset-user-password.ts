@@ -8,11 +8,17 @@
  * YOU choose the password — pass it on the command line. It is never stored in
  * this file or in git. Use a password of at least 8 characters (Better Auth min).
  *
- * Run against the target DB (DATABASE_URL must point at it):
- *   npx tsx scripts/reset-user-password.ts <email> "<new-password>"
+ * Run it against the linked Railway environment (nothing runs locally — `railway
+ * run` executes this file on your machine with that service's env injected):
+ *   railway run npm run db:reset-password -- you@example.com "YourNewPass123"
  *
- * On Railway (runs against the linked environment/service's DATABASE_URL):
- *   railway run npx tsx scripts/reset-user-password.ts you@example.com "YourNewPass123"
+ * Use the npm script, not a bare `tsx` call. It adds --conditions=react-server,
+ * which makes the `server-only` guard — pulled in through auth.ts ->
+ * nurture/send.ts — resolve to its empty build. Without that flag the run dies
+ * with "Cannot find module 'server-only'" (package absent; Next.js aliases it)
+ * or, once installed, with "This module cannot be imported from a Client
+ * Component module." The long form is:
+ *   railway run npx tsx --conditions=react-server scripts/reset-user-password.ts ...
  *
  * TIP: make sure the right environment is linked first — `railway status`.
  */
