@@ -61,6 +61,20 @@ export interface ButtonConfig {
   color?: string; // text colour (hex); blank => theme CTA text
   fontSize?: number; // px
   align?: TextAlign; // block alignment of the button
+  /**
+   * Treat a click as a BOOKING REQUEST: route it through /api/cta/... so the click is
+   * recorded, the CRM webhook fires and the owner is emailed, before forwarding to the
+   * same destination. Off by default, so every existing button keeps linking straight
+   * out exactly as before. The destination and its VidaPulse ids are unchanged either
+   * way — only the path taken to get there differs.
+   */
+  bookingCta?: boolean;
+  /**
+   * Where to email the "someone asked for a call" notification, via the tenant's own
+   * SMTP. Blank = no notification (the webhook and the recorded click still happen).
+   * A field rather than a constant: every tenant has its own inbox.
+   */
+  notifyEmail?: string;
 }
 export interface VideoConfig {
   /** The pasted embed snippet (iframe). The renderer extracts the src safely. */

@@ -4,10 +4,12 @@
  *   - completed_unpaid (completed, no payment after 30 min)
  *   - gate abandoned (passed the page-1 gate, never completed → Meta
  *     AssessmentAbandoned for retargeting)
+ *   - booking-CTA owner notifications that failed their first send
  * Schedule every ~10 min so the 30-min unpaid nudge fires close to on time:
  *   npx tsx scripts/sweep-abandoned.ts
  */
 import { sweepAbandoned, sweepGateAbandoned } from "../src/lib/events/abandoned";
+import { sweepCtaNotifications } from "../src/lib/cta/notify";
 import { sweepCompletedUnpaid } from "../src/lib/events/unpaid";
 import { prisma } from "../src/lib/db/prisma";
 
@@ -19,6 +21,10 @@ async function main() {
   // Meta AssessmentAbandoned: passed the page-1 gate, never completed.
   const gate = await sweepGateAbandoned();
   console.log(`[gate-abandoned-sweep] fired=${gate.fired} scanned=${gate.scanned}`);
+  // Booking-CTA owner notifications whose send failed earlier: retried until they land
+  // or the backoff schedule is exhausted, so a call request is never silently lost.
+  const cta = await sweepCtaNotifications();
+  console.log(`[cta-notify-sweep] processed=${cta.processed}`);
 }
 
 main()

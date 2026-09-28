@@ -61,6 +61,10 @@ const CONTACT_FIELDS = [
   "contact.assessment_diagnosis",
   "contact.result_url",
   "contact.customer_id",
+  // Emitted alongside result_url since the token is the id that rides on EVERY link
+  // the app produces; the CRM stores it to identify a visitor on a page that has no
+  // other way to know who is looking.
+  "contact.result_token",
   "contact.assessment_score",
   "contact.score_percent",
   "contact.score_raw",
@@ -119,7 +123,11 @@ for (const type of ACTIVE_EVENT_TYPES) {
   expect(`${name} · contact.utm_campaign`, env["contact.utm_campaign"] === "q2");
   expect(`${name} · contact.utm_term null`, env["contact.utm_term"] === null);
   expect(`${name} · contact.gclid null`, env["contact.gclid"] === null);
-  expect(`${name} · metadata keys`, keysEq(meta, META), JSON.stringify(Object.keys(meta)));
+  // booking_requested adds one metadata key (which button was pressed) via its own
+  // METADATA_BUILDERS entry — the documented extension point. Every other event shares
+  // the uniform assessment metadata.
+  const expectedMeta = type === EventType.CTA_CLICKED ? [...META, "cta"] : META;
+  expect(`${name} · metadata keys`, keysEq(meta, expectedMeta), JSON.stringify(Object.keys(meta)));
   expect(`${name} · assessmentUrl`, meta.assessmentUrl === `${BASE}/a/${SLUG}`, String(meta.assessmentUrl));
   if (scored) {
     expect(`${name} · resultUrl`, meta.resultUrl === `${BASE}/a/${SLUG}/r/${SID}`, String(meta.resultUrl));
@@ -148,6 +156,10 @@ for (const type of ACTIVE_EVENT_TYPES) {
     expect(`${name} · sample built (shaped)`, sample !== null);
   } else {
     expect(`${name} · sample built`, sample !== null && keysEq(sample, TOP));
+  }
+  if (type === EventType.CTA_CLICKED) {
+    // The preview must show the CRM exactly what a real booking click delivers.
+    expect(`${name} · sample carries cta metadata`, "cta" in ((sample?.metadata ?? {}) as object));
   }
 }
 

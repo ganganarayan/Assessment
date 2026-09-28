@@ -109,6 +109,12 @@ const METADATA_BUILDERS: Partial<Record<EventType, MetadataBuilder>> = {
   [EventType.RESULT_VIEWED]: assessmentMetadata,
   [EventType.ASSESSMENT_ABANDONED]: assessmentMetadata,
   [EventType.RESULT_LINK_REQUESTED]: assessmentMetadata,
+  // A booking CTA click carries the same assessment metadata (crucially resultUrl, the
+  // full result page the owner reads before deciding), plus which button was pressed.
+  [EventType.CTA_CLICKED]: (input, baseUrl) => ({
+    ...assessmentMetadata(input, baseUrl),
+    cta: input.cta ?? null,
+  }),
 };
 
 /* --------------------------------------------------------- the assembler --- */

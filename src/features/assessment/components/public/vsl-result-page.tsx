@@ -27,12 +27,16 @@ export function VslResultPage({
   customerId,
   resultToken,
   vidapulseParam,
+  submissionId = null,
 }: {
   page: ResultPageData;
   aiStatement: string | null;
   customerId: string | null;
   resultToken: string | null;
   vidapulseParam: string | null;
+  /** Whose result page this is. Null in an admin preview — booking CTAs then link
+   *  straight out rather than recording a click nobody made. */
+  submissionId?: string | null;
 }) {
   const t = themeOf(page.theme);
   return (
@@ -59,6 +63,7 @@ export function VslResultPage({
             customerId={customerId}
             resultToken={resultToken}
             vidapulseParam={vidapulseParam}
+            submissionId={submissionId}
           />
         ))}
       </div>
@@ -77,6 +82,7 @@ function Block({
   customerId,
   resultToken,
   vidapulseParam,
+  submissionId,
 }: {
   block: ResultBlock;
   theme: ReturnType<typeof themeOf>;
@@ -84,6 +90,7 @@ function Block({
   customerId: string | null;
   resultToken: string | null;
   vidapulseParam: string | null;
+  submissionId: string | null;
 }) {
   const c = block.config as Record<string, unknown>;
   const str = (k: string) => (typeof c[k] === "string" ? (c[k] as string).trim() : "");
@@ -137,6 +144,8 @@ function Block({
           theme={theme}
           customerId={customerId}
           resultToken={resultToken}
+          blockId={block.id}
+          submissionId={submissionId}
         />
       );
     case "video":
@@ -155,11 +164,15 @@ function ButtonBlock({
   theme,
   customerId,
   resultToken,
+  blockId,
+  submissionId,
 }: {
   config: ButtonConfig;
   theme: ReturnType<typeof themeOf>;
   customerId: string | null;
   resultToken: string | null;
+  blockId: string;
+  submissionId: string | null;
 }) {
   const label = (config.label ?? "").trim();
   // The link is used EXACTLY as typed (normalizeHref only fixes a missing scheme),
@@ -167,7 +180,15 @@ function ButtonBlock({
   // clicking it. That has to happen here, server-side, because the anchor below
   // carries rel="noreferrer" — without the ids in the URL, the click arrives at
   // VidaPulse anonymous. Any other link is returned untouched.
-  const href = stampVidapulseCtaUrl(normalizeHref(config.url), customerId, resultToken);
+  const direct = stampVidapulseCtaUrl(normalizeHref(config.url), customerId, resultToken);
+  // A booking CTA goes via /api/cta instead, which records who clicked, fires the CRM
+  // webhook and emails the owner, then 302s to this very same stamped destination —
+  // the respondent lands in the identical place either way. Needs a submissionId, so
+  // an admin preview (which has none) keeps linking straight out.
+  const href =
+    config.bookingCta && submissionId
+      ? `/api/cta/${encodeURIComponent(submissionId)}/${encodeURIComponent(blockId)}`
+      : direct;
   if (!label) return null;
   const bg = (config.bg ?? "").trim() || theme.cta;
   const color = (config.color ?? "").trim() || theme.ctaText;
