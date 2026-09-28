@@ -1563,9 +1563,17 @@ model CapiLog {
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
+  // Which funnel this event belongs to. Both funnels write rows with tenantId null
+  // and the same standard event names, so without this they are indistinguishable —
+  // an assessment opt-in and an Assess360 signup both read "CompleteRegistration".
+  // "assessment" = the respondent funnel (per-tenant / Gita pixel).
+  // "platform"   = the Assess360 SaaS funnel (signup + subscription, platform pixel).
+  scope String @default("assessment")
+
   @@index([status])
   @@index([createdAt])
   @@index([tenantId, createdAt])
+  @@index([scope, createdAt])
   @@map("capi_log")
 }
 

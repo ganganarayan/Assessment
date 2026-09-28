@@ -2,7 +2,9 @@ import Link from "next/link";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
+import { formatIST } from "@/lib/date";
 import { getPlatformFunnelStats, getPlatformUtmBreakdown } from "@/features/admin/data/platform-analytics";
+import { listCapiLogs } from "@/features/events/data";
 
 export const dynamic = "force-dynamic";
 
@@ -21,13 +23,24 @@ export default async function PlatformStatsPage({
   await requireSuperAdmin();
   const sp = await searchParams;
   const range = { from: sp.from, to: sp.to };
-  const [s, utm] = await Promise.all([getPlatformFunnelStats(range), getPlatformUtmBreakdown(range)]);
+  const [s, utm, capi] = await Promise.all([
+    getPlatformFunnelStats(range),
+    getPlatformUtmBreakdown(range),
+    // What the SaaS funnel actually sent Meta, with Meta's own answer. These events
+    // are the thing an ad account counts as a "registration", so they belong next to
+    // the signup number rather than in the respondent-funnel Conversions log.
+    listCapiLogs(null, 50, "platform"),
+  ]);
 
   const tiles = [
     { label: "Landing page views", value: s.landingViews },
     { label: "Unique visitors", value: s.uniqueViews },
-    { label: "Signups (tenants)", value: s.signups },
+    { label: "Signups (accounts)", value: s.signups },
   ];
+
+  // Provisioning is a separate, failure-swallowing step, so a shortfall is a fault to
+  // surface, not a number to bury. Silent while the two agree.
+  const unprovisioned = s.signups - s.provisioned;
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
@@ -66,7 +79,69 @@ export default async function PlatformStatsPage({
             <p className="text-sm text-[var(--muted-foreground)]">${s.mrrUsd.toLocaleString()} / mo</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-[var(--muted-foreground)]">Workspaces provisioned</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold tabular-nums">{s.provisioned.toLocaleString()}</p>
+            <p className="text-sm text-[var(--muted-foreground)]">
+              {unprovisioned > 0 ? `${unprovisioned.toLocaleString()} signup(s) without one` : "matches signups"}
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
+      {unprovisioned > 0 ? (
+        <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+          <strong>{unprovisioned.toLocaleString()}</strong> of {s.signups.toLocaleString()} signups have no
+          workspace. Tenant provisioning runs after sign-up and logs its failures without
+          surfacing them — check the service logs for <span className="font-mono">tenant auto-provision failed</span>.
+        </p>
+      ) : null}
+
+      <section className="flex flex-col gap-2">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Signup + subscription events sent to Meta</h2>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            The SaaS funnel&rsquo;s own Conversions API sends, with Meta&rsquo;s reply. An ad account
+            counts these as registrations — if this is empty while Meta shows some, they came
+            from a different pixel or funnel.
+          </p>
+        </div>
+        {capi.length === 0 ? (
+          <p className="text-sm text-[var(--muted-foreground)]">No signup or subscription events sent yet.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+                <tr>
+                  <th className="px-3 py-1.5">When</th>
+                  <th className="px-3 py-1.5">Event</th>
+                  <th className="px-3 py-1.5">Contact</th>
+                  <th className="px-3 py-1.5">Status</th>
+                  <th className="px-3 py-1.5">Meta said</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {capi.map((r) => (
+                  <tr key={r.id}>
+                    <td className="whitespace-nowrap px-3 py-2">{formatIST(r.createdAt)}</td>
+                    <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{r.eventName}</td>
+                    <td className="px-3 py-2">{dash(r.email ?? r.phone)}</td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <span className={r.status === "sent" ? "text-green-600" : "text-red-500"}>{r.status}</span>
+                    </td>
+                    <td className="max-w-md truncate px-3 py-2 text-xs text-[var(--muted-foreground)]">
+                      {dash(r.response)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <section className="flex flex-col gap-2">
         <div>
