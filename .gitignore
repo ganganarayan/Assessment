@@ -40,3 +40,6 @@ yarn-error.log*
 # local image backups (never deploy)
 public/hero-scorecard big.png
 *.big.png
+
+# re-home manifests (row ids; local only)
+.rehome/
