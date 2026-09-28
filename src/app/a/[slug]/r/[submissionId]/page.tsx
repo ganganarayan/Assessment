@@ -389,6 +389,9 @@ export default async function ResultPage({
           // when an older link carries no cid.
           resultToken={submission.resultToken ?? null}
           vidapulseParam={resolveVidapulseParam(vpSetting)}
+          // Null in an admin preview, so previewing the page cannot record a booking
+          // request or email the owner about a click nobody made.
+          submissionId={canViewInternally ? null : submissionId}
         />
       );
     }

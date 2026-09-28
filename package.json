@@ -38,6 +38,7 @@
     "verify:routing": "tsx scripts/verify-routing.ts",
     "verify:gate-flag": "tsx scripts/verify-gate-flag.ts",
     "verify:platform-capi": "tsx scripts/verify-platform-capi.ts",
+    "verify:cta-click": "tsx scripts/verify-cta-click.ts",
     "seed:category-bands": "tsx scripts/seed-category-bands.ts",
     "postinstall": "prisma generate"
   },

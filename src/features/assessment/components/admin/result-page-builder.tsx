@@ -317,6 +317,48 @@ function BlockEditor({
               <AlignPicker value={c.align} onPick={(a) => { set({ align: a }); onBlur(); }} />
             </div>
           </div>
+
+          {/* Booking CTA: the actions that fire when THIS button is clicked. Off by
+              default, so an ordinary button keeps linking straight out as before. */}
+          <div className="mt-1 flex flex-col gap-2 rounded-md border border-dashed p-3">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={c.bookingCta === true}
+                onChange={(e) => { set({ bookingCta: e.target.checked }); onBlur(); }}
+              />
+              <span>
+                <span className="font-medium">This button requests a booking</span>
+                <span className="block text-xs text-[var(--muted-foreground)]">
+                  Records who clicked (shown as &ldquo;Booking requested&rdquo; in Submissions),
+                  fires the <span className="font-mono">booking_requested</span> webhook to your CRM,
+                  and emails you. The visitor still lands on exactly the same page.
+                </span>
+              </span>
+            </label>
+            {c.bookingCta === true ? (
+              <>
+                <label className="flex flex-col gap-1 text-xs">
+                  Email me at
+                  <Input
+                    type="email"
+                    placeholder="you@yourdomain.com"
+                    value={str(c.notifyEmail)}
+                    onChange={(e) => set({ notifyEmail: e.target.value })}
+                    onBlur={onBlur}
+                  />
+                </label>
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Sent from your own SMTP with their name, email, phone and a link to their full
+                  result page. Retried automatically if it fails. The confirmation to the
+                  <em> visitor</em> comes from your CRM off the webhook, so it uses your sending
+                  address &mdash; add a webhook on the Webhooks page with the trigger
+                  &ldquo;Booking requested&rdquo;.
+                </p>
+              </>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

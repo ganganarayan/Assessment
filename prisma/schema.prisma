@@ -706,6 +706,7 @@ model Assessment {
   submissions Submission[]
   pageViews   PageView[]
   gateDisqualifications GateDisqualification[]
+  ctaClicks   CtaClick[]
   pages       AssessmentPage[]
   gateEntries GateEntry[]
 
@@ -996,6 +997,11 @@ model Submission {
   id     String           @id @default(cuid())
   status SubmissionStatus @default(STARTED)
 
+  // First time this respondent clicked a result-page booking CTA. Denormalized from
+  // CtaClick so the Submissions table can show and sort a "Booking requested" column
+  // without a join. Null = never asked for a call.
+  ctaClickedAt DateTime?
+
   leadFirstName  String?
   leadLastName   String?
   leadEmail      String?
@@ -1144,6 +1150,8 @@ model Submission {
   @@index([leadEmail])
   @@index([createdAt])
   @@index([status, startedAt]) // abandonment sweep
+  ctaClicks CtaClick[]
+
   @@index([assessmentId, identifierValue, status]) // retake lockout + trend
   @@index([crmDirty]) // CRM resend drip queue
   @@map("submission")
@@ -1307,6 +1315,7 @@ enum EventType {
   RESULT_VIEWED // result.viewed
   ASSESSMENT_ABANDONED // assessment.abandoned
   RESULT_LINK_REQUESTED // result.link_requested (returning user asks to be emailed their prior result)
+  CTA_CLICKED // booking_requested (respondent clicked the result page's booking CTA)
 }
 
 // ---------------------------------------------------------------------------
@@ -1823,4 +1832,51 @@ model GateDisqualification {
   @@index([utmCampaign])
   @@index([tenantId, createdAt])
   @@map("gate_disqualification")
+}
+
+/// One click on a result-page booking CTA ("Apply for your seat", "Book a call", …).
+///
+/// The thank-you page lives in the CRM, so without this row nobody can tell WHO asked
+/// for a call — the click leaves the app and never comes back. The button therefore
+/// routes through /api/cta/[submissionId]/[blockId], which writes this row and then
+/// forwards to the real destination with the VidaPulse ids intact.
+///
+/// The owner notification is tracked ON THIS ROW rather than fired and forgotten: a
+/// booking request must never be silently lost, so a failed send stays `pending` with a
+/// backoff and is retried by the cron until it lands or the schedule is exhausted.
+model CtaClick {
+  id           String     @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  // Owning tenant (denormalized from the submission; null = platform/Gita).
+  tenantId     String?
+  createdAt    DateTime   @default(now())
+
+  // Which button block was clicked, and what it said/pointed at when clicked — the
+  // page is editable, so the label and destination are snapshotted rather than looked
+  // up later against a block that may have changed or been deleted.
+  blockId        String
+  label          String?
+  destinationUrl String?
+
+  ip        String?
+  userAgent String?
+
+  // Durable owner notification (native SMTP). "pending" until it lands; the cron
+  // retries on the backoff below and marks "dead" only once the schedule is spent.
+  notifyEmail         String?
+  notifyStatus        String    @default("pending") // pending | sent | dead | skipped
+  notifyAttempts      Int       @default(0)
+  notifyNextAttemptAt DateTime?
+  notifyError         String?
+  notifiedAt          DateTime?
+
+  @@index([submissionId])
+  @@index([assessmentId])
+  @@index([tenantId, createdAt])
+  @@index([createdAt])
+  @@index([notifyStatus, notifyNextAttemptAt])
+  @@map("cta_click")
 }

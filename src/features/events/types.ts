@@ -24,6 +24,7 @@ export const EVENT_NAME: Record<EventType, string> = {
   [EventType.RESULT_VIEWED]: "result.viewed",
   [EventType.ASSESSMENT_ABANDONED]: "assessment.abandoned",
   [EventType.RESULT_LINK_REQUESTED]: "result.link_requested",
+  [EventType.CTA_CLICKED]: "booking_requested", // result-page booking CTA clicked
 };
 
 /** Reverse of EVENT_NAME: dotted name -> enum value. */
@@ -43,6 +44,7 @@ export const ALL_EVENT_TYPES: EventType[] = [
   EventType.RESULT_VIEWED,
   EventType.ASSESSMENT_ABANDONED,
   EventType.RESULT_LINK_REQUESTED,
+  EventType.CTA_CLICKED,
 ];
 
 /**
@@ -61,6 +63,7 @@ export const ACTIVE_EVENT_TYPES: EventType[] = [
   EventType.RESULT_VIEWED,
   EventType.ASSESSMENT_ABANDONED,
   EventType.RESULT_LINK_REQUESTED,
+  EventType.CTA_CLICKED, // booking CTA on the result page
 ];
 
 /**
@@ -80,6 +83,7 @@ export const EVENT_LABEL: Partial<Record<EventType, string>> = {
   [EventType.RESULT_VIEWED]: "Result viewed",
   [EventType.ASSESSMENT_ABANDONED]: "Abandoned",
   [EventType.RESULT_LINK_REQUESTED]: "Result link requested",
+  [EventType.CTA_CLICKED]: "Booking requested (result-page CTA)",
 };
 
 /** Suggested default delivered name per trigger (the canonical event name). */
@@ -145,6 +149,15 @@ export interface PayloadClinic {
   gapAnnual: number;
   dormantValue: number;
   fiveCaseAdSpend: number;
+}
+
+/** The result-page button a respondent pressed to ask for a call. `label` and `url`
+ *  are snapshotted at click time — the page is editable, so re-reading the block later
+ *  could describe a button that has since changed or been removed. */
+export interface PayloadCta {
+  blockId: string;
+  label: string | null;
+  destinationUrl: string | null;
 }
 
 /** metadata for assessment-related events. */
@@ -214,6 +227,8 @@ export interface EmitInput {
   /** CLINIC_AUDIT computed figures → contact.clinic_* custom fields + metadata.clinic. */
   clinic?: PayloadClinic | null;
   attribution?: Partial<PayloadAttribution> | null;
+  /** Which result-page CTA was clicked (CTA_CLICKED only). */
+  cta?: PayloadCta | null;
   /** Override the event timestamp (defaults to now). Used for deterministic samples. */
   timestamp?: string;
 }

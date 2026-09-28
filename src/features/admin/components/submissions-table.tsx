@@ -147,6 +147,10 @@ export interface SubmissionRow {
   paidAmount: number | null;
   paidAt: string | null;
   vslLoads: number;
+  /** First click on a result-page booking CTA (ISO), null = never asked for a call.
+   *  The thank-you page lives in the CRM, so this stamp is the only in-app record
+   *  that this person requested a 1:1. */
+  ctaClickedAt: string | null;
   /** Manual Meta review stamps — ISO strings, null until the owner fires one. */
   metaQualifiedAt: string | null;
   metaDisqualifiedAt: string | null;
@@ -481,6 +485,7 @@ export function SubmissionsTable({
                     <div>Completed</div>
                     <div className="opacity-70">Paid</div>
                   </th>
+                  <th className="px-3 py-2 text-center">Booking</th>
                   <th className="px-3 py-2 text-center">VSL</th>
                   <th className="px-3 py-2">
                     <div>Result</div>
@@ -607,6 +612,16 @@ export function SubmissionsTable({
                           )}
                         </span>
                       </div>
+                    </td>
+                    {/* Booking requested — who clicked the result page's booking CTA */}
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                      {s.ctaClickedAt ? (
+                        <span className="font-medium text-emerald-600" title={`Requested ${formatIST(s.ctaClickedAt)} IST`}>
+                          Yes
+                        </span>
+                      ) : (
+                        <span className="text-[var(--muted-foreground)]">—</span>
+                      )}
                     </td>
                     {/* VSL */}
                     <td className="px-3 py-2 text-center tabular-nums">{s.vslLoads}</td>
