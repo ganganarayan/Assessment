@@ -54,6 +54,10 @@ export default async function StatsPage({
   const items = [
     { label: "Opt-in page views", value: s.totalViews },
     { label: "Unique opt-in views", value: s.uniqueViews },
+    // Sits between views and opt-ins because that is where the gate acts: these people
+    // arrived and were turned away before any lead could exist. Stays 0 on an ungated
+    // funnel, so it never adds noise where there is no gate.
+    { label: "Turned away by gate", value: s.disqualified },
     { label: "Opted in", value: s.optins },
     { label: "Completed assessment", value: s.completed },
     { label: "VSL loads (result shown)", value: s.vslLoads },

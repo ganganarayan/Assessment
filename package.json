@@ -35,6 +35,7 @@
     "verify:enrichment": "tsx scripts/verify-enrichment.ts",
     "verify:billing": "tsx scripts/verify-billing.ts",
     "verify:routing": "tsx scripts/verify-routing.ts",
+    "verify:gate-flag": "tsx scripts/verify-gate-flag.ts",
     "seed:category-bands": "tsx scripts/seed-category-bands.ts",
     "postinstall": "prisma generate"
   },

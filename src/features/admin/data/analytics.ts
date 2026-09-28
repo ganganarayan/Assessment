@@ -82,7 +82,7 @@ export async function getAnalyticsStats(
   // ad-review agent) are recorded but never counted as traffic.
   const humanScope = { ...scope, isBot: false };
 
-  const [totalViews, uniqueVisitors, optins, completed, vslLoads, paidAgg] = await Promise.all([
+  const [totalViews, uniqueVisitors, optins, completed, vslLoads, paidAgg, disqualified] = await Promise.all([
     prisma.pageView.count({ where: humanScope }),
     // distinct visitorId rows; length = unique views (no raw SQL).
     prisma.pageView.findMany({ where: humanScope, select: { visitorId: true }, distinct: ["visitorId"] }),
@@ -100,6 +100,10 @@ export async function getAnalyticsStats(
       _count: { _all: true },
       _sum: { amount: true },
     }),
+    // Turned away by the qualification gate. FRESH rejections only (`repeat` rows are
+    // revisits by someone already rejected) and humans only — so this is people, not
+    // the event volume Meta sees. Zero for an ungated assessment.
+    prisma.gateDisqualification.count({ where: { ...scope, repeat: false, isBot: false } }),
   ]);
   return {
     totalViews,
@@ -109,6 +113,7 @@ export async function getAnalyticsStats(
     vslLoads,
     paidCount: paidAgg._count._all,
     paidAmount: (paidAgg._sum.amount ?? 0) / 100, // paise -> rupees
+    disqualified,
   };
 }
 
