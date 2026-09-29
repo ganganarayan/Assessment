@@ -70,6 +70,23 @@ async function createdAtScope(
   return where;
 }
 
+/**
+ * The same window / tenant / assessment scope, re-keyed for a model whose timestamp
+ * column is not `createdAt` — GateEntry uses `passedAt`, FunnelEventCount uses `day`.
+ * Keeps one definition of "in scope" instead of three that can drift apart.
+ */
+function rekeyScope(scope: Record<string, unknown>, field: string): Record<string, unknown> {
+  const { createdAt, ...rest } = scope as { createdAt?: unknown };
+  return createdAt === undefined ? rest : { ...rest, [field]: createdAt };
+}
+
+/** Firings of ONE Meta event in scope: accepted by Meta, and failed. */
+export interface EventFireCount {
+  eventName: string;
+  count: number;
+  failed: number;
+}
+
 /** Aggregate funnel numbers for the Stats page. Pass tenantId to scope to a
  *  workspace, and opts.assessmentId to scope to a single assessment. */
 export async function getAnalyticsStats(
@@ -82,7 +99,7 @@ export async function getAnalyticsStats(
   // ad-review agent) are recorded but never counted as traffic.
   const humanScope = { ...scope, isBot: false };
 
-  const [totalViews, uniqueVisitors, optins, completed, vslLoads, paidAgg, disqualified] = await Promise.all([
+  const [totalViews, uniqueVisitors, optins, completed, vslLoads, paidAgg, disqualified, disqualifiedRepeat, qualified, fired] = await Promise.all([
     prisma.pageView.count({ where: humanScope }),
     // distinct visitorId rows; length = unique views (no raw SQL).
     prisma.pageView.findMany({ where: humanScope, select: { visitorId: true }, distinct: ["visitorId"] }),
@@ -104,6 +121,21 @@ export async function getAnalyticsStats(
     // revisits by someone already rejected) and humans only — so this is people, not
     // the event volume Meta sees. Zero for an ungated assessment.
     prisma.gateDisqualification.count({ where: { ...scope, repeat: false, isBot: false } }),
+    // Revisits by someone the gate already rejected: they are short-circuited to the
+    // exit page without re-answering, so they are NOT new people. Counted separately
+    // because a funnel that reads "0 turned away" while returning visitors pile up is
+    // exactly the blind spot that hides a permanent lockout.
+    prisma.gateDisqualification.count({ where: { ...scope, repeat: true, isBot: false } }),
+    // Passed the gate. The mirror of "turned away": everyone who answered page 1 is
+    // one or the other, so views - (qualified + disqualified) is the bounce.
+    prisma.gateEntry.count({ where: rekeyScope(scope, "passedAt") }),
+    // How many events the funnel actually FIRED at Meta (not how many people) —
+    // GateDisqualified, QualifiedCompletion / AssessmentCompleted.
+    prisma.funnelEventCount.groupBy({
+      by: ["eventName"],
+      where: rekeyScope(scope, "day"),
+      _sum: { count: true, failed: true },
+    }),
   ]);
   return {
     totalViews,
@@ -114,6 +146,11 @@ export async function getAnalyticsStats(
     paidCount: paidAgg._count._all,
     paidAmount: (paidAgg._sum.amount ?? 0) / 100, // paise -> rupees
     disqualified,
+    disqualifiedRepeat,
+    qualified,
+    fired: fired
+      .map((f) => ({ eventName: f.eventName, count: f._sum.count ?? 0, failed: f._sum.failed ?? 0 }))
+      .sort((a, b) => b.count - a.count) satisfies EventFireCount[],
   };
 }
 
@@ -171,6 +208,46 @@ export interface PageViewLogRow {
   deviceType: string | null;
   browser: string | null;
   os: string | null;
+  /**
+   * What the page-1 gate did with this visitor, resolved at read time:
+   *   "qualified"           — passed the gate,
+   *   "disqualified"        — answered a disqualifying option,
+   *   "disqualified_repeat" — was already rejected and sent straight to the exit page,
+   *   null                  — never answered page 1 (landed and left).
+   * Per VISITOR, not per view: a view is stamped with the outcome that visitor
+   * reached on this assessment, which is what makes "450 views, 1 opt-in" readable.
+   */
+  gate: "qualified" | "disqualified" | "disqualified_repeat" | null;
+}
+
+/**
+ * Resolve the page-1 gate outcome for the visitors behind a page of log rows, keyed
+ * "<assessmentId>|<visitorId>" so one visitor's outcome never leaks across funnels.
+ *
+ * Two grouped reads for the whole page (no N+1). Precedence: a fresh rejection beats
+ * a repeat, and either beats a pass — someone who passed once and was rejected later
+ * is a rejected visitor.
+ */
+async function gateOutcomes(
+  rows: { assessmentId: string; visitorId: string }[],
+): Promise<Map<string, "qualified" | "disqualified" | "disqualified_repeat">> {
+  const out = new Map<string, "qualified" | "disqualified" | "disqualified_repeat">();
+  const visitorIds = [...new Set(rows.map((r) => r.visitorId))];
+  if (visitorIds.length === 0) return out;
+  const assessmentIds = [...new Set(rows.map((r) => r.assessmentId))];
+  const scope = { assessmentId: { in: assessmentIds }, visitorId: { in: visitorIds } };
+
+  const [passes, rejections] = await Promise.all([
+    prisma.gateEntry.findMany({ where: scope, select: { assessmentId: true, visitorId: true } }),
+    prisma.gateDisqualification.findMany({ where: scope, select: { assessmentId: true, visitorId: true, repeat: true } }),
+  ]);
+  for (const p of passes) out.set(`${p.assessmentId}|${p.visitorId}`, "qualified");
+  for (const r of rejections) {
+    const key = `${r.assessmentId}|${r.visitorId}`;
+    if (r.repeat && out.get(key) === "disqualified") continue; // fresh wins
+    out.set(key, r.repeat ? "disqualified_repeat" : "disqualified");
+  }
+  return out;
 }
 
 /** Recent page views (one row per visit, no lead data) for the live log. Bot hits
@@ -197,6 +274,8 @@ export async function listPageViews(opts: {
     select: {
       id: true,
       createdAt: true,
+      assessmentId: true,
+      visitorId: true,
       utmSource: true,
       utmMedium: true,
       utmCampaign: true,
@@ -217,9 +296,12 @@ export async function listPageViews(opts: {
       os: true,
     },
   });
+
+  const gate = await gateOutcomes(rows);
   return rows.map((r) => ({
     id: r.id,
     createdAt: r.createdAt.toISOString(),
+    gate: gate.get(`${r.assessmentId}|${r.visitorId}`) ?? null,
     source: r.utmSource,
     medium: r.utmMedium,
     campaign: r.utmCampaign,

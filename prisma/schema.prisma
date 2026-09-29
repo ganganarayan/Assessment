@@ -709,6 +709,7 @@ model Assessment {
   ctaClicks   CtaClick[]
   pages       AssessmentPage[]
   gateEntries GateEntry[]
+  eventCounts FunnelEventCount[]
 
   @@index([tenantId])
   @@index([status])
@@ -1198,11 +1199,65 @@ model GateEntry {
   /// Compare-and-swap guard: set when AssessmentAbandoned fired, so it fires once.
   abandonedFiredAt DateTime?
 
+  // Owning tenant (denormalized from the assessment; null = platform/Gita). Scalar
+  // only — no FK — matching PageView / GateDisqualification. Added so "Qualified"
+  // reads through the same tenant + date scope as every other funnel number.
+  tenantId String?
+
   // One row per visitor per assessment — a re-entry updates the existing row
   // rather than queueing a second abandonment event for the same person.
   @@unique([assessmentId, visitorId])
   @@index([abandonedFiredAt, passedAt]) // the sweep's scan
+  @@index([assessmentId, passedAt]) // the Stats "Qualified" count
+  @@index([tenantId, passedAt])
   @@map("gate_entry")
+}
+
+// ---------------------------------------------------------------------------
+// FunnelEventCount — how many Meta events the funnel actually FIRED, as a running
+// count rather than a row per firing.
+//
+// GateDisqualified is a browser-pixel-only event: nothing server-side ever saw it,
+// so "is my exclusion audience being built?" was unanswerable from the app. Writing
+// a row per firing would duplicate GateDisqualification (which counts PEOPLE) and
+// grow without bound, so this is a counter: one row per assessment per event per
+// IST day, incremented in place. Day buckets — not one lifetime total — so the
+// Stats date range and the per-assessment Data window still apply.
+//
+// Counts EVENTS, not people: a renewal firing for a visitor already in the audience
+// increments it again. That is the point — it is the number to compare with Meta.
+// ---------------------------------------------------------------------------
+model FunnelEventCount {
+  id           String     @id @default(cuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  /// Owning tenant (denormalized; null = platform/Gita), so the counter reads
+  /// through the same tenant scope as the rest of the Stats page.
+  tenantId String?
+
+  /// The Meta event name exactly as fired — GateDisqualified, QualifiedCompletion,
+  /// AssessmentCompleted. The ad account's audiences are keyed on these strings.
+  eventName String
+
+  /// IST midnight of the day the firings belong to (stored UTC), so a day bucket
+  /// sits inside an IST-aligned Stats range.
+  day DateTime
+
+  /// Firings Meta ACCEPTED.
+  count Int @default(0)
+
+  /// Firings that failed (network error, or Meta rejected the payload). Kept beside
+  /// the count so a silently broken audience is visible without a row per event.
+  failed Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([assessmentId, eventName, day])
+  @@index([tenantId, day])
+  @@index([eventName, day])
+  @@map("funnel_event_count")
 }
 
 // ---------------------------------------------------------------------------
@@ -1792,6 +1847,13 @@ model GateDisqualification {
   questionId String?
   optionId   String?
 
+  // When GateDisqualified was actually SENT to Meta for this rejection (server CAPI).
+  // Null = nothing was sent for this row: a revisit Meta already knows about, a
+  // funnel with the event switched off, or a send that failed. Replaces the old
+  // localStorage `firedAt` stamp — the browser no longer fires this event, so the
+  // audience-refresh decision has to be readable server-side.
+  capiFiredAt DateTime?
+
   // FALSE = a fresh rejection (a person answered a disqualifying option just now).
   // TRUE  = a revisit by an already-rejected visitor, short-circuited to the exit
   // page. Splitting these is the whole point: the Meta event count mixes both, so
@@ -1831,6 +1893,7 @@ model GateDisqualification {
   @@index([utmSource])
   @@index([utmCampaign])
   @@index([tenantId, createdAt])
+  @@index([assessmentId, visitorId]) // "did we already report this visitor?"
   @@map("gate_disqualification")
 }
 

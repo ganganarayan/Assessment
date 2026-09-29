@@ -42,6 +42,7 @@
     "verify:platform-capi": "tsx scripts/verify-platform-capi.ts",
     "verify:cta-click": "tsx scripts/verify-cta-click.ts",
     "verify:optin-meta": "tsx scripts/verify-optin-vs-meta.ts",
+    "verify:funnel-count": "tsx scripts/verify-funnel-count.ts",
     "seed:category-bands": "tsx scripts/seed-category-bands.ts",
     "postinstall": "prisma generate"
   },

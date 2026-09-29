@@ -71,6 +71,23 @@ async function main() {
     console.log(`  ${String(p._count._all).padStart(5)}  ${p.isBot ? "bot  " : "human"}  /${a?.slug ?? p.assessmentId}`);
   }
 
+  const fired = await prisma.funnelEventCount.groupBy({
+    by: ["eventName"],
+    where: { day: { gte: from } },
+    _sum: { count: true, failed: true },
+  });
+  console.log("\n== FIRED TO META (counter) ==");
+  for (const f of fired) console.log(`  ${String(f._sum.count ?? 0).padStart(5)} accepted, ${f._sum.failed ?? 0} failed  ${f.eventName}`);
+  if (fired.length === 0) console.log("  (nothing counted yet)");
+
+  const passes = await prisma.gateEntry.groupBy({ by: ["assessmentId"], where: { passedAt: { gte: from } }, _count: { _all: true } });
+  console.log("\n== PASSED THE GATE (qualified) ==");
+  for (const g of passes) {
+    const a = assessments.find((x) => x.id === g.assessmentId);
+    console.log(`  ${String(g._count._all).padStart(4)}  /${a?.slug ?? g.assessmentId}`);
+  }
+  if (passes.length === 0) console.log("  (none)");
+
   const gd = await prisma.gateDisqualification.groupBy({ by: ["assessmentId", "repeat"], where: { createdAt: { gte: from } }, _count: { _all: true } });
   console.log("\n== GATE REJECTIONS ==");
   for (const g of gd) {

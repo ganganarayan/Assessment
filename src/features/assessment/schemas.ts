@@ -121,8 +121,11 @@ export function completionEventName(gateActive: boolean): string {
  * strings — renaming one silently stops populating an audience, with no error
  * anywhere.
  *
- * GATE_DISQUALIFIED_EVENT — fired by the browser pixel when the page-1 gate
- *   rejects someone, and by the owner's manual Disqualify button (server CAPI).
+ * GATE_DISQUALIFIED_EVENT — fired SERVER-side (Conversions API) when the page-1
+ *   gate rejects someone, and by the owner's manual Disqualify button. No browser
+ *   pixel: the rejection has no PII to match on, and CAPI needs none (IP, user
+ *   agent, _fbp/_fbc and the first-party external_id are match keys), so firing
+ *   from the server survives ad blockers and every send is counted.
  * ABANDONED_EVENT — fired by the sweep for a visitor who PASSED the gate and
  *   then never completed. Server-side only: a browser cannot reliably report
  *   its own departure, so this is decided later by the sweep, not by the page.
@@ -130,9 +133,9 @@ export function completionEventName(gateActive: boolean): string {
 export const GATE_DISQUALIFIED_EVENT = "GateDisqualified";
 export const ABANDONED_EVENT = "AssessmentAbandoned";
 
-/** Content of the disqualified page. Nothing about the visitor is stored when it
- *  shows; `fireDisqualifiedEvent` fires a custom "Disqualified" Meta pixel event
- *  (for building an exclusion audience) — the only outward signal. */
+/** Content of the disqualified page. `fireDisqualifiedEvent` sends the custom
+ *  GateDisqualified event to Meta server-side (for building an exclusion audience) —
+ *  the only outward signal a rejected visitor leaves. */
 export const disqualifiedContentSchema = z.object({
   heading: z.string().max(200).optional().or(z.literal("")).default(""),
   subtext: z.string().max(500).optional().or(z.literal("")).default(""),

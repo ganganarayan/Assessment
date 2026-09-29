@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
 import { COMPLETION_EVENT_GATED, GATE_DISQUALIFIED_EVENT } from "@/features/assessment/schemas";
+import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /**
@@ -103,7 +104,7 @@ export async function sendMetaVerdict(
       region: true,
       postalCode: true,
       metaExternalId: true,
-      assessment: { select: { slug: true, title: true } },
+      assessment: { select: { id: true, slug: true, title: true } },
     },
   });
   if (!s) return { ok: false, error: "Not found." };
@@ -138,6 +139,15 @@ export async function sendMetaVerdict(
       name: [s.leadFirstName, s.leadLastName].filter(Boolean).join(" ") || null,
     },
   );
+
+  // Counted alongside the funnel's automatic firings, so the Stats "Fired to Meta"
+  // total is every event this assessment sent — by hand or by itself.
+  await bumpFunnelEventCount({
+    assessmentId: s.assessment.id,
+    tenantId: s.tenantId,
+    eventName: qualified ? COMPLETION_EVENT_GATED : GATE_DISQUALIFIED_EVENT,
+    ok: outcome.ok,
+  });
 
   // Stamp only on a real send, so the mark means "Meta has this", not "I clicked".
   // The send is already recorded in the CAPI log either way.

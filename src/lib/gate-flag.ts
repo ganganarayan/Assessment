@@ -8,13 +8,17 @@
  * non-opt-in leaves no PII to match on. The real exclusion is the Meta custom audience
  * that GateDisqualified populates; this flag is the instant local layer in front of it.
  *
- * So the flag answers two separate questions, and conflating them is what caused the
- * original bug:
- *   1. Is this visitor locked out?        -> any stored rejection, forever.
- *   2. Should GateDisqualified fire now?  -> only when the audience needs it.
- * Firing on every revisit (the old behaviour) inflated Meta's count well past the
- * number of people actually rejected; never re-firing lets them age out of the
- * exclusion audience and start seeing the ad again. Hence a refresh interval.
+ * The flag now answers ONE question — is this visitor locked out? (any stored
+ * rejection, forever). Whether GateDisqualified should fire is decided SERVER-side
+ * from `capiFiredAt` on the visitor's gate_disqualification rows, because the event
+ * moved to the Conversions API: a rejection carries no PII and needs none, and firing
+ * server-side survives ad blockers and can be counted. The refresh interval below is
+ * the rule that decision still uses — firing on every revisit (the original bug)
+ * inflated Meta's count past the number of people rejected, while never re-firing
+ * lets them age out of the exclusion audience and start seeing the ad again.
+ *
+ * shouldFireDisqualified / stampGateRejectionFired are kept as the pure, testable
+ * statement of that rule (scripts/verify-gate-flag.ts).
  *
  * Pure + storage-agnostic, so it is unit-testable and safe on either side of render.
  */

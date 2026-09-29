@@ -8,13 +8,13 @@ import {
   saveDraftAnswers,
 } from "@/features/assessment/actions/submission";
 import { recordOptinView, recordGatePass, recordGateDisqualification } from "@/features/assessment/actions/track";
-import { gateFlagKey, readGateRejection, writeGateRejection, shouldFireDisqualified, stampGateRejectionFired } from "@/lib/gate-flag";
+import { gateFlagKey, readGateRejection, writeGateRejection } from "@/lib/gate-flag";
 import { getResultForPages, type PageResultData } from "@/features/assessment/actions/pages";
 import { type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
 import { type PaymentCheckout } from "@/lib/payments/types";
 import { ResultPages } from "@/features/assessment/components/public/result-pages";
-import { type LeadInput, professionOptionsFor, completionEventName, GATE_DISQUALIFIED_EVENT, type PreResultField } from "@/features/assessment/schemas";
+import { type LeadInput, professionOptionsFor, completionEventName, type PreResultField } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { getOrCreateExternalId } from "@/lib/external-id";
 import { appendVidapulseId } from "@/lib/vidapulse";
@@ -341,10 +341,12 @@ export function AssessmentRunner({
   }, []);
 
   // Record the rejection (the gate creates no lead or submission, so this row is the
-  // only trace) and send GateDisqualified when the exclusion audience needs it: on a
-  // fresh rejection, and again once membership is old enough to be worth renewing.
-  // Every other revisit stays silent — firing on each one is what inflated Meta's
-  // count past the number of people actually rejected.
+  // only trace). GateDisqualified itself is sent SERVER-side from that same call: a
+  // rejection carries no PII, and CAPI needs none — IP, user agent, _fbp/_fbc and the
+  // first-party external_id are match keys on their own. That keeps the event out of
+  // ad blockers' reach and makes every firing countable, which a browser event never
+  // was. The server also owns the once-per-refresh-window rule, so a revisit stays
+  // silent instead of inflating Meta's count past the number of people rejected.
   const dqFiredRef = useRef(false);
   useEffect(() => {
     if (step !== "disqualified" || dqFiredRef.current) return;
@@ -352,24 +354,14 @@ export function AssessmentRunner({
     if (preview) return; // previewing the exit page is not a rejection
     const cause = dqCauseRef.current ?? { repeat: true };
 
-    if (assessment.disqualified?.fireDisqualifiedEvent) {
-      try {
-        const key = gateFlagKey(assessment.slug);
-        const rejection = readGateRejection(localStorage.getItem(key)) ?? { at: Date.now(), firedAt: null };
-        if (shouldFireDisqualified(rejection)) {
-          pixelTrackCustom(GATE_DISQUALIFIED_EVENT, { assessment: assessment.slug });
-          // Stamp only after the send, so a blocked pixel retries on the next visit
-          // rather than silently marking this visitor as reported.
-          localStorage.setItem(key, stampGateRejectionFired(rejection));
-        }
-      } catch {
-        /* blocked storage — fire nothing rather than fire on every visit */
-      }
-    }
-
     void recordGateDisqualification(
       assessment.slug,
-      { questionId: cause.questionId, optionId: cause.optionId, repeat: cause.repeat },
+      {
+        questionId: cause.questionId,
+        optionId: cause.optionId,
+        repeat: cause.repeat,
+        externalId: getOrCreateExternalId() ?? undefined,
+      },
       attribution,
     ).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps

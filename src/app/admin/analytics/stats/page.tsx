@@ -23,6 +23,16 @@ const join = (parts: (string | null)[], sep: string) => {
   return s || "—";
 };
 
+/** Page-1 gate outcome for one visitor. "—" = they never answered page 1 at all,
+ *  which is the row that explains views without opt-ins. */
+const GateCell = ({ gate }: { gate: "qualified" | "disqualified" | "disqualified_repeat" | null }) => {
+  if (gate === "qualified") return <span className="text-xs font-medium text-green-600">Qualified</span>;
+  if (gate === "disqualified") return <span className="text-xs font-medium text-yellow-600">Disqualified</span>;
+  if (gate === "disqualified_repeat")
+    return <span className="text-xs font-medium text-yellow-600 opacity-70">Disqualified (revisit)</span>;
+  return <span className="text-xs text-[var(--muted-foreground)]">—</span>;
+};
+
 const BotTag = () => (
   <span className="rounded bg-[var(--muted)] px-1.5 py-0.5 text-xs font-medium text-[var(--muted-foreground)]">
     bot
@@ -51,13 +61,22 @@ export default async function StatsPage({
     getBotSourceRows({ ...range, tenantId: t, ...pvScope }),
   ]);
 
-  const items = [
+  const items: { label: string; value: number; hint?: string }[] = [
     { label: "Opt-in page views", value: s.totalViews },
     { label: "Unique opt-in views", value: s.uniqueViews },
-    // Sits between views and opt-ins because that is where the gate acts: these people
-    // arrived and were turned away before any lead could exist. Stays 0 on an ungated
-    // funnel, so it never adds noise where there is no gate.
-    { label: "Turned away by gate", value: s.disqualified },
+    // The two gate outcomes sit between views and opt-ins because that is where the
+    // gate acts: everyone who answered page 1 is one or the other, and the shortfall
+    // against unique views is people who left without answering at all. Both stay 0 on
+    // an ungated funnel, so they never add noise where there is no gate.
+    { label: "Qualified (passed gate)", value: s.qualified, hint: "Answered page 1 and were let through." },
+    {
+      label: "Turned away by gate",
+      value: s.disqualified,
+      hint:
+        s.disqualifiedRepeat > 0
+          ? `+${s.disqualifiedRepeat.toLocaleString()} revisit${s.disqualifiedRepeat === 1 ? "" : "s"} by someone already rejected`
+          : undefined,
+    },
     { label: "Opted in", value: s.optins },
     { label: "Completed assessment", value: s.completed },
     { label: "VSL loads (result shown)", value: s.vslLoads },
@@ -131,6 +150,7 @@ export default async function StatsPage({
             </CardHeader>
             <CardContent>
               <p className="text-4xl font-bold tabular-nums">{it.value.toLocaleString()}</p>
+              {it.hint ? <p className="text-sm text-[var(--muted-foreground)]">{it.hint}</p> : null}
             </CardContent>
           </Card>
         ))}
@@ -144,6 +164,45 @@ export default async function StatsPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Events actually sent to Meta, as running counts. The numbers above are
+          PEOPLE; these are EVENTS — one visitor can be reported more than once when
+          audience membership is renewed, which is why Meta's number is the higher one. */}
+      <section className="flex flex-col gap-2">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Fired to Meta</h2>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            Conversions API sends from this funnel — events, not people. Compare these with the same
+            event names in Events Manager; your custom audiences are built on them.
+          </p>
+        </div>
+        {s.fired.length === 0 ? (
+          <p className="text-sm text-[var(--muted-foreground)]">Nothing fired in this window.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+                <tr>
+                  <th className="px-3 py-1.5">Event</th>
+                  <th className="px-3 py-1.5 text-right">Accepted</th>
+                  <th className="px-3 py-1.5 text-right">Failed</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {s.fired.map((f) => (
+                  <tr key={f.eventName}>
+                    <td className="whitespace-nowrap px-3 py-2 font-medium">{f.eventName}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{f.count.toLocaleString()}</td>
+                    <td className={`px-3 py-2 text-right tabular-nums ${f.failed > 0 ? "text-yellow-600" : "text-[var(--muted-foreground)]"}`}>
+                      {f.failed.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       {/* Traffic by UTM — how many page views came from which source. */}
       <section className="flex flex-col gap-2">
@@ -206,6 +265,7 @@ export default async function StatsPage({
               <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
                 <tr>
                   <th className="whitespace-nowrap px-3 py-1.5">Time (IST)</th>
+                  <th className="whitespace-nowrap px-3 py-1.5">Gate</th>
                   <th className="px-3 py-1.5">Source</th>
                   <th className="px-3 py-1.5">Medium</th>
                   <th className="px-3 py-1.5">Campaign</th>
@@ -224,6 +284,9 @@ export default async function StatsPage({
                   <tr key={r.id}>
                     <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
                       {formatIST(r.createdAt)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <GateCell gate={r.gate} />
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">{dash(r.source)}</td>
                     <td className="whitespace-nowrap px-3 py-2">{dash(r.medium)}</td>
@@ -257,6 +320,7 @@ export default async function StatsPage({
                       <div>{formatIST(b.lastAt)}</div>
                       <div className="opacity-70">first {formatIST(b.firstAt)}</div>
                     </td>
+                    <td className="px-3 py-2" />
                     <td className="whitespace-nowrap px-3 py-2">
                       <BotTag />{" "}
                       <span className="text-xs font-medium">{b.source}</span>{" "}

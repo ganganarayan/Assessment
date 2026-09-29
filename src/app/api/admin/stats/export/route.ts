@@ -28,6 +28,9 @@ const UTM_COLUMNS: CsvColumn<UtmBreakdownRow>[] = [
 interface PageViewExport {
   timeIST: string;
   bot: string;
+  /** Page-1 gate outcome for this visitor: qualified / disqualified /
+   *  disqualified_repeat, blank when they never answered page 1. */
+  gate: string;
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
@@ -49,6 +52,7 @@ interface PageViewExport {
 const PAGEVIEW_COLUMNS: CsvColumn<PageViewExport>[] = [
   { key: "timeIST", label: "Time (IST)" },
   { key: "bot", label: "bot" },
+  { key: "gate", label: "gate" },
   { key: "utm_source", label: "utm_source" },
   { key: "utm_medium", label: "utm_medium" },
   { key: "utm_campaign", label: "utm_campaign" },
@@ -93,6 +97,7 @@ export async function GET(req: Request) {
     const rows: PageViewExport[] = log.map((r) => ({
       timeIST: formatIST(r.createdAt),
       bot: r.isBot ? "yes" : "no",
+      gate: r.gate ?? "",
       utm_source: r.source,
       utm_medium: r.medium,
       utm_campaign: r.campaign,

@@ -32,6 +32,7 @@ import { generateCustomerId, generateToken } from "@/lib/ids";
 import { env } from "@/lib/env";
 import { randomUUID } from "crypto";
 import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
+import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
 import { fbcCreationMs } from "@/lib/meta/capi";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { isResponseLocked, meterResponse, responsesOverCap, supportEmailFor } from "@/lib/billing/gate";
@@ -1421,7 +1422,19 @@ export async function completeSubmission(
         submissionId,
         name: [full?.leadFirstName, full?.leadLastName].filter(Boolean).join(" ") || null,
       },
-    ).catch(() => {});
+    )
+      // Count the firing per assessment as well as logging it: the CAPI log has no
+      // assessment id (only a submission), so this is what lets the Stats page say
+      // how many QualifiedCompletion events THIS funnel sent, beside its gate counts.
+      .then((r) =>
+        bumpFunnelEventCount({
+          assessmentId: assessment.id,
+          tenantId: assessment.tenant?.id ?? null,
+          eventName: completionEventName(isQualificationActive(assessment.qualification)),
+          ok: r.ok,
+        }),
+      )
+      .catch(() => {});
   }
 
   // Backfill Meta match signals if the Start capture missed them (e.g. the _fbp

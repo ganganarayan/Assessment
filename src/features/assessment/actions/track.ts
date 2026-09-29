@@ -12,7 +12,13 @@ import { isBotUserAgent } from "@/lib/bots";
 import { readGeoHeaders } from "@/lib/geo";
 import { parseUserAgent } from "@/lib/user-agent";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
-import { isQualificationActive } from "@/features/assessment/schemas";
+import { sendCapiEventVerbose } from "@/lib/meta/send";
+import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
+import { tenantCan } from "@/lib/billing/plan-resolve";
+import { GATE_DQ_AUDIENCE_REFRESH_MS } from "@/lib/gate-flag";
+import { env } from "@/lib/env";
+import { randomUUID } from "crypto";
+import { isQualificationActive, disqualifiedContentSchema, GATE_DISQUALIFIED_EVENT } from "@/features/assessment/schemas";
 
 const VISITOR_COOKIE = "a360_vid";
 
@@ -148,7 +154,7 @@ export async function recordGatePass(
 
     const a = await prisma.assessment.findFirst({
       where: { slug, status: "PUBLISHED" },
-      select: { id: true, qualification: true, fireMetaCapi: true },
+      select: { id: true, tenantId: true, qualification: true, fireMetaCapi: true },
     });
     // No gate configured → nothing was "passed". Routed (non-ad-entry) assessments
     // deliberately tell Meta nothing, keeping its learning on the ad-entry funnel,
@@ -189,8 +195,8 @@ export async function recordGatePass(
       // A returning visitor restarts the clock: they are in the funnel again, so
       // "abandoned" should be judged from this visit, not their first one. Clearing
       // the fired stamp lets a second abandonment fire for a genuine second attempt.
-      update: { ...signals, passedAt: new Date(), abandonedFiredAt: null },
-      create: { assessmentId: a.id, visitorId: vid, ...signals },
+      update: { ...signals, tenantId: a.tenantId, passedAt: new Date(), abandonedFiredAt: null },
+      create: { assessmentId: a.id, tenantId: a.tenantId, visitorId: vid, ...signals },
     });
   } catch {
     // never surface tracking failures to the visitor
@@ -204,6 +210,9 @@ const gateDisqualificationSchema = z.object({
   questionId: z.string().trim().min(1).max(60).optional(),
   optionId: z.string().trim().min(1).max(60).optional(),
   repeat: z.boolean().default(false),
+  /** First-party visitor id (the same one the opt-in sends) → CAPI external_id, so a
+   *  rejection and a later registration match the same person in Meta. */
+  externalId: z.string().trim().min(1).max(64).optional(),
 });
 
 export type GateDisqualificationInput = z.input<typeof gateDisqualificationSchema>;
@@ -232,11 +241,13 @@ export async function recordGateDisqualification(
 
     const parsed = gateDisqualificationSchema.safeParse(input);
     if (!parsed.success) return; // malformed payload — never a reason to disturb the visitor
-    const { questionId, optionId, repeat } = parsed.data;
+    const { questionId, optionId, repeat, externalId } = parsed.data;
 
     const a = await prisma.assessment.findFirst({
       where: { slug, status: "PUBLISHED" },
-      select: { id: true, tenantId: true },
+      // disqualified/qualification/fireMetaCapi decide whether GateDisqualified is
+      // sent from here — the browser no longer fires it.
+      select: { id: true, slug: true, title: true, tenantId: true, disqualifiedContent: true, qualification: true, fireMetaCapi: true },
     });
     if (!a) return;
 
@@ -288,31 +299,116 @@ export async function recordGateDisqualification(
     };
 
     const existing = c.get(VISITOR_COOKIE)?.value;
+    let vid: string;
     if (existing) {
       if (!rateLimit(`gdq:vid:${existing}`, 10)) return;
-      await prisma.gateDisqualification.create({
-        data: { assessmentId: a.id, tenantId: a.tenantId, visitorId: existing, ...utm, ...meta },
+      vid = existing;
+    } else {
+      const ip = ipRaw || "unknown";
+      if (!rateLimit(`gdq:ip:${ip}`, 30)) return;
+
+      // Cold visitor (gate answered before the view beacon landed, or a blocked cookie):
+      // seed the same visitor id the rest of the funnel uses. Safe — the slug already
+      // resolved to a PUBLISHED assessment, so unknown slugs can't seed cookies.
+      vid = generateId(24);
+      c.set(VISITOR_COOKIE, vid, {
+        maxAge: 60 * 60 * 24 * 365, // 1 year
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
       });
-      return;
     }
 
-    const ip = ipRaw || "unknown";
-    if (!rateLimit(`gdq:ip:${ip}`, 30)) return;
-
-    // Cold visitor (gate answered before the view beacon landed, or a blocked cookie):
-    // seed the same visitor id the rest of the funnel uses. Safe — the slug already
-    // resolved to a PUBLISHED assessment, so unknown slugs can't seed cookies.
-    const vid = generateId(24);
-    c.set(VISITOR_COOKIE, vid, {
-      maxAge: 60 * 60 * 24 * 365, // 1 year
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-    });
-    await prisma.gateDisqualification.create({
+    const row = await prisma.gateDisqualification.create({
       data: { assessmentId: a.id, tenantId: a.tenantId, visitorId: vid, ...utm, ...meta },
+      select: { id: true },
     });
+
+    // The exclusion audience is fed from HERE now (server CAPI), not the browser.
+    await fireGateDisqualified(a, vid, row.id, meta.isBot, externalId ?? null);
   } catch {
     // never surface analytics failures to the visitor
+  }
+}
+
+/**
+ * Send GateDisqualified to Meta server-side, and COUNT the firing.
+ *
+ * Server CAPI, not the browser pixel: a rejection carries no PII (no lead is ever
+ * created), and Meta does not need any — client IP, user agent, _fbp/_fbc and the
+ * first-party external_id are match keys in their own right. Firing from here also
+ * survives ad blockers and gives an auditable count, which a browser event could not.
+ *
+ * Fires at most once per visitor per audience-refresh window, exactly as the old
+ * localStorage rule did (GATE_DQ_AUDIENCE_REFRESH_MS): a fresh rejection fires, a
+ * revisit stays silent until membership is worth renewing. The decision now reads
+ * `capiFiredAt` on this visitor's earlier rows, so a cleared browser cannot cause a
+ * re-fire and an ad-blocked browser cannot cause a miss.
+ *
+ * Fail-soft throughout — the visitor is already looking at the exit page.
+ */
+async function fireGateDisqualified(
+  a: {
+    id: string;
+    slug: string;
+    title: string;
+    tenantId: string | null;
+    disqualifiedContent: unknown;
+    qualification: unknown;
+    fireMetaCapi: boolean;
+  },
+  visitorId: string,
+  rowId: string,
+  isBot: boolean,
+  externalId: string | null,
+): Promise<void> {
+  try {
+    // A crawler executing the page's JS must never enter the exclusion audience.
+    if (isBot) return;
+    // Routed (non-ad-entry) assessments tell Meta nothing — same rule as the opt-in.
+    if (!a.fireMetaCapi || !isQualificationActive(a.qualification)) return;
+    const dq = disqualifiedContentSchema.safeParse(a.disqualifiedContent ?? {});
+    if (!dq.success || !dq.data.fireDisqualifiedEvent) return;
+
+    // Already reported recently? Then Meta knows: staying silent is what keeps the
+    // event count equal to the number of people, not the number of visits.
+    const last = await prisma.gateDisqualification.findFirst({
+      where: { assessmentId: a.id, visitorId, capiFiredAt: { not: null } },
+      orderBy: { capiFiredAt: "desc" },
+      select: { capiFiredAt: true },
+    });
+    if (last?.capiFiredAt && Date.now() - last.capiFiredAt.getTime() < GATE_DQ_AUDIENCE_REFRESH_MS) return;
+
+    // Billing gate: server-side CAPI is a Growth+ capability, same as every other
+    // lifecycle event. Platform/Gita scope (tenantId null) passes.
+    if (!(await tenantCan(a.tenantId, "capi"))) return;
+
+    const ctx = await getMetaRequestContext();
+    const res = await sendCapiEventVerbose(
+      {
+        eventName: GATE_DISQUALIFIED_EVENT,
+        eventId: randomUUID(),
+        eventTimeMs: Date.now(),
+        eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${a.slug}`,
+        user: {
+          ...ctx,
+          state: ctx.region,
+          zip: ctx.postalCode,
+          // No email/phone/name exists for a rejected visitor — and none is needed.
+          externalId: externalId ?? visitorId,
+        },
+        customData: { assessment: a.slug, assessment_name: a.title },
+      },
+      a.tenantId,
+    );
+
+    // Stamp only on success, so a failed send is retried on the next rejection
+    // instead of silently marking this visitor as reported.
+    if (res.ok) {
+      await prisma.gateDisqualification.update({ where: { id: rowId }, data: { capiFiredAt: new Date() } }).catch(() => {});
+    }
+    await bumpFunnelEventCount({ assessmentId: a.id, tenantId: a.tenantId, eventName: GATE_DISQUALIFIED_EVENT, ok: res.ok });
+  } catch {
+    // never surface tracking failures to the visitor
   }
 }

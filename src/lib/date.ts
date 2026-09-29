@@ -41,3 +41,17 @@ export function istDateRangeToUtc(
   }
   return { gte, lte };
 }
+
+/** IST offset in ms (+05:30). India has no DST, so this is a constant. */
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+/**
+ * IST midnight of the day `at` falls on, as a UTC instant. Day-bucketed counters
+ * are stamped with this so a bucket sits inside an IST-aligned Stats range
+ * (istDateRangeToUtc starts its ranges at IST midnight too).
+ */
+export function istDayStart(at: Date = new Date()): Date {
+  const shifted = at.getTime() + IST_OFFSET_MS;
+  const dayMs = 24 * 60 * 60 * 1000;
+  return new Date(Math.floor(shifted / dayMs) * dayMs - IST_OFFSET_MS);
+}
