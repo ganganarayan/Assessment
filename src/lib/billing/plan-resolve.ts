@@ -60,12 +60,20 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    select: { plan: true, subscription: true },
+    select: { plan: true, subscription: true, unlimited: true },
   });
 
   // Unknown tenant → treat as Free (safest; a gate would deny extras, never a respondent).
   if (!tenant) {
     return { plan: "FREE", status: null, limits: PLAN_LIMITS.FREE, isPlatform: false };
+  }
+
+  // An INTERNAL tenant the owner runs themselves: unlimited and un-gated, like the
+  // platform. Checked before the subscription so a lapsed or absent subscription can
+  // never quietly drop it to FREE — which would take Meta CAPI down on a tenant that
+  // is spending on ads, with nothing surfacing the change.
+  if (tenant.unlimited) {
+    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: false };
   }
 
   const sub = tenant.subscription;

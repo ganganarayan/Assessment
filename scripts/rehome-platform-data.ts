@@ -130,35 +130,27 @@ const SETTINGS_SKIP = new Set([
   "platformPixelId",
   "platformCapiTokenEnc",
 
-  // Assess360's own legal entity, shown on /privacy, /terms and /refund.
-  "legalEntityName",
-  "legalAddress",
-  "legalContactEmail",
-  "legalGoverningLocation",
-
-  // Platform auth: fires for every user's password reset, tenants' included.
-  "passwordResetWebhookUrl",
-
-  // Marketing site.
+  // The marketing site, which is the SaaS shopfront and not a tenant asset.
   "landingVideos",
-
-  // CRM / WhatsApp automation is singleton-only by decision, not per-tenant.
-  "crmResendUrl",
-  "crmDripActive",
-  "crmScoreStartHour",
-  "crmScoreEndHour",
-  "crmScoreDelayMin",
-  "crmScoreDelayMax",
-  "crmDiagnosisUrl",
-  "crmCustomName",
-  "crmCustomEventType",
-  "crmCustomFields",
-  "crmCustomStartHour",
-  "crmCustomEndHour",
-  "crmCustomDelayMin",
-  "crmCustomDelayMax",
-  "crmCustomActive",
 ]);
+
+/*
+ * NOT excluded, deliberately, though it might look like it should be:
+ *
+ *  - legal* — the platform and the funnel tenant are the SAME company here, so the
+ *    tenant wants the same entity, address and governing location, not a blank row.
+ *  - crm* (15 fields) — the automation is wanted on both. The endpoints will diverge
+ *    later; copying gives a working starting point to edit rather than a blank one.
+ *  - passwordResetWebhookUrl — same reasoning; read from the singleton today, so the
+ *    tenant copy is inert until per-tenant auth mail exists.
+ *  - metaPixelId / metaCapiTokenEnc / razorpay* / smtp* / waba* / supportEmail /
+ *    statsResetAt / heatmapCode / vidapulse* — both levels need their OWN values. The
+ *    copy is a starting point; the platform keeps its own on the singleton and the two
+ *    are free to diverge immediately after.
+ *
+ * Only platformPixelId and platformCapiTokenEnc are genuinely platform-only among the
+ * integration fields, and they are above.
+ */
 
 /**
  * Fields the moved funnel cannot run without, and the environment variable that used to

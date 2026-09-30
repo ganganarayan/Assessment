@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import {
   createTenant,
   deleteTenant,
+  setTenantUnlimited,
   restoreTenant,
   purgeTenant,
   listTenants,
@@ -97,6 +98,14 @@ export function PlatformConsole({
       )
         return;
       const r = await deleteTenant(t.id);
+      if (!r.ok) return setError(r.error);
+      await refresh();
+    });
+
+  const toggleUnlimited = (t: TenantRow) =>
+    start(async () => {
+      setError(null);
+      const r = await setTenantUnlimited(t.id, !t.unlimited);
       if (!r.ok) return setError(r.error);
       await refresh();
     });
@@ -226,12 +235,36 @@ export function PlatformConsole({
                     <td className="px-3 py-2 text-center tabular-nums">{t.assessmentCount}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.submissionCount}</td>
                     <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]">{t.source ?? "—"}</td>
-                    <td className="px-3 py-2">{t.status}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-col gap-0.5">
+                        <span>{t.status}</span>
+                        {t.unlimited ? (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-green-600">
+                            Unlimited
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex justify-end gap-2">
                         <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => { await enterTenant(t.id); })}>
                           Enter →
                         </Button>
+                        {t.id === PLATFORM_TENANT_ID ? null : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={pending}
+                            onClick={() => toggleUnlimited(t)}
+                            title={
+                              t.unlimited
+                                ? "Put this tenant back on its plan (limits and feature gates apply again)"
+                                : "Run this tenant as your own: unlimited responses, every feature on, never metered"
+                            }
+                          >
+                            {t.unlimited ? "Use plan" : "Make unlimited"}
+                          </Button>
+                        )}
                         {t.id === PLATFORM_TENANT_ID ? (
                           <span className="self-center text-xs text-[var(--muted-foreground)]">
                             Part of the app

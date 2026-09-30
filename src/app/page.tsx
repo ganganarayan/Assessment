@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
-import { getTenantContext } from "@/lib/tenant/context";
+import { redirect } from "next/navigation";
+import { getTenantContext, getCurrentTenant } from "@/lib/tenant/context";
+import { rootAssessmentSlugFor } from "@/features/assessment/root-assessment";
 import { buttonVariants } from "@/components/ui/button";
 import { Landing } from "@/components/marketing/Landing";
 import { PlatformPixel } from "@/components/platform-pixel";
@@ -56,7 +58,18 @@ export default async function HomePage() {
     );
   }
 
-  // Tenant root (clinic subdomain / custom domain) → existing behavior. Untouched.
+  // Tenant root (subdomain or custom domain). Land on that tenant's funnel, which is
+  // what anyone typing the bare domain is looking for — it used to show the generic
+  // "foundation ready" page instead, so a customer who pointed their own domain at us
+  // got a dead end unless they knew to add /a/<slug> by hand.
+  const tenant = await getCurrentTenant();
+  if (tenant) {
+    const funnelSlug = await rootAssessmentSlugFor(tenant.id, tenant.primaryAssessmentId);
+    if (funnelSlug) redirect(`/a/${funnelSlug}`);
+    // No published assessment, or several with none chosen: fall through to the generic
+    // page rather than guessing which one a visitor should see.
+  }
+
   const session = await getSession();
 
   return (

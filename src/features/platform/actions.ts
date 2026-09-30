@@ -174,6 +174,34 @@ export async function purgeTenant(tenantId: string, confirmSlug: string): Promis
   return r;
 }
 
+/**
+ * Mark a tenant INTERNAL (unlimited) or put it back on its plan.
+ *
+ * Unlimited means unlimited limits and every feature on, exactly like the platform:
+ * no metering, no response cap, no feature gate. It is for tenants the owner runs
+ * themselves rather than sells to.
+ *
+ * Why a flag rather than parking them on SCALE: a plan can lapse. A subscription that
+ * expires, or a plan column someone edits, silently drops the tenant to FREE — which
+ * turns off Meta CAPI and caps responses at 25 a month on a tenant that may be spending
+ * on ads, with no error anywhere. resolvePlan checks this BEFORE the subscription, so
+ * an internal tenant cannot be downgraded by accident.
+ */
+export async function setTenantUnlimited(tenantId: string, unlimited: boolean): Promise<ActionResult> {
+  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+  if (!t) return { ok: false, error: "Tenant not found." };
+  const r = await softFail(
+    "setTenantUnlimited",
+    "Couldn't change that tenant (a temporary database error). Try again.",
+    async () => {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { unlimited } });
+    },
+  );
+  revalidatePath("/platform");
+  return r;
+}
+
 /** Platform-owner (super-admin) tenant + user management. Stage 1: create tenants,
  *  assign existing logins to a tenant as its admin, promote/demote super admins.
  *  Creating the login itself is self-serve (/sign-up), then assigned here. */
@@ -191,6 +219,8 @@ export interface TenantRow {
   source: string | null;
   /** ISO timestamp when the tenant was soft-deleted; null = active. */
   deletedAt: string | null;
+  /** Internal tenant: unlimited limits, every feature on, never metered. */
+  unlimited: boolean;
 }
 
 export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
@@ -219,6 +249,7 @@ export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
         createdAt: t.createdAt.toISOString(),
         source: [t.acqUtmSource, t.acqUtmCampaign].filter((v) => v && v.trim()).join(" · ") || null,
         deletedAt: t.deletedAt?.toISOString() ?? null,
+        unlimited: t.unlimited,
       })),
     };
   } catch (e) {
@@ -253,6 +284,7 @@ export async function listDeletedTenants(): Promise<ActionResult<TenantRow[]>> {
         createdAt: t.createdAt.toISOString(),
         source: [t.acqUtmSource, t.acqUtmCampaign].filter((v) => v && v.trim()).join(" · ") || null,
         deletedAt: t.deletedAt?.toISOString() ?? null,
+        unlimited: t.unlimited,
       })),
     };
   } catch (e) {

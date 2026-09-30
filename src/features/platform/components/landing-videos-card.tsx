@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CAPABILITIES } from "@/lib/marketing/content";
-import { ALLOWED_EMBED_HOSTS } from "@/lib/marketing/embed";
 import { saveLandingVideos } from "@/features/platform/landing-videos";
 
 /**
@@ -72,9 +71,9 @@ export function LandingVideosCard({
           they do now. {filled} of {CAPABILITIES.length + 1} slots filled.
         </p>
         <p className="mt-2 text-xs text-[var(--muted-foreground)]">
-          Embed code or plain link, both fine. Only the video address is kept — everything else in a
-          pasted snippet is discarded, so nothing can inject scripts into the public page. Allowed
-          hosts: {ALLOWED_EMBED_HOSTS}.
+          Embed code or plain link, both fine, from any host — VidaPulse included. Only the video
+          address is kept from a pasted snippet, and we draw the player frame ourselves, so view
+          tracking works while nothing from the paste can run as script on the public page.
         </p>
       </div>
 

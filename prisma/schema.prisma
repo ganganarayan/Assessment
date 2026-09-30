@@ -66,6 +66,22 @@ model Tenant {
   plan               Plan    @default(FREE)
   razorpayCustomerId String?
 
+  // INTERNAL tenant: one the platform owner runs themselves rather than sells to.
+  // Resolves to unlimited limits and every feature on, exactly like the platform —
+  // no plan, no subscription, no metering, no feature gate.
+  //
+  // This exists because the owner operates several of their own businesses on this
+  // install. Without it each one has to be parked on a paid plan it will never be
+  // billed for, and any that is missed silently loses Meta CAPI and locks at 25
+  // responses a month — which, on a tenant running paid ads, is money lost with no
+  // error anywhere. A flag states the intent; a fake SCALE plan only implies it.
+  unlimited          Boolean @default(false)
+
+  // The assessment served at this tenant's own root (its subdomain or a custom
+  // domain). Null = fall back to the tenant's only published assessment; with several
+  // published and none chosen, the root keeps its generic page rather than guessing.
+  primaryAssessmentId String?
+
   // Acquisition attribution — the ad/campaign this tenant (a self-serve signup) came
   // from, captured from the last-touch UTM cookie at signup. The full set is kept as
   // JSON; the common fields are denormalized for fast grouping in the platform funnel

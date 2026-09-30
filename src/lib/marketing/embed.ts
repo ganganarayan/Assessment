@@ -20,36 +20,19 @@
  */
 
 /**
- * Hosts whose iframes may be embedded.
+ * NO HOST ALLOWLIST — removed at the owner's instruction.
  *
- * Two groups: the common video hosts, and the owner's own domains — VidaPulse serves
- * the tracked player used for these videos, and its view tracking is the entire reason
- * for embedding rather than self-hosting a file. Suffix entries match the host itself
- * and any subdomain of it.
+ * A list meant every new video host needed a code change and a deploy before a video
+ * could go up, which is the wrong trade for a marketing page the owner edits directly.
+ * Any https host is accepted.
  *
- * To add a host, add it here — that is the only place, and the save error quotes this
- * list back to the owner so an unrecognised paste explains itself.
+ * What still holds: only the src URL is taken out of a pasted snippet, and we render
+ * our own iframe around it. So an <iframe> paste from anywhere works immediately, and
+ * no attribute from the paste — onload, style, sandbox, srcdoc — reaches the page.
+ * The protocol check stays, because http: in an https page is blocked by the browser
+ * and would store a video that silently never renders.
  */
-const ALLOWED_HOST_SUFFIXES = [
-  "youtube.com",
-  "youtube-nocookie.com",
-  "youtu.be",
-  "vimeo.com",
-  "loom.com",
-  "wistia.com",
-  "wistia.net",
-  "vidapulse.com",
-  "vidapulse.in",
-  "divineleads.guru",
-  "applygitawisdom.com",
-] as const;
-
-export const ALLOWED_EMBED_HOSTS = ALLOWED_HOST_SUFFIXES.join(", ");
-
-function hostAllowed(host: string): boolean {
-  const h = host.toLowerCase().replace(/^www\./, "");
-  return ALLOWED_HOST_SUFFIXES.some((s) => h === s || h.endsWith(`.${s}`));
-}
+export const ALLOWED_EMBED_HOSTS = "any https host";
 
 export type EmbedParse =
   | { ok: true; url: string }
@@ -102,7 +85,10 @@ export function parseEmbed(input: string | null | undefined): EmbedParse {
   if (!iframeSrc && /<\/?[a-z]/i.test(raw)) {
     return {
       ok: false,
-      error: "That looks like HTML but has no <iframe src=…>. Paste the embed code or the video URL.",
+      error:
+        "That snippet has no <iframe src=…>, so there is nothing to embed. Paste the iframe embed " +
+        "code or the direct video URL. (Script-tag embeds are not supported — tell me the player " +
+        "and I will add it.)",
     };
   }
 
@@ -119,14 +105,7 @@ export function parseEmbed(input: string | null | undefined): EmbedParse {
   if (url.protocol !== "https:") {
     return { ok: false, error: "The video URL must start with https://." };
   }
-  const normalized = normalize(url);
-  if (!hostAllowed(normalized.hostname)) {
-    return {
-      ok: false,
-      error: `Videos can only be embedded from: ${ALLOWED_EMBED_HOSTS}. Yours was ${normalized.hostname}.`,
-    };
-  }
-  return { ok: true, url: normalized.toString() };
+  return { ok: true, url: normalize(url).toString() };
 }
 
 /** The stored shape: one hero video, plus one per capability tile keyed by its title. */
@@ -139,9 +118,8 @@ export const EMPTY_LANDING_VIDEOS: LandingVideos = { hero: null, tiles: {} };
 
 /**
  * Read the stored JSON back into a usable shape, dropping anything that no longer
- * parses. Re-validating on READ (not just on save) matters because the allowlist can
- * change: a host removed from it must stop rendering everywhere, not keep working on
- * rows that were saved while it was still allowed.
+ * parses. Re-validated on READ as well as on save, so a rule tightened later applies to
+ * rows already stored instead of only to new ones.
  */
 export function readLandingVideos(value: unknown): LandingVideos {
   if (!value || typeof value !== "object" || Array.isArray(value)) return EMPTY_LANDING_VIDEOS;
