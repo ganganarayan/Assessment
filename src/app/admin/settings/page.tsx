@@ -23,8 +23,6 @@ import {
   getPlatformSubscriptionPixel,
 } from "@/features/admin/actions/platform-integrations";
 import { PlatformPixelForm } from "@/features/admin/components/platform-pixel-form";
-import { StorageSettingsCard } from "@/features/platform/components/storage-settings-card";
-import { getStorageSettings } from "@/features/platform/storage-settings";
 import { LegalSettingsForm } from "@/features/admin/components/legal-settings-form";
 import { NurtureConnectionSettings } from "@/features/nurture/components/nurture-connection-settings";
 import { getNurtureSettings } from "@/features/nurture/actions";
@@ -46,11 +44,10 @@ export const dynamic = "force-dynamic";
  * Custom domains are per-tenant, so that card only shows while impersonating.
  */
 export default async function SettingsPage() {
-  const [setting, actingId, nurtureSettings, storage] = await Promise.all([
+  const [setting, actingId, nurtureSettings] = await Promise.all([
     getAppSetting(),
     actingTenantId(),
     getNurtureSettings(),
-    getStorageSettings(),
   ]);
   const impersonating = actingId !== null;
 
@@ -116,13 +113,6 @@ export default async function SettingsPage() {
             <PlatformPixelForm initial={platformPixel} />
           </CardContent>
         </Card>
-      ) : null}
-
-      {/* File storage — platform-wide, so only in the global (not impersonating) view.
-          One bucket for the install; a tenant's files sit under its own path inside it,
-          which is why there is nothing per-tenant to configure here. */}
-      {!impersonating && storage.ok && storage.data ? (
-        <StorageSettingsCard initial={storage.data} />
       ) : null}
 
       <Card>
