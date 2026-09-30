@@ -36,6 +36,10 @@ export const FEATURES = [
   "leadExport",
   "customDomain",
   "brandingRemoved",
+  // analyticsTracking = Meta browser-pixel events BEYOND the two Free signals.
+  // Free always gets PageView and CompleteRegistration (see FREE_BROWSER_EVENTS) so a
+  // free funnel can still be measured and retargeted; everything else — the completion
+  // event above all — needs a paid plan.
   "analyticsTracking",
   "staffRoles",
   "apiAccess",
@@ -63,6 +67,20 @@ export const PAID_BASE_FEATURES = [
   "aiReports",
   "prioritySupport",
 ] as const satisfies ReadonlyArray<Feature>;
+
+/**
+ * Browser-pixel events a FREE tenant may fire.
+ *
+ * PageView and CompleteRegistration only. Those two are what make a free funnel
+ * measurable at all — traffic in, opt-ins out — so withholding them would make the
+ * free tier untestable rather than merely limited. The completion event, which is the
+ * one an ad account actually optimises towards, is the paid signal.
+ *
+ * Enforced by withholding the pixel eventId server-side rather than by asking the
+ * browser not to fire: a client-side check is advisory, and anyone reading the page
+ * source could fire the event anyway.
+ */
+export const FREE_BROWSER_EVENTS = ["PageView", "CompleteRegistration"] as const;
 
 export type FeatureFlags = Record<Feature, boolean>;
 

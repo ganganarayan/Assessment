@@ -79,19 +79,30 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
         <span className="font-semibold">Check status</span> and it goes live.
       </div>
 
-      {/* Add */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-        <div className="flex flex-1 flex-col gap-1">
-          <Label className="text-xs">Add a domain</Label>
-          <Input
-            value={hostname}
-            onChange={(e) => setHostname(e.target.value)}
-            placeholder="assess.yourbrand.com"
-            onKeyDown={(e) => { if (e.key === "Enter") onAdd(); }}
-          />
+      {/* Add — paid only. Existing domains below keep working either way; only adding
+          a new one is gated, so a lapse never takes a live domain off the air. */}
+      {initial.canAdd ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="flex flex-1 flex-col gap-1">
+            <Label className="text-xs">Add a domain</Label>
+            <Input
+              value={hostname}
+              onChange={(e) => setHostname(e.target.value)}
+              placeholder="assess.yourbrand.com"
+              onKeyDown={(e) => { if (e.key === "Enter") onAdd(); }}
+            />
+          </div>
+          <Button size="sm" onClick={onAdd} disabled={pending || !hostname.trim()}>Add domain</Button>
         </div>
-        <Button size="sm" onClick={onAdd} disabled={pending || !hostname.trim()}>Add domain</Button>
-      </div>
+      ) : (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+          <p className="font-medium">Custom domains are on the paid plans.</p>
+          <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
+            Upgrade to connect your own domain. Your assessments stay reachable at their{" "}
+            <span className="font-mono">{initial.rootDomain}</span> address in the meantime.
+          </p>
+        </div>
+      )}
 
       {/* List */}
       {initial.domains.length === 0 ? (

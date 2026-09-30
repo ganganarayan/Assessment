@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireWorkspace, editDenied } from "@/lib/auth/guards";
+import { tenantCan } from "@/lib/billing/gate";
 import { env } from "@/lib/env";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import {
@@ -142,6 +143,9 @@ export interface DomainSettingsView {
   railwayManaged: boolean;
   /** TRUE when Cloudflare manages DNS automatically (no manual CNAME for the tenant). */
   autoDns: boolean;
+  /** FALSE on Free: the add form is replaced by an upgrade note. Existing domains
+   *  still render and keep working — only adding a new one is gated. */
+  canAdd: boolean;
 }
 
 const hostnameSchema = z
@@ -198,6 +202,7 @@ export async function getDomainSettings(): Promise<DomainSettingsView> {
     rootDomain: env.NEXT_PUBLIC_ROOT_DOMAIN.toLowerCase(),
     railwayManaged: managed,
     autoDns,
+    canAdd: await tenantCan(tenantId, "customDomain"),
   };
 }
 
@@ -205,6 +210,21 @@ export async function addDomain(rawHostname: string): Promise<ActionResult> {
   const { user, tenantId } = await requireWorkspace();
   const denied = editDenied(user);
   if (denied) return denied;
+
+  // Billing gate: bring-your-own domain is a paid capability. Checked here rather than
+  // only hiding the form, because the form is a client component and a server action is
+  // callable directly.
+  //
+  // Only ADDING is gated. An existing domain keeps resolving if a tenant lapses to Free:
+  // pulling a live domain would take down whatever traffic is already pointed at it,
+  // which is a customer outage rather than a downgrade. Reclaiming those is a separate,
+  // deliberate decision.
+  if (!(await tenantCan(tenantId, "customDomain"))) {
+    return {
+      ok: false,
+      error: "Custom domains are available on the paid plans. Upgrade to connect your own domain.",
+    };
+  }
 
   const parsed = hostnameSchema.safeParse(rawHostname);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid domain." };

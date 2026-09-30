@@ -35,7 +35,7 @@ import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
 import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
 import { fbcCreationMs } from "@/lib/meta/capi";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
-import { isResponseLocked, meterResponse, responsesOverCap, supportEmailFor } from "@/lib/billing/gate";
+import { isResponseLocked, meterResponse, responsesOverCap, supportEmailFor, tenantCan } from "@/lib/billing/gate";
 import { generatePersonalStatement, generateClinicStatement } from "@/lib/ai/generate";
 import {
   resolveEngineConfig,
@@ -1396,7 +1396,18 @@ export async function completeSubmission(
   // Inert unless configured; fail-soft context; non-blocking send.
   // Phase 2: routed (non-ad-entry) assessments don't tell Meta — no CAPI, no pixel
   // eventId — so Meta's optimization stays tied to the ad-entry assessment only.
-  const eventId = assessment.fireMetaCapi ? randomUUID() : undefined;
+  //
+  // Billing gate: the COMPLETION event is a paid browser signal. Free tenants keep
+  // PageView and CompleteRegistration (plans.FREE_BROWSER_EVENTS) so their funnel is
+  // still measurable, but not the event an ad account optimises towards.
+  //
+  // Enforced by withholding the eventId, which is what the browser needs to fire and
+  // dedup. The runner already fires only `if (res.data?.eventId)`, so no eventId means
+  // no browser event, and no half-state where the pixel fires with an id the server
+  // never used. Deciding it here also means the page source cannot be read to fire it
+  // anyway, which a client-side check would allow.
+  const mayFireCompletion = await tenantCan(assessment.tenant?.id ?? null, "analyticsTracking");
+  const eventId = assessment.fireMetaCapi && mayFireCompletion ? randomUUID() : undefined;
   if (assessment.fireMetaCapi && eventId) {
     const ctx = await getMetaRequestContext();
     void sendAndLogLifecycleCapi(
