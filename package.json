@@ -19,6 +19,7 @@
     "rehome": "tsx scripts/rehome-platform-data.ts",
     "settings:from-env": "tsx scripts/settings-from-env.ts",
     "verify:tenancy": "tsx scripts/verify-tenancy.ts",
+    "preview:rehome": "tsx scripts/preview-rehome.ts",
     "db:studio": "prisma studio",
     "seed:webhooks": "tsx scripts/seed-webhooks.ts",
     "cron:abandoned": "tsx scripts/sweep-abandoned.ts",

@@ -15,12 +15,12 @@
  * fails halfway on any table this still reports as holding nulls, and the whole point of
  * checking here is to find those tables while failing is free.
  *
- * SEVERITY IS PHASE-AWARE. Unowned rows and a missing tenant settings row are what the
- * re-home is FOR, so before it has run they report 🟡, not 🔴 — a tool that reports the
- * expected starting state as thirteen failures teaches you to ignore its output, which
- * is worse than not having it. They become 🔴 once the move should have happened: either
- * the named funnel tenant already owns rows (so a leftover null means a PARTIAL move), or
- * `--expect-complete` is passed. Use that flag for the NOT NULL gate.
+ * SEVERITY IS PHASE-AWARE, AND THE PHASE IS YOURS TO STATE. Unowned rows and a missing
+ * tenant settings row are what the re-home is FOR, so by default they report 🟡, not 🔴
+ * — a tool that reports the expected starting state as thirteen failures teaches you to
+ * ignore its output, which is worse than not having it. Pass `--expect-complete` to
+ * assert the finished state: the same rows become 🔴 and the run exits 1. Use that form
+ * after the move and as the NOT NULL migration gate. Nothing is inferred.
  *
  * Exit code is 1 when any 🔴 check fails, so it can gate a deploy step.
  */
@@ -167,34 +167,29 @@ async function main() {
   const funnel = funnelSlug ? tenants.find((x) => x.slug === funnelSlug) : undefined;
 
   /*
-   * WHICH PHASE ARE WE IN?
+   * WHICH STATE IS BEING ASSERTED?
    *
    * Unowned rows and a missing tenant settings row are the NORMAL state before the move
    * — they are the very things the move fixes. Reporting them as 🔴 on a database nobody
    * has re-homed yet cries wolf on the run this tool most exists for ("see the starting
-   * state"), and exits 1 while doing it. So severity is decided by what SHOULD be true:
+   * state"), and exits 1 while doing it. So the caller SAYS which state to assert, with
+   * --expect-complete, and nothing is inferred.
    *
-   *   moveClaimsDone  the named funnel tenant already owns rows, so the tenant step ran.
-   *                   Nulls left over now mean a PARTIAL move — a table the mover skipped
-   *                   — which is a genuine 🔴 and exactly what needs catching.
-   *   --expect-complete  assert the finished state regardless. This is the gate to run
-   *                   before the NOT NULL migration, where any null is a failure.
-   *
-   * Otherwise the move has not run and the same rows report 🟡 with the step that fixes
-   * them. Nothing is hidden either way — the counts print identically.
+   * An earlier version guessed it instead: "the funnel tenant owns rows, so the move must
+   * have run". That is wrong — a tenant can create its own assessments and submissions
+   * directly, and cosmetic-divine-leads already has. The guess turned an ordinary tenant
+   * with its own data into a phantom "partial move" report. A flag the caller sets is
+   * both simpler and correct.
    */
-  const moveClaimsDone = !!funnel && (funnel._count.assessments > 0 || funnel._count.submissions > 0);
-  const expectComplete = process.argv.includes("--expect-complete") || moveClaimsDone;
+  const expectComplete = process.argv.includes("--expect-complete");
 
   console.log("\n=== Rows still unowned (tenantId IS NULL) ===");
   console.log("  These are what the later NOT NULL migration will reject.");
   console.log(
     expectComplete
-      ? moveClaimsDone
-        ? `  Severity: 🔴 — "${funnelSlug}" already owns rows, so the move ran and these were left behind.\n`
-        : "  Severity: 🔴 — --expect-complete given: asserting the finished state.\n"
-      : "  Severity: 🟡 — the re-home has not run yet, so these are expected.\n" +
-          "  Pass --expect-complete to assert the finished state (use it before the NOT NULL migration).\n",
+      ? "  Severity: 🔴 — --expect-complete given: asserting the finished state.\n"
+      : "  Severity: 🟡 — asserting the pre-move state, so these are expected.\n" +
+          "  Pass --expect-complete after the move (and before the NOT NULL migration).\n",
   );
   let nulls = 0;
   for (const name of NULLABLE_TENANT_TABLES) {
