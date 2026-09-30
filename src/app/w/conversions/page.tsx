@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { requireWorkspace } from "@/lib/auth/guards";
-import { listCapiLogs } from "@/features/events/data";
+import { countCapiLogs, listCapiLogs } from "@/features/events/data";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+
+const PER_PAGE = 50;
 
 /**
  * Read-only per-tenant conversions log. Firing to Meta stays a platform action for now —
@@ -15,28 +17,46 @@ export const dynamic = "force-dynamic";
  * "payments". That read as duplicated payment records. Payments are the default view and
  * the full log is one click away, because the full log is what you want when debugging
  * why an event did not reach Meta.
+ *
+ * Both tab counts are always queried, not just the active one: the number next to the
+ * inactive tab is the whole reason the split is legible ("5 payments out of 68 events"),
+ * and it is what makes the repeated contacts under All events read as separate events
+ * rather than as duplicates.
  */
 export default async function WorkspaceConversionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ event?: string }>;
+  searchParams: Promise<{ event?: string; page?: string }>;
 }) {
   const { tenantId } = await requireWorkspace();
-  const { event } = await searchParams;
+  const { event, page } = await searchParams;
   const showAll = event === "all";
-  const rows = await listCapiLogs(tenantId, 200, "assessment", showAll ? undefined : "payments");
+  const only = showAll ? undefined : ("payments" as const);
 
-  const tab = (href: string, label: string, active: boolean) => (
-    <Link
-      href={href}
-      className={cn(
-        "rounded-md border px-3 py-1.5 text-sm",
-        active ? "border-[var(--primary)] font-medium" : "text-[var(--muted-foreground)]",
-      )}
-    >
-      {label}
-    </Link>
-  );
+  const [payments, all] = await Promise.all([
+    countCapiLogs(tenantId, { only: "payments" }),
+    countCapiLogs(tenantId),
+  ]);
+  const total = showAll ? all : payments;
+
+  // Clamp rather than trust the URL: a hand-edited or stale ?page (a bookmark from when
+  // there were more rows) would otherwise render an empty table with no explanation.
+  const pages = Math.max(1, Math.ceil(total / PER_PAGE));
+  const current = Math.min(Math.max(1, Number(page) || 1), pages);
+  const skip = (current - 1) * PER_PAGE;
+
+  const rows = await listCapiLogs(tenantId, { take: PER_PAGE, skip, only });
+
+  const href = (p: number) => {
+    const qs = new URLSearchParams();
+    if (showAll) qs.set("event", "all");
+    if (p > 1) qs.set("page", String(p));
+    const s = qs.toString();
+    return s ? `/w/conversions?${s}` : "/w/conversions";
+  };
+
+  const first = total === 0 ? 0 : skip + 1;
+  const last = skip + rows.length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -49,9 +69,25 @@ export default async function WorkspaceConversionsPage({
         </p>
       </div>
 
-      <div className="flex gap-2">
-        {tab("/w/conversions", "Payments", !showAll)}
-        {tab("/w/conversions?event=all", "All events", showAll)}
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href="/w/conversions"
+          className={cn(
+            "rounded-md border px-3 py-1.5 text-sm",
+            !showAll ? "border-[var(--primary)] font-medium" : "text-[var(--muted-foreground)]",
+          )}
+        >
+          Payments <span className="tabular-nums">({payments})</span>
+        </Link>
+        <Link
+          href="/w/conversions?event=all"
+          className={cn(
+            "rounded-md border px-3 py-1.5 text-sm",
+            showAll ? "border-[var(--primary)] font-medium" : "text-[var(--muted-foreground)]",
+          )}
+        >
+          All events <span className="tabular-nums">({all})</span>
+        </Link>
       </div>
 
       <div className="overflow-x-auto rounded-lg border">
@@ -90,6 +126,37 @@ export default async function WorkspaceConversionsPage({
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-[var(--muted-foreground)] tabular-nums">
+          {total === 0 ? "Nothing to show" : `Showing ${first}–${last} of ${total}`}
+        </p>
+        {pages > 1 ? (
+          <div className="flex items-center gap-2">
+            {current > 1 ? (
+              <Link href={href(current - 1)} className="rounded-md border px-3 py-1.5 text-sm">
+                ← Newer
+              </Link>
+            ) : (
+              <span className="rounded-md border px-3 py-1.5 text-sm text-[var(--muted-foreground)] opacity-50">
+                ← Newer
+              </span>
+            )}
+            <span className="text-xs text-[var(--muted-foreground)] tabular-nums">
+              Page {current} of {pages}
+            </span>
+            {current < pages ? (
+              <Link href={href(current + 1)} className="rounded-md border px-3 py-1.5 text-sm">
+                Older →
+              </Link>
+            ) : (
+              <span className="rounded-md border px-3 py-1.5 text-sm text-[var(--muted-foreground)] opacity-50">
+                Older →
+              </span>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   );

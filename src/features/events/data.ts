@@ -255,18 +255,19 @@ export interface CapiLogRow {
   createdAt: string;
 }
 
-/** Every captured payment's Purchase CAPI record + Meta's response (newest first). */
-/**
- * CAPI log rows for one funnel. `scope` defaults to the assessment (respondent) funnel
- * so the existing Conversions views keep showing what they always showed; the Assess360
- * SaaS funnel's own signups and subscriptions live under scope "platform" and are read
- * explicitly. Without the split both would appear here as bare "CompleteRegistration"
- * rows with nothing to tell them apart.
- */
-export async function listCapiLogs(
-  tenantId: string | null,
-  take = 100,
-  scope: "assessment" | "platform" = "assessment",
+export interface CapiLogQuery {
+  /** Page size. */
+  take?: number;
+  /** Rows to skip — page offset. Pairs with `take` and the matching countCapiLogs(). */
+  skip?: number;
+  /**
+   * Which funnel. Defaults to the assessment (respondent) funnel so the existing
+   * Conversions views keep showing what they always showed; the Assess360 SaaS funnel's
+   * own signups and subscriptions live under "platform" and are read explicitly. Without
+   * the split both would appear here as bare "CompleteRegistration" rows with nothing to
+   * tell them apart.
+   */
+  scope?: "assessment" | "platform";
   /**
    * "payments" restricts to rows that carry money. The log holds every CAPI event the
    * funnel fires — opt-in (CompleteRegistration), completion, and Purchase — so a view
@@ -277,12 +278,35 @@ export async function listCapiLogs(
    * by name would silently drop exactly the largest payments. Omitted = every event,
    * which is what the debugging views want.
    */
-  only?: "payments",
+  only?: "payments";
+}
+
+/** The one place the Conversions filter is expressed, so a list and its count cannot
+ *  drift apart — a paginated view whose total counts different rows than the page
+ *  shows is worse than no count at all. */
+function capiLogWhere(tenantId: string | null, q: CapiLogQuery) {
+  return {
+    tenantId,
+    scope: q.scope ?? ("assessment" as const),
+    ...(q.only === "payments" ? { amountPaise: { not: null } } : {}),
+  };
+}
+
+/** How many rows a given query matches — the total behind the pager. */
+export async function countCapiLogs(tenantId: string | null, q: CapiLogQuery = {}): Promise<number> {
+  return prisma.capiLog.count({ where: capiLogWhere(tenantId, q) });
+}
+
+/** CAPI log rows for one funnel, newest first. */
+export async function listCapiLogs(
+  tenantId: string | null,
+  q: CapiLogQuery = {},
 ): Promise<CapiLogRow[]> {
   const rows = await prisma.capiLog.findMany({
-    where: { tenantId, scope, ...(only === "payments" ? { amountPaise: { not: null } } : {}) },
+    where: capiLogWhere(tenantId, q),
     orderBy: { createdAt: "desc" },
-    take,
+    take: q.take ?? 100,
+    skip: q.skip ?? 0,
   });
   return rows.map((r) => ({
     id: r.id,

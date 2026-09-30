@@ -29,7 +29,7 @@ export default async function PlatformStatsPage({
     // What the SaaS funnel actually sent Meta, with Meta's own answer. These events
     // are the thing an ad account counts as a "registration", so they belong next to
     // the signup number rather than in the respondent-funnel Conversions log.
-    listCapiLogs(null, 50, "platform"),
+    listCapiLogs(null, { take: 50, scope: "platform" }),
   ]);
 
   const tiles = [
