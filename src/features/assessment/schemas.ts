@@ -278,6 +278,17 @@ export const assessmentSchema = z.object({
   audienceGate: audienceGateSchema.default(EMPTY_AUDIENCE_GATE),
   // Meta CAPI + pixel fire only when true (ad-entry assessment). Routed ones = false.
   fireMetaCapi: z.boolean().default(true),
+  // Per-event selection, applied when fireMetaCapi is on. Every key optional and
+  // defaulted ON, so an older client that does not send this object cannot silently
+  // mute events that are feeding live ad audiences.
+  metaEvents: z
+    .object({
+      registration: z.boolean().default(true),
+      completion: z.boolean().default(true),
+      gateDisqualified: z.boolean().default(true),
+      abandoned: z.boolean().default(true),
+    })
+    .default({ registration: true, completion: true, gateDisqualified: true, abandoned: true }),
 }).superRefine((d, ctx) => {
   if (d.nextStep === "PAYMENT" && !d.paymentAmount && !d.paymentUrl) {
     ctx.addIssue({

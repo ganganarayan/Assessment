@@ -32,6 +32,7 @@ import { generateCustomerId, generateToken } from "@/lib/ids";
 import { env } from "@/lib/env";
 import { randomUUID } from "crypto";
 import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
+import { metaEventOn } from "@/features/assessment/meta-events";
 import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
 import { fbcCreationMs } from "@/lib/meta/capi";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
@@ -411,6 +412,7 @@ export async function startSubmission(
       uniqueIdentifier: true,
       paidMode: true,
       fireMetaCapi: true,
+      metaEvents: true,
       audienceGate: true,
     },
   });
@@ -649,7 +651,7 @@ export async function startSubmission(
     }
     let eventId: string | undefined;
     if (outcome.kind === "created") {
-      eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, assessment.fireMetaCapi, cleanXid);
+      eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid);
     }
     // Nurture (one-shot Email + WhatsApp) now fires on COMPLETION, not here, so the
     // {{resultUrl}} placeholder resolves to the finished result — see completeSubmission.
@@ -671,7 +673,7 @@ export async function startSubmission(
     data: { ...submissionData, customerId: newCustomerId },
     select: { id: true },
   });
-  const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr, assessment.fireMetaCapi, cleanXid);
+  const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid);
   // Nurture now fires on COMPLETION (see completeSubmission) so {{resultUrl}} resolves.
   return { ok: true, data: { status: "started", submissionId: created.id, editToken: newEditToken, ...(eventId ? { eventId } : {}) } };
 }
@@ -941,6 +943,7 @@ export async function completeSubmission(
       questionDisplayMode: true,
       // Phase 2: routed assessments have this OFF → no completion CAPI/pixel.
       fireMetaCapi: true,
+      metaEvents: true,
       // Gated funnels fire QualifiedCompletion instead of AssessmentCompleted.
       qualification: true,
       tenant: { select: { id: true, slug: true, name: true } },
@@ -1407,8 +1410,9 @@ export async function completeSubmission(
   // never used. Deciding it here also means the page source cannot be read to fire it
   // anyway, which a client-side check would allow.
   const mayFireCompletion = await tenantCan(assessment.tenant?.id ?? null, "analyticsTracking");
-  const eventId = assessment.fireMetaCapi && mayFireCompletion ? randomUUID() : undefined;
-  if (assessment.fireMetaCapi && eventId) {
+  const completionOn = metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "completion");
+  const eventId = completionOn && mayFireCompletion ? randomUUID() : undefined;
+  if (completionOn && eventId) {
     const ctx = await getMetaRequestContext();
     void sendAndLogLifecycleCapi(
       {

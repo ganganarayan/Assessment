@@ -169,6 +169,7 @@ export async function createAssessment(
       paymentIntroText: nullifyEmpty(d.paymentIntroText),
       audienceGate: d.audienceGate as unknown as Prisma.InputJsonValue,
       fireMetaCapi: d.fireMetaCapi,
+      metaEvents: d.metaEvents as unknown as Prisma.InputJsonValue,
       createdById: scope.user.id,
       tenantId: scope.tenantId,
     },
@@ -268,6 +269,7 @@ export async function updateAssessment(
       paymentIntroText: nullifyEmpty(d.paymentIntroText),
       audienceGate: d.audienceGate as unknown as Prisma.InputJsonValue,
       fireMetaCapi: d.fireMetaCapi,
+      metaEvents: d.metaEvents as unknown as Prisma.InputJsonValue,
     },
   });
 
@@ -416,6 +418,7 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
       qualification: (src.qualification ?? Prisma.DbNull) as Prisma.InputJsonValue,
       disqualifiedContent: (src.disqualifiedContent ?? Prisma.DbNull) as Prisma.InputJsonValue,
       fireMetaCapi: src.fireMetaCapi,
+      metaEvents: (src.metaEvents ?? undefined) as unknown as Prisma.InputJsonValue | undefined,
       createdById: scope.user.id,
       tenantId: scope.tenantId,
       categories: {

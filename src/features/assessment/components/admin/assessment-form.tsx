@@ -19,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { META_EVENT_KEYS, META_EVENT_META } from "@/features/assessment/meta-events";
 
 export type AssessmentFormValues = AssessmentInput;
 
@@ -156,6 +157,7 @@ const DEFAULTS: AssessmentFormValues = {
   paymentIntroText: "",
   audienceGate: EMPTY_AUDIENCE_GATE,
   fireMetaCapi: true,
+  metaEvents: { registration: true, completion: true, gateDisqualified: true, abandoned: true },
 };
 
 export function AssessmentForm({
@@ -523,6 +525,46 @@ export function AssessmentForm({
                 </span>
               </span>
             </label>
+
+            {/* Per-event selection. Only shown when the master switch is on, because
+                with it off none of these do anything and a row of live-looking
+                checkboxes that change nothing is worse than no checkboxes. */}
+            {values.fireMetaCapi ? (
+              <div className="flex flex-col gap-2 rounded-md border border-dashed p-3">
+                <p className="text-xs font-medium">Which events to send</p>
+                {META_EVENT_KEYS.map((k) => {
+                  const m = META_EVENT_META[k];
+                  return (
+                    <label key={k} className="flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={values.metaEvents?.[k] ?? true}
+                        onChange={(e) =>
+                          set("metaEvents", {
+                            ...(values.metaEvents ?? {
+                              registration: true,
+                              completion: true,
+                              gateDisqualified: true,
+                              abandoned: true,
+                            }),
+                            [k]: e.target.checked,
+                          })
+                        }
+                      />
+                      <span>
+                        {m.label} <span className="font-mono text-xs text-[var(--muted-foreground)]">{m.event}</span>
+                        <span className="block text-xs text-[var(--muted-foreground)]">{m.help}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Purchase is not listed: it fires from the payment webhook, which has no assessment
+                  in scope, so it stays a workspace-wide setting.
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-4 rounded-lg border p-4">

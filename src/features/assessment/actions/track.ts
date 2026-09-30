@@ -13,6 +13,7 @@ import { readGeoHeaders } from "@/lib/geo";
 import { parseUserAgent } from "@/lib/user-agent";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { sendCapiEventVerbose } from "@/lib/meta/send";
+import { metaEventOn } from "@/features/assessment/meta-events";
 import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
 import { tenantCan } from "@/lib/billing/plan-resolve";
 import { GATE_DQ_AUDIENCE_REFRESH_MS } from "@/lib/gate-flag";
@@ -247,7 +248,7 @@ export async function recordGateDisqualification(
       where: { slug, status: "PUBLISHED" },
       // disqualified/qualification/fireMetaCapi decide whether GateDisqualified is
       // sent from here — the browser no longer fires it.
-      select: { id: true, slug: true, title: true, tenantId: true, disqualifiedContent: true, qualification: true, fireMetaCapi: true },
+      select: { id: true, slug: true, title: true, tenantId: true, disqualifiedContent: true, qualification: true, fireMetaCapi: true, metaEvents: true },
     });
     if (!a) return;
 
@@ -356,6 +357,7 @@ async function fireGateDisqualified(
     disqualifiedContent: unknown;
     qualification: unknown;
     fireMetaCapi: boolean;
+    metaEvents: unknown;
   },
   visitorId: string,
   rowId: string,
@@ -366,7 +368,8 @@ async function fireGateDisqualified(
     // A crawler executing the page's JS must never enter the exclusion audience.
     if (isBot) return;
     // Routed (non-ad-entry) assessments tell Meta nothing — same rule as the opt-in.
-    if (!a.fireMetaCapi || !isQualificationActive(a.qualification)) return;
+    if (!metaEventOn(a.fireMetaCapi, a.metaEvents, "gateDisqualified")) return;
+    if (!isQualificationActive(a.qualification)) return;
     const dq = disqualifiedContentSchema.safeParse(a.disqualifiedContent ?? {});
     if (!dq.success || !dq.data.fireDisqualifiedEvent) return;
 

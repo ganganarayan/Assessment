@@ -697,6 +697,15 @@ model Assessment {
   // Meta's learning. Default true keeps every existing assessment firing as before.
   fireMetaCapi Boolean @default(true)
 
+  // Which Meta events THIS assessment reports, when fireMetaCapi is on.
+  // { registration?: false, completion?: false, gateDisqualified?: false, abandoned?: false }
+  // Only an explicit false turns one off; null/absent = all on, so an assessment saved
+  // before this existed keeps reporting exactly what it did. These events feed live ad
+  // audiences, so a default of "off" would have quietly stopped populating audiences on
+  // funnels that are currently spending. Purchase is NOT here — it fires from the
+  // Razorpay webhook, which has no assessment in scope. See features/assessment/meta-events.
+  metaEvents Json?
+
   // ---- Qualification gate (Page 1) + disqualified page ----
   // Page-1 gating questions shown one-at-a-time BEFORE the assessment. Each option
   // qualifies or disqualifies. Shape: { enabled, questions: [{ id, text, options:

@@ -27,6 +27,7 @@ import { WorkspaceAssessmentActions } from "@/features/workspace/components/work
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
 import { Badge } from "@/components/ui/badge";
 import { tenantOnly } from "@/lib/tenant/scope";
+import { readMetaEvents } from "@/features/assessment/meta-events";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +105,8 @@ export default async function WorkspaceEditAssessmentPage({
     // well-formed DROPDOWN rather than with undefined fields.
     audienceGate: { ...EMPTY_AUDIENCE_GATE, ...((a.audienceGate as unknown as Partial<AudienceGateInput> | null) ?? {}) },
     fireMetaCapi: a.fireMetaCapi,
+    // null (never set) reads as every event on, matching what the assessment already does.
+    metaEvents: readMetaEvents(a.metaEvents),
   };
 
   // Other assessments in this workspace — targets for the audience gate onward route.

@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { emitEvent } from "@/lib/events/emit";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
+import { metaEventOn } from "@/features/assessment/meta-events";
 import { ABANDONED_EVENT } from "@/features/assessment/schemas";
 import { type EmitInput } from "@/features/events/types";
 
@@ -119,7 +120,7 @@ export async function sweepGateAbandoned(): Promise<{ fired: number; scanned: nu
       region: true,
       postalCode: true,
       assessment: {
-        select: { slug: true, title: true, fireMetaCapi: true, tenantId: true },
+        select: { slug: true, title: true, fireMetaCapi: true, metaEvents: true, tenantId: true },
       },
     },
     take: BATCH,
@@ -147,7 +148,7 @@ export async function sweepGateAbandoned(): Promise<{ fired: number; scanned: nu
 
     if (completed > 0) continue; // they finished — QualifiedCompletion already fired
     // The assessment may have been switched to routed (no Meta) after the pass.
-    if (!g.assessment.fireMetaCapi) continue;
+    if (!metaEventOn(g.assessment.fireMetaCapi, g.assessment.metaEvents, "abandoned")) continue;
 
     await sendAndLogLifecycleCapi(
       {

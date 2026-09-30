@@ -26,10 +26,16 @@ export type PlanId = (typeof PLAN_IDS)[number];
 //
 // Gating policy (see the four PLAN_LIMITS entries below): the platform sells on
 // VOLUME first — every PAID tier (Starter/Growth/Scale) carries the full set of
-// "everyday" features, and only FIVE capabilities are actually tier-gated:
-//   qualificationGate, conditionalRouting, capi, heatmap  -> GROWTH and up
-//   apiAccess                                              -> SCALE only
+// "everyday" features, and only FOUR capabilities are tier-gated:
+//   qualificationGate, conditionalRouting, heatmap  -> GROWTH and up
+//   apiAccess                                        -> SCALE only
 // Free is deliberately lean (a funnel-in tier): no paid features at all.
+//
+// `capi` moved to the paid baseline: server-side conversions are how a paid campaign
+// is measured at all, so gating it to Growth meant a Starter customer running ads was
+// optimising on browser events alone — blocked for a large share of traffic. Charging
+// for the tier and then withholding the measurement it depends on loses them money and
+// reads as the product being broken.
 export const FEATURES = [
   "pdfReports",
   "webhooks",
@@ -66,6 +72,7 @@ export const PAID_BASE_FEATURES = [
   "staffRoles",
   "aiReports",
   "prioritySupport",
+  "capi", // server-side Conversions API — every paid plan, see the note above
 ] as const satisfies ReadonlyArray<Feature>;
 
 /**
@@ -113,14 +120,14 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     seats: 1,
     features: { ...NO_FEATURES },
   },
-  // Starter — every everyday feature; NONE of the five gated caps.
+  // Starter — every everyday feature (CAPI included); none of the gated caps.
   STARTER: {
     responsesPerMonth: 300,
     maxAssessments: 3,
     seats: 1,
     features: { ...PAID_BASE },
   },
-  // Growth — everyday features + the four Growth-gated caps (still no API access).
+  // Growth — everyday features + the Growth-gated caps (still no API access).
   GROWTH: {
     responsesPerMonth: 2000,
     maxAssessments: 15,
