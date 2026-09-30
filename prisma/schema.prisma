@@ -1114,6 +1114,17 @@ model Submission {
   // in the destination URL. resultSnapshot is the denormalized read-endpoint
   // payload, computed once at completion for a fast, join-free GET /api/r/:token.
   customerId           String?   @unique
+  // Object key of this submission's rendered PDF report in R2, once one exists.
+  //
+  // NEVER sent to a client. The key is the only thing that reveals where a file sits,
+  // so it stays server-side: the report is served by streaming it through
+  // /api/reports/<id> after authorisation, not by handing out a bucket URL. The file
+  // name is random rather than derived from the submission id, so knowing one key tells
+  // you nothing about any other and the bucket cannot be walked.
+  //
+  // Null = not rendered yet (or cleared because the result changed, which makes the
+  // stored copy stale). Rendering fills it; the next request serves the stored file.
+  reportKey            String?
   resultToken          String?   @unique
   // Unguessable capability returned to the client at Start; required to save drafts
   // or complete, so those write actions can't be driven by guessing the submission id.

@@ -186,6 +186,34 @@ export const storage = {
     return `${config.publicUrl}/${key}`;
   },
 
+  /**
+   * Fetch an object's bytes. Returns null when it does not exist, rather than throwing,
+   * because "not stored yet" is a normal state every caller has to handle anyway — and
+   * a missing file should fall back to rendering, not surface as an error to the user.
+   *
+   * Bytes rather than a stream on purpose: these are small documents, and the caller
+   * streams them onward. Anything large enough to need a real stream should get its own
+   * method rather than quietly making this one risky.
+   */
+  async download(key: string): Promise<Uint8Array | null> {
+    const { client, config } = await getClient();
+    try {
+      const res = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }));
+      const body = res.Body as { transformToByteArray?: () => Promise<Uint8Array> } | undefined;
+      if (!body?.transformToByteArray) return null;
+      return await body.transformToByteArray();
+    } catch (e) {
+      // NoSuchKey is the expected miss. Anything else (credentials, network) is logged
+      // and also treated as a miss, so a storage problem degrades to a fresh render
+      // instead of denying the user their report.
+      const name = e instanceof Error ? e.name : String(e);
+      if (name !== "NoSuchKey" && name !== "NotFound") {
+        console.error("[storage] download failed:", name);
+      }
+      return null;
+    }
+  },
+
   /** Delete an object by key. */
   async delete(key: string): Promise<void> {
     const { client, config } = await getClient();

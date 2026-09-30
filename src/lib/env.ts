@@ -15,14 +15,28 @@ const serverSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(16),
   BETTER_AUTH_URL: z.string().url(),
 
-  // Cloudflare R2 is OPTIONAL in Phase 1. The app must boot without it; these
-  // are only required when a storage operation is actually invoked (validated
-  // lazily in lib/storage/r2.ts). Do not make them required here.
+  // DEPRECATED: R2 is configured in super-admin Settings now (encrypted at rest), not
+  // here — env holds only what the app needs to boot. lib/storage/r2.ts no longer reads
+  // these. Kept so an existing deployment that still has them set does not fail
+  // validation on boot; delete both these lines and the Railway variables together.
   R2_ACCOUNT_ID: z.string().min(1).optional(),
   R2_ACCESS_KEY_ID: z.string().min(1).optional(),
   R2_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   R2_BUCKET_NAME: z.string().min(1).optional(),
   R2_PUBLIC_URL: z.string().url().optional(),
+
+  // PDF report worker — INFRASTRUCTURE, so it belongs in env rather than Settings:
+  // these say where this process sits in the deployment, which is not something a
+  // tenant or an admin configures.
+  //
+  // The worker is this same app deployed as a second Railway service. Leave these unset
+  // and reports render in-process exactly as before.
+  //   REPORT_WORKER_URL    — the worker service's internal URL (app only)
+  //   REPORT_WORKER_SECRET — shared secret; the worker's entire authorisation
+  //   IS_REPORT_WORKER=1   — set on the WORKER only, so it never calls itself
+  REPORT_WORKER_URL: z.string().url().optional(),
+  REPORT_WORKER_SECRET: z.string().min(16, "Use at least 16 characters.").optional(),
+  IS_REPORT_WORKER: z.string().optional(),
 
   // Meta Conversions API (server-side events). ALL optional: when the access
   // token is unset the CAPI sender is a no-op, so the app boots and the browser

@@ -1,5 +1,9 @@
+import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { env } from "@/lib/env";
+import { getStoredReport, putStoredReport } from "@/lib/reports/store";
+import { renderOnWorker } from "@/lib/reports/worker";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isSuperAdmin } from "@/lib/auth/guards";
 import { formatIST } from "@/lib/date";
@@ -28,9 +32,53 @@ export const dynamic = "force-dynamic";
 
 const safeName = (s: string) => s.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "Participant";
 
+/**
+ * The PDF response. One place, so a stored file and a freshly rendered one are served
+ * identically — and so the object key never leaks: the bytes are STREAMED through this
+ * route after authorisation, never handed out as a bucket URL or a signed link. Nothing
+ * a client receives says where the file sits.
+ */
+function pdfResponse(req: Request, bytes: Uint8Array, firstName: string): Response {
+  const download = new URL(req.url).searchParams.get("download") === "1";
+  // Copied into a plain ArrayBuffer: a Uint8Array over a SharedArrayBuffer is not a
+  // valid Response body, and the typed-array view alone does not satisfy BodyInit.
+  const body = bytes.slice().buffer as ArrayBuffer;
+  return new Response(body, {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `${download ? "attachment" : "inline"}; filename="Assess360_Report_${safeName(firstName)}.pdf"`,
+      // Not cached by the browser or any proxy: a report is personal data, and the
+      // stored copy in R2 is already the thing that makes repeat views cheap.
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+/**
+ * Is this the worker asking us to render, rather than a person asking to read?
+ *
+ * Compared in constant time, because a plain `===` on a secret leaks its length and
+ * prefix to anyone who can time the response.
+ *
+ * 🔴 This secret is the worker's ENTIRE authorisation — it bypasses the user check
+ * below. The worker service must not be publicly reachable; on Railway that means
+ * giving it no public domain and calling it on the internal network.
+ */
+function isInternalRender(req: Request): boolean {
+  const provided = req.headers.get("x-internal-render");
+  const expected = env.REPORT_WORKER_SECRET;
+  if (!provided || !expected) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export async function GET(req: Request, { params }: { params: Promise<{ submissionId: string }> }) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const internal = isInternalRender(req);
+
+  // An internal render has no user, by definition. Every other request must have one.
+  const user = internal ? null : await getCurrentUser();
+  if (!internal && !user) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -62,9 +110,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
     return NextResponse.json({ error: "No completed result for this submission." }, { status: 404 });
   }
 
-  // Authorize: super admin (any), or a same-tenant admin/staff (their own workspace only).
-  let authorized = isSuperAdmin(user);
-  if (!authorized && sub.assessment.tenantId) {
+  // Authorize: the worker (shared secret), a super admin (any), or a same-tenant
+  // admin/staff (their own workspace only).
+  let authorized = internal || (!!user && isSuperAdmin(user));
+  if (!authorized && user && sub.assessment.tenantId) {
     const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { tenantId: true } });
     authorized = fresh?.tenantId === sub.assessment.tenantId;
   }
@@ -75,6 +124,25 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
   const firstName = sub.leadFirstName?.trim() || "Participant";
   const name = [sub.leadFirstName, sub.leadLastName].map((p) => p?.trim()).filter(Boolean).join(" ") || firstName;
   const dateIST = formatIST(sub.completedAt ?? sub.createdAt);
+
+  // A stored copy short-circuits everything below: no layout, no fonts, no buffering.
+  // Skipped on an internal call, because the worker is being asked to RENDER — reading
+  // back a stored file there would make the request a no-op.
+  if (!internal) {
+    const stored = await getStoredReport(submissionId);
+    if (stored) return pdfResponse(req, stored, firstName);
+
+    // Not stored: try the worker first, so react-pdf runs in a process whose
+    // out-of-memory cannot take the funnel with it.
+    const fromWorker = await renderOnWorker(submissionId);
+    if (fromWorker) {
+      // Store it for next time, but do not wait: the operator gets their report now,
+      // and a storage hiccup costs the next request a re-render, not this one a failure.
+      void putStoredReport(submissionId, sub.assessment.tenantId, fromWorker);
+      return pdfResponse(req, fromWorker, firstName);
+    }
+    // Worker unset, down, or erroring — fall through and render here, exactly as before.
+  }
 
   let pdf: Buffer;
   if (sub.assessment.engine === "CLINIC_AUDIT" && snap.clinic) {
@@ -146,14 +214,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
     pdf = await renderReportPdf(data);
   }
 
-  const download = new URL(req.url).searchParams.get("download") === "1";
-  const disposition = `${download ? "attachment" : "inline"}; filename="Assess360_Report_${safeName(firstName)}.pdf"`;
+  // Locally rendered: keep it, so this is the last time this report costs a render.
+  // Not on an internal call — the worker returns the bytes and the APP stores them, so
+  // there is one writer and the worker stays a pure renderer.
+  if (!internal) {
+    void putStoredReport(submissionId, sub.assessment.tenantId, new Uint8Array(pdf));
+  }
 
-  return new Response(new Uint8Array(pdf), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": disposition,
-      "Cache-Control": "no-store",
-    },
-  });
+  return pdfResponse(req, new Uint8Array(pdf), firstName);
 }
