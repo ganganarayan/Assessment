@@ -57,6 +57,22 @@ FROM app_setting;
 SELECT count(*) AS tenant_setting_rows
 FROM app_setting WHERE "tenantId" = (SELECT id FROM tenant WHERE slug = 'apply-gita');
 
+-- 0e. THE OTHER IMPORTANT ONE. The null scope is unmetered with every feature
+--     on; a tenant is not. The billing gates start applying the moment these
+--     rows belong to a tenant. On FREE (the default) that means:
+--       * capi = false          -> Meta CAPI silently stops firing
+--       * 25 responses / month  -> respondents captured but LOCKED past that
+--       * 1 assessment          -> no new ones can be created
+--       * qualificationGate, conditionalRouting, heatmap, apiAccess all off
+--     Only GROWTH and SCALE carry capi.
+SELECT t.slug, t.plan AS tenant_plan, s.plan AS subscription_plan, s.status
+FROM tenant t LEFT JOIN subscription s ON s."tenantId" = t.id;
+
+-- FIX BEFORE MOVING, if 0e shows FREE or STARTER. SCALE = every feature,
+-- unlimited assessments, 12000 responses/month (raise via subscription
+-- limitOverrides if the real monthly volume is higher than that).
+-- UPDATE tenant SET plan = 'SCALE' WHERE slug = 'apply-gita';
+
 
 -- ---------------------------------------------------------------------------
 -- STEP 1-3 - the migration. One transaction; nothing is half-applied.

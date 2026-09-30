@@ -173,6 +173,31 @@ async function main() {
   );
   console.log(apply ? "\nMODE: APPLY — this writes.\n" : "\nMODE: DRY RUN — nothing is written.\n");
 
+  // The null scope is unmetered and has every feature. A tenant does not: the
+  // billing gates start applying the moment these rows belong to one. On FREE
+  // that silently kills CAPI, caps responses at 25/month and disables the
+  // qualification gate, conditional routing, heatmap and API access.
+  const billing = await prisma.tenant.findUnique({
+    where: { id: tenant.id },
+    select: { plan: true, subscription: { select: { plan: true, status: true } } },
+  });
+  const effectivePlan = billing?.subscription?.plan ?? billing?.plan ?? "FREE";
+  console.log(
+    `Plan: ${effectivePlan}` +
+      (billing?.subscription ? ` (subscription ${billing.subscription.status})` : " (no subscription)"),
+  );
+  if (effectivePlan === "FREE" || effectivePlan === "STARTER") {
+    console.log(
+      `  WARNING: ${effectivePlan} has capi=false. Moving the funnel here STOPS Meta CAPI,\n` +
+        "           locks responses past the monthly cap, and disables the qualification\n" +
+        "           gate, conditional routing, heatmap and API tokens.\n" +
+        "           Fix first:  UPDATE tenant SET plan = 'SCALE' WHERE slug = '" +
+        tenant.slug +
+        "';",
+    );
+  }
+
+
   console.log("Rows with tenantId = null (these move):");
   let total = 0;
   for (const name of TABLES) {
