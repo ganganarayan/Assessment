@@ -1,8 +1,7 @@
 # Handover — state, open items, working rules
 
-Written 28 Sep 2026 at the end of a cloud session, so the next session (local) starts
-with the context instead of rediscovering it. Update it as things land; delete the
-parts that stop being true.
+Last updated 30 Sep 2026. Written so the next session starts with the context instead of
+rediscovering it. Update it as things land; delete the parts that stop being true.
 
 ---
 
@@ -10,119 +9,184 @@ parts that stop being true.
 
 - **Two branches only: `staging` and `main`.** No feature branches, no pull requests.
 - **Everything is committed straight to `staging`.** Railway auto-deploys `staging` to
-  the `orbitq-assess` environment.
+  the `orbitq-assess` environment. Do not ask first — staging is always authorised.
 - **`main` is production, and only on an explicit yes.** Never promote without being asked.
 - **The owner does not read code or diffs.** Describe changes as what is different in
   the app and what they need to click — never as files, lines or patches.
-- Run `npm run typecheck` and the `verify:*` scripts before committing. Do not run a
-  local `npm run build`; the Railway build is the check (see CLAUDE.md).
+- **Parity is the default.** Any feature on the super-admin surface belongs on the tenant
+  surface too, unless the owner explicitly scopes it to the platform. Do not assume a
+  screen is "admin only" because it currently lives under `/admin`.
+- Run `npm run typecheck` before committing. Never run a local `npm run build`; the
+  Railway build is the check (see CLAUDE.md).
+- After pushing, verify with `GET /api/version` — the commit SHA is the fingerprint.
+  Staging builds run ~4–5 min; wait before the first poll rather than polling in a loop.
 
 ---
 
-## 2. Where things stand
+## 2. Where things stand (30 Sep 2026)
 
-**Production (`main`)** has the funnel-reporting fixes: SaaS CAPI sends are logged,
-Signups counts accounts rather than tenants, gate rejections are recorded, and the
-`GateDisqualified` event no longer re-fires on every revisit.
+**Production (`main`) = `aeb1402`.** It has the break-glass recovery tooling and
+everything before it. It does **not** have the workspace-parity or export-scope work.
 
-**Staging (`staging`) is ahead of production** by the booking-CTA feature. It is
-deployed and green on `orbitq-assess`, but **not** in production — it is waiting on the
-owner's yes.
+**Staging (`staging`) = `b625f83`**, deployed and verified. Ahead of production by:
+- workspace parity: `/w/ai`, `/w/audiences`, `/w/nurture`, Export All on `/w/assessments`
+- the admin-export scope fixes (see §4)
+- the re-home tooling (not yet run anywhere)
 
-### The booking CTA needs turning on before it does anything
-
-It is opt-in per button, so until these two steps are done the button behaves exactly as
-it always did:
-
-1. VSL Result Page builder → the booking button → tick **"This button requests a
-   booking"** and fill in **"Email me at"**.
-2. Webhooks page → add one webhook, trigger **"Booking requested (result-page CTA)"**,
-   pointing at the CRM.
-
-Then a click on that button records who clicked (a **Booking** column appears in
-Submissions), fires the CRM webhook so the CRM sends the visitor's confirmation email and
-WhatsApp from the owner's own sending address, and emails the owner with the person's
-name, email, phone and a link to their full result page. Both the webhook and the email
-retry on a backoff if they fail — a booking request is never dropped silently. Test on a
-real result page, not the admin preview: preview deliberately records nothing.
+**No data has been moved in any environment.** Both databases are untouched.
 
 ---
 
-## 3. Open items
+## 3. The re-home programme (the main open work)
 
-### Owner locked out of staging — recovery exists, use it
+**Goal.** Move the owner's platform data out of the `tenantId = null` scope into a real
+tenant, then re-point domains: platform + landing at `assess360.divineleads.guru`,
+Apply Gita served at `assess.applygitawisdom.com` as a custom domain.
 
-Sign-in to `orbitq-assess` fails with "Invalid email or password". **The recovery tooling
-is already built** (added 21 Sep after a production lockout that cost a day):
+### 3a. Decision taken 30 Sep: fix the model first, then move
 
-```bash
-railway link      # Assessment → orbitq-assess
-railway status    # CONFIRM orbitq-assess, not production
-railway run npx tsx scripts/reset-user-password.ts <owner-email> "<new password>"
-```
+Do **not** run the data move first. `tenantId = null` currently means two different
+things depending on the file, and migrating into that ambiguity means doing it twice:
 
-This repairs four of the five lockout causes at once: wrong or unreadable password, a
-missing credential record, a stuck "must change password" / unverified-email flag, and —
-the actual cause of the 21 Sep production lockout — **the owner account being demoted**,
-which it reverses by restoring SUPER_ADMIN and clearing the tenant.
+| Where | What `null` means today |
+|---|---|
+| `lib/billing/gate.ts` (5 sites) | unmetered, every feature on |
+| `lib/billing/plan-resolve.ts` | `UNLIMITED_LIMITS` |
+| `lib/settings/config.ts` (2 sites) | fall back to env vars |
+| `features/admin/data/analytics.ts` | "the platform's own rows" |
+| `lib/tenant/acting.ts` `tenantScope` | "super admin — show **everything**" |
 
-Read its output, it says which problem it was:
-- `… (restored to SUPER_ADMIN)` → it was the demotion again
-- `Password reset for …` → it was a credential problem
-- `No user with that email.` → the account is not in staging's database at all; sign up
-  with the owner email instead, which grants SUPER_ADMIN automatically
+The last two rows are the same value with opposite meanings. That is why, after a naive
+move, Submissions stays visible to the owner but Contacts and Stats look empty.
 
-There is also an HTTP route (`POST /api/admin/recover`, Bearer `ADMIN_RECOVERY_SECRET`)
-for when the CLI is not available; the secret must be set in that environment first.
+**Agreed target:** a real **Platform tenant** row, `tenantId` made required, every null
+backfilled. Two tenants, not one — a Platform tenant (the SaaS, where the owner's account
+lives) and Apply Gita (the funnel business, which the owner *enters* to operate). That
+keeps "run my funnel" separate from "administer the SaaS" and matches the domain split.
 
-### Proposed but NOT done: make the seed bootstrap the real owner
+### 3b. Blocker that must land in the same change
 
-`prisma/seed.ts` hardcodes `owner@example.com`. It has never created the owner's actual
-account, which is why a fresh database comes up with a login nobody has the password to.
-**Changing the seed to bootstrap whatever `PLATFORM_OWNER_EMAIL` is set to would remove
-this whole failure class.** The owner was offered this and has not yet said go.
+The owner-protection backstop in `lib/db/prisma.ts` (`isDemotion`) **throws on any write
+that attaches a non-null tenantId to the platform owner** — added after the 21 Sept
+lockout. Giving the owner a tenant is therefore impossible until that guard is changed to
+protect the **role** (never below SUPER_ADMIN) rather than the tenant. Change it
+deliberately, in the same commit, or the migration fails halfway.
 
-### Unanswered: is a Conversions API Gateway mirroring browser events?
+### 3c. Findings that gate the move (verified, still true)
 
-Meta shows **server-side** `GateDisqualified` events, but this codebase only ever fires
-that event from the browser. Something outside the app is mirroring browser events into
-the server channel — most likely a CAPI Gateway on pixel `1129238316012161`. Worth
-confirming in Events Manager, because it also means the app's own `CompleteRegistration`
-CAPI send is a third copy of an event Meta already receives twice.
+- 🔴 **Apply Gita is on plan `FREE` with no subscription.** FREE has `capi: false`, so
+  moving the funnel onto it **silently stops Meta CAPI**, locks responses past 25/month,
+  and disables the qualification gate, conditional routing, heatmap and API tokens. Only
+  GROWTH and SCALE carry `capi`. Fix before any move:
+  `UPDATE tenant SET plan = 'SCALE' WHERE slug = 'apply-gita';`
+- 🔴 **Meta/Razorpay live in env, not the DB** (on staging both rows are blank). Env only
+  feeds the null scope, so a tenant that lacks these values has no pixel, no CAPI and a
+  checkout that cannot sign an order. Run STEP 0c in the SQL against prod to check.
+- 🟡 **`META_DATASET_ID`**: platform CAPI uses that env var; a tenant uses its **pixel id**
+  as the dataset. If prod sets them to different values, CAPI changes destination after
+  the move. Unverified — check the prod Assessment service.
+- 🟢 Funnel URLs, Razorpay attribution and result links all survive a move — verified by
+  reading the code, see §4.
 
-### The gate is rejecting most ad traffic
+### 3d. Tooling that exists (built, dry-run tested, never applied)
 
-Separate from any bug: on 27 Sep the qualification gate turned away far more people than
-it let through. The old event counts overstated it (they re-fired per visit), so the new
-**"Turned away by gate"** tile is the first honest number. Once real traffic has passed
-through it, judge whether the qualifying criteria are too tight. This is where the
-registrations went — a content decision, not a code one.
+- `npm run rehome -- --tenant <slug>` — dry run: counts, settings diff, plan warning
+- `npm run rehome -- --tenant <slug> --apply` — one transaction, writes `.rehome/*.json`
+- `npm run rehome -- --revert <manifest>` — exact undo
+- `scripts/rehome-platform-data.sql` — same job for the Railway console, records its undo
+  set in a `rehome_backup` table
+
+Both exclude the owner's User row and the AppSetting singleton on purpose.
+
+### 3e. Domain phase — blocked on a design question
+
+The owner wants **platform payments on `divineleads.guru`** and **Apply Gita payments on
+`applygitawisdom.com`** — the apex domains, not the app subdomains. Today every payment
+URL is built from the single `NEXT_PUBLIC_APP_URL` env value, so this needs a per-tenant
+payment-domain concept. Not yet designed.
+
+Also unresolved for that phase: `appHost()` (derived from `NEXT_PUBLIC_APP_URL`) is the
+CNAME target for **every** tenant custom domain, so changing the app URL orphans existing
+tenant domains until each is re-pointed.
 
 ---
 
-## 4. Facts worth not rediscovering
+## 4. Multi-tenant scoping — what was found and fixed
 
-- **The "0 registrations vs Meta's 4–5" was never a CAPI bug.** Every
-  `CompleteRegistration` fires on `assess.applygitawisdom.com/` — they are *assessment
-  opt-ins*, and they were being compared against the *Assess360 SaaS signup* count, which
-  genuinely is 0. Two different funnels sharing one standard event name. `CapiLog.scope`
-  now separates them.
-- **Seeing server-side events in Meta does not prove the app's CAPI fired** (see the
-  Gateway item above).
-- **A gate rejection is permanent by design.** The lockout is a per-browser flag; losing
-  it to a cleared cookie or a new device is accepted, since a non-opt-in leaves no PII to
-  match on. The exclusion audience is the real mechanism, and `GateDisqualified` re-fires
-  after 60 days to keep membership alive inside Meta's 180-day retention.
-- **`npx prisma format` reformats the entire schema file.** It produced a 455-line diff
-  for a four-model change. Do not run it casually here.
-- **`verify:events` crashes without a `.env`** — it validates `NEXT_PUBLIC_APP_URL` at
-  import. Environmental, not a bug; it passes where the vars are set.
-- **From a cloud session the app hosts are blocked** by the network policy, so a cloud
-  session cannot verify a deploy by loading the site. A local session can.
+A sweep of all 33 API routes on 30 Sep (commit `b625f83`) after finding one unscoped:
+
+- 🔴 `/api/admin/assessments/export-all` — was super-admin-only **and unfiltered**;
+  returned every tenant's assessments. Now scoped; this was the reason the sweep happened.
+- 🔴 `/api/admin/submissions/export` — carried **no tenant filter at all**. Now scoped.
+- 🟡 `/api/admin/contacts/export`, `/api/admin/stats/export` — pinned to the platform
+  slice, ignoring the workspace being operated. Now follow the acting scope.
+- 🟡 `/api/admin/assessments/[id]/export` — no tenant check; an id from another tenant
+  exported fine from inside a workspace. Now 404s.
+
+Correctly guarded, left alone: cron routes (CRON_SECRET), both Razorpay webhooks
+(per-tenant HMAC), public `v1` endpoints (scoped ApiToken), `/api/r` (result token),
+`/api/admin/recover` (bearer secret), all three `/w` exports.
+
+**Root cause worth remembering:** the pages scope by `actingTenantId()`; their export
+links did not. When adding any new export or report, scope the route, not just the page.
 
 ---
 
-## 5. Housekeeping
+## 5. Crons
+
+- Schedules live in the **Railway dashboard** as separate cron services — `railway.json`
+  defines none. The owner wants to stop depending on Railway for this.
+- Options discussed: GitHub Actions cron hitting the existing `/api/cron/*` endpoints with
+  `CRON_SECRET` (free, nothing to keep awake) or a dedicated scheduler app the owner also
+  uses to wake their six apps. **Do not** build an in-app `setInterval` scheduler —
+  multiple replicas each run their own timer, so every job fires twice.
+- 🔴 **Known bug:** `sweepAbandoned` reads `abandonedAfterHours` from the **singleton**
+  (`lib/events/abandoned.ts:22`) and applies it to every tenant's submissions. Tenants
+  cannot set their own window. Fix alongside per-tenant cron enable/disable.
+- `retryPendingWebhooks` drains all pending deliveries with no tenant filter — no
+  per-tenant switch exists yet.
+
+---
+
+## 6. Structural recommendations (agreed direction, not yet built)
+
+1. Required `tenantId` + a Platform tenant row (§3a) — everything else gets easier after.
+2. Make scope a **type**, not a nullable string: `{ kind: "platform" | "tenant" | "all" }`
+   so "global" and "platform" cannot collide.
+3. A Prisma extension that **refuses unscoped reads** on tenant-scoped models — the same
+   pattern the owner backstop already uses. Catches the next `export-all` before it ships.
+4. No env fallback for config: env seeds the Platform tenant once, then every read is a
+   tenant row.
+5. Impersonation audit log — once real tenants hold real data, entering a workspace to
+   support them needs a record.
+6. Per-tenant operational settings off the singleton, starting with the abandon window.
+
+---
+
+## 7. Operational notes and gotchas
+
+- **The deployed DB is reachable from a laptop.** `railway run` injects the *internal*
+  host (`postgres.railway.internal`), which only resolves inside Railway. `scripts/public-db-url.ts`
+  swaps in `DATABASE_PUBLIC_URL` (the TCP proxy) for the break-glass scripts. The linked
+  service is **Postgres**, not the app — that is why `railway run` yields the DB's vars.
+- **Scripts that import `auth.ts` need `--conditions=react-server`**, because the chain
+  reaches `import "server-only"`. Baked into `db:reset-password` and `db:seed`. Do **not**
+  add it to the `verify:*` scripts — the react-pdf ones would get React's RSC build.
+- Recovery: `railway run npm run db:reset-password -- <email> "<pw>"`. Add
+  `--environment production` for prod; `railway run` uses the *linked* environment.
+- **`npx prisma format` reformats the entire schema file** — a four-model change produced
+  a 455-line diff. Do not run it casually.
+- Staging's Postgres restarts occasionally; "the database system is starting up" means
+  retry, not a broken connection.
+- The repo has an untracked `landing/` Astro directory. **Stage explicit paths, never
+  `git add -A`.**
+- All stored secrets are encrypted with `BETTER_AUTH_SECRET`. Ciphertext copies verbatim
+  between rows in the same environment, never across staging↔prod. 🔴 Rotating that secret
+  makes every stored key undecryptable.
+
+---
+
+## 8. Housekeeping
 
 The owner's password was visible in a screenshot shared into a chat on 28 Sep and should
 be rotated wherever it is reused.
