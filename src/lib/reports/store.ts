@@ -89,26 +89,73 @@ export async function putStoredReport(
 }
 
 /**
- * Forget a submission's stored report, deleting the object.
+ * Retire a submission's stored report because its RESULT changed.
  *
- * Call whenever the RESULT changes — a retake, a recomputed score, a regenerated AI
- * statement. Without this the stored PDF keeps being served after the result it
- * describes has moved on, which is worse than a slow report: it is a confidently wrong
- * one, and nothing about it looks stale.
+ * Call after a retake, a recomputed score, or a regenerated / re-chosen AI statement.
+ * Without it the stored PDF keeps being served after the result it describes has moved
+ * on — which is worse than a slow report, because a confidently wrong document looks
+ * exactly like a correct one.
  *
- * Deletes the object as well as the pointer, so a superseded report cannot be recovered
- * from the bucket later and does not accumulate storage cost.
+ * KEEPS THE LATEST TWO, and does it by rotation:
+ *   - whatever sat in `reportPrevKey` is now the third-newest, so its object is deleted
+ *   - the current report becomes `reportPrevKey` — kept, so a regeneration that turns
+ *     out worse can be rolled back
+ *   - `reportKey` is cleared, so the next request renders the new result
+ *
+ * The delete happens FIRST and the row is updated second. If the delete fails, the
+ * pointer still moves and one file is orphaned in the bucket — the alternative ordering
+ * would leave a row pointing at an object that is already gone, which is the failure
+ * that actually hurts because it breaks rollback.
+ *
+ * Never throws: a result change must not fail because a cache could not be rotated.
  */
-export async function clearStoredReport(submissionId: string): Promise<void> {
+export async function supersedeStoredReport(submissionId: string): Promise<void> {
   const row = await prisma.submission
-    .findUnique({ where: { id: submissionId }, select: { reportKey: true } })
+    .findUnique({ where: { id: submissionId }, select: { reportKey: true, reportPrevKey: true } })
     .catch(() => null);
-  if (!row?.reportKey) return;
+  // Nothing rendered and nothing retained: there is no rotation to do. Checked so a
+  // recompute over thousands of submissions does no writes for the ones without reports.
+  if (!row || (!row.reportKey && !row.reportPrevKey)) return;
 
+  if (row.reportPrevKey) {
+    await storage.delete(row.reportPrevKey).catch((e) => {
+      console.error("[reports] pruning the third-newest report failed:", e instanceof Error ? e.message : String(e));
+    });
+  }
   await prisma.submission
-    .update({ where: { id: submissionId }, data: { reportKey: null } })
+    .update({
+      where: { id: submissionId },
+      data: { reportPrevKey: row.reportKey, reportKey: null },
+    })
     .catch(() => {});
-  // Pointer first, object second: if the delete fails, the row already points at
-  // nothing, so a stale file is orphaned rather than still being served.
-  await storage.delete(row.reportKey).catch(() => {});
+}
+
+/** Retire the reports for several submissions — the bulk paths (recompute, AI rerun).
+ *  Sequential on purpose: this runs after the real work and must not add a burst of
+ *  concurrent storage deletes on top of it. */
+export async function supersedeStoredReports(submissionIds: string[]): Promise<void> {
+  for (const id of submissionIds) await supersedeStoredReport(id);
+}
+
+/**
+ * Put the previous report back as the current one.
+ *
+ * SWAPS rather than copies, so the report that was current becomes the previous — which
+ * means rollback is reversible and an operator who rolls back by mistake is not stuck.
+ * Neither object is deleted, so the pair is still exactly two.
+ *
+ * Returns false when there is nothing to roll back to, so the caller can say so instead
+ * of reporting a success that changed nothing.
+ */
+export async function rollbackStoredReport(submissionId: string): Promise<boolean> {
+  const row = await prisma.submission
+    .findUnique({ where: { id: submissionId }, select: { reportKey: true, reportPrevKey: true } })
+    .catch(() => null);
+  if (!row?.reportPrevKey) return false;
+
+  await prisma.submission.update({
+    where: { id: submissionId },
+    data: { reportKey: row.reportPrevKey, reportPrevKey: row.reportKey },
+  });
+  return true;
 }

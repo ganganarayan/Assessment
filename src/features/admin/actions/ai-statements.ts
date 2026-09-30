@@ -9,6 +9,7 @@ import { type StatementInput } from "@/lib/ai/types";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { supersedeStoredReport } from "@/lib/reports/store";
 
 /** One versioned message for a submission (for the result-page manager). */
 export interface AiStatementRow {
@@ -157,6 +158,11 @@ export async function setDefaultAiStatement(
     }
     await tx.submission.update({ where: { id: submissionId }, data });
   });
+
+  // A different statement is now the default, so the stored PDF quotes the old one.
+  // Retired after the transaction; the previous report is kept, so switching back to
+  // the earlier statement can be paired with rolling the report back.
+  await supersedeStoredReport(submissionId);
 
   revalidate(slug, submissionId);
   return { ok: true };

@@ -61,6 +61,7 @@ import { buildSpine, walk, type RouteSpec } from "@/lib/routing/engine";
 import { buildResultSnapshot, mapCategoryResult, type ClinicSnapshot } from "@/lib/result/snapshot";
 import { buildCategoryQuestionBreakdown, type ChosenAnswer } from "@/lib/result/questions";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
+import { supersedeStoredReport } from "@/lib/reports/store";
 
 /** The ONE system-level fallback for the result-token TTL (overridable per
  *  assessment). 30 days — long enough that revisits and the emailed result link
@@ -1270,6 +1271,13 @@ export async function completeSubmission(
       },
     }),
   ]);
+
+  // A RE-completion (a retake against the same submission) has just replaced the
+  // result, so any stored PDF describes the previous one. A no-op on a first
+  // completion, since nothing has been rendered yet — so this costs a single indexed
+  // read on the hot path and no writes. Not awaited: a respondent must never wait on
+  // cache housekeeping, and the worst case is the next report view re-renders.
+  void supersedeStoredReport(submissionId);
 
   // If a concurrent writer already completed this submission, do not re-fire CRM;
   // return that writer's destination URL.

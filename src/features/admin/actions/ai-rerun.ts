@@ -9,6 +9,7 @@ import { type StatementInput } from "@/lib/ai/types";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { floorCreatedAt } from "@/lib/stats-floor";
+import { supersedeStoredReport } from "@/lib/reports/store";
 
 /** Per-round result for the client-driven progress loop. */
 export interface AiRerunBatchResult {
@@ -235,6 +236,11 @@ export async function regenerateAiBatch(
             },
           });
         });
+        // The statement this report quotes has been rewritten, so the stored PDF is
+        // stale. After the transaction, and inside the same try, so a storage problem
+        // is counted as a failure for this submission rather than silently leaving a
+        // stale report behind a "succeeded" count.
+        await supersedeStoredReport(s.id);
         succeeded += 1;
       } catch {
         failed += 1;

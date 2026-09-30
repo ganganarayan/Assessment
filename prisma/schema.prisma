@@ -1125,6 +1125,13 @@ model Submission {
   // Null = not rendered yet (or cleared because the result changed, which makes the
   // stored copy stale). Rendering fills it; the next request serves the stored file.
   reportKey            String?
+  // The PREVIOUS rendered report, kept so a regeneration can be rolled back.
+  //
+  // Exactly two slots rather than a list: "keep the latest two" IS two slots, and a
+  // JSON array would need pruning logic that can drift from the retention rule it is
+  // meant to enforce. Superseding rotates current → previous and deletes whatever was
+  // in previous, so at most two objects exist per submission and storage cannot creep.
+  reportPrevKey        String?
   resultToken          String?   @unique
   // Unguessable capability returned to the client at Start; required to save drafts
   // or complete, so those write actions can't be driven by guessing the submission id.

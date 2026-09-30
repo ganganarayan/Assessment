@@ -10,6 +10,7 @@ import {
   type CategoryBandLike,
 } from "@/lib/result/snapshot";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { supersedeStoredReports } from "@/lib/reports/store";
 
 export interface BandChange {
   category: string;
@@ -149,6 +150,11 @@ export async function recomputeBands(
         }),
       ),
     );
+    // The scores these reports describe have changed, so any stored PDF is now a
+    // confidently wrong document. Retire them AFTER the transaction commits — a cache
+    // rotation must never be able to roll back the recompute itself. Each submission
+    // keeps its previous report, so a recompute can be reviewed and rolled back.
+    await supersedeStoredReports(updates.map((u) => u.id));
   }
 
   return {
