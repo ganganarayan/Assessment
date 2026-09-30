@@ -427,7 +427,9 @@ export async function assignUserToTenant(userId: string, tenantId: string | null
     },
   );
   revalidatePath("/platform");
-  return { ok: true };
+  // Return the RESULT, not a blanket success: this returned { ok: true } regardless, so
+  // a failed write told the operator the assignment had been made when it had not.
+  return r;
 }
 
 /** Promote/demote a login to platform super-admin. The owner is always super admin. */
