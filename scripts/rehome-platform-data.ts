@@ -36,6 +36,8 @@ import type { Prisma } from "@prisma/client";
 import { PLATFORM_OWNER_EMAIL } from "../src/lib/auth/platform";
 import { PLATFORM_TENANT_ID } from "../src/lib/tenant/platform-tenant";
 import { tenantAppSettingId } from "../src/lib/settings/tenant-row";
+import { resolvePlan } from "../src/lib/billing/plan-resolve";
+import { hasFeature } from "../src/lib/billing/plans";
 
 /**
  * Minimal structural view of a tenant-scoped delegate. Prisma's generated delegates
@@ -339,7 +341,7 @@ interface Preflight {
  */
 function preflightConfig(
   tenantSlug: string,
-  effectivePlan: string,
+  entitlement: { label: string; capi: boolean },
   singleton: object | null,
   target: object | null,
 ): Preflight {
@@ -347,13 +349,16 @@ function preflightConfig(
   const warnings: string[] = [];
 
   // Plan. Only GROWTH and SCALE carry `capi`; FREE also caps responses at 25/month and
-  // disables the qualification gate, conditional routing, heatmap and API tokens.
-  if (effectivePlan === "FREE" || effectivePlan === "STARTER") {
+  // disables the qualification gate, conditional routing, heatmap and API tokens. The
+  // answer comes from resolvePlan, so a tenant flagged INTERNAL passes on the flag alone
+  // — its `plan` column is ignored at runtime and must not block the move here either.
+  if (!entitlement.capi) {
     blockers.push(
-      `plan is ${effectivePlan}, which has capi=false. Moving the funnel here stops Meta CAPI, ` +
+      `plan is ${entitlement.label}, which has capi=false. Moving the funnel here stops Meta CAPI, ` +
         "locks responses past the monthly cap, and disables the qualification gate, conditional " +
         "routing, heatmap and API tokens.\n" +
-        `      Fix:  UPDATE tenant SET plan = 'SCALE' WHERE slug = '${tenantSlug}';`,
+        `      Fix:  UPDATE tenant SET plan = 'SCALE' WHERE slug = '${tenantSlug}';\n` +
+        "      Or:   mark the workspace unlimited on /platform, if it is one you run yourself.",
     );
   }
 
@@ -418,16 +423,21 @@ async function tenantStep(slug: string, apply: boolean) {
   );
   console.log(apply ? "\nMODE: APPLY — this writes.\n" : "\nMODE: DRY RUN — nothing is written.\n");
 
-  const billing = await prisma.tenant.findUnique({
-    where: { id: tenant.id },
-    select: { plan: true, subscription: { select: { plan: true, status: true } } },
-  });
-  const effectivePlan = String(billing?.subscription?.plan ?? billing?.plan ?? "FREE");
+  // Ask the resolver the app itself uses, not the `plan` column: an INTERNAL tenant is
+  // unlimited regardless of what that column says, and re-deriving it here would block
+  // the move over an entitlement the running app already grants.
+  const resolved = await resolvePlan(tenant.id);
+  const entitlement = {
+    label: resolved.unlimited ? "unlimited (internal)" : String(resolved.plan),
+    capi: hasFeature(resolved.limits, "capi"),
+  };
   console.log(
-    `Plan: ${effectivePlan}` +
-      (billing?.subscription
-        ? ` (subscription ${billing.subscription.status})`
-        : " (no subscription)"),
+    `Plan: ${entitlement.label}` +
+      (resolved.unlimited
+        ? " — flagged internal on /platform; not metered, every feature on"
+        : resolved.status
+          ? ` (subscription ${resolved.status})`
+          : " (no subscription)"),
   );
 
   // BEFORE counts, per table, for BOTH the source (null) and the destination. Printed as
@@ -464,7 +474,7 @@ async function tenantStep(slug: string, apply: boolean) {
     console.log(`  KEPT (tenant differs, left alone): ${kept.join(", ") || "(none)"}`);
   }
 
-  const { blockers, warnings } = preflightConfig(tenant.slug, effectivePlan, singleton, target);
+  const { blockers, warnings } = preflightConfig(tenant.slug, entitlement, singleton, target);
   // The settings copy runs inside the same transaction as the move, so a value the copy
   // WILL supply is not really a blocker. Drop those before deciding.
   const remaining = blockers.filter((b) => {

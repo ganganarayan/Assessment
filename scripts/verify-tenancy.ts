@@ -18,6 +18,8 @@ import "./public-db-url";
 import { prisma } from "../src/lib/db/prisma";
 import { PLATFORM_OWNER_EMAIL } from "../src/lib/auth/platform";
 import { PLATFORM_TENANT_ID } from "../src/lib/tenant/platform-tenant";
+import { resolvePlan } from "../src/lib/billing/plan-resolve";
+import { hasFeature } from "../src/lib/billing/plans";
 
 /**
  * Every model with a nullable tenant column, as the schema has it. Kept in step with the
@@ -55,9 +57,6 @@ interface CountOnly {
 function delegate(name: TableName): CountOnly {
   return (prisma as unknown as Record<TableName, CountOnly>)[name];
 }
-
-/** Plans that carry the `capi` entitlement — see src/lib/billing/plans.ts. */
-const CAPI_PLANS = new Set(["GROWTH", "SCALE"]);
 
 /** Integration values a funnel tenant cannot run without, and what each one powers. */
 const CRITICAL: { column: string; what: string }[] = [
@@ -159,13 +158,14 @@ async function main() {
       slug: true,
       name: true,
       plan: true,
+      unlimited: true,
       _count: { select: { assessments: true, submissions: true } },
       subscription: { select: { plan: true, status: true } },
     },
     orderBy: { createdAt: "asc" },
   });
   for (const t of tenants) {
-    const eff = t.subscription?.plan ?? t.plan;
+    const eff = t.unlimited ? "UNLTD" : (t.subscription?.plan ?? t.plan);
     console.log(
       `  ${t.slug.padEnd(18)} ${String(eff).padEnd(8)} assessments=${String(t._count.assessments).padEnd(5)}` +
         ` submissions=${t._count.submissions}${t.id === PLATFORM_TENANT_ID ? "   <- platform" : ""}`,
@@ -179,11 +179,15 @@ async function main() {
     if (!t) {
       check(false, `tenant "${funnelSlug}" exists`);
     } else {
-      const eff = String(t.subscription?.plan ?? t.plan);
+      // Ask the same resolver the running app asks, rather than re-deriving the plan from
+      // the columns: the tenant may be flagged INTERNAL, in which case the `plan` column
+      // is ignored at runtime and reading it here reports a 🔴 that does not exist.
+      const { plan, unlimited, limits } = await resolvePlan(t.id);
+      const eff = unlimited ? "unlimited (internal)" : String(plan);
       check(
-        CAPI_PLANS.has(eff),
+        hasFeature(limits, "capi"),
         "plan carries the CAPI entitlement",
-        `effective plan ${eff}${CAPI_PLANS.has(eff) ? "" : " — FREE/STARTER have capi=false, which silently stops Meta CAPI and caps responses"}`,
+        `effective plan ${eff}${hasFeature(limits, "capi") ? "" : " — FREE/STARTER have capi=false, which silently stops Meta CAPI and caps responses"}`,
       );
       const row = await prisma.appSetting.findUnique({ where: { tenantId: t.id } });
       if (!row) {

@@ -117,11 +117,18 @@ tenant to an already-demoted owner would leave no route back into /admin.
 
 ### 3c. Findings that gate the move (verified, still true)
 
-- 🔴 **Apply Gita is on plan `FREE` with no subscription.** FREE has `capi: false`, so
-  moving the funnel onto it **silently stops Meta CAPI**, locks responses past 25/month,
-  and disables the qualification gate, conditional routing, heatmap and API tokens. Only
-  GROWTH and SCALE carry `capi`. Fix before any move:
-  `UPDATE tenant SET plan = 'SCALE' WHERE slug = 'apply-gita';`
+- 🟢 **RESOLVED 30 Sep — Apply Gita is flagged unlimited on /platform.** It was on plan
+  `FREE` with no subscription, and FREE has `capi: false`: moving the funnel onto it would
+  have **silently stopped Meta CAPI**, locked responses past 25/month, and disabled the
+  qualification gate, conditional routing, heatmap and API tokens. The `unlimited` flag is
+  the durable fix (a plan column can lapse; the flag cannot) and `resolvePlan` checks it
+  before the subscription. The SQL route — `UPDATE tenant SET plan = 'SCALE' WHERE slug =
+  'apply-gita';` — still works if you'd rather rate it against a tier.
+  🔴 **This flag was only honoured at runtime.** `verify:tenancy`, the re-home preflight,
+  `/w/billing` and the subscribe action all re-derived the plan from the columns, so an
+  unlimited tenant read as **Free** — the verify reported a phantom 🔴 CAPI failure, the
+  preflight would have blocked the move over it, and the billing page offered to sell a
+  plan the tenant already exceeds. All four now read `resolvePlan().unlimited`.
 - 🔴 **Meta/Razorpay live in env, not the DB** (on staging both rows are blank). Env only
   feeds the platform scope, so a tenant that lacks these values has no pixel, no CAPI and
   a checkout that cannot sign an order. **The preflight now blocks on this** — it is the
@@ -154,14 +161,21 @@ npm run rehome -- --tenant apply-gita --apply
 npm run rehome -- --revert .rehome/<file>.json  # exact undo of either step
 ```
 
-Prefix each with `railway run` (add `--environment production` for prod).
+Prefix each with `railway run` (add `--environment production` for prod), **from the repo
+root** — `railway run` executes in the current directory, so running it from your home
+folder fails with `ENOENT … package.json` before anything reaches the database.
+
+Where a script takes a flag, calling it through `npx tsx` avoids npm's argument parser
+warning about (and potentially swallowing) the flag:
+`railway run --environment production npx tsx scripts/verify-tenancy.ts --funnel apply-gita`
 
 - **`--platform`** attaches the owner's account to the Platform tenant and stamps the
   singleton AppSetting as the Platform tenant's row. The row's *contents* are untouched
   and it stays reachable by its id, so every existing settings read keeps working. This
   is the safe half — do it first and confirm you can still sign in.
 - **`--tenant <slug>`** moves the funnel, and `--apply` is **GATED by a preflight**:
-  - 🔴 blocks on a plan without `capi` (FREE/STARTER), with the exact SQL to fix it
+  - 🔴 blocks on a plan without `capi` (FREE/STARTER), with the exact SQL to fix it —
+    asked via `resolvePlan`, so a workspace flagged **unlimited** on /platform passes
   - 🔴 blocks on any critical Meta/Razorpay value that is blank in Settings on both rows
     — and says so differently when the value lives only in env, because that is the case
     where the move *itself* is what switches the feature off

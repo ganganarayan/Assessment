@@ -24,6 +24,35 @@ function featuresFor(plan: PlanId): string[] {
 export default async function BillingPage() {
   const { tenantId } = await requireWorkspace();
   const [user, resolved] = await Promise.all([getCurrentUser(), resolvePlan(tenantId)]);
+
+  // An INTERNAL workspace is not rated against the catalog, so there is no plan to show
+  // and nothing to sell. `resolved.plan` is null here, and the old `?? "FREE"` turned
+  // that into "You're on the Free plan" with live Upgrade buttons — the exact opposite
+  // of the flag's meaning, and an invitation to buy a plan the tenant already exceeds.
+  if (resolved.unlimited) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Billing</h1>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            This workspace is on an{" "}
+            <span className="font-semibold text-[var(--foreground)]">internal unlimited</span> plan.
+          </p>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] p-4">
+          <p className="text-sm text-[var(--foreground)]">
+            Unlimited assessments and responses, with every feature switched on. There is nothing to
+            pay and no plan to upgrade to.
+          </p>
+          <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+            Set by the platform owner. To put this workspace back on a paid plan, clear the unlimited
+            flag from the platform console.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const currentPlan: PlanId = resolved.plan ?? "FREE";
 
   const plans = PLAN_IDS.map((id) => ({

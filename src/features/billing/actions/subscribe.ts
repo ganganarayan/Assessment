@@ -53,8 +53,19 @@ export async function startSubscriptionCheckout(planInput: string): Promise<Acti
   const keyId = await platformKeyId();
   if (!keyId) return { ok: false, error: "Payments are not configured. Add Razorpay keys in Settings first." };
 
-  // Upgrade-only: block same-tier / downgrade.
   const current = await resolvePlan(scope.tenantId);
+
+  // An INTERNAL tenant already has every feature and no caps, and stays that way even
+  // with a subscription attached — resolvePlan checks the flag first. Selling it a plan
+  // would charge for nothing and change nothing, so refuse before Razorpay is touched.
+  if (current.unlimited) {
+    return {
+      ok: false,
+      error: "This workspace is on an internal unlimited plan — there's nothing to upgrade.",
+    };
+  }
+
+  // Upgrade-only: block same-tier / downgrade.
   const currentPlan = current.plan ?? "FREE";
   if (PLAN_ORDER[plan] <= PLAN_ORDER[currentPlan]) {
     return { ok: false, error: `You're already on ${currentPlan} or higher.` };

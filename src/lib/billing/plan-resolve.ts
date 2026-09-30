@@ -37,11 +37,18 @@ export function entitledPlan(plan: Plan, status: SubscriptionStatus): PlanId {
 }
 
 export interface ResolvedPlan {
-  /** null = the platform's own scope (unlimited); it does not buy a plan from itself. */
+  /** null = not rated against the catalog at all — the platform, or an internal tenant. */
   plan: PlanId | null;
   status: SubscriptionStatus | null;
   limits: PlanLimits;
   isPlatform: boolean;
+  /**
+   * True when this scope is unmetered and un-gated: the platform itself, or a tenant the
+   * owner flagged INTERNAL on /platform. `plan: null` alone does not say which, and every
+   * caller that wrote `plan ?? "FREE"` therefore displayed and treated an unlimited tenant
+   * as Free — the opposite of what the flag means. Read this instead of inferring.
+   */
+  unlimited: boolean;
 }
 
 /**
@@ -55,7 +62,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
   // own funnel unmetered and un-gateable no matter what the column says, and means the
   // hot path costs a string compare instead of a query.
   if (!isBusinessTenant(tenantId)) {
-    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: true };
+    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: true, unlimited: true };
   }
 
   const tenant = await prisma.tenant.findUnique({
@@ -65,7 +72,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
 
   // Unknown tenant → treat as Free (safest; a gate would deny extras, never a respondent).
   if (!tenant) {
-    return { plan: "FREE", status: null, limits: PLAN_LIMITS.FREE, isPlatform: false };
+    return { plan: "FREE", status: null, limits: PLAN_LIMITS.FREE, isPlatform: false, unlimited: false };
   }
 
   // An INTERNAL tenant the owner runs themselves: unlimited and un-gated, like the
@@ -73,7 +80,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
   // never quietly drop it to FREE — which would take Meta CAPI down on a tenant that
   // is spending on ads, with nothing surfacing the change.
   if (tenant.unlimited) {
-    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: false };
+    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: false, unlimited: true };
   }
 
   const sub = tenant.subscription;
@@ -87,7 +94,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
 
   const limits = sub?.limitOverrides != null ? applyOverrides(base, sub.limitOverrides) : base;
 
-  return { plan: effective, status: sub?.status ?? null, limits, isPlatform: false };
+  return { plan: effective, status: sub?.status ?? null, limits, isPlatform: false, unlimited: false };
 }
 
 /** Whether a tenant is entitled to a feature. The platform's own scope → always true. */
