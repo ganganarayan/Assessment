@@ -14,6 +14,7 @@ import {
   SubmissionsTable,
   type SubmissionRow,
 } from "@/features/admin/components/submissions-table";
+import { SUBMISSIONS_WINDOW } from "@/features/admin/data/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -48,10 +49,18 @@ export default async function SubmissionsPage({
   // use the URL id, else default to the newest assessment (list is createdAt desc).
   const scopedId = sp.assessment ?? assessmentOptions[0]?.id;
   const scoped = scopedId ? await getAssessmentForAnalytics(scopedId, dataScope) : null;
-  // Load all so the live search box can match across every submission, not just a page.
-  // Scoped: the assessment's saved reporting start (statsResetAt) IS the "from", so the
-  // URL from is ignored (it's the sticky per-assessment date). To stays an ad-hoc end.
-  const submissions = await listSubmissions(100_000, dataScope, {
+  // A BOUNDED window of the most recent submissions — not the whole table.
+  //
+  // This used to fetch up to 100,000 rows so the search box could match across
+  // everything client-side. Every one of them was then mapped, had its payment status
+  // looked up, and was serialized into the page payload, so one operator opening this
+  // screen cost more memory than a thousand respondents finishing an assessment — and
+  // it grew with the tenant, so the busiest customer broke it first.
+  //
+  // The window keeps instant sort and filter over recent leads, which is what this
+  // screen is used for. Anyone outside it is found by the search box escalating to
+  // lookupSubmissionRef, which queries the whole table server-side.
+  const submissions = await listSubmissions(SUBMISSIONS_WINDOW, dataScope, {
     ...(scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {}),
     from: scoped ? undefined : sp.from,
     to: sp.to,

@@ -260,10 +260,35 @@ async function gateOutcomes(
 /** Recent page views (one row per visit, no lead data) for the live log. Bot hits
  *  are EXCLUDED by default (the live log shows one collapsed bot row instead — see
  *  getBotViewSummary); pass includeBots for the raw export where every hit is a row. */
+/** One page of the page-view log, plus enough to draw the pager. */
+export interface PageViewPage {
+  rows: PageViewLogRow[];
+  total: number;
+  /** 1-based, already clamped to a page that exists. */
+  page: number;
+  pages: number;
+}
+
+/** Rows per page in the page-view log. */
+export const PAGE_VIEW_PAGE_SIZE = 25;
+
+/**
+ * The page-view log, newest first, one page at a time.
+ *
+ * PageView is the highest-volume table in the product — a row per visit, not per lead
+ * — so this is the list most likely to grow past what a page can hold. Paged in the
+ * QUERY rather than sliced after loading, so the cost of opening Stats does not grow
+ * with the tenant.
+ *
+ * `limit` is still honoured for the export path, which wants one large ordered pull
+ * rather than a page.
+ */
 export async function listPageViews(opts: {
   from?: string;
   to?: string;
   limit?: number;
+  /** Rows to skip — set by listPageViewsPaged; the export path leaves it at 0. */
+  skip?: number;
   scope?: Scope;
   assessmentId?: string | null;
   floor?: Date | null;
@@ -278,6 +303,7 @@ export async function listPageViews(opts: {
     where,
     orderBy: { createdAt: "desc" },
     take: opts.limit ?? 100,
+    skip: opts.skip ?? 0,
     select: {
       id: true,
       createdAt: true,
@@ -328,6 +354,46 @@ export async function listPageViews(opts: {
     browser: r.browser,
     os: r.os,
   }));
+}
+
+/**
+ * One page of the log, with the total so the pager can show how many pages remain.
+ *
+ * The count is a second query rather than something derived from the rows, because a
+ * page of 25 cannot tell you how many there are. It runs against the same `where`, so
+ * the total always matches what is being paged — a count taken against a different
+ * filter is how pagers end up promising pages that render empty.
+ *
+ * `page` is clamped to a page that exists, so a stale or hand-edited ?page= lands on
+ * the last real page instead of showing nothing.
+ */
+export async function listPageViewsPaged(opts: {
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+  scope?: Scope;
+  assessmentId?: string | null;
+  floor?: Date | null;
+  includeBots?: boolean;
+}): Promise<PageViewPage> {
+  const pageSize = opts.pageSize ?? PAGE_VIEW_PAGE_SIZE;
+  const base = await createdAtScope({ from: opts.from, to: opts.to }, opts.scope ?? ALL_TENANTS, {
+    assessmentId: opts.assessmentId,
+    ...("floor" in opts ? { floor: opts.floor } : {}),
+  });
+  const where = opts.includeBots ? base : { ...base, isBot: false };
+
+  const total = await prisma.pageView.count({ where });
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(1, Math.floor(opts.page ?? 1)), pages);
+
+  const rows = await listPageViews({
+    ...opts,
+    limit: pageSize,
+    skip: (page - 1) * pageSize,
+  });
+  return { rows, total, page, pages };
 }
 
 /** One clubbed bot row: a source (e.g. "Meta ad-review") with its running hit
@@ -461,6 +527,19 @@ export interface ContactExportRow {
 }
 
 /** Safety cap so an export can never try to materialize an unbounded result. */
+/**
+ * How many recent submissions the Submissions screen loads at once.
+ *
+ * Deliberately small. The screen is for working today's leads: sorting, filtering and
+ * copying result links. Anyone older is reached through the search box, which escalates
+ * to a server-side query over the whole table, so nothing becomes unreachable.
+ *
+ * The number this replaced was 100,000, chosen so a client-side text box could match
+ * everything. That made one operator's page load cost more memory than a thousand
+ * respondents, and it grew with the tenant — so the biggest customer broke it first.
+ */
+export const SUBMISSIONS_WINDOW = 500;
+
 export const EXPORT_CAP = 100_000;
 
 /** ALL contacts matching the date range (no pagination), flattened for export. */

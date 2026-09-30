@@ -15,6 +15,7 @@ import {
   type SubmissionRow,
 } from "@/features/admin/components/submissions-table";
 import { tenantOnly } from "@/lib/tenant/scope";
+import { SUBMISSIONS_WINDOW } from "@/features/admin/data/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function WorkspaceSubmissionsPage({
   const scoped = scopedId ? await getAssessmentForAnalytics(scopedId, tenantOnly(tenantId)) : null;
   // Scoped: the assessment's saved reporting start (statsResetAt) IS the "from"; the URL
   // from is ignored (it's the sticky per-assessment date). To stays an ad-hoc end date.
-  const submissions = await listSubmissions(100_000, tenantOnly(tenantId), {
+  const submissions = await listSubmissions(SUBMISSIONS_WINDOW, tenantOnly(tenantId), {
     ...(scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {}),
     from: scoped ? undefined : sp.from,
     to: sp.to,

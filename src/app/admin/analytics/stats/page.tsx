@@ -1,7 +1,8 @@
+import Link from "next/link";
 import {
   getAnalyticsStats,
   getUtmBreakdown,
-  listPageViews,
+  listPageViewsPaged,
   getBotSourceRows,
 } from "@/features/admin/data/analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,7 +43,7 @@ const BotTag = () => (
 export default async function StatsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string; assessment?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; assessment?: string; page?: string }>;
 }) {
   const sp = await searchParams;
   // Two different questions, two different answers (see lib/tenant/acting):
@@ -58,12 +59,33 @@ export default async function StatsPage({
   const assessmentOptions = (await listAssessments(dataScope)).map((a) => ({ id: a.id, title: a.title }));
   const aScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : undefined;
   const pvScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {};
-  const [s, utm, log, botRows] = await Promise.all([
+  // The log is paged in the QUERY. A bad or stale ?page= is clamped server-side to a
+  // page that exists, so a link from an old tab lands on the last real page rather than
+  // an empty table.
+  const requestedPage = Number.parseInt(sp.page ?? "1", 10);
+  const [s, utm, logPage, botRows] = await Promise.all([
     getAnalyticsStats(range, dataScope, aScope),
     getUtmBreakdown(range, dataScope, aScope),
-    listPageViews({ ...range, limit: 100, scope: dataScope, ...pvScope }),
+    listPageViewsPaged({
+      ...range,
+      page: Number.isFinite(requestedPage) ? requestedPage : 1,
+      scope: dataScope,
+      ...pvScope,
+    }),
     getBotSourceRows({ ...range, scope: dataScope, ...pvScope }),
   ]);
+  const log = logPage.rows;
+
+  /** Keep the current filters when moving between pages — only `page` changes. */
+  const pageHref = (n: number) => {
+    const q = new URLSearchParams();
+    if (sp.from) q.set("from", sp.from);
+    if (sp.to) q.set("to", sp.to);
+    if (sp.assessment) q.set("assessment", sp.assessment);
+    if (n > 1) q.set("page", String(n));
+    const qs = q.toString();
+    return qs ? `/admin/analytics/stats?${qs}` : "/admin/analytics/stats";
+  };
 
   const items: { label: string; value: number; hint?: string }[] = [
     { label: "Opt-in page views", value: s.totalViews },
@@ -206,6 +228,47 @@ export default async function StatsPage({
             </table>
           </div>
         )}
+
+        {/* Pager. Plain links, not buttons: each page is a real URL, so it can be
+            shared, bookmarked and opened in a new tab, and the browser Back button
+            does what the operator expects. Hidden on a single page. */}
+        {logPage.pages > 1 ? (
+          <nav
+            aria-label="Page-view log pages"
+            className="flex flex-wrap items-center gap-2 text-sm"
+          >
+            {logPage.page > 1 ? (
+              <Link href={pageHref(logPage.page - 1)} className="rounded-md border px-2.5 py-1">
+                ← Newer
+              </Link>
+            ) : (
+              <span className="rounded-md border px-2.5 py-1 opacity-40">← Newer</span>
+            )}
+
+            <span className="text-[var(--muted-foreground)]">
+              Page {logPage.page.toLocaleString()} of {logPage.pages.toLocaleString()}
+            </span>
+
+            {logPage.page < logPage.pages ? (
+              <Link href={pageHref(logPage.page + 1)} className="rounded-md border px-2.5 py-1">
+                Older →
+              </Link>
+            ) : (
+              <span className="rounded-md border px-2.5 py-1 opacity-40">Older →</span>
+            )}
+
+            {/* Jumping to the last page is the one non-sequential move that gets used
+                (the first visit ever recorded), so it gets a shortcut. */}
+            {logPage.page < logPage.pages ? (
+              <Link
+                href={pageHref(logPage.pages)}
+                className="text-xs text-[var(--muted-foreground)] underline"
+              >
+                oldest
+              </Link>
+            ) : null}
+          </nav>
+        ) : null}
       </section>
 
       {/* Traffic by UTM — how many page views came from which source. */}
@@ -255,7 +318,8 @@ export default async function StatsPage({
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Page-view log</h2>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Latest {log.length.toLocaleString()} human visits. A visitor becomes a contact once
+            {logPage.total.toLocaleString()} human visits, newest first — page{" "}
+            {logPage.page.toLocaleString()} of {logPage.pages.toLocaleString()}. A visitor becomes a contact once
             they opt in — they then appear with lead data on Contacts. Automated hits (Meta
             ad-review, crawlers) are clubbed by source into the <BotTag /> rows below and excluded
             from every number above.
