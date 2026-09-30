@@ -27,6 +27,7 @@ import {
 } from "@/features/assessment/schemas";
 import { QualificationManager } from "@/features/assessment/components/admin/qualification-manager";
 import { Badge } from "@/components/ui/badge";
+import { ownerScopeOf } from "@/lib/tenant/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -105,7 +106,7 @@ export default async function EditAssessmentPage({
   };
 
   // Other assessments in this scope — targets for the audience gate's onward route.
-  const routeTargets = (await listAssessments(a.tenantId))
+  const routeTargets = (await listAssessments(ownerScopeOf(a.tenantId)))
     .filter((x) => x.id !== a.id)
     .map((x) => ({ id: x.id, title: x.title, slug: x.slug, published: x.status === "PUBLISHED" }));
 

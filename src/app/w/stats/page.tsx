@@ -5,6 +5,7 @@ import {
   listPageViews,
   getBotSourceRows,
 } from "@/features/admin/data/analytics";
+import { tenantOnly } from "@/lib/tenant/scope";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
@@ -44,11 +45,13 @@ export default async function WorkspaceStatsPage({
   const { tenantId } = await requireWorkspace();
   const sp = await searchParams;
   const range = { from: sp.from, to: sp.to };
+  // A workspace is always exactly one tenant — never the all-tenants scope.
+  const dataScope = tenantOnly(tenantId);
   const [s, utm, log, botRows] = await Promise.all([
-    getAnalyticsStats(range, tenantId),
-    getUtmBreakdown(range, tenantId),
-    listPageViews({ ...range, limit: 100, tenantId }),
-    getBotSourceRows({ ...range, tenantId }),
+    getAnalyticsStats(range, dataScope),
+    getUtmBreakdown(range, dataScope),
+    listPageViews({ ...range, limit: 100, scope: dataScope }),
+    getBotSourceRows({ ...range, scope: dataScope }),
   ]);
 
   const items: { label: string; value: number; hint?: string }[] = [

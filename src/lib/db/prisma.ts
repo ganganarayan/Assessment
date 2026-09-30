@@ -7,16 +7,26 @@ import { isPlatformOwner, PLATFORM_OWNER_EMAIL } from "@/lib/auth/platform";
  * and exhaust the connection pool, so we cache it on globalThis.
  *
  * The client is extended with a hard backstop that refuses to DEMOTE the
- * platform owner — i.e. any write that would set the owner's role to something
- * other than SUPER_ADMIN, or attach a non-null tenantId to the owner. This is
- * defence-in-depth: the individual Server Actions guard this too, but a single
- * DB-layer rule means no current or future code path can silently demote the
- * owner (the incident that locked us out once). Promotions (role → SUPER_ADMIN,
- * tenantId → null) are always allowed, so break-glass recovery still works.
+ * platform owner — any write that would set the owner's role to something other
+ * than SUPER_ADMIN. This is defence-in-depth: the individual Server Actions guard
+ * this too, but a single DB-layer rule means no current or future code path can
+ * silently demote the owner (the incident that locked us out once). Promotion
+ * (role → SUPER_ADMIN) is always allowed, so break-glass recovery still works.
+ *
+ * THE GUARD PROTECTS THE ROLE, NOT THE TENANT.
+ * It used to ALSO refuse any write attaching a non-null tenantId to the owner,
+ * because at the time "owner" and "tenantId = null" were the same fact. They are
+ * not any more: the platform is a real Tenant row and the owner's account belongs
+ * to it, so attaching a tenant is a normal, correct write. Keeping the tenant rule
+ * would have made the Platform-tenant migration impossible — it would have thrown
+ * halfway through. What actually locked us out was losing SUPER_ADMIN, and that is
+ * exactly what is still refused here. A tenant id cannot cost anyone their access,
+ * because super-admin is decided by role/owner-email (lib/auth/guards isSuperAdmin),
+ * never by whether a tenant is attached.
  */
 
 export const OWNER_PROTECTED_MSG =
-  "Refusing to write the platform owner down to a tenant admin (role/tenant is protected).";
+  "Refusing to write the platform owner down from SUPER_ADMIN (the owner's role is protected).";
 
 /** Read a Prisma scalar-or-{set} field: was it written, and to what value. */
 function writtenField(
@@ -31,15 +41,17 @@ function writtenField(
   return { written: true, value: raw };
 }
 
-/** True when this data payload would demote a user (role↓ or tenantId set non-null). */
+/**
+ * True when this data payload would demote a user: the `role` column is written to
+ * anything other than SUPER_ADMIN.
+ *
+ * Writing `tenantId` is deliberately NOT a demotion. See the header — the owner now
+ * belongs to the Platform tenant, and attaching it must be allowed.
+ */
 function isDemotion(data: unknown): boolean {
   if (!data || typeof data !== "object") return false;
-  const d = data as Record<string, unknown>;
-  const role = writtenField(d, "role");
-  const tenant = writtenField(d, "tenantId");
-  const roleDown = role.written && role.value !== Role.SUPER_ADMIN;
-  const tenantAttached = tenant.written && tenant.value !== null && tenant.value !== undefined;
-  return roleDown || tenantAttached;
+  const role = writtenField(data as Record<string, unknown>, "role");
+  return role.written && role.value !== Role.SUPER_ADMIN;
 }
 
 function createPrismaClient() {

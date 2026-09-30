@@ -47,8 +47,10 @@ model Tenant {
   // PLATFORM-OWNER's Razorpay account in USD (NOT the tenant's own respondent keys).
   // Default FREE. Changed only by the Razorpay subscription webhook or a super-admin
   // override — never trusted from the client. razorpayCustomerId links this tenant to
-  // its Razorpay customer across the subscription lifecycle. The platform/Gita tenant
-  // (tenantId null) has no Tenant row and is treated as unlimited/unmetered in code.
+  // its Razorpay customer across the subscription lifecycle. The PLATFORM tenant is a
+  // real row here (id "platform", seeded by migration) and carries SCALE, but code
+  // short-circuits it to unlimited/unmetered regardless — the platform is not a
+  // customer of itself. See src/lib/tenant/platform-tenant.ts.
   plan               Plan    @default(FREE)
   razorpayCustomerId String?
 
@@ -323,7 +325,10 @@ model RazorpayPlan {
 }
 
 // ---------------------------------------------------------------------------
-// User — application users. SUPER_ADMIN has tenantId = null (global).
+// User — application users. The platform OWNER is SUPER_ADMIN and belongs to the
+// Platform tenant; super-admin access comes from the role, never from the tenant
+// (lib/auth/guards isSuperAdmin), so attaching a tenant costs no access. Rows still
+// carrying tenantId = null pre-date the re-home.
 // Fields below also satisfy Better Auth's "user" model contract.
 // ---------------------------------------------------------------------------
 
@@ -1664,9 +1669,12 @@ model AiPromptVersion {
 
 model AppSetting {
   id                  String   @id @default("singleton")
-  // Owning tenant. The platform/Gita config is the id="singleton" row (tenantId null),
-  // unchanged; each tenant gets ONE additional row. A tenant NEVER reads the singleton
-  // (so Gita's API keys/config stay private) — an unconfigured tenant simply has no AI.
+  // Owning tenant. The PLATFORM's config is the id="singleton" row, whose tenantId is
+  // set to "platform" by the re-home — so that one row is reachable both by its id and
+  // by its tenant, and all addressing goes through lib/settings/tenant-row so the two
+  // names can never create a second row. Each tenant gets ONE additional row. A tenant
+  // NEVER reads the singleton (so the platform's own keys stay private) — an
+  // unconfigured tenant simply has no AI, and no pixel, CAPI or checkout either.
   tenantId String? @unique
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 

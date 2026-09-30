@@ -10,6 +10,7 @@ import {
   type PlanId,
   type PlanLimits,
 } from "@/lib/billing/plans";
+import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
 
 /**
  * Plan + entitlement resolution, split out of entitlements.ts so it can run
@@ -36,7 +37,7 @@ export function entitledPlan(plan: Plan, status: SubscriptionStatus): PlanId {
 }
 
 export interface ResolvedPlan {
-  /** null = platform/Gita scope (unlimited). */
+  /** null = the platform's own scope (unlimited); it does not buy a plan from itself. */
   plan: PlanId | null;
   status: SubscriptionStatus | null;
   limits: PlanLimits;
@@ -49,7 +50,11 @@ export interface ResolvedPlan {
  * Never throws — a corrupt snapshot degrades to the catalog value.
  */
 export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan> {
-  if (tenantId === null) {
+  // The platform is never rated against a plan — not even the SCALE value its Tenant
+  // row carries. Short-circuiting here (rather than reading the row) keeps the owner's
+  // own funnel unmetered and un-gateable no matter what the column says, and means the
+  // hot path costs a string compare instead of a query.
+  if (!isBusinessTenant(tenantId)) {
     return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: true };
   }
 
@@ -77,7 +82,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
   return { plan: effective, status: sub?.status ?? null, limits, isPlatform: false };
 }
 
-/** Whether a tenant is entitled to a feature. Platform scope → always true. */
+/** Whether a tenant is entitled to a feature. The platform's own scope → always true. */
 export async function tenantCan(tenantId: string | null, feature: Feature): Promise<boolean> {
   const { limits } = await resolvePlan(tenantId);
   return hasFeature(limits, feature);

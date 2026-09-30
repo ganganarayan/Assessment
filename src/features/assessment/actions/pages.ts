@@ -8,6 +8,7 @@ import { isBlockType, defaultConfig, readPublishedPages, type BlockType, type As
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { resolveVidapulseParam } from "@/lib/vidapulse";
+import { appSettingWhere } from "@/lib/settings/tenant-row";
 
 /** Result data the public page-2 needs for dynamic blocks. Bands only — the real
  *  numeric scores are NEVER sent (the teaser blurs them; the VSL shows them after
@@ -31,9 +32,10 @@ export async function getResultForPages(submissionId: string): Promise<ActionRes
   if (!snap) return { ok: false, error: "No result yet." };
   // Resolve the tenant's VidaPulse param (singleton for platform/Gita assessments).
   const tenantId = s?.assessment.tenantId ?? null;
-  const setting = tenantId
-    ? await prisma.appSetting.findUnique({ where: { tenantId }, select: { vidapulseTrackingEnabled: true, vidapulseParam: true } })
-    : await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { vidapulseTrackingEnabled: true, vidapulseParam: true } });
+  const setting = await prisma.appSetting.findUnique({
+    where: appSettingWhere(tenantId) as never,
+    select: { vidapulseTrackingEnabled: true, vidapulseParam: true },
+  });
   return {
     ok: true,
     data: {

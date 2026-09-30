@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
-import { tenantAppSettingId } from "@/lib/settings/tenant-row";
+import { appSettingWhere, tenantAppSettingId } from "@/lib/settings/tenant-row";
 import { audienceCanonicalSchema } from "@/features/assessment/schemas";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { Prisma } from "@prisma/client";
@@ -21,7 +21,7 @@ function settingRowId(tenantId: string | null): string {
 }
 
 async function readCanonical(tenantId: string | null): Promise<string[]> {
-  const where = tenantId ? { tenantId } : { id: "singleton" };
+  const where = appSettingWhere(tenantId);
   const s = await prisma.appSetting.findUnique({ where, select: { audienceCanonical: true } });
   const raw = s?.audienceCanonical;
   if (!Array.isArray(raw)) return [];
@@ -57,7 +57,7 @@ export async function updateAudienceCanonical(text: string): Promise<ActionResul
   const id = settingRowId(scope.tenantId);
   const data = { audienceCanonical: parsed.data as unknown as Prisma.InputJsonValue };
   await prisma.appSetting.upsert({
-    where: scope.tenantId ? { tenantId: scope.tenantId } : { id: "singleton" },
+    where: appSettingWhere(scope.tenantId) as Prisma.AppSettingWhereUniqueInput,
     update: data,
     create: { id, tenantId: scope.tenantId, ...data },
   });

@@ -17,6 +17,8 @@
     "db:seed": "tsx --conditions=react-server prisma/seed.ts",
     "db:reset-password": "tsx --conditions=react-server scripts/reset-user-password.ts",
     "rehome": "tsx scripts/rehome-platform-data.ts",
+    "settings:from-env": "tsx scripts/settings-from-env.ts",
+    "verify:tenancy": "tsx scripts/verify-tenancy.ts",
     "db:studio": "prisma studio",
     "seed:webhooks": "tsx scripts/seed-webhooks.ts",
     "cron:abandoned": "tsx scripts/sweep-abandoned.ts",

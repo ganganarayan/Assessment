@@ -11,7 +11,7 @@ import { AssessmentPicker } from "@/features/admin/components/assessment-picker"
 import { getAssessmentForAnalytics, listAssessments } from "@/features/assessment/data";
 import { formatIST } from "@/lib/date";
 import { getStatsFloor } from "@/lib/stats-floor";
-import { actingTenantId } from "@/lib/tenant/acting";
+import { actingTenantId, actingDataScope } from "@/lib/tenant/acting";
 
 export const dynamic = "force-dynamic";
 
@@ -45,20 +45,24 @@ export default async function StatsPage({
   searchParams: Promise<{ from?: string; to?: string; assessment?: string }>;
 }) {
   const sp = await searchParams;
+  // Two different questions, two different answers (see lib/tenant/acting):
+  //   t          — which workspace is entered, if any (assessment lookup, data window)
+  //   dataScope  — which rows to REPORT on; no workspace entered = every tenant
   const t = await actingTenantId();
-  const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, t) : null;
+  const dataScope = await actingDataScope();
+  const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, dataScope) : null;
   // Scoped: the assessment's saved reporting start (statsResetAt, applied via aScope
   // floor) IS the "from", so the URL from is ignored. To stays an ad-hoc end date.
   const range = { from: scoped ? undefined : sp.from, to: sp.to };
   const stickyStart = scoped?.statsResetAt ? formatIST(scoped.statsResetAt.toISOString()).split(" ")[0] : "";
-  const assessmentOptions = (await listAssessments(t)).map((a) => ({ id: a.id, title: a.title }));
+  const assessmentOptions = (await listAssessments(dataScope)).map((a) => ({ id: a.id, title: a.title }));
   const aScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : undefined;
   const pvScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {};
   const [s, utm, log, botRows] = await Promise.all([
-    getAnalyticsStats(range, t, aScope),
-    getUtmBreakdown(range, t, aScope),
-    listPageViews({ ...range, limit: 100, tenantId: t, ...pvScope }),
-    getBotSourceRows({ ...range, tenantId: t, ...pvScope }),
+    getAnalyticsStats(range, dataScope, aScope),
+    getUtmBreakdown(range, dataScope, aScope),
+    listPageViews({ ...range, limit: 100, scope: dataScope, ...pvScope }),
+    getBotSourceRows({ ...range, scope: dataScope, ...pvScope }),
   ]);
 
   const items: { label: string; value: number; hint?: string }[] = [

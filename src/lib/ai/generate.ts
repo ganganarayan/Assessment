@@ -8,6 +8,7 @@ import { PREVIEW_SAMPLE } from "@/lib/ai/prompt-versions";
 import { resolvePromptVersion, getWordWindow } from "@/lib/ai/versions";
 import { DEFAULT_MODEL, isAiProvider, type AiConfig, type StatementInput } from "@/lib/ai/types";
 import { CLINIC_SYSTEM_PROMPT } from "@/lib/ai/clinic-prompt";
+import { appSettingWhere } from "@/lib/settings/tenant-row";
 
 /**
  * Server-side LLM call for the personalized result statement. Fully fail-soft:
@@ -28,9 +29,7 @@ async function readAiConfig(requireEnabled: boolean, tenantId: string | null = n
     // Gita/platform (tenantId null) reads the singleton, unchanged. A tenant reads
     // ONLY its own row — never the singleton — so Gita's API key is never used for,
     // or exposed to, a tenant. An unconfigured tenant simply gets no AI (returns null).
-    const s = tenantId
-      ? await prisma.appSetting.findUnique({ where: { tenantId } })
-      : await prisma.appSetting.findUnique({ where: { id: "singleton" } });
+    const s = await prisma.appSetting.findUnique({ where: appSettingWhere(tenantId) as never });
     if (!s || !s.aiProvider) return null;
     if (requireEnabled && !s.aiEnabled) return null;
     if (!isAiProvider(s.aiProvider)) return null;

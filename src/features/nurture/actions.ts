@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { encryptWithSecret } from "@/lib/crypto";
 import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
-import { tenantAppSettingId } from "@/lib/settings/tenant-row";
+import { appSettingWhere, tenantAppSettingId } from "@/lib/settings/tenant-row";
 import { resolveWabaConfig } from "@/lib/settings/config";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { readNurtureConfig, fillPlaceholders, toE164Digits, type NurtureConfig } from "@/features/nurture/config";
@@ -22,7 +22,7 @@ import { sendEmail, sendWaba, sendTrackedEmail, sendNurtureForSubmission } from 
 
 const enc = (v: string) => encryptWithSecret(v.trim(), env.BETTER_AUTH_SECRET);
 function rowWhere(tenantId: string | null) {
-  return tenantId ? { tenantId } : { id: "singleton" };
+  return appSettingWhere(tenantId);
 }
 async function upsert(tenantId: string | null, data: Record<string, unknown>) {
   await prisma.appSetting.upsert({

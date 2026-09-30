@@ -8,6 +8,7 @@ import {
   type PromptVersion,
 } from "@/lib/ai/prompt-versions";
 import { buildStatementMessages } from "@/lib/ai/prompt";
+import { appSettingWhere } from "@/lib/settings/tenant-row";
 
 /**
  * Resolve a version id to a PromptVersion, scoped to a tenant. Built-in code
@@ -32,9 +33,10 @@ export async function resolvePromptVersion(
 
 /** The tenant's word-count window (assembled prompts ask the model for this range). */
 export async function getWordWindow(tenantId: string | null): Promise<{ min: number; max: number }> {
-  const s = tenantId
-    ? await prisma.appSetting.findUnique({ where: { tenantId }, select: { aiWordMin: true, aiWordMax: true } })
-    : await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { aiWordMin: true, aiWordMax: true } });
+  const s = await prisma.appSetting.findUnique({
+    where: appSettingWhere(tenantId) as never,
+    select: { aiWordMin: true, aiWordMax: true },
+  });
   return { min: s?.aiWordMin ?? 200, max: s?.aiWordMax ?? 280 };
 }
 

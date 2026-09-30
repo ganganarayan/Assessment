@@ -7,14 +7,55 @@
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { decryptWithSecret } from "@/lib/crypto";
+import { isPlatformScope } from "@/lib/tenant/platform-tenant";
+import { appSettingWhere } from "@/lib/settings/tenant-row";
 
 /**
  * Per-tenant integration config (Meta pixel/CAPI, Razorpay), resolved from the
- * AppSetting row — NOT env. A tenant reads its OWN row and never falls back. The
- * platform/Gita tenant (tenantId null / singleton) falls back to env when a value
- * isn't set in Settings yet, so the live Gita funnel keeps firing during migration.
- * Once Gita's values are entered in super-admin Settings, the env vars can be removed.
+ * AppSetting row — NOT env. A tenant reads its OWN row and never falls back.
+ *
+ * ENV IS FOR LAUNCHING THE APP, NOT FOR CONFIGURING TENANTS.
+ * That is the standing rule: environment variables hold only what the process needs
+ * to boot (database URL, auth secret, app URL, object storage). Every integration
+ * value — pixel, CAPI token, Razorpay keys, AI keys, SMTP, WhatsApp — belongs in
+ * in-app Settings, stored per tenant, because a per-tenant value cannot live in a
+ * single process-wide variable without one tenant inheriting another's.
+ *
+ * The env reads below are a TRANSITIONAL fallback for the platform scope ONLY, kept
+ * so the live funnel does not go dark between this commit and the re-home. Each one
+ * logs which value it served from env, so the remaining gaps are visible rather than
+ * silently permanent. `npm run settings:from-env` copies them into Settings; once the
+ * gap report is clean, delete the fallback and the vars together.
+ *
+ * 🔴 The fallback does NOT apply to a business tenant. Moving the funnel onto its own
+ * tenant therefore requires its AppSetting row to be populated FIRST — a blank row
+ * means no pixel, no CAPI and a checkout that cannot sign an order.
  */
+
+/**
+ * Note that a value was served from env rather than Settings. Logged once per key per
+ * process (not per request — this sits on the funnel hot path) so a deploy's logs name
+ * exactly what still has to be entered in Settings, without flooding them.
+ */
+const envFallbacksWarned = new Set<string>();
+function noteEnvFallback(key: string): void {
+  if (envFallbacksWarned.has(key)) return;
+  envFallbacksWarned.add(key);
+  console.warn(
+    `[settings/config] ${key} came from an environment variable, not Settings. ` +
+      `Enter it in Settings for the platform tenant — env is for launching the app only. ` +
+      `(npm run settings:from-env copies it across.)`,
+  );
+}
+
+/** Serve `stored`, or fall back to env for the platform scope while noting the gap. */
+function orEnv(stored: string | null, isPlatform: boolean, key: string, envValue: string | null | undefined): string | null {
+  if (stored) return stored;
+  if (!isPlatform) return null;
+  const v = envValue ?? null;
+  if (v) noteEnvFallback(key);
+  return v;
+}
 
 const SEL_META = { metaPixelId: true, metaCapiTokenEnc: true } as const;
 const SEL_RZP = { razorpayKeyId: true, razorpayKeySecretEnc: true, razorpayWebhookSecretEnc: true } as const;
@@ -36,10 +77,16 @@ function safeDecrypt(enc: string | null | undefined): string | null {
   }
 }
 
+/**
+ * The AppSetting row for a tenant. Addressing goes through appSettingWhere so the
+ * platform resolves to the singleton row whether it arrives as null (pre-re-home) or
+ * as PLATFORM_TENANT_ID (post) — one row, reachable by either name.
+ */
 async function settingRow<T>(tenantId: string | null, select: T) {
-  return tenantId
-    ? prisma.appSetting.findUnique({ where: { tenantId }, select: select as never })
-    : prisma.appSetting.findUnique({ where: { id: "singleton" }, select: select as never });
+  return prisma.appSetting.findUnique({
+    where: appSettingWhere(tenantId) as never,
+    select: select as never,
+  });
 }
 
 export interface MetaConfig {
@@ -48,16 +95,20 @@ export interface MetaConfig {
   datasetId: string | null;
 }
 
-/** Resolve a tenant's Meta config (null = platform/Gita → env fallback). */
+/** Resolve a tenant's Meta config (the platform scope keeps a transitional env fallback). */
 export async function resolveMetaConfig(tenantId: string | null): Promise<MetaConfig> {
   const s = (await settingRow(tenantId, SEL_META)) as { metaPixelId: string | null; metaCapiTokenEnc: string | null } | null;
-  const isPlatform = tenantId === null;
-  const pixelId = s?.metaPixelId?.trim() || (isPlatform ? env.NEXT_PUBLIC_META_PIXEL_ID ?? null : null);
+  const isPlatform = isPlatformScope(tenantId);
+  const pixelId = orEnv(s?.metaPixelId?.trim() || null, isPlatform, "NEXT_PUBLIC_META_PIXEL_ID", env.NEXT_PUBLIC_META_PIXEL_ID);
   // Stored token wins; a corrupt/undecryptable one falls back to env for the platform
-  // (keeps the live Gita funnel firing), or leaves a tenant unconfigured — never throws.
-  const capiToken = safeDecrypt(s?.metaCapiTokenEnc) ?? (isPlatform ? env.META_CAPI_ACCESS_TOKEN ?? null : null);
-  // Dataset id: the platform can override via env; otherwise the pixel id is the dataset.
+  // (keeps the live funnel firing), or leaves a tenant unconfigured — never throws.
+  const capiToken = orEnv(safeDecrypt(s?.metaCapiTokenEnc), isPlatform, "META_CAPI_ACCESS_TOKEN", env.META_CAPI_ACCESS_TOKEN);
+  // Dataset id: for a tenant the pixel id IS the dataset. The platform may still point
+  // CAPI at a different dataset via env — 🟡 if that var is set to something other than
+  // the pixel id, events change destination the moment the funnel moves to a tenant,
+  // because a tenant has no equivalent override. Check it before re-homing.
   const datasetId = isPlatform ? env.META_DATASET_ID ?? pixelId : pixelId;
+  if (isPlatform && env.META_DATASET_ID) noteEnvFallback("META_DATASET_ID");
   return { pixelId, capiToken, datasetId };
 }
 
@@ -192,17 +243,17 @@ export async function resolveWabaConfig(tenantId: string | null): Promise<WabaCo
   };
 }
 
-/** Resolve a tenant's Razorpay config (null = platform/Gita → env fallback). */
+/** Resolve a tenant's Razorpay config (the platform scope keeps a transitional env fallback). */
 export async function resolveRazorpayConfig(tenantId: string | null): Promise<RazorpayConfig> {
   const s = (await settingRow(tenantId, SEL_RZP)) as {
     razorpayKeyId: string | null;
     razorpayKeySecretEnc: string | null;
     razorpayWebhookSecretEnc: string | null;
   } | null;
-  const isPlatform = tenantId === null;
+  const isPlatform = isPlatformScope(tenantId);
   return {
-    keyId: s?.razorpayKeyId?.trim() || (isPlatform ? env.RAZORPAY_KEY_ID ?? null : null),
-    keySecret: safeDecrypt(s?.razorpayKeySecretEnc) ?? (isPlatform ? env.RAZORPAY_KEY_SECRET ?? null : null),
-    webhookSecret: safeDecrypt(s?.razorpayWebhookSecretEnc) ?? (isPlatform ? env.RAZORPAY_WEBHOOK_SECRET ?? null : null),
+    keyId: orEnv(s?.razorpayKeyId?.trim() || null, isPlatform, "RAZORPAY_KEY_ID", env.RAZORPAY_KEY_ID),
+    keySecret: orEnv(safeDecrypt(s?.razorpayKeySecretEnc), isPlatform, "RAZORPAY_KEY_SECRET", env.RAZORPAY_KEY_SECRET),
+    webhookSecret: orEnv(safeDecrypt(s?.razorpayWebhookSecretEnc), isPlatform, "RAZORPAY_WEBHOOK_SECRET", env.RAZORPAY_WEBHOOK_SECRET),
   };
 }

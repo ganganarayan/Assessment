@@ -14,6 +14,7 @@ import {
   SubmissionsTable,
   type SubmissionRow,
 } from "@/features/admin/components/submissions-table";
+import { tenantOnly } from "@/lib/tenant/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -28,15 +29,15 @@ export default async function WorkspaceSubmissionsPage({
   // The VSL `cid` param for this tenant — appended to each row's Result URL so the
   // "Copy" link an operator sends for nurture carries the customer id to VidaPulse.
   const vidapulseParam = await vidapulseParamForTenant(tenantId);
-  const assessmentOptions = (await listAssessments(tenantId)).map((a) => ({ id: a.id, title: a.title }));
+  const assessmentOptions = (await listAssessments(tenantOnly(tenantId))).map((a) => ({ id: a.id, title: a.title }));
   // Submissions is always scoped to one assessment (no cross-assessment "All" view):
   // use the URL id, else default to the newest assessment (list is createdAt desc).
   // A foreign/bad id resolves to null (no leak) → falls back to the newest.
   const scopedId = sp.assessment ?? assessmentOptions[0]?.id;
-  const scoped = scopedId ? await getAssessmentForAnalytics(scopedId, tenantId) : null;
+  const scoped = scopedId ? await getAssessmentForAnalytics(scopedId, tenantOnly(tenantId)) : null;
   // Scoped: the assessment's saved reporting start (statsResetAt) IS the "from"; the URL
   // from is ignored (it's the sticky per-assessment date). To stays an ad-hoc end date.
-  const submissions = await listSubmissions(100_000, tenantId, {
+  const submissions = await listSubmissions(100_000, tenantOnly(tenantId), {
     ...(scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {}),
     from: scoped ? undefined : sp.from,
     to: sp.to,

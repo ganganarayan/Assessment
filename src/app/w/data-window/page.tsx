@@ -2,7 +2,7 @@ import { getStatsWindow, getAssessmentStatsWindow } from "@/features/admin/actio
 import { StatsWindowForm } from "@/features/admin/components/stats-window-form";
 import { AssessmentScopeBar } from "@/features/admin/components/assessment-scope-bar";
 import { getAssessmentForAnalytics } from "@/features/assessment/data";
-import { actingTenantId } from "@/lib/tenant/acting";
+import { actingDataScope } from "@/lib/tenant/acting";
 import { requireWorkspace } from "@/lib/auth/guards";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export default async function WorkspaceDataWindowPage({
   await requireWorkspace();
   const sp = await searchParams;
   const scoped = sp.assessment
-    ? await getAssessmentForAnalytics(sp.assessment, await actingTenantId())
+    ? await getAssessmentForAnalytics(sp.assessment, await actingDataScope())
     : null;
 
   const r = scoped ? await getAssessmentStatsWindow(scoped.id) : await getStatsWindow();

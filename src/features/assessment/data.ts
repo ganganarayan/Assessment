@@ -1,15 +1,23 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
-import { getStatsFloor } from "@/lib/stats-floor";
+import { statsFloorFor } from "@/lib/stats-floor";
+import { ALL_TENANTS, whereScope, type Scope } from "@/lib/tenant/scope";
 import { istDateRangeToUtc } from "@/lib/date";
 
 /** Query helpers for admin pages and the public flow. UI-agnostic. */
 
-/** List assessments for a scope. tenantId null = platform/Gita (null-tenant rows);
- *  a tenant id = that workspace. Always filters — never returns cross-tenant rows. */
-export async function listAssessments(tenantId: string | null) {
+/**
+ * List assessments in a data scope: one workspace, or every tenant.
+ *
+ * 🔴 This used to take `tenantId: string | null` and pin it literally, so an owner
+ * with no workspace entered matched only rows owned by NOBODY. That is fine while the
+ * owner's own funnel lives in the null scope, and becomes the bug the moment it moves
+ * to a real tenant: the list goes empty, and with it the assessment picker on Stats,
+ * Submissions and Data window. A Scope says which of the two is meant.
+ */
+export async function listAssessments(scope: Scope = ALL_TENANTS) {
   return prisma.assessment.findMany({
-    where: { tenantId },
+    where: whereScope(scope),
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { categories: true, submissions: true } },
@@ -17,12 +25,12 @@ export async function listAssessments(tenantId: string | null) {
   });
 }
 
-/** Resolve an assessment for the `?assessment=<id>` analytics filter, scoped to the
- *  acting tenant (null = platform/Gita). Returns null if it doesn't exist or isn't in
- *  scope — so a bad/foreign id silently falls back to the global view (no leak). */
-export async function getAssessmentForAnalytics(assessmentId: string, tenantId: string | null) {
+/** Resolve an assessment for the `?assessment=<id>` analytics filter, within a data
+ *  scope. Returns null if it doesn't exist or isn't in scope — so a bad or foreign id
+ *  silently falls back to the unscoped view instead of leaking another tenant's row. */
+export async function getAssessmentForAnalytics(assessmentId: string, scope: Scope = ALL_TENANTS) {
   return prisma.assessment.findFirst({
-    where: { id: assessmentId, tenantId },
+    where: { id: assessmentId, ...whereScope(scope) },
     // resultPagePublished is selected only to know IF a native VSL page is live (so the
     // Submissions Result-URL cell can also offer its native link) — not its contents.
     select: { id: true, title: true, slug: true, statsResetAt: true, resultPagePublished: true },
@@ -88,12 +96,12 @@ export async function getSlugById(
 
 export async function listSubmissions(
   take = 100,
-  tenantId: string | null = null,
+  scope: Scope = ALL_TENANTS,
   opts?: { assessmentId?: string | null; floor?: Date | null; from?: string; to?: string },
 ) {
-  // The stats-floor "reset to 0" baseline is the platform/Gita setting — apply it
-  // only to the platform view. An assessment-scoped view passes its own floor.
-  const floor = opts && "floor" in opts ? opts.floor ?? null : await getStatsFloor(tenantId);
+  // Each scope uses its OWN reporting window; an assessment-scoped view passes its own
+  // floor instead, so the global window is not applied on top of it.
+  const floor = opts && "floor" in opts ? opts.floor ?? null : await statsFloorFor(scope);
   // Optional user-picked date range (IST). Combine with the floor: the lower bound
   // is the LATER of the two (both constraints apply). `to` is optional (open-ended).
   const { gte: rangeGte, lte: rangeLte } = istDateRangeToUtc(opts?.from, opts?.to);
@@ -106,7 +114,7 @@ export async function listSubmissions(
   return prisma.submission.findMany({
     where: {
       ...(createdAt ? { createdAt } : {}),
-      tenantId,
+      ...whereScope(scope),
       ...(opts?.assessmentId ? { assessmentId: opts.assessmentId } : {}),
     },
     orderBy: { createdAt: "desc" },
@@ -129,17 +137,19 @@ export async function getSubmissionResult(submissionId: string) {
   });
 }
 
-export async function getDashboardCounts(tenantId: string | null = null) {
-  // Each view uses its OWN reporting window (tenant's, or the singleton for platform).
-  const floor = await getStatsFloor(tenantId);
+export async function getDashboardCounts(scope: Scope = ALL_TENANTS) {
+  // Each view uses its OWN reporting window (the tenant's, or the platform's when
+  // counting across every tenant).
+  const floor = await statsFloorFor(scope);
+  const tenant = whereScope(scope);
   const completedWhere = {
     status: "COMPLETED" as const,
-    tenantId,
+    ...tenant,
     ...(floor ? { createdAt: { gte: floor } } : {}),
   };
   const [assessments, published, submissions] = await Promise.all([
-    prisma.assessment.count({ where: { tenantId } }),
-    prisma.assessment.count({ where: { tenantId, status: "PUBLISHED" } }),
+    prisma.assessment.count({ where: tenant }),
+    prisma.assessment.count({ where: { ...tenant, status: "PUBLISHED" } }),
     prisma.submission.count({ where: completedWhere }),
   ]);
   return { assessments, published, submissions };

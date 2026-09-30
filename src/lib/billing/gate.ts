@@ -3,6 +3,7 @@ import { UsageMetric } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { usagePeriodKey, type Feature } from "@/lib/billing/plans";
 import { resolvePlan, tenantCan } from "@/lib/billing/entitlements";
+import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
 
 /**
  * Phase 4 — ENFORCEMENT. entitlements.ts RESOLVES a tenant's plan/limits; this module
@@ -16,7 +17,9 @@ import { resolvePlan, tenantCan } from "@/lib/billing/entitlements";
  *  - features     the five tier-gated capabilities (qualificationGate, conditionalRouting,
  *                 capi, heatmap -> Growth+, apiAccess -> Scale).
  *
- * A tenantId of null = the platform/Gita scope: unlimited + unmetered, never gated.
+ * The PLATFORM scope — the Platform tenant, or a legacy null from before the re-home
+ * (isPlatformScope) — is unlimited and unmetered, never gated. It is not a customer of
+ * itself, so metering it would count the owner's own traffic against a plan nobody buys.
  */
 
 /** The tenant's RESPONSES usage-period key (paid billing period, else calendar month). */
@@ -40,7 +43,7 @@ export type CreateAssessmentGate =
  * `{ ok: false }` the caller refuses and shows an upgrade prompt.
  */
 export async function assertCanCreateAssessment(tenantId: string | null): Promise<CreateAssessmentGate> {
-  if (tenantId === null) return { ok: true };
+  if (!isBusinessTenant(tenantId)) return { ok: true };
   const { limits } = await resolvePlan(tenantId);
   const limit = limits.maxAssessments;
   if (limit === null) return { ok: true }; // unlimited
@@ -57,7 +60,7 @@ export async function assertCanCreateAssessment(tenantId: string | null): Promis
  * decision is `meterResponse` (below). Platform / unlimited → always false.
  */
 export async function responsesOverCap(tenantId: string | null, now: Date = new Date()): Promise<boolean> {
-  if (tenantId === null) return false;
+  if (!isBusinessTenant(tenantId)) return false;
   const { limits } = await resolvePlan(tenantId);
   const limit = limits.responsesPerMonth;
   if (limit === null) return false; // unlimited
@@ -88,7 +91,7 @@ export interface ResponseMeter {
  * re-completion (guard on `periodSeq == null`). Platform / unlimited → not metered.
  */
 export async function meterResponse(tenantId: string | null, now: Date = new Date()): Promise<ResponseMeter> {
-  if (tenantId === null) return { metered: false, seq: 0, limit: null, locked: false };
+  if (!isBusinessTenant(tenantId)) return { metered: false, seq: 0, limit: null, locked: false };
   const { limits } = await resolvePlan(tenantId);
   const limit = limits.responsesPerMonth;
   if (limit === null) return { metered: false, seq: 0, limit: null, locked: false };
@@ -110,7 +113,7 @@ export async function meterResponse(tenantId: string | null, now: Date = new Dat
  * backfill. A null seq (pre-gate/grandfathered/platform) is never locked.
  */
 export async function isResponseLocked(tenantId: string | null, periodSeq: number | null): Promise<boolean> {
-  if (tenantId === null || periodSeq == null) return false;
+  if (!isBusinessTenant(tenantId) || periodSeq == null) return false;
   const { limits } = await resolvePlan(tenantId);
   const limit = limits.responsesPerMonth;
   return limit != null && periodSeq > limit;
@@ -122,7 +125,7 @@ export async function isResponseLocked(tenantId: string | null, periodSeq: numbe
  * calling `isResponseLocked` per row.
  */
 export async function responseLimitFor(tenantId: string | null): Promise<number | null> {
-  if (tenantId === null) return null;
+  if (!isBusinessTenant(tenantId)) return null;
   const { limits } = await resolvePlan(tenantId);
   return limits.responsesPerMonth;
 }
@@ -160,8 +163,11 @@ export async function supportEmailFor(tenantId: string | null): Promise<string |
     return t.length > 0 ? t : null;
   };
   try {
-    if (tenantId) {
-      const s = await prisma.appSetting.findUnique({ where: { tenantId }, select: { supportEmail: true } });
+    if (isBusinessTenant(tenantId)) {
+      const s = await prisma.appSetting.findUnique({
+        where: { tenantId },
+        select: { supportEmail: true },
+      });
       const own = clean(s?.supportEmail);
       if (own) return own;
     }

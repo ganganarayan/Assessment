@@ -6,6 +6,7 @@ import {
   EXPORT_CAP,
   type UtmBreakdownRow,
 } from "@/features/admin/data/analytics";
+import { tenantOnly } from "@/lib/tenant/scope";
 import { toCsv, type CsvColumn } from "@/lib/csv";
 import { formatIST } from "@/lib/date";
 
@@ -89,7 +90,7 @@ export async function GET(req: Request) {
     });
 
   if (dataset === "pageviews") {
-    const log = await listPageViews({ from, to, limit: EXPORT_CAP, tenantId, includeBots: true });
+    const log = await listPageViews({ from, to, limit: EXPORT_CAP, scope: tenantOnly(tenantId), includeBots: true });
     const rows: PageViewExport[] = log.map((r) => ({
       timeIST: formatIST(r.createdAt),
       bot: r.isBot ? "yes" : "no",
@@ -118,7 +119,7 @@ export async function GET(req: Request) {
     return send(toCsv(rows, PAGEVIEW_COLUMNS), "text/csv; charset=utf-8", `page-view-log-${stamp}.csv`, capped);
   }
 
-  const rows = await getUtmBreakdown({ from, to }, tenantId);
+  const rows = await getUtmBreakdown({ from, to }, tenantOnly(tenantId));
   if (format === "json") {
     return send(JSON.stringify(rows, null, 2), "application/json; charset=utf-8", `traffic-by-utm-${stamp}.json`, false);
   }

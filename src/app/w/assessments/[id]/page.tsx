@@ -26,6 +26,7 @@ import { readResultPage } from "@/features/assessment/result-page/blocks";
 import { WorkspaceAssessmentActions } from "@/features/workspace/components/workspace-assessment-actions";
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
 import { Badge } from "@/components/ui/badge";
+import { tenantOnly } from "@/lib/tenant/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -106,7 +107,7 @@ export default async function WorkspaceEditAssessmentPage({
   };
 
   // Other assessments in this workspace — targets for the audience gate onward route.
-  const routeTargets = (await listAssessments(tenantId))
+  const routeTargets = (await listAssessments(tenantOnly(tenantId)))
     .filter((x) => x.id !== a.id)
     .map((x) => ({ id: x.id, title: x.title, slug: x.slug, published: x.status === "PUBLISHED" }));
 

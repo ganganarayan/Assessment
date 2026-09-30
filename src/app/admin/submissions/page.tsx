@@ -1,5 +1,5 @@
 import { listSubmissions, getAssessmentForAnalytics, listAssessments } from "@/features/assessment/data";
-import { actingTenantId } from "@/lib/tenant/acting";
+import { actingTenantId, actingDataScope } from "@/lib/tenant/acting";
 import { AssessmentPicker } from "@/features/admin/components/assessment-picker";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
@@ -36,19 +36,22 @@ export default async function SubmissionsPage({
 }) {
   const sp = await searchParams;
   const t = await actingTenantId();
+  // "which workspace is entered" (t) is a different question from "which rows to list"
+  // (dataScope) — no workspace entered means every tenant, not rows owned by nobody.
+  const dataScope = await actingDataScope();
   // The VSL `cid` param for this tenant (submissions are scoped to one tenant's
   // assessment) — appended to each row's Result URL so the "Copy" link an operator
   // sends for nurture carries the customer id into VidaPulse.
   const vidapulseParam = await vidapulseParamForTenant(t);
-  const assessmentOptions = (await listAssessments(t)).map((a) => ({ id: a.id, title: a.title }));
+  const assessmentOptions = (await listAssessments(dataScope)).map((a) => ({ id: a.id, title: a.title }));
   // Submissions is always scoped to one assessment (no cross-assessment "All" view):
   // use the URL id, else default to the newest assessment (list is createdAt desc).
   const scopedId = sp.assessment ?? assessmentOptions[0]?.id;
-  const scoped = scopedId ? await getAssessmentForAnalytics(scopedId, t) : null;
+  const scoped = scopedId ? await getAssessmentForAnalytics(scopedId, dataScope) : null;
   // Load all so the live search box can match across every submission, not just a page.
   // Scoped: the assessment's saved reporting start (statsResetAt) IS the "from", so the
   // URL from is ignored (it's the sticky per-assessment date). To stays an ad-hoc end.
-  const submissions = await listSubmissions(100_000, t, {
+  const submissions = await listSubmissions(100_000, dataScope, {
     ...(scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {}),
     from: scoped ? undefined : sp.from,
     to: sp.to,

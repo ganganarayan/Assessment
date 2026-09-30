@@ -12,6 +12,7 @@ import { normalizeAttribution } from "@/lib/events/payload";
 import { type EmitInput } from "@/features/events/types";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { appendVidapulseId, resolveVidapulseParam } from "@/lib/vidapulse";
+import { appSettingWhere } from "@/lib/settings/tenant-row";
 
 /**
  * Resolve the tenant's effective VidaPulse param name ("cid" by default; null when
@@ -21,9 +22,10 @@ import { appendVidapulseId, resolveVidapulseParam } from "@/lib/vidapulse";
  * link operators re-send (WABA/email) to nurture people who didn't watch the VSL.
  */
 export async function vidapulseParamForTenant(tenantId: string | null): Promise<string | null> {
-  const setting = tenantId
-    ? await prisma.appSetting.findUnique({ where: { tenantId }, select: { vidapulseTrackingEnabled: true, vidapulseParam: true } })
-    : await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { vidapulseTrackingEnabled: true, vidapulseParam: true } });
+  const setting = await prisma.appSetting.findUnique({
+    where: appSettingWhere(tenantId) as never,
+    select: { vidapulseTrackingEnabled: true, vidapulseParam: true },
+  });
   return resolveVidapulseParam(setting);
 }
 

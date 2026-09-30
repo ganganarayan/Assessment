@@ -6,7 +6,8 @@ import { appendVidapulseId } from "@/lib/vidapulse";
 import { vidapulseParamForTenant } from "@/lib/events/completion";
 import { istDateRangeToUtc, formatIST } from "@/lib/date";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
-import { getStatsFloor, floorCreatedAt } from "@/lib/stats-floor";
+import { statsFloorFor, floorCreatedAt } from "@/lib/stats-floor";
+import { ALL_TENANTS, whereScope, type Scope } from "@/lib/tenant/scope";
 import type { PayloadAttribution } from "@/features/events/types";
 import { labeledAnswers, labeledAnswersText, type LabeledAnswer } from "@/features/assessment/custom-fields";
 import { botSourceFromUserAgent } from "@/lib/bots";
@@ -42,10 +43,16 @@ function buildResultUrl(
  * is the later of the two. No range + no floor => `{}` => ALL records, all time.
  */
 /**
- * `where` fragment scoping createdAt to the range + reporting floor AND to a tenant.
- * The stats-floor "reset to 0" is a platform/Gita setting, so it is applied ONLY to
- * the platform view (tenantId null) — a tenant sees all of its own records. The
- * returned fragment always pins `tenantId`, so every report is tenant-isolated.
+ * `where` fragment scoping createdAt to the range + reporting floor AND to a data
+ * scope.
+ *
+ * 🟡 This function is where the tenant-null ambiguity actually bit. It used to take
+ * `tenantId: string | null` and pin it LITERALLY, so an owner with no workspace
+ * entered got `tenantId: null` — "only rows owned by nobody". The write paths read the
+ * same null as "every tenant". Hence a populated Submissions list beside an empty
+ * Stats page. It now takes a Scope, where "one tenant" and "all tenants" are separate
+ * variants, so the two readings cannot be confused: whereScope pins a tenant for
+ * { kind: "tenant" } and contributes no filter for { kind: "all" }.
  */
 /** Optional per-assessment scoping. When assessmentId is set, `floor` is that
  *  assessment's own reporting window (its statsResetAt) — passed explicitly so the
@@ -57,15 +64,15 @@ export interface AssessmentScope {
 
 async function createdAtScope(
   range?: { from?: string; to?: string },
-  tenantId: string | null = null,
+  scope: Scope = ALL_TENANTS,
   opts?: AssessmentScope,
 ): Promise<Record<string, unknown>> {
   const { gte, lte } = istDateRangeToUtc(range?.from, range?.to);
-  // An assessment-scoped view passes its own floor; otherwise each view uses its
-  // OWN reporting window — the tenant's for a tenant view, the singleton for the
-  // platform/Gita (null-tenant) view.
-  const floor = opts && "floor" in opts ? opts.floor ?? null : await getStatsFloor(tenantId);
-  const where: Record<string, unknown> = { ...floorCreatedAt(floor, gte, lte), tenantId };
+  // An assessment-scoped view passes its own floor; otherwise each view uses its OWN
+  // reporting window — the tenant's for a workspace, the platform's when looking
+  // across all of them.
+  const floor = opts && "floor" in opts ? opts.floor ?? null : await statsFloorFor(scope);
+  const where: Record<string, unknown> = { ...floorCreatedAt(floor, gte, lte), ...whereScope(scope) };
   if (opts?.assessmentId) where.assessmentId = opts.assessmentId;
   return where;
 }
@@ -91,10 +98,10 @@ export interface EventFireCount {
  *  workspace, and opts.assessmentId to scope to a single assessment. */
 export async function getAnalyticsStats(
   range?: { from?: string; to?: string },
-  tenantId: string | null = null,
+  dataScope: Scope = ALL_TENANTS,
   opts?: AssessmentScope,
 ) {
-  const scope = await createdAtScope(range, tenantId, opts);
+  const scope = await createdAtScope(range, dataScope, opts);
   // Page-view metrics count real humans only — bot/crawler hits (e.g. Meta's
   // ad-review agent) are recorded but never counted as traffic.
   const humanScope = { ...scope, isBot: false };
@@ -164,8 +171,8 @@ export interface UtmBreakdownRow {
 }
 
 /** Page-view counts grouped by UTM combination (traffic source), in range. */
-export async function getUtmBreakdown(range?: { from?: string; to?: string }, tenantId: string | null = null, opts?: AssessmentScope): Promise<UtmBreakdownRow[]> {
-  const where = await createdAtScope(range, tenantId, opts);
+export async function getUtmBreakdown(range?: { from?: string; to?: string }, dataScope: Scope = ALL_TENANTS, opts?: AssessmentScope): Promise<UtmBreakdownRow[]> {
+  const where = await createdAtScope(range, dataScope, opts);
   const grouped = await prisma.pageView.groupBy({
     by: ["utmSource", "utmMedium", "utmCampaign", "utmTerm", "utmContent"],
     // Traffic source is a human-only view; bot hits are excluded.
@@ -257,12 +264,12 @@ export async function listPageViews(opts: {
   from?: string;
   to?: string;
   limit?: number;
-  tenantId?: string | null;
+  scope?: Scope;
   assessmentId?: string | null;
   floor?: Date | null;
   includeBots?: boolean;
 }): Promise<PageViewLogRow[]> {
-  const scope = await createdAtScope({ from: opts.from, to: opts.to }, opts.tenantId ?? null, {
+  const scope = await createdAtScope({ from: opts.from, to: opts.to }, opts.scope ?? ALL_TENANTS, {
     assessmentId: opts.assessmentId,
     ...("floor" in opts ? { floor: opts.floor } : {}),
   });
@@ -343,11 +350,11 @@ const BOT_ROWS_CAP = 5000;
 export async function getBotSourceRows(opts: {
   from?: string;
   to?: string;
-  tenantId?: string | null;
+  scope?: Scope;
   assessmentId?: string | null;
   floor?: Date | null;
 }): Promise<BotSourceRow[]> {
-  const scope = await createdAtScope({ from: opts.from, to: opts.to }, opts.tenantId ?? null, {
+  const scope = await createdAtScope({ from: opts.from, to: opts.to }, opts.scope ?? ALL_TENANTS, {
     assessmentId: opts.assessmentId,
     ...("floor" in opts ? { floor: opts.floor } : {}),
   });
@@ -460,8 +467,8 @@ export const EXPORT_CAP = 100_000;
 export async function listContactsForExport(range?: {
   from?: string;
   to?: string;
-}, tenantId: string | null = null): Promise<ContactExportRow[]> {
-  const where = await createdAtScope(range, tenantId);
+}, dataScope: Scope = ALL_TENANTS): Promise<ContactExportRow[]> {
+  const where = await createdAtScope(range, dataScope);
   const rows = await prisma.submission.findMany({
     where,
     orderBy: { createdAt: "desc" },
@@ -553,14 +560,14 @@ export async function listContacts(opts: {
   pageSize: number;
   from?: string;
   to?: string;
-  /** Scope to a single tenant's leads (the workspace); null = platform/Gita. */
-  tenantId?: string | null;
+  /** Which rows to include: one workspace, or every tenant. */
+  scope?: Scope;
   /** Scope to a single assessment (with its own reporting floor). */
   assessmentId?: string | null;
   floor?: Date | null;
 }): Promise<{ rows: ContactRow[]; total: number; page: number; pages: number }> {
-  // createdAtScope pins tenantId (and skips the Gita floor for tenants).
-  const where = await createdAtScope({ from: opts.from, to: opts.to }, opts.tenantId ?? null, {
+  // createdAtScope applies the tenant filter and the scope's own reporting window.
+  const where = await createdAtScope({ from: opts.from, to: opts.to }, opts.scope ?? ALL_TENANTS, {
     assessmentId: opts.assessmentId,
     ...("floor" in opts ? { floor: opts.floor } : {}),
   });

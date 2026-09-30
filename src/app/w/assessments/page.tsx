@@ -5,12 +5,13 @@ import { listAssessments } from "@/features/assessment/data";
 import { CopyPublicLink } from "@/features/assessment/components/admin/copy-public-link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { tenantOnly } from "@/lib/tenant/scope";
 
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceAssessmentsPage() {
   const { tenantId, impersonating } = await requireWorkspace();
-  const [assessments, canEdit] = await Promise.all([listAssessments(tenantId), currentUserCanEdit()]);
+  const [assessments, canEdit] = await Promise.all([listAssessments(tenantOnly(tenantId)), currentUserCanEdit()]);
   // At the plan cap, the "New assessment" button points to Billing instead — so the
   // limit is clear before the form, not only at save. Super admins aren't limited.
   const cap = impersonating ? ({ ok: true } as const) : await assertCanCreateAssessment(tenantId);

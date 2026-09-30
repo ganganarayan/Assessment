@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { listAssessments } from "@/features/assessment/data";
-import { actingTenantId } from "@/lib/tenant/acting";
+import { actingDataScope } from "@/lib/tenant/acting";
 import { currentUserCanEdit } from "@/lib/auth/guards";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  *  in the builder (Assessment + Results pages). Create / import / export live here. */
 export default async function AssessmentBuilderPage() {
   const [assessments, canEdit] = await Promise.all([
-    listAssessments(await actingTenantId()),
+    listAssessments(await actingDataScope()),
     currentUserCanEdit(),
   ]);
 
