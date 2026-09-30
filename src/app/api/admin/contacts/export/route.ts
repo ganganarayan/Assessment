@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/auth/guards";
+import { actingTenantId } from "@/lib/tenant/acting";
 import { listContactsForExport, EXPORT_CAP, type ContactExportRow } from "@/features/admin/data/analytics";
 import { toCsv, type CsvColumn } from "@/lib/csv";
 import { formatIST } from "@/lib/date";
@@ -48,13 +49,16 @@ const COLUMNS: CsvColumn<ContactExportRow>[] = [
 
 export async function GET(req: Request) {
   await requireSuperAdmin();
+  // Match the page: follow the acting scope, so entering a workspace exports
+  // THAT workspace and not the platform slice.
+  const tenantId = await actingTenantId();
 
   const url = new URL(req.url);
   const format = url.searchParams.get("format") === "json" ? "json" : "csv";
   const from = url.searchParams.get("from") ?? undefined;
   const to = url.searchParams.get("to") ?? undefined;
 
-  const rows = await listContactsForExport({ from, to });
+  const rows = await listContactsForExport({ from, to }, tenantId);
   const stamp = formatIST(new Date()).slice(0, 10); // YYYY-MM-DD (IST)
 
   // Signal (and log) if the safety cap truncated the export, so a partial file

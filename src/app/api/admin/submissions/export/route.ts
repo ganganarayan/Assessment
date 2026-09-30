@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/auth/guards";
+import { actingTenantId } from "@/lib/tenant/acting";
 import { prisma } from "@/lib/db/prisma";
 import { listSubmissionsForExport } from "@/features/admin/data/submissions-export";
 import {
@@ -21,6 +22,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   await requireSuperAdmin();
+  // Without this the filter carried no tenant at all, so the export returned
+  // EVERY tenant's submissions. Global super admin keeps the all-tenant view
+  // (undefined); entering a workspace scopes to it.
+  const tenantId = (await actingTenantId()) ?? undefined;
 
   const url = new URL(req.url);
   const format = url.searchParams.get("format") === "json" ? "json" : "csv";
@@ -31,7 +36,7 @@ export async function GET(req: Request) {
     ? (await prisma.assessment.findUnique({ where: { id: assessmentId }, select: { statsResetAt: true } }))
         ?.statsResetAt ?? null
     : undefined;
-  const rows = await listSubmissionsForExport({ assessmentId, floor });
+  const rows = await listSubmissionsForExport({ assessmentId, floor, tenantId });
   const stamp = formatIST(new Date()).slice(0, 10);
   const capped = rows.length >= EXPORT_CAP;
   if (capped) console.warn(`[submissions-export] capped at ${EXPORT_CAP} rows`);

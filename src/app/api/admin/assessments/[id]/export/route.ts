@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isSuperAdmin } from "@/lib/auth/guards";
+import { actingTenantId } from "@/lib/tenant/acting";
 import { buildExportJson, buildExportCsv, exportFilename } from "@/features/assessment/transfer/export";
 
 /**
@@ -15,8 +16,18 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   }
 
   const { id } = await ctx.params;
-  const a = await prisma.assessment.findUnique({ where: { id }, select: { slug: true } });
+  const a = await prisma.assessment.findUnique({
+    where: { id },
+    select: { slug: true, tenantId: true },
+  });
   if (!a) return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
+
+  // While operating inside a workspace, only that workspace's assessments are
+  // exportable — otherwise an id from another tenant would still export here.
+  const acting = await actingTenantId();
+  if (acting && a.tenantId !== acting) {
+    return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
+  }
 
   const format = new URL(req.url).searchParams.get("format") === "csv" ? "csv" : "json";
   const now = new Date().toISOString();

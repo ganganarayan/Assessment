@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/auth/guards";
+import { actingTenantId } from "@/lib/tenant/acting";
 import {
   getUtmBreakdown,
   listPageViews,
@@ -74,6 +75,8 @@ const PAGEVIEW_COLUMNS: CsvColumn<PageViewExport>[] = [
 
 export async function GET(req: Request) {
   await requireSuperAdmin();
+  // Match the Stats page, which scopes by actingTenantId().
+  const tenantId = await actingTenantId();
 
   const url = new URL(req.url);
   const dataset = url.searchParams.get("dataset") === "pageviews" ? "pageviews" : "utm";
@@ -93,7 +96,7 @@ export async function GET(req: Request) {
     });
 
   if (dataset === "pageviews") {
-    const log = await listPageViews({ from, to, limit: EXPORT_CAP, includeBots: true });
+    const log = await listPageViews({ from, to, limit: EXPORT_CAP, includeBots: true, tenantId });
     const rows: PageViewExport[] = log.map((r) => ({
       timeIST: formatIST(r.createdAt),
       bot: r.isBot ? "yes" : "no",
@@ -124,7 +127,7 @@ export async function GET(req: Request) {
     return send(toCsv(rows, PAGEVIEW_COLUMNS), "text/csv; charset=utf-8", `page-view-log-${stamp}.csv`, capped);
   }
 
-  const rows = await getUtmBreakdown({ from, to });
+  const rows = await getUtmBreakdown({ from, to }, tenantId);
   if (format === "json") {
     return send(JSON.stringify(rows, null, 2), "application/json; charset=utf-8", `traffic-by-utm-${stamp}.json`, false);
   }
