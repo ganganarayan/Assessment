@@ -2,7 +2,6 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin, editDenied } from "@/lib/auth/guards";
 import { pickResultBand } from "@/features/assessment/scoring";
 import {
   mapCategoryResult,
@@ -10,6 +9,7 @@ import {
   type CategoryBandLike,
 } from "@/lib/result/snapshot";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { assessmentOpDenied } from "@/features/assessment/actions/ownership";
 import { supersedeStoredReports } from "@/lib/reports/store";
 
 export interface BandChange {
@@ -47,7 +47,7 @@ export async function recomputeBands(
   assessmentId: string,
   apply: boolean,
 ): Promise<ActionResult<RecomputeSummary>> {
-  { const __d = editDenied(await requireSuperAdmin()); if (__d) return __d; }
+  { const d = await assessmentOpDenied(assessmentId, { mutation: true }); if (d) return d; }
 
   const assessment = await prisma.assessment.findUnique({
     where: { id: assessmentId },

@@ -1,9 +1,9 @@
 "use server";
 
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin, editDenied } from "@/lib/auth/guards";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { assessmentOpDenied } from "@/features/assessment/actions/ownership";
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 const EPS = 0.01;
@@ -43,7 +43,7 @@ export async function reconstructLostAnswers(
   assessmentId: string,
   apply: boolean,
 ): Promise<ActionResult<ReconstructSummary>> {
-  { const __d = editDenied(await requireSuperAdmin()); if (__d) return __d; }
+  { const d = await assessmentOpDenied(assessmentId, { mutation: true }); if (d) return d; }
 
   const cats = await prisma.category.findMany({
     where: { assessmentId },

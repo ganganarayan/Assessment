@@ -20,7 +20,7 @@ export default async function OperationsPage() {
           Data maintenance + CRM senders for existing contacts. Pick an assessment, then run a tool.
         </p>
       </div>
-      <OperationsPanel assessments={assessments} />
+      <OperationsPanel assessments={assessments} showCrmTools />
     </div>
   );
 }

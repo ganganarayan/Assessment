@@ -2,12 +2,12 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin, assertCanEditOrThrow } from "@/lib/auth/guards";
 import { generatePersonalStatement } from "@/lib/ai/generate";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
 import { type StatementInput } from "@/lib/ai/types";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { assessmentOpDenied } from "@/features/assessment/actions/ownership";
 import { floorCreatedAt } from "@/lib/stats-floor";
 import { supersedeStoredReport } from "@/lib/reports/store";
 
@@ -47,7 +47,7 @@ async function assessmentFloor(assessmentId: string): Promise<Record<string, unk
 export async function aiRerunCount(
   assessmentId: string,
 ): Promise<ActionResult<{ completions: number; submissions: number }>> {
-  await requireSuperAdmin();
+  { const d = await assessmentOpDenied(assessmentId, { mutation: false }); if (d) return d; }
   const floor = await assessmentFloor(assessmentId);
   const [completions, submissions] = await Promise.all([
     prisma.submission.count({ where: { assessmentId, status: "COMPLETED", ...floor } }),
@@ -75,7 +75,7 @@ export async function previewAiSamples(
   assessmentId: string,
   count = 4,
 ): Promise<ActionResult<{ samples: AiSample[] }>> {
-  assertCanEditOrThrow(await requireSuperAdmin());
+  { const d = await assessmentOpDenied(assessmentId, { mutation: true }); if (d) return d; }
 
   const floor = await assessmentFloor(assessmentId);
   const subs = await prisma.submission.findMany({
@@ -165,7 +165,7 @@ export async function regenerateAiBatch(
   assessmentId: string,
   offset: number,
 ): Promise<ActionResult<AiRerunBatchResult>> {
-  assertCanEditOrThrow(await requireSuperAdmin());
+  { const d = await assessmentOpDenied(assessmentId, { mutation: true }); if (d) return d; }
 
   const floor = await assessmentFloor(assessmentId);
   const where = { assessmentId, status: "COMPLETED" as const, ...floor };

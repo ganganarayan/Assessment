@@ -267,8 +267,23 @@ export async function listCapiLogs(
   tenantId: string | null,
   take = 100,
   scope: "assessment" | "platform" = "assessment",
+  /**
+   * "payments" restricts to rows that carry money. The log holds every CAPI event the
+   * funnel fires — opt-in (CompleteRegistration), completion, and Purchase — so a view
+   * that means "payments" has to say so.
+   *
+   * The test is `amountPaise != null`, NOT `eventName = "Purchase"`: a high-ticket
+   * payment is fired under the configurable `purchaseHighTicketEventName`, so filtering
+   * by name would silently drop exactly the largest payments. Omitted = every event,
+   * which is what the debugging views want.
+   */
+  only?: "payments",
 ): Promise<CapiLogRow[]> {
-  const rows = await prisma.capiLog.findMany({ where: { tenantId, scope }, orderBy: { createdAt: "desc" }, take });
+  const rows = await prisma.capiLog.findMany({
+    where: { tenantId, scope, ...(only === "payments" ? { amountPaise: { not: null } } : {}) },
+    orderBy: { createdAt: "desc" },
+    take,
+  });
   return rows.map((r) => ({
     id: r.id,
     providerPaymentId: r.providerPaymentId,
