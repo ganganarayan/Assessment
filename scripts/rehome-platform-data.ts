@@ -134,6 +134,16 @@ const SETTINGS_SKIP = new Set([
 
   // The marketing site, which is the SaaS shopfront and not a tenant asset.
   "landingVideos",
+
+  // Object storage. There is ONE bucket for the whole app, partitioned by key prefix
+  // (`tenants/<id>/...`), and resolveR2Config reads `id: "singleton"` unconditionally —
+  // it never looks at a tenant row. Copying these would duplicate an encrypted secret
+  // into a row nothing reads, with no UI to rotate it: the R2 card is /platform only.
+  "r2AccountId",
+  "r2AccessKeyId",
+  "r2SecretAccessKeyEnc",
+  "r2BucketName",
+  "r2PublicUrl",
 ]);
 
 /*
@@ -150,8 +160,8 @@ const SETTINGS_SKIP = new Set([
  *    copy is a starting point; the platform keeps its own on the singleton and the two
  *    are free to diverge immediately after.
  *
- * Only platformPixelId and platformCapiTokenEnc are genuinely platform-only among the
- * integration fields, and they are above.
+ * platformPixelId, platformCapiTokenEnc and the r2* group are the genuinely
+ * platform-only integration fields, and they are above.
  */
 
 /**

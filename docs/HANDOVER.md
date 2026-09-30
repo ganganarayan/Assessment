@@ -191,8 +191,25 @@ warning about (and potentially swallowing) the flag:
   mutating half was removed: it had the same missing-tables bug and could not run the
   preflight, and two divergent movers where one silently orphans tables is a trap.
 
-`npm run verify:tenancy` is read-only and safe against production at any time. Run it
-before the move, after each step, and again before the NOT NULL commit.
+`verify:tenancy` is read-only and safe against production at any time. Run it before the
+move, after each step, and again before the NOT NULL commit.
+
+🟡 **Its severity is phase-aware, and you have to pass a flag for the strict read.**
+Unowned rows and a missing tenant settings row are what the re-home is *for*, so before
+it runs they report 🟡 and the script exits 0. Add **`--expect-complete`** to assert the
+finished state — that is the form to use as the NOT NULL gate. It also flips to 🔴 on its
+own once the named funnel tenant owns rows, since a leftover null then means a partial
+move. (Before this, the expected starting state printed as 13 failures and exit 1.)
+
+🟢 **The r2\* fields are excluded from the settings copy.** There is one bucket for the
+whole app, partitioned by key prefix, and `resolveR2Config` reads `id: "singleton"`
+unconditionally — so copying them would put an encrypted secret in a row nothing reads,
+with no UI to rotate it. The R2 card is /platform only (commit `5a4d489`).
+
+**Prod state as of 30 Sep, verified:** `settings:from-env` reports 🟢 nothing to copy —
+all five critical values are already in the platform Settings row and none is in env, so
+the dark-funnel gate is closed and step 4 needs no `--apply`. 14,597 rows still unowned
+across 12 tables, awaiting the `--tenant` step.
 
 ### 3e. Domain phase — blocked on a design question
 

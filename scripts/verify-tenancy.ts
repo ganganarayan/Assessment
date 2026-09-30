@@ -1,16 +1,26 @@
 /**
  * Prove the tenancy model is in the state you think it is.
  *
- *   npm run verify:tenancy                       # report on this database
- *   npm run verify:tenancy -- --funnel apply-gita  # also check the funnel's tenant
+ *   npx tsx scripts/verify-tenancy.ts                        # report on this database
+ *   npx tsx scripts/verify-tenancy.ts --funnel apply-gita    # also check the funnel tenant
+ *   npx tsx scripts/verify-tenancy.ts --funnel apply-gita --expect-complete
  *
- * Prefix with `railway run` (add `--environment production` for prod).
+ * Prefix with `railway run` (add `--environment production` for prod), FROM THE REPO
+ * ROOT — `railway run` executes in the current directory. Called through `npm run
+ * verify:tenancy -- …` npm warns about the flags and may swallow them, so prefer tsx.
  *
  * Read-only: it writes nothing, so it is safe to run against production at any time.
  * Run it BEFORE the re-home (to see the starting state), AFTER each step (to confirm it
  * did what it claimed), and again before the later NOT NULL migration — that migration
  * fails halfway on any table this still reports as holding nulls, and the whole point of
  * checking here is to find those tables while failing is free.
+ *
+ * SEVERITY IS PHASE-AWARE. Unowned rows and a missing tenant settings row are what the
+ * re-home is FOR, so before it has run they report 🟡, not 🔴 — a tool that reports the
+ * expected starting state as thirteen failures teaches you to ignore its output, which
+ * is worse than not having it. They become 🔴 once the move should have happened: either
+ * the named funnel tenant already owns rows (so a leftover null means a PARTIAL move), or
+ * `--expect-complete` is passed. Use that flag for the NOT NULL gate.
  *
  * Exit code is 1 when any 🔴 check fails, so it can gate a deploy step.
  */
@@ -132,25 +142,6 @@ async function main() {
     check(false, "singleton belongs to the Platform tenant", `tenantId=${singleton.tenantId}`);
   }
 
-  console.log("\n=== Rows still unowned (tenantId IS NULL) ===");
-  console.log("  These are what the later NOT NULL migration will reject.\n");
-  let nulls = 0;
-  for (const name of NULLABLE_TENANT_TABLES) {
-    const n = await delegate(name).count({ where: { tenantId: null } });
-    nulls += n;
-    // user/appSetting are excluded from the funnel move on purpose: the owner's account
-    // and the platform settings row are handled by --platform, and OTHER users legitimately
-    // have no tenant until they provision one. Report them, never fail on them.
-    const informational = name === "user" || name === "appSetting";
-    if (n === 0) console.log(`  🟢 ${name.padEnd(22)} 0`);
-    else if (informational) console.log(`  🟡 ${name.padEnd(22)} ${n} (handled separately)`);
-    else {
-      failures++;
-      console.log(`  🔴 ${name.padEnd(22)} ${n}`);
-    }
-  }
-  console.log(`\n  total unowned rows: ${nulls}`);
-
   console.log("\n=== Tenants ===");
   const tenants = await prisma.tenant.findMany({
     select: {
@@ -173,9 +164,58 @@ async function main() {
   }
 
   const funnelSlug = arg("--funnel");
+  const funnel = funnelSlug ? tenants.find((x) => x.slug === funnelSlug) : undefined;
+
+  /*
+   * WHICH PHASE ARE WE IN?
+   *
+   * Unowned rows and a missing tenant settings row are the NORMAL state before the move
+   * — they are the very things the move fixes. Reporting them as 🔴 on a database nobody
+   * has re-homed yet cries wolf on the run this tool most exists for ("see the starting
+   * state"), and exits 1 while doing it. So severity is decided by what SHOULD be true:
+   *
+   *   moveClaimsDone  the named funnel tenant already owns rows, so the tenant step ran.
+   *                   Nulls left over now mean a PARTIAL move — a table the mover skipped
+   *                   — which is a genuine 🔴 and exactly what needs catching.
+   *   --expect-complete  assert the finished state regardless. This is the gate to run
+   *                   before the NOT NULL migration, where any null is a failure.
+   *
+   * Otherwise the move has not run and the same rows report 🟡 with the step that fixes
+   * them. Nothing is hidden either way — the counts print identically.
+   */
+  const moveClaimsDone = !!funnel && (funnel._count.assessments > 0 || funnel._count.submissions > 0);
+  const expectComplete = process.argv.includes("--expect-complete") || moveClaimsDone;
+
+  console.log("\n=== Rows still unowned (tenantId IS NULL) ===");
+  console.log("  These are what the later NOT NULL migration will reject.");
+  console.log(
+    expectComplete
+      ? moveClaimsDone
+        ? `  Severity: 🔴 — "${funnelSlug}" already owns rows, so the move ran and these were left behind.\n`
+        : "  Severity: 🔴 — --expect-complete given: asserting the finished state.\n"
+      : "  Severity: 🟡 — the re-home has not run yet, so these are expected.\n" +
+          "  Pass --expect-complete to assert the finished state (use it before the NOT NULL migration).\n",
+  );
+  let nulls = 0;
+  for (const name of NULLABLE_TENANT_TABLES) {
+    const n = await delegate(name).count({ where: { tenantId: null } });
+    nulls += n;
+    // user/appSetting are excluded from the funnel move on purpose: the owner's account
+    // and the platform settings row are handled by --platform, and OTHER users legitimately
+    // have no tenant until they provision one. Report them, never fail on them.
+    const informational = name === "user" || name === "appSetting";
+    if (n === 0) console.log(`  🟢 ${name.padEnd(22)} 0`);
+    else if (informational) console.log(`  🟡 ${name.padEnd(22)} ${n} (handled separately)`);
+    else if (expectComplete) {
+      failures++;
+      console.log(`  🔴 ${name.padEnd(22)} ${n}`);
+    } else console.log(`  🟡 ${name.padEnd(22)} ${n} (moves on the --tenant step)`);
+  }
+  console.log(`\n  total unowned rows: ${nulls}`);
+
   if (funnelSlug) {
     console.log(`\n=== Funnel tenant "${funnelSlug}" ===`);
-    const t = tenants.find((x) => x.slug === funnelSlug);
+    const t = funnel;
     if (!t) {
       check(false, `tenant "${funnelSlug}" exists`);
     } else {
@@ -190,7 +230,15 @@ async function main() {
         `effective plan ${eff}${hasFeature(limits, "capi") ? "" : " — FREE/STARTER have capi=false, which silently stops Meta CAPI and caps responses"}`,
       );
       const row = await prisma.appSetting.findUnique({ where: { tenantId: t.id } });
-      if (!row) {
+      if (!row && !expectComplete) {
+        // The tenant step CREATES this row, copying the platform's values inside the same
+        // transaction as the move. Before the move it cannot exist, so demanding it here
+        // is asking a post-move question early.
+        note(
+          "no AppSetting row of its own yet",
+          "the --tenant step creates it from the platform row; check `copy (tenant blank)` in the dry run",
+        );
+      } else if (!row) {
         check(false, "has its own AppSetting row", "a tenant never falls back to env, so a missing row is a dark funnel");
       } else {
         for (const c of CRITICAL) {
@@ -203,10 +251,14 @@ async function main() {
     console.log("\n(Pass --funnel <slug> to also check the funnel tenant's plan and integration config.)");
   }
 
+  // Say which state was asserted, so "all checks passed" is never mistaken for "the
+  // re-home is done" on a run that was only ever checking the starting state.
+  const asserted = expectComplete ? "the FINISHED state" : "the pre-move state";
   console.log(
     failures === 0
-      ? "\n🟢 All checks passed."
-      : `\n🔴 ${failures} check(s) failed — see above.`,
+      ? `\n🟢 All checks passed against ${asserted}.` +
+          (expectComplete ? "" : "\n   Re-run with --expect-complete after the move to assert the finished state.")
+      : `\n🔴 ${failures} check(s) failed against ${asserted} — see above.`,
   );
   if (failures > 0) process.exitCode = 1;
 }
