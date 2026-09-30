@@ -79,6 +79,8 @@ export default async function SubmissionsPage({
     const primaryIsNative = s.assessment.nextStep === "RESULTS" || s.assessment.engine === "CLINIC_AUDIT";
     return {
       id: s.id,
+      // Offer the rollback control only when a previous version is actually kept.
+      hasPrevReport: !!s.reportPrevKey,
       slug: s.assessment.slug,
       assessmentId: s.assessmentId,
       assessmentTitle: s.assessment.title,

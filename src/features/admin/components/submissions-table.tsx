@@ -6,6 +6,7 @@ import Link from "next/link";
 import { formatIST } from "@/lib/date";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { rollbackReport } from "@/features/admin/actions/report-rollback";
 import { deleteSubmissions, sendMetaVerdict } from "@/features/admin/actions/submissions";
 import { lookupSubmissionRef } from "@/features/admin/actions/lookup";
 import { type LookupHit } from "@/features/admin/lookup-types";
@@ -122,6 +123,10 @@ function ResultUrlLine({
 
 export interface SubmissionRow {
   id: string;
+  /** True when a previous PDF report is retained, so rollback would do something.
+   *  Drives whether the Restore control is offered at all — a button that usually
+   *  errors teaches the operator to ignore it. */
+  hasPrevReport?: boolean;
   slug: string;
   assessmentId: string;
   assessmentTitle: string;
@@ -218,6 +223,10 @@ export function SubmissionsTable({
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [delMsg, setDelMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  // Alias captured at component scope: inside the per-group render below, `start` is
+  // shadowed by the pagination offset (`const start = page * PAGE_SIZE`), so row-level
+  // handlers cannot reach the transition by that name.
+  const startTx = start;
   // Cross-assessment fallback: when the local filter finds nothing here, one click
   // resolves the query (a result token or customer id) across EVERY assessment and
   // date — so a VidaPulse-captured id that lives in another assessment still traces.
@@ -635,6 +644,37 @@ export function SubmissionsTable({
                           <a href={`/api/reports/${s.id}`} target="_blank" rel="noreferrer" className="text-xs underline opacity-70">
                             PDF
                           </a>
+                          {/* Only when a previous version is retained. Regenerating a
+                              report is not always an improvement — an AI rerun can come
+                              back worse — and two versions are kept so this is a real
+                              choice rather than a one-way door. */}
+                          {s.hasPrevReport ? (
+                            <button
+                              type="button"
+                              disabled={pending}
+                              onClick={() =>
+                                startTx(async () => {
+                                  // delMsg is this table's existing message slot, so
+                                  // rollback feedback appears where delete feedback
+                                  // already does rather than in a new place.
+                                  setDelMsg(null);
+                                  const r = await rollbackReport(s.id);
+                                  if (!r.ok) return setDelMsg(r.error);
+                                  setDelMsg("Previous PDF restored.");
+                                  // The PDF is served through the route, so there is no
+                                  // client state to update — but the row's flag came
+                                  // from the server, and after a swap the OTHER version
+                                  // is now the previous one, so refresh rather than
+                                  // leave a stale "can roll back" state on screen.
+                                  router.refresh();
+                                })
+                              }
+                              className="text-left text-xs underline opacity-70 hover:opacity-100 disabled:opacity-40"
+                              title="Serve the previous version of this PDF instead. Swaps the two, so you can switch back."
+                            >
+                              Restore previous PDF
+                            </button>
+                          ) : null}
                         </div>
                       ) : (
                         "—"

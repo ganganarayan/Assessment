@@ -58,6 +58,8 @@ export default async function WorkspaceSubmissionsPage({
     const p = paid.get(s.id);
     return {
       id: s.id,
+      // Offer the rollback control only when a previous version is actually kept.
+      hasPrevReport: !!s.reportPrevKey,
       slug: s.assessment.slug,
       assessmentId: s.assessmentId,
       assessmentTitle: s.assessment.title,
