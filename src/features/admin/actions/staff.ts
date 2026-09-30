@@ -81,7 +81,13 @@ export async function getStaff(): Promise<StaffView> {
     },
   });
   const tenants = isSuper
-    ? await prisma.tenant.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } })
+    // Active only — a deleted tenant must not be offered as somewhere to put a new
+    // staff member, the same way it is not offered when assigning a login.
+    ? await prisma.tenant.findMany({
+        where: { deletedAt: null },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      })
     : [];
   return {
     isSuper,
@@ -112,7 +118,10 @@ export async function createStaff(input: CreateStaffInput): Promise<ActionResult
     tenantId = d.tenantId && d.tenantId.trim() ? d.tenantId.trim() : null; // null = platform staff
     role = tenantId ? Role.ADMIN : Role.SUPER_ADMIN;
     if (tenantId) {
-      const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+      const t = await prisma.tenant.findFirst({
+        where: { id: tenantId, deletedAt: null },
+        select: { id: true },
+      });
       if (!t) return { ok: false, error: "That tenant does not exist." };
     }
   } else {

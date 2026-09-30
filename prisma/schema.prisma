@@ -43,6 +43,18 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Soft delete. Deleting a tenant from the platform console sets this instead of
+  // removing the row: the tenant disappears from the active list, its logins can no
+  // longer reach the workspace, its custom domains stop resolving and its assessments
+  // stop serving — but every assessment, lead, payment and setting is still there, so
+  // Restore puts the whole business back exactly as it was.
+  //
+  // The permanent, cascading delete is a SECOND action available only from the deleted
+  // list. That two-stage shape is the safety: one mis-click can never destroy a
+  // tenant's data, because the destructive step is only reachable from a list you have
+  // to go looking in, and still demands the slug typed out in full.
+  deletedAt DateTime?
+
   // Billing (Phase 1). The SaaS subscription plan for THIS tenant, billed on the
   // PLATFORM-OWNER's Razorpay account in USD (NOT the tenant's own respondent keys).
   // Default FREE. Changed only by the Razorpay subscription webhook or a super-admin
@@ -82,6 +94,7 @@ model Tenant {
   nurtureLogs    NurtureLog[]
 
   @@index([status])
+  @@index([deletedAt])
   @@map("tenant")
 }
 

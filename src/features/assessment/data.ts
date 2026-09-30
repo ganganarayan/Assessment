@@ -58,10 +58,25 @@ export async function getAssessmentById(id: string) {
   });
 }
 
-/** Public: only PUBLISHED assessments are reachable at /a/[slug]. */
+/**
+ * Public: only PUBLISHED assessments are reachable at /a/[slug].
+ *
+ * An assessment whose tenant has been soft-deleted is NOT reachable either, even when
+ * published. Deleting a tenant has to stop its funnel — otherwise ad traffic keeps
+ * landing and leads keep accruing to a business the owner thinks is gone, and nobody is
+ * watching the inbox.
+ *
+ * The OR is what keeps an unowned assessment working: `tenantId: null` is a row from
+ * before the re-home, which has no tenant to be deleted, and a relation filter alone
+ * would exclude it and take the live funnel down.
+ */
 export async function getPublishedAssessmentBySlug(slug: string) {
   return prisma.assessment.findFirst({
-    where: { slug, status: "PUBLISHED" },
+    where: {
+      slug,
+      status: "PUBLISHED",
+      OR: [{ tenantId: null }, { tenant: { deletedAt: null } }],
+    },
     include: {
       categories: {
         orderBy: { displayOrder: "asc" },

@@ -7,7 +7,10 @@ import { Label } from "@/components/ui/label";
 import {
   createTenant,
   deleteTenant,
+  restoreTenant,
+  purgeTenant,
   listTenants,
+  listDeletedTenants,
   listUsers,
   listDeletedUsers,
   assignUserToTenant,
@@ -19,6 +22,7 @@ import {
   type TenantRow,
   type PlatformUserRow,
 } from "@/features/platform/actions";
+import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 
 /**
  * Super-admin console: create tenants, assign logins to a tenant (as its admin),
@@ -27,16 +31,19 @@ import {
  */
 export function PlatformConsole({
   initialTenants,
+  initialDeletedTenants,
   initialUsers,
   initialDeletedUsers,
   currentUserId,
 }: {
   initialTenants: TenantRow[];
+  initialDeletedTenants: TenantRow[];
   initialUsers: PlatformUserRow[];
   initialDeletedUsers: PlatformUserRow[];
   currentUserId: string;
 }) {
   const [tenants, setTenants] = useState<TenantRow[]>(initialTenants);
+  const [deletedTenants, setDeletedTenants] = useState<TenantRow[]>(initialDeletedTenants);
   const [users, setUsers] = useState<PlatformUserRow[]>(initialUsers);
   const [deleted, setDeleted] = useState<PlatformUserRow[]>(initialDeletedUsers);
   const [name, setName] = useState("");
@@ -47,8 +54,14 @@ export function PlatformConsole({
   const [pending, start] = useTransition();
 
   const refresh = async () => {
-    const [t, u, d] = await Promise.all([listTenants(), listUsers(), listDeletedUsers()]);
+    const [t, dt, u, d] = await Promise.all([
+      listTenants(),
+      listDeletedTenants(),
+      listUsers(),
+      listDeletedUsers(),
+    ]);
     if (t.ok && t.data) setTenants(t.data);
+    if (dt.ok && dt.data) setDeletedTenants(dt.data);
     if (u.ok && u.data) setUsers(u.data);
     if (d.ok && d.data) setDeleted(d.data);
   };
@@ -72,14 +85,45 @@ export function PlatformConsole({
       await refresh();
     });
 
+  // Reversible. No typed slug: this destroys nothing, and demanding one here would
+  // train the reflex that gets used on the permanent delete below.
   const delTenant = (t: TenantRow) =>
     start(async () => {
       setError(null);
+      if (
+        !confirm(
+          `Delete "${t.name}"?\n\nIt moves to Deleted tenants. Its funnel stops, its domains stop resolving and its admins lose access — but nothing is erased, and you can restore it.`,
+        )
+      )
+        return;
+      const r = await deleteTenant(t.id);
+      if (!r.ok) return setError(r.error);
+      await refresh();
+    });
+
+  const restoreT = (t: TenantRow) =>
+    start(async () => {
+      setError(null);
+      const r = await restoreTenant(t.id);
+      if (!r.ok) return setError(r.error);
+      await refresh();
+    });
+
+  // The irreversible one. Reachable only from the deleted list, and it spells out what
+  // is about to be destroyed by COUNT, because "12 assessments and 4,318 submissions"
+  // stops a mistake that the word "everything" does not.
+  const purgeT = (t: TenantRow) =>
+    start(async () => {
+      setError(null);
       const typed = window.prompt(
-        `PERMANENTLY delete "${t.name}" and ALL its data (assessments, submissions, domains, webhooks…). Logins are kept (unassigned). This cannot be undone.\n\nType the slug to confirm:\n${t.slug}`,
+        `PERMANENTLY delete "${t.name}" and everything it owns:\n` +
+          `  • ${t.assessmentCount} assessment(s)\n` +
+          `  • ${t.submissionCount} submission(s)\n` +
+          `  • its domains, webhooks, payments and settings\n\n` +
+          `Logins are kept (unassigned). THIS CANNOT BE UNDONE.\n\nType the slug to confirm:\n${t.slug}`,
       );
       if (typed == null) return;
-      const r = await deleteTenant(t.id, typed);
+      const r = await purgeTenant(t.id, typed);
       if (!r.ok) return setError(r.error);
       await refresh();
     });
@@ -188,15 +232,21 @@ export function PlatformConsole({
                         <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => { await enterTenant(t.id); })}>
                           Enter →
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={pending}
-                          onClick={() => delTenant(t)}
-                          className="border-red-500 text-red-600 hover:bg-red-500/10"
-                        >
-                          Delete
-                        </Button>
+                        {t.id === PLATFORM_TENANT_ID ? (
+                          <span className="self-center text-xs text-[var(--muted-foreground)]">
+                            Part of the app
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={pending}
+                            onClick={() => delTenant(t)}
+                            className="border-red-500 text-red-600 hover:bg-red-500/10"
+                          >
+                            Delete
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -279,6 +329,57 @@ export function PlatformConsole({
           </table>
         </div>
       </section>
+
+      {/* Deleted tenants — the only place the permanent delete exists */}
+      {deletedTenants.length > 0 ? (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold">Deleted tenants ({deletedTenants.length})</h2>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Their funnels are off and their admins are locked out, but nothing has been erased.
+            Restore brings the tenant back with all of its data. Delete permanently is the only
+            action that actually destroys anything — and it cannot be undone.
+          </p>
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+                <tr>
+                  <th className="px-3 py-1.5">Name</th>
+                  <th className="px-3 py-1.5">Slug</th>
+                  <th className="px-3 py-1.5 text-center">Assessments</th>
+                  <th className="px-3 py-1.5 text-center">Submissions</th>
+                  <th className="px-3 py-1.5" />
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {deletedTenants.map((t) => (
+                  <tr key={t.id} className="text-[var(--muted-foreground)]">
+                    <td className="px-3 py-2 font-medium">{t.name}</td>
+                    <td className="px-3 py-2 font-mono text-xs">{t.slug}</td>
+                    <td className="px-3 py-2 text-center tabular-nums">{t.assessmentCount}</td>
+                    <td className="px-3 py-2 text-center tabular-nums">{t.submissionCount}</td>
+                    <td className="px-3 py-2 text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="outline" disabled={pending} onClick={() => restoreT(t)}>
+                          Restore
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={pending}
+                          onClick={() => purgeT(t)}
+                          className="border-red-500 text-red-600 hover:bg-red-500/10"
+                        >
+                          Delete permanently
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
 
       {/* Deleted users */}
       {deleted.length > 0 ? (

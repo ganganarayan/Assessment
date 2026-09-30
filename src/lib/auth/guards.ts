@@ -131,9 +131,25 @@ export async function requireWorkspace(): Promise<{ user: AuthUser; tenantId: st
   if (isSuperAdmin(user)) {
     const acting = (await cookies()).get(ACTING_TENANT_COOKIE)?.value || null;
     if (!acting) redirect("/platform");
+    // A cookie can outlive the tenant it names: the operator may have entered a
+    // workspace and then deleted it from another tab. Send them back to the console
+    // rather than into a workspace that is supposed to be inert.
+    const entered = await prisma.tenant.findFirst({
+      where: { id: acting, deletedAt: null },
+      select: { id: true },
+    });
+    if (!entered) redirect("/platform");
     return { user, tenantId: acting, impersonating: true };
   }
-  const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { tenantId: true } });
+  const fresh = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { tenantId: true, tenant: { select: { deletedAt: true } } },
+  });
   if (!fresh?.tenantId) redirect("/dashboard");
+  // The admins of a deleted tenant keep their logins (so Restore brings the business
+  // back whole) but must not be able to operate it meanwhile. /dashboard is where a
+  // tenant-less login already lands, so they see the same "no workspace" state rather
+  // than an error.
+  if (fresh.tenant?.deletedAt) redirect("/dashboard");
   return { user, tenantId: fresh.tenantId, impersonating: false };
 }

@@ -28,9 +28,12 @@ export async function getTenantContext(): Promise<TenantContext> {
 export async function getCurrentTenant() {
   const { slug, source, host } = await getTenantContext();
 
+  // A soft-deleted tenant resolves to nothing, on BOTH paths. "Deleted" has to mean
+  // the public surface stops — otherwise its subdomain and custom domains keep serving
+  // and keep collecting leads into a business the owner believes is gone.
   if (source === "subdomain" && slug) {
-    return prisma.tenant.findUnique({
-      where: { slug },
+    return prisma.tenant.findFirst({
+      where: { slug, deletedAt: null },
       include: { theme: true },
     });
   }
@@ -40,7 +43,8 @@ export async function getCurrentTenant() {
       where: { hostname: host },
       include: { tenant: { include: { theme: true } } },
     });
-    return domain?.verified ? domain.tenant : null;
+    if (!domain?.verified) return null;
+    return domain.tenant.deletedAt ? null : domain.tenant;
   }
 
   return null;

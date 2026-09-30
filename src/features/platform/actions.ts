@@ -9,7 +9,43 @@ import { requireSuperAdmin, isStaff } from "@/lib/auth/guards";
 
 /** Tenant/user management is OWNER-only — never a staff member (even EDIT). */
 const OWNER_ONLY = { ok: false as const, error: "Only an owner can manage tenants and users." };
+
+/** The Platform tenant is structural, not a customer — it cannot be deleted. */
+const PLATFORM_UNDELETABLE = {
+  ok: false as const,
+  error: "The Assess360 Platform tenant is part of the app and can't be deleted.",
+};
+
+/**
+ * Run a write and turn an unexpected failure into a RETURNED error instead of a thrown
+ * one.
+ *
+ * WHY THIS EXISTS: the read actions on this page already fail soft, but the writes did
+ * not — so a transient database error during a delete escaped as an exception and Next
+ * replaced the whole console with its error screen. Losing the entire page because one
+ * write hit a blip is the wrong failure: the operator cannot see what happened, cannot
+ * tell whether the write landed, and cannot retry without a reload. A returned error
+ * puts a red line under the heading and leaves everything else usable.
+ *
+ * `message` is what the operator sees; the real error goes to the server log. This
+ * deliberately wraps only the DB work — the auth guards stay outside it, so their
+ * redirect (a thrown NEXT_REDIRECT) is never swallowed as a "failure".
+ */
+async function softFail(
+  label: string,
+  message: string,
+  run: () => Promise<void>,
+): Promise<ActionResult> {
+  try {
+    await run();
+    return { ok: true };
+  } catch (e) {
+    console.error(`[platform] ${label} failed:`, e instanceof Error ? e.message : String(e));
+    return { ok: false, error: message };
+  }
+}
 import { isPlatformOwner } from "@/lib/auth/platform";
+import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { auth } from "@/lib/auth/auth";
 import { ACTING_TENANT_COOKIE } from "@/lib/tenant/acting";
 import { slugSchema } from "@/features/assessment/schemas";
@@ -18,7 +54,12 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
 /** Super admin "enters" a tenant to operate its workspace as that tenant. */
 export async function enterTenant(tenantId: string): Promise<void> {
   await requireSuperAdmin();
-  const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+  // A deleted tenant cannot be entered: its workspace is meant to be inert, and
+  // operating one would write new rows into a business that is supposed to be gone.
+  const t = await prisma.tenant.findFirst({
+    where: { id: tenantId, deletedAt: null },
+    select: { id: true },
+  });
   if (t) {
     (await cookies()).set(ACTING_TENANT_COOKIE, tenantId, { httpOnly: true, sameSite: "lax", path: "/" });
   }
@@ -33,27 +74,104 @@ export async function exitTenant(): Promise<void> {
 }
 
 /**
- * Permanently delete a tenant AND all its data (assessments, submissions, domains,
- * webhooks, payments, settings…) via the DB cascade. DESTRUCTIVE + irreversible, so
- * it requires the caller to type the exact slug. Logins are PRESERVED: their tenant
- * link is cleared first so the cascade can't delete the user rows.
+ * Delete a tenant — REVERSIBLY. Stamps `deletedAt`; removes nothing.
+ *
+ * The tenant leaves the active list, its logins can no longer reach the workspace, its
+ * custom domains stop resolving and its assessments stop serving. Every assessment,
+ * lead, payment and setting stays exactly where it is, so `restoreTenant` puts the
+ * whole business back.
+ *
+ * No typed slug here, on purpose: confirmation friction belongs on the step that
+ * destroys data, and this one does not. `purgeTenant` is where the slug is demanded.
  */
-export async function deleteTenant(tenantId: string, confirmSlug: string): Promise<ActionResult> {
+export async function deleteTenant(tenantId: string): Promise<ActionResult> {
   if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
-  const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true, slug: true } });
+  if (tenantId === PLATFORM_TENANT_ID) return PLATFORM_UNDELETABLE;
+  const t = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { id: true, deletedAt: true },
+  });
   if (!t) return { ok: false, error: "Tenant not found." };
-  if ((confirmSlug ?? "").trim().toLowerCase() !== t.slug.toLowerCase()) {
-    return { ok: false, error: `Type the slug "${t.slug}" exactly to confirm.` };
-  }
-  // Preserve logins: unassign before the FK cascade would delete them.
-  await prisma.user.updateMany({ where: { tenantId }, data: { tenantId: null } });
-  // Drop the acting cookie if it points at the tenant being deleted.
+  if (t.deletedAt) return { ok: false, error: "That tenant is already deleted." };
+
+  // Drop the acting cookie if it points at this tenant, so the operator is not left
+  // impersonating a workspace that will no longer accept them.
   if ((await cookies()).get(ACTING_TENANT_COOKIE)?.value === tenantId) {
     (await cookies()).delete(ACTING_TENANT_COOKIE);
   }
-  await prisma.tenant.delete({ where: { id: tenantId } });
+
+  // Logins stay ATTACHED, unlike the permanent delete. Nothing cascades from a soft
+  // delete, so detaching them would only make Restore incomplete — the tenant would
+  // come back with no admins. requireWorkspace is what keeps them out meanwhile.
+  const r = await softFail(
+    "deleteTenant",
+    "Couldn't delete that tenant (a temporary database error). Try again.",
+    async () => {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { deletedAt: new Date() } });
+    },
+  );
   revalidatePath("/platform");
-  return { ok: true };
+  return r;
+}
+
+/** Restore a soft-deleted tenant, with its data and its logins, exactly as it was. */
+export async function restoreTenant(tenantId: string): Promise<ActionResult> {
+  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+  if (!t) return { ok: false, error: "Tenant not found." };
+  const r = await softFail(
+    "restoreTenant",
+    "Couldn't restore that tenant (a temporary database error). Try again.",
+    async () => {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { deletedAt: null } });
+    },
+  );
+  revalidatePath("/platform");
+  return r;
+}
+
+/**
+ * PERMANENTLY delete a tenant and every row it owns — assessments, submissions,
+ * domains, webhooks, payments, settings — via the DB cascade. Irreversible.
+ *
+ * Only reachable for a tenant that is ALREADY soft-deleted. That is the safety: the
+ * destructive action cannot be reached from the everyday list at all, so no mis-click
+ * there can destroy a business. It still demands the slug typed out in full.
+ *
+ * Logins are PRESERVED: their tenant link is cleared first so the cascade cannot take
+ * the user rows with it.
+ */
+export async function purgeTenant(tenantId: string, confirmSlug: string): Promise<ActionResult> {
+  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  if (tenantId === PLATFORM_TENANT_ID) return PLATFORM_UNDELETABLE;
+  const t = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { id: true, slug: true, deletedAt: true },
+  });
+  if (!t) return { ok: false, error: "Tenant not found." };
+  if (!t.deletedAt) {
+    return {
+      ok: false,
+      error: "Delete the tenant first — permanent delete is only available from the deleted list.",
+    };
+  }
+  if ((confirmSlug ?? "").trim().toLowerCase() !== t.slug.toLowerCase()) {
+    return { ok: false, error: `Type the slug "${t.slug}" exactly to confirm.` };
+  }
+  if ((await cookies()).get(ACTING_TENANT_COOKIE)?.value === tenantId) {
+    (await cookies()).delete(ACTING_TENANT_COOKIE);
+  }
+  const r = await softFail(
+    "purgeTenant",
+    "Couldn't permanently delete that tenant (a temporary database error). Try again.",
+    async () => {
+      // Preserve logins: unassign before the FK cascade would delete them.
+      await prisma.user.updateMany({ where: { tenantId }, data: { tenantId: null } });
+      await prisma.tenant.delete({ where: { id: tenantId } });
+    },
+  );
+  revalidatePath("/platform");
+  return r;
 }
 
 /** Platform-owner (super-admin) tenant + user management. Stage 1: create tenants,
@@ -71,6 +189,8 @@ export interface TenantRow {
   createdAt: string;
   /** Acquisition source (utm_source · campaign) captured at signup; null = organic. */
   source: string | null;
+  /** ISO timestamp when the tenant was soft-deleted; null = active. */
+  deletedAt: string | null;
 }
 
 export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
@@ -80,6 +200,9 @@ export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
   // redirect (a thrown NEXT_REDIRECT) is never swallowed.
   try {
     const rows = await prisma.tenant.findMany({
+      // Active only. Soft-deleted tenants live in listDeletedTenants, so the everyday
+      // list never offers an action against a tenant that is supposed to be gone.
+      where: { deletedAt: null },
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } } },
     });
@@ -95,11 +218,46 @@ export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
         submissionCount: t._count.submissions,
         createdAt: t.createdAt.toISOString(),
         source: [t.acqUtmSource, t.acqUtmCampaign].filter((v) => v && v.trim()).join(" · ") || null,
+        deletedAt: t.deletedAt?.toISOString() ?? null,
       })),
     };
   } catch (e) {
     console.error("[platform] listTenants failed:", e instanceof Error ? e.message : String(e));
     return { ok: false, error: "Couldn't load tenants (a temporary database error). Reload to retry." };
+  }
+}
+
+/**
+ * Soft-deleted tenants, for the "Deleted tenants" section. Their counts are still real
+ * — showing how many assessments and leads a tenant still holds is the whole point of
+ * the list, because that is what the permanent delete would destroy.
+ */
+export async function listDeletedTenants(): Promise<ActionResult<TenantRow[]>> {
+  await requireSuperAdmin();
+  try {
+    const rows = await prisma.tenant.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { updatedAt: "desc" },
+      include: { _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } } },
+    });
+    return {
+      ok: true,
+      data: rows.map((t) => ({
+        id: t.id,
+        slug: t.slug,
+        name: t.name,
+        status: t.status,
+        adminCount: t._count.users,
+        assessmentCount: t._count.assessments,
+        submissionCount: t._count.submissions,
+        createdAt: t.createdAt.toISOString(),
+        source: [t.acqUtmSource, t.acqUtmCampaign].filter((v) => v && v.trim()).join(" · ") || null,
+        deletedAt: t.deletedAt?.toISOString() ?? null,
+      })),
+    };
+  } catch (e) {
+    console.error("[platform] listDeletedTenants failed:", e instanceof Error ? e.message : String(e));
+    return { ok: false, error: "Couldn't load deleted tenants (a temporary database error). Reload to retry." };
   }
 }
 
@@ -128,8 +286,17 @@ export async function createTenant(
     : nm.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32);
   const s = slugSchema.safeParse(rawSlug);
   if (!s.success) return { ok: false, error: s.error.issues[0]?.message ?? "Invalid slug." };
-  if (await prisma.tenant.findUnique({ where: { slug: s.data }, select: { id: true } })) {
-    return { ok: false, error: "That tenant slug is already in use." };
+  const clash = await prisma.tenant.findUnique({
+    where: { slug: s.data },
+    select: { id: true, deletedAt: true },
+  });
+  if (clash) {
+    return {
+      ok: false,
+      error: clash.deletedAt
+        ? `A deleted tenant still holds the slug "${s.data}". Restore it, or delete it permanently from the deleted list, to free the name.`
+        : "That tenant slug is already in use.",
+    };
   }
   if (await prisma.user.findUnique({ where: { email: em }, select: { id: true } })) {
     return { ok: false, error: "A login with that email already exists." };
@@ -212,10 +379,21 @@ export async function assignUserToTenant(userId: string, tenantId: string | null
     return { ok: false, error: "Remove super-admin access before assigning this login to a tenant." };
   }
   if (tenantId) {
-    const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+    // Never assign into a deleted tenant — the login would be attached to a workspace
+    // it cannot enter, which reads as a broken account rather than a deleted business.
+    const t = await prisma.tenant.findFirst({
+      where: { id: tenantId, deletedAt: null },
+      select: { id: true },
+    });
     if (!t) return { ok: false, error: "Tenant not found." };
   }
-  await prisma.user.update({ where: { id: userId }, data: { tenantId, role: Role.ADMIN } });
+  const r = await softFail(
+    "assignUserToTenant",
+    "Couldn't change that assignment (a temporary database error). Try again.",
+    async () => {
+      await prisma.user.update({ where: { id: userId }, data: { tenantId, role: Role.ADMIN } });
+    },
+  );
   revalidatePath("/platform");
   return { ok: true };
 }
@@ -246,12 +424,18 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
   if (!target) return { ok: false, error: "User not found." };
   if (userId === me.id) return { ok: false, error: "You can't delete your own account." };
   if (isPlatformOwner(target.email)) return { ok: false, error: "The platform owner can't be deleted." };
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: userId }, data: { deletedAt: new Date(), tenantId: null } }),
-    prisma.session.deleteMany({ where: { userId } }),
-  ]);
+  const r = await softFail(
+    "deleteUser",
+    "Couldn't delete that login (a temporary database error). Try again.",
+    async () => {
+      await prisma.$transaction([
+        prisma.user.update({ where: { id: userId }, data: { deletedAt: new Date(), tenantId: null } }),
+        prisma.session.deleteMany({ where: { userId } }),
+      ]);
+    },
+  );
   revalidatePath("/platform");
-  return { ok: true };
+  return r;
 }
 
 /** Restore a soft-deleted login (leaves it unassigned — reassign a tenant after). */
@@ -259,9 +443,15 @@ export async function restoreUser(userId: string): Promise<ActionResult> {
   if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { deletedAt: true } });
   if (!target) return { ok: false, error: "User not found." };
-  await prisma.user.update({ where: { id: userId }, data: { deletedAt: null } });
+  const r = await softFail(
+    "restoreUser",
+    "Couldn't restore that login (a temporary database error). Try again.",
+    async () => {
+      await prisma.user.update({ where: { id: userId }, data: { deletedAt: null } });
+    },
+  );
   revalidatePath("/platform");
-  return { ok: true };
+  return r;
 }
 
 /** Super admin sets a user's password directly. Forces a change on next login and
