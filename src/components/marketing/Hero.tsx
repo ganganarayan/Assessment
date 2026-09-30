@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { MARKETING } from "@/lib/marketing/content";
+import { VideoEmbed } from "./VideoEmbed";
 
 // Alternate headlines (H1 uses option 1):
 //  2. "Turn a scorecard into a qualified pipeline."
 //  3. "Score every lead against your fit criteria. Talk only to the ready ones."
-export function Hero() {
+export function Hero({ video }: { video?: string | null }) {
   return (
     <section id="top" className="border-b">
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 sm:px-8 lg:grid-cols-2 lg:gap-16 lg:py-28">
         <div>
           <p className="mb-5 inline-flex items-center rounded-full border bg-[var(--muted)] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-            Lead qualification, not just capture
+            Lead qualification, not just capture, not just assess
           </p>
 
           <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl">
@@ -38,7 +39,12 @@ export function Hero() {
         </div>
 
         <div className="rounded-2xl border bg-[var(--muted)] p-3 shadow-xl shadow-black/5">
-          {/* Drop your render at public/hero-scorecard.png */}
+          {/* The video is the preferred hero when one is set; the image is the fallback
+              and stays the default, so the section never renders empty. */}
+          {video ? (
+            <VideoEmbed src={video} title="Assess360 — how lead qualification works" />
+          ) : (
+          /* Drop your render at public/hero-scorecard.png */
           <img
             src={MARKETING.heroImage}
             width={720}
@@ -48,6 +54,7 @@ export function Hero() {
             loading="eager"
             decoding="async"
           />
+          )}
         </div>
       </div>
     </section>

@@ -7,6 +7,7 @@ import { Landing } from "@/components/marketing/Landing";
 import { PlatformPixel } from "@/components/platform-pixel";
 import { LandingTracker } from "@/features/billing/components/landing-tracker";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
+import { getLandingVideos } from "@/features/platform/landing-videos";
 import { MARKETING } from "@/lib/marketing/content";
 
 // Marketing metadata is applied only on the platform root domain. Tenant
@@ -42,12 +43,15 @@ export default async function HomePage() {
   // Platform root (assess360.divineleads.guru) → marketing landing. The SaaS pixel
   // fires PageView here (separate from the Gita assessment pixel).
   if (source === "root") {
-    const { pixelId } = await resolvePlatformMetaConfig();
+    const [{ pixelId }, videos] = await Promise.all([
+      resolvePlatformMetaConfig(),
+      getLandingVideos(),
+    ]);
     return (
       <>
         <PlatformPixel pixelId={pixelId} />
         <LandingTracker />
-        <Landing />
+        <Landing videos={videos} />
       </>
     );
   }

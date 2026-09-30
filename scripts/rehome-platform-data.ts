@@ -99,8 +99,66 @@ function delegate(client: Tx, name: TableName): TenantScopedDelegate {
   return (client as unknown as Record<TableName, TenantScopedDelegate>)[name];
 }
 
-/** AppSetting columns that are never copied between rows. */
-const SETTINGS_SKIP = new Set(["id", "tenantId", "createdAt", "updatedAt"]);
+/**
+ * AppSetting columns that are never copied to a tenant.
+ *
+ * Row plumbing, plus every PLATFORM-ONLY setting. The copy is otherwise
+ * everything-not-listed, which quietly meant the platform's legal entity, its SaaS
+ * signup pixel, its CRM automation endpoints, its password-reset webhook and its
+ * marketing videos would all be handed to the funnel tenant.
+ *
+ * Most of those are inert today only because their readers address the singleton by
+ * id — the moment any one becomes per-tenant it starts firing with the platform's
+ * values under a tenant's name. And copying a company's legal details and webhook
+ * URLs into a tenant row is wrong on its own terms, inert or not.
+ *
+ * The rule for adding to this list: does this setting describe ASSESS360 (the SaaS
+ * that sells to tenants), or does it describe the business running the funnel? Only
+ * the first belongs here. Anything a tenant legitimately needs its own copy of —
+ * pixel, CAPI token, Razorpay keys, SMTP, support address, stats window, heatmap,
+ * VidaPulse — is NOT platform-only: the platform keeps its values on the singleton
+ * and the tenant gets its own, and they are free to differ afterwards.
+ */
+const SETTINGS_SKIP = new Set([
+  // Row plumbing.
+  "id",
+  "tenantId",
+  "createdAt",
+  "updatedAt",
+
+  // The Assess360 SaaS signup funnel — a different pixel from the assessment one.
+  "platformPixelId",
+  "platformCapiTokenEnc",
+
+  // Assess360's own legal entity, shown on /privacy, /terms and /refund.
+  "legalEntityName",
+  "legalAddress",
+  "legalContactEmail",
+  "legalGoverningLocation",
+
+  // Platform auth: fires for every user's password reset, tenants' included.
+  "passwordResetWebhookUrl",
+
+  // Marketing site.
+  "landingVideos",
+
+  // CRM / WhatsApp automation is singleton-only by decision, not per-tenant.
+  "crmResendUrl",
+  "crmDripActive",
+  "crmScoreStartHour",
+  "crmScoreEndHour",
+  "crmScoreDelayMin",
+  "crmScoreDelayMax",
+  "crmDiagnosisUrl",
+  "crmCustomName",
+  "crmCustomEventType",
+  "crmCustomFields",
+  "crmCustomStartHour",
+  "crmCustomEndHour",
+  "crmCustomDelayMin",
+  "crmCustomDelayMax",
+  "crmCustomActive",
+]);
 
 /**
  * Fields the moved funnel cannot run without, and the environment variable that used to

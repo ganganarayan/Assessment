@@ -1,6 +1,12 @@
 import { CAPABILITIES } from "@/lib/marketing/content";
+import { VideoEmbed } from "./VideoEmbed";
 
-export function Capabilities() {
+/**
+ * `videos` maps a capability title to a validated embed URL. A tile with one shows
+ * heading → video → body; a tile without one is byte-for-byte what it was before, so a
+ * half-filled set never looks half-built.
+ */
+export function Capabilities({ videos }: { videos?: Record<string, string> }) {
   return (
     <section id="capabilities" className="scroll-mt-20 border-b bg-[var(--muted)]">
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
@@ -14,7 +20,9 @@ export function Capabilities() {
         </div>
 
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {CAPABILITIES.map((it) => (
+          {CAPABILITIES.map((it) => {
+            const video = videos?.[it.title];
+            return (
             <div key={it.title} className="rounded-xl border bg-[var(--background)] p-7">
               <div
                 aria-hidden="true"
@@ -43,9 +51,15 @@ export function Capabilities() {
                   </span>
                 ) : null}
               </div>
+              {video ? (
+                <div className="mt-4">
+                  <VideoEmbed src={video} title={it.title} />
+                </div>
+              ) : null}
               <p className="mt-2 leading-relaxed text-[var(--muted-foreground)]">{it.body}</p>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

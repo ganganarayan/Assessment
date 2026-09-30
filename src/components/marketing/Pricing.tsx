@@ -9,7 +9,7 @@ export function Pricing() {
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
         <div className="max-w-2xl">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Pricing that scales with volume, not features
+            Pricing that grows with you — more volume, more capability
           </h2>
           <p className="mt-4 text-lg text-[var(--muted-foreground)]">
             The builder stays generous at every tier. You pay as your responses, seats, and

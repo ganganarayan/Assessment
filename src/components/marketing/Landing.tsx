@@ -31,7 +31,11 @@ const jsonLd = {
   ],
 };
 
-export function Landing() {
+export function Landing({
+  videos,
+}: {
+  videos?: { hero: string | null; tiles: Record<string, string> };
+}) {
   return (
     <>
       <script
@@ -40,10 +44,10 @@ export function Landing() {
       />
       <Nav />
       <main id="main">
-        <Hero />
+        <Hero video={videos?.hero ?? null} />
         <Problem />
         <HowItWorks />
-        <Capabilities />
+        <Capabilities videos={videos?.tiles} />
         <UseCases />
         <Pricing />
         <Faq />

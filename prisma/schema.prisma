@@ -1789,6 +1789,14 @@ model AppSetting {
   // results page renders a "Book a 1-on-1 call" CTA pointing here; null = hide it.
   bookingUrl String?
 
+  // Marketing landing videos — PLATFORM ONLY, never copied to a tenant.
+  // { hero?: string, tiles?: { "<capability title>": string } }. Each value is the
+  // embed code or URL exactly as pasted; it is re-validated against the host allowlist
+  // on every read (lib/marketing/embed), so nothing author-supplied is trusted merely
+  // because it was trusted once. Blank/absent = the hero image renders and the tiles
+  // look exactly as they do today.
+  landingVideos Json?
+
   // Canonical audience list ("your default list of roles"). Powers the free-text
   // audience field's live suggestions AND the normalize screen that cleans up typed
   // values. Stored as a JSON array of trimmed labels. null tenant => singleton row.

@@ -7,21 +7,24 @@ import {
   listDeletedUsers,
 } from "@/features/platform/actions";
 import { PlatformConsole } from "@/features/platform/components/platform-console";
+import { LandingVideosCard } from "@/features/platform/components/landing-videos-card";
+import { getLandingVideosRaw } from "@/features/platform/landing-videos";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlatformPage() {
   const me = await requireSuperAdmin();
-  const [t, dt, u, d] = await Promise.all([
+  const [t, dt, u, d, lv] = await Promise.all([
     listTenants(),
     listDeletedTenants(),
     listUsers(),
     listDeletedUsers(),
+    getLandingVideosRaw(),
   ]);
   // Any loader that failed (a transient DB error) surfaces as a banner — the page
   // still renders with whatever loaded, instead of a full-page server crash.
-  const loadErrors = [t, dt, u, d]
+  const loadErrors = [t, dt, u, d, lv]
     .filter((r): r is { ok: false; error: string } => !r.ok)
     .map((r) => r.error);
   return (
@@ -60,6 +63,10 @@ export default async function PlatformPage() {
         initialUsers={u.ok && u.data ? u.data : []}
         initialDeletedUsers={d.ok && d.data ? d.data : []}
         currentUserId={me.id}
+      />
+      <LandingVideosCard
+        initialHero={lv.ok && lv.data ? lv.data.hero : ""}
+        initialTiles={lv.ok && lv.data ? lv.data.tiles : {}}
       />
     </main>
   );
