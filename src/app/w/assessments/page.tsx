@@ -4,6 +4,7 @@ import { assertCanCreateAssessment } from "@/lib/billing/gate";
 import { listAssessments } from "@/features/assessment/data";
 import { CopyPublicLink } from "@/features/assessment/components/admin/copy-public-link";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +24,36 @@ export default async function WorkspaceAssessmentsPage() {
             Your assessments — private to this workspace.
           </p>
         </div>
-        {canEdit ? (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {/* Export is a read, so it stays available to view-only staff and at the
+              plan cap — unlike Import and New assessment below. The route scopes to
+              this workspace. */}
+          <details className="relative">
+            <summary
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "cursor-pointer list-none",
+              )}
+            >
+              Export All ▼
+            </summary>
+            <div className="absolute right-0 z-10 mt-1 flex w-40 flex-col rounded-md border bg-[var(--background)] p-1 text-sm shadow">
+              <a
+                href="/api/admin/assessments/export-all?format=json"
+                className="rounded px-2 py-1.5 hover:bg-[var(--muted)]"
+              >
+                JSON
+              </a>
+              <a
+                href="/api/admin/assessments/export-all?format=csv"
+                className="rounded px-2 py-1.5 hover:bg-[var(--muted)]"
+              >
+                CSV
+              </a>
+            </div>
+          </details>
+          {canEdit ? (
+            <>
             {cap.ok ? (
               <Link href="/w/import" className={buttonVariants({ variant: "outline", size: "sm" })}>
                 Import
@@ -39,8 +68,9 @@ export default async function WorkspaceAssessmentsPage() {
                 Upgrade to add more
               </Link>
             )}
-          </div>
-        ) : null}
+            </>
+          ) : null}
+        </div>
       </div>
       {assessments.length === 0 ? (
         <p className="rounded-lg border p-4 text-sm text-[var(--muted-foreground)]">

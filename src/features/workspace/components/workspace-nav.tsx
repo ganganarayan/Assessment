@@ -18,6 +18,8 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
       { href: "/w/assessments", label: "Assessments" },
       { href: "/w/import", label: "Import" },
       { href: "/w/submissions", label: "Submissions" },
+      { href: "/w/audiences", label: "Audiences" },
+      { href: "/w/ai", label: "AI" },
     ],
   },
   {
@@ -32,6 +34,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
     items: [
       { href: "/w/webhooks", label: "Webhooks", exact: true },
       { href: "/w/webhooks/logs", label: "Webhook Logs" },
+      { href: "/w/nurture", label: "Nurture" },
       { href: "/w/pixel-test", label: "Pixel Tester" },
       { href: "/w/api", label: "API tokens" },
     ],
