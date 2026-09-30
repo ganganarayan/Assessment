@@ -1,6 +1,6 @@
 # Handover — state, open items, working rules
 
-Last updated 30 Sep 2026. Written so the next session starts with the context instead of
+Last updated 30 Sep 2026 (model change shipped to staging). Written so the next session starts with the context instead of
 rediscovering it. Update it as things land; delete the parts that stop being true.
 
 ---
@@ -28,12 +28,15 @@ rediscovering it. Update it as things land; delete the parts that stop being tru
 **Production (`main`) = `aeb1402`.** It has the break-glass recovery tooling and
 everything before it. It does **not** have the workspace-parity or export-scope work.
 
-**Staging (`staging`) = `b625f83`**, deployed and verified. Ahead of production by:
+**Staging (`staging`) = `5d9a84e`**. Ahead of production by:
 - workspace parity: `/w/ai`, `/w/audiences`, `/w/nurture`, Export All on `/w/assessments`
 - the admin-export scope fixes (see §4)
+- **the tenancy model change (§3a/§3b) — shipped 30 Sep**
 - the re-home tooling (not yet run anywhere)
 
-**No data has been moved in any environment.** Both databases are untouched.
+**No data has been moved in any environment.** Both databases are untouched. The
+migration in `5d9a84e` creates the Platform tenant row and nothing else — it moves no
+data, on purpose (see §3d).
 
 ---
 
@@ -43,34 +46,74 @@ everything before it. It does **not** have the workspace-parity or export-scope 
 tenant, then re-point domains: platform + landing at `assess360.divineleads.guru`,
 Apply Gita served at `assess.applygitawisdom.com` as a custom domain.
 
-### 3a. Decision taken 30 Sep: fix the model first, then move
+### 3a. DONE (staging `5d9a84e`) — the model was fixed first
 
-Do **not** run the data move first. `tenantId = null` currently means two different
-things depending on the file, and migrating into that ambiguity means doing it twice:
+`tenantId = null` used to mean five different things. Each now has its own spelling:
 
-| Where | What `null` means today |
-|---|---|
-| `lib/billing/gate.ts` (5 sites) | unmetered, every feature on |
-| `lib/billing/plan-resolve.ts` | `UNLIMITED_LIMITS` |
-| `lib/settings/config.ts` (2 sites) | fall back to env vars |
-| `features/admin/data/analytics.ts` | "the platform's own rows" |
-| `lib/tenant/acting.ts` `tenantScope` | "super admin — show **everything**" |
+| Where | What `null` used to mean | What it is now |
+|---|---|---|
+| `lib/billing/gate.ts` (5 sites) | unmetered, every feature on | `isBusinessTenant()` — the platform short-circuits |
+| `lib/billing/plan-resolve.ts` | `UNLIMITED_LIMITS` | same, keyed on the platform tenant |
+| `lib/settings/config.ts` | fall back to env vars | transitional platform-only fallback that **logs each gap** |
+| `features/admin/data/analytics.ts` | "the platform's own rows" | `Scope` — `{ kind: "tenant" }` |
+| `lib/tenant/acting.ts` `tenantScope` | "super admin — show everything" | `Scope` — `{ kind: "all" }` |
 
-The last two rows are the same value with opposite meanings. That is why, after a naive
-move, Submissions stays visible to the owner but Contacts and Stats look empty.
+The last two were the same value with opposite meanings. They are now separate variants
+of a union, so nothing can read one as the other.
+
+**What shipped:**
+- **Platform tenant** is a real row, `id = "platform"` (not a cuid, so recognising it is
+  a string compare — no query on the billing or settings hot paths). Seeded by migration
+  `20260930000000_platform_tenant`. Carries SCALE, but code short-circuits it to
+  unlimited: the platform is not a customer of itself.
+- **Scope is a type** (`lib/tenant/scope.ts`). `actingDataScope()` answers "which rows",
+  and an owner with no workspace entered gets **all tenants** — which matches what the
+  write paths already did, and is what keeps the funnel screens populated after the
+  funnel moves. Scoped to the platform's own rows they would have gone empty, because
+  the platform does not run a funnel.
+- 🔴 **The one that would actually have broken the console:** `listAssessments` pinned a
+  literal null. After the funnel moved, /admin would have shown **zero assessments** —
+  and therefore zero submissions and an empty assessment picker everywhere.
+- **AppSetting addressing has one choke point** (`lib/settings/tenant-row.ts`). The
+  platform row is reachable as either `null` or `"platform"`, so a settings save can
+  never create a *second* row and split the live pixel and Razorpay keys across halves.
+- **Env is launch-only now.** The remaining env reads are a transitional platform-scope
+  fallback that logs which value it served, so the gaps are visible in the deploy logs
+  instead of being silently permanent. `npm run settings:from-env` copies them in.
+
+### 3a-bis. Still open in the model
+
+🟡 **Settings writes still use `scope.tenantId`, not the platform tenant.** The right
+accessor ("which config row do I write") was deliberately NOT wired, and the reason is
+in a comment at the bottom of `lib/tenant/acting.ts`: for AppSetting it already works via
+the choke point, but the per-tenant CONTENT tables those screens also write — AiPromptVersion
+above all — would filter on `"platform"` while the existing versions are still unowned.
+That is an empty AI prompt screen and a new version nobody can see.
+
+Residual to know about: **after** the funnel move but **before** the NOT NULL commit, a
+prompt version created from /admin without entering a workspace is stamped null and
+becomes one more row NOT NULL will reject. `npm run verify:tenancy` catches it. Wire the
+accessor in that same commit.
 
 **Agreed target:** a real **Platform tenant** row, `tenantId` made required, every null
 backfilled. Two tenants, not one — a Platform tenant (the SaaS, where the owner's account
 lives) and Apply Gita (the funnel business, which the owner *enters* to operate). That
 keeps "run my funnel" separate from "administer the SaaS" and matches the domain split.
 
-### 3b. Blocker that must land in the same change
+### 3b. DONE (same commit) — the backstop now guards the role, not the tenant
 
-The owner-protection backstop in `lib/db/prisma.ts` (`isDemotion`) **throws on any write
-that attaches a non-null tenantId to the platform owner** — added after the 21 Sept
-lockout. Giving the owner a tenant is therefore impossible until that guard is changed to
-protect the **role** (never below SUPER_ADMIN) rather than the tenant. Change it
-deliberately, in the same commit, or the migration fails halfway.
+`isDemotion` in `lib/db/prisma.ts` used to throw on **either** a role drop **or** any
+write attaching a tenant to the owner. The tenant half is gone; the role half is intact
+and still refuses to write that account below SUPER_ADMIN.
+
+Why that is safe: super-admin access comes from the **role or the owner email**
+(`lib/auth/guards` `isSuperAdmin`), never from whether a tenant is attached. What locked
+us out on 21 Sept was losing SUPER_ADMIN, which is exactly what is still blocked. A
+tenant id cannot cost anyone their access.
+
+`npm run rehome -- --platform` also refuses to run if the owner's role is already below
+SUPER_ADMIN — the backstop prevents a demotion, it does not repair one, and attaching a
+tenant to an already-demoted owner would leave no route back into /admin.
 
 ### 3c. Findings that gate the move (verified, still true)
 
@@ -80,23 +123,62 @@ deliberately, in the same commit, or the migration fails halfway.
   GROWTH and SCALE carry `capi`. Fix before any move:
   `UPDATE tenant SET plan = 'SCALE' WHERE slug = 'apply-gita';`
 - 🔴 **Meta/Razorpay live in env, not the DB** (on staging both rows are blank). Env only
-  feeds the null scope, so a tenant that lacks these values has no pixel, no CAPI and a
-  checkout that cannot sign an order. Run STEP 0c in the SQL against prod to check.
+  feeds the platform scope, so a tenant that lacks these values has no pixel, no CAPI and
+  a checkout that cannot sign an order. **The preflight now blocks on this** — it is the
+  single most likely way to take the funnel dark, and it is why the owner's rule is that
+  env holds only what the app needs to boot and everything else lives in Settings, scoped
+  per tenant. Close it with `npm run settings:from-env`, then re-run the dry run.
 - 🟡 **`META_DATASET_ID`**: platform CAPI uses that env var; a tenant uses its **pixel id**
   as the dataset. If prod sets them to different values, CAPI changes destination after
-  the move. Unverified — check the prod Assessment service.
+  the move. Still unverified against prod — the dry run now prints this comparison, so
+  `npm run rehome -- --tenant apply-gita` under `railway run --environment production`
+  answers it without writing anything.
 - 🟢 Funnel URLs, Razorpay attribution and result links all survive a move — verified by
   reading the code, see §4.
 
-### 3d. Tooling that exists (built, dry-run tested, never applied)
+### 3d. Tooling — rebuilt 30 Sep, still never applied anywhere
 
-- `npm run rehome -- --tenant <slug>` — dry run: counts, settings diff, plan warning
-- `npm run rehome -- --tenant <slug> --apply` — one transaction, writes `.rehome/*.json`
-- `npm run rehome -- --revert <manifest>` — exact undo
-- `scripts/rehome-platform-data.sql` — same job for the Railway console, records its undo
-  set in a `rehome_backup` table
+**The move is two steps, because there are two tenants. Run them in this order.**
 
-Both exclude the owner's User row and the AppSetting singleton on purpose.
+```
+npm run verify:tenancy -- --funnel apply-gita   # read-only: where things stand
+npm run settings:from-env                       # close the env gaps (dry run)
+npm run settings:from-env -- --apply
+
+npm run rehome -- --platform                    # owner + platform settings row
+npm run rehome -- --platform --apply            # then SIGN OUT, SIGN IN, check /admin
+
+npm run rehome -- --tenant apply-gita           # the funnel data
+npm run rehome -- --tenant apply-gita --apply
+
+npm run rehome -- --revert .rehome/<file>.json  # exact undo of either step
+```
+
+Prefix each with `railway run` (add `--environment production` for prod).
+
+- **`--platform`** attaches the owner's account to the Platform tenant and stamps the
+  singleton AppSetting as the Platform tenant's row. The row's *contents* are untouched
+  and it stays reachable by its id, so every existing settings read keeps working. This
+  is the safe half — do it first and confirm you can still sign in.
+- **`--tenant <slug>`** moves the funnel, and `--apply` is **GATED by a preflight**:
+  - 🔴 blocks on a plan without `capi` (FREE/STARTER), with the exact SQL to fix it
+  - 🔴 blocks on any critical Meta/Razorpay value that is blank in Settings on both rows
+    — and says so differently when the value lives only in env, because that is the case
+    where the move *itself* is what switches the feature off
+  - 🟡 warns when `META_DATASET_ID` differs from the pixel id (CAPI changes destination)
+  - the escape hatch is `--allow-dark-funnel`, named so nobody uses it by accident
+- It reconciles **per-table counts before against after** (`null=0`, `tenant = before.null
+  + before.own`), so a table that was skipped shows up as a failure rather than as a
+  quietly smaller total.
+- 🔴 **It now covers `gateEntry` and `funnelEventCount`**, which the old 14-table list
+  missed. A "successful" move would have left both pointing at nobody, and the later NOT
+  NULL migration would have failed on tables nobody was watching.
+- `scripts/rehome-platform-data.sql` is now **read-only inspection queries**. Its
+  mutating half was removed: it had the same missing-tables bug and could not run the
+  preflight, and two divergent movers where one silently orphans tables is a trap.
+
+`npm run verify:tenancy` is read-only and safe against production at any time. Run it
+before the move, after each step, and again before the NOT NULL commit.
 
 ### 3e. Domain phase — blocked on a design question
 
@@ -110,6 +192,26 @@ CNAME target for **every** tenant custom domain, so changing the app URL orphans
 tenant domains until each is re-pointed.
 
 ---
+
+### 3f. The NOT NULL commit (next, but NOT yet)
+
+Deliberately left out of `5d9a84e`. 🔴 **Why it cannot ride along with a code change:**
+Railway serves the OLD deployment until the new one passes its healthcheck, but
+`prisma migrate deploy` runs in the start command — so the constraint lands while old
+code is still taking traffic, and old code writes explicit `tenantId: null` on the funnel
+hot path. A NOT NULL column rejects those: dropped leads and dropped CAPI events, on a
+live funnel, for the length of a deploy.
+
+The safe order is: **model semantics → compatible code → data re-home → verify → NOT NULL.**
+The first two are done.
+
+When the time comes, that commit should contain:
+1. `npm run verify:tenancy` reporting zero unowned rows in **both** environments first.
+2. The NOT NULL migration itself.
+3. Wiring the config-tenant accessor (§3a-bis) — safe only once no unowned rows remain.
+4. Deleting the `unowned` variant from `lib/tenant/scope.ts` and the null arm from
+   `isPlatformScope()` in `lib/tenant/platform-tenant.ts`.
+5. Deleting the env fallback in `lib/settings/config.ts` and the env vars with it.
 
 ## 4. Multi-tenant scoping — what was found and fixed
 
@@ -150,9 +252,13 @@ links did not. When adding any new export or report, scope the route, not just t
 
 ## 6. Structural recommendations (agreed direction, not yet built)
 
-1. Required `tenantId` + a Platform tenant row (§3a) — everything else gets easier after.
-2. Make scope a **type**, not a nullable string: `{ kind: "platform" | "tenant" | "all" }`
-   so "global" and "platform" cannot collide.
+1. ~~A Platform tenant row~~ **DONE** (§3a). Required `tenantId` is the remaining half —
+   see the NOT NULL note below.
+2. ~~Make scope a **type**~~ **DONE** (`lib/tenant/scope.ts`). It landed as
+   `{ kind: "tenant" | "all" | "unowned" }` rather than including "platform": the platform
+   turned out to be ordinary *data* with a known id, not a scope semantic. `unowned` is the
+   transitional variant for rows that genuinely have no owner yet, and it is deleted along
+   with the nulls.
 3. A Prisma extension that **refuses unscoped reads** on tenant-scoped models — the same
    pattern the owner backstop already uses. Catches the next `export-all` before it ships.
 4. No env fallback for config: env seeds the Platform tenant once, then every read is a
