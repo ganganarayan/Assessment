@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { statsFloorFor } from "@/lib/stats-floor";
 import { ALL_TENANTS, whereScope, type Scope } from "@/lib/tenant/scope";
@@ -70,7 +71,52 @@ export async function getAssessmentById(id: string) {
  * before the re-home, which has no tenant to be deleted, and a relation filter alone
  * would exclude it and take the live funnel down.
  */
-export async function getPublishedAssessmentBySlug(slug: string) {
+/**
+ * Cache tag for one funnel's public data. Tagged PER SLUG so publishing one assessment
+ * never flushes another's cache — with a single shared tag, one edit would cost every
+ * live funnel a cold read at once, which is worst exactly when traffic is highest.
+ */
+export function publicAssessmentTag(slug: string): string {
+  return `public-assessment:${slug}`;
+}
+
+/**
+ * Drop the cached copy of a funnel. Call after any change the public page renders.
+ *
+ * Paired with the TTL below rather than relied on alone: many things can change what a
+ * funnel shows — the assessment row, its questions, options, routes, bands, pages, the
+ * result page — and a cache whose correctness depends on every one of those remembering
+ * to call this would eventually serve a funnel that is wrong forever. With the TTL, a
+ * missed call costs a minute of staleness instead of permanent wrongness.
+ */
+export function invalidatePublicAssessment(slug: string): void {
+  revalidateTag(publicAssessmentTag(slug));
+}
+
+/**
+ * Same flush, given an assessment id instead of a slug.
+ *
+ * The cache is keyed by slug (what the public URL uses) while the editing actions all
+ * hold an id, so the slug is looked up. One cheap query on a save path, which is rare,
+ * to keep the funnel read cached on every visit, which is not.
+ *
+ * Never throws: a cache flush failing must not fail the save that triggered it. Worst
+ * case the TTL clears it a minute later. For a DELETE, call this BEFORE removing the
+ * row — afterwards there is no slug left to look up.
+ */
+export async function invalidatePublicAssessmentById(id: string): Promise<void> {
+  const a = await prisma.assessment
+    .findUnique({ where: { id }, select: { slug: true } })
+    .catch(() => null);
+  if (a?.slug) invalidatePublicAssessment(a.slug);
+}
+
+/** How long a cached funnel may be stale: short enough that a missed invalidation is a
+ *  minor delay, long enough to absorb a spike on one ad. */
+const PUBLIC_ASSESSMENT_TTL_SECONDS = 60;
+
+/** The uncached read, so the cached wrapper has something to call. */
+async function readPublishedAssessmentBySlug(slug: string) {
   return prisma.assessment.findFirst({
     where: {
       slug,
@@ -93,6 +139,29 @@ export async function getPublishedAssessmentBySlug(slug: string) {
       // never go live.
     },
   });
+}
+
+/**
+ * The funnel's data, cached.
+ *
+ * WHY THIS ONE: every visit to /a/<slug> loaded the assessment with its categories,
+ * questions, options, routes and bands — a deep multi-join — for data that changes when
+ * someone publishes, not per request. Under ad traffic that was the same query thousands
+ * of times for an identical answer, each one holding a database connection while it ran.
+ * The connection pool is the first wall this product hits, so removing the largest
+ * repeat read is the single biggest lever available on concurrency.
+ *
+ * THE PAGE STAYS DYNAMIC, deliberately. Only this read is cached: the request still
+ * needs its own headers and cookies for the pixel, the visitor id and the page-view row,
+ * and caching the whole render would break all three. Cache the expensive part that is
+ * identical for everyone; keep the per-visitor part per-visitor.
+ */
+export async function getPublishedAssessmentBySlug(slug: string) {
+  return unstable_cache(
+    () => readPublishedAssessmentBySlug(slug),
+    ["public-assessment", slug],
+    { tags: [publicAssessmentTag(slug)], revalidate: PUBLIC_ASSESSMENT_TTL_SECONDS },
+  )();
 }
 
 /** Resolve an assessment id to its slug + published flag (any status), for the

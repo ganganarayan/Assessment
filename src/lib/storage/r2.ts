@@ -5,18 +5,29 @@ import {
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
+import { decryptWithSecret } from "@/lib/crypto";
 
 /**
  * Cloudflare R2 storage abstraction (S3-compatible).
  *
- * Phase 1: R2 is OPTIONAL. The client is NOT created at import/startup time —
- * the app boots fine without any R2_* variables. The S3 client is built lazily
- * on the first storage operation, and if configuration is missing we throw a
- * clear, actionable error instead of crashing the whole app.
+ * CONFIGURED IN SETTINGS, NOT ENV. Credentials live on the platform AppSetting row
+ * (super-admin Settings), with the secret encrypted at rest. Environment variables hold
+ * only what the app needs to boot; an integration that can be rotated without a deploy
+ * belongs in the database.
  *
- * The rest of the app depends on this `storage` interface, never on the AWS
- * SDK directly — so the backend stays swappable.
+ * ONE BUCKET FOR THE INSTALL. Tenants are isolated by KEY PREFIX
+ * (`tenants/<tenantId>/...`, see `tenantKey`), not by separate buckets or credentials.
+ * One set of keys to rotate, and no tenant ever holds a credential that could reach
+ * another tenant's objects. The prefix is built here so no caller composes a key by
+ * hand — a hand-built key is how one tenant's file ends up under another's path.
+ *
+ * Storage stays OPTIONAL: the client is never created at import time, so the app boots
+ * with nothing configured, and the first actual operation throws a clear error instead.
+ *
+ * The rest of the app depends on this `storage` interface, never on the AWS SDK
+ * directly — so the backend stays swappable.
  */
 
 interface R2Config {
@@ -33,51 +44,114 @@ let cachedConfig: R2Config | null = null;
 class StorageNotConfiguredError extends Error {
   constructor(missing: string[]) {
     super(
-      `Cloudflare R2 storage is not configured. Missing env var(s): ${missing.join(
-        ", ",
-      )}. Set them in your Railway environment (or .env) to enable uploads. ` +
-        `R2 is optional in Phase 1, so the app still runs without it.`,
+      `Cloudflare R2 storage is not configured. Missing: ${missing.join(", ")}. ` +
+        `Set it in super-admin Settings → File storage. Storage is optional, so the ` +
+        `rest of the app keeps working without it.`,
     );
     this.name = "StorageNotConfiguredError";
   }
 }
 
-/** Returns true if every R2 variable is present. */
-export function isStorageConfigured(): boolean {
-  return (
-    !!env.R2_ACCOUNT_ID &&
-    !!env.R2_ACCESS_KEY_ID &&
-    !!env.R2_SECRET_ACCESS_KEY &&
-    !!env.R2_BUCKET_NAME &&
-    !!env.R2_PUBLIC_URL
-  );
+/**
+ * The object key for a tenant's file. ALWAYS go through this rather than building a
+ * path: it is the one place that guarantees a tenant's objects sit under its own
+ * prefix, which is the whole of the isolation story for a single shared bucket.
+ *
+ * `path` is sanitised because it can carry user-influenced text (a file name). A `..`
+ * segment in an S3 key is not a traversal the way it is on a filesystem, but it makes
+ * keys ambiguous and listings wrong, so it is stripped.
+ */
+export function tenantKey(tenantId: string, path: string): string {
+  const clean = path
+    .split("/")
+    .map((seg) => seg.trim())
+    .filter((seg) => seg.length > 0 && seg !== "." && seg !== "..")
+    .join("/");
+  if (!clean) throw new Error("Storage key path is empty.");
+  return `tenants/${tenantId}/${clean}`;
 }
 
-/** Validate config the first time storage is actually used. */
-function getConfig(): R2Config {
+/** True when storage is usable. Reads Settings; never throws. */
+export async function isStorageConfigured(): Promise<boolean> {
+  try {
+    await loadConfig();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Forget the cached credentials, so the next operation re-reads Settings.
+ * Called by the settings save — otherwise a corrected key would not take effect until
+ * the process restarted, which reads as "saving did nothing".
+ */
+export function resetStorageConfig(): void {
+  cachedConfig = null;
+  cachedClient = null;
+}
+
+/**
+ * Read credentials from the platform settings row, caching them for the process.
+ *
+ * Cached because storage operations can run in a loop (a batch of reports) and a DB
+ * round trip per object would be pure waste; `resetStorageConfig()` is how a settings
+ * save invalidates it.
+ */
+async function loadConfig(): Promise<R2Config> {
   if (cachedConfig) return cachedConfig;
 
+  const row = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: {
+      r2AccountId: true,
+      r2AccessKeyId: true,
+      r2SecretAccessKeyEnc: true,
+      r2BucketName: true,
+      r2PublicUrl: true,
+    },
+  });
+
+  const trim = (v: string | null | undefined) => (v ?? "").trim() || null;
+  const accountId = trim(row?.r2AccountId);
+  const accessKeyId = trim(row?.r2AccessKeyId);
+  const bucket = trim(row?.r2BucketName);
+  const publicUrl = trim(row?.r2PublicUrl);
+
+  // A secret that cannot be decrypted is treated as ABSENT, not as an error to throw
+  // through the caller: it means the row was written under a different
+  // BETTER_AUTH_SECRET (a copy between environments), and the honest report is
+  // "not configured, re-enter it" rather than a crypto stack trace.
+  let secretAccessKey: string | null = null;
+  if (row?.r2SecretAccessKeyEnc) {
+    try {
+      secretAccessKey = trim(decryptWithSecret(row.r2SecretAccessKeyEnc, env.BETTER_AUTH_SECRET));
+    } catch {
+      secretAccessKey = null;
+    }
+  }
+
   const missing: string[] = [];
-  if (!env.R2_ACCOUNT_ID) missing.push("R2_ACCOUNT_ID");
-  if (!env.R2_ACCESS_KEY_ID) missing.push("R2_ACCESS_KEY_ID");
-  if (!env.R2_SECRET_ACCESS_KEY) missing.push("R2_SECRET_ACCESS_KEY");
-  if (!env.R2_BUCKET_NAME) missing.push("R2_BUCKET_NAME");
-  if (!env.R2_PUBLIC_URL) missing.push("R2_PUBLIC_URL");
+  if (!accountId) missing.push("Account ID");
+  if (!accessKeyId) missing.push("Access key ID");
+  if (!secretAccessKey) missing.push("Secret access key");
+  if (!bucket) missing.push("Bucket name");
+  if (!publicUrl) missing.push("Public URL");
   if (missing.length > 0) throw new StorageNotConfiguredError(missing);
 
   cachedConfig = {
-    accountId: env.R2_ACCOUNT_ID as string,
-    accessKeyId: env.R2_ACCESS_KEY_ID as string,
-    secretAccessKey: env.R2_SECRET_ACCESS_KEY as string,
-    bucket: env.R2_BUCKET_NAME as string,
-    publicUrl: env.R2_PUBLIC_URL as string,
+    accountId: accountId as string,
+    accessKeyId: accessKeyId as string,
+    secretAccessKey: secretAccessKey as string,
+    bucket: bucket as string,
+    publicUrl: publicUrl as string,
   };
   return cachedConfig;
 }
 
 /** Lazily build (and cache) the S3 client on first use. */
-function getClient(): { client: S3Client; config: R2Config } {
-  const config = getConfig();
+async function getClient(): Promise<{ client: S3Client; config: R2Config }> {
+  const config = await loadConfig();
   if (!cachedClient) {
     cachedClient = new S3Client({
       region: "auto",
@@ -100,7 +174,7 @@ export interface UploadParams {
 export const storage = {
   /** Upload an object and return its public URL. */
   async upload({ key, body, contentType }: UploadParams): Promise<string> {
-    const { client, config } = getClient();
+    const { client, config } = await getClient();
     await client.send(
       new PutObjectCommand({
         Bucket: config.bucket,
@@ -114,7 +188,7 @@ export const storage = {
 
   /** Delete an object by key. */
   async delete(key: string): Promise<void> {
-    const { client, config } = getClient();
+    const { client, config } = await getClient();
     await client.send(
       new DeleteObjectCommand({ Bucket: config.bucket, Key: key }),
     );
@@ -126,7 +200,7 @@ export const storage = {
     contentType: string,
     expiresInSeconds = 300,
   ): Promise<string> {
-    const { client, config } = getClient();
+    const { client, config } = await getClient();
     return getSignedUrl(
       client,
       new PutObjectCommand({
@@ -143,7 +217,7 @@ export const storage = {
     key: string,
     expiresInSeconds = 300,
   ): Promise<string> {
-    const { client, config } = getClient();
+    const { client, config } = await getClient();
     return getSignedUrl(
       client,
       new GetObjectCommand({ Bucket: config.bucket, Key: key }),
@@ -151,8 +225,10 @@ export const storage = {
     );
   },
 
-  /** Stable public URL for an object in a public bucket. */
-  publicUrl(key: string): string {
-    return `${getConfig().publicUrl}/${key}`;
+  /** Stable public URL for an object in a public bucket. Async now that the base URL
+   *  comes from Settings rather than a synchronously-available env var. */
+  async publicUrl(key: string): Promise<string> {
+    const { config } = await getClient();
+    return `${config.publicUrl}/${key}`;
   },
 };

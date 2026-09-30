@@ -1822,6 +1822,21 @@ model AppSetting {
   // look exactly as they do today.
   landingVideos Json?
 
+  // Cloudflare R2 object storage — PLATFORM level, one bucket for the whole install.
+  // Per-tenant isolation is by KEY PREFIX inside that bucket (tenants/<id>/...), not by
+  // separate buckets or credentials: one set of keys to rotate, and a tenant never
+  // holds credentials that could reach another tenant's objects.
+  //
+  // Configured here rather than in environment variables, like every other integration
+  // — env holds only what the app needs to boot. The secret is encrypted at rest.
+  r2AccountId          String?
+  r2AccessKeyId        String?
+  r2SecretAccessKeyEnc String?
+  r2BucketName         String?
+  // Public base URL of the bucket (or its custom domain). Only used for objects meant
+  // to be world-readable; private files are served through short-lived signed URLs.
+  r2PublicUrl          String?
+
   // Canonical audience list ("your default list of roles"). Powers the free-text
   // audience field's live suggestions AND the normalize screen that cleans up typed
   // values. Stored as a JSON array of trimmed labels. null tenant => singleton row.

@@ -9,6 +9,7 @@ import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { resolveVidapulseParam } from "@/lib/vidapulse";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
+import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 
 /** Result data the public page-2 needs for dynamic blocks. Bands only — the real
  *  numeric scores are NEVER sent (the teaser blurs them; the VSL shows them after
@@ -79,6 +80,8 @@ export async function publishPages(assessmentId: string): Promise<ActionResult<{
     where: { id: assessmentId },
     data: { publishedPages: draft as unknown as Prisma.InputJsonValue, pagesPublishedAt: now },
   });
+  // The public funnel renders this snapshot, so its cached copy is now stale.
+  await invalidatePublicAssessmentById(assessmentId);
   return { ok: true, data: { publishedAt: now.toISOString() } };
 }
 
@@ -92,6 +95,7 @@ export async function unpublishPages(assessmentId: string): Promise<ActionResult
     where: { id: assessmentId },
     data: { publishedPages: Prisma.DbNull, pagesPublishedAt: null },
   });
+  await invalidatePublicAssessmentById(assessmentId);
   return { ok: true };
 }
 

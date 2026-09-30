@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
@@ -273,6 +274,7 @@ export async function updateAssessment(
     },
   });
 
+  await invalidatePublicAssessmentById(id);
   revalidatePath("/admin/assessments");
   revalidatePath(`/admin/assessments/${id}`);
   revalidatePath("/w/assessments");
@@ -286,6 +288,9 @@ export async function deleteAssessment(id: string): Promise<ActionResult> {
   if (!(await ownsAssessment(id, scope))) {
     return { ok: false, error: "Not found." };
   }
+  // BEFORE the delete — afterwards there is no row to read the slug from, and a stale
+  // cached copy would keep serving a funnel that no longer exists.
+  await invalidatePublicAssessmentById(id);
   await prisma.assessment.delete({ where: { id } });
   revalidatePath("/admin/assessments");
   revalidatePath("/w/assessments");
@@ -309,6 +314,10 @@ export async function setAssessmentStatus(
       publishedAt: publish ? new Date() : null,
     },
   });
+  // The one invalidation that matters most: publish and unpublish change whether the
+  // funnel is reachable at all, so a stale copy here either hides a live funnel or keeps
+  // serving one that was taken down.
+  await invalidatePublicAssessmentById(id);
   revalidatePath("/admin/assessments");
   revalidatePath(`/admin/assessments/${id}`);
   revalidatePath("/w/assessments");

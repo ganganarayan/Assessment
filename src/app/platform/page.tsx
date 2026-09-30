@@ -9,22 +9,25 @@ import {
 import { PlatformConsole } from "@/features/platform/components/platform-console";
 import { LandingVideosCard } from "@/features/platform/components/landing-videos-card";
 import { getLandingVideosRaw } from "@/features/platform/landing-videos";
+import { StorageSettingsCard } from "@/features/platform/components/storage-settings-card";
+import { getStorageSettings } from "@/features/platform/storage-settings";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlatformPage() {
   const me = await requireSuperAdmin();
-  const [t, dt, u, d, lv] = await Promise.all([
+  const [t, dt, u, d, lv, st] = await Promise.all([
     listTenants(),
     listDeletedTenants(),
     listUsers(),
     listDeletedUsers(),
     getLandingVideosRaw(),
+    getStorageSettings(),
   ]);
   // Any loader that failed (a transient DB error) surfaces as a banner — the page
   // still renders with whatever loaded, instead of a full-page server crash.
-  const loadErrors = [t, dt, u, d, lv]
+  const loadErrors = [t, dt, u, d, lv, st]
     .filter((r): r is { ok: false; error: string } => !r.ok)
     .map((r) => r.error);
   return (
@@ -68,6 +71,7 @@ export default async function PlatformPage() {
         initialHero={lv.ok && lv.data ? lv.data.hero : ""}
         initialTiles={lv.ok && lv.data ? lv.data.tiles : {}}
       />
+      {st.ok && st.data ? <StorageSettingsCard initial={st.data} /> : null}
     </main>
   );
 }
