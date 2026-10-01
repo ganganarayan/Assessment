@@ -258,6 +258,33 @@ Also unresolved for that phase: `appHost()` (derived from `NEXT_PUBLIC_APP_URL`)
 CNAME target for **every** tenant custom domain, so changing the app URL orphans existing
 tenant domains until each is re-pointed.
 
+**Verified state as of 1 Oct, before the revamp starts:**
+
+- 🟢 **The feature exists and the tenancy prerequisite is met.** `Domain` has a non-null
+  `tenantId`, so domains were always per-tenant and the re-home did not touch them. The
+  **Custom domains card is already on /w/settings** (`DomainSettings`), and on
+  /admin/settings it renders only while impersonating, since the concept is per-tenant.
+- 🟢 **`domain` table has 0 rows on production.** Nothing has ever been registered;
+  assess.applygitawisdom.com is served directly from the Railway service. So this is a
+  greenfield build, not a migration — there is nothing live to break.
+- 🔴 **Payments are the blocker, and it is not theoretical.** Every post-payment and
+  result URL is built from `NEXT_PUBLIC_APP_URL`:
+  `src/app/api/payments/verify/route.ts` (the redirect after Razorpay AND the
+  `?payment=failed` bounce), `src/lib/events/completion.ts` (the result URL in the
+  completion event), `src/lib/crm/send.ts` (links in CRM sends),
+  `src/lib/cta/notify.ts`, `src/lib/events/abandoned.ts`. A respondent on a custom
+  domain would therefore pay and land back on the app subdomain, and their result link
+  and CRM mail would point there too.
+- 🟡 The flow is **bring-your-own**: Railway issues the route + cert, the app SHOWS the
+  DNS records for the client to add themselves, and "verified" means the Railway cert is
+  live. `cloudflareToken` is provisioned on prod only — staging reports false — so the
+  path is genuinely only exercisable against production.
+
+**The three targets the owner wants:** platform on `divineleads.guru`, Apply Gita on
+`applygitawisdom.com`, plus the Divine Leads tenant. Serving a funnel on a custom domain
+works today; **payments do not follow the domain**, and that is the piece to design
+first. Do not point a money domain at a funnel before it is built.
+
 ---
 
 ### 3f. The NOT NULL commit (next, but NOT yet)
