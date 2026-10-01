@@ -1,13 +1,17 @@
 import { prisma } from "@/lib/db/prisma";
 import { OperationsPanel } from "@/features/assessment/components/admin/operations-panel";
-import { actingTenantId } from "@/lib/tenant/acting";
+import { actingDataScope } from "@/lib/tenant/acting";
+import { whereScope } from "@/lib/tenant/scope";
 
 export const dynamic = "force-dynamic";
 
 export default async function OperationsPage() {
-  // Scope the pickable assessments to the entered tenant (null = platform/Gita).
+  // Scope the pickable assessments the same way every other /admin list does. This used
+  // to read actingTenantId() directly, which means "tenantId IS NULL" when no workspace
+  // is entered — that was the platform's funnel before the re-home and is nobody's rows
+  // after it, so it would have drifted away from the rest of the console.
   const assessments = await prisma.assessment.findMany({
-    where: { tenantId: await actingTenantId() },
+    where: whereScope(await actingDataScope()),
     orderBy: { createdAt: "asc" },
     select: { id: true, title: true },
   });

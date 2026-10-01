@@ -3,7 +3,8 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 import { requireUser, isSuperAdmin, canEdit, type AuthUser } from "@/lib/auth/guards";
 import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
-import { ALL_TENANTS, tenantOnly, whereScope, type Scope } from "@/lib/tenant/scope";
+import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
+import { tenantOnly, whereScope, type Scope } from "@/lib/tenant/scope";
 
 /**
  * The "acting tenant" — the tenant whose workspace the current user is operating in.
@@ -128,10 +129,30 @@ export function tenantScope(scope: ActingScope): { tenantId?: string | null } {
  *                     one settings value across every tenant.
  */
 
-/** Which rows this caller may read/act on. */
+/**
+ * Which rows this caller may read/act on.
+ *
+ * A super admin who has NOT entered a workspace scopes to the PLATFORM tenant — its own
+ * rows — not to every tenant. Before the funnel was re-homed this returned ALL_TENANTS,
+ * for a reason that has now expired: the funnel lived on no tenant at all, so a
+ * platform-scoped console would have shown nothing and the owner's own screens would
+ * have gone blank. The funnel now belongs to its tenant and is read by entering that
+ * workspace, so "everything, everywhere" is no longer the owner's default view — it is
+ * just every tenant's data pooled into one list with no indication of whose is whose.
+ *
+ * This answers reads AND writes (tenantScope wraps it), so it is also the authorization
+ * boundary: a super admin edits a tenant's rows by ENTERING that workspace, which is
+ * what the Enter button on /platform is for. Out-of-scope writes return a plain "isn't
+ * in this workspace" error rather than failing silently.
+ *
+ * 🟡 Accepted consequence: there is no cross-tenant list any more. Adding one means an
+ * explicitly owner-only screen that asks for ALL_TENANTS by name, which is the honest
+ * way to express it — not a scope that quietly means "all" whenever nobody entered
+ * anywhere.
+ */
 export function dataScopeOf(scope: ActingScope): Scope {
   if (scope.tenantId) return tenantOnly(scope.tenantId);
-  if (scope.isSuper) return ALL_TENANTS;
+  if (scope.isSuper) return tenantOnly(PLATFORM_TENANT_ID);
   throw new Error("No workspace: caller has no tenant scope.");
 }
 
