@@ -12,11 +12,12 @@ import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { getLandingVideos } from "@/features/platform/landing-videos";
 import { MARKETING } from "@/lib/marketing/content";
 
-// Marketing metadata is applied only on the platform root domain. Tenant
-// (subdomain / custom-domain) roots keep the app's default metadata.
+// Marketing metadata belongs to the PLATFORM's own host. "Platform" is defined as
+// "no tenant owns this host" rather than "this host equals NEXT_PUBLIC_ROOT_DOMAIN":
+// the Domain table already says which hosts belong to tenants, so the platform needs
+// no configured address of its own and keeps working when that variable is unset.
 export async function generateMetadata(): Promise<Metadata> {
-  const { source } = await getTenantContext();
-  if (source !== "root") return {};
+  if (await getCurrentTenant()) return {};
 
   return {
     title: MARKETING.title,
@@ -42,9 +43,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function HomePage() {
   const { slug, source } = await getTenantContext();
 
-  // Platform root (assess360.divineleads.guru) → marketing landing. The SaaS pixel
-  // fires PageView here (separate from the Gita assessment pixel).
-  if (source === "root") {
+  // Whose host is this? A tenant's, if the Domain table (or a subdomain, when one is
+  // configured) says so — otherwise the platform's. Asking the data instead of
+  // comparing against a configured root is what lets the platform move hosts, or run
+  // with no root domain at all, without the landing page disappearing.
+  const tenant = await getCurrentTenant();
+
+  // Platform → marketing landing. The SaaS pixel fires PageView here (separate from
+  // the Gita assessment pixel).
+  if (!tenant) {
     const [{ pixelId }, videos] = await Promise.all([
       resolvePlatformMetaConfig(),
       getLandingVideos(),
@@ -62,8 +69,7 @@ export default async function HomePage() {
   // what anyone typing the bare domain is looking for — it used to show the generic
   // "foundation ready" page instead, so a customer who pointed their own domain at us
   // got a dead end unless they knew to add /a/<slug> by hand.
-  const tenant = await getCurrentTenant();
-  if (tenant) {
+  {
     const funnelSlug = await rootAssessmentSlugFor(tenant.id, tenant.primaryAssessmentId);
     if (funnelSlug) redirect(`/a/${funnelSlug}`);
     // No published assessment, or several with none chosen: fall through to the generic

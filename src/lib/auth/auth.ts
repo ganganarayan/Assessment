@@ -85,9 +85,13 @@ export const auth = betterAuth({
    */
   trustedOrigins: async (request) => {
     const root = env.NEXT_PUBLIC_ROOT_DOMAIN;
-    const list = [env.BETTER_AUTH_URL, env.NEXT_PUBLIC_APP_URL, `https://${root}`, `https://*.${root}`].filter(
-      (v): v is string => !!v,
-    );
+    // An unset root must contribute NOTHING. "https://" and "https://*." are not just
+    // useless, they are a wildcard pattern with an empty suffix.
+    const list = [
+      env.BETTER_AUTH_URL,
+      env.NEXT_PUBLIC_APP_URL,
+      ...(root ? [`https://${root}`, `https://*.${root}`] : []),
+    ].filter((v): v is string => !!v);
     // Every host we serve is trusted, resolved from the data that already decides
     // routing (isServedHost) rather than from this env list. That is what lets a
     // tenant's own domain authenticate the moment it points here — no env edit, no

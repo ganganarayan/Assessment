@@ -75,7 +75,12 @@ const serverSchema = z.object({
 });
 
 const publicSchema = z.object({
-  NEXT_PUBLIC_ROOT_DOMAIN: z.string().min(1),
+  // OPTIONAL on purpose. It names the apex whose SUBDOMAINS are tenants
+  // (slug.<root>). Railway can tell us which hosts route here, but not which of them
+  // carries that meaning — that is a product decision, not something to infer. Leave
+  // it unset and subdomain tenants are simply off: every tenant is reached on its own
+  // custom domain, which is how the product is actually sold. Empty string = unset.
+  NEXT_PUBLIC_ROOT_DOMAIN: z.string().optional().default(""),
   NEXT_PUBLIC_APP_URL: z.string().url(),
   // Meta (Facebook) Pixel id. Optional — when unset, no pixel is injected.
   // NEXT_PUBLIC_* is inlined at BUILD time, so a rebuild is needed after setting it.

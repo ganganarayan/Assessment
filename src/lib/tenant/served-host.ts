@@ -56,7 +56,11 @@ export function canonicalOrigin(): string {
       /* malformed env value — try the next */
     }
   }
-  return `https://${normalizeHost(env.NEXT_PUBLIC_ROOT_DOMAIN)}`;
+  // With no root configured there is nothing left to fall back to. Return empty rather
+  // than the string "https://": callers treat an unusable origin as "leave the link
+  // alone", which is right, while a malformed one would be mailed to someone.
+  const root = normalizeHost(env.NEXT_PUBLIC_ROOT_DOMAIN);
+  return root ? `https://${root}` : "";
 }
 
 /** Local development hosts, which never have a Domain row. */

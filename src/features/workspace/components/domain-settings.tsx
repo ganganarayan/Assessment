@@ -98,8 +98,13 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
           <p className="font-medium">Custom domains are on the paid plans.</p>
           <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
-            Upgrade to connect your own domain. Your assessments stay reachable at their{" "}
-            <span className="font-mono">{initial.rootDomain}</span> address in the meantime.
+            Upgrade to connect your own domain.
+            {initial.rootDomain ? (
+              <>
+                {" "}Your assessments stay reachable at their{" "}
+                <span className="font-mono">{initial.rootDomain}</span> address in the meantime.
+              </>
+            ) : null}
           </p>
         </div>
       )}

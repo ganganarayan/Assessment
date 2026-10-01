@@ -22,6 +22,11 @@ export function resolveTenantFromHost(
   const host = stripPort(rawHost).toLowerCase();
   const root = stripPort(rootDomain).toLowerCase();
 
+  // 🔴 No root configured = subdomain tenants are off, so EVERY host is a custom
+  // domain. Without this guard an empty root makes `host.endsWith(".")` the test and
+  // `www.` the root — every request would resolve to a tenant that cannot exist.
+  if (!root) return { slug: null, source: "custom-domain" };
+
   if (host === root || host === `www.${root}`) {
     return { slug: null, source: "root" };
   }

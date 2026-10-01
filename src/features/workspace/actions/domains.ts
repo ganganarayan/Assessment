@@ -117,6 +117,7 @@ function appHost(): string {
   try {
     return new URL(env.NEXT_PUBLIC_APP_URL).host.toLowerCase();
   } catch {
+    // APP_URL malformed and no root configured: nothing sensible to point a CNAME at.
     return env.NEXT_PUBLIC_ROOT_DOMAIN.toLowerCase();
   }
 }
@@ -231,18 +232,22 @@ export async function addDomain(rawHostname: string): Promise<ActionResult> {
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid domain." };
   const hostname = parsed.data;
 
+  // With no root configured there are no automatic subdomains and no reserved apex,
+  // so there is nothing to refuse: every host is a custom domain, including this one.
   const root = env.NEXT_PUBLIC_ROOT_DOMAIN.toLowerCase();
-  // Two different refusals wearing one message. Typing the root itself is not "a
-  // subdomain is automatic" — it is the app's own address, and saying so is the
-  // difference between a user who understands and one who retypes it three times.
-  if (hostname === root) {
-    return {
-      ok: false,
-      error: `${root} is the app's own address (NEXT_PUBLIC_ROOT_DOMAIN), so it can't also be a workspace's custom domain. Point the platform at its own host first, then add this one here.`,
-    };
-  }
-  if (hostname.endsWith(`.${root}`)) {
-    return { ok: false, error: `Subdomains of ${root} are automatic — you only need this for your OWN domain.` };
+  if (root) {
+    // Two different refusals wearing one message. Typing the root itself is not "a
+    // subdomain is automatic" — it is the app's own address, and saying so is the
+    // difference between a user who understands and one who retypes it three times.
+    if (hostname === root) {
+      return {
+        ok: false,
+        error: `${root} is the app's own address (NEXT_PUBLIC_ROOT_DOMAIN), so it can't also be a workspace's custom domain. Unset that variable, or move the platform to its own host, and this one is free to add.`,
+      };
+    }
+    if (hostname.endsWith(`.${root}`)) {
+      return { ok: false, error: `Subdomains of ${root} are automatic — you only need this for your OWN domain.` };
+    }
   }
 
   let domainId: string;
@@ -287,7 +292,12 @@ async function pointsToUs(hostname: string): Promise<boolean> {
 
   try {
     const cnames = await dns.resolveCname(hostname);
-    if (cnames.some((c) => { const h = c.toLowerCase().replace(/\.$/, ""); return h === target || h === root || h.endsWith(`.${root}`); })) {
+    // 🔴 Guard the empty root: without it `h.endsWith(".")` is the test, which is true
+    // for a trailing-dot FQDN — every domain on earth would verify as pointing at us.
+    if (cnames.some((c) => {
+      const h = c.toLowerCase().replace(/\.$/, "");
+      return h === target || (!!root && (h === root || h.endsWith(`.${root}`)));
+    })) {
       return true;
     }
   } catch {
