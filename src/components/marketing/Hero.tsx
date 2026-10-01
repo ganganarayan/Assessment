@@ -26,7 +26,7 @@ export function Hero({ video }: { video?: string | null }) {
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link href={MARKETING.signupHref} className={buttonVariants({ size: "lg" })}>
-              Start free
+              Start 14-day trial
             </Link>
             <a href="#how" className={buttonVariants({ variant: "outline", size: "lg" })}>
               See how scoring works

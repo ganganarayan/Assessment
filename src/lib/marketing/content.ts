@@ -140,85 +140,166 @@ export const USE_CASES: ReadonlyArray<{ tag: string; body: string }> = [
 
 export type Tier = {
   name: string;
+  /** Monthly price, as displayed. */
   price: string;
+  /** Annual price PER MONTH, billed yearly. Null = custom/quoted. */
+  annual: string | null;
   period: string;
   blurb: string;
   features: ReadonlyArray<string>;
   cta: string;
   highlight?: boolean;
   badge?: string;
+  /** Numeric monthly price for JSON-LD Offers. Null = custom. */
+  amount: number | null;
 };
 
-// USD for all countries, no geo-detection. Display only — checkout (Razorpay)
-// happens inside the app.
+/**
+ * USD everywhere, no geo-detection. Display only — checkout happens inside the app.
+ *
+ * NO FREE TIER, BY DECISION. A free plan on a lead-qualification tool attracts exactly
+ * the accounts that never qualify anyone, and it puts the differentiator behind a
+ * paywall the people evaluating it never cross. A 14-day trial of Signal (no card) puts
+ * the full mechanism in their hands instead, and at day 15 the account parks read-only:
+ * the scorecard pauses, the data stays. Nothing is deleted, so nobody is punished for
+ * evaluating slowly.
+ *
+ * THE LINE THAT SELLS IT: disqualified visitors are unmetered. Every competitor meters
+ * raw submissions — ScoreApp counts every completion against the cap. We count only the
+ * ones that passed the gate. That is not a pricing trick: a rejection stores no lead and
+ * no result, so there is nothing to meter.
+ */
 export const TIERS: ReadonlyArray<Tier> = [
   {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    blurb: "Publish your first scorecard and start reading real fit signal.",
-    features: [
-      "1 assessment",
-      "25 responses / month",
-      "Hosted results page",
-      "Email capture",
-      "Assess360 badge",
-    ],
-    cta: "Start free",
-  },
-  {
-    name: "Starter",
+    name: "Gate",
     price: "$39",
+    annual: "$32",
     period: "/ month",
-    blurb: "Every core feature, unlocked — you only pay as your volume grows.",
+    amount: 39,
+    blurb: "The qualification gate, the Meta signal, and everything that makes them work.",
     features: [
-      "3 assessments",
-      "300 responses / month",
-      "Branded PDF reports",
-      "AI reports + question generation",
-      "Webhook + lead export",
-      "Custom domain + branding removed",
-      "Team roles & priority support",
+      "2 scorecards",
+      "150 qualified responses / month",
+      "Disqualified visitors free, unmetered",
+      "Qualification gate",
+      "Meta Pixel + CAPI with dedup",
+      "Exclusion + retargeting audiences",
+      "Qualified-only optimisation event",
+      "Scoring, branching, result pages, PDF",
+      "Webhook + CSV export",
+      "1 user · 1 ad account",
+      "Assess360 badge shown",
     ],
-    cta: "Start free",
+    cta: "Start 14-day trial",
   },
   {
-    name: "Growth",
-    price: "$89",
+    name: "Signal",
+    price: "$79",
+    annual: "$69",
     period: "/ month",
-    blurb: "Qualify, branch, and feed Meta the signal that actually converts.",
+    amount: 79,
+    blurb: "Your brand, your domain, AI-written reports — and the badge comes off.",
     features: [
-      "15 assessments",
-      "2,000 responses / month",
-      "Everything in Starter, plus:",
-      "Qualification & disqualify gate",
-      "Conditional logic & branching",
-      "Meta Conversions API (exclude + retarget)",
-      "Heatmap & session recording",
-      "3 seats",
+      "10 scorecards",
+      "1,000 qualified responses / month",
+      "Everything in Gate, plus:",
+      "Custom domain + your branding",
+      "Assess360 badge removed",
+      "AI-written reports (your own key)",
+      "Heatmap + session recording",
+      "Manual-review screening fields",
+      "3 users · 2 ad accounts",
     ],
-    cta: "Start free",
+    cta: "Start 14-day trial",
     highlight: true,
-    badge: "Most popular",
+    badge: "14-day trial",
   },
   {
-    name: "Scale",
+    name: "Agency",
     price: "$199",
+    annual: "$175",
     period: "/ month",
-    blurb: "Operate scorecards for every client from one account.",
+    amount: 199,
+    blurb: "Run qualification for every client from one account, under your own name.",
     features: [
-      "Unlimited assessments",
-      "12,000 responses / month",
-      "Everything in Growth, plus:",
+      "Unlimited scorecards",
+      "5,000 qualified responses / month",
+      "Everything in Signal, plus:",
+      "Client sub-accounts, white-label",
       "API access",
-      "5+ seats",
+      "10 users · 10 ad accounts",
+      "Extra ad accounts $15 each / month",
     ],
-    cta: "Start free",
+    cta: "Start 14-day trial",
+  },
+  {
+    name: "Enterprise",
+    price: "from $499",
+    annual: null,
+    period: "/ month",
+    amount: 499,
+    blurb: "Negotiated caps, SSO and an SLA — priced to what you actually run.",
+    features: [
+      "Unlimited scorecards",
+      "Custom qualified-response cap",
+      "Everything in Agency, plus:",
+      "SSO",
+      "SLA + dedicated onboarding",
+      "Custom users + ad accounts",
+    ],
+    cta: "Talk to us",
   },
 ];
 
-export const FOUNDING_NOTE =
-  "Founding cohort — the first 100 accounts lock this rate for life.";
+/** The comparison matrix. Server-rendered so an AI crawler can read every cell. */
+export const PLAN_NAMES = ["Gate", "Signal", "Agency", "Enterprise"] as const;
+
+export type MatrixRow = {
+  label: string;
+  /** One cell per plan: "✓", "—", or text. */
+  cells: readonly [string, string, string, string];
+  /** Rendered emphasised — the rows that are the reason to switch. */
+  strong?: boolean;
+  /** Rendered in italics — the unmetered line. */
+  note?: boolean;
+};
+
+export const PLAN_MATRIX: ReadonlyArray<MatrixRow> = [
+  { label: "Monthly", cells: ["$39", "$79", "$199", "from $499"], strong: true },
+  { label: "Annual, per month", cells: ["$32", "$69", "$175", "custom"] },
+  { label: "Scorecards", cells: ["2", "10", "Unlimited", "Unlimited"] },
+  { label: "Qualified responses", cells: ["150", "1,000", "5,000", "Custom"] },
+  { label: "Disqualified visitors", cells: ["Free, unmetered", "Free", "Free", "Free"], note: true },
+  { label: "Users", cells: ["1", "3", "10", "Custom"] },
+  { label: "Ad accounts", cells: ["1", "2", "10 (+$15 ea.)", "Custom"] },
+  { label: "Qualification gate", cells: ["✓", "✓", "✓", "✓"], strong: true },
+  { label: "Meta Pixel + CAPI, dedup", cells: ["✓", "✓", "✓", "✓"], strong: true },
+  { label: "Exclusion + retargeting audiences", cells: ["✓", "✓", "✓", "✓"], strong: true },
+  { label: "Qualified-only optimisation event", cells: ["✓", "✓", "✓", "✓"], strong: true },
+  { label: "First-party match keys", cells: ["✓", "✓", "✓", "✓"] },
+  { label: "Scoring, branching, result pages, PDF", cells: ["✓", "✓", "✓", "✓"] },
+  { label: "Webhook + CSV export", cells: ["✓", "✓", "✓", "✓"] },
+  { label: "Back-button / repeat lock", cells: ["✓", "✓", "✓", "✓"] },
+  { label: "Assess360 badge", cells: ["Shown", "Removed", "Removed", "Removed"] },
+  { label: "Custom domain + branding", cells: ["—", "✓", "✓", "✓"] },
+  { label: "AI-written reports (BYO key)", cells: ["—", "✓", "✓", "✓"] },
+  { label: "Heatmap / session recording", cells: ["—", "✓", "✓", "✓"] },
+  { label: "Manual-review screening fields", cells: ["—", "✓", "✓", "✓"] },
+  { label: "Client sub-accounts, white-label", cells: ["—", "—", "✓", "✓"] },
+  { label: "API access", cells: ["—", "—", "✓", "✓"] },
+  { label: "SSO, SLA, onboarding", cells: ["—", "—", "—", "✓"] },
+];
+
+/** The single best line on the page — true to how the product works. */
+export const PRICING_HEADLINE =
+  "Disqualified visitors don't count against your response limit.";
+export const PRICING_SUB =
+  "You only pay for the leads worth keeping. Every other tool on this list meters raw submissions — a rejection here stores no lead and no result, so there is nothing to meter.";
+
+export const TRIAL_NOTE =
+  "14-day Signal trial, no card. At day 15 the account parks read-only — your scorecard pauses, your data stays.";
+
+export const OVERAGE_NOTE = "Overage: $15 per extra 500 qualified responses.";
 
 export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
   {

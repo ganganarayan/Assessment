@@ -38,7 +38,7 @@ export function Nav() {
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <Link href={MARKETING.signupHref} className={buttonVariants({ size: "sm" })}>
-            Start free
+            Start 14-day trial
           </Link>
         </div>
       </nav>

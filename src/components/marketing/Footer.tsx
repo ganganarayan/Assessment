@@ -35,7 +35,7 @@ export function Footer() {
               href={MARKETING.signupHref}
               className="text-sm font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
             >
-              Start free
+              Start 14-day trial
             </Link>
           </nav>
         </div>

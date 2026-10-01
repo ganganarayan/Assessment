@@ -14,7 +14,7 @@ export function FinalCta() {
             Build your first scorecard in minutes and let fit decide who gets a call.
           </p>
           <Link href={MARKETING.signupHref} className={cnLg}>
-            Start free
+            Start 14-day trial
           </Link>
         </div>
       </div>
