@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireUser, isSuperAdmin } from "@/lib/auth/guards";
@@ -36,7 +37,10 @@ export async function provisionMyWorkspace(): Promise<ActionResult> {
     if (!clash) break;
     slug = `${slugFrom(seed)}-${generateId(4).toLowerCase()}`;
   }
-  const tenant = await prisma.tenant.create({ data: { name: user.name || user.email, slug } });
+  // Starts the same 14-day trial as a signup; without it this workspace resolves as
+  // PARKED the moment it is created.
+  const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+  const tenant = await prisma.tenant.create({ data: { name: user.name || user.email, slug, trialEndsAt } });
   await prisma.user.update({ where: { id: user.id }, data: { tenantId: tenant.id, role: Role.ADMIN } });
   revalidatePath("/dashboard");
   return { ok: true };

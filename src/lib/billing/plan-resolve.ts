@@ -10,6 +10,7 @@ import {
   type PlanId,
   type PlanLimits,
   TRIAL_PLAN,
+  PARKED_LIMITS,
 } from "@/lib/billing/plans";
 import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
 
@@ -89,7 +90,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
     return {
       plan: null,
       status: null,
-      limits: PLAN_LIMITS.GATE,
+      limits: PARKED_LIMITS,
       isPlatform: false,
       unlimited: false,
       trialing: false,
@@ -115,7 +116,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
     return {
       plan: trialing ? TRIAL_PLAN : null,
       status: sub?.status ?? null,
-      limits: trialing ? PLAN_LIMITS[TRIAL_PLAN] : PLAN_LIMITS.GATE,
+      limits: trialing ? PLAN_LIMITS[TRIAL_PLAN] : PARKED_LIMITS,
       isPlatform: false,
       unlimited: false,
       trialing,

@@ -1408,9 +1408,8 @@ export async function completeSubmission(
   // Phase 2: routed (non-ad-entry) assessments don't tell Meta — no CAPI, no pixel
   // eventId — so Meta's optimization stays tied to the ad-entry assessment only.
   //
-  // Billing gate: the COMPLETION event is a paid browser signal. Free tenants keep
-  // PageView and CompleteRegistration (plans.FREE_BROWSER_EVENTS) so their funnel is
-  // still measurable, but not the event an ad account optimises towards.
+  // Billing gate: the completion event is withheld from a tenant without
+  // analyticsTracking — in practice a PARKED one, since every paid tier has it.
   //
   // Enforced by withholding the eventId, which is what the browser needs to fire and
   // dedup. The runner already fires only `if (res.data?.eventId)`, so no eventId means

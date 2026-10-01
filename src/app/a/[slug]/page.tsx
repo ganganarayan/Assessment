@@ -7,6 +7,7 @@ import {
 } from "@/features/assessment/components/public/assessment-runner";
 import { readPublishedPages } from "@/features/assessment/pages/blocks";
 import { resolveAudienceCanonical } from "@/lib/settings/config";
+import { cache } from "react";
 import { tenantCan } from "@/lib/billing/entitlements";
 import { AssessBadge } from "@/features/assessment/components/public/assess-badge";
 import {
@@ -17,6 +18,15 @@ import {
 } from "@/features/assessment/schemas";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Badge visibility, deduped per request. This runs on the public funnel — an ad landing
+ * page — so it is the one plan lookup on a genuinely hot path. React's cache() collapses
+ * repeat calls within a single render without caching ACROSS requests, which matters:
+ * a tenant who upgrades must lose the badge on their very next page view, not whenever a
+ * TTL happens to expire.
+ */
+const brandingRemovedFor = cache(async (tenantId: string | null) => tenantCan(tenantId, "brandingRemoved"));
 
 export default async function PublicAssessmentPage({
   params,
@@ -173,7 +183,7 @@ export default async function PublicAssessmentPage({
   // Badge on Gate, gone from Signal up. Resolved SERVER-side from the owning tenant's
   // plan: a client-side check would be advisory, and the one thing this must not be is
   // removable without paying.
-  const brandingRemoved = await tenantCan(a.tenantId, "brandingRemoved");
+  const brandingRemoved = await brandingRemovedFor(a.tenantId);
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">

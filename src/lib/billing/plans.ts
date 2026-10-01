@@ -102,18 +102,11 @@ export const PAID_BASE_FEATURES = [
 ] as const satisfies ReadonlyArray<Feature>;
 
 /**
- * Browser-pixel events a FREE tenant may fire.
- *
- * PageView and CompleteRegistration only. Those two are what make a free funnel
- * measurable at all — traffic in, opt-ins out — so withholding them would make the
- * free tier untestable rather than merely limited. The completion event, which is the
- * one an ad account actually optimises towards, is the paid signal.
- *
- * Enforced by withholding the pixel eventId server-side rather than by asking the
- * browser not to fire: a client-side check is advisory, and anyone reading the page
- * source could fire the event anyway.
+ * FREE_BROWSER_EVENTS was removed with the free tier. It listed the two events a free
+ * tenant could still fire; every paying tier fires all of them, and a PARKED tenant
+ * fires none (PARKED_LIMITS turns analyticsTracking off). There is no longer a state
+ * that needs a partial list.
  */
-export const FREE_BROWSER_EVENTS = ["PageView", "CompleteRegistration"] as const;
 
 export type FeatureFlags = Record<Feature, boolean>;
 
@@ -348,6 +341,26 @@ export function usagePeriodKey(periodStart: Date | null, now: Date): string {
   }
   return calendarMonthKey(now);
 }
+
+/**
+ * PARKED limits — a lapsed trial or subscription.
+ *
+ * 🔴 Everything off, zero volume. The first version of this returned the GATE catalog
+ * alongside `parked: true`, and every gate in the app reads LIMITS, not the flag — so a
+ * parked tenant kept the qualification gate, CAPI, webhooks and exports in full. The
+ * trial never had to convert. Expressing parked as limits closes it everywhere at once,
+ * instead of relying on each of dozens of call sites to check a second field.
+ *
+ * responsesPerMonth 0 means the existing capture-but-lock path takes over: answers are
+ * still stored, the result is withheld. Nothing is destroyed by parking.
+ */
+export const PARKED_LIMITS: PlanLimits = {
+  responsesPerMonth: 0,
+  maxAssessments: 0,
+  seats: 1,
+  adAccounts: 0,
+  features: { ...NO_FEATURES },
+};
 
 /** Unlimited limits — the platform/Gita tenant and any internal/unmetered scope. */
 export const UNLIMITED_LIMITS: PlanLimits = {

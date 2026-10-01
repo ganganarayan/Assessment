@@ -41,12 +41,18 @@ export async function platformKeyId(): Promise<string | null> {
 /** An env-pinned Razorpay Plan id for a tier, if the operator set one. */
 function planEnvOverride(plan: PaidPlanId): string | null {
   switch (plan) {
+    // Gate is $39, the same price the Starter plan object was created at, so the legacy
+    // id is a safe fallback.
     case "GATE":
-      return env.RAZORPAY_PLAN_ID_STARTER ?? null;
+      return env.RAZORPAY_PLAN_ID_GATE ?? env.RAZORPAY_PLAN_ID_STARTER ?? null;
+    // 🔴 NO legacy fallback. Growth was $89; Signal is $79. Falling back would silently
+    // overcharge by $10/month against a published price. Unset means "create the plan
+    // from the catalog", which uses PLAN_PRICE_USD and is correct by construction.
     case "SIGNAL":
-      return env.RAZORPAY_PLAN_ID_GROWTH ?? null;
+      return env.RAZORPAY_PLAN_ID_SIGNAL ?? null;
+    // Agency is $199, as Scale was.
     case "AGENCY":
-      return env.RAZORPAY_PLAN_ID_SCALE ?? null;
+      return env.RAZORPAY_PLAN_ID_AGENCY ?? env.RAZORPAY_PLAN_ID_SCALE ?? null;
     default:
       return null;
   }
@@ -230,12 +236,11 @@ export async function markPastDue(tenantId: string): Promise<void> {
 
 /**
  * End a tenant's subscription (cancelled/completed/halted-terminal): drop it to FREE.
- * entitledPlan already treats CANCELED/HALTED as FREE, and we set Tenant.plan = FREE
- * so every resolver agrees. The frozen snapshot stays for the record.
+ * entitledPlan returns null for CANCELED/HALTED — the tenant becomes PARKED, since
+ * there is no free tier to fall back to any more. Tenant.plan is deliberately NOT
+ * rewritten: resolution reads the subscription, and stamping a dead catalog value on the
+ * tenant only creates a second, disagreeing answer. The frozen snapshot stays for the record.
  */
 export async function endSubscription(tenantId: string, status: "CANCELED" | "HALTED"): Promise<void> {
-  await prisma.$transaction([
-    prisma.subscription.updateMany({ where: { tenantId }, data: { status } }),
-    prisma.tenant.update({ where: { id: tenantId }, data: { plan: "FREE" } }),
-  ]);
+  await prisma.subscription.updateMany({ where: { tenantId }, data: { status } });
 }

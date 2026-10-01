@@ -72,6 +72,14 @@ const serverSchema = z.object({
   RAZORPAY_PLAN_ID_STARTER: z.string().min(1).optional(),
   RAZORPAY_PLAN_ID_GROWTH: z.string().min(1).optional(),
   RAZORPAY_PLAN_ID_SCALE: z.string().min(1).optional(),
+  // 🔴 Tier-named overrides. The old three were created for Starter $39 / Growth $89 /
+  // Scale $199. Signal sells at $79, so reusing RAZORPAY_PLAN_ID_GROWTH would charge a
+  // customer $89 off a $79 page — a refund and a trust problem, not a bug report. Set
+  // these to plans created at the CURRENT prices; the legacy vars remain only as a
+  // fallback for tiers whose price did not move.
+  RAZORPAY_PLAN_ID_GATE: z.string().min(1).optional(),
+  RAZORPAY_PLAN_ID_SIGNAL: z.string().min(1).optional(),
+  RAZORPAY_PLAN_ID_AGENCY: z.string().min(1).optional(),
 });
 
 const publicSchema = z.object({

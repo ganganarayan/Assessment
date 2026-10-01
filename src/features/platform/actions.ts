@@ -44,6 +44,7 @@ async function softFail(
   }
 }
 import { isPlatformOwner } from "@/lib/auth/platform";
+import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { auth } from "@/lib/auth/auth";
 import { readActingTenant, writeActingTenant, clearActingTenant } from "@/lib/tenant/acting-cookie";
@@ -337,7 +338,11 @@ export async function createTenant(
 
   const ctx = await auth.$context;
   const hashed = await ctx.password.hash(pw);
-  const t = await prisma.tenant.create({ data: { slug: s.data, name: nm } });
+  // Same 14-day trial as a self-signup. Without it the tenant is born with no trial and
+  // no subscription, which resolves as PARKED — an owner-created workspace that is
+  // read-only from its first second.
+  const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+  const t = await prisma.tenant.create({ data: { slug: s.data, name: nm, trialEndsAt } });
   const u = await prisma.user.create({
     data: { name: nm, email: em, role: Role.ADMIN, tenantId: t.id, emailVerified: true },
   });

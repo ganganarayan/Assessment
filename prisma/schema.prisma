@@ -67,7 +67,11 @@ model Tenant {
   // real row here (id "platform", seeded by migration) and carries SCALE, but code
   // short-circuits it to unlimited/unmetered regardless — the platform is not a
   // customer of itself. See src/lib/tenant/platform-tenant.ts.
-  plan               Plan    @default(FREE)
+  // 🟡 NOT consulted by resolution. resolvePlan reads the SUBSCRIPTION (and the trial);
+  // a tenant with neither is parked. This column records the last plan transacted, for
+  // reporting — setting it by hand entitles nobody. Use Tenant.unlimited for an internal
+  // workspace that should bypass the catalog.
+  plan               Plan    @default(GATE)
   razorpayCustomerId String?
 
   // INTERNAL tenant: one the platform owner runs themselves rather than sells to.

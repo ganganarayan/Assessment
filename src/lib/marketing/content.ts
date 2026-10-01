@@ -320,6 +320,6 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
   },
   {
     q: "What happens at my response limit?",
-    a: "Collection keeps working — nothing breaks and no lead is lost. You'll get a heads-up as you approach the limit, and can upgrade any time to raise it.",
+    a: "Only qualified responses count — disqualified visitors are never metered. You'll get a heads-up as you approach the limit. Past it, answers are still captured and nothing is lost, but new results are held until you upgrade, so no lead disappears while you decide.",
   },
 ];
