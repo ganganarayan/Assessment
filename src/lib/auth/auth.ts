@@ -117,14 +117,27 @@ export const auth = betterAuth({
         .findUnique({ where: { id: user.id }, select: { tenantId: true } })
         .catch(() => null);
       const tenantId = row?.tenantId ?? null;
+      const subject = "Reset your password";
+      const html = resetPasswordEmailHtml(user.name, url);
 
-      const smtpErr = await sendEmail(
-        tenantId,
-        user.email,
-        "Reset your password",
-        resetPasswordEmailHtml(user.name, url),
-      );
+      const smtpErr = await sendEmail(tenantId, user.email, subject, html);
       if (!smtpErr) return; // sent via SMTP
+
+      // 🔴 A tenant that never filled in its own SMTP used to end the story here:
+      // resolveSmtpConfig reads that tenant's row and nothing else, so "SMTP is not
+      // configured" came back, the webhook was usually unset too, and the reset email
+      // was dropped with only a server log to show for it. The person just never
+      // receives it — which is indistinguishable from the app being broken.
+      //
+      // Password reset is a PLATFORM function, not tenant marketing: the tenant's own
+      // sender is preferred (right domain, right branding) but the platform's is the
+      // floor. Every account can always be recovered by email.
+      if (tenantId !== null) {
+        console.error(`[auth] tenant SMTP reset email failed (${smtpErr}); falling back to platform SMTP`);
+        const platformErr = await sendEmail(null, user.email, subject, html);
+        if (!platformErr) return;
+        console.error("[auth] platform SMTP reset email failed too:", platformErr);
+      }
 
       console.error("[auth] SMTP reset email failed, trying webhook fallback:", smtpErr);
       const setting = await prisma.appSetting

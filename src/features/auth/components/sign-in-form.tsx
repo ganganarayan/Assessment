@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth/auth-client";
+import { endImpersonation } from "@/features/auth/actions/session";
 import { signInSchema } from "@/features/auth/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,9 @@ export function SignInForm() {
       return;
     }
 
+    // A fresh sign-in always starts on your OWN surface — never resuming a workspace
+    // this browser was left impersonating.
+    await endImpersonation().catch(() => {});
     router.push("/dashboard");
     router.refresh();
   }

@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
@@ -47,13 +46,13 @@ async function softFail(
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { auth } from "@/lib/auth/auth";
-import { ACTING_TENANT_COOKIE } from "@/lib/tenant/acting";
+import { readActingTenant, writeActingTenant, clearActingTenant } from "@/lib/tenant/acting-cookie";
 import { slugSchema } from "@/features/assessment/schemas";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /** Super admin "enters" a tenant to operate its workspace as that tenant. */
 export async function enterTenant(tenantId: string): Promise<void> {
-  await requireSuperAdmin();
+  const me = await requireSuperAdmin();
   // A deleted tenant cannot be entered: its workspace is meant to be inert, and
   // operating one would write new rows into a business that is supposed to be gone.
   const t = await prisma.tenant.findFirst({
@@ -61,7 +60,7 @@ export async function enterTenant(tenantId: string): Promise<void> {
     select: { id: true },
   });
   if (t) {
-    (await cookies()).set(ACTING_TENANT_COOKIE, tenantId, { httpOnly: true, sameSite: "lax", path: "/" });
+    await writeActingTenant(me.id, tenantId);
   }
   redirect("/admin");
 }
@@ -69,7 +68,7 @@ export async function enterTenant(tenantId: string): Promise<void> {
 /** Leave impersonation and return to the platform console. */
 export async function exitTenant(): Promise<void> {
   await requireSuperAdmin();
-  (await cookies()).delete(ACTING_TENANT_COOKIE);
+  await clearActingTenant();
   redirect("/platform");
 }
 
@@ -85,7 +84,8 @@ export async function exitTenant(): Promise<void> {
  * destroys data, and this one does not. `purgeTenant` is where the slug is demanded.
  */
 export async function deleteTenant(tenantId: string): Promise<ActionResult> {
-  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
   if (tenantId === PLATFORM_TENANT_ID) return PLATFORM_UNDELETABLE;
   const t = await prisma.tenant.findUnique({
     where: { id: tenantId },
@@ -96,8 +96,8 @@ export async function deleteTenant(tenantId: string): Promise<ActionResult> {
 
   // Drop the acting cookie if it points at this tenant, so the operator is not left
   // impersonating a workspace that will no longer accept them.
-  if ((await cookies()).get(ACTING_TENANT_COOKIE)?.value === tenantId) {
-    (await cookies()).delete(ACTING_TENANT_COOKIE);
+  if ((await readActingTenant(me.id)) === tenantId) {
+    await clearActingTenant();
   }
 
   // Logins stay ATTACHED, unlike the permanent delete. Nothing cascades from a soft
@@ -142,7 +142,8 @@ export async function restoreTenant(tenantId: string): Promise<ActionResult> {
  * the user rows with it.
  */
 export async function purgeTenant(tenantId: string, confirmSlug: string): Promise<ActionResult> {
-  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
   if (tenantId === PLATFORM_TENANT_ID) return PLATFORM_UNDELETABLE;
   const t = await prisma.tenant.findUnique({
     where: { id: tenantId },
@@ -158,8 +159,8 @@ export async function purgeTenant(tenantId: string, confirmSlug: string): Promis
   if ((confirmSlug ?? "").trim().toLowerCase() !== t.slug.toLowerCase()) {
     return { ok: false, error: `Type the slug "${t.slug}" exactly to confirm.` };
   }
-  if ((await cookies()).get(ACTING_TENANT_COOKIE)?.value === tenantId) {
-    (await cookies()).delete(ACTING_TENANT_COOKIE);
+  if ((await readActingTenant(me.id)) === tenantId) {
+    await clearActingTenant();
   }
   const r = await softFail(
     "purgeTenant",

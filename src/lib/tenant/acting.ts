@@ -1,8 +1,8 @@
 import "server-only";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 import { requireUser, isSuperAdmin, canEdit, type AuthUser } from "@/lib/auth/guards";
 import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
+import { readActingTenant } from "@/lib/tenant/acting-cookie";
 import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { tenantOnly, whereScope, type Scope } from "@/lib/tenant/scope";
 
@@ -23,7 +23,7 @@ export interface ActingTenant {
 export async function resolveActingTenant(): Promise<ActingTenant> {
   const user = await requireUser();
   if (isSuperAdmin(user)) {
-    const acting = (await cookies()).get(ACTING_TENANT_COOKIE)?.value || null;
+    const acting = await readActingTenant(user.id);
     return { user, tenantId: acting, impersonating: !!acting };
   }
   // Read the tenant id FRESH from the DB: right after a tenant self-provisions, the
@@ -79,7 +79,7 @@ export async function assertEdit(): Promise<{ ok: false; error: string } | null>
 export async function resolveActingScope(): Promise<ActingScope> {
   const user = await requireUser();
   if (isSuperAdmin(user)) {
-    const acting = (await cookies()).get(ACTING_TENANT_COOKIE)?.value || null;
+    const acting = await readActingTenant(user.id);
     return { user, tenantId: acting, isSuper: true, canEdit: canEdit(user) };
   }
   const fresh = await prisma.user.findUnique({

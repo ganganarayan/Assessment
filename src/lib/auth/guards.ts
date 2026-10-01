@@ -1,10 +1,9 @@
 import "server-only";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { isPlatformOwner } from "@/lib/auth/platform";
-import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
+import { readActingTenant } from "@/lib/tenant/acting-cookie";
 
 /** The session user shape we rely on (Better Auth surfaces role + tenantId + staffPermission). */
 export interface AuthUser {
@@ -129,7 +128,7 @@ export async function requireWorkspace(): Promise<{ user: AuthUser; tenantId: st
   const user = await requireUser();
   await enforceAccountState(user.id);
   if (isSuperAdmin(user)) {
-    const acting = (await cookies()).get(ACTING_TENANT_COOKIE)?.value || null;
+    const acting = await readActingTenant(user.id);
     if (!acting) redirect("/platform");
     // A cookie can outlive the tenant it names: the operator may have entered a
     // workspace and then deleted it from another tab. Send them back to the console

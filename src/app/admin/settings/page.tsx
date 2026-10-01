@@ -27,6 +27,8 @@ import { LegalSettingsForm } from "@/features/admin/components/legal-settings-fo
 import { NurtureConnectionSettings } from "@/features/nurture/components/nurture-connection-settings";
 import { getNurtureSettings } from "@/features/nurture/actions";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
+import { WorkspaceLogins } from "@/features/workspace/components/workspace-logins";
+import { listWorkspaceLogins } from "@/features/workspace/actions/logins";
 import {
   Card,
   CardContent,
@@ -52,11 +54,12 @@ export default async function SettingsPage() {
   const impersonating = actingId !== null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
-  const [integrations, domains, legal, platformPixel] = await Promise.all([
+  const [integrations, domains, legal, platformPixel, logins] = await Promise.all([
     impersonating ? getIntegrationSettings() : getPlatformIntegrationSettings(),
     impersonating ? getDomainSettings() : Promise.resolve(null),
     impersonating ? Promise.resolve(null) : getLegalSettings(),
     impersonating ? Promise.resolve(null) : getPlatformSubscriptionPixel(),
+    impersonating ? listWorkspaceLogins() : Promise.resolve(null),
   ]);
 
   return (
@@ -187,15 +190,43 @@ export default async function SettingsPage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Change password</CardTitle>
-          <CardDescription>Update your own login password. Signs out your other sessions.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChangePasswordForm />
-        </CardContent>
-      </Card>
+      {/* 🔴 While impersonating, "your own password" is the SUPER ADMIN's, not this
+          tenant's — the trap that let an owner change their own credentials believing
+          they were fixing a locked-out tenant. Inside a workspace the card is this
+          workspace's logins instead; your own password lives on the platform console. */}
+      {impersonating ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Workspace logins</CardTitle>
+            <CardDescription>
+              The people who can sign in to this tenant. Set a password here to get a locked-out
+              admin back in — they choose their own on the next sign-in. To change YOUR password,
+              exit to the platform first.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {logins?.ok ? (
+              <WorkspaceLogins logins={logins.data ?? []} />
+            ) : (
+              <p className="text-sm text-[var(--muted-foreground)]">
+                {logins?.error ?? "Couldn't load this workspace's logins."}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Change password</CardTitle>
+            <CardDescription>
+              Update your own login password. Signs out your other sessions, not this one.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChangePasswordForm />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

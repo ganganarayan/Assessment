@@ -13,6 +13,8 @@ import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
 import { DomainSettings } from "@/features/workspace/components/domain-settings";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
+import { WorkspaceLogins } from "@/features/workspace/components/workspace-logins";
+import { listWorkspaceLogins } from "@/features/workspace/actions/logins";
 import { PromptVersionsManager } from "@/features/admin/components/prompt-versions-manager";
 import {
   Card,
@@ -30,13 +32,16 @@ export const dynamic = "force-dynamic";
  * singleton. An unconfigured tenant simply has no AI (it never borrows Gita's key).
  */
 export default async function WorkspaceSettingsPage() {
-  await requireWorkspace();
+  const { impersonating } = await requireWorkspace();
   const settings = await getAiSettings();
   const integrations = await getIntegrationSettings();
   const domains = await getDomainSettings();
   const bookingUrl = await getBookingUrl();
   const supportEmail = await getSupportEmail();
   const themeColors = await getThemeColors();
+  // Same trap as /admin: impersonating, "your own password" is the operator's, not
+  // this tenant's. Inside someone else's workspace, show THEIR logins instead.
+  const logins = impersonating ? await listWorkspaceLogins() : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -145,17 +150,39 @@ export default async function WorkspaceSettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Change password</CardTitle>
-          <CardDescription>
-            Update your own login password. Signs out your other sessions.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChangePasswordForm />
-        </CardContent>
-      </Card>
+      {impersonating ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Workspace logins</CardTitle>
+            <CardDescription>
+              The people who can sign in to this workspace. Set a password here to get a locked-out
+              admin back in — they choose their own on the next sign-in. To change YOUR password,
+              exit to the platform first.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {logins?.ok ? (
+              <WorkspaceLogins logins={logins.data ?? []} />
+            ) : (
+              <p className="text-sm text-[var(--muted-foreground)]">
+                {logins?.error ?? "Couldn't load this workspace's logins."}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Change password</CardTitle>
+            <CardDescription>
+              Update your own login password. Signs out your other sessions, not this one.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChangePasswordForm />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
