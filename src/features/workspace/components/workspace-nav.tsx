@@ -3,6 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useBuilderTab, BUILDER_TABS } from "@/features/admin/components/builder-tab-context";
+
+const BUILDER_HREF = "/w/assessments";
+
+/** True on an assessment editor page (/w/assessments/<id>), not the list or /new. */
+function isAssessmentEditor(pathname: string) {
+  return /^\/w\/assessments\/[^/]+$/.test(pathname) && !pathname.endsWith("/new");
+}
 
 interface NavItem {
   href: string;
@@ -53,6 +61,8 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
 
 export function WorkspaceNav() {
   const pathname = usePathname();
+  const tab = useBuilderTab();
+  const editing = isAssessmentEditor(pathname);
   const isActive = (it: NavItem) =>
     it.exact ? pathname === it.href : pathname.startsWith(it.href);
 
@@ -66,16 +76,39 @@ export function WorkspaceNav() {
             </p>
           ) : null}
           {group.items.map((it) => (
-            <Link
-              key={it.href}
-              href={it.href}
-              className={cn(
-                "rounded-md px-2 py-1.5 hover:bg-[var(--muted)]",
-                isActive(it) && "bg-[var(--muted)] font-medium",
-              )}
-            >
-              {it.label}
-            </Link>
+            <div key={it.href} className="flex flex-col">
+              <Link
+                href={it.href}
+                className={cn(
+                  "rounded-md px-2 py-1.5 hover:bg-[var(--muted)]",
+                  isActive(it) && "bg-[var(--muted)] font-medium",
+                )}
+              >
+                {it.label}
+              </Link>
+              {/* While editing an assessment, the builder's panels are switched from
+                  here, as a branch under Assessments — the same place /admin puts them.
+                  Without this branch the workspace rendered all three panels but showed
+                  only the first: BuilderTabPanels falls back to tabs[0] when no tab is
+                  active, so Results and VSL Result Page existed and were unreachable. */}
+              {it.href === BUILDER_HREF && editing ? (
+                <div className="mt-1 ml-3 flex flex-col gap-1 border-l pl-2">
+                  {BUILDER_TABS.map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => tab?.setActive(t.key)}
+                      className={cn(
+                        "rounded-md px-2 py-1 text-left text-sm hover:bg-[var(--muted)]",
+                        (tab?.active ?? "assessment") === t.key && "bg-[var(--muted)] font-medium",
+                      )}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           ))}
         </div>
       ))}

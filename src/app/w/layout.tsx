@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { ImpersonationBanner } from "@/features/admin/components/impersonation-banner";
 import { WorkspaceNav } from "@/features/workspace/components/workspace-nav";
+import { BuilderTabProvider } from "@/features/admin/components/builder-tab-context";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PlatformPixel } from "@/components/platform-pixel";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
@@ -21,6 +22,12 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   ]);
 
   return (
+    // The provider is what lets the sidebar switch the builder panels: the nav holds the
+    // tabs, the editor page renders them, and both read the same React state so an
+    // unsaved edit survives switching. Without it useBuilderTab() is null and the editor
+    // silently shows only its first panel — which is why Results and VSL Result Page
+    // existed in the workspace but could not be reached.
+    <BuilderTabProvider>
     <div className="md:flex md:min-h-screen">
       <PlatformPixel pixelId={platformMeta.pixelId} />
       <aside className="shrink-0 border-b md:sticky md:top-0 md:h-screen md:w-56 md:border-b-0 md:border-r">
@@ -47,5 +54,6 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         <div className="mx-auto max-w-5xl px-4 pb-8 pt-4 md:px-8">{children}</div>
       </main>
     </div>
+    </BuilderTabProvider>
   );
 }
