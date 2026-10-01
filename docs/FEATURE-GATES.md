@@ -34,10 +34,15 @@ Prisma enum change means a migration. Postgres cannot drop an enum value that is
 so: `ALTER TYPE "Plan" ADD VALUE` for the new names, backfill rows, leave the old values
 orphaned in the type. Dropping them needs a full type swap and is not worth it.
 
-🔴 **FREE tenants are the hazard.** They signed up under a plan that will no longer
-exist. Dropping them breaks live funnels; promoting them to Gate hands paid features away
-for nothing. Proposal: move them to **parked read-only** with a dated notice — the same
-state a lapsed trial lands in. This needs deciding before the migration runs, not after.
+🟢 **FREE is dropped outright — decided 2026-10-01.** There are no tenants on it, so the
+migration has nobody to strand: no parked-FREE state, no grandfathering, no notice to
+write. `FREE` stays in the Postgres enum as an orphan (see above) but leaves `PLAN_IDS`,
+`PLAN_LIMITS` and every UI that lists plans.
+
+🟡 Residual, and only if paying STARTER tenants exist when this ships: moving
+`qualificationGate` and `conditionalRouting` down to the entry tier gives them features
+they do not pay for today. Check the tenant list before migrating; if the answer is
+"none", this is a non-issue too.
 
 ---
 
@@ -135,13 +140,13 @@ Everything in Gate, plus `customDomain`, `brandingRemoved`, `aiReports`, `heatma
 🟢 `customDomain` is already gated through `tenantCan(tenantId, "customDomain")` in
 `addDomain` — the one gate in this table that is already live and correct.
 
-### AGENCY — $199 *(sketch only, not approved)*
+### AGENCY — $199 *(deferred until ads start — see §8)*
 
 Unlimited scorecards · 5,000 qualified responses · 10 users · 10 ad accounts with extras
 at $15/mo · `subAccounts`, `apiAccess`.
 
 **Sub-accounts and white-label do not exist.** That is a feature build; the gate is the
-last 5% of it.
+last 5% of it. Planned in full in §8.
 
 ### ENTERPRISE — from $499 *(sketch only)*
 
@@ -153,16 +158,11 @@ per-tenant override `resolvePlan` already supports.
 ## 5. Ad accounts — the one genuinely missing model
 
 The pricing meters "ad accounts" and the app has **no such concept**. A tenant has one
-Meta pixel/CAPI config in settings, full stop.
+Meta pixel/CAPI config in settings, full stop. Planned in §8; deferred until ads start.
 
-1. **Count configured pixel/dataset ids** — cheapest, but "ad account" then means "pixel",
-   which is not what a buyer reads it as.
-2. **A real `AdAccount` model** per tenant (pixel id, dataset id, CAPI token, label), with
-   assessments pointing at one. Correct, and it is what makes the $15 add-on sellable.
-
-Option 2 is the honest one and a prerequisite for the Agency add-on revenue. Until it
-exists the "ad accounts" row on the pricing page is aspirational — which matters, because
-that page is already published.
+🟡 Until it is built, the "ad accounts" row on the published pricing page describes
+something the product does not have. That is a claim already in front of buyers, so it
+is the first thing to build when Agency work begins — not the last.
 
 ---
 
@@ -194,3 +194,99 @@ for tenants with no payment method on file.
 
 Steps 1–4 cover Gate and Signal end to end. 5 and 6 are needed before the published
 pricing page is fully true. 7 is a feature build, not a gate.
+
+---
+
+## 8. Agency tier — deferred plan
+
+> Parked on 2026-10-01: build when ads start. Nothing here is approved; it exists so the
+> Gate/Signal work does not paint it into a corner.
+
+### 8a. `AdAccount` — build this first
+
+Today a tenant has exactly one Meta configuration, living as columns on its `AppSetting`
+row (pixel id, dataset id, encrypted CAPI token). "Two ad accounts" is not expressible,
+so the Signal row on the pricing page is already ahead of the code.
+
+```prisma
+model AdAccount {
+  id           String  @id @default(cuid())
+  tenantId     String
+  label        String            // "Acme — AU", what the agency calls it
+  pixelId      String?
+  datasetId    String?
+  capiTokenEnc String?           // encrypted at rest, like every other secret
+  isDefault    Boolean @default(false)
+  // …timestamps, tenant relation, @@index([tenantId])
+}
+```
+
+`Assessment` gains `adAccountId String?` — null meaning "the tenant's default", so every
+existing assessment keeps working without a backfill.
+
+**Migration path that avoids a flag day:** create one `AdAccount` per tenant from its
+existing AppSetting columns, mark it default, and leave the columns in place reading
+through a resolver. Settings keeps working during the transition; the columns are dropped
+only once nothing reads them.
+
+🔴 The resolver is where this goes wrong if rushed. Meta config is read on the hot path
+(every pixel render, every CAPI send). Two sources of truth — the old columns and the new
+table — will diverge, and the failure is silent: events fire against the wrong pixel and
+nobody notices until an ad account reports numbers that make no sense. One accessor, used
+everywhere, switched once.
+
+**Metering:** `adAccounts` as a `PlanLimits` number, hard-capped at create. Overage is
+quantity-based ($15 each beyond the plan), so it needs a per-tenant `adAccountsPurchased`
+override that `resolvePlan` adds to the plan default — the same override mechanism
+Enterprise uses.
+
+### 8b. Sub-accounts and white-label
+
+The larger build, and the real reason Agency is a tier rather than a bigger Signal.
+
+**What an agency actually wants:** one login, many client workspaces, switch between them,
+and the client never sees Assess360 branding. That is **not** today's tenant model — a
+user belongs to exactly one tenant.
+
+Two shapes:
+
+1. **Parent/child tenants** — `Tenant.parentTenantId`. A child is an ordinary tenant in
+   every other respect, so scoping, billing and domains all keep working unchanged. The
+   agency's users get access to children through a membership table. 🟢 Reuses the entire
+   existing tenancy model; the whole system already scopes by `tenantId`.
+2. **A workspaces-within-a-tenant model** — a second hierarchy beneath Tenant. 🔴 Rejected:
+   every scoped query in the app (`whereScope`) would need a second dimension, and that is
+   a rewrite of the thing that currently keeps tenants apart. Not worth it.
+
+Take (1). It also gives sub-account billing for free: a child tenant either rolls up to
+the parent's subscription or carries its own, and `resolvePlan` already resolves per
+tenant.
+
+**The membership gap:** `User.tenantId` is a single column. Access to several tenants
+needs a `TenantMembership` join (userId, tenantId, role) and `resolveActingScope` learning
+to pick among them — which is close to what super-admin impersonation already does, except
+scoped to an agency's own children rather than everything.
+
+🟡 White-label is bigger than removing a badge: emails, PDF reports, result pages, the
+sender identity and any `assess360` string in a customer-visible surface. Audit the
+surfaces before estimating — `brandingRemoved` today only hides a badge that does not yet
+exist.
+
+### 8c. API access
+
+`apiAccess` is already a flag and `ApiToken` with scopes already exists (it feeds the
+external Meta-match lookup). Agency work here is scope expansion and documentation rather
+than new machinery — the smallest piece of this tier.
+
+### 8d. Suggested order, when it starts
+
+1. `AdAccount` + resolver + migration from AppSetting columns *(unblocks the published
+   pricing claim)*
+2. `adAccounts` limit + purchased-quantity override + $15 add-on
+3. `TenantMembership` + parent/child tenants
+4. Agency workspace switcher
+5. White-label audit, then white-label
+6. API scopes + docs
+
+Steps 1–2 are self-contained and worth doing even if Agency never ships: multiple ad
+accounts is useful to any tenant running more than one campaign.
