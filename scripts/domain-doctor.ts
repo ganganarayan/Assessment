@@ -70,15 +70,30 @@ async function main(): Promise<void> {
     for (const h of routed) console.log(`  ${h}`);
   }
 
-  const rows = await prisma.domain.findMany({
-    select: { hostname: true, verified: true, certStatus: true, tenant: { select: { slug: true } } },
-    orderBy: { createdAt: "asc" },
-  });
-  console.log(`\nDomain rows in the database (${rows.length}):`);
-  for (const r of rows) {
-    console.log(`  ${r.hostname}  →  tenant ${r.tenant.slug}  verified=${r.verified}  cert=${r.certStatus ?? "-"}`);
+  // The DB is the BACKSTOP, not the answer — and running with the app service's env
+  // (which is where the Railway token lives) hands us a DATABASE_URL on Railway's
+  // INTERNAL host, unreachable from a laptop. A DB failure must not take the Railway
+  // verdict down with it, so it is reported and the run continues.
+  let rows: { hostname: string; verified: boolean; certStatus: string | null; tenant: { slug: string } }[] = [];
+  let dbError: string | null = null;
+  try {
+    rows = await prisma.domain.findMany({
+      select: { hostname: true, verified: true, certStatus: true, tenant: { select: { slug: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+  } catch (e) {
+    dbError = (e instanceof Error ? e.message : String(e)).split("\n").find((l) => l.trim()) ?? "unreachable";
   }
-  if (!rows.length) console.log("  (none)");
+  if (dbError) {
+    console.log(`\nDomain rows: could not read the database (${dbError.trim()}).`);
+    console.log("  Not fatal — Railway's list above is what auth uses. Use --service Postgres to read rows.");
+  } else {
+    console.log(`\nDomain rows in the database (${rows.length}):`);
+    for (const r of rows) {
+      console.log(`  ${r.hostname} -> tenant ${r.tenant.slug}  verified=${r.verified}  cert=${r.certStatus ?? "-"}`);
+    }
+    if (!rows.length) console.log("  (none)");
+  }
 
   if (target) {
     const trusted =
