@@ -39,10 +39,15 @@ migration has nobody to strand: no parked-FREE state, no grandfathering, no noti
 write. `FREE` stays in the Postgres enum as an orphan (see above) but leaves `PLAN_IDS`,
 `PLAN_LIMITS` and every UI that lists plans.
 
-🟡 Residual, and only if paying STARTER tenants exist when this ships: moving
-`qualificationGate` and `conditionalRouting` down to the entry tier gives them features
-they do not pay for today. Check the tenant list before migrating; if the answer is
-"none", this is a non-issue too.
+🟢 **No customers exist — confirmed 2026-10-01.** One super admin and two tenants, all
+owned by the platform owner. So the STARTER giveaway is a non-issue too, and with it the
+entire grandfathering problem: there is no live customer funnel to protect, no plan
+anybody paid for, and no notice to send.
+
+That changes the build, not just the risk. The migration can set plans directly rather
+than backfilling carefully; the re-tier does not need a compatibility window; and
+mistakes here cost a re-run, not a customer. **This is the cheapest moment this change
+will ever have** — every week of real signups makes it more expensive.
 
 ---
 
