@@ -21,7 +21,7 @@ export default async function AdminLayout({
   return (
     <BuilderTabProvider>
       <div className="md:flex md:min-h-screen">
-        <AdminSidebar user={{ name: user.name, email: user.email }} />
+        <AdminSidebar user={{ name: user.name, email: user.email }} tenantName={tenantName} />
         <main className="min-w-0 flex-1">
           {tenantName ? <ImpersonationBanner tenantName={tenantName} /> : null}
           <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">{children}</div>

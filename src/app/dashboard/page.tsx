@@ -3,6 +3,7 @@ import { requireUser, isSuperAdmin, isStaff } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { ProvisionWorkspaceButton } from "@/features/platform/components/provision-workspace-button";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
+import { AppBrand } from "@/components/app-brand";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -32,6 +33,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-6 py-12">
+      <AppBrand href="/dashboard" />
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>

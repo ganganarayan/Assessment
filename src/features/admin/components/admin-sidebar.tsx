@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { useBuilderTab, BUILDER_TABS } from "@/features/admin/components/builder-tab-context";
+import { AppBrand } from "@/components/app-brand";
 
 const BUILDER_HREF = "/admin/assessment-builder";
 /** True on an assessment editor page (/admin/assessments/<id>, not the list/new). */
@@ -20,6 +21,8 @@ interface NavItem {
 }
 interface AdminSidebarProps {
   user: { name: string; email: string };
+  /** The tenant a super admin has entered, shown under the wordmark. Null = platform. */
+  tenantName?: string | null;
 }
 const NAV: { section: string | null; items: NavItem[] }[] = [
   { section: null, items: [{ href: "/platform", label: "Platform (tenants)" }] },
@@ -61,7 +64,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
   },
 ];
 
-export function AdminSidebar({ user }: AdminSidebarProps) {
+export function AdminSidebar({ user, tenantName }: AdminSidebarProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const tab = useBuilderTab();
@@ -79,9 +82,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   return (
     <>
       <div className="flex items-center justify-between border-b px-4 py-3 md:hidden">
-        <Link href="/admin" className="font-semibold">
-          Assess360
-        </Link>
+        <AppBrand href="/admin" subtitle={tenantName ?? null} />
         <Button size="sm" variant="outline" onClick={() => setOpen((o) => !o)}>
           Menu
         </Button>
@@ -94,9 +95,9 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
         )}
       >
         <div className="flex h-full flex-col gap-4 p-4">
-          <Link href="/admin" className="hidden px-2 text-lg font-semibold md:block">
-            Assess360
-          </Link>
+          <div className="hidden px-2 md:block">
+            <AppBrand href="/admin" subtitle={tenantName ?? null} />
+          </div>
           <nav className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto text-sm">
             {NAV.map((group, i) => (
               <div key={i} className="flex flex-col gap-1">

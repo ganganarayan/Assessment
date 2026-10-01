@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AppBrand } from "@/components/app-brand";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import {
   listTenants,
@@ -32,6 +33,7 @@ export default async function PlatformPage() {
     .map((r) => r.error);
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
+      <AppBrand href="/platform" subtitle="Platform console" />
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Platform console</h1>

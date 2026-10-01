@@ -4,6 +4,7 @@ import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { ImpersonationBanner } from "@/features/admin/components/impersonation-banner";
 import { WorkspaceNav } from "@/features/workspace/components/workspace-nav";
 import { BuilderTabProvider } from "@/features/admin/components/builder-tab-context";
+import { AppBrand } from "@/components/app-brand";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PlatformPixel } from "@/components/platform-pixel";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
@@ -33,10 +34,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       <aside className="shrink-0 border-b md:sticky md:top-0 md:h-screen md:w-56 md:border-b-0 md:border-r">
         <div className="flex h-full flex-col gap-4 p-4">
           <div className="px-2">
-            <p className="truncate text-lg font-semibold" title={tenant?.name ?? "Workspace"}>
-              {tenant?.name ?? "Workspace"}
-            </p>
-            <p className="text-xs text-[var(--muted-foreground)]">Your workspace</p>
+            <AppBrand href="/w" subtitle={tenant?.name ?? "Workspace"} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <WorkspaceNav />
