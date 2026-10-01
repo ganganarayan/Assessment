@@ -10,6 +10,7 @@ import { generateId } from "@/lib/ids";
 import { ATTR_COOKIE } from "@/lib/attribution";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { sendEmail } from "@/lib/nurture/send";
+import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { isServedHost, linkForRequest } from "@/lib/tenant/served-host";
 
 /**
@@ -263,8 +264,12 @@ export const auth = betterAuth({
             // from the last-touch UTM cookie set in middleware, so every tenant is
             // traceable to its source. Best-effort — never blocks provisioning.
             const acq = await readAcquisitionAttribution();
+            // Every new workspace starts a 14-day Signal trial. Set at provisioning
+            // rather than at first login, so the clock starts when the account does and
+            // there is no path into the app that skips it.
+            const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
             const tenant = await prisma.tenant.create({
-              data: { name: user.name || user.email, slug, ...acq },
+              data: { name: user.name || user.email, slug, trialEndsAt, ...acq },
             });
             await prisma.user.update({ where: { id: user.id }, data: { tenantId: tenant.id, role: Role.ADMIN } });
           } catch (e) {

@@ -35,13 +35,17 @@ enum StaffPermission {
 // ---------------------------------------------------------------------------
 
 model Tenant {
-  id        String       @id @default(cuid())
+  // End of the 14-day Signal trial. Null = never trialled (or already converted).
+  // Past this, with no active subscription, the tenant is PARKED: read-only, funnel
+  // paused, data kept. Never deleted.
+  trialEndsAt DateTime?
+  id          String       @id @default(cuid())
   // Unique subdomain slug, e.g. "acme" -> acme.example.com
-  slug      String       @unique
-  name      String
-  status    TenantStatus @default(ACTIVE)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  slug        String       @unique
+  name        String
+  status      TenantStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   // Soft delete. Deleting a tenant from the platform console sets this instead of
   // removing the row: the tenant disappears from the active list, its logins can no
@@ -129,10 +133,17 @@ enum TenantStatus {
 // ---------------------------------------------------------------------------
 
 enum Plan {
+  // Legacy values. Postgres cannot drop an enum value without a full type swap, so the
+  // old names stay in the type and leave the catalog (PLAN_IDS) instead.
   FREE
   STARTER
   GROWTH
   SCALE
+  // Current catalog.
+  GATE
+  SIGNAL
+  AGENCY
+  ENTERPRISE
 }
 
 // Mirrors the Razorpay subscription lifecycle we care about. ACTIVE = paid & good;

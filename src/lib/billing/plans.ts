@@ -17,7 +17,11 @@ import { z } from "zod";
 // String-union plan ids. These are byte-identical to the Prisma `Plan` enum values,
 // so the two are interchangeable without a cast — but this file stays free of any
 // @prisma/client import so it can ship to the client bundle.
-export const PLAN_IDS = ["FREE", "STARTER", "GROWTH", "SCALE"] as const;
+// FREE is gone — a free tier on a lead-qualification tool attracts the accounts that
+// never qualify anyone, and it put the differentiator behind a wall the people evaluating
+// it never crossed. A 14-day Signal trial replaces it. The old enum values survive in
+// Postgres (see the migration) but are not part of the catalog.
+export const PLAN_IDS = ["GATE", "SIGNAL", "AGENCY", "ENTERPRISE"] as const;
 export type PlanId = (typeof PLAN_IDS)[number];
 
 // Enforceable feature gates. Each maps to a real capability the app can withhold.
@@ -56,23 +60,45 @@ export const FEATURES = [
   "conditionalRouting", // conditional logic & branching between questions/assessments
   "capi", // server-side Meta Conversions API (audience exclusion + retargeting)
   "heatmap", // heatmap / session-recording snippet injection
+  "manualReview", // free-text screening questions stored for the owner to read
 ] as const;
+
+/**
+ * 🟢 FOUR FLAGS DELIBERATELY NOT ADDED — checked, 2026-10-01.
+ *
+ * The pricing table lists exclusion audiences, the qualified-only optimisation event,
+ * first-party match keys and the back-button/repeat lock. Each is ✓ on EVERY tier, and
+ * each already runs unconditionally: match keys are built into every CAPI payload by
+ * buildUserData, the exclusion/qualified events are emitted by the qualification flow
+ * itself, and the repeat lock is a per-assessment retake policy.
+ *
+ * A flag that is true for every plan is dead code that reads as a real gate — and the
+ * first person to "tidy up" by gating it would silently degrade CAPI match quality for a
+ * paying customer, with no error anywhere. They stay as pricing-page rows, which is what
+ * they are: things the product does for everyone, worth saying out loud because
+ * competitors charge for them.
+ */
 export type Feature = (typeof FEATURES)[number];
 
 // The "everyday" features every PAID plan carries (Starter and up). Anything NOT in
 // this list is either tier-gated (the five above) or off on Free. Kept as one list so
 // a plan definition can't silently drift from the "all paid plans get these" rule.
 export const PAID_BASE_FEATURES = [
+  // The differentiator lives in the ENTRY tier on purpose: a qualification gate behind a
+  // $79 wall is a gate the buyer never experiences before deciding.
+  "qualificationGate",
+  "conditionalRouting",
+  "capi", // server-side Conversions API — measurement, not a premium add-on
   "pdfReports",
   "webhooks",
   "leadExport",
-  "customDomain",
-  "brandingRemoved",
   "analyticsTracking",
   "staffRoles",
-  "aiReports",
   "prioritySupport",
-  "capi", // server-side Conversions API — every paid plan, see the note above
+  // 🔴 customDomain, brandingRemoved and aiReports are NOT here. They were, under the old
+  // "every paid plan gets everything everyday" policy, and leaving them meant Gate
+  // silently shipped with Signal's entire value — the upgrade had nothing left to sell.
+  // verify:billing fails if they come back.
 ] as const satisfies ReadonlyArray<Feature>;
 
 /**
@@ -98,6 +124,13 @@ export interface PlanLimits {
   maxAssessments: number | null;
   /** Seats (users) in the workspace. HARD-capped at invite time. */
   seats: number;
+  /**
+   * Ad accounts the tenant may configure. NOT YET ENFORCED — the app has no AdAccount
+   * model (docs/FEATURE-GATES.md §8a); a tenant has exactly one Meta config today. The
+   * number is carried here so the catalog matches the published pricing and the gate has
+   * somewhere to land when the model exists.
+   */
+  adAccounts: number;
   features: FeatureFlags;
 }
 
@@ -113,44 +146,63 @@ const PAID_BASE: FeatureFlags = {
 };
 
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
-  // Free — lean funnel-in tier: no paid features, smallest volume.
-  FREE: {
-    responsesPerMonth: 25,
-    maxAssessments: 1,
+  // Gate — the differentiator in full, at the smallest volume. Everything the
+  // qualification mechanism needs is ON: withholding it here would mean the tier that
+  // exists to prove the product cannot demonstrate it.
+  GATE: {
+    responsesPerMonth: 150,
+    maxAssessments: 2,
     seats: 1,
-    features: { ...NO_FEATURES },
-  },
-  // Starter — every everyday feature (CAPI included); none of the gated caps.
-  STARTER: {
-    responsesPerMonth: 300,
-    maxAssessments: 3,
-    seats: 1,
+    adAccounts: 1,
     features: { ...PAID_BASE },
   },
-  // Growth — everyday features + the Growth-gated caps (still no API access).
-  GROWTH: {
-    responsesPerMonth: 2000,
-    maxAssessments: 15,
+  // Signal — brand, domain, AI and the badge removed.
+  SIGNAL: {
+    responsesPerMonth: 1000,
+    maxAssessments: 10,
     seats: 3,
+    adAccounts: 2,
     features: {
       ...PAID_BASE,
-      qualificationGate: true,
-      conditionalRouting: true,
-      capi: true,
+      customDomain: true,
+      brandingRemoved: true,
+      aiReports: true,
       heatmap: true,
+      manualReview: true,
     },
   },
-  // Scale — everything, including API access.
-  SCALE: {
-    responsesPerMonth: 12000,
-    maxAssessments: null, // unlimited
-    seats: 5, // "5+" — additional seats handled as an override/add-on later
+  // Agency — unlimited scorecards, sub-accounts, API. The sub-account FEATURE does not
+  // exist yet (docs/FEATURE-GATES.md §8b); the flag is here so the tier is complete.
+  AGENCY: {
+    responsesPerMonth: 5000,
+    maxAssessments: null,
+    seats: 10,
+    adAccounts: 10,
     features: {
       ...PAID_BASE,
-      qualificationGate: true,
-      conditionalRouting: true,
-      capi: true,
+      customDomain: true,
+      brandingRemoved: true,
+      aiReports: true,
       heatmap: true,
+      manualReview: true,
+      apiAccess: true,
+    },
+  },
+  // Enterprise — published as "from $499". Real limits come from the per-tenant override
+  // resolvePlan already applies, because a flat published number would cap the revenue on
+  // the biggest accounts while uncapping their cost.
+  ENTERPRISE: {
+    responsesPerMonth: null,
+    maxAssessments: null,
+    seats: 25,
+    adAccounts: 25,
+    features: {
+      ...PAID_BASE,
+      customDomain: true,
+      brandingRemoved: true,
+      aiReports: true,
+      heatmap: true,
+      manualReview: true,
       apiAccess: true,
     },
   },
@@ -158,18 +210,30 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
 
 /** Monthly USD price per plan (machine value; content.ts holds the display string). */
 export const PLAN_PRICE_USD: Record<PlanId, number> = {
-  FREE: 0,
-  STARTER: 39,
-  GROWTH: 89,
-  SCALE: 199,
+  GATE: 39,
+  SIGNAL: 79,
+  AGENCY: 199,
+  ENTERPRISE: 499,
 };
+
+/** Annual price PER MONTH (billed yearly). Enterprise is quoted, never published. */
+export const PLAN_PRICE_USD_ANNUAL: Record<PlanId, number | null> = {
+  GATE: 32,
+  SIGNAL: 69,
+  AGENCY: 175,
+  ENTERPRISE: null,
+};
+
+/** The plan a trial grants, and how long it runs. */
+export const TRIAL_PLAN: PlanId = "SIGNAL";
+export const TRIAL_DAYS = 14;
 
 /** Human label per plan, for meters/receipts/UI. */
 export const PLAN_LABEL: Record<PlanId, string> = {
-  FREE: "Free",
-  STARTER: "Starter",
-  GROWTH: "Growth",
-  SCALE: "Scale",
+  GATE: "Gate",
+  SIGNAL: "Signal",
+  AGENCY: "Agency",
+  ENTERPRISE: "Enterprise",
 };
 
 // --- Pure helpers -----------------------------------------------------------
@@ -211,10 +275,13 @@ const featureFlagsSchema = z.object(
 );
 
 /** Zod schema for a frozen PlanLimits snapshot (Subscription.limitsSnapshot). */
-export const planLimitsSchema: z.ZodType<PlanLimits> = z.object({
+export const planLimitsSchema = z.object({
   responsesPerMonth: z.number().int().nonnegative().nullable(),
   maxAssessments: z.number().int().nonnegative().nullable(),
   seats: z.number().int().positive(),
+  // Optional: snapshots frozen before ad accounts existed have no such field, and a
+  // strict schema would reject them and silently re-rate that customer to the catalog.
+  adAccounts: z.number().int().nonnegative().default(1),
   features: featureFlagsSchema,
 });
 
@@ -224,6 +291,7 @@ export const planLimitsOverrideSchema = z
     responsesPerMonth: z.number().int().nonnegative().nullable(),
     maxAssessments: z.number().int().nonnegative().nullable(),
     seats: z.number().int().positive(),
+    adAccounts: z.number().int().nonnegative(),
     features: z.record(z.enum(FEATURES), z.boolean()),
   })
   .partial();
@@ -253,6 +321,7 @@ export function applyOverrides(base: PlanLimits, override: unknown): PlanLimits 
     responsesPerMonth: o.responsesPerMonth !== undefined ? o.responsesPerMonth : base.responsesPerMonth,
     maxAssessments: o.maxAssessments !== undefined ? o.maxAssessments : base.maxAssessments,
     seats: o.seats !== undefined ? o.seats : base.seats,
+    adAccounts: o.adAccounts !== undefined ? o.adAccounts : base.adAccounts,
     features: { ...base.features, ...(o.features ?? {}) },
   };
 }
@@ -284,6 +353,7 @@ export function usagePeriodKey(periodStart: Date | null, now: Date): string {
 export const UNLIMITED_LIMITS: PlanLimits = {
   responsesPerMonth: null,
   maxAssessments: null,
+  adAccounts: Number.MAX_SAFE_INTEGER,
   seats: Number.MAX_SAFE_INTEGER,
   features: Object.fromEntries(FEATURES.map((f) => [f, true])) as FeatureFlags,
 };

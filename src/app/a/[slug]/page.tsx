@@ -7,6 +7,8 @@ import {
 } from "@/features/assessment/components/public/assessment-runner";
 import { readPublishedPages } from "@/features/assessment/pages/blocks";
 import { resolveAudienceCanonical } from "@/lib/settings/config";
+import { tenantCan } from "@/lib/billing/entitlements";
+import { AssessBadge } from "@/features/assessment/components/public/assess-badge";
 import {
   type PreResultField,
   qualificationSchema,
@@ -168,9 +170,15 @@ export default async function PublicAssessmentPage({
     })),
   };
 
+  // Badge on Gate, gone from Signal up. Resolved SERVER-side from the owning tenant's
+  // plan: a client-side check would be advisory, and the one thing this must not be is
+  // removable without paying.
+  const brandingRemoved = await tenantCan(a.tenantId, "brandingRemoved");
+
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
       <AssessmentRunner assessment={assessment} attribution={attribution} preview={preview} />
+      <AssessBadge show={!brandingRemoved} />
     </main>
   );
 }

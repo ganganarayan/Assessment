@@ -9,7 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const CHECKOUT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
 
-type PlanId = "FREE" | "STARTER" | "GROWTH" | "SCALE";
+// Mirrors PLAN_IDS in lib/billing/plans. Duplicated rather than imported to keep this
+// client component free of the server-side catalog module.
+type PlanId = "GATE" | "SIGNAL" | "AGENCY" | "ENTERPRISE";
 
 interface PlanCard {
   id: PlanId;
@@ -154,7 +156,7 @@ export function BillingPlans({
                 </CardTitle>
                 <p className="text-2xl font-bold">
                   ${p.priceUsd}
-                  <span className="text-sm font-normal text-[var(--muted-foreground)]">{p.id === "FREE" ? "" : " / mo"}</span>
+                  <span className="text-sm font-normal text-[var(--muted-foreground)]">{p.id === "ENTERPRISE" ? "+ / mo" : " / mo"}</span>
                 </p>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
@@ -163,7 +165,16 @@ export function BillingPlans({
                     <li key={f}>• {f}</li>
                   ))}
                 </ul>
-                {p.id === "FREE" ? null : isUpgrade ? (
+                {/* Enterprise is quoted, not bought: it has no fixed Razorpay plan, so
+                    the card points at a conversation instead of a checkout. */}
+                {p.id === "ENTERPRISE" ? (
+                  <a
+                    href="/contact"
+                    className="inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors hover:bg-[var(--muted)]"
+                  >
+                    Talk to us
+                  </a>
+                ) : isUpgrade ? (
                   <Button size="sm" disabled={pending || busyPlan !== null} onClick={() => subscribe(p)}>
                     {busyPlan === p.id ? "Opening…" : `Upgrade to ${p.name}`}
                   </Button>

@@ -19,7 +19,7 @@ import {
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /** Tier rank for the upgrade-only guard (no same-tier or downgrade purchases). */
-const PLAN_ORDER: Record<PlanId, number> = { FREE: 0, STARTER: 1, GROWTH: 2, SCALE: 3 };
+const PLAN_ORDER: Record<PlanId, number> = { GATE: 1, SIGNAL: 2, AGENCY: 3, ENTERPRISE: 4 };
 
 function toPlanId(value: unknown): PlanId | null {
   return typeof value === "string" && (PLAN_IDS as readonly string[]).includes(value) ? (value as PlanId) : null;
@@ -66,9 +66,12 @@ export async function startSubscriptionCheckout(planInput: string): Promise<Acti
   }
 
   // Upgrade-only: block same-tier / downgrade.
-  const currentPlan = current.plan ?? "FREE";
-  if (PLAN_ORDER[plan] <= PLAN_ORDER[currentPlan]) {
-    return { ok: false, error: `You're already on ${currentPlan} or higher.` };
+  // Parked or trialing has NO purchased plan, so rank 0 — every tier is an upgrade from
+  // there. Using Gate as the fallback would block a parked tenant from buying Gate, which
+  // is the one thing they are most likely to want.
+  const currentRank = current.plan ? PLAN_ORDER[current.plan] : 0;
+  if (PLAN_ORDER[plan] <= currentRank) {
+    return { ok: false, error: `You're already on ${current.plan ?? "a higher plan"} or higher.` };
   }
 
   const tenant = await prisma.tenant.findUnique({
@@ -142,7 +145,7 @@ export async function verifySubscriptionPayment(input: VerifyInput): Promise<Act
 
   // Idempotent: if the webhook already activated at this tier or higher, just confirm.
   const current = await resolvePlan(scope.tenantId);
-  if (current.status === "ACTIVE" && PLAN_ORDER[current.plan ?? "FREE"] >= PLAN_ORDER[plan]) {
+  if (current.status === "ACTIVE" && (current.plan ? PLAN_ORDER[current.plan] : 0) >= PLAN_ORDER[plan]) {
     return { ok: true };
   }
 

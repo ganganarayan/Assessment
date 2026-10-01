@@ -17,10 +17,14 @@ import { snapshotFor } from "@/lib/billing/entitlements";
  * not orders), kept isolated from the Gita INR purchase pipeline.
  */
 
-/** Paid tiers only — FREE has nothing to charge. */
-export type PaidPlanId = Exclude<PlanId, "FREE">;
+/**
+ * Chargeable tiers. Enterprise is excluded: it is published as "from $499" and sold by
+ * negotiation, so there is no fixed Razorpay plan to charge against — quoting one would
+ * be the flat number the pricing deliberately avoids.
+ */
+export type PaidPlanId = Exclude<PlanId, "ENTERPRISE">;
 export function isPaidPlan(plan: PlanId): plan is PaidPlanId {
-  return plan !== "FREE";
+  return plan !== "ENTERPRISE";
 }
 
 /** The platform-owner's Razorpay API keys (app settings singleton → env fallback). */
@@ -37,12 +41,14 @@ export async function platformKeyId(): Promise<string | null> {
 /** An env-pinned Razorpay Plan id for a tier, if the operator set one. */
 function planEnvOverride(plan: PaidPlanId): string | null {
   switch (plan) {
-    case "STARTER":
+    case "GATE":
       return env.RAZORPAY_PLAN_ID_STARTER ?? null;
-    case "GROWTH":
+    case "SIGNAL":
       return env.RAZORPAY_PLAN_ID_GROWTH ?? null;
-    case "SCALE":
+    case "AGENCY":
       return env.RAZORPAY_PLAN_ID_SCALE ?? null;
+    default:
+      return null;
   }
 }
 

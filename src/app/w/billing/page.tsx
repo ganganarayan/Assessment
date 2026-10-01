@@ -6,7 +6,7 @@ import { BillingPlans } from "@/features/billing/components/billing-plans";
 
 export const dynamic = "force-dynamic";
 
-const RANK: Record<PlanId, number> = { FREE: 0, STARTER: 1, GROWTH: 2, SCALE: 3 };
+const RANK: Record<PlanId, number> = { GATE: 0, SIGNAL: 1, AGENCY: 2, ENTERPRISE: 3 };
 
 /** A short, human feature list per tier for the billing cards. */
 function featuresFor(plan: PlanId): string[] {
@@ -14,10 +14,11 @@ function featuresFor(plan: PlanId): string[] {
   const assessments = l.maxAssessments === null ? "Unlimited assessments" : `${l.maxAssessments} assessment${l.maxAssessments === 1 ? "" : "s"}`;
   const responses = l.responsesPerMonth === null ? "Unlimited responses" : `${l.responsesPerMonth.toLocaleString()} responses / mo`;
   const out = [assessments, responses];
-  if (plan === "STARTER") out.push("All everyday features");
-  if (plan === "GROWTH") out.push("Qualify gate, routing, CAPI, heatmap");
-  if (plan === "SCALE") out.push("Everything in Growth + API access");
-  if (plan === "FREE") out.push("Assess360 badge");
+  out.push("Disqualified visitors free, unmetered");
+  if (plan === "GATE") out.push("Qualification gate, CAPI, routing · badge shown");
+  if (plan === "SIGNAL") out.push("Custom domain, AI reports, heatmap · badge removed");
+  if (plan === "AGENCY") out.push("Everything in Signal + sub-accounts, API");
+  if (plan === "ENTERPRISE") out.push("Custom caps, SSO, SLA");
   return out;
 }
 
@@ -53,7 +54,9 @@ export default async function BillingPage() {
     );
   }
 
-  const currentPlan: PlanId = resolved.plan ?? "FREE";
+  // Parked or trialing: there is no purchased plan. Gate is the floor for display, so
+  // the cards render a ladder to climb rather than claiming a plan nobody bought.
+  const currentPlan: PlanId = resolved.plan ?? "GATE";
 
   const plans = PLAN_IDS.map((id) => ({
     id,
