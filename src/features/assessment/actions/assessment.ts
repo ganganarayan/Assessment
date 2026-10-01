@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
@@ -141,6 +142,7 @@ export async function createAssessment(
       professionLabel: nullifyEmpty(d.professionLabel),
       professionPlaceholder: nullifyEmpty(d.professionPlaceholder),
       leadCaptureAfter: d.leadCaptureAfter,
+      platformSignup: d.platformSignup && isPlatformScope(scope.tenantId),
       introNotice: nullifyEmpty(d.introNotice),
       startButtonLabel: nullifyEmpty(d.startButtonLabel),
       resultsButtonLabel: nullifyEmpty(d.resultsButtonLabel),
@@ -241,6 +243,7 @@ export async function updateAssessment(
       professionLabel: nullifyEmpty(d.professionLabel),
       professionPlaceholder: nullifyEmpty(d.professionPlaceholder),
       leadCaptureAfter: d.leadCaptureAfter,
+      platformSignup: d.platformSignup && isPlatformScope(scope.tenantId),
       introNotice: nullifyEmpty(d.introNotice),
       startButtonLabel: nullifyEmpty(d.startButtonLabel),
       resultsButtonLabel: nullifyEmpty(d.resultsButtonLabel),

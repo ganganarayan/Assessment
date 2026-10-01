@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { currentUserCanEdit } from "@/lib/auth/guards";
 import { getAssessmentById, listAssessments } from "@/features/assessment/data";
 import { listPromptVersions } from "@/lib/ai/versions";
-import { actingTenantId } from "@/lib/tenant/acting";
+import { actingTenantId, resolveActingScope } from "@/lib/tenant/acting";
+import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
 import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
 import { CategoriesManager } from "@/features/assessment/components/admin/categories-manager";
@@ -77,6 +78,7 @@ export default async function EditAssessmentPage({
     professionLabel: a.professionLabel ?? "",
     professionPlaceholder: a.professionPlaceholder ?? "",
     leadCaptureAfter: a.leadCaptureAfter,
+    platformSignup: a.platformSignup,
     introNotice: a.introNotice ?? "",
     startButtonLabel: a.startButtonLabel ?? "",
     resultsButtonLabel: a.resultsButtonLabel ?? "",
@@ -223,9 +225,14 @@ export default async function EditAssessmentPage({
   const disqParsed = disqualifiedContentSchema.safeParse(a.disqualifiedContent);
   const disqualified = disqParsed.success ? disqParsed.data : EMPTY_DISQUALIFIED;
 
+  // Platform scope only: elsewhere the server forces the flag false, so offering the
+  // switch would be a control that silently does nothing.
+  const signupScope = await resolveActingScope();
+  const canPlatformSignup = signupScope.isSuper && isPlatformScope(signupScope.tenantId);
+
   const assessmentTab = (
     <>
-      <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} />
+      <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} canPlatformSignup={canPlatformSignup} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Qualification gate (Page 1)</h2>

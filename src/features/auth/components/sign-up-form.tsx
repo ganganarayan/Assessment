@@ -20,10 +20,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export function SignUpForm() {
+/**
+ * `prefill` arrives from the platform signup funnel: someone finished the qualification
+ * assessment and the only thing left to collect is a password. Their name and email are
+ * already known, so asking again would read as the form having forgotten them.
+ */
+export function SignUpForm({ prefill }: { prefill?: { name?: string; email?: string } } = {}) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(prefill?.name ?? "");
+  const [email, setEmail] = useState(prefill?.email ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

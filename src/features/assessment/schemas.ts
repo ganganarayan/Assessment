@@ -202,6 +202,10 @@ export const assessmentSchema = z.object({
   professionPlaceholder: z.string().max(120).optional().or(z.literal("")),
   // Lead-capture position: false = opt-in first (default); true = after the questions.
   leadCaptureAfter: z.boolean().default(false),
+  // Platform signup funnel. Accepted from the builder but only HONOURED on a
+  // platform-owned assessment — the action forces it false otherwise, so a tenant
+  // cannot turn their funnel into a signup path for the SaaS itself.
+  platformSignup: z.boolean().default(false),
   // Extra custom fields on the opt-in form (same shape as pre-results fields).
   optinFields: z.array(preResultFieldSchema).max(30).default([]),
   // Editable opt-in copy. Blank = default behavior.

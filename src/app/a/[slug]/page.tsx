@@ -119,6 +119,7 @@ export default async function PublicAssessmentPage({
     startButtonLabel: a.startButtonLabel,
     resultsButtonLabel: a.resultsButtonLabel,
     paidMode: a.paidMode,
+    platformSignup: a.platformSignup,
     vslCountdownSeconds: a.vslCountdownSeconds,
     questionDisplayMode: a.questionDisplayMode,
     paymentHeadline: a.paymentHeadline,

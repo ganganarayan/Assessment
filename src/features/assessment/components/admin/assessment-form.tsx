@@ -131,6 +131,7 @@ const DEFAULTS: AssessmentFormValues = {
   professionLabel: "",
   professionPlaceholder: "",
   leadCaptureAfter: false,
+  platformSignup: false,
   optinFields: [],
   introNotice: "",
   startButtonLabel: "",
@@ -167,7 +168,11 @@ export function AssessmentForm({
   basePath = "/admin/assessments",
   promptVersions = [],
   assessmentOptions = [],
+  canPlatformSignup = false,
 }: {
+  /** True only in the PLATFORM scope. The server forces the flag false anywhere else,
+   *  so showing the control there would offer a switch that silently does nothing. */
+  canPlatformSignup?: boolean;
   mode: "create" | "edit";
   id?: string;
   initial?: AssessmentFormValues;
@@ -633,6 +638,25 @@ export function AssessmentForm({
                   </p>
                 </div>
               </>
+            ) : null}
+
+            {canPlatformSignup ? (
+              <div className="flex flex-col gap-1 border-t pt-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={values.platformSignup}
+                    onChange={(e) => set("platformSignup", e.target.checked)}
+                  />
+                  Use this as the Assess360 signup funnel
+                </label>
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  On: when someone finishes, the completion event fires as normal and they are
+                  sent straight to sign-up with their email already filled in — instead of a
+                  result page. Someone who already has an account goes to sign-in instead.
+                  Platform-owned assessments only.
+                </p>
+              </div>
             ) : null}
 
             <div className="flex flex-col gap-1 border-t pt-3">

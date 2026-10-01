@@ -143,6 +143,8 @@ export interface PublicAssessment {
   startButtonLabel: string | null;
   resultsButtonLabel: string | null;
   paidMode: boolean;
+  /** Finish -> /sign-up prefilled, instead of a result page (platform funnel). */
+  platformSignup: boolean;
   /** Anticipation countdown (seconds) after Submit before the destination/VSL loads. */
   vslCountdownSeconds: number;
   questionDisplayMode: "ALL" | "CATEGORY" | "SINGLE";
@@ -700,6 +702,21 @@ export function AssessmentRunner({
       // then). The eventId dedups against the server-side CAPI event.
       if (res.data?.eventId) {
         pixelTrackCustom(completionEventName(!!qual), { content_name: assessment.title }, res.data.eventId);
+      }
+      // Platform signup funnel. Deliberately placed AFTER the completion event fires:
+      // the whole point of this funnel is that the qualified completion is measured
+      // like any other, and only then does the person get handed to signup. Redirecting
+      // first would cost the ad account the very signal this product exists to send.
+      //
+      // window.location, not router.push: this leaves the funnel for the app shell, and
+      // a hard navigation guarantees a clean server render of /sign-up with the prefill.
+      if (assessment.platformSignup) {
+        const params = new URLSearchParams();
+        if (lead.email) params.set("email", lead.email);
+        const name = [lead.firstName, lead.lastName].filter(Boolean).join(" ").trim();
+        if (name) params.set("name", name);
+        window.location.href = `/sign-up?${params.toString()}`;
+        return;
       }
       // Page builder: if pages are configured, show them (results teaser + the pay
       // button block) instead of going straight to payment/VSL. Defer the payment

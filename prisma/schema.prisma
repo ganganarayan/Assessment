@@ -542,15 +542,20 @@ enum NextStep {
 // ---------------------------------------------------------------------------
 
 model Assessment {
-  id            String  @id @default(cuid())
-  slug          String  @unique
-  title         String
+  // Platform signup funnel: after the lead form and the completion event, send the
+  // person to /sign-up prefilled with their email instead of a result page. Only
+  // honoured on a PLATFORM-owned assessment — a tenant must never be able to mint
+  // logins on the SaaS itself.
+  platformSignup Boolean @default(false)
+  id             String  @id @default(cuid())
+  slug           String  @unique
+  title          String
   // Opt-in hero copy shown around the headline (title): eyebrow is a small kicker
   // ABOVE it, subheadline a secondary line BELOW it. Both optional; null = hidden.
-  eyebrow       String?
-  subheadline   String?
-  description   String?
-  coverImageUrl String?
+  eyebrow        String?
+  subheadline    String?
+  description    String?
+  coverImageUrl  String?
 
   // Funnel CTA styling: primary-button background + text colour (hex, e.g. "#16a34a").
   // Null = the default green/white theme, so existing funnels are unchanged.
