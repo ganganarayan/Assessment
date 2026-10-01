@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { forceSetOwnPassword } from "@/features/auth/actions/password";
 
@@ -63,11 +63,11 @@ export function ChangePasswordForm({
     <div className="flex max-w-sm flex-col gap-3 text-left">
       <div className="flex flex-col gap-1">
         <Label className="text-xs">New password</Label>
-        <Input type="password" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" placeholder="At least 8 characters" />
+        <PasswordInput value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" placeholder="At least 8 characters" />
       </div>
       <div className="flex flex-col gap-1">
         <Label className="text-xs">Confirm new password</Label>
-        <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
+        <PasswordInput value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
       </div>
       <div>
         <Button size="sm" onClick={submit} disabled={pending || next.trim().length < 8}>

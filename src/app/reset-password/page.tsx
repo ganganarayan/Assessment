@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth/auth-client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
 /** Consume the reset token from the emailed link and set a new password. Better Auth
@@ -46,11 +46,11 @@ function ResetForm() {
     <form onSubmit={submit} className="flex w-full max-w-sm flex-col gap-4">
       <div className="flex flex-col gap-1 text-left">
         <Label htmlFor="pw">New password</Label>
-        <Input id="pw" type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" required />
+        <PasswordInput id="pw" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" required />
       </div>
       <div className="flex flex-col gap-1 text-left">
         <Label htmlFor="confirm">Confirm new password</Label>
-        <Input id="confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" required />
+        <PasswordInput id="confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" required />
       </div>
       {msg ? <p className="text-sm text-red-500">{msg}</p> : null}
       <Button type="submit" disabled={pending}>{pending ? "Saving…" : "Set new password"}</Button>
