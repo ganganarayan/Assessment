@@ -232,7 +232,16 @@ export async function addDomain(rawHostname: string): Promise<ActionResult> {
   const hostname = parsed.data;
 
   const root = env.NEXT_PUBLIC_ROOT_DOMAIN.toLowerCase();
-  if (hostname === root || hostname.endsWith(`.${root}`)) {
+  // Two different refusals wearing one message. Typing the root itself is not "a
+  // subdomain is automatic" — it is the app's own address, and saying so is the
+  // difference between a user who understands and one who retypes it three times.
+  if (hostname === root) {
+    return {
+      ok: false,
+      error: `${root} is the app's own address (NEXT_PUBLIC_ROOT_DOMAIN), so it can't also be a workspace's custom domain. Point the platform at its own host first, then add this one here.`,
+    };
+  }
+  if (hostname.endsWith(`.${root}`)) {
     return { ok: false, error: `Subdomains of ${root} are automatic — you only need this for your OWN domain.` };
   }
 
