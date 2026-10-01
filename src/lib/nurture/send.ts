@@ -131,7 +131,11 @@ async function sendViaZeptoMailApi(
     });
     if (res.ok) return null;
     const text = (await res.text()).slice(0, 400);
-    return `ZeptoMail API ${res.status}: ${text}`;
+    // Name the host that answered. A 401 here is usually one of two config mistakes,
+    // and the host is what tells them apart: the wrong REGION (an account on
+    // zeptomail.com answering api.zeptomail.in rejects a perfectly good token), or
+    // the SMTP password used where the Mail Agent's Send Mail Token belongs.
+    return `ZeptoMail API ${res.status} (${apiHost}): ${text}`;
   } catch (e) {
     return e instanceof Error ? e.message : String(e);
   }

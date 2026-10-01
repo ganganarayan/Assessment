@@ -204,7 +204,13 @@ export async function resolveSmtpConfig(tenantId: string | null): Promise<SmtpCo
     port: s?.smtpPort ?? null,
     secure: s?.smtpSecure ?? false,
     user: s?.smtpUser?.trim() || null,
-    pass: safeDecrypt(s?.smtpPassEnc),
+    // 🔴 Trim on READ, not just on save. An API token pasted out of a provider console
+    // very often carries a trailing newline or space, and a credential is sent
+    // verbatim — ZeptoMail answers a token with one stray character as
+    // "SERR_157 Invalid API Token found", which reads like a wrong key and sends you
+    // hunting for the wrong thing. Trimming here also repairs rows that were already
+    // saved with the whitespace, with no re-save needed.
+    pass: safeDecrypt(s?.smtpPassEnc)?.trim() || null,
     fromName: s?.smtpFromName?.trim() || null,
     fromEmail: s?.smtpFromEmail?.trim() || null,
   };

@@ -86,7 +86,9 @@ export async function updateSmtpSettings(input: {
     smtpFromName: input.fromName.trim() || null,
     smtpFromEmail: input.fromEmail.trim() || null,
     // Only overwrite the password when a new one is typed (blank keeps the stored one).
-    ...(input.pass.trim() ? { smtpPassEnc: enc(input.pass) } : {}),
+    // Store it TRIMMED: a pasted API token routinely drags a newline along, and the
+    // credential goes out verbatim (see resolveSmtpConfig).
+    ...(input.pass.trim() ? { smtpPassEnc: enc(input.pass.trim()) } : {}),
   });
   revalidatePath("/admin/settings");
   revalidatePath("/admin/nurture");
