@@ -112,6 +112,20 @@ async function provisionDomain(
  * host (cert then has to be added in Railway manually).
  */
 
+/**
+ * The DNS Name field as a provider wants it: the sub-domain LABEL, not the full host.
+ * Cloudflare/GoDaddy/Namecheap append the zone to whatever is typed, so an FQDN here
+ * produces a doubled record. Leaves an already-short label alone.
+ */
+function recordLabel(name: string | null | undefined, hostname: string): string {
+  const n = (name ?? "").trim().replace(/\.$/, "").toLowerCase();
+  const host = hostname.trim().replace(/\.$/, "").toLowerCase();
+  if (!n) return n;
+  if (n !== host && !n.endsWith(`.${host}`)) return n; // already a label, or unrelated
+  const parts = host.split(".").filter(Boolean);
+  return parts.length <= 2 ? "@" : parts.slice(0, parts.length - 2).join(".");
+}
+
 /** The host a tenant points their CNAME at when Railway auto-provisioning is OFF. */
 function appHost(): string {
   try {
@@ -180,6 +194,10 @@ export async function getDomainSettings(): Promise<DomainSettingsView> {
       const norm = stored.map((r) => ({
         ...r,
         type: (r.type || "CNAME").replace(/^DNS_RECORD_TYPE_/i, "").toUpperCase(),
+        // Rows written before the label fix stored the FQDN. Providers append the zone
+        // themselves, so showing the full host makes people create
+        // assess.acme.com.acme.com. Convert on read; no re-check needed.
+        name: recordLabel(r.name, d.hostname),
       }));
       // Show records until the domain is live. Fall back to a single CNAME when none
       // were stored (older rows, or no-Railway fallback), so there is always guidance.

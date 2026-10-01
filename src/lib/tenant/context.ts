@@ -43,7 +43,18 @@ export async function getCurrentTenant() {
       where: { hostname: host },
       include: { tenant: { include: { theme: true } } },
     });
-    if (!domain?.verified) return null;
+    if (!domain) return null;
+    // 🔴 Deliberately NOT gated on `verified`. That flag tracks CERTIFICATE issuance,
+    // which is a provisioning milestone, not a statement about who owns the host — and
+    // it goes stale: a valid Railway cert reported as CERTIFICATE_STATUS_TYPE_VALID
+    // failed certIsLive's word list, so `verified` stayed false and this returned null.
+    // The visible result was the tenant's own domain serving the PLATFORM's landing
+    // page, identical to assess360's, with nothing to suggest why.
+    //
+    // The honest test is the one that already happened: the hostname column is globally
+    // unique, so only one tenant can ever claim a host, and a request only ARRIVES here
+    // because that host is routed to us. Row + arrival is proof of ownership; a
+    // certificate's status is not. Point the DNS and it serves — no "Check status" step.
     return domain.tenant.deletedAt ? null : domain.tenant;
   }
 

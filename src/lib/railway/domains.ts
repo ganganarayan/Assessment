@@ -103,6 +103,20 @@ async function gql<T>(env: RailwayEnv, query: string, variables: Record<string, 
 
 const clean = (s: string | null | undefined) => (s ?? "").trim().replace(/\.$/, "");
 
+/**
+ * The record LABEL for a host: "assess.acme.com" -> "assess", "acme.com" -> "@".
+ *
+ * Only used as a fallback when Railway doesn't hand back a hostlabel. The zone is
+ * assumed to be the last two labels, which is right for acme.com and wrong for
+ * co.uk-style suffixes — acceptable because it is a display hint next to the full
+ * host, not something anything depends on.
+ */
+function labelOf(host: string): string {
+  const parts = host.split(".").filter(Boolean);
+  if (parts.length <= 2) return "@";
+  return parts.slice(0, parts.length - 2).join(".");
+}
+
 function pickResult(cd: CustomDomain | null | undefined): RailwayDomainResult | null {
   if (!cd) return null;
   const raw = cd.status?.dnsRecords ?? [];
@@ -112,7 +126,11 @@ function pickResult(cd: CustomDomain | null | undefined): RailwayDomainResult | 
       // Railway hands back an enum like "DNS_RECORD_TYPE_CNAME"/"…_TXT" — show the
       // bare record type (CNAME / TXT / A) the DNS provider actually expects.
       type: (r.recordType ?? "CNAME").replace(/^DNS_RECORD_TYPE_/i, "").toUpperCase(),
-      name: clean(r.fqdn ?? r.hostlabel ?? cd.domain),
+      // The LABEL, not the FQDN. Cloudflare, GoDaddy and Namecheap all append the zone
+      // to whatever you type, so pasting "assess.applygitawisdom.com" into their Name
+      // field creates assess.applygitawisdom.com.applygitawisdom.com. Railway gives us
+      // the label; show that, and fall back to deriving it from the host.
+      name: clean(r.hostlabel) || labelOf(clean(r.fqdn) || clean(cd.domain)),
       value: clean(r.requiredValue),
       purpose: r.purpose ?? null,
       status: r.status ?? null,
@@ -193,9 +211,23 @@ export async function railwayDeleteCustomDomain(railwayDomainId: string): Promis
   ).catch(() => {});
 }
 
-/** A Railway certificate status that means HTTPS is live. */
+/**
+ * A Railway certificate status that means HTTPS is live.
+ *
+ * 🔴 `CERTIFICATE_STATUS_TYPE_VALID` — Railway's actual success value — matched none of
+ * the words this used to look for, so a domain with a perfectly good certificate sat
+ * at "Provisioning · Not live yet" forever. Worse than cosmetic: `verified` is set from
+ * this, and getCurrentTenant() refuses to resolve an unverified domain, so the tenant's
+ * own domain served the PLATFORM landing page instead of their funnel.
+ *
+ * "INVALID" contains "valid", so the failure words are checked first and the success
+ * words are matched on word boundaries rather than as bare substrings.
+ */
 export function certIsLive(certStatus: string | null | undefined): boolean {
-  return /issued|active|deployed|ready/i.test(certStatus ?? "");
+  const s = (certStatus ?? "").toLowerCase();
+  if (!s) return false;
+  if (/invalid|error|fail|pending|waiting|issuing/.test(s)) return false;
+  return /(^|[^a-z])(valid|issued|active|deployed|ready)([^a-z]|$)/.test(s);
 }
 
 /**

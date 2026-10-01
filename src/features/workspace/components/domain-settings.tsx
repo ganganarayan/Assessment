@@ -13,6 +13,12 @@ import {
   type DomainSettingsView,
 } from "@/features/workspace/actions/domains";
 
+/** "assess.acme.com" -> "assess" — what a DNS provider's Name field actually wants. */
+function labelOf(host: string): string {
+  const parts = host.split(".").filter(Boolean);
+  return parts.length <= 2 ? "@" : parts.slice(0, parts.length - 2).join(".");
+}
+
 export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
   const router = useRouter();
   const [hostname, setHostname] = useState("");
@@ -149,13 +155,18 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
                 <div className="flex flex-col gap-2 rounded-md border border-[var(--border)] bg-[var(--muted)]/30 px-3 py-2.5">
                   <p className="text-xs font-semibold">Add these DNS records at your domain provider</p>
                   <p className="text-xs text-[var(--muted-foreground)]">
+                    Name is the <strong>sub-domain label only</strong> — most providers (Cloudflare,
+                    GoDaddy, Namecheap) add your domain to it automatically, so typing the full host
+                    creates a doubled one. Set the CNAME to <strong>DNS only</strong> / unproxied.
+                  </p>
+                  <p className="text-xs text-[var(--muted-foreground)]">
                     Sign-in and password reset work on this host as soon as it reaches us — you do not
                     need to wait for the certificate. What is still pending below is HTTPS.
                   </p>
                   <div className="flex flex-col gap-1.5">
                     {(d.dnsRecords.length > 0
                       ? d.dnsRecords
-                      : [{ type: "CNAME", name: d.hostname, value: d.dnsTarget ?? initial.cnameTarget, purpose: null, status: null }]
+                      : [{ type: "CNAME", name: labelOf(d.hostname), value: d.dnsTarget ?? initial.cnameTarget, purpose: null, status: null }]
                     ).map((rec, i) => (
                       // One record on a single line; scrolls horizontally if long.
                       <div key={i} className="flex items-center gap-2 overflow-x-auto whitespace-nowrap rounded bg-[var(--muted)]/50 px-2 py-1.5 text-xs">
