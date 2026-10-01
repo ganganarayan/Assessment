@@ -197,3 +197,42 @@ export async function railwayDeleteCustomDomain(railwayDomainId: string): Promis
 export function certIsLive(certStatus: string | null | undefined): boolean {
   return /issued|active|deployed|ready/i.test(certStatus ?? "");
 }
+
+/**
+ * Every hostname Railway currently ROUTES to this service+environment — both the
+ * custom domains and the generated *.up.railway.app one.
+ *
+ * This is the honest answer to "is this host ours?". A request only reaches this app
+ * on a given Host because Railway routes it, so Railway's list IS the set of hosts we
+ * serve — no env var to update, no row to insert, no command to run. Point a new
+ * domain at the service and it authenticates; remove it and it stops.
+ *
+ * Returns null (not an empty list) when Railway isn't configured or the call fails,
+ * so callers can tell "nothing is routed" apart from "I couldn't ask" and keep using
+ * their last good answer rather than locking everyone out on an API blip.
+ */
+export async function railwayRoutedHosts(): Promise<string[] | null> {
+  const env = railwayEnv();
+  if (!env) return null;
+  try {
+    const data = await gql<{
+      domains: { customDomains?: { domain: string }[] | null; serviceDomains?: { domain: string }[] | null };
+    }>(
+      env,
+      `query($projectId: String!, $environmentId: String!, $serviceId: String!) {
+        domains(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId) {
+          customDomains { domain }
+          serviceDomains { domain }
+        }
+      }`,
+      { projectId: env.projectId, environmentId: env.environmentId, serviceId: env.serviceId },
+    );
+    const hosts = [...(data.domains?.customDomains ?? []), ...(data.domains?.serviceDomains ?? [])]
+      .map((d) => clean(d?.domain).toLowerCase())
+      .filter((h) => h.length > 0);
+    return hosts;
+  } catch (e) {
+    console.error("[railway] routed-host list failed:", e instanceof Error ? e.message : String(e));
+    return null;
+  }
+}

@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
+import { railwayRoutedHosts } from "@/lib/railway/domains";
 
 /**
  * "Is this a hostname we serve?" — the ONE answer, for everything that needs it.
@@ -116,14 +117,64 @@ export function forgetServedHost(host: string | null | undefined): void {
 }
 
 /**
- * Is this hostname one this app serves? A host qualifies when it is the canonical
- * host, the root domain or a subdomain of it, a registered Domain row (any tenant), or
- * a local development host.
+ * Hosts Railway routes to this service — the PRIMARY source of truth.
+ *
+ * 🟢 Why this and not a row or an env var. A request physically arrives on a Host only
+ * because Railway routes that Host to this service. So Railway's own list is, by
+ * definition, the set of hosts we serve. Point a domain at the service and it
+ * authenticates; detach it and it stops — no env edit, no redeploy, no command, and
+ * nothing to keep in sync. Changing the platform's domain tomorrow just works.
+ *
+ * Cached for 5 minutes, with one in-flight request shared between callers, because
+ * this sits in front of every non-GET request.
+ *
+ * 🟡 On failure the LAST GOOD list is kept and reused past its TTL. A Railway API blip
+ * must never un-trust every domain at once — that would lock every tenant out of their
+ * own site until the API recovered. Stale-but-working beats correct-and-down.
+ */
+const ROUTED_TTL_MS = 5 * 60_000;
+/** After a failed lookup, wait this long before asking again. Without it a Railway
+ *  outage would mean one 15s-timeout API call in front of EVERY sign-in — the API
+ *  hammered and the app crawling, at the worst possible moment. */
+const ROUTED_RETRY_MS = 30_000;
+let routed: { hosts: string[]; at: number } | null = null;
+let routedAttemptedAt = 0;
+let routedInFlight: Promise<string[] | null> | null = null;
+
+async function railwayServes(host: string): Promise<boolean> {
+  const now = Date.now();
+  const stale = !routed || now - routed.at >= ROUTED_TTL_MS;
+  if (stale && now - routedAttemptedAt >= ROUTED_RETRY_MS) {
+    routedAttemptedAt = now;
+    routedInFlight ??= railwayRoutedHosts().finally(() => {
+      routedInFlight = null;
+    });
+    const fresh = await routedInFlight;
+    // null = couldn't ask. Keep whatever we had rather than dropping to "nothing".
+    if (fresh) routed = { hosts: fresh, at: Date.now() };
+  }
+  return routed?.hosts.includes(host) ?? false;
+}
+
+/** Forget the routed-host list — call after adding or removing a Railway domain. */
+export function forgetRoutedHosts(): void {
+  routed = null;
+  routedAttemptedAt = 0;
+}
+
+/**
+ * Is this hostname one this app serves?
+ *
+ * In order: the canonical host, the root domain or a subdomain, a local dev host (all
+ * free), then Railway's routed list (one cached call that covers every domain at
+ * once), then a Domain row as the backstop for when Railway isn't configured or hasn't
+ * caught up yet.
  */
 export async function isServedHost(host: string | null | undefined): Promise<boolean> {
   const h = normalizeHost(host);
   if (!h) return false;
   if (h === canonicalHost() || isRootOrSubdomain(h) || isLocalHost(h)) return true;
+  if (await railwayServes(h)) return true;
   return hasDomainRow(h);
 }
 
