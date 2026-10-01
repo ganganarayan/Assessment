@@ -92,7 +92,13 @@ async function provisionDomain(
     dnsRecords,
     railwayDomainId,
     // Keep Railway's own words when present (ISSUING/ISSUED/…); else pending/active.
-    certStatus: rw?.certStatus ?? (verified ? "active" : "pending"),
+    // 🔴 A Railway failure used to vanish here: the row was created, Railway knew
+    // nothing about the host, and the tenant was handed a CNAME pointing at our app
+    // host instead of their routing target — DNS they could add and wait on forever.
+    // Carry the error into certStatus so the badge says so (certIsLive treats anything
+    // containing "error" as not live, which is correct).
+    certStatus:
+      rw?.certStatus ?? (verified ? "active" : railwayError ? `ERROR — ${railwayError.slice(0, 120)}` : "pending"),
     // Only surface a real Railway error — a Cloudflare miss on an external zone is expected.
     error: railwayError ?? undefined,
   };
@@ -205,7 +211,10 @@ export async function getDomainSettings(): Promise<DomainSettingsView> {
         ? []
         : norm.length > 0
           ? norm
-          : [{ type: "CNAME", name: d.hostname, value: d.dnsTarget ?? fallback, purpose: null, status: null }];
+          // recordLabel, not the raw host: this fallback branch is the one that runs
+          // whenever Railway hands back no records, so writing the FQDN here undid the
+          // label fix everywhere it actually mattered.
+          : [{ type: "CNAME", name: recordLabel(d.hostname, d.hostname), value: d.dnsTarget ?? fallback, purpose: null, status: null }];
       return {
         id: d.id,
         hostname: d.hostname,

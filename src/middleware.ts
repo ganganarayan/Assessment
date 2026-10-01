@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 import { resolveTenantFromHost } from "@/lib/tenant/resolve";
 import { TENANT_HEADERS } from "@/lib/tenant/constants";
+import { SESSION_EXPIRED_PARAM } from "@/lib/auth/routes";
 import { ATTR_COOKIE, pickAttribution } from "@/lib/attribution";
 
 /**
@@ -34,7 +35,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (isAuthPage && hasSession) {
+  // Signed in and asking for the sign-in page → send them to the app. UNLESS a server
+  // guard just told us this cookie is dead (?expired=1): bouncing then produces an
+  // endless /sign-in ↔ /dashboard loop that the browser renders as a blank page.
+  const sessionExpired = nextUrl.searchParams.has(SESSION_EXPIRED_PARAM);
+  if (isAuthPage && hasSession && !sessionExpired) {
     const url = nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

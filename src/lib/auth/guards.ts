@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { readActingTenant } from "@/lib/tenant/acting-cookie";
+import { SIGN_IN_EXPIRED } from "@/lib/auth/routes";
 
 /** The session user shape we rely on (Better Auth surfaces role + tenantId + staffPermission). */
 export interface AuthUser {
@@ -28,7 +29,7 @@ async function enforceAccountState(userId: string): Promise<void> {
     where: { id: userId },
     select: { deletedAt: true, mustChangePassword: true },
   });
-  if (!u || u.deletedAt) redirect("/sign-in");
+  if (!u || u.deletedAt) redirect(SIGN_IN_EXPIRED);
   if (u.mustChangePassword) redirect("/change-password");
 }
 
@@ -80,7 +81,9 @@ export async function requireOwnerAdmin(): Promise<AuthUser> {
  */
 export async function requireUser(): Promise<AuthUser> {
   const session = await getSession();
-  if (!session) redirect("/sign-in");
+  // The cookie got us past middleware but there is no session behind it. Say so in the
+  // redirect, or middleware sends us straight back here and the browser blanks.
+  if (!session) redirect(SIGN_IN_EXPIRED);
   return session.user as AuthUser;
 }
 
