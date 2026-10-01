@@ -3,6 +3,7 @@ import { getSessionCookie } from "better-auth/cookies";
 import { resolveTenantFromHost } from "@/lib/tenant/resolve";
 import { TENANT_HEADERS } from "@/lib/tenant/constants";
 import { SESSION_EXPIRED_PARAM } from "@/lib/auth/routes";
+import { effectiveHost } from "@/lib/tenant/forwarded-host";
 import { ATTR_COOKIE, pickAttribution } from "@/lib/attribution";
 
 /**
@@ -21,7 +22,10 @@ export function middleware(request: NextRequest) {
   const { nextUrl } = request;
   const path = nextUrl.pathname;
 
-  const host = request.headers.get("host") ?? "";
+  // Behind Cloudflare for SaaS the Host is rewritten to one Railway routes, and the
+  // customer's real hostname arrives in a header — honoured only with the proxy
+  // secret, so it cannot be used to impersonate a tenant. See lib/tenant/forwarded-host.
+  const host = effectiveHost(request.headers);
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "";
   const { slug, source } = resolveTenantFromHost(host, rootDomain);
 

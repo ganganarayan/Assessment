@@ -23,6 +23,15 @@ import {
   cloudflareDeprovisionDomain,
 } from "@/lib/cloudflare/domains";
 import { forgetServedHost, forgetRoutedHosts } from "@/lib/tenant/served-host";
+import {
+  cloudflareSaasConfigured,
+  cloudflareSaasFallbackOrigin,
+  cloudflareCreateCustomHostname,
+  cloudflareCustomHostnameStatus,
+  cloudflareFindCustomHostname,
+  cloudflareDeleteCustomHostname,
+  saasCertIsLive,
+} from "@/lib/cloudflare/saas";
 
 /**
  * Fully provision a custom domain:
@@ -35,15 +44,48 @@ import { forgetServedHost, forgetRoutedHosts } from "@/lib/tenant/served-host";
 async function provisionDomain(
   hostname: string,
   existingRailwayId?: string | null,
+  existingCfId?: string | null,
 ): Promise<{
   verified: boolean;
   dnsTarget: string;
   dnsRecords: RailwayDnsRecord[];
   railwayDomainId: string | null;
+  cfHostnameId: string | null;
   certStatus: string;
   error?: string;
 }> {
   const origin = appHost();
+
+  // ── Cloudflare for SaaS, when configured: the path that scales ──────────────────
+  // Railway caps custom domains per service by plan, so one slot per tenant domain is
+  // a hard ceiling on the business. A custom hostname uses no slot at all: Cloudflare
+  // terminates TLS for the customer's host and forwards to us, and the Worker rewrites
+  // the Host to one Railway already routes. Railway is never told about the host.
+  if (cloudflareSaasConfigured()) {
+    const fallback = cloudflareSaasFallbackOrigin() ?? origin;
+    try {
+      const ch =
+        (existingCfId ? await cloudflareCustomHostnameStatus(existingCfId) : null) ??
+        (await cloudflareFindCustomHostname(hostname)) ??
+        (await cloudflareCreateCustomHostname(hostname));
+      if (ch) {
+        const live = saasCertIsLive(ch.sslStatus, ch.status);
+        return {
+          verified: live,
+          dnsTarget: fallback,
+          dnsRecords: ch.dnsRecords,
+          railwayDomainId: null,
+          cfHostnameId: ch.id,
+          certStatus: ch.sslStatus ?? ch.status ?? "pending",
+        };
+      }
+    } catch (e) {
+      // Fall through to Railway rather than dead-ending: a misconfigured zone should
+      // degrade to the old path, not stop a tenant from adding a domain at all.
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[domains] Cloudflare for SaaS provisioning failed:", msg);
+    }
+  }
 
   // Routing + TLS (Railway) — the SOURCE OF TRUTH. Railway routes by Host and issues
   // the Let's Encrypt cert once DNS resolves; it also tells us the exact DNS records
@@ -91,6 +133,7 @@ async function provisionDomain(
     dnsTarget: rw?.dnsTarget ?? origin,
     dnsRecords,
     railwayDomainId,
+    cfHostnameId: null,
     // Keep Railway's own words when present (ISSUING/ISSUED/…); else pending/active.
     // 🔴 A Railway failure used to vanish here: the row was created, Railway knew
     // nothing about the host, and the tenant was handed a CNAME pointing at our app
@@ -184,7 +227,9 @@ const hostnameSchema = z
 export async function getDomainSettings(): Promise<DomainSettingsView> {
   const { tenantId } = await requireWorkspace();
   const autoDns = cloudflareConfigured();
-  const managed = autoDns || railwayConfigured();
+  // SaaS counts as managed: the certificate is issued for us, so the tenant adds one
+  // CNAME and waits rather than being told to configure anything themselves.
+  const managed = autoDns || cloudflareSaasConfigured() || railwayConfigured();
   const fallback = appHost();
   const rows = await prisma.domain.findMany({
     where: { tenantId },
@@ -300,6 +345,7 @@ export async function addDomain(rawHostname: string): Promise<ActionResult> {
     where: { id: domainId },
     data: {
       railwayDomainId: p.railwayDomainId,
+      cfHostnameId: p.cfHostnameId,
       dnsTarget: p.dnsTarget,
       dnsRecords: p.dnsRecords as unknown as Prisma.InputJsonValue,
       certStatus: p.certStatus,
@@ -352,17 +398,18 @@ export async function verifyDomain(id: string): Promise<ActionResult> {
 
   const domain = await prisma.domain.findFirst({
     where: { id, tenantId },
-    select: { id: true, hostname: true, verified: true, railwayDomainId: true },
+    select: { id: true, hostname: true, verified: true, railwayDomainId: true, cfHostnameId: true },
   });
   if (!domain) return { ok: false, error: "Domain not found." };
 
   // Auto-provisioned path (Cloudflare and/or Railway configured): poll status + refresh.
-  if (cloudflareConfigured() || railwayConfigured()) {
-    const p = await provisionDomain(domain.hostname, domain.railwayDomainId);
+  if (cloudflareSaasConfigured() || cloudflareConfigured() || railwayConfigured()) {
+    const p = await provisionDomain(domain.hostname, domain.railwayDomainId, domain.cfHostnameId);
     await prisma.domain.update({
       where: { id: domain.id },
       data: {
         railwayDomainId: p.railwayDomainId,
+        cfHostnameId: p.cfHostnameId,
         dnsTarget: p.dnsTarget,
         dnsRecords: p.dnsRecords as unknown as Prisma.InputJsonValue,
         certStatus: p.certStatus,
@@ -413,8 +460,11 @@ export async function removeDomain(id: string): Promise<ActionResult> {
 
   // Deregister from Railway + remove the Cloudflare record (both best-effort), then
   // delete our row. The tenant guard makes deleteMany a no-op if the row isn't ours.
-  const domain = await prisma.domain.findFirst({ where: { id, tenantId }, select: { hostname: true, railwayDomainId: true } });
+  const domain = await prisma.domain.findFirst({ where: { id, tenantId }, select: { hostname: true, railwayDomainId: true, cfHostnameId: true } });
   if (domain?.railwayDomainId) await railwayDeleteCustomDomain(domain.railwayDomainId);
+  // Release the Cloudflare custom hostname too, or it keeps counting against the
+  // account's hostname quota long after the tenant removed the domain.
+  if (domain?.cfHostnameId) await cloudflareDeleteCustomHostname(domain.cfHostnameId);
   if (domain?.hostname) await cloudflareDeprovisionDomain(domain.hostname);
   await prisma.domain.deleteMany({ where: { id, tenantId } });
   // Drop the cached "we serve this host" answer immediately. Without this a removed

@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { railwayRoutedHosts } from "@/lib/railway/domains";
+import { effectiveHost } from "@/lib/tenant/forwarded-host";
 
 /**
  * "Is this a hostname we serve?" — the ONE answer, for everything that needs it.
@@ -198,8 +199,11 @@ function schemeOf(headers: Headers, host: string): string {
 export async function originForRequest(request: Request | undefined | null): Promise<string> {
   if (!request) return canonicalOrigin();
   const headers = request.headers;
-  // x-forwarded-host is what a proxy preserves; Host is the direct value.
-  const raw = headers.get("x-forwarded-host")?.split(",")[0]?.trim() || headers.get("host") || "";
+  // effectiveHost, not the raw header: a forwarded host counts only with the proxy
+  // secret. Otherwise a forged x-forwarded-host naming ANOTHER tenant's domain would
+  // pass isServedHost (it is a host we serve) and mail that tenant's domain a reset
+  // link for this user.
+  const raw = effectiveHost(headers);
   if (!raw) return canonicalOrigin();
   if (!(await isServedHost(raw))) {
     console.error(`[served-host] refusing to build a link on an unrecognised host: ${normalizeHost(raw)}`);
