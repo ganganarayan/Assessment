@@ -206,10 +206,46 @@ whole app, partitioned by key prefix, and `resolveR2Config` reads `id: "singleto
 unconditionally — so copying them would put an encrypted secret in a row nothing reads,
 with no UI to rotate it. The R2 card is /platform only (commit `5a4d489`).
 
-**Prod state as of 30 Sep, verified:** `settings:from-env` reports 🟢 nothing to copy —
-all five critical values are already in the platform Settings row and none is in env, so
-the dark-funnel gate is closed and step 4 needs no `--apply`. 14,597 rows still unowned
-across 12 tables, awaiting the `--tenant` step.
+### 3d-bis. 🟢 DONE — the re-home is applied to PRODUCTION (1 Oct, ~01:30 IST)
+
+Both steps ran against prod and reconcile. `verify:tenancy --funnel apply-gita
+--expect-complete` exits 0.
+
+- `--platform --apply` → owner + singleton now belong to the Platform tenant.
+  Manifest `.rehome/rehome-platform-1790794600209.json`
+- `--tenant apply-gita --apply` → **14,593 rows** across 16 tables, every table
+  reconciling `moved` / `null=0` / destination = before.null + before.own. 55 AppSetting
+  fields copied into a new tenant row. Manifest
+  `.rehome/rehome-apply-gita-1790795373536.json`
+- Undo, if ever needed, is `--revert` on those two manifests — **tenant first, then
+  platform**.
+- Remaining unowned: **2 user rows** (tenant admins not yet assigned). Expected; they are
+  what `--platform` deliberately leaves alone.
+- `settings:from-env` reported 🟢 nothing to copy — all five critical values were already
+  in the platform Settings row and none in env, so step 4 needed no `--apply`.
+- No `META_DATASET_ID` warning fired, which settles the 🟡 left open in §3c.
+
+### 3d-ter. 🟢 /admin is the PLATFORM's console now (1 Oct, `f5068c8`)
+
+`dataScopeOf` returned `ALL_TENANTS` for a super admin who had not entered a workspace,
+so /admin pooled every tenant's rows into one list with nothing saying whose was whose.
+That was deliberate while the funnel belonged to no tenant; the funnel now has one, so
+the reason expired. A non-impersonating super admin scopes to the **Platform tenant** —
+/admin reads empty, and a tenant's data is behind **Enter**.
+
+🔴 **It answers writes too** (`tenantScope` wraps it), so it is the authorization
+boundary: editing a tenant's assessments, running Operations, report rollback, webhooks,
+API tokens and nurture all require entering that workspace first — 15 call sites.
+Out-of-scope writes return "isn't in this workspace", never silence.
+
+🟡 **There is no cross-tenant list any more.** Fine at 3 tenants, a real gap at 30.
+Adding one back should be an explicitly owner-only screen that asks for `ALL_TENANTS`
+**by name** — not a scope that quietly means "all" whenever nobody entered anywhere.
+
+🟡 The `ALL_TENANTS` default parameters still sitting on `listAssessments`,
+`getDashboardCounts`, `getUtmBreakdown` and friends are now a footgun: a caller that
+forgets the scope reads every tenant. All 16 current callers pass one explicitly —
+verified — but the defaults should go when someone is next in that file.
 
 ### 3e. Domain phase — blocked on a design question
 
