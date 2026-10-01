@@ -22,6 +22,7 @@ import {
   cloudflareProvisionDomain,
   cloudflareDeprovisionDomain,
 } from "@/lib/cloudflare/domains";
+import { forgetServedHost } from "@/lib/tenant/served-host";
 
 /**
  * Fully provision a custom domain:
@@ -239,6 +240,9 @@ export async function addDomain(rawHostname: string): Promise<ActionResult> {
   try {
     const row = await prisma.domain.create({ data: { hostname, tenantId }, select: { id: true } });
     domainId = row.id;
+    // If anyone hit this host before it was registered, "not ours" is cached. Clear it
+    // so the domain authenticates the instant it routes here, not a minute later.
+    forgetServedHost(hostname);
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { ok: false, error: "That domain is already registered." };
@@ -365,6 +369,9 @@ export async function removeDomain(id: string): Promise<ActionResult> {
   if (domain?.railwayDomainId) await railwayDeleteCustomDomain(domain.railwayDomainId);
   if (domain?.hostname) await cloudflareDeprovisionDomain(domain.hostname);
   await prisma.domain.deleteMany({ where: { id, tenantId } });
+  // Drop the cached "we serve this host" answer immediately. Without this a removed
+  // domain would keep authenticating for up to the cache TTL.
+  forgetServedHost(domain?.hostname);
   revalidatePath("/w/settings");
   return { ok: true };
 }

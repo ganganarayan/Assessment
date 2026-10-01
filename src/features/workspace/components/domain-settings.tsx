@@ -143,6 +143,10 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
                 // Records the owner must add at their DNS provider. Copy each value.
                 <div className="flex flex-col gap-2 rounded-md border border-[var(--border)] bg-[var(--muted)]/30 px-3 py-2.5">
                   <p className="text-xs font-semibold">Add these DNS records at your domain provider</p>
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Sign-in and password reset work on this host as soon as it reaches us — you do not
+                    need to wait for the certificate. What is still pending below is HTTPS.
+                  </p>
                   <div className="flex flex-col gap-1.5">
                     {(d.dnsRecords.length > 0
                       ? d.dnsRecords

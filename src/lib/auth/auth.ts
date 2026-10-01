@@ -10,6 +10,7 @@ import { generateId } from "@/lib/ids";
 import { ATTR_COOKIE } from "@/lib/attribution";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { sendEmail } from "@/lib/nurture/send";
+import { isServedHost, linkForRequest } from "@/lib/tenant/served-host";
 
 /**
  * Read the last-touch UTM attribution cookie (set in middleware) and shape it for a
@@ -87,16 +88,30 @@ export const auth = betterAuth({
     const list = [env.BETTER_AUTH_URL, env.NEXT_PUBLIC_APP_URL, `https://${root}`, `https://*.${root}`].filter(
       (v): v is string => !!v,
     );
-    const origin = request?.headers.get("origin");
-    if (origin) {
-      try {
-        const host = new URL(origin).host.toLowerCase();
-        // Trust any registered custom domain (the request reaching us means it already
-        // routes here) — don't gate on the `verified` flag, which can be stale.
-        const d = await prisma.domain.findUnique({ where: { hostname: host }, select: { id: true } });
-        if (d) list.push(origin);
-      } catch {
-        /* malformed origin — ignore */
+    // Every host we serve is trusted, resolved from the data that already decides
+    // routing (isServedHost) rather than from this env list. That is what lets a
+    // tenant's own domain authenticate the moment it points here — no env edit, no
+    // redeploy per domain. The env entries above remain only as bootstrap.
+    //
+    // Three sources, because this list is checked against two different things: the
+    // Origin/Referer header (the CSRF check) AND body URLs like `redirectTo`, which
+    // the forgot-password form sets to the browser's own origin. A request can carry a
+    // redirectTo without an Origin header, so the host the request ARRIVED on is a
+    // candidate too — still gated by isServedHost, so only our own domains are added.
+    const headers = request?.headers;
+    if (headers) {
+      const originish = headers.get("origin") || headers.get("referer") || "";
+      const arrivedHost = headers.get("x-forwarded-host")?.split(",")[0]?.trim() || headers.get("host") || "";
+      const proto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim() === "http" ? "http" : "https";
+      const candidates = [originish, arrivedHost ? `${proto}://${arrivedHost}` : ""];
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        try {
+          const u = new URL(candidate);
+          if (!list.includes(u.origin) && (await isServedHost(u.host))) list.push(u.origin);
+        } catch {
+          /* malformed header — ignore */
+        }
       }
     }
     return list;
@@ -111,7 +126,13 @@ export const auth = betterAuth({
     // sender from the user's own tenant SMTP; the platform owner / super admin
     // (tenantId null) uses the singleton SMTP row. If SMTP is unconfigured or the
     // send fails, fall back to the legacy CRM webhook so we never silently drop it.
-    sendResetPassword: async ({ user, url, token }) => {
+    sendResetPassword: async ({ user, url, token }, request) => {
+      // Better Auth builds this link from its STATIC baseURL, so on any other domain
+      // the mail arrives pointing at a host the person isn't using — and, once the
+      // canonical host moves, at one that may not answer at all. Re-home it onto the
+      // domain the request actually came in on, validated first (see served-host).
+      url = await linkForRequest(url, request);
+
       // The user's tenant decides which SMTP config sends the mail.
       const row = await prisma.user
         .findUnique({ where: { id: user.id }, select: { tenantId: true } })
@@ -165,9 +186,11 @@ export const auth = betterAuth({
     // Delegate the actual email to the owner's CRM: POST the verification link to a
     // configurable webhook (their automation sends the email; the user clicks it and
     // Better Auth verifies + redirects). No-op until EMAIL_VERIFY_WEBHOOK_URL is set.
-    sendVerificationEmail: async ({ user, url, token }) => {
+    sendVerificationEmail: async ({ user, url, token }, request) => {
       const hook = env.EMAIL_VERIFY_WEBHOOK_URL;
       if (!hook) return;
+      // Same reasoning as the reset link: verify on the domain they signed up on.
+      url = await linkForRequest(url, request);
       try {
         await fetch(hook, {
           method: "POST",
