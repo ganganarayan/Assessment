@@ -17,10 +17,10 @@ export const page: SeoPage = {
   title: "Lead Qualification Software: How It Works",
   description:
     "What lead qualification software does, how scoring and weighting work, how it differs from a form or a CRM field, and what to check before you choose one.",
-  h1: "Assess360 — lead qualification software",
+  h1: "Assess360 — lead qualification software that filters before it scores",
   shortName: "Lead qualification software",
   lede:
-    "Lead qualification software scores every enquiry against criteria you define and decides which ones deserve a sales conversation. The useful ones do three things: score answers rather than collect them, let you weight what actually predicts a good customer, and act on the result automatically.",
+    "Lead qualification software decides which enquiries deserve a sales conversation. Assess360 does it with several methods at once and on every enquiry, not once at the top of the funnel: a gate that stops wrong-fit traffic becoming a lead at all, weighted scoring for everyone who passes, manual-review fields for the edge cases, and a signal back to the ad platform so the next click is better than the last.",
   updatedAt: "2026-10-02",
   internalLinks: [],
   sections: [

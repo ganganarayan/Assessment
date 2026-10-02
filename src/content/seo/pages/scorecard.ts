@@ -15,7 +15,7 @@ export const page: SeoPage = {
   title: "Online Scorecards: How They Work",
   description:
     "What an online scorecard is, what the respondent sees at the end, and why the result page is the part that decides whether people answer honestly.",
-  h1: "Assess360 — online scorecards",
+  h1: "Assess360 — online scorecards that qualify, not just score",
   shortName: "Online scorecards",
   lede:
     "An online scorecard asks a set of questions, scores the answers against criteria you set, and shows the respondent where they stand. The exchange is the whole mechanism: they answer honestly because the result is only useful if they do.",

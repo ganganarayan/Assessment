@@ -15,7 +15,7 @@ export const page: SeoPage = {
   title: "Qualify Leads Before the Sales Call",
   description:
     "How to move qualification ahead of the booking — which questions to ask, where to put them, and what to do with the people who do not pass.",
-  h1: "Assess360 — qualifying leads before the sales call",
+  h1: "Assess360 — qualifying every lead before the sales call",
   shortName: "Qualifying before the call",
   lede:
     "Qualifying before the call means asking the questions that decide the outcome before the meeting is booked rather than in its first five minutes. The questions do not change. Only their position does, and that is what frees the calendar.",

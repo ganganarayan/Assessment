@@ -16,10 +16,10 @@ export const page: SeoPage = {
   title: "Assessment Software: What to Look For",
   description:
     "What assessment software has to do beyond asking questions — scoring, branching, result pages and hosting — and how to tell a quiz builder from a qualification tool.",
-  h1: "Assess360 — assessment software",
+  h1: "Assess360 — assessment software built for lead qualification",
   shortName: "Assessment software",
   lede:
-    "Assessment software builds, hosts and scores a structured set of questions, then returns a result to the person who answered them. The difference between tools is rarely the question editor — almost all of those are fine. It is what happens after the last question.",
+    "Assessment software builds, hosts and scores a structured set of questions, then returns a result to the person who answered them. Almost every tool can do that part. Assess360 is an assessment tool built for one job beyond it — qualifying leads, on every enquiry, by several methods working together rather than a score alone.",
   updatedAt: "2026-10-02",
   internalLinks: ["lead-qualification-software", "scorecard"],
   sections: [

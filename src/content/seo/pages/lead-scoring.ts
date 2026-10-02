@@ -16,7 +16,7 @@ export const page: SeoPage = {
   title: "Lead Scoring Software: Points and Weights",
   description:
     "How lead scoring works in practice — points per answer, category weights and the qualified threshold — and why fit and behavioural scoring answer different things.",
-  h1: "Assess360 — lead scoring software",
+  h1: "Assess360 — lead scoring your ad platform can learn from",
   shortName: "Lead scoring software",
   lede:
     "Lead scoring turns answers into a number you can sort by. The mechanics are simple — points per answer, weights per category, a threshold for qualified — and nearly all the value lies in choosing them deliberately rather than copying a template.",

@@ -11,7 +11,7 @@ export const page: SeoPage = {
   title: "Lead Qualification Quiz: Beyond List Growth",
   description:
     "How a lead qualification quiz differs from a list-building quiz, what to ask, and why most quiz funnels optimise for the wrong outcome.",
-  h1: "Assess360 — lead qualification quiz",
+  h1: "Assess360 — a lead qualification quiz that sorts, not collects",
   shortName: "Lead qualification quiz",
   lede:
     "A lead qualification quiz uses the quiz format for a different job: not to grow a list, but to decide who is worth talking to. The format is identical and the design decisions are nearly opposite.",
