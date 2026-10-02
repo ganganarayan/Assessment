@@ -15,7 +15,7 @@ export const page: SeoPage = {
   title: "Online Scorecards: How They Work",
   description:
     "What an online scorecard is, what the respondent sees at the end, and why the result page is the part that decides whether people answer honestly.",
-  h1: "Assess360 - online scorecards that qualify, not just score",
+  h1: "Assess360: scorecards that qualify, not just score",
   shortName: "Online scorecards",
   lede:
     "An online scorecard asks a set of questions, scores the answers against criteria you set, and shows the respondent where they stand. The exchange is the whole mechanism: they answer honestly because the result is only useful if they do.",
@@ -24,7 +24,7 @@ export const page: SeoPage = {
   sections: [
     {
       id: "the-exchange",
-      heading: "Why a scorecard gets honest answers",
+      heading: "Why an Assess360 scorecard gets honest answers",
       answer:
         "Because the respondent is answering for their own benefit, not yours - an inflated answer only corrupts the result they came for.",
       paragraphs: [
@@ -35,7 +35,7 @@ export const page: SeoPage = {
     },
     {
       id: "result-page",
-      heading: "What the result page has to show",
+      heading: "What an Assess360 result page shows each respondent",
       answer:
         "A score, what that score means in words, and one clear next step - in that order, and specific enough that it could not have been written for someone else.",
       paragraphs: [
@@ -50,7 +50,7 @@ export const page: SeoPage = {
     },
     {
       id: "hosting",
-      heading: "Hosted, not rebuilt",
+      heading: "Assess360 hosts the scorecard on your domain, you rebuild nothing",
       answer:
         "A scorecard needs a URL of its own, because ads, email and social all need somewhere to send people that is not your homepage.",
       paragraphs: [
@@ -60,7 +60,7 @@ export const page: SeoPage = {
     },
     {
       id: "how-assess360-does-it",
-      heading: "How Assess360 does it",
+      heading: "Where the scorecard sits in the qualification loop",
       answer:
         "Every scorecard is hosted on one link with a per-respondent result page, banded interpretations and an optional branded PDF - on your own domain when you want it.",
       paragraphs: [

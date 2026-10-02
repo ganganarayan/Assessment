@@ -17,31 +17,32 @@ export const page: SeoPage = {
   title: "Lead Qualification Software: How It Works",
   description:
     "What lead qualification software does, how scoring and weighting work, how it differs from a form or a CRM field, and what to check before you choose one.",
-  h1: "Assess360 - lead qualification software that filters before it scores",
+  h1: "Assess360: the qualification loop that filters before it scores",
   shortName: "Lead qualification software",
   lede:
-    "Lead qualification software decides which enquiries deserve a sales conversation. Assess360 does it with several methods at once and on every enquiry, not once at the top of the funnel: a gate that stops wrong-fit traffic becoming a lead at all, weighted scoring for everyone who passes, manual-review fields for the edge cases, and a signal back to the ad platform so the next click is better than the last.",
+    "Lead qualification decides which enquiries deserve a sales conversation. Assess360 runs four steps on every enquiry rather than one check at the top of the funnel: Gate stops wrong-fit traffic becoming a lead at all, Score weights the answers of everyone who passes, Review puts the edge cases in front of a human, and Signal tells the ad platform which leads were worth having so the next click is better than the last.",
   updatedAt: "2026-10-02",
   internalLinks: [],
   sections: [
     {
       id: "how-it-works",
-      heading: "How lead qualification software works",
+      heading: "How the Assess360 qualification loop works: Gate, Score, Review, Signal",
       answer:
-        "A prospect answers a short set of questions, each answer carries a score you set, categories are weighted against each other, and the total is compared to a threshold that decides what qualified means.",
+        "Four steps run on every enquiry: Gate decides who is worth asking, Score decides how well they fit, Review catches what scoring cannot judge, and Signal teaches the ad platform what a good lead looks like.",
       paragraphs: [
-        "Nothing in that chain is clever on its own. What makes it useful is that the judgement happens at submission time instead of in somebody's inbox, which is what lets routing, prioritisation and disqualification be automatic rather than a daily chore nobody has time for.",
+        "No single step is clever on its own. What makes the loop work is that each one removes a different kind of error, and that the judgement happens at submission time instead of in somebody's inbox, which is what lets routing, prioritisation and disqualification be automatic rather than a daily chore nobody has time for.",
+        "It is also a loop rather than a funnel. The fourth step feeds the first: the ad platform learns from the qualified and the disqualified alike, so the traffic arriving at the gate next month is better than the traffic arriving at it today.",
       ],
       bullets: [
-        "Points per answer, so a near-miss and a dealbreaker are not treated alike",
-        "Weights per category, so the thing that predicts a good customer counts for more",
-        "A threshold, so qualified has a definition rather than a feeling",
-        "A result for the respondent, so the questions buy them something too",
+        "Gate, before the questions start, so wrong-fit traffic never becomes a lead",
+        "Score, with points per answer and weights per category, so fit has a number",
+        "Review, with free-text fields a human reads, for what a score cannot judge",
+        "Signal, back to the ad platform, so the next click is better than the last",
       ],
     },
     {
       id: "filtering",
-      heading: "Filtering unqualified leads before they enter the pipeline",
+      heading: "Assess360 filters unqualified leads before they reach your pipeline",
       answer:
         "The strongest version of this does not score the wrong-fit enquiry at all - it screens them out at the door, before a lead record exists.",
       paragraphs: [
@@ -52,7 +53,7 @@ export const page: SeoPage = {
     },
     {
       id: "what-to-look-for",
-      heading: "What to check before you choose one",
+      heading: "What Assess360 does that a scoring tool does not",
       answer:
         "Look at who defines the criteria, what happens to the people who fail them, and whether the tool can report qualification back to wherever your traffic comes from.",
       paragraphs: [
@@ -67,7 +68,7 @@ export const page: SeoPage = {
     },
     {
       id: "how-assess360-does-it",
-      heading: "How Assess360 does it",
+      heading: "Assess360 tells your ad platform which leads were worth having",
       answer:
         "It screens the wrong-fit visitor out before a lead record exists, scores everyone who gets through, and reports only the qualified ones back to the ad platform that paid for the click.",
       paragraphs: [

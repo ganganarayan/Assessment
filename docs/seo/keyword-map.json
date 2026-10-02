@@ -71,7 +71,7 @@
           "role": "secondary"
         },
         {
-          "term": "what is lead qualification software",
+          "term": "what is lead qualification",
           "url": "/answers/what-is-lead-qualification-software",
           "role": "primary"
         },
@@ -153,7 +153,7 @@
           "role": "secondary"
         },
         {
-          "term": "what is an online assessment",
+          "term": "use an assessment to qualify leads",
           "url": "/answers/what-is-an-online-assessment",
           "role": "primary"
         }
@@ -170,14 +170,14 @@
           "role": "secondary"
         },
         {
-          "term": "how does lead scoring work",
-          "url": "/answers/how-does-lead-scoring-work",
-          "role": "primary"
-        },
-        {
           "term": "how lead scores are calculated",
           "url": "/answers/how-does-lead-scoring-work",
           "role": "secondary"
+        },
+        {
+          "term": "how to score leads",
+          "url": "/answers/how-does-lead-scoring-work",
+          "role": "primary"
         },
         {
           "term": "lead score cutoff",
@@ -272,7 +272,7 @@
           "role": "secondary"
         },
         {
-          "term": "what is an online scorecard",
+          "term": "what is a scorecard",
           "url": "/answers/what-is-an-online-scorecard",
           "role": "primary"
         }
@@ -426,9 +426,9 @@
     "do quiz funnels work": "/answers/do-quiz-funnels-still-work",
     "filter unqualified leads": "/lead-qualification-software",
     "how do i qualify leads before a sales call": "/answers/how-do-i-qualify-leads-before-a-sales-call",
-    "how does lead scoring work": "/answers/how-does-lead-scoring-work",
     "how lead scores are calculated": "/answers/how-does-lead-scoring-work",
     "how long should an assessment be": "/answers/how-long-should-an-assessment-be",
+    "how to score leads": "/answers/how-does-lead-scoring-work",
     "ideal quiz length": "/answers/how-long-should-an-assessment-be",
     "interactive assessment": "/lead-qualification-quiz",
     "interactive assessment software": "/assessment-software",
@@ -476,11 +476,11 @@
     "stop unqualified leads from ads": "/answers/why-do-my-ads-produce-unqualified-leads",
     "turning down unqualified leads": "/answers/should-i-let-unqualified-leads-book-a-call",
     "unqualified leads from facebook ads": "/answers/why-do-my-ads-produce-unqualified-leads",
+    "use an assessment to qualify leads": "/answers/what-is-an-online-assessment",
     "what is a good lead score threshold": "/answers/what-is-a-good-lead-score-threshold",
     "what is a quiz funnel": "/answers/what-is-a-quiz-funnel",
-    "what is an online assessment": "/answers/what-is-an-online-assessment",
-    "what is an online scorecard": "/answers/what-is-an-online-scorecard",
-    "what is lead qualification software": "/answers/what-is-lead-qualification-software",
+    "what is a scorecard": "/answers/what-is-an-online-scorecard",
+    "what is lead qualification": "/answers/what-is-lead-qualification-software",
     "why do my ads produce unqualified leads": "/answers/why-do-my-ads-produce-unqualified-leads"
   },
   "collisions": []

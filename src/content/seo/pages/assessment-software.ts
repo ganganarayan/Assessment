@@ -16,7 +16,7 @@ export const page: SeoPage = {
   title: "Assessment Software: What to Look For",
   description:
     "What assessment software has to do beyond asking questions - scoring, branching, result pages and hosting - and how to tell a quiz builder from a qualification tool.",
-  h1: "Assess360 - assessment software built for lead qualification",
+  h1: "Assess360: assessments built to qualify, not just to score",
   shortName: "Assessment software",
   lede:
     "Assessment software builds, hosts and scores a structured set of questions, then returns a result to the person who answered them. Almost every tool can do that part. Assess360 is an assessment tool built for one job beyond it - qualifying leads, on every enquiry, by several methods working together rather than a score alone.",
@@ -25,7 +25,7 @@ export const page: SeoPage = {
   sections: [
     {
       id: "what-it-has-to-do",
-      heading: "What assessment software has to do",
+      heading: "Assess360 scores the answers, it does not just collect them",
       answer:
         "Four things: ask the questions, score the answers, decide what the score means, and show the respondent a result worth the time they spent.",
       paragraphs: [
@@ -40,7 +40,7 @@ export const page: SeoPage = {
     },
     {
       id: "branching",
-      heading: "Why branching matters more than question count",
+      heading: "Assess360 asks each person only the questions that apply to them",
       answer:
         "Conditional logic lets you ask fewer questions of each person while covering more ground overall, because nobody sees the questions that do not apply to them.",
       paragraphs: [
@@ -50,7 +50,7 @@ export const page: SeoPage = {
     },
     {
       id: "ai-questions",
-      heading: "Where AI genuinely helps, and where it does not",
+      heading: "Assess360 drafts your questions with AI, you keep the scoring",
       answer:
         "AI is good at producing a first draft of questions and answer options in minutes; it is not good at knowing which answers should score well for your business.",
       paragraphs: [
@@ -60,7 +60,7 @@ export const page: SeoPage = {
     },
     {
       id: "how-assess360-does-it",
-      heading: "How Assess360 does it",
+      heading: "Where Assess360 fits in the qualification loop",
       answer:
         "Draft the questions with AI, edit them, set the points and weights yourself, and publish to a hosted link that scores every answer and returns a personalised result.",
       paragraphs: [

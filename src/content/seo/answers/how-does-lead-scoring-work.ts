@@ -2,11 +2,11 @@ import type { Answer } from "@/lib/seo/types";
 
 export const answer: Answer = {
   slug: "how-does-lead-scoring-work",
-  question: "How does lead scoring work?",
+  question: "How do I score leads so sales only calls the right ones?",
   short:
-    "Each possible answer carries points, each category of questions carries a weight, the weighted points are totalled, and the total is compared against a threshold that defines what qualified means.",
+    "You give each possible answer points, weight the categories against each other, and set a threshold, so the leads above it are the only ones your reps are asked to call.",
   topicId: "lead-scoring",
-  primaryKeyword: "how does lead scoring work",
+  primaryKeyword: "how to score leads",
   secondaryKeywords: ["lead scoring explained", "how lead scores are calculated"],
   related: ["what-is-a-good-lead-score-threshold", "what-is-lead-qualification-software"],
   updatedAt: "2026-10-02",

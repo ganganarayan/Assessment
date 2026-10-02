@@ -2,11 +2,11 @@ import type { Answer } from "@/lib/seo/types";
 
 export const answer: Answer = {
   slug: "what-is-an-online-assessment",
-  question: "What is an online assessment?",
+  question: "How do I use an assessment to qualify leads?",
   short:
-    "An online assessment is a structured set of questions that scores the answers against defined criteria and returns a result to the person who answered, rather than simply storing what they said.",
+    "You put the questions a rep would ask into a scored assessment, so the respondent gets a result worth having and you get a verdict on whether they fit, before anyone books a call.",
   topicId: "assessment-software",
-  primaryKeyword: "what is an online assessment",
+  primaryKeyword: "use an assessment to qualify leads",
   secondaryKeywords: ["online assessment meaning", "assessment vs survey"],
   related: ["how-long-should-an-assessment-be", "what-is-an-online-scorecard"],
   updatedAt: "2026-10-02",

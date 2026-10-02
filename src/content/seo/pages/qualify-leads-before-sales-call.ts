@@ -15,7 +15,7 @@ export const page: SeoPage = {
   title: "Qualify Leads Before the Sales Call",
   description:
     "How to move qualification ahead of the booking - which questions to ask, where to put them, and what to do with the people who do not pass.",
-  h1: "Assess360 - qualifying every lead before the sales call",
+  h1: "Assess360: qualify every lead before the sales call",
   shortName: "Qualifying before the call",
   lede:
     "Qualifying before the call means asking the questions that decide the outcome before the meeting is booked rather than in its first five minutes. The questions do not change. Only their position does, and that is what frees the calendar.",
@@ -24,7 +24,7 @@ export const page: SeoPage = {
   sections: [
     {
       id: "the-cost",
-      heading: "What an unqualified call actually costs",
+      heading: "What an unqualified call actually costs you",
       answer:
         "More than the half hour: the preparation, the follow-up, the context switch, and the slot a good prospect could not have.",
       paragraphs: [
@@ -34,7 +34,7 @@ export const page: SeoPage = {
     },
     {
       id: "where-to-put-it",
-      heading: "Where qualification belongs in the funnel",
+      heading: "Assess360 sits between the click and your calendar",
       answer:
         "Between the click and the calendar - after someone has shown interest, before they can book a slot.",
       paragraphs: [
@@ -49,7 +49,7 @@ export const page: SeoPage = {
     },
     {
       id: "without-being-rude",
-      heading: "How to ask without it feeling like a screening",
+      heading: "Assess360 asks the hard questions without it feeling like a screening",
       answer:
         "Give the questions a purpose for the respondent - a score, a benchmark, a diagnosis - so answering serves them rather than auditing them.",
       paragraphs: [
@@ -59,7 +59,7 @@ export const page: SeoPage = {
     },
     {
       id: "how-assess360-does-it",
-      heading: "How Assess360 does it",
+      heading: "What Assess360 does with the ones who do not clear the bar",
       answer:
         "The qualifying questions run as a scored assessment between the click and the calendar, and the people who do not clear the bar get a page of their own rather than a dead end.",
       paragraphs: [

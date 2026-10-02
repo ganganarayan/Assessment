@@ -16,7 +16,7 @@ export const page: SeoPage = {
   title: "Lead Scoring Software: Points and Weights",
   description:
     "How lead scoring works in practice - points per answer, category weights and the qualified threshold - and why fit and behavioural scoring answer different things.",
-  h1: "Assess360 - lead scoring your ad platform can learn from",
+  h1: "Assess360: lead scoring your ad platform can learn from",
   shortName: "Lead scoring software",
   lede:
     "Lead scoring turns answers into a number you can sort by. The mechanics are simple - points per answer, weights per category, a threshold for qualified - and nearly all the value lies in choosing them deliberately rather than copying a template.",
@@ -25,7 +25,7 @@ export const page: SeoPage = {
   sections: [
     {
       id: "fit-vs-behaviour",
-      heading: "Fit scoring and behavioural scoring are different things",
+      heading: "Assess360 scores fit, not how interested somebody looks",
       answer:
         "Fit scoring asks whether this person is the kind of customer you want; behavioural scoring asks how interested they appear to be. Blending them into one number hides which question you answered.",
       paragraphs: [
@@ -36,7 +36,7 @@ export const page: SeoPage = {
     },
     {
       id: "choosing-points",
-      heading: "How to choose points without guessing",
+      heading: "How to set your Assess360 points without guessing",
       answer:
         "Start from customers you already have: take your five best and five worst, and set the points so the scoring would have separated them.",
       paragraphs: [
@@ -51,7 +51,7 @@ export const page: SeoPage = {
     },
     {
       id: "weights",
-      heading: "Why category weights matter more than individual points",
+      heading: "Assess360 weights categories, so one answer can outrank the rest",
       answer:
         "Weights decide which category can overrule the others, and that is usually a bigger lever than any single answer's points.",
       paragraphs: [
@@ -61,7 +61,7 @@ export const page: SeoPage = {
     },
     {
       id: "how-assess360-does-it",
-      heading: "How Assess360 does it",
+      heading: "Assess360 sends the score back to the platform that bought the click",
       answer:
         "Points per answer, weights per category, and named bands that turn the total into a message and a next step - then the qualified ones are reported back to Meta as a conversion.",
       paragraphs: [
