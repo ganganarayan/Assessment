@@ -25,8 +25,7 @@
  * Exit code is 1 when any 🔴 check fails, so it can gate a deploy step.
  */
 import "./public-db-url";
-import { readdirSync, readFileSync } from "fs";
-import { join } from "path";
+import { findOwnerStampOffenders } from "./owner-stamp-check";
 import { prisma } from "../src/lib/db/prisma";
 import { PLATFORM_OWNER_EMAIL } from "../src/lib/auth/platform";
 import { PLATFORM_TENANT_ID } from "../src/lib/tenant/platform-tenant";
@@ -248,7 +247,14 @@ async function main() {
     console.log("\n(Pass --funnel <slug> to also check the funnel tenant's plan and integration config.)");
   }
 
-  sourceOwnerStampCheck();
+  // The same guard the BUILD runs (verify:owner-stamp) — repeated here so a tenancy
+  // audit reports it alongside the row counts rather than in a separate place.
+  const offenders = findOwnerStampOffenders();
+  check(
+    offenders.length === 0,
+    "no write stamps a row's owner from the nullable scope.tenantId",
+    offenders.length === 0 ? "every create uses configTenantOf(scope)" : `fix: ${offenders.join(", ")}`,
+  );
 
   // Say which state was asserted, so "all checks passed" is never mistaken for "the
   // re-home is done" on a run that was only ever checking the starting state.
@@ -260,42 +266,6 @@ async function main() {
       : `\n🔴 ${failures} check(s) failed against ${asserted} — see above.`,
   );
   if (failures > 0) process.exitCode = 1;
-}
-
-/**
- * SOURCE check — the regression guard for the orphaned-row bug.
- *
- * A super admin with no workspace entered has `scope.tenantId === null`, so a write that
- * stamps it saves an UNOWNED row, while that same caller's reads are scoped to the
- * Platform tenant. Written as null, searched for as "platform": the row exists, serves
- * traffic, and is invisible in the console. That is how an assessment went missing.
- *
- * `configTenantOf(scope)` returns a non-nullable id and is the correct stamp. TypeScript
- * cannot enforce the choice, because the Prisma column is still nullable and
- * `scope.tenantId` is a legitimate value in a WHERE clause — so the guard is textual, and
- * deliberately narrow: it only objects to the nullable id being written as a row's owner.
- *
- * Delete this once the tenant columns are NOT NULL. At that point the database refuses
- * the write itself, which is a better guard than reading source.
- */
-function sourceOwnerStampCheck(): void {
-  const banned = /(?:data|create):\s*\{[^}]*tenantId:\s*scope\.tenantId/s;
-  const offenders: string[] = [];
-  const walk = (dir: string): void => {
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      const full = join(dir, e.name);
-      if (e.isDirectory()) walk(full);
-      else if (/\.tsx?$/.test(e.name) && banned.test(readFileSync(full, "utf8"))) offenders.push(full);
-    }
-  };
-  walk(join(process.cwd(), "src"));
-  check(
-    offenders.length === 0,
-    "no write stamps a row's owner from the nullable scope.tenantId",
-    offenders.length === 0
-      ? "every create uses configTenantOf(scope)"
-      : `use configTenantOf(scope) in: ${offenders.join(", ")}`,
-  );
 }
 
 main()

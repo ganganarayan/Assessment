@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && npm run verify:owner-stamp && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -40,6 +40,7 @@
     "verify:bots": "tsx scripts/verify-bots.ts",
     "verify:enrichment": "tsx scripts/verify-enrichment.ts",
     "verify:billing": "tsx scripts/verify-billing.ts",
+    "verify:owner-stamp": "tsx scripts/verify-owner-stamp.ts",
     "verify:seo": "tsx scripts/verify-seo.ts",
     "verify:payments": "tsx --conditions=react-server scripts/verify-payments.ts",
     "verify:routing": "tsx scripts/verify-routing.ts",
