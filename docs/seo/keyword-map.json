@@ -61,21 +61,6 @@
           "role": "secondary"
         },
         {
-          "term": "qualify leads before a sales call",
-          "url": "/answers/how-do-i-qualify-leads-before-a-sales-call",
-          "role": "primary"
-        },
-        {
-          "term": "qualify leads before booking",
-          "url": "/answers/how-do-i-qualify-leads-before-a-sales-call",
-          "role": "secondary"
-        },
-        {
-          "term": "qualify prospects before demo",
-          "url": "/answers/how-do-i-qualify-leads-before-a-sales-call",
-          "role": "secondary"
-        },
-        {
           "term": "stop unqualified leads from ads",
           "url": "/answers/why-do-my-ads-produce-unqualified-leads",
           "role": "secondary"
@@ -96,25 +81,405 @@
           "role": "primary"
         }
       ]
+    },
+    {
+      "topic": "assessment-software",
+      "title": "Assessment software",
+      "pillar": "/assessment-software",
+      "terms": [
+        {
+          "term": "ai generated quiz questions",
+          "url": "/answers/can-ai-write-my-assessment-questions",
+          "role": "secondary"
+        },
+        {
+          "term": "ai question generation",
+          "url": "/answers/can-ai-write-my-assessment-questions",
+          "role": "secondary"
+        },
+        {
+          "term": "assessment question count",
+          "url": "/answers/how-long-should-an-assessment-be",
+          "role": "secondary"
+        },
+        {
+          "term": "assessment software",
+          "url": "/assessment-software",
+          "role": "primary"
+        },
+        {
+          "term": "assessment vs survey",
+          "url": "/answers/what-is-an-online-assessment",
+          "role": "secondary"
+        },
+        {
+          "term": "can ai write assessment questions",
+          "url": "/answers/can-ai-write-my-assessment-questions",
+          "role": "primary"
+        },
+        {
+          "term": "how long should an assessment be",
+          "url": "/answers/how-long-should-an-assessment-be",
+          "role": "primary"
+        },
+        {
+          "term": "ideal quiz length",
+          "url": "/answers/how-long-should-an-assessment-be",
+          "role": "secondary"
+        },
+        {
+          "term": "interactive assessment software",
+          "url": "/assessment-software",
+          "role": "secondary"
+        },
+        {
+          "term": "lead assessment software",
+          "url": "/assessment-software",
+          "role": "secondary"
+        },
+        {
+          "term": "online assessment meaning",
+          "url": "/answers/what-is-an-online-assessment",
+          "role": "secondary"
+        },
+        {
+          "term": "online assessment software",
+          "url": "/assessment-software",
+          "role": "secondary"
+        },
+        {
+          "term": "personalized assessment",
+          "url": "/assessment-software",
+          "role": "secondary"
+        },
+        {
+          "term": "what is an online assessment",
+          "url": "/answers/what-is-an-online-assessment",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "topic": "lead-scoring",
+      "title": "Lead scoring",
+      "pillar": "/lead-scoring",
+      "terms": [
+        {
+          "term": "automated lead scoring",
+          "url": "/lead-scoring",
+          "role": "secondary"
+        },
+        {
+          "term": "how does lead scoring work",
+          "url": "/answers/how-does-lead-scoring-work",
+          "role": "primary"
+        },
+        {
+          "term": "how lead scores are calculated",
+          "url": "/answers/how-does-lead-scoring-work",
+          "role": "secondary"
+        },
+        {
+          "term": "lead score cutoff",
+          "url": "/answers/what-is-a-good-lead-score-threshold",
+          "role": "secondary"
+        },
+        {
+          "term": "lead scoring explained",
+          "url": "/answers/how-does-lead-scoring-work",
+          "role": "secondary"
+        },
+        {
+          "term": "lead scoring software",
+          "url": "/lead-scoring",
+          "role": "primary"
+        },
+        {
+          "term": "lead scoring tool",
+          "url": "/lead-scoring",
+          "role": "secondary"
+        },
+        {
+          "term": "prospect scoring",
+          "url": "/lead-scoring",
+          "role": "secondary"
+        },
+        {
+          "term": "qualification scoring",
+          "url": "/lead-scoring",
+          "role": "secondary"
+        },
+        {
+          "term": "qualified lead threshold",
+          "url": "/answers/what-is-a-good-lead-score-threshold",
+          "role": "secondary"
+        },
+        {
+          "term": "what is a good lead score threshold",
+          "url": "/answers/what-is-a-good-lead-score-threshold",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "topic": "scorecards",
+      "title": "Scorecards",
+      "pillar": "/scorecard",
+      "terms": [
+        {
+          "term": "assessment results page",
+          "url": "/answers/what-should-a-scorecard-result-page-show",
+          "role": "secondary"
+        },
+        {
+          "term": "assessment scorecard",
+          "url": "/scorecard",
+          "role": "secondary"
+        },
+        {
+          "term": "lead qualification scorecard",
+          "url": "/scorecard",
+          "role": "secondary"
+        },
+        {
+          "term": "online scorecard",
+          "url": "/scorecard",
+          "role": "primary"
+        },
+        {
+          "term": "quiz results page design",
+          "url": "/answers/what-should-a-scorecard-result-page-show",
+          "role": "secondary"
+        },
+        {
+          "term": "scorecard assessment definition",
+          "url": "/answers/what-is-an-online-scorecard",
+          "role": "secondary"
+        },
+        {
+          "term": "scorecard meaning marketing",
+          "url": "/answers/what-is-an-online-scorecard",
+          "role": "secondary"
+        },
+        {
+          "term": "scorecard result page",
+          "url": "/answers/what-should-a-scorecard-result-page-show",
+          "role": "primary"
+        },
+        {
+          "term": "scorecard software",
+          "url": "/scorecard",
+          "role": "secondary"
+        },
+        {
+          "term": "what is an online scorecard",
+          "url": "/answers/what-is-an-online-scorecard",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "topic": "quiz-funnels",
+      "title": "Quiz funnels",
+      "pillar": "/lead-qualification-quiz",
+      "terms": [
+        {
+          "term": "are quiz funnels still effective",
+          "url": "/answers/do-quiz-funnels-still-work",
+          "role": "secondary"
+        },
+        {
+          "term": "do quiz funnels work",
+          "url": "/answers/do-quiz-funnels-still-work",
+          "role": "primary"
+        },
+        {
+          "term": "interactive assessment",
+          "url": "/lead-qualification-quiz",
+          "role": "secondary"
+        },
+        {
+          "term": "lead qualification quiz",
+          "url": "/lead-qualification-quiz",
+          "role": "primary"
+        },
+        {
+          "term": "quiz funnel",
+          "url": "/lead-qualification-quiz",
+          "role": "secondary"
+        },
+        {
+          "term": "quiz funnel meaning",
+          "url": "/answers/what-is-a-quiz-funnel",
+          "role": "secondary"
+        },
+        {
+          "term": "quiz funnel results",
+          "url": "/answers/do-quiz-funnels-still-work",
+          "role": "secondary"
+        },
+        {
+          "term": "quiz funnel software",
+          "url": "/lead-qualification-quiz",
+          "role": "secondary"
+        },
+        {
+          "term": "quiz marketing funnel",
+          "url": "/answers/what-is-a-quiz-funnel",
+          "role": "secondary"
+        },
+        {
+          "term": "what is a quiz funnel",
+          "url": "/answers/what-is-a-quiz-funnel",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "topic": "pre-call-qualification",
+      "title": "Qualifying before the call",
+      "pillar": "/qualify-leads-before-sales-call",
+      "terms": [
+        {
+          "term": "disqualifying leads politely",
+          "url": "/answers/should-i-let-unqualified-leads-book-a-call",
+          "role": "secondary"
+        },
+        {
+          "term": "how do i qualify leads before a sales call",
+          "url": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+          "role": "primary"
+        },
+        {
+          "term": "lead qualifying questions",
+          "url": "/answers/what-questions-should-i-ask-to-qualify-a-lead",
+          "role": "secondary"
+        },
+        {
+          "term": "pre-call qualification",
+          "url": "/qualify-leads-before-sales-call",
+          "role": "secondary"
+        },
+        {
+          "term": "pre-call screening questions",
+          "url": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+          "role": "secondary"
+        },
+        {
+          "term": "qualify leads automatically",
+          "url": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+          "role": "secondary"
+        },
+        {
+          "term": "qualify leads before booking",
+          "url": "/qualify-leads-before-sales-call",
+          "role": "secondary"
+        },
+        {
+          "term": "qualify leads before sales call",
+          "url": "/qualify-leads-before-sales-call",
+          "role": "primary"
+        },
+        {
+          "term": "qualify prospects before demo",
+          "url": "/qualify-leads-before-sales-call",
+          "role": "secondary"
+        },
+        {
+          "term": "questions to qualify a lead",
+          "url": "/answers/what-questions-should-i-ask-to-qualify-a-lead",
+          "role": "primary"
+        },
+        {
+          "term": "sales qualification questions",
+          "url": "/answers/what-questions-should-i-ask-to-qualify-a-lead",
+          "role": "secondary"
+        },
+        {
+          "term": "should unqualified leads book a call",
+          "url": "/answers/should-i-let-unqualified-leads-book-a-call",
+          "role": "primary"
+        },
+        {
+          "term": "turning down unqualified leads",
+          "url": "/answers/should-i-let-unqualified-leads-book-a-call",
+          "role": "secondary"
+        }
+      ]
     }
   ],
   "index": {
+    "ai generated quiz questions": "/answers/can-ai-write-my-assessment-questions",
+    "ai question generation": "/answers/can-ai-write-my-assessment-questions",
+    "are quiz funnels still effective": "/answers/do-quiz-funnels-still-work",
+    "assessment question count": "/answers/how-long-should-an-assessment-be",
+    "assessment results page": "/answers/what-should-a-scorecard-result-page-show",
+    "assessment scorecard": "/scorecard",
+    "assessment software": "/assessment-software",
     "assessment vs form": "/answers/what-is-the-difference-between-a-form-and-a-scorecard",
+    "assessment vs survey": "/answers/what-is-an-online-assessment",
     "automated lead qualification": "/lead-qualification-software",
+    "automated lead scoring": "/lead-scoring",
+    "can ai write assessment questions": "/answers/can-ai-write-my-assessment-questions",
     "difference between a form and a scorecard": "/answers/what-is-the-difference-between-a-form-and-a-scorecard",
+    "disqualifying leads politely": "/answers/should-i-let-unqualified-leads-book-a-call",
+    "do quiz funnels work": "/answers/do-quiz-funnels-still-work",
     "filter unqualified leads": "/lead-qualification-software",
+    "how do i qualify leads before a sales call": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+    "how does lead scoring work": "/answers/how-does-lead-scoring-work",
+    "how lead scores are calculated": "/answers/how-does-lead-scoring-work",
+    "how long should an assessment be": "/answers/how-long-should-an-assessment-be",
+    "ideal quiz length": "/answers/how-long-should-an-assessment-be",
+    "interactive assessment": "/lead-qualification-quiz",
+    "interactive assessment software": "/assessment-software",
+    "lead assessment software": "/assessment-software",
     "lead filtering software": "/lead-qualification-software",
     "lead qualification platform": "/lead-qualification-software",
+    "lead qualification quiz": "/lead-qualification-quiz",
+    "lead qualification scorecard": "/scorecard",
     "lead qualification software": "/lead-qualification-software",
     "lead qualification software definition": "/answers/what-is-lead-qualification-software",
     "lead qualification tool": "/lead-qualification-software",
+    "lead qualifying questions": "/answers/what-questions-should-i-ask-to-qualify-a-lead",
+    "lead score cutoff": "/answers/what-is-a-good-lead-score-threshold",
+    "lead scoring explained": "/answers/how-does-lead-scoring-work",
+    "lead scoring software": "/lead-scoring",
+    "lead scoring tool": "/lead-scoring",
+    "online assessment meaning": "/answers/what-is-an-online-assessment",
+    "online assessment software": "/assessment-software",
+    "online scorecard": "/scorecard",
     "online scorecard vs form": "/answers/what-is-the-difference-between-a-form-and-a-scorecard",
+    "personalized assessment": "/assessment-software",
+    "pre-call qualification": "/qualify-leads-before-sales-call",
+    "pre-call screening questions": "/answers/how-do-i-qualify-leads-before-a-sales-call",
     "prospect qualification software": "/answers/what-is-lead-qualification-software",
-    "qualify leads before a sales call": "/answers/how-do-i-qualify-leads-before-a-sales-call",
-    "qualify leads before booking": "/answers/how-do-i-qualify-leads-before-a-sales-call",
-    "qualify prospects before demo": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+    "prospect scoring": "/lead-scoring",
+    "qualification scoring": "/lead-scoring",
+    "qualified lead threshold": "/answers/what-is-a-good-lead-score-threshold",
+    "qualify leads automatically": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+    "qualify leads before booking": "/qualify-leads-before-sales-call",
+    "qualify leads before sales call": "/qualify-leads-before-sales-call",
+    "qualify prospects before demo": "/qualify-leads-before-sales-call",
+    "questions to qualify a lead": "/answers/what-questions-should-i-ask-to-qualify-a-lead",
+    "quiz funnel": "/lead-qualification-quiz",
+    "quiz funnel meaning": "/answers/what-is-a-quiz-funnel",
+    "quiz funnel results": "/answers/do-quiz-funnels-still-work",
+    "quiz funnel software": "/lead-qualification-quiz",
+    "quiz marketing funnel": "/answers/what-is-a-quiz-funnel",
+    "quiz results page design": "/answers/what-should-a-scorecard-result-page-show",
+    "sales qualification questions": "/answers/what-questions-should-i-ask-to-qualify-a-lead",
+    "scorecard assessment definition": "/answers/what-is-an-online-scorecard",
+    "scorecard meaning marketing": "/answers/what-is-an-online-scorecard",
+    "scorecard result page": "/answers/what-should-a-scorecard-result-page-show",
+    "scorecard software": "/scorecard",
+    "should unqualified leads book a call": "/answers/should-i-let-unqualified-leads-book-a-call",
     "stop unqualified leads from ads": "/answers/why-do-my-ads-produce-unqualified-leads",
+    "turning down unqualified leads": "/answers/should-i-let-unqualified-leads-book-a-call",
     "unqualified leads from facebook ads": "/answers/why-do-my-ads-produce-unqualified-leads",
+    "what is a good lead score threshold": "/answers/what-is-a-good-lead-score-threshold",
+    "what is a quiz funnel": "/answers/what-is-a-quiz-funnel",
+    "what is an online assessment": "/answers/what-is-an-online-assessment",
+    "what is an online scorecard": "/answers/what-is-an-online-scorecard",
     "what is lead qualification software": "/answers/what-is-lead-qualification-software",
     "why do my ads produce unqualified leads": "/answers/why-do-my-ads-produce-unqualified-leads"
   },
