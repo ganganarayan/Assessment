@@ -38,8 +38,12 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD
  */
 export const topicSchema = z.object({
   id: slug,
-  /** Human name of the cluster, e.g. "Lead qualification software". */
+  /** SHORT category name, e.g. "Lead qualification". Used in breadcrumbs, where the
+   *  branded form would be too long to read. */
   title: z.string().min(3),
+  /** The branded heading shown on the knowledge-base index. Separate from `title`
+   *  because a breadcrumb and a section heading want different lengths. */
+  heading: z.string().min(3),
   /** The pillar page that owns this cluster, by page slug. */
   pillarSlug: slug,
   /** One line, used on the knowledge-base index. */
@@ -119,7 +123,14 @@ export const seoPageSchema = z.object({
   /** The <title>, without the brand — the layout template appends it. */
   title: z.string().min(15).max(70),
   description: z.string().min(70).max(165),
+  /** The branded H1, e.g. "Assess360 — lead qualification software". It keeps the head
+   *  term, because that is the query the page exists to answer, and puts a name to who is
+   *  answering it — a page that explains a category without saying who built it educates
+   *  the reader and sells for somebody else. */
   h1: z.string().min(10),
+  /** The SHORT name for navigation, breadcrumbs and cross-links. The branded H1 repeated
+   *  six times down a footer column is noise, not branding. */
+  shortName: z.string().min(3),
   /** The answer-first opener: what this page says, before the page says it. */
   lede: z.string().min(80).max(500),
   sections: z.array(sectionSchema).min(2),

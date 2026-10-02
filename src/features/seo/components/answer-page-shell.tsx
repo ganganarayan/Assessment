@@ -68,7 +68,7 @@ export function AnswerPageShell({
           <p className="mt-10 rounded-xl border bg-[var(--muted)] p-4 text-sm leading-relaxed">
             Part of our guide to{" "}
             <Link href={seoPath(pillar.slug)} className="font-medium underline underline-offset-4">
-              {pillar.h1.toLowerCase()}
+              {pillar.shortName.toLowerCase()}
             </Link>
             .
           </p>

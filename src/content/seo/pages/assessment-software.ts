@@ -16,7 +16,8 @@ export const page: SeoPage = {
   title: "Assessment Software: What to Look For",
   description:
     "What assessment software has to do beyond asking questions — scoring, branching, result pages and hosting — and how to tell a quiz builder from a qualification tool.",
-  h1: "Assessment software",
+  h1: "Assess360 — assessment software",
+  shortName: "Assessment software",
   lede:
     "Assessment software builds, hosts and scores a structured set of questions, then returns a result to the person who answered them. The difference between tools is rarely the question editor — almost all of those are fine. It is what happens after the last question.",
   updatedAt: "2026-10-02",
@@ -56,6 +57,24 @@ export const page: SeoPage = {
         "Treat generated questions as a starting point to edit, not output to publish. The scoring is the part that encodes your judgement about what a good customer looks like, and that judgement is the asset — it is not something a model can infer from a prompt about your industry.",
       ],
       bullets: [],
+    },
+    {
+      id: "how-assess360-does-it",
+      heading: "How Assess360 does it",
+      answer:
+        "Draft the questions with AI, edit them, set the points and weights yourself, and publish to a hosted link that scores every answer and returns a personalised result.",
+      paragraphs: [
+        "The division of labour is deliberate. Generation handles the part that is tedious and generic — a first pass at questions and answer options — while the scoring, the weights and the bands stay yours, because those encode what a good customer looks like for your business and nothing can infer that from a prompt.",
+        "Result reports can be written by AI too, using your own OpenAI, Claude or Gemini key rather than ours. That keeps the model choice and the cost with you, and the reports are generated under your own account rather than pooled through someone else's.",
+      ],
+      bullets: [
+        "AI-drafted questions and options, edited by you",
+        "Conditional branching, so each person sees only what applies",
+        "Points per answer and weights per category",
+        "Named result bands, each with its own interpretation",
+        "Hosted result pages plus a branded PDF",
+        "AI-written reports using your own provider key",
+      ],
     },
   ],
   cta: {

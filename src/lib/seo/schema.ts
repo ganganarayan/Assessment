@@ -135,7 +135,7 @@ export async function pillarGraph(page: SeoPage, answers: ReadonlyArray<Answer>)
   });
   nodes.push(breadcrumb(url, [
     { name: "Home", url: absolute("/") },
-    { name: page.h1, url },
+    { name: page.shortName, url },
   ]));
   if (answers.length > 0) {
     nodes.push(faqNode(url, answers.map((a) => ({ q: a.question, a: a.short }))));

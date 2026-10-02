@@ -11,7 +11,8 @@ export const page: SeoPage = {
   title: "Lead Qualification Quiz: Beyond List Growth",
   description:
     "How a lead qualification quiz differs from a list-building quiz, what to ask, and why most quiz funnels optimise for the wrong outcome.",
-  h1: "Lead qualification quiz",
+  h1: "Assess360 — lead qualification quiz",
+  shortName: "Lead qualification quiz",
   lede:
     "A lead qualification quiz uses the quiz format for a different job: not to grow a list, but to decide who is worth talking to. The format is identical and the design decisions are nearly opposite.",
   updatedAt: "2026-10-02",
@@ -52,6 +53,23 @@ export const page: SeoPage = {
         "The metric that matters is qualified completions, and it moves differently — it can rise while total completions fall, which looks like a regression on every dashboard built for list growth. Decide which number you are optimising before you start testing, or you will test your way back into a list-building quiz.",
       ],
       bullets: [],
+    },
+    {
+      id: "how-assess360-does-it",
+      heading: "How Assess360 does it",
+      answer:
+        "The gate runs before the quiz, so a wrong-fit visitor never becomes a lead — and the ad platform is told about both outcomes rather than only the completions.",
+      paragraphs: [
+        "A quiz that reports every completion teaches Meta to find quiz-completers. Assess360 reports a distinct qualified-completion event instead, so optimisation follows the people who cleared your bar, while a disqualified visitor fires an exclusion signal that builds a never-show-again audience.",
+        "Back-button and repeat protection matter more here than anywhere else: a visitor who has been rejected cannot refresh or navigate back for a second attempt at the gate with better answers.",
+      ],
+      bullets: [
+        "A qualification gate ahead of the quiz itself",
+        "Branching, so each respondent sees the shortest relevant path",
+        "A qualified-only optimisation event rather than every completion",
+        "Exclusion and retargeting audiences built automatically",
+        "Back-button and repeat locking on the gate",
+      ],
     },
   ],
   cta: {

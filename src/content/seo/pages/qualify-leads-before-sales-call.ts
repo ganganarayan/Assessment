@@ -15,7 +15,8 @@ export const page: SeoPage = {
   title: "Qualify Leads Before the Sales Call",
   description:
     "How to move qualification ahead of the booking — which questions to ask, where to put them, and what to do with the people who do not pass.",
-  h1: "Qualifying leads before the sales call",
+  h1: "Assess360 — qualifying leads before the sales call",
+  shortName: "Qualifying before the call",
   lede:
     "Qualifying before the call means asking the questions that decide the outcome before the meeting is booked rather than in its first five minutes. The questions do not change. Only their position does, and that is what frees the calendar.",
   updatedAt: "2026-10-02",
@@ -55,6 +56,23 @@ export const page: SeoPage = {
         "The same budget question is intrusive on a booking form and reasonable inside an assessment that returns a result, because in the second case the answer is visibly being used for something the respondent wants. This is why assessments outperform qualifying questions bolted onto a calendar embed, which read exactly like what they are.",
       ],
       bullets: [],
+    },
+    {
+      id: "how-assess360-does-it",
+      heading: "How Assess360 does it",
+      answer:
+        "The qualifying questions run as a scored assessment between the click and the calendar, and the people who do not clear the bar get a page of their own rather than a dead end.",
+      paragraphs: [
+        "Free-text screening fields ride alongside the scored questions — company name, website, what the business actually does — so the ones that slip past a scoring model can be eyeballed by a human before anyone books time with them. Scoring is a model, and models are wrong at the edges.",
+        "Qualified leads go straight to your CRM by webhook, or to CSV, with their answers attached. The rep opens the call already knowing what would otherwise have taken the first five minutes to establish.",
+      ],
+      bullets: [
+        "A gate that routes unfit visitors to their own exit page",
+        "Scored questions covering problem, scale, timing and role",
+        "Free-text screening fields for manual review",
+        "Webhook and CSV export, with every answer attached to the lead",
+        "A qualified-only conversion event back to the ad platform",
+      ],
     },
   ],
   cta: {

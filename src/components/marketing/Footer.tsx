@@ -69,7 +69,7 @@ export function Footer({ anchorBase = "" }: { anchorBase?: string }) {
                     href={seoPath(p.slug)}
                     className="text-sm text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
                   >
-                    {p.h1}
+                    {p.shortName}
                   </Link>
                 </li>
               ))}

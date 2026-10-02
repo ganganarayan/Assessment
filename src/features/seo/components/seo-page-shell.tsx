@@ -34,7 +34,7 @@ export function SeoPageShell({
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
       <Nav anchorBase="/" />
       <main className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
-        <Breadcrumbs trail={[{ name: "Home", href: "/" }, { name: page.h1, href: seoPath(page.slug) }]} />
+        <Breadcrumbs trail={[{ name: "Home", href: "/" }, { name: page.shortName, href: seoPath(page.slug) }]} />
 
         <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{page.h1}</h1>
         <p className="mt-5 text-lg leading-relaxed text-[var(--foreground)]">{page.lede}</p>
@@ -61,7 +61,7 @@ export function SeoPageShell({
               {related.map((r) => (
                 <li key={r.slug}>
                   <Link href={seoPath(r.slug)} className="underline underline-offset-4">
-                    {r.h1}
+                    {r.shortName}
                   </Link>
                 </li>
               ))}

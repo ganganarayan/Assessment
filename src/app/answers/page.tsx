@@ -53,12 +53,12 @@ export default async function AnswersIndex() {
         <div className="mt-12 flex flex-col gap-12">
           {clusters.map(({ topic, pillar, answers }) => (
             <section key={topic.id}>
-              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{topic.title}</h2>
+              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{topic.heading}</h2>
               <p className="mt-2 leading-relaxed text-[var(--muted-foreground)]">{topic.blurb}</p>
               {pillar ? (
                 <p className="mt-2 text-sm">
                   <Link href={seoPath(pillar.slug)} className="underline underline-offset-4">
-                    Read the full guide to {pillar.h1.toLowerCase()} →
+                    Read the full guide to {pillar.shortName.toLowerCase()} →
                   </Link>
                 </p>
               ) : null}

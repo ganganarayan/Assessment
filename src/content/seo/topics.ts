@@ -14,6 +14,7 @@ export const TOPICS: ReadonlyArray<Topic> = [
   {
     id: "lead-qualification",
     title: "Lead qualification",
+    heading: "Lead qualification, the Assess360 way",
     pillarSlug: "lead-qualification-software",
     blurb:
       "Deciding which enquiries are worth a sales conversation — and filtering the rest out before anyone spends time on them.",
@@ -21,6 +22,7 @@ export const TOPICS: ReadonlyArray<Topic> = [
   {
     id: "assessment-software",
     title: "Assessment software",
+    heading: "Assessments, the Assess360 way",
     pillarSlug: "assessment-software",
     blurb:
       "Building the assessment itself: the questions, how long it should be, and what the respondent gets back for answering.",
@@ -28,6 +30,7 @@ export const TOPICS: ReadonlyArray<Topic> = [
   {
     id: "lead-scoring",
     title: "Lead scoring",
+    heading: "Lead scoring, the Assess360 way",
     pillarSlug: "lead-scoring",
     blurb:
       "Turning answers into a number that means something — points, category weights, and the threshold that defines qualified.",
@@ -35,6 +38,7 @@ export const TOPICS: ReadonlyArray<Topic> = [
   {
     id: "scorecards",
     title: "Scorecards",
+    heading: "Scorecards, the Assess360 way",
     pillarSlug: "scorecard",
     blurb:
       "The hosted scorecard and its result page: what a respondent sees, and why that view is what makes them answer honestly.",
@@ -42,6 +46,7 @@ export const TOPICS: ReadonlyArray<Topic> = [
   {
     id: "quiz-funnels",
     title: "Quiz funnels",
+    heading: "Quiz funnels, the Assess360 way",
     pillarSlug: "lead-qualification-quiz",
     blurb:
       "Quizzes as an acquisition channel, and the difference between one that grows a list and one that qualifies a pipeline.",
@@ -49,6 +54,7 @@ export const TOPICS: ReadonlyArray<Topic> = [
   {
     id: "pre-call-qualification",
     title: "Qualifying before the call",
+    heading: "Qualifying before the call, the Assess360 way",
     pillarSlug: "qualify-leads-before-sales-call",
     blurb:
       "Moving the questions a rep would ask in the first five minutes to before the call is ever booked.",

@@ -17,7 +17,8 @@ export const page: SeoPage = {
   title: "Lead Qualification Software: How It Works",
   description:
     "What lead qualification software does, how scoring and weighting work, how it differs from a form or a CRM field, and what to check before you choose one.",
-  h1: "Lead qualification software",
+  h1: "Assess360 — lead qualification software",
+  shortName: "Lead qualification software",
   lede:
     "Lead qualification software scores every enquiry against criteria you define and decides which ones deserve a sales conversation. The useful ones do three things: score answers rather than collect them, let you weight what actually predicts a good customer, and act on the result automatically.",
   updatedAt: "2026-10-02",
@@ -62,6 +63,25 @@ export const page: SeoPage = {
         "Does a disqualified visitor count against your plan's limits?",
         "Can qualification be reported back to your ad platform as a conversion?",
         "Does the respondent get a result worth the time they spent?",
+      ],
+    },
+    {
+      id: "how-assess360-does-it",
+      heading: "How Assess360 does it",
+      answer:
+        "It screens the wrong-fit visitor out before a lead record exists, scores everyone who gets through, and reports only the qualified ones back to the ad platform that paid for the click.",
+      paragraphs: [
+        "The gate runs before the assessment starts. A visitor who fails a hard criterion is routed to a separate exit page and nothing is stored — no lead, no result, no row in your pipeline. That is a different thing from scoring everybody and ignoring the low scores, because the ones you ignore are still there, still counted, still averaged into every number you look at.",
+        "The part that compounds is what happens next. A failed gate fires an exclusion signal; a qualified lead fires a retargeting signal. Add both audiences to your campaigns and the loop tightens itself: the people who will never qualify stop seeing the ad, and the optimisation learns from people who cleared your bar rather than from everyone who filled in a form.",
+        "It also changes the bill. Because a rejection stores nothing, disqualified visitors are not metered — you pay for the leads worth keeping and not for the traffic you turned away.",
+      ],
+      bullets: [
+        "Qualification gate — unfit traffic never becomes a lead",
+        "Weighted scoring, named bands, hosted result pages",
+        "Exclusion audience built automatically from disqualified visitors",
+        "Retargeting audience built from the ones who qualified",
+        "A qualified-only conversion event, so Meta optimises toward fit",
+        "Disqualified visitors are never metered against your plan",
       ],
     },
   ],

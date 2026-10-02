@@ -15,7 +15,8 @@ export const page: SeoPage = {
   title: "Online Scorecards: How They Work",
   description:
     "What an online scorecard is, what the respondent sees at the end, and why the result page is the part that decides whether people answer honestly.",
-  h1: "Online scorecards",
+  h1: "Assess360 — online scorecards",
+  shortName: "Online scorecards",
   lede:
     "An online scorecard asks a set of questions, scores the answers against criteria you set, and shows the respondent where they stand. The exchange is the whole mechanism: they answer honestly because the result is only useful if they do.",
   updatedAt: "2026-10-02",
@@ -56,6 +57,23 @@ export const page: SeoPage = {
         "Rebuilding the experience inside your own site is the common instinct and it usually costs more than it returns — the scoring, the branching and the per-respondent result page all have to be reimplemented. A hosted link on your own domain gets the branding without the rebuild.",
       ],
       bullets: [],
+    },
+    {
+      id: "how-assess360-does-it",
+      heading: "How Assess360 does it",
+      answer:
+        "Every scorecard is hosted on one link with a per-respondent result page, banded interpretations and an optional branded PDF — on your own domain when you want it.",
+      paragraphs: [
+        "The result page is built from bands rather than one template, so a low scorer and a high scorer leave with genuinely different pages: their own score, where the points went, and a next step that matches where they landed instead of the sale you would prefer.",
+        "Custom domain and branding mean the whole experience runs as yours, with our badge removed, so the scorecard reads as part of your business rather than a tool you rented for the afternoon.",
+      ],
+      bullets: [
+        "One hosted link — nothing to rebuild on your own site",
+        "A per-respondent result page with score, breakdown and next step",
+        "Named bands, each with its own writing and recommendation",
+        "A branded PDF the respondent can keep",
+        "Your domain, your colours, your logo, no Assess360 badge",
+      ],
     },
   ],
   cta: {
