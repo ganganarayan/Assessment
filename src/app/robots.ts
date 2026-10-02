@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { headers } from "next/headers";
 import { MARKETING } from "@/lib/marketing/content";
 import { effectiveHost } from "@/lib/tenant/forwarded-host";
-import { isPlatformHost } from "@/lib/seo/site";
+import { isPlatformHost } from "@/lib/seo/urls";
 
 /**
  * robots.txt.

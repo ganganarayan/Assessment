@@ -1,0 +1,122 @@
+{
+  "clusters": [
+    {
+      "topic": "lead-qualification",
+      "title": "Lead qualification",
+      "pillar": "/lead-qualification-software",
+      "terms": [
+        {
+          "term": "assessment vs form",
+          "url": "/answers/what-is-the-difference-between-a-form-and-a-scorecard",
+          "role": "secondary"
+        },
+        {
+          "term": "automated lead qualification",
+          "url": "/lead-qualification-software",
+          "role": "secondary"
+        },
+        {
+          "term": "difference between a form and a scorecard",
+          "url": "/answers/what-is-the-difference-between-a-form-and-a-scorecard",
+          "role": "primary"
+        },
+        {
+          "term": "filter unqualified leads",
+          "url": "/lead-qualification-software",
+          "role": "secondary"
+        },
+        {
+          "term": "lead filtering software",
+          "url": "/lead-qualification-software",
+          "role": "secondary"
+        },
+        {
+          "term": "lead qualification platform",
+          "url": "/lead-qualification-software",
+          "role": "secondary"
+        },
+        {
+          "term": "lead qualification software",
+          "url": "/lead-qualification-software",
+          "role": "primary"
+        },
+        {
+          "term": "lead qualification software definition",
+          "url": "/answers/what-is-lead-qualification-software",
+          "role": "secondary"
+        },
+        {
+          "term": "lead qualification tool",
+          "url": "/lead-qualification-software",
+          "role": "secondary"
+        },
+        {
+          "term": "online scorecard vs form",
+          "url": "/answers/what-is-the-difference-between-a-form-and-a-scorecard",
+          "role": "secondary"
+        },
+        {
+          "term": "prospect qualification software",
+          "url": "/answers/what-is-lead-qualification-software",
+          "role": "secondary"
+        },
+        {
+          "term": "qualify leads before a sales call",
+          "url": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+          "role": "primary"
+        },
+        {
+          "term": "qualify leads before booking",
+          "url": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+          "role": "secondary"
+        },
+        {
+          "term": "qualify prospects before demo",
+          "url": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+          "role": "secondary"
+        },
+        {
+          "term": "stop unqualified leads from ads",
+          "url": "/answers/why-do-my-ads-produce-unqualified-leads",
+          "role": "secondary"
+        },
+        {
+          "term": "unqualified leads from facebook ads",
+          "url": "/answers/why-do-my-ads-produce-unqualified-leads",
+          "role": "secondary"
+        },
+        {
+          "term": "what is lead qualification software",
+          "url": "/answers/what-is-lead-qualification-software",
+          "role": "primary"
+        },
+        {
+          "term": "why do my ads produce unqualified leads",
+          "url": "/answers/why-do-my-ads-produce-unqualified-leads",
+          "role": "primary"
+        }
+      ]
+    }
+  ],
+  "index": {
+    "assessment vs form": "/answers/what-is-the-difference-between-a-form-and-a-scorecard",
+    "automated lead qualification": "/lead-qualification-software",
+    "difference between a form and a scorecard": "/answers/what-is-the-difference-between-a-form-and-a-scorecard",
+    "filter unqualified leads": "/lead-qualification-software",
+    "lead filtering software": "/lead-qualification-software",
+    "lead qualification platform": "/lead-qualification-software",
+    "lead qualification software": "/lead-qualification-software",
+    "lead qualification software definition": "/answers/what-is-lead-qualification-software",
+    "lead qualification tool": "/lead-qualification-software",
+    "online scorecard vs form": "/answers/what-is-the-difference-between-a-form-and-a-scorecard",
+    "prospect qualification software": "/answers/what-is-lead-qualification-software",
+    "qualify leads before a sales call": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+    "qualify leads before booking": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+    "qualify prospects before demo": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+    "stop unqualified leads from ads": "/answers/why-do-my-ads-produce-unqualified-leads",
+    "unqualified leads from facebook ads": "/answers/why-do-my-ads-produce-unqualified-leads",
+    "what is lead qualification software": "/answers/what-is-lead-qualification-software",
+    "why do my ads produce unqualified leads": "/answers/why-do-my-ads-produce-unqualified-leads"
+  },
+  "collisions": []
+}

@@ -3,14 +3,19 @@ import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { MARKETING, NAV_LINKS } from "@/lib/marketing/content";
 
-export function Nav() {
+/**
+ * `anchorBase` exists because this nav is rendered on pages that are not the landing
+ * page. NAV_LINKS are in-page anchors ("#pricing"); on /lead-qualification-software they
+ * would scroll to nothing. SEO pages pass "/" so the same links become "/#pricing".
+ */
+export function Nav({ anchorBase = "" }: { anchorBase?: string }) {
   return (
     <header className="sticky top-0 z-40 border-b bg-[var(--background)]">
       <nav
         className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8"
         aria-label="Primary"
       >
-        <a href="#top" className="flex items-center gap-2 text-lg font-bold tracking-tight">
+        <a href={anchorBase ? `${anchorBase}#top` : "#top"} className="flex items-center gap-2 text-lg font-bold tracking-tight">
           <span
             aria-hidden="true"
             className="grid h-7 w-7 place-items-center rounded-md bg-green-600 text-white"
@@ -27,7 +32,7 @@ export function Nav() {
           {NAV_LINKS.map((l) => (
             <a
               key={l.href}
-              href={l.href}
+              href={`${anchorBase}${l.href}`}
               className="text-sm font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
             >
               {l.label}

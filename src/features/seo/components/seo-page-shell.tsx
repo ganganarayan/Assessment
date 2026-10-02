@@ -1,0 +1,81 @@
+import Link from "next/link";
+import { Nav } from "@/components/marketing/Nav";
+import { Footer } from "@/components/marketing/Footer";
+import { Breadcrumbs } from "./breadcrumbs";
+import { SectionBody } from "./section-body";
+import { AnswerList } from "./answer-list";
+import { OnThisPage } from "./on-this-page";
+import { SeoCta } from "./seo-cta";
+import type { Answer, SeoPage } from "@/lib/seo/types";
+import { seoPath } from "@/lib/seo/urls";
+
+/**
+ * The one renderer every composed page uses — pillars today, use-case and comparison
+ * pages next, with no second layout to keep in step.
+ *
+ * Structure is the argument: breadcrumb, H1, the lede that answers the page's own
+ * question in three sentences, jump links, then the sections. Someone who reads only the
+ * lede has the answer; someone who reads the headings has the shape; someone who reads
+ * it all has the detail. Nothing is behind a click, so everything is in the HTML.
+ */
+export function SeoPageShell({
+  page,
+  answers,
+  related,
+  jsonLd,
+}: {
+  page: SeoPage;
+  answers: ReadonlyArray<Answer>;
+  related: ReadonlyArray<SeoPage>;
+  jsonLd: string;
+}) {
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
+      <Nav anchorBase="/" />
+      <main className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
+        <Breadcrumbs trail={[{ name: "Home", href: "/" }, { name: page.h1, href: seoPath(page.slug) }]} />
+
+        <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{page.h1}</h1>
+        <p className="mt-5 text-lg leading-relaxed text-[var(--foreground)]">{page.lede}</p>
+
+        <OnThisPage
+          sections={page.sections}
+          extra={answers.length > 0 ? [{ id: "answers", label: "Common questions" }] : []}
+        />
+
+        <div className="flex flex-col gap-12">
+          {page.sections.map((s) => (
+            <SectionBody key={s.id} section={s} />
+          ))}
+
+          <AnswerList answers={answers} heading="Common questions" />
+        </div>
+
+        {related.length > 0 ? (
+          <section className="mt-12 border-t pt-8">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+              Related
+            </h2>
+            <ul className="mt-3 flex flex-col gap-2">
+              {related.map((r) => (
+                <li key={r.slug}>
+                  <Link href={seoPath(r.slug)} className="underline underline-offset-4">
+                    {r.h1}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <SeoCta heading={page.cta.heading} body={page.cta.body} />
+
+        <p className="mt-10 text-xs text-[var(--muted-foreground)]">
+          Last updated {page.updatedAt}
+        </p>
+      </main>
+      <Footer anchorBase="/" />
+    </>
+  );
+}

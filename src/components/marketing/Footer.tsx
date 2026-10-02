@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { MARKETING, NAV_LINKS } from "@/lib/marketing/content";
 
-export function Footer() {
+export function Footer({ anchorBase = "" }: { anchorBase?: string }) {
   const year = new Date().getFullYear();
 
   return (
     <footer>
       <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
         <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-          <a href="#top" className="flex items-center gap-2 text-lg font-bold tracking-tight">
+          <a href={anchorBase ? `${anchorBase}#top` : "#top"} className="flex items-center gap-2 text-lg font-bold tracking-tight">
             <span
               aria-hidden="true"
               className="grid h-7 w-7 place-items-center rounded-md bg-green-600 text-white"
@@ -25,7 +25,7 @@ export function Footer() {
             {NAV_LINKS.map((l) => (
               <a
                 key={l.href}
-                href={l.href}
+                href={`${anchorBase}${l.href}`}
                 className="text-sm font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
               >
                 {l.label}

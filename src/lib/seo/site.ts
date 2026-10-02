@@ -21,22 +21,7 @@ import { prisma } from "@/lib/db/prisma";
  * request host being the "right" one.
  */
 
-/** The one host the public, indexable site lives on. */
-export const PLATFORM_HOST = new URL(MARKETING.domain).host;
-
-/**
- * Is this request on the platform's own public host?
- *
- * Deliberately an exact match rather than "is this NOT a tenant", because the question
- * being asked is "are the URLs in our sitemap the URLs of the host being served". A
- * tenant subdomain, a custom domain, the raw Railway host and the staging host are all
- * correctly "no": none of them should advertise the production sitemap as theirs.
- *
- * Pure and exported so it can be asserted without a running server.
- */
-export function isPlatformHost(host: string): boolean {
-  return host.toLowerCase() === PLATFORM_HOST;
-}
+export { PLATFORM_HOST, isPlatformHost } from "./urls";
 
 /** Absolute origin of the host this request actually arrived on. */
 export async function currentOrigin(): Promise<string> {
