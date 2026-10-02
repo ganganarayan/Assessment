@@ -38,6 +38,15 @@ export function Nav({ anchorBase = "" }: { anchorBase?: string }) {
               {l.label}
             </a>
           ))}
+          {/* A real route, not an in-page anchor. The knowledge base and the guides had
+              no entry point anywhere in the site chrome: they were reachable from the
+              sitemap and from each other, and from nothing a visitor would ever click. */}
+          <Link
+            href="/answers"
+            className="text-sm font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
+          >
+            Answers
+          </Link>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">

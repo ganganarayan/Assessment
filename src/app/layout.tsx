@@ -46,6 +46,19 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase,
     title: { default: MARKETING.title, template: `%s · ${MARKETING.name}` },
     description: MARKETING.description,
+    // Search Console / Bing ownership, as a meta tag rather than an uploaded HTML file.
+    // Both methods are equally valid to Google; the tag has the advantage of surviving
+    // deploys with nothing to keep in public/. Absent variable = no tag, which is why
+    // this is safe to leave unset. DNS TXT remains the sturdiest option of the three,
+    // because it verifies the whole domain and cannot be broken by a routing change.
+    verification: {
+      ...(process.env.GOOGLE_SITE_VERIFICATION
+        ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+        : {}),
+      ...(process.env.BING_SITE_VERIFICATION
+        ? { other: { "msvalidate.01": process.env.BING_SITE_VERIFICATION } }
+        : {}),
+    },
   };
 }
 
