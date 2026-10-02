@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { encryptWithSecret } from "@/lib/crypto";
-import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
+import { resolveActingScope, tenantScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
 import { appSettingWhere, tenantAppSettingId } from "@/lib/settings/tenant-row";
 import { resolveWabaConfig } from "@/lib/settings/config";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -114,7 +114,7 @@ export async function sendSmtpTest(to: string): Promise<ActionResult> {
   await prisma.nurtureLog
     .create({
       data: {
-        tenantId: scope.tenantId,
+        tenantId: configTenantOf(scope),
         channel: "EMAIL",
         status: err ? "FAILED" : "SENT",
         toAddress: dest,
@@ -188,7 +188,7 @@ export async function sendTestWaba(to: string): Promise<ActionResult> {
   const vars = cfg.waba.vars.map((v) => fillPlaceholders(v, sample, sampleExtra));
   const err = await sendWaba(scope.tenantId, digits, cfg.waba.template, cfg.waba.lang, vars);
   await prisma.nurtureLog.create({
-    data: { tenantId: scope.tenantId, channel: "WABA", status: err ? "FAILED" : "SENT", toAddress: digits, error: err?.slice(0, 500) ?? null },
+    data: { tenantId: configTenantOf(scope), channel: "WABA", status: err ? "FAILED" : "SENT", toAddress: digits, error: err?.slice(0, 500) ?? null },
   }).catch(() => {});
   return err ? { ok: false, error: err } : { ok: true };
 }

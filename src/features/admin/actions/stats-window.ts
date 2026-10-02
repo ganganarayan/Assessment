@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
+import { resolveActingScope, tenantScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
 import { tenantAppSettingId } from "@/lib/settings/tenant-row";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
@@ -55,7 +55,7 @@ export async function setStatsWindow(istLocal: string | null): Promise<ActionRes
     await prisma.appSetting.upsert({
       where: { tenantId: scope.tenantId },
       update: { statsResetAt: parsed },
-      create: { id: tenantAppSettingId(scope.tenantId), tenantId: scope.tenantId, statsResetAt: parsed },
+      create: { id: tenantAppSettingId(scope.tenantId), tenantId: configTenantOf(scope), statsResetAt: parsed },
     });
   } else {
     await prisma.appSetting.upsert({

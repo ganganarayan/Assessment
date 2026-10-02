@@ -53,7 +53,14 @@ export default async function DashboardPage() {
           <Row label="Name" value={user.name} />
           <Row label="Username (email)" value={user.email} />
           <Row label="Role" value={roleLabel} />
-          <Row label="Tenant ID" value={user.tenantId ?? "— (platform / none)"} />
+          {/* "— (platform / none)" read as a missing value, and that reading was half
+              right: a super admin genuinely has no tenant of their own. What they DO
+              have is the Platform tenant, which owns everything they create. Saying
+              "none" invited exactly the conclusion that something was wrong. */}
+          <Row
+            label="Workspace"
+            value={user.tenantId ?? (isSuper ? "Platform — not scoped to any tenant" : "No workspace")}
+          />
         </CardContent>
       </Card>
 

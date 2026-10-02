@@ -5,7 +5,7 @@ import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
+import { resolveActingScope, tenantScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
 import { assertCanCreateAssessment } from "@/lib/billing/gate";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { PARKED_MESSAGE } from "@/lib/billing/plans";
@@ -181,7 +181,10 @@ export async function createAssessment(
       fireMetaCapi: d.fireMetaCapi,
       metaEvents: d.metaEvents as unknown as Prisma.InputJsonValue,
       createdById: scope.user.id,
-      tenantId: scope.tenantId,
+      // The row's OWNER, never null — a super admin with no workspace entered owns via
+      // the Platform tenant. Stamping scope.tenantId here wrote null, which the console
+      // (scoped to Platform) could then never find again.
+      tenantId: configTenantOf(scope),
     },
   });
 
@@ -451,7 +454,10 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
       fireMetaCapi: src.fireMetaCapi,
       metaEvents: (src.metaEvents ?? undefined) as unknown as Prisma.InputJsonValue | undefined,
       createdById: scope.user.id,
-      tenantId: scope.tenantId,
+      // The row's OWNER, never null — a super admin with no workspace entered owns via
+      // the Platform tenant. Stamping scope.tenantId here wrote null, which the console
+      // (scoped to Platform) could then never find again.
+      tenantId: configTenantOf(scope),
       categories: {
         create: src.categories.map((c) => ({
           name: c.name,

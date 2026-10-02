@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope, scopeEditDenied, type ActingScope } from "@/lib/tenant/acting";
+import { resolveActingScope, scopeEditDenied, configTenantOf, type ActingScope } from "@/lib/tenant/acting";
 import { env } from "@/lib/env";
 import { encryptWithSecret, decryptWithSecret } from "@/lib/crypto";
 import { isAiProvider, type AiProvider } from "@/lib/ai/types";
@@ -96,7 +96,7 @@ export async function getAiSettings(): Promise<AiSettingsView> {
   }));
 
   // Tenant default version id (falls back to the built-in default when unset/invalid).
-  const rows = await listPromptVersions(scope.tenantId);
+  const rows = await listPromptVersions(configTenantOf(scope));
   const active = rows.some((r) => r.id === s?.aiPromptVersion)
     ? (s?.aiPromptVersion as string)
     : DEFAULT_PROMPT_VERSION;
@@ -135,7 +135,7 @@ export async function saveProviderKey(provider: string, key: string): Promise<Ac
     await prisma.appSetting.upsert({
       where: { tenantId: scope.tenantId },
       update: data,
-      create: { id: tenantAppSettingId(scope.tenantId), tenantId: scope.tenantId, ...data },
+      create: { id: tenantAppSettingId(scope.tenantId), tenantId: configTenantOf(scope), ...data },
     });
   } else {
     await prisma.appSetting.upsert({
@@ -181,7 +181,7 @@ export async function updateAiSettings(input: AiSettingsInput): Promise<ActionRe
     await prisma.appSetting.upsert({
       where: { tenantId: scope.tenantId },
       update: data,
-      create: { id: tenantAppSettingId(scope.tenantId), tenantId: scope.tenantId, ...data },
+      create: { id: tenantAppSettingId(scope.tenantId), tenantId: configTenantOf(scope), ...data },
     });
   } else {
     await prisma.appSetting.upsert({

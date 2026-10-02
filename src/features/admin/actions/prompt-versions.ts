@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
+import { resolveActingScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
 import { listPromptVersions, nextVersionNumber } from "@/lib/ai/versions";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { tenantAppSettingId } from "@/lib/settings/tenant-row";
@@ -18,9 +18,12 @@ export async function createPromptVersion(): Promise<ActionResult<{ id: string }
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
   if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
-  const number = await nextVersionNumber(scope.tenantId);
+  // One owner id for the numbering read AND the stamp. Passing scope.tenantId to one and
+  // not the other is how a row gets written under an owner its own list never queries.
+  const owner = configTenantOf(scope);
+  const number = await nextVersionNumber(owner);
   const row = await prisma.aiPromptVersion.create({
-    data: { tenantId: scope.tenantId, number, label: `V${number}`, instructions: "" },
+    data: { tenantId: owner, number, label: `V${number}`, instructions: "" },
     select: { id: true },
   });
   bump();
@@ -37,7 +40,7 @@ export async function updatePromptVersion(
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
   const owned = await prisma.aiPromptVersion.findFirst({
-    where: { id, tenantId: scope.tenantId },
+    where: { id, tenantId: configTenantOf(scope) },
     select: { id: true },
   });
   if (!owned) return { ok: false, error: "Not found." };
@@ -54,7 +57,7 @@ export async function deletePromptVersion(id: string): Promise<ActionResult> {
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
   const owned = await prisma.aiPromptVersion.findFirst({
-    where: { id, tenantId: scope.tenantId },
+    where: { id, tenantId: configTenantOf(scope) },
     select: { id: true },
   });
   if (!owned) return { ok: false, error: "Not found." };
@@ -70,11 +73,11 @@ export async function setDefaultPromptVersion(id: string): Promise<ActionResult>
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
   if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
-  const rows = await listPromptVersions(scope.tenantId);
+  const rows = await listPromptVersions(configTenantOf(scope));
   if (!rows.some((r) => r.id === id)) return { ok: false, error: "Not found." };
   const data = { aiPromptVersion: id };
   if (scope.tenantId) {
-    await prisma.appSetting.upsert({ where: { tenantId: scope.tenantId }, update: data, create: { id: tenantAppSettingId(scope.tenantId), tenantId: scope.tenantId, ...data } });
+    await prisma.appSetting.upsert({ where: { tenantId: scope.tenantId }, update: data, create: { id: tenantAppSettingId(scope.tenantId), tenantId: configTenantOf(scope), ...data } });
   } else {
     await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
   }
@@ -92,7 +95,7 @@ export async function updateWordWindow(min: number, max: number): Promise<Action
   const hi = Math.max(lo, Math.min(1000, Math.round(max || 0)));
   const data = { aiWordMin: lo, aiWordMax: hi };
   if (scope.tenantId) {
-    await prisma.appSetting.upsert({ where: { tenantId: scope.tenantId }, update: data, create: { id: tenantAppSettingId(scope.tenantId), tenantId: scope.tenantId, ...data } });
+    await prisma.appSetting.upsert({ where: { tenantId: scope.tenantId }, update: data, create: { id: tenantAppSettingId(scope.tenantId), tenantId: configTenantOf(scope), ...data } });
   } else {
     await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
   }

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
+import { resolveActingScope, tenantScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
 import { appSettingWhere, tenantAppSettingId } from "@/lib/settings/tenant-row";
 import { audienceCanonicalSchema } from "@/features/assessment/schemas";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -59,7 +59,7 @@ export async function updateAudienceCanonical(text: string): Promise<ActionResul
   await prisma.appSetting.upsert({
     where: appSettingWhere(scope.tenantId) as Prisma.AppSettingWhereUniqueInput,
     update: data,
-    create: { id, tenantId: scope.tenantId, ...data },
+    create: { id, tenantId: configTenantOf(scope), ...data },
   });
   revalidatePath("/admin/audiences");
   revalidatePath("/admin/settings");

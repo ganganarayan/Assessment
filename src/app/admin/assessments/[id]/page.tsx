@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { currentUserCanEdit } from "@/lib/auth/guards";
 import { getAssessmentById, listAssessments } from "@/features/assessment/data";
 import { listPromptVersions } from "@/lib/ai/versions";
-import { actingTenantId, resolveActingScope } from "@/lib/tenant/acting";
+import { resolveActingScope, actingConfigTenantId } from "@/lib/tenant/acting";
 import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
 import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
@@ -42,7 +42,7 @@ export default async function EditAssessmentPage({
   const a = await getAssessmentById(id);
   if (!a) notFound();
   if (!(await currentUserCanEdit())) redirect("/admin/assessment-builder");
-  const promptVersions = (await listPromptVersions(await actingTenantId())).map((v) => ({ id: v.id, label: v.label }));
+  const promptVersions = (await listPromptVersions(await actingConfigTenantId())).map((v) => ({ id: v.id, label: v.label }));
 
   const initial: AssessmentFormValues = {
     title: a.title,

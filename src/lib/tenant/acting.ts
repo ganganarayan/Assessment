@@ -162,22 +162,34 @@ export async function actingDataScope(): Promise<Scope> {
 }
 
 /**
- * 🟡 The third question — "which tenant's CONFIG row do I write?" — is NOT answered here
- * yet, and that is a deliberate sequencing choice rather than an oversight.
+ * The third question — "which tenant OWNS the row I am about to write?" — and the one
+ * that cost an assessment.
  *
- * The answer it wants is PLATFORM_TENANT_ID for an owner with no workspace entered. For
- * AppSetting that already works without any change, because all settings addressing goes
- * through lib/settings/tenant-row, which resolves both null and PLATFORM_TENANT_ID to the
- * one singleton row.
+ * 🔴 THE BUG THIS EXISTS TO KILL. Writes stamped `scope.tenantId` directly. For a super
+ * admin who has not entered a workspace that is `null`, so the row was saved unowned —
+ * while `dataScopeOf` (above) sends the same caller's READS to the Platform tenant.
+ * Written as null, searched for as "platform": an assessment created from /admin
+ * disappeared the instant it was saved. It was never lost, and its public funnel served
+ * fine; the console simply asked for an owner the row had never been given.
  *
- * The rows that would break are the per-tenant CONTENT tables that the settings screens
- * also write — AiPromptVersion in particular. Handing them PLATFORM_TENANT_ID BEFORE the
- * funnel move would make the AI prompt list filter on "platform" while the existing
- * versions are still unowned, i.e. an empty screen and a fresh version nobody can see.
+ * So this returns a NON-NULLABLE id, and that type is the fix. `dataScopeOf` answers
+ * "which rows may I see" and may legitimately be a whole tenant or none; this answers
+ * "whose row is this" and there is no honest null — every row belongs to somebody. A
+ * write site that tries to pass a nullable value now fails to compile instead of
+ * silently orphaning a row, which is why the signature matters more than the body.
  *
- * So it waits. Wire it in the commit that makes tenantId NOT NULL, by which point there
- * are no unowned rows for it to miss. Until then, note the residual: after the funnel
- * moves but before that commit, a prompt version created from /admin without entering a
- * workspace is stamped null and becomes one more row the NOT NULL migration will reject.
- * `npm run verify:tenancy` is what catches it.
+ * The platform's own work is owned by the PLATFORM TENANT. That is what the Platform
+ * tenant is for: "super admin" is a role, not a place to put rows. Nothing here rates,
+ * meters or gates the owner — those are separate questions, answered by the billing
+ * resolver, which treats the platform scope as unlimited.
  */
+export function configTenantOf(scope: ActingScope): string {
+  if (scope.tenantId) return scope.tenantId;
+  if (scope.isSuper) return PLATFORM_TENANT_ID;
+  throw new Error("No workspace: caller has no tenant to own this row.");
+}
+
+/** Resolve the owning tenant for a write in one call. Never null. */
+export async function actingConfigTenantId(): Promise<string> {
+  return configTenantOf(await resolveActingScope());
+}

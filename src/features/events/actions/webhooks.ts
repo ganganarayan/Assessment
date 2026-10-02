@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
+import { resolveActingScope, tenantScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { deliverWebhook } from "@/lib/webhooks/dispatch";
 import { generateWebhookSecret } from "@/lib/webhooks/sign";
@@ -48,8 +48,11 @@ export async function createWebhook(
 
   // Fan-out: the same delivered name MAY fire to several endpoints (multiple CRMs).
   // Only an exact duplicate endpoint (same name AND url) in this scope is blocked.
+  // Same owner id as the stamp below. Checking for duplicates under one owner and then
+  // writing under another makes the duplicate guard silently useless.
+  const owner = configTenantOf(scope);
   const existing = await prisma.webhook.findFirst({
-    where: { tenantId: scope.tenantId, name: n.data, url: u.data },
+    where: { tenantId: owner, name: n.data, url: u.data },
     select: { id: true },
   });
   if (existing) {
@@ -63,7 +66,7 @@ export async function createWebhook(
       url: u.data,
       status: active ? "ACTIVE" : "INACTIVE",
       secret: generateWebhookSecret(),
-      tenantId: scope.tenantId,
+      tenantId: owner,
     },
     select: { id: true },
   });
