@@ -35,8 +35,18 @@ export function Nav() {
           ))}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <ThemeToggle />
+          {/* Returning customers had no way in from the marketing page: the only route to
+              /sign-in was the footer's legal row or typing the URL. Ghost, not outline —
+              a secondary action next to the trial CTA, which stays the only filled
+              button on the page. */}
+          <Link
+            href={MARKETING.signinHref}
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
+          >
+            Sign in
+          </Link>
           <Link href={MARKETING.signupHref} className={buttonVariants({ size: "sm" })}>
             Start 14-day trial
           </Link>

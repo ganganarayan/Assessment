@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { MARKETING } from "@/lib/marketing/content";
+import { MARKETING, TRIAL_NOTE } from "@/lib/marketing/content";
 import { VideoEmbed } from "./VideoEmbed";
 
 // Alternate headlines (H1 uses option 1):
@@ -33,9 +33,10 @@ export function Hero({ video }: { video?: string | null }) {
             </a>
           </div>
 
-          <p className="mt-5 text-sm text-[var(--muted-foreground)]">
-            No credit card. 25 responses a month on the free plan.
-          </p>
+          {/* Was "No credit card. 25 responses a month on the free plan." — copy that
+              outlived the plan it described. There is no free tier; TRIAL_NOTE is the one
+              sentence the pricing section also renders, so the claim cannot drift again. */}
+          <p className="mt-5 text-sm text-[var(--muted-foreground)]">{TRIAL_NOTE}</p>
         </div>
 
         <div className="rounded-2xl border bg-[var(--muted)] p-3 shadow-xl shadow-black/5">
