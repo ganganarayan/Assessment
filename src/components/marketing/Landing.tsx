@@ -47,10 +47,12 @@ const jsonLd = {
       })),
     },
     {
+      // No `logo`: it pointed at /og-image.png, which has never existed in public/, so
+      // the one property meant to prove the entity was a 404. A real square logo asset
+      // is worth adding; a broken URL is not, and an absent property beats a dead one.
       "@type": "Organization",
       name: MARKETING.name,
       url: MARKETING.domain + "/",
-      logo: MARKETING.domain + MARKETING.ogImage,
     },
   ],
 };

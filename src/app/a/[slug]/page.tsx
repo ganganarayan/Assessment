@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { tenantCanonicalOrigin } from "@/lib/seo/site";
 import { getPublishedAssessmentBySlug, getSlugById } from "@/features/assessment/data";
 import { pickAttribution } from "@/lib/attribution";
 import {
@@ -35,15 +37,23 @@ export const dynamic = "force-dynamic";
 const planFor = cache(async (tenantId: string | null) => resolvePlan(tenantId));
 
 /**
- * The only metadata this route sets, and it sets it for one case: a PAUSED funnel must
- * not be indexed. The pause is temporary by definition, so letting a crawler cache
- * "isn't accepting responses" as the funnel's description outlives the pause and costs
- * the tenant traffic after they pay.
+ * Metadata for a public funnel. Three jobs:
  *
- * Every other case returns {} and keeps inheriting the root metadata, so this adds
- * noindex without silently taking over the funnel's title or OG tags. Both lookups are
- * request-deduped (unstable_cache / React cache), so the page render below does not
- * repeat them.
+ * 1. A PAUSED funnel must not be indexed. The pause is temporary by definition, so
+ *    letting a crawler cache "isn't accepting responses" as the funnel's description
+ *    outlives the pause and costs the tenant traffic after they pay.
+ *
+ * 2. A CANONICAL on the tenant's own origin. The slug lookup below is global, not
+ *    host-scoped, so this exact funnel also answers on the platform domain and on every
+ *    other tenant domain — the same document at N addresses. The canonical names the
+ *    tenant's own domain as the real one, which is where their ads point anyway.
+ *
+ * 3. A REAL title. Inheriting the root default used to mean every funnel on earth was
+ *    titled "Assessment"; it now inherits the tenant's name, which is better and still
+ *    not the page. The assessment's own title and description are the page.
+ *
+ * All lookups are request-deduped (unstable_cache / React cache), so the page render
+ * below does not repeat them.
  */
 export async function generateMetadata({
   params,
@@ -51,13 +61,26 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+}): Promise<Metadata> {
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
-  if (sp.preview === "1") return {};
+  // A preview URL is an unpublished draft shown to its owner. If one ever escapes into a
+  // crawler's queue it must not be indexed, and it is not worth a plan lookup either.
+  if (sp.preview === "1") return { robots: { index: false, follow: false } };
+
   const a = await getPublishedAssessmentBySlug(slug);
   if (!a) return {};
+
   const plan = await planFor(a.tenantId);
-  return plan.parked ? { robots: { index: false, follow: false } } : {};
+  if (plan.parked) return { robots: { index: false, follow: false } };
+
+  const origin = await tenantCanonicalOrigin(a.tenantId);
+  return {
+    // A bare string, so the root layout's template appends the owner's name: on a tenant
+    // host that reads "Clinic Growth Audit · Acme", which is theirs, not ours.
+    title: a.title,
+    ...(a.description ? { description: a.description } : {}),
+    ...(origin ? { alternates: { canonical: `${origin}/a/${slug}` } } : {}),
+  };
 }
 
 export default async function PublicAssessmentPage({

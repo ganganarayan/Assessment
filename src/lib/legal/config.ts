@@ -16,6 +16,26 @@ export interface LegalConfig {
   governingLocation: string;
 }
 
+/**
+ * The same row, read for STRUCTURED DATA instead of for a policy page — which is why
+ * every field is nullable and nothing is substituted.
+ *
+ * The placeholders below are a feature on a page a human reads ("set this in Settings")
+ * and a defect in JSON-LD, where "[Legal entity name — set in Settings]" would be
+ * published to Google and Bing as this company's registered name. Unset therefore has to
+ * mean ABSENT here: the schema builder omits the property rather than emitting a
+ * placeholder, so an incomplete graph is incomplete and never wrong.
+ */
+export interface EntityFacts {
+  legalName: string | null;
+  address: string | null;
+  contactEmail: string | null;
+  /** Public tax identifier (GSTIN). */
+  taxId: string | null;
+  /** ISO year-month, e.g. "2024-02" — schema.org accepts a partial foundingDate. */
+  foundedOn: string | null;
+}
+
 const PLACEHOLDER = {
   entityName: "[Legal entity name — set in Settings]",
   address: "[Registered address — set in Settings]",
@@ -23,21 +43,39 @@ const PLACEHOLDER = {
   governingLocation: "[City, State — set in Settings]",
 } as const;
 
+const SELECT = {
+  legalEntityName: true,
+  legalAddress: true,
+  legalContactEmail: true,
+  legalGoverningLocation: true,
+  legalGstin: true,
+  legalFoundedOn: true,
+} as const;
+
+/** Trimmed, or null — never an empty string, so callers can treat null as "unset". */
+function clean(v: string | null | undefined): string | null {
+  return v?.trim() || null;
+}
+
 export async function getLegalConfig(): Promise<LegalConfig> {
-  const s = await prisma.appSetting.findUnique({
-    where: { id: "singleton" },
-    select: {
-      legalEntityName: true,
-      legalAddress: true,
-      legalContactEmail: true,
-      legalGoverningLocation: true,
-    },
-  });
+  const s = await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: SELECT });
   return {
     brand: MARKETING.name,
-    entityName: s?.legalEntityName?.trim() || PLACEHOLDER.entityName,
-    address: s?.legalAddress?.trim() || PLACEHOLDER.address,
-    contactEmail: s?.legalContactEmail?.trim() || PLACEHOLDER.contactEmail,
-    governingLocation: s?.legalGoverningLocation?.trim() || PLACEHOLDER.governingLocation,
+    entityName: clean(s?.legalEntityName) ?? PLACEHOLDER.entityName,
+    address: clean(s?.legalAddress) ?? PLACEHOLDER.address,
+    contactEmail: clean(s?.legalContactEmail) ?? PLACEHOLDER.contactEmail,
+    governingLocation: clean(s?.legalGoverningLocation) ?? PLACEHOLDER.governingLocation,
+  };
+}
+
+/** The entity, as facts. Null means "not configured" — the caller omits the property. */
+export async function getEntityFacts(): Promise<EntityFacts> {
+  const s = await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: SELECT });
+  return {
+    legalName: clean(s?.legalEntityName),
+    address: clean(s?.legalAddress),
+    contactEmail: clean(s?.legalContactEmail),
+    taxId: clean(s?.legalGstin),
+    foundedOn: clean(s?.legalFoundedOn),
   };
 }

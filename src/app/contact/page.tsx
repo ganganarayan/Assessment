@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { platformPageMetadata } from "@/lib/seo/site";
 import { getLegalConfig } from "@/lib/legal/config";
 import { LegalShell, H2, P } from "@/components/marketing/LegalShell";
 
@@ -8,7 +9,14 @@ export const dynamic = "force-dynamic";
 const UPDATED = "September 2026";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: "Contact Us", description: "How to reach us for support and enquiries." };
+  // Shared helper so the canonical is never forgotten: this page is served on the
+  // platform domain AND on every tenant subdomain and custom domain, and it is the
+  // platform's policy in all of them.
+  return platformPageMetadata({
+    title: "Contact Us",
+    description: "How to reach us for support and enquiries.",
+    path: "/contact",
+  });
 }
 
 export default async function ContactPage() {

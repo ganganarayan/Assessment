@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { MARKETING } from "@/lib/marketing/content";
+import { currentOrigin } from "@/lib/seo/site";
 import { THEME_COOKIE, THEME_INIT_SCRIPT } from "@/lib/theme";
 import { getCurrentTenant } from "@/lib/tenant/context";
 import "./globals.css";
@@ -15,10 +17,37 @@ function tenantThemeCss(primary?: string | null, secondary?: string | null): str
   return `:root{${vars}}.dark{${p ? `--primary:${p};` : ""}}`;
 }
 
-export const metadata: Metadata = {
-  title: "Assessment",
-  description: "Multi-tenant assessment platform foundation.",
-};
+/**
+ * The DEFAULTS every route inherits, and they have to be host-aware, because this one
+ * layout wraps the marketing site, the admin app and every tenant's funnel.
+ *
+ * It used to hard-code title "Assessment" / "Multi-tenant assessment platform
+ * foundation." — scaffolding copy that then became the real, indexable title of every
+ * page that does not set its own, tenant funnels included.
+ *
+ * - Platform host: the marketing title and description, with a template so a page can
+ *   pass a bare name ("Privacy Policy") and get the brand appended once.
+ * - Tenant host: the TENANT's name, and NO description. An absent description lets the
+ *   search engine write one from the page; inheriting ours would describe someone
+ *   else's scorecard as lead-qualification software.
+ *
+ * metadataBase is the request's own origin so that relative URLs in child metadata
+ * resolve against the host being served, not against a guess.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const [origin, tenant] = await Promise.all([currentOrigin(), getCurrentTenant()]);
+  const metadataBase = new URL(origin);
+
+  if (tenant) {
+    return { metadataBase, title: { default: tenant.name, template: `%s · ${tenant.name}` } };
+  }
+
+  return {
+    metadataBase,
+    title: { default: MARKETING.title, template: `%s · ${MARKETING.name}` },
+    description: MARKETING.description,
+  };
+}
 
 export default async function RootLayout({
   children,

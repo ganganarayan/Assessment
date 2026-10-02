@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { headers } from "next/headers";
@@ -23,6 +24,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Never indexed, and not crawled onward from.
+ *
+ * This route had no metadata at all, so it inherited the root default and was as
+ * indexable as the homepage. A result page is one person's scored answers at a guessable
+ * URL shape — robots.txt does not cover it (its "/r/" rule matches only paths that START
+ * with /r/, not /a/<slug>/r/<id>), so the instruction has to live here.
+ *
+ * `follow: false` as well as `index: false`: the page carries the respondent's onward CTA
+ * links, and those are theirs to click, not a crawl path.
+ */
+export const metadata: Metadata = {
+  title: "Result",
+  robots: { index: false, follow: false },
+};
 
 /**
  * Result page reached at /a/:slug/r/:submissionId.

@@ -9,9 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 /**
- * Platform legal / company details. These appear ONLY on the public policy pages
- * (/privacy, /terms, /refund) — never on the marketing landing. Blank fields show a
- * visible "set this in Settings" placeholder on those pages until filled.
+ * Platform legal / company details — the ONE place the company's identity is edited.
+ *
+ * These appear on the public policy pages (/privacy, /terms, /refund) and, since the SEO
+ * work, in the public JSON-LD Organization that search and AI answer engines read. The
+ * two surfaces treat a blank field differently on purpose: a policy page shows a visible
+ * "set this in Settings" placeholder, while the structured data OMITS the property —
+ * publishing a placeholder as a registered name is worse than publishing nothing.
  */
 export function LegalSettingsForm({ initial }: { initial: LegalSettingsView }) {
   const router = useRouter();
@@ -56,6 +60,26 @@ export function LegalSettingsForm({ initial }: { initial: LegalSettingsView }) {
           value={v.address}
           onChange={(e) => set("address", e.target.value)}
         />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="legalGstin">GSTIN</Label>
+          <Input
+            id="legalGstin"
+            placeholder="22AAAAA0000A1Z5"
+            value={v.gstin}
+            onChange={(e) => set("gstin", e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="legalFoundedOn">Founded (year-month)</Label>
+          <Input
+            id="legalFoundedOn"
+            placeholder="2024-02"
+            value={v.foundedOn}
+            onChange={(e) => set("foundedOn", e.target.value)}
+          />
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">

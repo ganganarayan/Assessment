@@ -11,7 +11,10 @@ export const MARKETING = {
   signupHref: "/sign-up",
   signinHref: "/sign-in",
   heroImage: "/hero-scorecard.png",
-  ogImage: "/og-image.png",
+  // NOTE: no ogImage key. The share card is GENERATED at /opengraph-image (see
+  // app/opengraph-image.tsx) and injected into every route by Next's file convention,
+  // so there is no static file to keep in sync — and no path that can 404 the way
+  // /og-image.png did for as long as it was referenced here without ever existing.
   title: "Assess360 — Qualify leads before the sales call",
   description:
     "Assess360 scores every prospect against your fit criteria, so your team only talks to the leads that are actually ready to buy.",

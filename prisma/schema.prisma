@@ -1769,6 +1769,14 @@ model AppSetting {
   legalContactEmail      String?
   legalGoverningLocation String? // e.g. "Bengaluru, Karnataka" — governing-law seat
 
+  // Two more entity facts, kept in the SAME row as the rest of the legal details so
+  // there is one place to edit them. These feed the public JSON-LD Organization as well
+  // as the policy pages: GSTIN is a public tax identifier, and foundedOn is an ISO
+  // year-month ("2024-02") because schema.org foundingDate accepts a partial date and a
+  // day we do not have would be invented precision.
+  legalGstin     String?
+  legalFoundedOn String?
+
   // Support contact shown to RESPONDENTS. When a tenant is over its response cap, a
   // lead who finishes the assessment sees a neutral "results unavailable — contact
   // support" screen instead of their scorecard, with this address. Blank = no address

@@ -126,7 +126,15 @@ export interface LegalSettingsView {
   address: string;
   contactEmail: string;
   governingLocation: string;
+  /** GSTIN — a public tax identifier, so it is safe in public structured data. */
+  gstin: string;
+  /** ISO year-month, e.g. "2024-02". Month precision is all schema.org needs. */
+  foundedOn: string;
 }
+
+/** 15-character GSTIN: state code, PAN, entity number, PAN check letter, Z, checksum. */
+const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
+const YEAR_MONTH_RE = /^[0-9]{4}-(0[1-9]|1[0-2])$/;
 
 /** Company/legal details shown ONLY on the public policy pages. Singleton row. */
 export async function getLegalSettings(): Promise<LegalSettingsView> {
@@ -138,6 +146,8 @@ export async function getLegalSettings(): Promise<LegalSettingsView> {
       legalAddress: true,
       legalContactEmail: true,
       legalGoverningLocation: true,
+      legalGstin: true,
+      legalFoundedOn: true,
     },
   });
   return {
@@ -145,6 +155,8 @@ export async function getLegalSettings(): Promise<LegalSettingsView> {
     address: s?.legalAddress ?? "",
     contactEmail: s?.legalContactEmail ?? "",
     governingLocation: s?.legalGoverningLocation ?? "",
+    gstin: s?.legalGstin ?? "",
+    foundedOn: s?.legalFoundedOn ?? "",
   };
 }
 
@@ -155,14 +167,28 @@ export async function updateLegalSettings(input: LegalSettingsView): Promise<Act
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { ok: false, error: "Enter a valid contact email." };
   }
+  // GSTIN is uppercased before validating: it is printed uppercase everywhere, and
+  // rejecting a correct number for its case would be a pointless obstacle.
+  const gstin = input.gstin.trim().toUpperCase();
+  if (gstin && !GSTIN_RE.test(gstin)) {
+    return { ok: false, error: "GSTIN must be 15 characters, e.g. 22AAAAA0000A1Z5." };
+  }
+  const foundedOn = input.foundedOn.trim();
+  if (foundedOn && !YEAR_MONTH_RE.test(foundedOn)) {
+    return { ok: false, error: "Founded must be a year and month, e.g. 2024-02." };
+  }
   const data = {
     legalEntityName: input.entityName.trim() || null,
     legalAddress: input.address.trim() || null,
     legalContactEmail: email || null,
     legalGoverningLocation: input.governingLocation.trim() || null,
+    legalGstin: gstin || null,
+    legalFoundedOn: foundedOn || null,
   };
   await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
   revalidatePath("/admin/settings");
+  // The landing page's JSON-LD Organization reads the same row.
+  revalidatePath("/");
   revalidatePath("/privacy");
   revalidatePath("/terms");
   revalidatePath("/refund");

@@ -11,6 +11,7 @@ import { LandingTracker } from "@/features/billing/components/landing-tracker";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { getLandingVideos } from "@/features/platform/landing-videos";
 import { MARKETING } from "@/lib/marketing/content";
+import { OG_IMAGE } from "@/lib/seo/site";
 
 // Marketing metadata belongs to the PLATFORM's own host. "Platform" is defined as
 // "no tenant owns this host" rather than "this host equals NEXT_PUBLIC_ROOT_DOMAIN":
@@ -20,7 +21,9 @@ export async function generateMetadata(): Promise<Metadata> {
   if (await getCurrentTenant()) return {};
 
   return {
-    title: MARKETING.title,
+    // `absolute` because the root layout now carries a title template: a plain string
+    // here would render "Assess360 — Qualify leads before the sales call · Assess360".
+    title: { absolute: MARKETING.title },
     description: MARKETING.description,
     alternates: { canonical: MARKETING.domain + "/" },
     openGraph: {
@@ -29,13 +32,13 @@ export async function generateMetadata(): Promise<Metadata> {
       title: MARKETING.title,
       description: MARKETING.description,
       url: MARKETING.domain + "/",
-      images: [MARKETING.domain + MARKETING.ogImage],
+      images: [OG_IMAGE],
     },
     twitter: {
       card: "summary_large_image",
       title: MARKETING.title,
       description: MARKETING.description,
-      images: [MARKETING.domain + MARKETING.ogImage],
+      images: [OG_IMAGE.url],
     },
   };
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { platformPageMetadata } from "@/lib/seo/site";
 import { getLegalConfig } from "@/lib/legal/config";
 import { LegalShell, H2, P, UL } from "@/components/marketing/LegalShell";
 
@@ -9,7 +10,14 @@ export const dynamic = "force-dynamic";
 const UPDATED = "September 2026";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: "Terms of Service", description: "The terms governing use of the service." };
+  // Shared helper so the canonical is never forgotten: this page is served on the
+  // platform domain AND on every tenant subdomain and custom domain, and it is the
+  // platform's policy in all of them.
+  return platformPageMetadata({
+    title: "Terms of Service",
+    description: "The terms governing use of the service.",
+    path: "/terms",
+  });
 }
 
 export default async function TermsPage() {
