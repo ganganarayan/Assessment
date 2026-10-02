@@ -11,7 +11,7 @@ export const page: SeoPage = {
   title: "Lead Qualification Quiz: Beyond List Growth",
   description:
     "How a lead qualification quiz differs from a list-building quiz, what to ask, and why most quiz funnels optimise for the wrong outcome.",
-  h1: "Assess360 — a lead qualification quiz that sorts, not collects",
+  h1: "Assess360: a qualification quiz that sorts, not collects",
   shortName: "Lead qualification quiz",
   lede:
     "A lead qualification quiz uses the quiz format for a different job: not to grow a list, but to decide who is worth talking to. The format is identical and the design decisions are nearly opposite.",
@@ -20,7 +20,7 @@ export const page: SeoPage = {
   sections: [
     {
       id: "two-jobs",
-      heading: "The same format, two opposite jobs",
+      heading: "A list-building quiz and an Assess360 quiz do opposite jobs",
       answer:
         "A list-building quiz is designed so that everyone finishes; a qualification quiz is designed so that the right people finish and the wrong people find out early that they should not.",
       paragraphs: [
@@ -31,34 +31,34 @@ export const page: SeoPage = {
     },
     {
       id: "what-to-ask",
-      heading: "What to ask in a qualification quiz",
+      heading: "What to ask in an Assess360 qualification quiz",
       answer:
-        "The questions whose answers would change whether you take the meeting — and ask them early enough that they do their job.",
+        "The questions whose answers would change whether you take the meeting - and ask them early enough that they do their job.",
       paragraphs: [
         "Burying the budget question at position nine means you have paid for eight questions of engagement from people you were never going to serve. Putting it early feels risky and is usually the single highest-value change available.",
       ],
       bullets: [
         "What the person is actually trying to fix, in their words",
-        "Scale — team size, volume, spend — whatever determines whether you can help",
+        "Scale - team size, volume, spend - whatever determines whether you can help",
         "Timing, because a good fit in eighteen months is not this quarter's lead",
         "Authority, asked as a role question rather than an interrogation",
       ],
     },
     {
       id: "optimisation",
-      heading: "Why completion rate is the wrong headline metric",
+      heading: "Assess360 counts qualified completions, not completions",
       answer:
         "A qualification quiz that improves its completion rate may simply be getting better at finishing with people you cannot help.",
       paragraphs: [
-        "The metric that matters is qualified completions, and it moves differently — it can rise while total completions fall, which looks like a regression on every dashboard built for list growth. Decide which number you are optimising before you start testing, or you will test your way back into a list-building quiz.",
+        "The metric that matters is qualified completions, and it moves differently - it can rise while total completions fall, which looks like a regression on every dashboard built for list growth. Decide which number you are optimising before you start testing, or you will test your way back into a list-building quiz.",
       ],
       bullets: [],
     },
     {
       id: "how-assess360-does-it",
-      heading: "How Assess360 does it",
+      heading: "Assess360 gates the quiz before anyone becomes a lead",
       answer:
-        "The gate runs before the quiz, so a wrong-fit visitor never becomes a lead — and the ad platform is told about both outcomes rather than only the completions.",
+        "The gate runs before the quiz, so a wrong-fit visitor never becomes a lead - and the ad platform is told about both outcomes rather than only the completions.",
       paragraphs: [
         "A quiz that reports every completion teaches Meta to find quiz-completers. Assess360 reports a distinct qualified-completion event instead, so optimisation follows the people who cleared your bar, while a disqualified visitor fires an exclusion signal that builds a never-show-again audience.",
         "Back-button and repeat protection matter more here than anywhere else: a visitor who has been rejected cannot refresh or navigate back for a second attempt at the gate with better answers.",

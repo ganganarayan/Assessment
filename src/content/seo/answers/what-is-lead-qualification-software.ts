@@ -2,11 +2,11 @@ import type { Answer } from "@/lib/seo/types";
 
 export const answer: Answer = {
   slug: "what-is-lead-qualification-software",
-  question: "What is lead qualification software?",
+  question: "What is lead qualification, and which tools actually do it?",
   short:
-    "Lead qualification software scores each incoming enquiry against your own fit criteria and tells you which ones are worth a sales conversation, before anyone picks up the phone.",
+    "Lead qualification is deciding which enquiries are worth a sales conversation, and the tools that genuinely do it score every answer against your own fit criteria instead of just collecting contact details.",
   topicId: "lead-qualification",
-  primaryKeyword: "what is lead qualification software",
+  primaryKeyword: "what is lead qualification",
   secondaryKeywords: ["lead qualification software definition", "prospect qualification software"],
   related: [
     "what-is-the-difference-between-a-form-and-a-scorecard",

@@ -2,7 +2,7 @@ import type { Answer } from "@/lib/seo/types";
 
 export const answer: Answer = {
   slug: "how-long-should-an-assessment-be",
-  question: "How long should an assessment be?",
+  question: "How long should an assessment be before people drop out?",
   short:
     "Long enough that the result is worth having and no longer, which in practice means asking only the questions whose answers would change the outcome or the advice.",
   topicId: "assessment-software",

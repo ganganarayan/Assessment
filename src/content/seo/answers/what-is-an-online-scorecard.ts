@@ -2,11 +2,11 @@ import type { Answer } from "@/lib/seo/types";
 
 export const answer: Answer = {
   slug: "what-is-an-online-scorecard",
-  question: "What is an online scorecard?",
+  question: "What is a scorecard, and how is it different from a quiz?",
   short:
-    "An online scorecard is a hosted set of questions that scores a person against criteria you define and shows them where they stand, usually as a number with a written interpretation.",
+    "A scorecard measures someone against a standard you set and shows them where they stand, where a quiz usually sorts people into types that are fun to read and say nothing about fit.",
   topicId: "scorecards",
-  primaryKeyword: "what is an online scorecard",
+  primaryKeyword: "what is a scorecard",
   secondaryKeywords: ["scorecard meaning marketing", "scorecard assessment definition"],
   related: ["what-should-a-scorecard-result-page-show", "what-is-an-online-assessment"],
   updatedAt: "2026-10-02",
