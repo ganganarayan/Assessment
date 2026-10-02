@@ -10,10 +10,14 @@
  *    script exists at all
  *  - the robots host rule regressing, which is the one piece of Phase A that cannot be
  *    observed from staging because staging is not the platform host
+ *  - a page in the registry with no route file. Pillars are bound to STATIC routes (a
+ *    root-level catch-all broke the no-html-link-for-pages lint rule repo-wide), which
+ *    means adding content without adding its route is a silent 404. This turns that into
+ *    a failed check instead of a page nobody notices is missing.
  *
  * Writes docs/seo/keyword-map.json as a side effect, so the map is never stale.
  */
-import { writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { ANSWERS, PAGES, TOPICS, auditContent } from "../src/lib/seo/registry";
 import { buildKeywordMap } from "../src/lib/seo/keyword-map";
@@ -30,6 +34,13 @@ function main(): void {
 
   for (const problem of auditContent()) {
     failures.push(`${problem.where}: ${problem.problem}`);
+  }
+
+  for (const page of PAGES) {
+    const route = `src/app/${page.slug}/page.tsx`;
+    if (!existsSync(route)) {
+      failures.push(`page/${page.slug}: no route file at ${route}`);
+    }
   }
 
   const map = buildKeywordMap();
