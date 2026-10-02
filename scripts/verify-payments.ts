@@ -25,7 +25,8 @@
  * signature verification and the webhook round-trip need a real card. Put ONE live
  * subscription through before pointing ads at a signup page.
  *
- *   npm run verify:payments            (local .env, or `railway run` for an environment)
+ *   railway run --environment orbitq-assess npm run verify:payments      (staging)
+ *   railway run --environment production    npm run verify:payments      (prod)
  *
  * Runs with `--conditions=react-server`, like db:seed. The Razorpay client and the
  * settings resolver both import `server-only`, which throws under plain `tsx` — that
@@ -192,8 +193,11 @@ main().catch(async (e) => {
   // instead of printing a Prisma stack that buries the one useful line.
   if (/Can't reach database server|P1001/.test(msg)) {
     console.error("\n🔴 No database. This script reads the platform's Razorpay settings row, so it needs one.");
-    console.error("   Staging:    railway run --environment staging npm run verify:payments");
+    // Railway's staging environment is named orbitq-assess, NOT "staging" — naming it
+    // wrong here sent the first real run of this script down a dead end.
+    console.error("   Staging:    railway run --environment orbitq-assess npm run verify:payments");
     console.error("   Production: railway run --environment production npm run verify:payments");
+    console.error("   (The public Postgres proxy is occasionally unreachable for a moment — retry once before digging.)");
   } else {
     console.error(e);
   }
