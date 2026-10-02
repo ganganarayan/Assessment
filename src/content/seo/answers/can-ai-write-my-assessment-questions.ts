@@ -17,7 +17,7 @@ export const answer: Answer = {
       answer:
         "Getting past the blank page, and surfacing the obvious questions you would have reached eventually anyway.",
       paragraphs: [
-        "A generated draft is usually competent and slightly generic, which is exactly what a first draft should be. The work that follows — cutting the questions that would never change a decision, rewording the ones that read like a form — is faster than starting from nothing.",
+        "A generated draft is usually competent and slightly generic, which is exactly what a first draft should be. The work that follows - cutting the questions that would never change a decision, rewording the ones that read like a form - is faster than starting from nothing.",
       ],
       bullets: [],
     },

@@ -10,7 +10,7 @@ import { isPlatformHost } from "@/lib/seo/urls";
  * AI answer engines are a real acquisition channel for a tool like this: people ask
  * "how do I stop Meta sending junk leads" long before they search a product name. Those
  * crawlers are named explicitly rather than left to the wildcard, because several of
- * them (GPTBot, CCBot) are commonly blocked by default templates and by some hosts —
+ * them (GPTBot, CCBot) are commonly blocked by default templates and by some hosts -
  * naming them is a statement of intent that survives someone copying a stricter
  * boilerplate over this file.
  *
@@ -19,7 +19,7 @@ import { isPlatformHost } from "@/lib/seo/urls";
  *
  * HOST-AWARE, because this route answers on every host the app serves: the platform
  * domain, every tenant subdomain, every tenant custom domain, staging and the raw
- * Railway host. Only the platform's own host may advertise the sitemap — the sitemap
+ * Railway host. Only the platform's own host may advertise the sitemap - the sitemap
  * lists assess360 URLs, and a customer's domain telling Google "my sitemap is over
  * there" is both wrong and a little rude.
  *
@@ -27,7 +27,7 @@ import { isPlatformHost } from "@/lib/seo/urls";
  * tidy and it would break the product: facebookexternalhit honours robots.txt when it
  * builds a link preview, and these funnels are ad landing pages shared on Facebook,
  * Instagram and WhatsApp. Blocking the crawler blocks the preview card. Duplicate
- * content is handled where it belongs — a canonical on the page — which costs no
+ * content is handled where it belongs - a canonical on the page - which costs no
  * previews.
  */
 const AI_CRAWLERS = [
@@ -51,8 +51,8 @@ const PRIVATE_PATHS = ["/admin", "/w", "/dashboard", "/api", "/platform", "/r/",
 
 /**
  * A non-production Railway environment (staging) must not be crawled at all. It serves the
- * entire marketing site, and while every page canonicals to production — which is what has
- * kept this from being a live problem — "mostly consolidated" is not the same as "not
+ * entire marketing site, and while every page canonicals to production - which is what has
+ * kept this from being a live problem - "mostly consolidated" is not the same as "not
  * indexed".
  *
  * Written so that an ABSENT variable means production. Railway injects this name; if it

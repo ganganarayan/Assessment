@@ -1,12 +1,12 @@
 import type { Topic } from "@/lib/seo/types";
 
 /**
- * Topic clusters. One cluster, one owning pillar — the rule that keeps two of our own
+ * Topic clusters. One cluster, one owning pillar - the rule that keeps two of our own
  * pages from bidding for the same query.
  *
  * The split between a pillar and its answers is by QUERY SHAPE, not by subject: the pillar
  * owns the noun ("lead scoring software"), its answers own the question forms ("how does
- * lead scoring work"). Both are about the same thing, and that is the point — they are the
+ * lead scoring work"). Both are about the same thing, and that is the point - they are the
  * same topic answered at two different moments of intent, so they support each other
  * instead of competing. verify-seo fails the build if a term is claimed twice.
  */
@@ -17,7 +17,7 @@ export const TOPICS: ReadonlyArray<Topic> = [
     heading: "Lead qualification, the Assess360 way",
     pillarSlug: "lead-qualification-software",
     blurb:
-      "Deciding which enquiries are worth a sales conversation — and filtering the rest out before anyone spends time on them.",
+      "Deciding which enquiries are worth a sales conversation - and filtering the rest out before anyone spends time on them.",
   },
   {
     id: "assessment-software",
@@ -33,7 +33,7 @@ export const TOPICS: ReadonlyArray<Topic> = [
     heading: "Lead scoring, the Assess360 way",
     pillarSlug: "lead-scoring",
     blurb:
-      "Turning answers into a number that means something — points, category weights, and the threshold that defines qualified.",
+      "Turning answers into a number that means something - points, category weights, and the threshold that defines qualified.",
   },
   {
     id: "scorecards",

@@ -12,7 +12,7 @@ import { prisma } from "@/lib/db/prisma";
  * app answers /privacy, /terms and /a/<any-slug> on the platform domain, on every tenant
  * subdomain, and on every tenant custom domain, because routing resolves the tenant from
  * the host rather than from the path. Without canonicals that is the same document at
- * three or more addresses — textbook duplicate content, and it gets worse with each
+ * three or more addresses - textbook duplicate content, and it gets worse with each
  * custom domain a customer adds.
  *
  * So: a page that belongs to the PLATFORM (marketing, policies) always declares its
@@ -40,7 +40,7 @@ export const OG_IMAGE = {
   url: `${MARKETING.domain}/og-image`,
   width: 1200,
   height: 630,
-  alt: `${MARKETING.name} — qualify leads before the sales call`,
+  alt: `${MARKETING.name} - qualify leads before the sales call`,
 } as const;
 
 /** Canonical URL on the platform domain for a path like "/privacy". */
@@ -49,11 +49,11 @@ export function platformUrl(path: string): string {
 }
 
 /**
- * Metadata for a page the PLATFORM owns and that is the same on every host — the
+ * Metadata for a page the PLATFORM owns and that is the same on every host - the
  * policies and the other public static pages.
  *
  * `title` is a bare page name ("Privacy Policy"), not a full tag: the root layout's
- * template appends the brand, so passing "Privacy Policy — Assess360" here would
+ * template appends the brand, so passing "Privacy Policy - Assess360" here would
  * produce it twice. OG gets the composed form, because a share card has no template.
  */
 export function platformPageMetadata(input: {
@@ -91,7 +91,7 @@ export function platformPageMetadata(input: {
  * Same funnel, several addresses: a tenant's scorecard answers on their custom domain, on
  * their subdomain, AND on the platform domain, because the slug lookup is global rather
  * than host-scoped. Whichever host a crawler arrives on, the canonical has to point at
- * one of them, and the right one is the tenant's own — that is the address their ads
+ * one of them, and the right one is the tenant's own - that is the address their ads
  * send traffic to and the one they would want ranking.
  *
  * `verified` is NOT part of the lookup, matching getCurrentTenant: that flag tracks
@@ -106,7 +106,7 @@ export async function tenantCanonicalOrigin(tenantId: string | null): Promise<st
 
   const domain = await prisma.domain.findFirst({
     where: { tenantId },
-    // Primary first, then oldest — a stable choice, so the canonical does not move when
+    // Primary first, then oldest - a stable choice, so the canonical does not move when
     // a tenant adds a second domain.
     orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
     select: { hostname: true },

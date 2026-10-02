@@ -17,7 +17,7 @@ export const answer: Answer = {
       answer:
         "The honest version of what you would have told them on the call, plus whichever of a resource, a lower-commitment offer or a referral actually fits.",
       paragraphs: [
-        "Someone told plainly that they are not a fit, and why, and what to do about it, rarely resents it — and a surprising number come back when their circumstances change. Someone who books a call and is let down gently after twenty minutes remembers it differently.",
+        "Someone told plainly that they are not a fit, and why, and what to do about it, rarely resents it - and a surprising number come back when their circumstances change. Someone who books a call and is let down gently after twenty minutes remembers it differently.",
       ],
       bullets: [],
     },

@@ -16,7 +16,7 @@ export function Hero({ video }: { video?: string | null }) {
           </p>
 
           <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl">
-            Know which leads are worth a sales call — before you make one.
+            Know which leads are worth a sales call - before you make one.
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--muted-foreground)]">
@@ -33,7 +33,7 @@ export function Hero({ video }: { video?: string | null }) {
             </a>
           </div>
 
-          {/* Was "No credit card. 25 responses a month on the free plan." — copy that
+          {/* Was "No credit card. 25 responses a month on the free plan." - copy that
               outlived the plan it described. There is no free tier; TRIAL_NOTE is the one
               sentence the pricing section also renders, so the claim cannot drift again. */}
           <p className="mt-5 text-sm text-[var(--muted-foreground)]">{TRIAL_NOTE}</p>
@@ -43,7 +43,7 @@ export function Hero({ video }: { video?: string | null }) {
           {/* The video is the preferred hero when one is set; the image is the fallback
               and stays the default, so the section never renders empty. */}
           {video ? (
-            <VideoEmbed src={video} title="Assess360 — how lead qualification works" />
+            <VideoEmbed src={video} title="Assess360 - how lead qualification works" />
           ) : (
           /* Drop your render at public/hero-scorecard.png */
           <img

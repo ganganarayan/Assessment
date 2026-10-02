@@ -17,7 +17,7 @@ export const answer: Answer = {
       answer:
         "With a form you learn how to contact someone; with a scorecard you learn whether you should.",
       paragraphs: [
-        "The mechanical difference is small — both ask questions — but the output is not. A form produces a row of data that someone has to interpret. A scorecard applies the interpretation at submission time, which means routing, prioritisation and disqualification can happen automatically rather than in somebody's inbox three days later.",
+        "The mechanical difference is small - both ask questions - but the output is not. A form produces a row of data that someone has to interpret. A scorecard applies the interpretation at submission time, which means routing, prioritisation and disqualification can happen automatically rather than in somebody's inbox three days later.",
       ],
       bullets: [],
     },
@@ -27,7 +27,7 @@ export const answer: Answer = {
       answer:
         "A form usually ends in a thank-you page; a scorecard ends in a result the person actually wanted.",
       paragraphs: [
-        "That difference is why completion rates tend to hold up on a longer scorecard than on a shorter form: the questions buy the respondent something. The exchange is explicit — answer honestly, get a reading on where you stand.",
+        "That difference is why completion rates tend to hold up on a longer scorecard than on a shorter form: the questions buy the respondent something. The exchange is explicit - answer honestly, get a reading on where you stand.",
       ],
       bullets: [],
     },

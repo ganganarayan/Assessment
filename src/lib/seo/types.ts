@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 /**
- * The content model behind BOTH public surfaces — the pillar pages and the knowledge
- * base — because they are two views of one body of work, not two bodies of work.
+ * The content model behind BOTH public surfaces - the pillar pages and the knowledge
+ * base - because they are two views of one body of work, not two bodies of work.
  *
  * The atomic unit is an ANSWER: one real question, written once, in one file. A pillar
  * composes many of them; a KB page renders exactly one. That is the whole reason this
@@ -11,10 +11,10 @@ import { z } from "zod";
  *
  * Every answer carries its content at two lengths, and the split is load-bearing:
  *
- *   short — ONE sentence. What a person understands without reading on, and what an AI
+ *   short - ONE sentence. What a person understands without reading on, and what an AI
  *           answer engine lifts when it cites us. Hard-capped, because an unbounded
  *           "short" becomes a paragraph within a month.
- *   body  — the full treatment, still brief. Short, not thin: an answer page that cannot
+ *   body  - the full treatment, still brief. Short, not thin: an answer page that cannot
  *           say something specific does not deserve a URL, and the floor below is what
  *           keeps the knowledge base from degenerating into doorway pages.
  *
@@ -33,7 +33,7 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD
 
 /**
  * A topic cluster. Every answer belongs to exactly one, and every cluster is owned by
- * exactly one pillar — the rule that keeps two of our own pages from competing for the
+ * exactly one pillar - the rule that keeps two of our own pages from competing for the
  * same query.
  */
 export const topicSchema = z.object({
@@ -87,12 +87,12 @@ export const answerSchema = z.object({
     .min(40)
     .max(260)
     .refine((s) => !/\.\s+\S/.test(s.trim().replace(/\.$/, "")), {
-      message: "short must be a single sentence — move the rest into body",
+      message: "short must be a single sentence - move the rest into body",
     }),
   /** The short expansion. Short, but never empty: see the floor above. */
   body: z.array(sectionSchema).min(2, "an answer page needs at least two sections"),
   topicId: slug,
-  /** The question-shaped query this answer owns. Never a head term — pillars own those. */
+  /** The question-shaped query this answer owns. Never a head term - pillars own those. */
   primaryKeyword: z.string().min(3),
   secondaryKeywords: z.array(z.string().min(3)).default([]),
   /** Other answers worth reading next, by slug. Validated to exist. */
@@ -120,12 +120,12 @@ export const seoPageSchema = z.object({
   intent: z.string().min(30),
   primaryKeyword: z.string().min(3),
   secondaryKeywords: z.array(z.string().min(3)).default([]),
-  /** The <title>, without the brand — the layout template appends it. */
+  /** The <title>, without the brand - the layout template appends it. */
   title: z.string().min(15).max(70),
   description: z.string().min(70).max(165),
-  /** The branded H1, e.g. "Assess360 — lead qualification software". It keeps the head
+  /** The branded H1, e.g. "Assess360 - lead qualification software". It keeps the head
    *  term, because that is the query the page exists to answer, and puts a name to who is
-   *  answering it — a page that explains a category without saying who built it educates
+   *  answering it - a page that explains a category without saying who built it educates
    *  the reader and sells for somebody else. */
   h1: z.string().min(10),
   /** The SHORT name for navigation, breadcrumbs and cross-links. The branded H1 repeated

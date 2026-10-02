@@ -13,7 +13,7 @@ import { answerPath, seoPath } from "@/lib/seo/urls";
  * The short answer is rendered first and rendered large, because that is the unit of
  * value here: a person should be able to read one sentence and leave satisfied, and an
  * AI answer engine should find the quotable form at the top rather than assembled from
- * four paragraphs. The body underneath is what stops the page being thin — it adds a
+ * four paragraphs. The body underneath is what stops the page being thin - it adds a
  * specific, and it says when the answer does not apply.
  *
  * The pager is the other half of the design. These pages are short by intent, so the

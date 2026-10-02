@@ -15,11 +15,11 @@ export const page: SeoPage = {
   ],
   title: "Lead Scoring Software: Points and Weights",
   description:
-    "How lead scoring works in practice — points per answer, category weights and the qualified threshold — and why fit and behavioural scoring answer different things.",
-  h1: "Assess360 — lead scoring your ad platform can learn from",
+    "How lead scoring works in practice - points per answer, category weights and the qualified threshold - and why fit and behavioural scoring answer different things.",
+  h1: "Assess360 - lead scoring your ad platform can learn from",
   shortName: "Lead scoring software",
   lede:
-    "Lead scoring turns answers into a number you can sort by. The mechanics are simple — points per answer, weights per category, a threshold for qualified — and nearly all the value lies in choosing them deliberately rather than copying a template.",
+    "Lead scoring turns answers into a number you can sort by. The mechanics are simple - points per answer, weights per category, a threshold for qualified - and nearly all the value lies in choosing them deliberately rather than copying a template.",
   updatedAt: "2026-10-02",
   internalLinks: ["lead-qualification-software", "scorecard"],
   sections: [
@@ -40,7 +40,7 @@ export const page: SeoPage = {
       answer:
         "Start from customers you already have: take your five best and five worst, and set the points so the scoring would have separated them.",
       paragraphs: [
-        "This is more reliable than reasoning forward from criteria, because it tests the scoring against outcomes you can already see. If your proposed weights score a current bad-fit customer as qualified, the weights are wrong — and you have learned that in an afternoon instead of a quarter.",
+        "This is more reliable than reasoning forward from criteria, because it tests the scoring against outcomes you can already see. If your proposed weights score a current bad-fit customer as qualified, the weights are wrong - and you have learned that in an afternoon instead of a quarter.",
       ],
       bullets: [
         "List your five best and five worst customers",
@@ -55,7 +55,7 @@ export const page: SeoPage = {
       answer:
         "Weights decide which category can overrule the others, and that is usually a bigger lever than any single answer's points.",
       paragraphs: [
-        "If budget is weighted at twice everything else, a prospect cannot compensate for having none by answering every other question well — which is normally the behaviour you want. Scoring without weights implicitly claims every category matters equally, and that is almost never true.",
+        "If budget is weighted at twice everything else, a prospect cannot compensate for having none by answering every other question well - which is normally the behaviour you want. Scoring without weights implicitly claims every category matters equally, and that is almost never true.",
       ],
       bullets: [],
     },
@@ -63,7 +63,7 @@ export const page: SeoPage = {
       id: "how-assess360-does-it",
       heading: "How Assess360 does it",
       answer:
-        "Points per answer, weights per category, and named bands that turn the total into a message and a next step — then the qualified ones are reported back to Meta as a conversion.",
+        "Points per answer, weights per category, and named bands that turn the total into a message and a next step - then the qualified ones are reported back to Meta as a conversion.",
       paragraphs: [
         "That last step is the one most scoring setups never reach. A score that lives only in your CRM tells your reps who to call; a score reported back to the ad platform tells the algorithm who to go and find. Until the platform knows which leads were any good, it keeps optimising toward whatever you last called a conversion, which for most accounts is still a form submission.",
         "A durable first-party identifier travels with each event, including sends to your own CRM, which lifts match quality without collecting anything extra about the person.",

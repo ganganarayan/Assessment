@@ -5,7 +5,7 @@ import type { Section } from "@/lib/seo/types";
  *
  * This is the concession to the fact that a thorough page is a long page: a reader lands
  * from a search result wanting one of these sections, and making them scroll past the
- * other four to find it is how a good page gets bounced. No JavaScript — the whole list
+ * other four to find it is how a good page gets bounced. No JavaScript - the whole list
  * works from the HTML, which is also what makes it useful to a crawler mapping the page.
  */
 export function OnThisPage({ sections, extra }: { sections: ReadonlyArray<Section>; extra?: ReadonlyArray<{ id: string; label: string }> }) {

@@ -48,7 +48,7 @@ export function Footer({ anchorBase = "" }: { anchorBase?: string }) {
           This is the only place in the site chrome where the guides and the knowledge base
           are reachable, and that matters twice over. A visitor has no other route to them
           short of typing a URL. A crawler, meanwhile, reads a page with no internal links
-          from the site's own navigation as peripheral however good the content is — the
+          from the site's own navigation as peripheral however good the content is - the
           sitemap says a page exists, the navigation says it matters.
 
           Generated from the content registry rather than hand-listed, so a new guide
@@ -81,7 +81,7 @@ export function Footer({ anchorBase = "" }: { anchorBase?: string }) {
               Answers
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-[var(--muted-foreground)]">
-              Short, direct answers about lead qualification, scoring and assessments — one
+              Short, direct answers about lead qualification, scoring and assessments - one
               question per page.
             </p>
             <Link

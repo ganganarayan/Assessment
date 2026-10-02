@@ -1,5 +1,5 @@
 // ============================================================================
-//  Marketing landing content — the single place to edit copy, prices, and FAQ.
+//  Marketing landing content - the single place to edit copy, prices, and FAQ.
 //  Rendered only on the platform root domain (assess360.divineleads.guru).
 // ============================================================================
 
@@ -7,15 +7,15 @@ export const MARKETING = {
   name: "Assess360",
   // Public URL of the marketing home (used for canonical + JSON-LD).
   domain: "https://assess360.divineleads.guru",
-  // Internal links — same domain, same service.
+  // Internal links - same domain, same service.
   signupHref: "/sign-up",
   signinHref: "/sign-in",
   heroImage: "/hero-scorecard.png",
   // NOTE: no ogImage key. The share card is GENERATED at /opengraph-image (see
   // app/opengraph-image.tsx) and injected into every route by Next's file convention,
-  // so there is no static file to keep in sync — and no path that can 404 the way
+  // so there is no static file to keep in sync - and no path that can 404 the way
   // /og-image.png did for as long as it was referenced here without ever existing.
-  title: "Assess360 — Qualify leads before the sales call",
+  title: "Assess360 - Qualify leads before the sales call",
   description:
     "Assess360 scores every prospect against your fit criteria, so your team only talks to the leads that are actually ready to buy.",
 } as const;
@@ -36,7 +36,7 @@ export const STEPS: ReadonlyArray<{ n: string; title: string; body: string }> = 
   {
     n: "02",
     title: "Share the link",
-    body: "Send one hosted link — in email, ads, or on your site. No embed, no re-hosting.",
+    body: "Send one hosted link - in email, ads, or on your site. No embed, no re-hosting.",
   },
   {
     n: "03",
@@ -50,23 +50,23 @@ export type Capability = { title: string; body: string; soon?: boolean };
 export const CAPABILITIES: ReadonlyArray<Capability> = [
   {
     title: "Weighted scoring engine",
-    body: "Assign points per answer and weight each category, so the final score reflects real fit — not just completion.",
+    body: "Assign points per answer and weight each category, so the final score reflects real fit - not just completion.",
   },
   {
     title: "Conditional logic & branching",
-    body: "Route each respondent by their answers — skip or jump questions so everyone gets the shortest relevant path to their score.",
+    body: "Route each respondent by their answers - skip or jump questions so everyone gets the shortest relevant path to their score.",
   },
   {
     title: "Pre-assessment qualification gate",
-    body: "Screen every visitor before the assessment even starts. Unfit traffic — wrong role, size, or intent — is routed to a separate exit page with no lead, no result and nothing stored, so your pipeline only fills with people who actually fit.",
+    body: "Screen every visitor before the assessment even starts. Unfit traffic - wrong role, size, or intent - is routed to a separate exit page with no lead, no result and nothing stored, so your pipeline only fills with people who actually fit.",
   },
   {
     title: "Manual-review screening questions",
-    body: "Add free-text questions — company name, website, what the business does — captured with each qualified lead, so you can eyeball the ones who slip through and disqualify fakers by hand.",
+    body: "Add free-text questions - company name, website, what the business does - captured with each qualified lead, so you can eyeball the ones who slip through and disqualify fakers by hand.",
   },
   {
     title: "Repeat & back-button protection",
-    body: "A rejected visitor can't refresh, back-button, or return to sneak a second attempt at the gate — they're re-locked to the exit page instantly.",
+    body: "A rejected visitor can't refresh, back-button, or return to sneak a second attempt at the gate - they're re-locked to the exit page instantly.",
   },
   {
     title: "Dynamic result pages",
@@ -74,7 +74,7 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
   },
   {
     title: "AI question generation",
-    body: "Generate a first draft of your questions and answer options with AI, then edit — a full scorecard in minutes.",
+    body: "Generate a first draft of your questions and answer options with AI, then edit - a full scorecard in minutes.",
   },
   {
     title: "AI-written result reports",
@@ -86,15 +86,15 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
   },
   {
     title: "Meta Pixel + Conversions API",
-    body: "Fire browser and server-side lead and purchase events to Meta — Pixel plus the Conversions API, deduplicated — so your ad optimization learns from real outcomes.",
+    body: "Fire browser and server-side lead and purchase events to Meta - Pixel plus the Conversions API, deduplicated - so your ad optimization learns from real outcomes.",
   },
   {
     title: "Audience exclusion + retargeting on autopilot",
-    body: "Disqualify at the door and let Meta learn. The moment a visitor fails your gate, the Conversions API fires an exclusion signal that builds a “never show again” audience; every qualified lead fires a retargeting signal that builds your warm audience. Add both to every campaign and the loop compounds — a disqualified lead never sees your ad again, and the ones who fit flow straight into the funnel.",
+    body: "Disqualify at the door and let Meta learn. The moment a visitor fails your gate, the Conversions API fires an exclusion signal that builds a “never show again” audience; every qualified lead fires a retargeting signal that builds your warm audience. Add both to every campaign and the loop compounds - a disqualified lead never sees your ad again, and the ones who fit flow straight into the funnel.",
   },
   {
     title: "Qualified-only optimization signal",
-    body: "Gated funnels report a distinct qualified-completion event to Meta, so the algorithm optimizes toward people who actually pass your bar — not toward form-fillers — while your legacy events stay untouched.",
+    body: "Gated funnels report a distinct qualified-completion event to Meta, so the algorithm optimizes toward people who actually pass your bar - not toward form-fillers - while your legacy events stay untouched.",
   },
   {
     title: "Auto-exclude the unqualified",
@@ -102,11 +102,11 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
   },
   {
     title: "First-party match keys",
-    body: "A durable first-party ID rides along on every Pixel and Conversions API event — including your external CRM sends — lifting Meta match quality and attribution without collecting any extra personal data.",
+    body: "A durable first-party ID rides along on every Pixel and Conversions API event - including your external CRM sends - lifting Meta match quality and attribution without collecting any extra personal data.",
   },
   {
     title: "Heatmap & session recording",
-    body: "Drop in your Microsoft Clarity (or any heatmap / recording) snippet — per workspace or per assessment — and see exactly how respondents move through the funnel.",
+    body: "Drop in your Microsoft Clarity (or any heatmap / recording) snippet - per workspace or per assessment - and see exactly how respondents move through the funnel.",
   },
   {
     title: "Branded PDF reports",
@@ -158,7 +158,7 @@ export type Tier = {
 };
 
 /**
- * USD everywhere, no geo-detection. Display only — checkout happens inside the app.
+ * USD everywhere, no geo-detection. Display only - checkout happens inside the app.
  *
  * NO FREE TIER, BY DECISION. A free plan on a lead-qualification tool attracts exactly
  * the accounts that never qualify anyone, and it puts the differentiator behind a
@@ -168,7 +168,7 @@ export type Tier = {
  * evaluating slowly.
  *
  * THE LINE THAT SELLS IT: disqualified visitors are unmetered. Every competitor meters
- * raw submissions — ScoreApp counts every completion against the cap. We count only the
+ * raw submissions - ScoreApp counts every completion against the cap. We count only the
  * ones that passed the gate. That is not a pricing trick: a rejection stores no lead and
  * no result, so there is nothing to meter.
  */
@@ -201,7 +201,7 @@ export const TIERS: ReadonlyArray<Tier> = [
     annual: "$69",
     period: "/ month",
     amount: 79,
-    blurb: "Your brand, your domain, AI-written reports — and the badge comes off.",
+    blurb: "Your brand, your domain, AI-written reports - and the badge comes off.",
     features: [
       "10 scorecards",
       "1,000 qualified responses / month",
@@ -241,7 +241,7 @@ export const TIERS: ReadonlyArray<Tier> = [
     annual: null,
     period: "/ month",
     amount: 499,
-    blurb: "Negotiated caps, SSO and an SLA — priced to what you actually run.",
+    blurb: "Negotiated caps, SSO and an SLA - priced to what you actually run.",
     features: [
       "Unlimited scorecards",
       "Custom qualified-response cap",
@@ -259,11 +259,11 @@ export const PLAN_NAMES = ["Gate", "Signal", "Agency", "Enterprise"] as const;
 
 export type MatrixRow = {
   label: string;
-  /** One cell per plan: "✓", "—", or text. */
+  /** One cell per plan: "✓", "-", or text. */
   cells: readonly [string, string, string, string];
-  /** Rendered emphasised — the rows that are the reason to switch. */
+  /** Rendered emphasised - the rows that are the reason to switch. */
   strong?: boolean;
-  /** Rendered in italics — the unmetered line. */
+  /** Rendered in italics - the unmetered line. */
   note?: boolean;
 };
 
@@ -284,30 +284,30 @@ export const PLAN_MATRIX: ReadonlyArray<MatrixRow> = [
   { label: "Webhook + CSV export", cells: ["✓", "✓", "✓", "✓"] },
   { label: "Back-button / repeat lock", cells: ["✓", "✓", "✓", "✓"] },
   { label: "Assess360 badge", cells: ["Shown", "Removed", "Removed", "Removed"] },
-  { label: "Custom domain + branding", cells: ["—", "✓", "✓", "✓"] },
-  { label: "AI-written reports (BYO key)", cells: ["—", "✓", "✓", "✓"] },
-  { label: "Heatmap / session recording", cells: ["—", "✓", "✓", "✓"] },
-  { label: "Manual-review screening fields", cells: ["—", "✓", "✓", "✓"] },
-  { label: "Client sub-accounts, white-label", cells: ["—", "—", "✓", "✓"] },
-  { label: "API access", cells: ["—", "—", "✓", "✓"] },
-  { label: "SSO, SLA, onboarding", cells: ["—", "—", "—", "✓"] },
+  { label: "Custom domain + branding", cells: ["-", "✓", "✓", "✓"] },
+  { label: "AI-written reports (BYO key)", cells: ["-", "✓", "✓", "✓"] },
+  { label: "Heatmap / session recording", cells: ["-", "✓", "✓", "✓"] },
+  { label: "Manual-review screening fields", cells: ["-", "✓", "✓", "✓"] },
+  { label: "Client sub-accounts, white-label", cells: ["-", "-", "✓", "✓"] },
+  { label: "API access", cells: ["-", "-", "✓", "✓"] },
+  { label: "SSO, SLA, onboarding", cells: ["-", "-", "-", "✓"] },
 ];
 
-/** The single best line on the page — true to how the product works. */
+/** The single best line on the page - true to how the product works. */
 export const PRICING_HEADLINE =
   "Disqualified visitors don't count against your response limit.";
 export const PRICING_SUB =
-  "You only pay for the leads worth keeping. Every other tool on this list meters raw submissions — a rejection here stores no lead and no result, so there is nothing to meter.";
+  "You only pay for the leads worth keeping. Every other tool on this list meters raw submissions - a rejection here stores no lead and no result, so there is nothing to meter.";
 
 export const TRIAL_NOTE =
-  "14-day Signal trial, no card. At day 15 the account parks read-only — your scorecard pauses, your data stays.";
+  "14-day Signal trial, no card. At day 15 the account parks read-only - your scorecard pauses, your data stays.";
 
 export const OVERAGE_NOTE = "Overage: $15 per extra 500 qualified responses.";
 
 export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
   {
     q: "How is a scorecard different from a form?",
-    a: "A form collects answers. A scorecard evaluates them — weighting each response against your fit criteria and returning a score, a result, and a next step. You learn who someone is, not just how to reach them.",
+    a: "A form collects answers. A scorecard evaluates them - weighting each response against your fit criteria and returning a score, a result, and a next step. You learn who someone is, not just how to reach them.",
   },
   {
     q: "Can I qualify leads, not just collect emails?",
@@ -319,10 +319,10 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
   },
   {
     q: "Can I run it on my own brand and domain?",
-    a: "Yes. Point a custom domain at your workspace and set your own brand colors and logo — the whole scorecard and result experience runs as yours.",
+    a: "Yes. Point a custom domain at your workspace and set your own brand colors and logo - the whole scorecard and result experience runs as yours.",
   },
   {
     q: "What happens at my response limit?",
-    a: "Only qualified responses count — disqualified visitors are never metered. You'll get a heads-up as you approach the limit. Past it, answers are still captured and nothing is lost, but new results are held until you upgrade, so no lead disappears while you decide.",
+    a: "Only qualified responses count - disqualified visitors are never metered. You'll get a heads-up as you approach the limit. Past it, answers are still captured and nothing is lost, but new results are held until you upgrade, so no lead disappears while you decide.",
   },
 ];
