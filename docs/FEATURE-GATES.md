@@ -66,17 +66,29 @@ they notice is either a bill or a feature that silently stopped working.
 
 A state the code does not have today:
 
-| Surface | Parked behaviour |
-|---|---|
-| Public funnel `/a/<slug>` | **Paused page** — not a 404, which would break live ad traffic and read as an outage |
-| New responses | Refused; nothing stored, nothing metered |
-| Workspace `/w` | **Readable** — every submission, export and report still viewable |
-| Edits / publish | Blocked |
-| Data | **Kept.** Parking never deletes |
+| Surface | Parked behaviour | Built |
+|---|---|---|
+| Public funnel `/a/<slug>` | **Paused page** — not a 404, which would break live ad traffic and read as an outage | 🟢 `FunnelPaused`, 200 + noindex, `preview=1` exempt |
+| New responses | Refused; nothing stored, nothing metered | 🟢 `startSubmission` + `completeSubmission` |
+| Workspace `/w` | **Readable** — every submission, export and report still viewable | 🟢 via `readResponseLimit` |
+| Edits / publish | Publish blocked; unpublish stays open | 🟢 `setAssessmentStatus` |
+| Data | **Kept.** Parking never deletes | 🟢 nothing in the parked path writes or deletes |
+| The tenant is told | Banner in the `/w` shell + the billing page header | 🟢 `BillingBanner` |
 
-Enforced in `requireWorkspace` and in the public funnel route. It reuses the shape of
-`scopeEditDenied`, which already exists for view-only staff — same mechanism, different
-reason.
+Two things the build changed from this design:
+
+**It is not enforced in `requireWorkspace`, and must not be.** The workspace has to stay
+fully readable while parked, so a guard there would have had to allow everything it was
+added to block. The intake is stopped at its own two entry points instead, which is also
+the only place that can distinguish "parked" from "over cap".
+
+**Parked needed one thing limits could not express: the READ limit.** `PARKED_LIMITS`
+sets `responsesPerMonth: 0`, and `isResponseLocked` locks any stored `periodSeq` above
+the limit — so reading the parked limit on the read path locks *every lead the tenant
+ever captured*. `resolvePlan` therefore exposes `readResponseLimit`, frozen at the last
+entitling plan (the lapsed subscription's snapshot, or the trial's allowance). Leads they
+had earned stay readable; leads that were already over cap stay locked, so cancelling is
+not a way to unlock overage for free.
 
 ---
 
@@ -189,16 +201,26 @@ for tenants with no payment method on file.
 
 ## 7. Build order
 
-1. Plan enum + limits re-tier; resolve existing FREE tenants *(decide first)*
-2. New feature flags, each checked against current unconditional behaviour
-3. Trial + parked read-only
-4. Badge component (Gate)
-5. `AdAccount` model + per-tenant limit
-6. Qualified-response naming + overage billing
-7. Agency: sub-accounts / white-label — its own project
+1. 🟢 Plan enum + limits re-tier; resolve existing FREE tenants *(decided: no FREE tenants existed)*
+2. 🟢 New feature flags, each checked against current unconditional behaviour
+3. 🟢 Trial + parked read-only — including the trial countdown, the paused page and `readResponseLimit`
+4. 🟢 Badge component (Gate)
+5. 🔴 `AdAccount` model + per-tenant limit — §8a
+6. 🔴 Qualified-response naming + overage billing
+7. 🔴 Agency: sub-accounts / white-label — its own project
 
 Steps 1–4 cover Gate and Signal end to end. 5 and 6 are needed before the published
 pricing page is fully true. 7 is a feature build, not a gate.
+
+### Checks
+
+- `npm run verify:billing` — pure: the catalog, the tier ladder, trial day-math, parked limits
+- `npm run verify:payments` — read-only pre-flight: keys, webhook secret, and the amount the
+  first subscriber would actually be charged (an env `RAZORPAY_PLAN_ID_*` override bypasses
+  the self-healing price check, and this is what catches a stale one)
+
+🔴 Neither proves a payment works. Checkout, signature verification and the webhook
+round-trip need one real subscription put through before ad spend points at a signup page.
 
 ---
 

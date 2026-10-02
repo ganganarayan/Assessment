@@ -22,6 +22,10 @@ import {
   parseLimitsSnapshot,
   usageFraction,
   usagePeriodKey,
+  trialDaysLeft,
+  PARKED_LIMITS,
+  TRIAL_PLAN,
+  TRIAL_DAYS,
   type Feature,
   type PlanLimits,
 } from "../src/lib/billing/plans";
@@ -89,6 +93,43 @@ check("usageFraction", usageFraction(75, 150) === 0.5 && usageFraction(5, null) 
 check("calendar period key", calendarMonthKey(new Date("2026-10-01T00:00:00Z")).startsWith("2026-10"));
 check("usagePeriodKey falls back to the calendar month",
   usagePeriodKey(null, new Date("2026-10-01T00:00:00Z")) === calendarMonthKey(new Date("2026-10-01T00:00:00Z")));
+
+console.log("Trial");
+// The trial grants SIGNAL, not GATE: a trial of the cheap tier cannot demonstrate the
+// features the ladder is selling, and the tenant would judge the product on less than
+// they were shown on the pricing page.
+check("the trial grants Signal for 14 days", TRIAL_PLAN === "SIGNAL" && TRIAL_DAYS === 14);
+{
+  const end = new Date("2026-10-15T00:00:00Z");
+  check("14 whole days left reads as 14", trialDaysLeft(end, new Date("2026-10-01T00:00:00Z")) === 14);
+  // CEILING, not floor. With 30 minutes left the tenant still holds full Signal
+  // entitlements, so "0 days" would announce an end that has not happened — and 0 is the
+  // value the banner and the billing page treat as parked.
+  check("a part-day left reads as 1, never 0", trialDaysLeft(end, new Date("2026-10-14T23:30:00Z")) === 1);
+  check("an expired trial reads as 0", trialDaysLeft(end, new Date("2026-10-15T00:00:01Z")) === 0);
+  check("no trial reads as 0", trialDaysLeft(null, new Date("2026-10-01T00:00:00Z")) === 0);
+}
+
+console.log("Parked (lapsed trial / lapsed subscription)");
+// Parked is expressed AS LIMITS so that every gate in the app enforces it without
+// knowing the word "parked". If any of these drift back to a catalog value, a lapsed
+// tenant silently keeps the tier they stopped paying for.
+check("parked = zero responses, zero scorecards, zero ad accounts",
+  PARKED_LIMITS.responsesPerMonth === 0 && PARKED_LIMITS.maxAssessments === 0 &&
+  PARKED_LIMITS.adAccounts === 0);
+check("parked grants NO feature at all", FEATURES.every((f) => !hasFeature(PARKED_LIMITS, f)));
+// The funnel route and startSubmission both branch on `parked`, not on these numbers —
+// because a limit of 0 means capture-but-lock (store the lead, withhold the result),
+// which is right for an over-cap payer and wrong for a tenant with no plan.
+check("parked is over limit at the very first response", isOverLimit(0, PARKED_LIMITS.responsesPerMonth));
+check("parked keeps one seat, so the owner can still sign in and pay", PARKED_LIMITS.seats === 1);
+// The READ path must never use the 0 above: `resolvePlan` exposes `readResponseLimit`,
+// frozen at the last entitling plan, so parking hides nothing the tenant had earned. For
+// a lapsed TRIAL that frozen value is the trial's own allowance — which therefore has to
+// be a real number, not 0, or a lapsed trial empties its own workspace.
+// null (unlimited) and any positive number both pass; only a literal 0 fails.
+check("a lapsed trial's leads stay readable (trial allowance is non-zero)",
+  PLAN_LIMITS[TRIAL_PLAN].responsesPerMonth !== 0);
 
 const unusedType: PlanLimits = PLAN_LIMITS.GATE;
 void unusedType;

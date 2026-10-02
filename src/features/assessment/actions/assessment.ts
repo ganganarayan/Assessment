@@ -7,6 +7,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { assertCanCreateAssessment } from "@/lib/billing/gate";
+import { resolvePlan } from "@/lib/billing/entitlements";
+import { PARKED_MESSAGE } from "@/lib/billing/plans";
 import { getAssessmentById } from "@/features/assessment/data";
 import { assessmentSchema, type AssessmentInput, type AudienceGateInput } from "@/features/assessment/schemas";
 import { originOf } from "@/lib/result/cors";
@@ -97,6 +99,11 @@ export async function createAssessment(
   if (!scope.isSuper) {
     const cap = await assertCanCreateAssessment(scope.tenantId);
     if (!cap.ok) {
+      // A parked tenant's cap is 0, and the generic sentence rendered as "your plan's
+      // limit of 0 assessments" — which reads as a billing bug rather than an expired
+      // trial, and gives no hint that paying fixes it. The limits express the BLOCK
+      // correctly; only the reason has to come from the resolved state.
+      if ((await resolvePlan(scope.tenantId)).parked) return { ok: false, error: PARKED_MESSAGE };
       return {
         ok: false,
         error: `You've reached your plan's limit of ${cap.limit} assessment${cap.limit === 1 ? "" : "s"}. Upgrade your plan to create more.`,
@@ -310,6 +317,16 @@ export async function setAssessmentStatus(
   if (!(await ownsAssessment(id, scope))) {
     return { ok: false, error: "Not found." };
   }
+  // Parked tenants may not PUBLISH (FEATURE-GATES.md §2b). Only publishing: unpublishing
+  // stays open, because a tenant taking their own funnel down is never something to
+  // block, and `maxAssessments: 0` already stops them creating a new one.
+  //
+  // Without this a parked tenant could publish an assessment that then serves the paused
+  // page — an ad campaign pointed at a dead link, which is the specific outcome parking
+  // is designed to avoid. Super admins are exempt: they are not rated against a plan.
+  if (publish && !scope.isSuper && (await resolvePlan(scope.tenantId)).parked) {
+    return { ok: false, error: PARKED_MESSAGE };
+  }
   await prisma.assessment.update({
     where: { id },
     data: {
@@ -345,6 +362,8 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
   if (!scope.isSuper) {
     const cap = await assertCanCreateAssessment(scope.tenantId);
     if (!cap.ok) {
+      // Parked reads as a cap of 0; say why instead (see createAssessment).
+      if ((await resolvePlan(scope.tenantId)).parked) return { ok: false, error: PARKED_MESSAGE };
       return {
         ok: false,
         error: `You've reached your plan's limit of ${cap.limit} assessment${cap.limit === 1 ? "" : "s"}. Upgrade your plan to create more.`,

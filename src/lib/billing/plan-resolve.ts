@@ -1,4 +1,4 @@
-import { type Plan, type SubscriptionStatus } from "@prisma/client";
+import { type Plan, type Subscription, type SubscriptionStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
   PLAN_LIMITS,
@@ -11,6 +11,7 @@ import {
   type PlanLimits,
   TRIAL_PLAN,
   PARKED_LIMITS,
+  trialDaysLeft,
 } from "@/lib/billing/plans";
 import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
 
@@ -51,11 +52,36 @@ export interface ResolvedPlan {
   /** Inside the 14-day Signal trial — full Signal entitlements, nothing paid yet. */
   trialing: boolean;
   /**
+   * Whole days left in the trial (ceiling), 0 when not trialing. Resolved here rather
+   * than at each caller because the trialEndsAt column is already in this query and a
+   * banner that disagrees with the billing page about "3 days" is worse than no banner.
+   */
+  trialDaysLeft: number;
+  /**
    * PARKED: no plan, no trial left. Read-only — the funnel is paused and nothing new is
    * accepted, but every existing submission, export and report stays visible and NOTHING
    * is deleted. Parking is reversible by paying; deletion would not be.
    */
   parked: boolean;
+  /**
+   * The response limit the READ path compares an ALREADY-STORED `periodSeq` against —
+   * the result page, /api/r, the leads list and the export. Equal to
+   * `limits.responsesPerMonth` in every state but one.
+   *
+   * 🔴 Why it has to be separate when parked. `PARKED_LIMITS.responsesPerMonth` is 0,
+   * and `isResponseLocked` locks any seq above the limit — so reading the parked limit
+   * on the read path locks EVERY lead the tenant ever captured. The workspace goes
+   * blank, the exports empty out, and the promise parking is built on ("nothing is
+   * deleted, everything stays visible") becomes false at the one moment the tenant is
+   * deciding whether to trust us with a card.
+   *
+   * It is not simply "unlimited when parked" either: a tenant 50 leads over their cap
+   * could then unlock those 50 by CANCELLING, which prices the overage at zero and
+   * rewards churn. So parking freezes the read limit at the last plan that entitled
+   * them — the subscription's own snapshot, or the trial's allowance for a lapsed trial.
+   * Leads they had earned stay readable; leads they had not stay locked.
+   */
+  readResponseLimit: number | null;
   /**
    * True when this scope is unmetered and un-gated: the platform itself, or a tenant the
    * owner flagged INTERNAL on /platform. `plan: null` alone does not say which, and every
@@ -63,6 +89,21 @@ export interface ResolvedPlan {
    * as Free — the opposite of what the flag means. Read this instead of inferring.
    */
   unlimited: boolean;
+}
+
+/**
+ * The response allowance a PARKED tenant's already-stored leads are judged against:
+ * whatever the lapsed subscription was frozen at (with its overrides), else the trial's.
+ *
+ * Reads the snapshot regardless of the subscription's status, which is the whole point —
+ * `entitledPlan` has already decided the status entitles nothing, and this is asking a
+ * different question: what were they entitled to WHEN THEY CAPTURED these leads.
+ */
+function lastEntitledResponseLimit(sub: Subscription | null): number | null {
+  if (!sub) return PLAN_LIMITS[TRIAL_PLAN].responsesPerMonth;
+  const base = parseLimitsSnapshot(sub.limitsSnapshot, sub.plan as PlanId);
+  const withOverrides = sub.limitOverrides != null ? applyOverrides(base, sub.limitOverrides) : base;
+  return withOverrides.responsesPerMonth;
 }
 
 /**
@@ -76,7 +117,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
   // own funnel unmetered and un-gateable no matter what the column says, and means the
   // hot path costs a string compare instead of a query.
   if (!isBusinessTenant(tenantId)) {
-    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: true, unlimited: true, trialing: false, parked: false };
+    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: true, unlimited: true, trialing: false, trialDaysLeft: 0, parked: false, readResponseLimit: null };
   }
 
   const tenant = await prisma.tenant.findUnique({
@@ -94,7 +135,10 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
       isPlatform: false,
       unlimited: false,
       trialing: false,
+      trialDaysLeft: 0,
       parked: true,
+      // An id with no row owns no submissions, so there is nothing to keep readable.
+      readResponseLimit: 0,
     };
   }
 
@@ -103,7 +147,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
   // never quietly drop it to FREE — which would take Meta CAPI down on a tenant that
   // is spending on ads, with nothing surfacing the change.
   if (tenant.unlimited) {
-    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: false, unlimited: true, trialing: false, parked: false };
+    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: false, unlimited: true, trialing: false, trialDaysLeft: 0, parked: false, readResponseLimit: null };
   }
 
   const sub = tenant.subscription;
@@ -120,7 +164,14 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
       isPlatform: false,
       unlimited: false,
       trialing,
+      trialDaysLeft: trialing ? trialDaysLeft(tenant.trialEndsAt) : 0,
       parked: !trialing,
+      // Parked: freeze the read limit at the last plan that entitled them — the lapsed
+      // subscription's own frozen snapshot, or (no subscription at all) the trial's
+      // allowance, since the trial is what let them collect in the first place.
+      readResponseLimit: trialing
+        ? PLAN_LIMITS[TRIAL_PLAN].responsesPerMonth
+        : lastEntitledResponseLimit(sub),
     };
   }
 
@@ -134,7 +185,9 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
     isPlatform: false,
     unlimited: false,
     trialing: false,
+    trialDaysLeft: 0,
     parked: false,
+    readResponseLimit: limits.responsesPerMonth,
   };
 }
 

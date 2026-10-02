@@ -1,7 +1,7 @@
 import { requireWorkspace } from "@/lib/auth/guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { resolvePlan } from "@/lib/billing/entitlements";
-import { PLAN_IDS, PLAN_LABEL, PLAN_LIMITS, PLAN_PRICE_USD, type PlanId } from "@/lib/billing/plans";
+import { PLAN_IDS, PLAN_LABEL, PLAN_LIMITS, PLAN_PRICE_USD, TRIAL_PLAN, type PlanId } from "@/lib/billing/plans";
 import { BillingPlans } from "@/features/billing/components/billing-plans";
 
 export const dynamic = "force-dynamic";
@@ -54,9 +54,15 @@ export default async function BillingPage() {
     );
   }
 
-  // Parked or trialing: there is no purchased plan. Gate is the floor for display, so
-  // the cards render a ladder to climb rather than claiming a plan nobody bought.
+  // Parked or trialing: there is no purchased plan. Gate is the floor for the CARDS, so
+  // the ladder renders with every tier marked as an upgrade.
+  //
+  // 🔴 It must not leak into the PROSE. This page used to print "You're on the Gate
+  // plan" from this same value, which told a trialing tenant they were on a tier they
+  // had never bought (and had more than) and told a parked tenant their funnel was live.
+  // The sentence now comes from the resolved state; only the cards use the floor.
   const currentPlan: PlanId = resolved.plan ?? "GATE";
+  const purchased = resolved.plan !== null && !resolved.trialing;
 
   const plans = PLAN_IDS.map((id) => ({
     id,
@@ -70,10 +76,28 @@ export default async function BillingPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Billing</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">
-          You&apos;re on the <span className="font-semibold text-[var(--foreground)]">{PLAN_LABEL[currentPlan]}</span> plan
-          {resolved.status ? ` (${resolved.status.toLowerCase()})` : ""}. Upgrade any time — it takes effect right after payment.
-        </p>
+        {purchased ? (
+          <p className="text-sm text-[var(--muted-foreground)]">
+            You&apos;re on the <span className="font-semibold text-[var(--foreground)]">{PLAN_LABEL[currentPlan]}</span> plan
+            {resolved.status ? ` (${resolved.status.toLowerCase()})` : ""}. Upgrade any time — it takes effect right after payment.
+          </p>
+        ) : resolved.trialing ? (
+          <p className="text-sm text-[var(--muted-foreground)]">
+            You&apos;re on the{" "}
+            <span className="font-semibold text-[var(--foreground)]">
+              {resolved.trialDaysLeft}-day
+            </span>{" "}
+            remainder of your free trial, with every{" "}
+            <span className="font-semibold text-[var(--foreground)]">{PLAN_LABEL[TRIAL_PLAN]}</span> feature switched
+            on. Pick a plan whenever you like — nothing is charged until you do.
+          </p>
+        ) : (
+          <p className="text-sm text-[var(--muted-foreground)]">
+            This workspace has{" "}
+            <span className="font-semibold text-[var(--foreground)]">no active plan</span> — the funnel is paused and
+            your data is kept. Choosing a plan restarts it immediately.
+          </p>
+        )}
       </div>
 
       <BillingPlans

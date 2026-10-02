@@ -109,25 +109,28 @@ export async function meterResponse(tenantId: string | null, now: Date = new Dat
 /**
  * Read-path lock test used by every place that would SHOW an over-cap lead (the result
  * page, /api/r, the tenant leads list/export). Compares the stored `periodSeq` against
- * the tenant's CURRENT limit, so raising the plan unlocks past leads instantly with no
- * backfill. A null seq (pre-gate/grandfathered/platform) is never locked.
+ * `readResponseLimit`, so raising the plan unlocks past leads instantly with no backfill.
+ * A null seq (pre-gate/grandfathered/platform) is never locked.
+ *
+ * 🔴 Reads `readResponseLimit`, NOT `limits.responsesPerMonth`. They differ in exactly
+ * one state: parked, where the live limit is 0 and reading it here would lock every lead
+ * the tenant ever captured — emptying their workspace and their exports at the moment
+ * they are deciding whether to pay. See the field's note in plan-resolve.
  */
 export async function isResponseLocked(tenantId: string | null, periodSeq: number | null): Promise<boolean> {
   if (!isBusinessTenant(tenantId) || periodSeq == null) return false;
-  const { limits } = await resolvePlan(tenantId);
-  const limit = limits.responsesPerMonth;
-  return limit != null && periodSeq > limit;
+  const { readResponseLimit } = await resolvePlan(tenantId);
+  return readResponseLimit != null && periodSeq > readResponseLimit;
 }
 
 /**
- * The tenant's current response limit (null = unlimited). Handy for the leads-list
- * padlock, which filters `periodSeq <= limit` and counts the rest as locked, without
- * calling `isResponseLocked` per row.
+ * The tenant's response limit FOR THE READ PATH (null = unlimited). Handy for the
+ * leads-list padlock, which filters `periodSeq <= limit` and counts the rest as locked,
+ * without calling `isResponseLocked` per row. Same parked caveat as `isResponseLocked`.
  */
 export async function responseLimitFor(tenantId: string | null): Promise<number | null> {
   if (!isBusinessTenant(tenantId)) return null;
-  const { limits } = await resolvePlan(tenantId);
-  return limits.responsesPerMonth;
+  return (await resolvePlan(tenantId)).readResponseLimit;
 }
 
 // --- Feature gates ----------------------------------------------------------

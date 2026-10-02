@@ -8,6 +8,8 @@ import { AppBrand } from "@/components/app-brand";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PlatformPixel } from "@/components/platform-pixel";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
+import { resolvePlan } from "@/lib/billing/entitlements";
+import { BillingBanner } from "@/features/billing/components/billing-banner";
 
 /**
  * The tenant workspace shell. requireWorkspace resolves a CONCRETE acting tenant
@@ -17,9 +19,10 @@ import { resolvePlatformMetaConfig } from "@/lib/settings/config";
  */
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { tenantId, impersonating } = await requireWorkspace();
-  const [tenant, platformMeta] = await Promise.all([
+  const [tenant, platformMeta, resolved] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
     resolvePlatformMetaConfig(),
+    resolvePlan(tenantId),
   ]);
 
   return (
@@ -46,6 +49,10 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       </aside>
       <main className="min-w-0 flex-1">
         {impersonating && tenant ? <ImpersonationBanner tenantName={tenant.name} /> : null}
+        {/* Below the impersonation strip on purpose: when an owner enters a parked
+            tenant, "who am I acting as" has to be read before "what state is it in",
+            or the paused notice looks like the owner's own account. */}
+        <BillingBanner resolved={resolved} />
         <div className="flex justify-end px-4 pt-4 md:px-8">
           <ThemeToggle />
         </div>

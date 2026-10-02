@@ -40,6 +40,7 @@
     "verify:bots": "tsx scripts/verify-bots.ts",
     "verify:enrichment": "tsx scripts/verify-enrichment.ts",
     "verify:billing": "tsx scripts/verify-billing.ts",
+    "verify:payments": "tsx --conditions=react-server scripts/verify-payments.ts",
     "verify:routing": "tsx scripts/verify-routing.ts",
     "verify:gate-flag": "tsx scripts/verify-gate-flag.ts",
     "verify:platform-capi": "tsx scripts/verify-platform-capi.ts",

@@ -370,3 +370,34 @@ export const UNLIMITED_LIMITS: PlanLimits = {
   seats: Number.MAX_SAFE_INTEGER,
   features: Object.fromEntries(FEATURES.map((f) => [f, true])) as FeatureFlags,
 };
+
+// --- Trial / parked presentation --------------------------------------------
+
+/**
+ * Whole days left in a trial, from `trialEndsAt`. Pure, so the banner, the billing
+ * page and `verify:billing` all agree on the number.
+ *
+ * CEILING, not floor: with 30 minutes left the honest answer is "1 day", not "0 days"
+ * — a zero would read as already-ended while the tenant still has full Signal
+ * entitlements, which is the opposite of the truth. 0 is reserved for an expired or
+ * absent trial, i.e. exactly the states `resolvePlan` reports as parked.
+ */
+export function trialDaysLeft(trialEndsAt: Date | null, now: Date = new Date()): number {
+  if (!trialEndsAt) return 0;
+  const ms = trialEndsAt.getTime() - now.getTime();
+  if (ms <= 0) return 0;
+  return Math.ceil(ms / (24 * 60 * 60 * 1000));
+}
+
+/**
+ * The one sentence a parked tenant is told, wherever a gate stops them.
+ *
+ * Why a constant and not a helper that builds an error object: the previous attempt
+ * (`parkedDenied()`) shipped with zero callers because expressing parked AS LIMITS
+ * meant no mutation needed a bespoke check. What the limits CANNOT carry is the
+ * reason — a parked tenant hitting `maxAssessments: 0` was told "your plan's limit of
+ * 0 assessments", which reads as a billing bug. So the gates that have a parked-aware
+ * message to give import this string; nothing else changes.
+ */
+export const PARKED_MESSAGE =
+  "Your trial has ended and this workspace is paused. Nothing was deleted — pick a plan and everything resumes exactly where it left off.";

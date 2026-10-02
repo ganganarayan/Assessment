@@ -8,8 +8,10 @@ import {
 import { readPublishedPages } from "@/features/assessment/pages/blocks";
 import { resolveAudienceCanonical } from "@/lib/settings/config";
 import { cache } from "react";
-import { tenantCan } from "@/lib/billing/entitlements";
+import { resolvePlan } from "@/lib/billing/entitlements";
+import { hasFeature } from "@/lib/billing/plans";
 import { AssessBadge } from "@/features/assessment/components/public/assess-badge";
+import { FunnelPaused } from "@/features/assessment/components/public/funnel-paused";
 import {
   type PreResultField,
   qualificationSchema,
@@ -20,13 +22,43 @@ import {
 export const dynamic = "force-dynamic";
 
 /**
- * Badge visibility, deduped per request. This runs on the public funnel — an ad landing
- * page — so it is the one plan lookup on a genuinely hot path. React's cache() collapses
- * repeat calls within a single render without caching ACROSS requests, which matters:
- * a tenant who upgrades must lose the badge on their very next page view, not whenever a
- * TTL happens to expire.
+ * The owning tenant's plan, deduped per request. This runs on the public funnel — an ad
+ * landing page — so it is the one plan lookup on a genuinely hot path. React's cache()
+ * collapses repeat calls within a single render without caching ACROSS requests, which
+ * matters: a tenant who upgrades must lose the badge, and an unparked tenant must serve
+ * the funnel again, on the very next page view rather than whenever a TTL expires.
+ *
+ * This resolves the WHOLE plan rather than one feature, because the page now asks two
+ * questions of it (is the tenant parked, and is the badge removed). `tenantCan` would
+ * have been two calls and two queries for answers that arrive in one row.
  */
-const brandingRemovedFor = cache(async (tenantId: string | null) => tenantCan(tenantId, "brandingRemoved"));
+const planFor = cache(async (tenantId: string | null) => resolvePlan(tenantId));
+
+/**
+ * The only metadata this route sets, and it sets it for one case: a PAUSED funnel must
+ * not be indexed. The pause is temporary by definition, so letting a crawler cache
+ * "isn't accepting responses" as the funnel's description outlives the pause and costs
+ * the tenant traffic after they pay.
+ *
+ * Every other case returns {} and keeps inheriting the root metadata, so this adds
+ * noindex without silently taking over the funnel's title or OG tags. Both lookups are
+ * request-deduped (unstable_cache / React cache), so the page render below does not
+ * repeat them.
+ */
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [{ slug }, sp] = await Promise.all([params, searchParams]);
+  if (sp.preview === "1") return {};
+  const a = await getPublishedAssessmentBySlug(slug);
+  if (!a) return {};
+  const plan = await planFor(a.tenantId);
+  return plan.parked ? { robots: { index: false, follow: false } } : {};
+}
 
 export default async function PublicAssessmentPage({
   params,
@@ -44,6 +76,17 @@ export default async function PublicAssessmentPage({
   const preview = sp.preview === "1"; // admin-only bypass; verified server-side
   const a = await getPublishedAssessmentBySlug(slug);
   if (!a) notFound();
+
+  // PARKED → paused page, before any of the work below. Checked here rather than deeper
+  // in the runner so a parked funnel costs one plan lookup instead of building the whole
+  // public payload (audience gate targets, published pages, every category and option)
+  // for a page nobody can answer.
+  //
+  // `preview` still goes through: the owner previewing their own funnel while parked
+  // needs to see what they are paying to turn back on, and the preview path stores
+  // nothing either way.
+  const plan = await planFor(a.tenantId);
+  if (plan.parked && !preview) return <FunnelPaused title={a.title} />;
 
   // Audience gate (Phase 2): each role either continues in THIS assessment
   // (redirectSlug null) or redirects to another assessment. The option is shown
@@ -183,7 +226,7 @@ export default async function PublicAssessmentPage({
   // Badge on Gate, gone from Signal up. Resolved SERVER-side from the owning tenant's
   // plan: a client-side check would be advisory, and the one thing this must not be is
   // removable without paying.
-  const brandingRemoved = await brandingRemovedFor(a.tenantId);
+  const brandingRemoved = hasFeature(plan.limits, "brandingRemoved");
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">

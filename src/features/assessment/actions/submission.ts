@@ -37,6 +37,7 @@ import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
 import { fbcCreationMs } from "@/lib/meta/capi";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { isResponseLocked, meterResponse, responsesOverCap, supportEmailFor, tenantCan } from "@/lib/billing/gate";
+import { resolvePlan } from "@/lib/billing/entitlements";
 import { generatePersonalStatement, generateClinicStatement } from "@/lib/ai/generate";
 import {
   resolveEngineConfig,
@@ -418,6 +419,25 @@ export async function startSubmission(
     },
   });
   if (!assessment) return { ok: false, error: "Assessment not available." };
+
+  // PARKED → refuse, storing and metering NOTHING. The funnel route already serves a
+  // paused page, so reaching here means either a stale tab or a direct POST.
+  //
+  // This is the one place parked had to be more than limits. `PARKED_LIMITS` sets
+  // responsesPerMonth 0, which routes a completion through CAPTURE-BUT-LOCK: the
+  // answers are stored and the result withheld. Correct for an over-cap PAYING tenant
+  // (they upgrade and the leads unlock) but wrong here — it keeps collecting personal
+  // data for a tenant with no live plan, for leads nobody may ever see. Parking stops
+  // the intake; it never deletes what is already there.
+  //
+  // Note `requestPreviousResults` below is deliberately NOT gated: it only hands back a
+  // result the respondent already earned, and parking keeps existing data readable.
+  //
+  // `preview` is exempt: it writes no submission on any path, and the owner has to be
+  // able to see what paying would turn back on.
+  if (!preview && (await resolvePlan(assessment.tenantId)).parked) {
+    return { ok: false, error: "This assessment isn't accepting responses right now." };
+  }
 
   // Audience-gate role. In DROPDOWN mode, keep it only if it's one of THIS
   // assessment's gate roles (guards against a tampered client). In FREETEXT mode the
@@ -834,6 +854,14 @@ export async function completeSubmission(
     },
   });
   if (!submission) return { ok: false, error: "Submission not found." };
+
+  // Parked between START and COMPLETE — a respondent mid-assessment when the trial ran
+  // out, or a tab left open overnight. Refuse rather than meter: metering would stamp a
+  // periodSeq against a limit of 0, locking the lead behind the cap screen, which claims
+  // a volume problem the tenant does not have. The partial submission stays as-is.
+  if ((await resolvePlan(submission.tenantId)).parked) {
+    return { ok: false, error: "This assessment isn't accepting responses right now." };
+  }
   // Ownership: a submission with an edit token requires it (legacy null-token rows
   // are allowed through).
   if (submission.editToken && submission.editToken !== editToken) {
