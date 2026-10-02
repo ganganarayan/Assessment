@@ -1,7 +1,5 @@
-import { headers } from "next/headers";
 import { MARKETING } from "@/lib/marketing/content";
-import { effectiveHost } from "@/lib/tenant/forwarded-host";
-import { isPlatformHost } from "@/lib/seo/urls";
+import { getCurrentTenant } from "@/lib/tenant/context";
 import { TOPICS, PAGES, answersForTopic } from "@/lib/seo/registry";
 import { absolute, answerUrl, seoUrl } from "@/lib/seo/urls";
 
@@ -15,11 +13,14 @@ import { absolute, answerUrl, seoUrl } from "@/lib/seo/urls";
  * It is not a standard anybody is obliged to honour, and it is not a substitute for the
  * HTML being readable — which is why every answer below also exists as a real page.
  *
- * Platform host only, same reasoning as robots and the sitemap: these are assess360 URLs,
- * and a customer's domain should not be publishing our index.
+ * Served anywhere that is not a TENANT's host — the same test the pillar and answer pages
+ * use, deliberately not the stricter "is this the production host" that robots.txt and the
+ * sitemap use. Those two are ownership claims about the host serving them; this is a
+ * document that mirrors pages which themselves render on staging. Gating it to production
+ * would have made it the one artefact that could never be checked before it was live.
  */
 export async function GET(): Promise<Response> {
-  if (!isPlatformHost(effectiveHost(await headers()))) {
+  if (await getCurrentTenant()) {
     return new Response("", { status: 404 });
   }
 

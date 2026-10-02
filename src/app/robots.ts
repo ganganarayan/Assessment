@@ -49,11 +49,40 @@ const AI_CRAWLERS = [
 /** Signed-in surfaces: nothing to index, and no reason to spend crawl budget there. */
 const PRIVATE_PATHS = ["/admin", "/w", "/dashboard", "/api", "/platform", "/r/", "/e/", "/change-password"];
 
-export default async function robots(): Promise<MetadataRoute.Robots> {
-  const rules = [
+/**
+ * A non-production Railway environment (staging) must not be crawled at all. It serves the
+ * entire marketing site, and while every page canonicals to production — which is what has
+ * kept this from being a live problem — "mostly consolidated" is not the same as "not
+ * indexed".
+ *
+ * Written so that an ABSENT variable means production. Railway injects this name; if it
+ * ever stops, the failure mode is "production keeps being crawlable", not "production
+ * silently delists itself".
+ */
+function isNonProductionEnvironment(): boolean {
+  const name = process.env.RAILWAY_ENVIRONMENT_NAME?.trim().toLowerCase();
+  return Boolean(name) && name !== "production";
+}
+
+/**
+ * The rule set, pure and exported, so verify-seo can assert that the AI crawlers are still
+ * named and the signed-in surfaces are still excluded. Staging now answers Disallow: /,
+ * which is right and also means these rules can no longer be read off a running
+ * environment before release.
+ */
+export function publicRobotsRules() {
+  return [
     { userAgent: "*", allow: "/", disallow: PRIVATE_PATHS },
     ...AI_CRAWLERS.map((userAgent) => ({ userAgent, allow: "/", disallow: PRIVATE_PATHS })),
   ];
+}
+
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  if (isNonProductionEnvironment()) {
+    return { rules: [{ userAgent: "*", disallow: "/" }] };
+  }
+
+  const rules = publicRobotsRules();
 
   if (!isPlatformHost(effectiveHost(await headers()))) return { rules };
 

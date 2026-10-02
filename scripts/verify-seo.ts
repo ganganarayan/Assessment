@@ -22,6 +22,8 @@ import { dirname } from "node:path";
 import { ANSWERS, PAGES, TOPICS, auditContent } from "../src/lib/seo/registry";
 import { buildKeywordMap } from "../src/lib/seo/keyword-map";
 import { isPlatformHost, PLATFORM_HOST } from "../src/lib/seo/urls";
+import { publicSitemapEntries } from "../src/lib/seo/sitemap-entries";
+import { publicRobotsRules } from "../src/app/robots";
 
 const MAP_PATH = "docs/seo/keyword-map.json";
 
@@ -60,6 +62,32 @@ function main(): void {
   for (const [host, expected] of hostCases) {
     if (isPlatformHost(host) !== expected) {
       failures.push(`isPlatformHost("${host}") should be ${expected}`);
+    }
+  }
+
+  // Everything below is asserted rather than observed, because the routes that serve it
+  // are gated to the production host and so are empty everywhere they could be inspected.
+  const sitemapPaths = new Set(publicSitemapEntries().map((e) => e.path));
+  for (const page of PAGES) {
+    if (!sitemapPaths.has(`/${page.slug}`)) failures.push(`page/${page.slug}: missing from sitemap`);
+  }
+  for (const answer of ANSWERS) {
+    if (!sitemapPaths.has(`/answers/${answer.slug}`)) {
+      failures.push(`answer/${answer.slug}: missing from sitemap`);
+    }
+  }
+  if (sitemapPaths.has("/sign-in")) failures.push("sitemap: /sign-in should not be listed");
+
+  const rules = publicRobotsRules();
+  const agents = new Set(rules.map((r) => r.userAgent));
+  for (const required of ["*", "OAI-SearchBot", "GPTBot", "ClaudeBot", "PerplexityBot"]) {
+    if (!agents.has(required)) failures.push(`robots: no rule for ${required}`);
+  }
+  for (const r of rules) {
+    for (const required of ["/admin", "/w", "/api"]) {
+      if (!r.disallow.includes(required)) {
+        failures.push(`robots: ${r.userAgent} does not disallow ${required}`);
+      }
     }
   }
 
