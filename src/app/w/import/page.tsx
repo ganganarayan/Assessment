@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { assertCanCreateAssessment } from "@/lib/billing/gate";
+import { tenantCan } from "@/lib/billing/entitlements";
 import { ImportWizard } from "@/features/assessment/components/admin/import-wizard";
 import { TextImport } from "@/features/assessment/components/admin/text-import";
 import { buttonVariants } from "@/components/ui/button";
@@ -15,6 +16,8 @@ export default async function WorkspaceImportPage() {
   // Billing gate - importing creates assessments, so warn up front at the cap rather
   // than after the upload. Super admins (impersonating) are never limited.
   const cap = impersonating ? ({ ok: true } as const) : await assertCanCreateAssessment(tenantId);
+  // A super admin operating a workspace is never gated.
+  const canBulkImport = impersonating || (await tenantCan(tenantId, "bulkImport"));
   if (!cap.ok) {
     return (
       <div className="flex flex-col gap-6">
@@ -55,9 +58,26 @@ export default async function WorkspaceImportPage() {
 
       <TextImport basePath="/w/assessments" />
 
+      {/* Bulk import is an AGENCY capability: lifting a finished assessment out of
+          another workspace is how an agency moves work between clients, where writing
+          one from plain text is the product itself and stays on every tier. Export is
+          never gated - a customer's own data must always come out. */}
       <div className="border-t pt-6">
         <h2 className="mb-3 text-lg font-semibold">From a JSON / CSV export</h2>
-        <ImportWizard doneHref="/w/assessments" />
+        {canBulkImport ? (
+          <ImportWizard doneHref="/w/assessments" />
+        ) : (
+          <div className="flex flex-col items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--muted)] px-4 py-4 text-sm">
+            <p>
+              Importing a whole assessment from a JSON or CSV export is part of{" "}
+              <strong>Agency</strong>. Writing one from plain text, above, is on every plan, and
+              exporting your own data always is.
+            </p>
+            <Link href="/w/billing" className={buttonVariants({ size: "sm" })}>
+              See plans
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

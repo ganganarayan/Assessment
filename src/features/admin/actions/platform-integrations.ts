@@ -7,6 +7,12 @@ import { env } from "@/lib/env";
 import { encryptWithSecret } from "@/lib/crypto";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { type IntegrationSettingsView } from "@/features/workspace/actions/integrations";
+import { parsePlanModels, planModelsSchema } from "@/lib/ai/plan-models";
+import {
+  DEFAULT_WELCOME_SUBJECT,
+  DEFAULT_WELCOME_BODY,
+  sendWelcomeTestTo,
+} from "@/lib/nurture/welcome";
 
 /**
  * PLATFORM (Gita / singleton) integration config - the super-admin editor for the
@@ -248,4 +254,94 @@ export async function getPlatformPayments(): Promise<boolean> {
     select: { paymentsEnabledGlobal: true },
   });
   return s?.paymentsEnabledGlobal !== false;
+}
+
+/**
+ * Which MODEL each plan's tenants generate statements with.
+ *
+ * The owner holds the key, so the owner holds the bill, so the owner picks the model.
+ * Stored as data on the singleton row rather than as a constant, because the thing
+ * most likely to change here is a price, and a price change should not need a deploy.
+ */
+export async function getPlanAiModels(): Promise<Record<string, string>> {
+  await requireSuperAdmin();
+  const s = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: { aiPlanModels: true },
+  });
+  return parsePlanModels(s?.aiPlanModels ?? null) as Record<string, string>;
+}
+
+export async function setPlanAiModels(models: Record<string, string>): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  // Validate through the same schema the resolver reads with, so an unknown plan id or
+  // an absurd model string is rejected here rather than discovered on a funnel.
+  const parsed = planModelsSchema.safeParse(models);
+  if (!parsed.success) return { ok: false, error: "That model list isn't valid." };
+  const clean = Object.fromEntries(
+    Object.entries(parsed.data).filter(([, v]) => typeof v === "string" && v.trim()),
+  );
+  await prisma.appSetting.upsert({
+    where: { id: "singleton" },
+    update: { aiPlanModels: clean },
+    create: { id: "singleton", aiPlanModels: clean },
+  });
+  revalidatePath("/admin/ai");
+  return { ok: true };
+}
+
+export interface WelcomeEmailView {
+  enabled: boolean;
+  subject: string;
+  body: string;
+  /** What the shipped copy says, so the editor can show it as the starting point. */
+  defaultSubject: string;
+  defaultBody: string;
+}
+
+/** The welcome-email template (singleton row). */
+export async function getWelcomeEmail(): Promise<WelcomeEmailView> {
+  await requireSuperAdmin();
+  const s = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: { welcomeEmailEnabled: true, welcomeEmailSubject: true, welcomeEmailBody: true },
+  });
+  return {
+    enabled: s?.welcomeEmailEnabled ?? false,
+    subject: s?.welcomeEmailSubject ?? "",
+    body: s?.welcomeEmailBody ?? "",
+    defaultSubject: DEFAULT_WELCOME_SUBJECT,
+    defaultBody: DEFAULT_WELCOME_BODY,
+  };
+}
+
+export async function updateWelcomeEmail(
+  enabled: boolean,
+  subject: string,
+  body: string,
+): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  if (subject.length > 300) return { ok: false, error: "That subject is too long." };
+  if (body.length > 20000) return { ok: false, error: "That body is too long." };
+  const data = {
+    welcomeEmailEnabled: enabled,
+    welcomeEmailSubject: subject.trim() || null,
+    welcomeEmailBody: body.trim() || null,
+  };
+  await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
+  revalidatePath("/admin/nurture");
+  return { ok: true };
+}
+
+/** Send the welcome email to one address, exactly as a new signup would receive it.
+ *  Ignores the enabled flag: you test before you turn it on, not after. */
+export async function sendWelcomeTest(to: string): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  const addr = to.trim();
+  if (!addr || !addr.includes("@")) return { ok: false, error: "Enter an email address to send to." };
+  const err = await sendWelcomeTestTo(addr);
+  return err ? { ok: false, error: err } : { ok: true };
 }

@@ -93,6 +93,11 @@ model Tenant {
   // master; the per-assessment paidMode remains the most specific switch of the three.
   paymentsEnabled Boolean @default(true)
 
+  // Per-tenant AI model override, set by the platform owner. Wins over the per-plan
+  // binding for this one tenant - the Enterprise negotiation, or an account worth more
+  // than a Haiku statement. Null = use the plan binding.
+  aiModelOverride String?
+
   // The assessment served at this tenant's own root (its subdomain or a custom
   // domain). Null = fall back to the tenant's only published assessment; with several
   // published and none chosen, the root keeps its generic page rather than guessing.
@@ -1898,6 +1903,26 @@ model AppSetting {
   razorpayKeyId            String?
   razorpayKeySecretEnc     String?
   razorpayWebhookSecretEnc String?
+
+  // WELCOME EMAIL sent once when a new workspace is provisioned at signup. Singleton
+  // row only - it is a platform message, not a tenant's marketing. Body is HTML with
+  // the same placeholder style as the nurture templates.
+  //
+  // 🔴 A password is NEVER placed in this email, and there is no placeholder for one.
+  // Self-serve signups choose their own, and mailing a credential turns every inbox
+  // into a copy of the account. The template offers a reset LINK instead.
+  welcomeEmailEnabled Boolean @default(false)
+  welcomeEmailSubject String?
+  welcomeEmailBody    String? @db.Text
+
+  // Which MODEL each plan's tenants generate with, as DATA rather than a constant:
+  // { "GATE": "claude-haiku-4-5", "SIGNAL": "claude-haiku-4-5", ... }. Meaningful only
+  // on the singleton row, and only for tenants running on the platform's own key.
+  //
+  // The point of per-plan binding is cost: the tenant chooses the words, the owner
+  // chooses what those words cost to produce. Unset falls back to the code default
+  // (Haiku), so the column being empty is a working configuration, not a broken one.
+  aiPlanModels Json?
 
   // PLATFORM MASTER SWITCH for respondent payments, meaningful ONLY on the singleton
   // row. False = no tenant funnel can take money, whatever its own switch or its

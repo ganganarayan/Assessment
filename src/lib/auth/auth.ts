@@ -10,6 +10,7 @@ import { generateId } from "@/lib/ids";
 import { ATTR_COOKIE } from "@/lib/attribution";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { sendEmail } from "@/lib/nurture/send";
+import { sendWelcomeEmail } from "@/lib/nurture/welcome";
 import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { isServedHost, linkForRequest } from "@/lib/tenant/served-host";
 
@@ -272,6 +273,10 @@ export const auth = betterAuth({
               data: { name: user.name || user.email, slug, trialEndsAt, ...acq },
             });
             await prisma.user.update({ where: { id: user.id }, data: { tenantId: tenant.id, role: Role.ADMIN } });
+            // Welcome mail, AFTER the workspace exists so every link in it works. Inside
+            // this try on purpose: it is already best-effort, and the one thing worse
+            // than a missing welcome email is a signup that fails because of one.
+            await sendWelcomeEmail({ name: user.name, email: user.email });
           } catch (e) {
             console.error("[auth] tenant auto-provision failed:", e instanceof Error ? e.message : String(e));
           }

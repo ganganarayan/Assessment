@@ -61,6 +61,11 @@ export const FEATURES = [
   "capi", // server-side Meta Conversions API (audience exclusion + retargeting)
   "heatmap", // heatmap / session-recording snippet injection
   "manualReview", // free-text screening questions stored for the owner to read
+  // Bulk import of a whole assessment from a JSON/CSV export. The plain-text import
+  // stays on every tier: writing your own scorecard is the product. Lifting a finished
+  // one out of another workspace is an agency motion, so it is priced as one.
+  // EXPORT is deliberately NOT gated - a customer's own data must always come out.
+  "bulkImport",
 ] as const;
 
 /**
@@ -179,6 +184,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
       heatmap: true,
       manualReview: true,
       apiAccess: true,
+      bulkImport: true,
     },
   },
   // Enterprise - published as "from $499". Real limits come from the per-tenant override
@@ -197,6 +203,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
       heatmap: true,
       manualReview: true,
       apiAccess: true,
+      bulkImport: true,
     },
   },
 };

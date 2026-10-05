@@ -57,6 +57,10 @@ export function middleware(request: NextRequest) {
   }
 
   const requestHeaders = new Headers(request.headers);
+  // The requested path, for Server Components that have to branch on it. A layout is
+  // not given the pathname by Next.js, and the parked workspace lock needs it: it has
+  // to withhold every page EXCEPT billing, which is the page that ends the lock.
+  requestHeaders.set("x-pathname", path);
   requestHeaders.set(TENANT_HEADERS.slug, slug ?? "");
   requestHeaders.set(TENANT_HEADERS.source, source);
   requestHeaders.set(TENANT_HEADERS.host, host);

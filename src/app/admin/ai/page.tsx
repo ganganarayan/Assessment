@@ -1,4 +1,7 @@
 import { getAiSettings } from "@/features/admin/actions/ai-settings";
+import { getPlanAiModels } from "@/features/admin/actions/platform-integrations";
+import { PlanAiModelsForm } from "@/features/admin/components/plan-ai-models-form";
+import { actingTenantId } from "@/lib/tenant/acting";
 import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
 import { PromptVersionsManager } from "@/features/admin/components/prompt-versions-manager";
 import {
@@ -12,7 +15,14 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AiSettingsPage() {
-  const settings = await getAiSettings();
+  // Impersonating = a super admin inside a tenant's AI settings. The per-plan bindings
+  // are a platform-wide decision, so they are shown only in the platform's own scope.
+  const actingId = await actingTenantId();
+  const impersonating = actingId !== null;
+  const [settings, planModels] = await Promise.all([
+    getAiSettings(),
+    impersonating ? Promise.resolve({} as Record<string, string>) : getPlanAiModels(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -38,6 +48,22 @@ export default async function AiSettingsPage() {
           <AiSettingsForm initial={settings} />
         </CardContent>
       </Card>
+
+      {impersonating ? null : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Model per plan (tenants)</CardTitle>
+            <CardDescription>
+              Tenants write the instructions; the platform runs the model on this key. Bind a
+              model to each plan here. Blank uses the built-in default, and a single tenant can
+              be moved off its plan&apos;s model from the platform console.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PlanAiModelsForm initial={planModels} provider={settings.provider} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

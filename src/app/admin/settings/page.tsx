@@ -44,7 +44,7 @@ export const dynamic = "force-dynamic";
 /**
  * Super-admin settings. The Ads & payments card follows the ACTING scope:
  *  - impersonating a tenant  → that tenant's Meta/Razorpay (per-tenant actions)
- *  - platform/global view    → the Gita singleton (platform actions; env fallback)
+ *  - platform/global view    → the singleton row (platform actions; env fallback)
  * Custom domains are per-tenant, so that card only shows while impersonating.
  */
 export default async function SettingsPage() {
@@ -83,11 +83,11 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Ads &amp; payments {impersonating ? "(this tenant)" : "(platform · Gita)"}</CardTitle>
+          <CardTitle>Ads &amp; payments {impersonating ? "(this tenant)" : "(platform)"}</CardTitle>
           <CardDescription>
             {impersonating
               ? "Meta Pixel + Conversions API token and Razorpay keys for the tenant you're currently in. Stored encrypted and scoped to that tenant."
-              : "Platform (Gita) Meta Pixel + Conversions API token and Razorpay keys. Saved here they override the env vars; leave blank to keep the current env values."}
+              : "The platform's own Meta Pixel + Conversions API token and Razorpay keys. Saved here they override the env vars; leave blank to keep the current env values."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -99,7 +99,7 @@ export default async function SettingsPage() {
             banner={
               impersonating
                 ? "Live for this tenant: its funnel fires this pixel, CAPI sends with this token, and payments run on this Razorpay account. Secrets are encrypted and never shown again."
-                : "Platform/Gita keys. Values here take priority over the env vars (which stay as the fallback), so you can move Gita off env without a redeploy. Secrets are encrypted and never shown again."
+                : "Platform keys. Values here take priority over the env vars (which stay as the fallback), so the platform can move off env without a redeploy. Secrets are encrypted and never shown again."
             }
           />
         </CardContent>
@@ -129,7 +129,7 @@ export default async function SettingsPage() {
             <CardTitle>App / subscription pixel (Assess360 SaaS)</CardTitle>
             <CardDescription>
               A separate Meta pixel for the Assess360 SaaS funnel - landing PageView, free
-              sign-up CompleteRegistration, and subscription Purchase. Distinct from the Gita
+              sign-up CompleteRegistration, and subscription Purchase. Distinct from the funnel
               assessment pixel above. No env fallback: unset means the funnel fires nothing.
             </CardDescription>
           </CardHeader>
@@ -141,11 +141,11 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Heatmap &amp; session recording {impersonating ? "(this tenant)" : "(platform · Gita)"}</CardTitle>
+          <CardTitle>Heatmap &amp; session recording {impersonating ? "(this tenant)" : "(platform)"}</CardTitle>
           <CardDescription>
             Paste a recording snippet (e.g. MS Clarity). It runs on every funnel page
             (opt-in → each question → result), so the whole session records -
-            {impersonating ? " for the tenant you're currently in." : " for your platform (Gita) assessments."}
+            {impersonating ? " for the tenant you're currently in." : " for the platform's own assessments."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -158,7 +158,7 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Nurture connection {impersonating ? "(this tenant)" : "(platform · Gita)"}</CardTitle>
+          <CardTitle>Nurture connection {impersonating ? "(this tenant)" : "(platform)"}</CardTitle>
           <CardDescription>
             Email (SMTP) + WhatsApp (Meta Cloud API) credentials used for the one-shot message that
             fires on opt-in. Per tenant; secrets are encrypted and never shown again. The messages
