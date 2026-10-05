@@ -7,7 +7,7 @@ import type { ResolvedPlan } from "@/lib/billing/entitlements";
  *
  * Why this exists: `resolvePlan` has always computed `trialing` and `parked`, and
  * nothing rendered either. A tenant therefore discovered their trial had ended by
- * hitting a limit error — the exact silent feature loss that parking (rather than
+ * hitting a limit error - the exact silent feature loss that parking (rather than
  * downgrading) was chosen to avoid. Parking only keeps that promise if the tenant is
  * TOLD, so this is part of the enforcement, not decoration.
  *
@@ -27,7 +27,7 @@ interface Notice {
  * The notice a resolved plan deserves, or null when there is nothing to say.
  * Deliberately NOT exported: the billing page writes its own, longer header sentence
  * from the same resolved state, and a second caller of this would be two ways to say
- * one thing — which is how `parkedDenied()` became dead code.
+ * one thing - which is how `parkedDenied()` became dead code.
  */
 function billingNotice(resolved: ResolvedPlan): Notice | null {
   // The platform and internal-unlimited tenants are not rated against the catalog, so
@@ -40,7 +40,7 @@ function billingNotice(resolved: ResolvedPlan): Notice | null {
       tone: "blocked",
       headline: "Workspace paused",
       detail:
-        "Your funnel is not accepting new responses. Every submission, export and report you already have is untouched — pick a plan and it resumes immediately.",
+        "Your funnel is not accepting new responses. Every submission, export and report you already have is untouched - pick a plan and it resumes immediately.",
       cta: "Choose a plan",
     };
   }
@@ -53,7 +53,7 @@ function billingNotice(resolved: ResolvedPlan): Notice | null {
       // to act on, so it changes colour rather than relying on the tenant reading a
       // number they have already learned to ignore.
       tone: d <= 3 ? "warn" : "neutral",
-      headline: `Trial — ${days} left`,
+      headline: `Trial - ${days} left`,
       detail:
         "Full Signal features, no card. When the trial ends the workspace pauses rather than dropping a tier: nothing is deleted and nothing silently stops working.",
       cta: "Choose a plan",
@@ -65,7 +65,7 @@ function billingNotice(resolved: ResolvedPlan): Notice | null {
       tone: "warn",
       headline: "Payment failed",
       detail:
-        "Your plan is still active while we retry. If the retries fail the workspace pauses — no data is lost, but the funnel stops accepting responses.",
+        "Your plan is still active while we retry. If the retries fail the workspace pauses - no data is lost, but the funnel stops accepting responses.",
       cta: "Update payment",
     };
   }
@@ -79,7 +79,7 @@ const TONE: Record<Notice["tone"], string> = {
   blocked: "border-red-500/40 bg-red-500/10",
 };
 
-/** The strip itself. Renders nothing when there is no notice — the common case. */
+/** The strip itself. Renders nothing when there is no notice - the common case. */
 export function BillingBanner({ resolved }: { resolved: ResolvedPlan }) {
   const notice = billingNotice(resolved);
   if (!notice) return null;

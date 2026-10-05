@@ -12,7 +12,7 @@ import { Footer } from "./Footer";
 
 /**
  * Structured data. AI answer engines and comparison sites lean on this heavily for
- * pricing questions, so every tier carries a REAL price here — the old graph claimed
+ * pricing questions, so every tier carries a REAL price here - the old graph claimed
  * `price: "0"`, which was wrong the moment the free plan went and would have been
  * quoted back at us.
  *

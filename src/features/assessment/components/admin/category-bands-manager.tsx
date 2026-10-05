@@ -25,7 +25,7 @@ const asLevel = (s: string): Level => (LEVELS.includes(s as Level) ? (s as Level
  * still holds one of these defaults (a manual edit is never overwritten).
  */
 const DEFAULT_SUGGESTIONS: Record<Level, string> = {
-  LOW: "This area is a clear strength — keep doing what's working here.",
+  LOW: "This area is a clear strength - keep doing what's working here.",
   MEDIUM: "This area is steady, with room to grow.",
   HIGH: "This area needs attention soon.",
   CRITICAL: "This area needs urgent focus.",
@@ -170,7 +170,7 @@ export function CategoryBandsManager({
                 <span className="font-medium">{b.categoryName}</span>
                 <Badge variant="outline">{b.level}</Badge>
                 <span className="text-xs text-[var(--muted-foreground)]">
-                  {b.minScore}–{b.maxScore}%
+                  {b.minScore}-{b.maxScore}%
                 </span>
               </div>
               {b.suggestion ? (
@@ -225,7 +225,7 @@ function BandForm({
   const available = freeLevels(bands, categoryId, bandId);
   const noneLeft = available.length === 0;
 
-  /** Fill the suggestion with the level's default — unless the admin typed their own. */
+  /** Fill the suggestion with the level's default - unless the admin typed their own. */
   function autofill(next: Level) {
     setSuggestion((prev) =>
       prev.trim() === "" || DEFAULT_VALUES.has(prev.trim()) ? DEFAULT_SUGGESTIONS[next] : prev,

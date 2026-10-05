@@ -11,7 +11,7 @@ import {
 } from "@/lib/meta-match/lookup";
 
 /**
- * Handler for the meta_match lookup. Version-agnostic — mounted by the route
+ * Handler for the meta_match lookup. Version-agnostic - mounted by the route
  * files (canonical /api/v1/meta-match + the deprecated unversioned alias), so the
  * response contract can evolve behind a new version path without breaking wired
  * consumers.

@@ -136,11 +136,11 @@ export function TextImport({ basePath = "/admin/assessments" }: { basePath?: str
       <div className="flex flex-col gap-4">
         <Card className="border-green-600">
           <CardHeader>
-            <CardTitle className="text-base">Step 2 — review &amp; import bands</CardTitle>
+            <CardTitle className="text-base">Step 2 - review &amp; import bands</CardTitle>
             <CardDescription>
               Assessment <span className="font-mono">/a/{created.slug}</span> was created (draft). These bands are
-              <strong> suggestions from your text</strong> — edit them, then import. Nothing here is saved until you
-              click <strong>Import bands</strong>. Ranges are percentages (0–100), non-overlapping.
+              <strong> suggestions from your text</strong> - edit them, then import. Nothing here is saved until you
+              click <strong>Import bands</strong>. Ranges are percentages (0-100), non-overlapping.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-5">
@@ -158,7 +158,7 @@ export function TextImport({ basePath = "/admin/assessments" }: { basePath?: str
                       {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
                     </select>
                     <Input className="w-16" type="number" value={b.min} onChange={(e) => updOverall(i, { min: Number(e.target.value) })} aria-label="min %" />
-                    <span className="text-xs">–</span>
+                    <span className="text-xs">-</span>
                     <Input className="w-16" type="number" value={b.max} onChange={(e) => updOverall(i, { max: Number(e.target.value) })} aria-label="max %" />
                     <Input className="w-40" value={b.title} placeholder="Title" onChange={(e) => updOverall(i, { title: e.target.value })} />
                     <Input className="min-w-[12rem] flex-1" value={b.description} placeholder="Description (optional)" onChange={(e) => updOverall(i, { description: e.target.value })} />
@@ -172,12 +172,12 @@ export function TextImport({ basePath = "/admin/assessments" }: { basePath?: str
             {/* Per category */}
             {cats.map((c, ci) => (
               <div key={c.categoryId} className="flex flex-col gap-2 border-t pt-3">
-                <p className="text-sm font-medium">{c.name} — category bands</p>
+                <p className="text-sm font-medium">{c.name} - category bands</p>
                 <div className="flex flex-col gap-2">
                   {c.bands.map((b, bi) => (
                     <div key={bi} className="flex flex-wrap items-center gap-2">
                       <Input className="w-16" type="number" value={b.min} onChange={(e) => updCatBand(ci, bi, { min: Number(e.target.value) })} aria-label="min %" />
-                      <span className="text-xs">–</span>
+                      <span className="text-xs">-</span>
                       <Input className="w-16" type="number" value={b.max} onChange={(e) => updCatBand(ci, bi, { max: Number(e.target.value) })} aria-label="max %" />
                       <Input className="w-40" value={b.label} placeholder="Label" onChange={(e) => updCatBand(ci, bi, { label: e.target.value })} />
                       <Input className="min-w-[12rem] flex-1" value={b.meaning} placeholder="Meaning (optional)" onChange={(e) => updCatBand(ci, bi, { meaning: e.target.value })} />
@@ -206,11 +206,11 @@ export function TextImport({ basePath = "/admin/assessments" }: { basePath?: str
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Step 1 — import the assessment</CardTitle>
+          <CardTitle className="text-base">Step 1 - import the assessment</CardTitle>
           <CardDescription>
             Paste the whole assessment or upload a .txt / .md file, then Preview → Create. Numbered lines are
             questions; bullets are options (<span className="font-mono">label = score</span>). Bands in the text are
-            just suggestions — you edit and import them in step 2.
+            just suggestions - you edit and import them in step 2.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -258,7 +258,7 @@ export function TextImport({ basePath = "/admin/assessments" }: { basePath?: str
                 <ul className="list-disc pl-5 text-red-500">{preview.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>
               </div>
             ) : (
-              <p className="text-green-600">🟢 Structure looks good — create it, then review the bands.</p>
+              <p className="text-green-600">🟢 Structure looks good - create it, then review the bands.</p>
             )}
             {preview.warnings.length > 0 ? (
               <div>

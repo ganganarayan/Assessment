@@ -1,6 +1,6 @@
 /**
  * Pure (no DB, no server-only) serialize/parse for the assessment transfer
- * format. Both the JSON and CSV exports produce — and the importer accepts —
+ * format. Both the JSON and CSV exports produce - and the importer accepts -
  * exactly these shapes, so anything exported re-imports cleanly (round-trip).
  *
  * Keep this module dependency-free (only schema + csv) so it can be unit-tested
@@ -41,8 +41,8 @@ export function bodiesToJson(
 /**
  * Lossless CSV layout. One flat file, rows discriminated by `row_type`
  * (ASSESSMENT / CATEGORY / QUESTION / OPTION / BAND) and grouped by
- * `assessment_slug`. Structure is positional via `*_index` columns — never by
- * display text — so duplicate category names / question text, empty categories,
+ * `assessment_slug`. Structure is positional via `*_index` columns - never by
+ * display text - so duplicate category names / question text, empty categories,
  * and option-less questions all round-trip exactly like the JSON path.
  */
 export const CSV_COLUMNS = [

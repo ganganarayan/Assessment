@@ -3,7 +3,7 @@ import type { Answer } from "@/lib/seo/types";
 import { answerPath } from "@/lib/seo/urls";
 
 /**
- * The cluster's answers, in full — every one, not a curated handful.
+ * The cluster's answers, in full - every one, not a curated handful.
  *
  * Each row is the question and its one-sentence answer, so the list reads as a usable
  * FAQ on its own, and the link is for the reader who wants the rest. Listing the whole

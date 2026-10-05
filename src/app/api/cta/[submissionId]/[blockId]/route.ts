@@ -18,7 +18,7 @@ import { ctaResultUrl } from "@/lib/cta/result-url";
  * point at which that is knowable.
  *
  * On a click: record it, emit `booking_requested` (which enqueues a DURABLE webhook
- * delivery to the CRM — retried by the cron until it lands), and email the owner. Then
+ * delivery to the CRM - retried by the cron until it lands), and email the owner. Then
  * 302 to the same destination the button always had, with the VidaPulse ids stamped on
  * exactly as the direct link stamps them, so click tracking there is unaffected.
  *
@@ -32,7 +32,7 @@ import { ctaResultUrl } from "@/lib/cta/result-url";
  */
 export const dynamic = "force-dynamic";
 
-/** Nothing to forward to — send them somewhere real rather than a dead tab. */
+/** Nothing to forward to - send them somewhere real rather than a dead tab. */
 function fallback() {
   return NextResponse.redirect(env.NEXT_PUBLIC_APP_URL, 302);
 }
@@ -70,7 +70,7 @@ export async function GET(
   });
   if (!sub) return fallback();
 
-  // Resolve the clicked button from the PUBLISHED page — the same source the page
+  // Resolve the clicked button from the PUBLISHED page - the same source the page
   // rendered from, so the destination is always one the operator saved.
   const page = readResultPage(sub.assessment.resultPagePublished ?? null);
   const block = page.blocks.find((b) => b.id === blockId && b.type === "button");
@@ -106,7 +106,7 @@ export async function GET(
         ip: ip ? ip.slice(0, 64) : null,
         userAgent: ua ? ua.slice(0, 512) : null,
         notifyEmail,
-        // No address configured is a settled outcome, not a pending one — otherwise the
+        // No address configured is a settled outcome, not a pending one - otherwise the
         // cron would retry a notification that can never be sent.
         notifyStatus: notifyEmail ? "pending" : "skipped",
       },
@@ -127,7 +127,7 @@ export async function GET(
 
   // The CRM webhook. emitEvent persists the EventLog and enqueues a durable delivery
   // row per matching webhook before attempting it, so a failure here is retried by the
-  // cron rather than lost — which is what "never fail the delivery" requires.
+  // cron rather than lost - which is what "never fail the delivery" requires.
   try {
     await emitEvent(EventType.CTA_CLICKED, {
       submissionId: sub.id,

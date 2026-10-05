@@ -17,7 +17,7 @@ export const answer: Answer = {
       answer:
         "Audiences have now seen a great many quizzes, so a quiz that exists only to be a quiz no longer earns attention by being one.",
       paragraphs: [
-        "The ones that still perform are the ones where the result is genuinely worth having — a diagnosis, a benchmark, a number the person could not have produced themselves. Where the result is a thinly disguised pitch, people recognise the shape within two questions and leave.",
+        "The ones that still perform are the ones where the result is genuinely worth having - a diagnosis, a benchmark, a number the person could not have produced themselves. Where the result is a thinly disguised pitch, people recognise the shape within two questions and leave.",
       ],
       bullets: [],
     },
@@ -27,7 +27,7 @@ export const answer: Answer = {
       answer:
         "Count qualified completions and the cost per qualified completion, not completions and cost per lead.",
       paragraphs: [
-        "On the second pair of numbers almost every quiz funnel looks like a success. On the first, the difference between a quiz that sorts and a quiz that collects is immediate and usually large — and it is the only comparison that predicts what the sales team will experience.",
+        "On the second pair of numbers almost every quiz funnel looks like a success. On the first, the difference between a quiz that sorts and a quiz that collects is immediate and usually large - and it is the only comparison that predicts what the sales team will experience.",
       ],
       bullets: [],
     },

@@ -7,7 +7,7 @@ import { isPlatformOwner, PLATFORM_OWNER_EMAIL } from "@/lib/auth/platform";
  * and exhaust the connection pool, so we cache it on globalThis.
  *
  * The client is extended with a hard backstop that refuses to DEMOTE the
- * platform owner — any write that would set the owner's role to something other
+ * platform owner - any write that would set the owner's role to something other
  * than SUPER_ADMIN. This is defence-in-depth: the individual Server Actions guard
  * this too, but a single DB-layer rule means no current or future code path can
  * silently demote the owner (the incident that locked us out once). Promotion
@@ -18,7 +18,7 @@ import { isPlatformOwner, PLATFORM_OWNER_EMAIL } from "@/lib/auth/platform";
  * because at the time "owner" and "tenantId = null" were the same fact. They are
  * not any more: the platform is a real Tenant row and the owner's account belongs
  * to it, so attaching a tenant is a normal, correct write. Keeping the tenant rule
- * would have made the Platform-tenant migration impossible — it would have thrown
+ * would have made the Platform-tenant migration impossible - it would have thrown
  * halfway through. What actually locked us out was losing SUPER_ADMIN, and that is
  * exactly what is still refused here. A tenant id cannot cost anyone their access,
  * because super-admin is decided by role/owner-email (lib/auth/guards isSuperAdmin),
@@ -45,7 +45,7 @@ function writtenField(
  * True when this data payload would demote a user: the `role` column is written to
  * anything other than SUPER_ADMIN.
  *
- * Writing `tenantId` is deliberately NOT a demotion. See the header — the owner now
+ * Writing `tenantId` is deliberately NOT a demotion. See the header - the owner now
  * belongs to the Platform tenant, and attaching it must be allowed.
  */
 function isDemotion(data: unknown): boolean {
@@ -65,7 +65,7 @@ function createPrismaClient() {
       user: {
         async update({ args, query }) {
           if (isDemotion(args.data)) {
-            // Look up on the UN-extended client (no recursion) — only runs on the
+            // Look up on the UN-extended client (no recursion) - only runs on the
             // rare write that actually touches role/tenantId. Fail open on error.
             const t = await base.user
               .findFirst({ where: args.where, select: { email: true } })

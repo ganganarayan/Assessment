@@ -13,7 +13,7 @@ import type {
 import type { ActionResult } from "@/features/assessment/actions/shared";
 
 type PreviewAction = (raw: string, format: "json" | "csv") => Promise<ActionResult<ImportPreviewItem[]> & { errors?: string[] }>;
-type ImportAction = (raw: string, format: "json" | "csv", mode: ImportMode) => Promise<ActionResult<{ count: number }> & { errors?: string[] }>;
+type ImportAction = (raw: string, format: "json" | "csv", mode: ImportMode) => Promise<ActionResult<{ count: number; renamed: Array<{ from: string; to: string }> }> & { errors?: string[] }>;
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -43,6 +43,9 @@ export function ImportWizard({
   const [inputKey, setInputKey] = useState(0);
   // How many assessments the last import created. Null until one succeeds.
   const [imported, setImported] = useState<number | null>(null);
+  // Slugs that could not be replaced and came in under a new name. Shown rather than
+  // swallowed: a silent rename is a funnel the operator believes they overwrote.
+  const [renamed, setRenamed] = useState<Array<{ from: string; to: string }>>([]);
   const [pending, start] = useTransition();
 
   const anyExists = items?.some((i) => i.slugExists) ?? false;
@@ -85,7 +88,7 @@ export function ImportWizard({
     if (!raw) return;
     if (mode === "replace") {
       const ok = confirm(
-        "Replace will permanently DELETE the existing assessment(s) with matching slug(s) — including their submissions — then recreate. Continue?",
+        "Replace will permanently DELETE the existing assessment(s) with matching slug(s) - including their submissions - then recreate. Continue?",
       );
       if (!ok) return;
     }
@@ -103,6 +106,7 @@ export function ImportWizard({
       // appeared in that list. An explicit count is the difference between "it worked"
       // and "I think it worked".
       setImported(res.data?.count ?? 0);
+      setRenamed(res.data?.renamed ?? []);
       router.refresh();
     });
   }
@@ -116,7 +120,25 @@ export function ImportWizard({
             {imported === 1 ? "1 assessment was imported." : `${imported} assessments were imported.`}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
+        <CardContent className="flex flex-col gap-4">
+          {renamed.length > 0 ? (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+              <p className="font-medium">Could not replace, imported under a new slug:</p>
+              <ul className="mt-2 flex flex-col gap-1">
+                {renamed.map((r) => (
+                  <li key={r.from} className="font-mono text-xs">
+                    {r.from} -&gt; {r.to}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[var(--muted-foreground)]">
+                The existing assessment with that slug is not yours to replace, or it is an
+                unowned row left by an older import. Delete it, then import again to reuse
+                the original slug.
+              </p>
+            </div>
+          ) : null}
+          <div className="flex flex-wrap gap-3">
           <Button onClick={() => { router.push(doneHref); router.refresh(); }}>
             View assessments
           </Button>
@@ -126,6 +148,7 @@ export function ImportWizard({
           >
             Import another
           </Button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -192,7 +215,7 @@ export function ImportWizard({
                       <td className="px-3 py-1.5">{it.questionCount}</td>
                       <td className="px-3 py-1.5">{it.resultBandCount}</td>
                       <td className="px-3 py-1.5">
-                        {it.slugExists ? <Badge variant="muted">exists</Badge> : "—"}
+                        {it.slugExists ? <Badge variant="muted">exists</Badge> : "-"}
                       </td>
                     </tr>
                   ))}

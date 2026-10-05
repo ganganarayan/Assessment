@@ -41,7 +41,7 @@ export function labeledAnswers(input: {
   qualificationAnswers?: unknown;
 }): LabeledAnswer[] {
   const out: LabeledAnswer[] = [];
-  // Gate text answers first — they're the manual-qualification signals.
+  // Gate text answers first - they're the manual-qualification signals.
   const qa = asAnswers(input.qualificationAnswers);
   for (const q of asQualTextQuestions(input.qualification)) {
     const v = qa[q.id];

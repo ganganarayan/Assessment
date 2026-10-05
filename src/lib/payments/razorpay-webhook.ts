@@ -16,7 +16,7 @@ import { emitCompletedPaid } from "@/lib/events/completion";
  *
  * The HMAC is verified with THAT tenant's webhook secret (resolveRazorpayConfig),
  * so each Razorpay account signs against its own endpoint. On every SIGNED, CAPTURED
- * payment it records a CAPI log row (recordCapture — stamped with the webhook's
+ * payment it records a CAPI log row (recordCapture - stamped with the webhook's
  * tenant so the Meta Purchase fires on the tenant's pixel/CAPI) and, for IN-APP
  * payments (order carried our submissionId), records the Payment + fires
  * completed_paid for the CRM. Deduped by the Razorpay payment id on both sides.
@@ -72,7 +72,7 @@ export async function handleRazorpayWebhook(req: Request, tenantId: string | nul
   const submissionId = asStr(notes.submissionId);
 
   // ISOLATION: an Assess360 SaaS subscription charge (USD) also emits payment.captured
-  // and carries an invoice_id. That is NOT a Gita funnel purchase — it must never enter
+  // and carries an invoice_id. That is NOT a Gita funnel purchase - it must never enter
   // this INR Purchase-CAPI pipeline (it would pollute the Gita Purchase audience). The
   // subscription lifecycle is handled entirely by /api/billing/razorpay. Skip it here.
   if (asStr(payment.invoice_id)) {
@@ -81,7 +81,7 @@ export async function handleRazorpayWebhook(req: Request, tenantId: string | nul
 
   // A settled one-time payment is "captured" (order/checkout) or "paid" (payment link).
   // Store the CANONICAL "captured" so consumers that filter on "captured" alone don't
-  // miss link sales — a "paid" row would otherwise vanish from revenue AND get the
+  // miss link sales - a "paid" row would otherwise vanish from revenue AND get the
   // unpaid-dunning nudge fired at a paying customer.
   const settled = rawStatus === "captured" || rawStatus === "paid";
   const status = "captured";
@@ -130,10 +130,10 @@ export async function handleRazorpayWebhook(req: Request, tenantId: string | nul
           },
         });
       } catch {
-        // Payment row already exists (Razorpay retry / verify path) — dedup on the
+        // Payment row already exists (Razorpay retry / verify path) - dedup on the
         // unique providerPaymentId.
       }
-      // Fire completed_paid regardless of who inserted the Payment row — its own
+      // Fire completed_paid regardless of who inserted the Payment row - its own
       // completedPaidAt CAS makes it exactly-once, so a create collision (verify
       // already recorded the sale) can never SKIP the CRM paid event.
       if (purpose === "assessment_unlock") void emitCompletedPaid(submissionId).catch(() => {});

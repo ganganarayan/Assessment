@@ -1,7 +1,7 @@
 /**
  * VSL result-page block vocabulary + theme presets. Plain types (safe on client and
  * server). A result page is a THEME plus an ordered list of typed blocks whose
- * `config` is type-specific JSON — new block types never touch the schema. Static
+ * `config` is type-specific JSON - new block types never touch the schema. Static
  * blocks the admin fills; the one dynamic block (ai_statement) renders from the
  * respondent's result. Stored whole on Assessment.resultPage (draft) /
  * resultPagePublished (live), so there are no per-block DB rows.
@@ -66,7 +66,7 @@ export interface ButtonConfig {
    * recorded, the CRM webhook fires and the owner is emailed, before forwarding to the
    * same destination. Off by default, so every existing button keeps linking straight
    * out exactly as before. The destination and its VidaPulse ids are unchanged either
-   * way — only the path taken to get there differs.
+   * way - only the path taken to get there differs.
    */
   bookingCta?: boolean;
   /**
@@ -212,7 +212,7 @@ export function readResultPage(value: unknown): ResultPageData {
 // ---- Embed helpers ---------------------------------------------------------
 
 /** Pull the first http(s) URL out of a pasted iframe embed's src attribute. Returns
- *  null when there is no iframe/src — so the renderer shows nothing rather than
+ *  null when there is no iframe/src - so the renderer shows nothing rather than
  *  injecting arbitrary HTML. This is what makes a pasted embed safe to render: we
  *  only ever emit a controlled <iframe src=…>, never the raw pasted markup. */
 export function extractEmbedSrc(code: string | null | undefined): string | null {
@@ -246,7 +246,7 @@ export function youtubeEmbedUrl(url: string | null | undefined): string | null {
   return id ? `https://www.youtube-nocookie.com/embed/${id}` : null;
 }
 
-/** Use a link EXACTLY as the admin typed it — never append or rewrite. The only
+/** Use a link EXACTLY as the admin typed it - never append or rewrite. The only
  *  adjustment is prefixing https:// to a bare host (e.g. "site.com/x"), otherwise the
  *  browser would treat it as relative and stick it onto the current page's path. Real
  *  schemes (http, https, mailto, tel), anchors and root-relative paths pass untouched.

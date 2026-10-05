@@ -1,7 +1,7 @@
 /**
  * Pure helpers for the Meta-match lookup (no DB / no env) so they are unit
  * testable. Normalization for the email+phone key, and the stable response
- * shape the endpoint returns. Values are returned RAW (unhashed) — the caller
+ * shape the endpoint returns. Values are returned RAW (unhashed) - the caller
  * (n8n) hashes before sending to Meta.
  */
 
@@ -16,7 +16,7 @@ export function phoneDigits(v: string | null | undefined): string | null {
   return d.length ? d : null;
 }
 
-/** Last 10 digits — the stable national-number key (country code varies). */
+/** Last 10 digits - the stable national-number key (country code varies). */
 export function phoneLast10(v: string | null | undefined): string | null {
   const d = phoneDigits(v);
   if (!d) return null;
@@ -37,7 +37,7 @@ export interface MetaMatchRecord {
   metaExternalId: string | null;
 }
 
-/** Stable response shape — every field always present (null when unknown). */
+/** Stable response shape - every field always present (null when unknown). */
 export interface MetaMatchResponse {
   found: boolean;
   email: string | null;

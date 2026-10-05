@@ -6,7 +6,7 @@
  *  - content that does not match its schema (shape, lengths, the single-sentence rule)
  *  - a dangling reference: a related answer, internal link or pillar that does not exist
  *  - an orphan: an answer no pillar links to
- *  - a keyword claimed by two pages — the cannibalisation check, and the reason this
+ *  - a keyword claimed by two pages - the cannibalisation check, and the reason this
  *    script exists at all
  *  - the robots host rule regressing, which is the one piece of Phase A that cannot be
  *    observed from staging because staging is not the platform host

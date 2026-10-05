@@ -27,7 +27,7 @@ export const answer: Answer = {
       answer:
         "When the person genuinely does not know where they stand, and the answer is something you can determine from a dozen questions.",
       paragraphs: [
-        "If the result is obvious to the respondent before they start, the format adds friction without adding value — a form would have been more honest. The format earns its length when the scoring tells them something they could not have worked out alone.",
+        "If the result is obvious to the respondent before they start, the format adds friction without adding value - a form would have been more honest. The format earns its length when the scoring tells them something they could not have worked out alone.",
       ],
       bullets: [],
     },

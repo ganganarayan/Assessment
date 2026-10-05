@@ -74,7 +74,7 @@ export function AdminSidebar({ user, tenantName }: AdminSidebarProps) {
     if (href === "/admin") return pathname === "/admin";
     // The editor + create live under /admin/assessments/* and belong to the builder.
     if (href === BUILDER_HREF) return pathname.startsWith(BUILDER_HREF) || pathname.startsWith("/admin/assessments/");
-    // "Assessments" (published list) is the exact path only — not the editor.
+    // "Assessments" (published list) is the exact path only - not the editor.
     if (href === "/admin/assessments") return pathname === "/admin/assessments";
     return pathname.startsWith(href);
   };

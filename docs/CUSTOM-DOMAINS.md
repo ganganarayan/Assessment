@@ -1,9 +1,9 @@
-# Unlimited tenant domains — Cloudflare for SaaS
+# Unlimited tenant domains - Cloudflare for SaaS
 
 ## Why
 
 Railway caps **custom domains per service** by plan. Every tenant that brings its own
-domain consumes one slot, so the plan tier — not the product — decides how many tenants
+domain consumes one slot, so the plan tier, not the product, decides how many tenants
 can have a domain. We hit it at the third one:
 
 ```
@@ -39,7 +39,7 @@ matches, and falls back to the real Host, which is always truthful.
   the Railway host (`assess-production.up.railway.app`). This is what customers point at.
 - Note the **Zone ID** from the zone overview.
 
-**2. Worker** — deploy `infra/cloudflare-worker.js`
+**2. Worker**, deploy `infra/cloudflare-worker.js`
 
 - Variables: `ORIGIN_HOST` = the Railway host (plaintext);
   `PROXY_SECRET` = a long random string (**encrypted**).
@@ -55,7 +55,7 @@ matches, and falls back to the real Host, which is always truthful.
 | `CLOUDFLARE_PROXY_SECRET` | **the same value** as the Worker's `PROXY_SECRET` |
 
 All four are optional. Missing any one and `cloudflareSaasConfigured()` is false and the
-app falls back to the Railway path exactly as before — nothing breaks, the ceiling just
+app falls back to the Railway path exactly as before, nothing breaks, the ceiling just
 comes back.
 
 ## What a tenant does
@@ -66,6 +66,6 @@ resolves, issues the certificate, and "Check status" turns it live.
 
 ## Verifying
 
-- `scripts/domain-doctor.ts` — what the app considers served, and why.
+- `scripts/domain-doctor.ts`, what the app considers served, and why.
 - Sign-in on the tenant's host proves the Worker secret is wired: if the header were
   being ignored, the host would resolve to the platform instead of the tenant.

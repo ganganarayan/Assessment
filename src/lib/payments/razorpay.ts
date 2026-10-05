@@ -2,7 +2,7 @@ import "server-only";
 import crypto from "crypto";
 
 /**
- * Razorpay provider — thin wrapper over the REST API (Basic auth, no SDK). Stateless:
+ * Razorpay provider - thin wrapper over the REST API (Basic auth, no SDK). Stateless:
  * every call takes the TENANT's keys/secret (resolved via lib/settings/config, which
  * falls back to env for the platform/Gita tenant), so each tenant transacts on its
  * OWN Razorpay account. One-time Payment/Order for the assessment unlock.
@@ -62,7 +62,7 @@ export interface FetchedOrder {
 }
 
 /**
- * Fetch an order by id — used to BIND a Checkout return to the order's OWN
+ * Fetch an order by id - used to BIND a Checkout return to the order's OWN
  * submission + amount (from its notes), so a valid signed payment triple can't be
  * replayed against an arbitrary `?submission=` to unlock someone else's result.
  */
@@ -113,7 +113,7 @@ export function verifyPaymentSignature(
 
 /**
  * Verify a Razorpay webhook signature (HMAC-SHA256 of the raw body with the tenant's
- * webhook secret). FAIL-CLOSED: when no secret is configured we reject — a public
+ * webhook secret). FAIL-CLOSED: when no secret is configured we reject - a public
  * money endpoint must never accept unauthenticated POSTs.
  */
 export function verifyWebhookSignature(rawBody: string, signature: string | null, webhookSecret: string | null): boolean {

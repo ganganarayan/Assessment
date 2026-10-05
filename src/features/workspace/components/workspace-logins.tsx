@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { PasswordInput } from "@/components/ui/password-input";
 
 /**
- * Set a password for a login in THIS workspace — the control that replaces "Change
+ * Set a password for a login in THIS workspace - the control that replaces "Change
  * password" while a super admin is impersonating, so the button acts on the account
  * named next to it instead of silently on the operator's own.
  */

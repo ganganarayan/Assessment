@@ -6,7 +6,7 @@ import { createContext, useContext, useState, type ReactNode } from "react";
  * Shares the Assessment Builder's active tab (Assessment | Results) between the
  * main sidebar (where the tabs now live, as a branch under "Assessment Builder")
  * and the editor page (which renders the panels). Kept in React state so both
- * panels stay mounted — switching tabs never remounts/loses unsaved edits.
+ * panels stay mounted - switching tabs never remounts/loses unsaved edits.
  */
 interface BuilderTabState {
   active: string;

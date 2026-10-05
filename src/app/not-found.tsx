@@ -4,13 +4,13 @@ import { buttonVariants } from "@/components/ui/button";
 import { NAV_LINKS } from "@/lib/marketing/content";
 
 /**
- * 404. There was no not-found.tsx at all, so every dead URL — a mistyped funnel slug, a
- * stale link in someone's email, a crawler following an old path — got Next's unstyled
+ * 404. There was no not-found.tsx at all, so every dead URL - a mistyped funnel slug, a
+ * stale link in someone's email, a crawler following an old path - got Next's unstyled
  * default page with no way back into the site.
  *
  * The recovery links are gated on the host, not shown unconditionally. On a tenant's own
  * domain this page is part of THEIR funnel, and offering "Pricing" and "How it works"
- * links to Assess360 there would advertise us on a customer's domain — which is the one
+ * links to Assess360 there would advertise us on a customer's domain - which is the one
  * thing the plan that removes our badge is bought to prevent.
  */
 export default async function NotFound() {

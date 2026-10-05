@@ -97,7 +97,7 @@ export function BillingPlans({
         key: keyId,
         subscription_id: subscriptionId,
         name: "Assess360",
-        description: `${plan.name} plan — monthly subscription`,
+        description: `${plan.name} plan - monthly subscription`,
         prefill: { name: prefill.name, email: prefill.email },
         theme: { color: "#16a34a" },
         handler: (response: RazorpaySuccess) => {
@@ -117,7 +117,7 @@ export function BillingPlans({
             setMsg(
               v.ok
                 ? { ok: true, text: `You're on ${plan.name}. It may take a moment to reflect everywhere.` }
-                : { ok: true, text: "Payment received — activating your plan shortly." },
+                : { ok: true, text: "Payment received - activating your plan shortly." },
             );
             setBusyPlan(null);
             router.refresh();

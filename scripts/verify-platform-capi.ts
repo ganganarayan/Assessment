@@ -3,7 +3,7 @@
  *
  * The bug this guards against leaves no trace at runtime: the platform funnel used to
  * call sendPlatformCapiEvent as `void ….catch(() => {})`, so a signup reached Meta while
- * the app recorded nothing — the Conversions log read 0 whatever Meta received, which
+ * the app recorded nothing - the Conversions log read 0 whatever Meta received, which
  * is indistinguishable from nobody signing up. Nothing fails, nothing logs; the only
  * symptom is two numbers that will not reconcile. So it is asserted at the source.
  *

@@ -85,7 +85,7 @@ export async function listPromptVersions(tenantId: string | null): Promise<Promp
   return [...custom, ...builtins];
 }
 
-/** The next tenant version number (built-ins occupy 1–2, so tenant versions start at 3). */
+/** The next tenant version number (built-ins occupy 1-2, so tenant versions start at 3). */
 export async function nextVersionNumber(tenantId: string | null): Promise<number> {
   const max = await prisma.aiPromptVersion.aggregate({ where: { tenantId }, _max: { number: true } });
   return Math.max(2, max._max.number ?? 2) + 1;

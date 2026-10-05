@@ -17,17 +17,17 @@ import { appSettingWhere } from "@/lib/settings/tenant-row";
  * is never broken. The API key is decrypted here and never leaves the server.
  */
 
-// Generous: a 100–150 word Sonnet completion can run ~9–13s, and the funnel
+// Generous: a 100-150 word Sonnet completion can run ~9-13s, and the funnel
 // shows a 10s "Analyzing…" countdown, so allow headroom before failing soft.
 const TIMEOUT_MS = 30_000;
 // Headroom so a message NEVER gets cut mid-word. Length is governed by the
-// instructions (e.g. "180–240 words"), not this ceiling. ~240 words ≈ 330 tokens.
+// instructions (e.g. "180-240 words"), not this ceiling. ~240 words ≈ 330 tokens.
 const MAX_TOKENS = 900;
 
 async function readAiConfig(requireEnabled: boolean, tenantId: string | null = null): Promise<AiConfig | null> {
   try {
     // Gita/platform (tenantId null) reads the singleton, unchanged. A tenant reads
-    // ONLY its own row — never the singleton — so Gita's API key is never used for,
+    // ONLY its own row - never the singleton - so Gita's API key is never used for,
     // or exposed to, a tenant. An unconfigured tenant simply gets no AI (returns null).
     const s = await prisma.appSetting.findUnique({ where: appSettingWhere(tenantId) as never });
     if (!s || !s.aiProvider) return null;
@@ -58,7 +58,7 @@ async function readAiConfig(requireEnabled: boolean, tenantId: string | null = n
   }
 }
 
-/** Config used to actually GENERATE on the funnel — only when AI is enabled.
+/** Config used to actually GENERATE on the funnel - only when AI is enabled.
  *  Pass the owning tenant (null = platform/Gita). */
 export async function getAiConfig(tenantId: string | null = null): Promise<AiConfig | null> {
   return readAiConfig(true, tenantId);
@@ -87,7 +87,7 @@ export async function generatePersonalStatementResult(
     const version = await resolvePromptVersion(versionId ?? cfg.promptVersion, tenantId);
     const words = await getWordWindow(tenantId);
     // Instruction (V3+) versions are self-contained: do NOT fold in the historical
-    // tenant guidance — the owner's instructions are the ONLY steer.
+    // tenant guidance - the owner's instructions are the ONLY steer.
     const guidance = version.minimal ? (input.guidance ?? null) : (input.guidance ?? cfg.guidance);
     const merged = { ...input, guidance };
     const { system, user } = buildStatementMessages(merged, version, words);
@@ -110,7 +110,7 @@ export async function generatePersonalStatement(
   tenantId: string | null = null,
   versionId?: string | null,
 ): Promise<string | null> {
-  // Total function: never throws into completeSubmission — swallows to null so the
+  // Total function: never throws into completeSubmission - swallows to null so the
   // funnel falls back to the static suggestion.
   return (await generatePersonalStatementResult(input, tenantId, versionId)).text;
 }
@@ -120,7 +120,7 @@ export async function generatePersonalStatement(
  * FIXED Divine Leads system prompt + a CONTEXT block of the ALREADY-COMPUTED
  * figures (the model never calculates). Fully fail-soft: returns null when AI is
  * off/unconfigured or on any error/timeout, so the result page renders the numbers
- * without prose. No humanizer/crisis line — this is a business audit, verbatim.
+ * without prose. No humanizer/crisis line - this is a business audit, verbatim.
  */
 export async function generateClinicStatement(
   context: string,
@@ -159,7 +159,7 @@ export async function testStatement(versionId?: string, tenantId: string | null 
   text?: string;
   error?: string;
 }> {
-  // Test ignores the Enable toggle — you test the key/model first, THEN enable.
+  // Test ignores the Enable toggle - you test the key/model first, THEN enable.
   const cfg = await readAiConfig(false, tenantId);
   if (!cfg) {
     return { ok: false, ms: 0, error: "No API key saved (or it couldn't be read). Save a provider + key first." };

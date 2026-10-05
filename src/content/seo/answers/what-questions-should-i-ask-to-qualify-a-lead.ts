@@ -15,13 +15,13 @@ export const answer: Answer = {
       id: "the-four",
       heading: "The four that earn their place",
       answer:
-        "Problem, scale, timing and authority — asked in the respondent's language rather than as a checklist borrowed from a sales methodology.",
+        "Problem, scale, timing and authority - asked in the respondent's language rather than as a checklist borrowed from a sales methodology.",
       paragraphs: [
         "Frameworks like BANT are fine as a reminder of what to cover and poor as a script. Nobody wants to be asked to confirm their budget authority. They will happily tell you their role, and their role answers the same question without the interrogation.",
       ],
       bullets: [
         "What are you trying to fix, in your own words?",
-        "How big is it — volume, spend, headcount, whatever applies?",
+        "How big is it - volume, spend, headcount, whatever applies?",
         "When do you need this solved by?",
         "What is your role in the decision?",
       ],

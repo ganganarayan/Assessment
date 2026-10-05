@@ -13,7 +13,7 @@ import { formatIST } from "@/lib/date";
 
 /**
  * Super-admin submissions export. GET /api/admin/submissions/export?format=csv|json[&assessment=<id>]
- * — every submission with its full result: score, overall band, result link,
+ * - every submission with its full result: score, overall band, result link,
  * UTMs, all category results, and ALL AI-statement versions. JSON keeps these
  * nested; CSV flattens categories + versions into single cells (one row per
  * submission). Optionally scoped to a single assessment.
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
   const format = url.searchParams.get("format") === "json" ? "json" : "csv";
   const assessmentId = url.searchParams.get("assessment") ?? undefined;
   // Scoped to one assessment: use ITS OWN "Data window" reset (or none), not the
-  // platform-wide floor — matches what the scoped Submissions page shows on screen.
+  // platform-wide floor - matches what the scoped Submissions page shows on screen.
   const floor = assessmentId
     ? (await prisma.assessment.findUnique({ where: { id: assessmentId }, select: { statsResetAt: true } }))
         ?.statsResetAt ?? null

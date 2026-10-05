@@ -5,7 +5,7 @@ import { requireWorkspace } from "@/lib/auth/guards";
 export const dynamic = "force-dynamic";
 
 /**
- * Workspace Audiences — the same canonical list and normalize tools as
+ * Workspace Audiences - the same canonical list and normalize tools as
  * /admin/audiences, scoped to this workspace. The actions resolve through the
  * acting scope, so a tenant admin edits their own list. Not plan-gated: cleaning up
  * what respondents typed is part of owning your data.

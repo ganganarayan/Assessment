@@ -16,7 +16,7 @@ import { resolveActingScope, scopeEditDenied, tenantScope } from "@/lib/tenant/a
  *
  * WHY THIS EXISTS
  * These tools were written for /admin and guarded with `requireSuperAdmin()`, which does
- * not return an error — it REDIRECTS a non-super caller to /w, and /w redirects on to
+ * not return an error - it REDIRECTS a non-super caller to /w, and /w redirects on to
  * /w/assessments. Mounting the same panel at /w/operations therefore bounced every tenant
  * admin straight back to Assessments the moment the page mounted, because the panel
  * auto-loads a count on render. The page looked broken and nothing said why.

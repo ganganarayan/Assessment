@@ -3,7 +3,7 @@ import Script from "next/script";
 /**
  * Meta (Facebook) Pixel base code: loads fbevents.js, inits the pixel, and fires
  * a PageView on load. The pixel id is resolved PER TENANT (the assessment's tenant,
- * env fallback for platform) and passed in — renders nothing when there is none.
+ * env fallback for platform) and passed in - renders nothing when there is none.
  * Funnel events (CompleteRegistration, AssessmentCompleted) are fired from the
  * runner via lib/pixel.ts.
  */

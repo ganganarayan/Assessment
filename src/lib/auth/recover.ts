@@ -9,13 +9,13 @@ import { isPlatformOwner } from "@/lib/auth/platform";
  * verifies it), marks the email verified, and clears the force-change flag so
  * sign-in works immediately.
  *
- * Business logic only — callers (the CLI script, the gated /api/admin/recover
+ * Business logic only - callers (the CLI script, the gated /api/admin/recover
  * route) decide WHO is allowed to invoke it. Pass `superAdminOnly` to refuse
  * anything but a SUPER_ADMIN account (limits the blast radius of a leaked
  * recovery secret to the platform owner, never a tenant admin). Pass
  * `promoteOwner` so that, when the target email is the configured platform
  * owner (PLATFORM_OWNER_EMAIL) but has been demoted, it is restored to
- * SUPER_ADMIN (tenantId → null) as part of the reset — the owner can always
+ * SUPER_ADMIN (tenantId → null) as part of the reset - the owner can always
  * self-restore, and the reachable set stays limited to that one email.
  */
 export type RecoverResult =
@@ -33,7 +33,7 @@ export async function resetCredentialPassword(
     return { ok: false, error: "Password must be at least 8 characters." };
   }
 
-  // Case-insensitive match — Better Auth does not guarantee a stored casing.
+  // Case-insensitive match - Better Auth does not guarantee a stored casing.
   const user = await prisma.user.findFirst({
     where: { email: { equals: email, mode: "insensitive" } },
     select: { id: true, email: true, role: true },

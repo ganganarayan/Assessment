@@ -22,7 +22,7 @@ import {
  * rather than removing it from the tree, and the whole comparison matrix is rendered
  * server-side. That is deliberate: AI answer engines and comparison sites quote pricing
  * pages constantly, and they read markup, not React state. ScoreApp's annual totals are
- * script-rendered and comparison sites complain they cannot be read — rendering both is
+ * script-rendered and comparison sites complain they cannot be read - rendering both is
  * a free win on the single page most likely to be cited.
  *
  * So: never replace this with a conditional that renders only the active price.
@@ -150,7 +150,7 @@ export function Pricing() {
           <p>{OVERAGE_NOTE}</p>
         </div>
 
-        {/* Full comparison — always in the markup, for readers and for crawlers. */}
+        {/* Full comparison - always in the markup, for readers and for crawlers. */}
         <div className="mt-14">
           <h3 className="text-xl font-semibold tracking-tight">Compare every plan</h3>
           <div className="mt-5 overflow-x-auto rounded-xl border bg-[var(--background)]">
@@ -187,7 +187,7 @@ export function Pricing() {
                         className={cn(
                           "px-4 py-3",
                           c === "✓" && "text-green-600",
-                          c === "—" && "text-[var(--muted-foreground)]",
+                          c === "-" && "text-[var(--muted-foreground)]",
                           row.note && "italic text-green-600",
                         )}
                       >

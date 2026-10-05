@@ -8,11 +8,11 @@ export const dynamic = "force-dynamic";
 const PER_PAGE = 50;
 
 /**
- * Read-only per-tenant conversions log. Firing to Meta stays a platform action for now —
+ * Read-only per-tenant conversions log. Firing to Meta stays a platform action for now -
  * a tenant's own pixel/CAPI-token wiring is the flagged live-money follow-up.
  *
- * 🟡 DEFAULTS TO PAYMENTS. The CAPI log holds every event the funnel fires — the opt-in
- * (CompleteRegistration), the completion, and the Purchase — so an unfiltered list shows
+ * 🟡 DEFAULTS TO PAYMENTS. The CAPI log holds every event the funnel fires - the opt-in
+ * (CompleteRegistration), the completion, and the Purchase - so an unfiltered list shows
  * a contact who opted in and then completed as two rows, under a heading that says
  * "payments". That read as duplicated payment records. Payments are the default view and
  * the full log is one click away, because the full log is what you want when debugging
@@ -64,8 +64,8 @@ export default async function WorkspaceConversionsPage({
         <h1 className="text-2xl font-bold tracking-tight">Conversions</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
           {showAll
-            ? "Every Meta conversion event fired for your assessments — opt-ins and completions as well as payments. One row per event, so a contact appears more than once."
-            : "Captured payments on your assessments and their Meta conversion status — private to this workspace."}
+            ? "Every Meta conversion event fired for your assessments - opt-ins and completions as well as payments. One row per event, so a contact appears more than once."
+            : "Captured payments on your assessments and their Meta conversion status - private to this workspace."}
         </p>
       </div>
 
@@ -112,13 +112,13 @@ export default async function WorkspaceConversionsPage({
                 <tr key={r.id}>
                   <td className="px-3 py-2">
                     <div className="flex flex-col">
-                      <span className="font-medium">{r.name ?? "—"}</span>
-                      <span className="text-xs text-[var(--muted-foreground)]">{r.email ?? r.phone ?? "—"}</span>
+                      <span className="font-medium">{r.name ?? "-"}</span>
+                      <span className="text-xs text-[var(--muted-foreground)]">{r.email ?? r.phone ?? "-"}</span>
                     </div>
                   </td>
                   <td className="px-3 py-2 font-mono text-xs">{r.eventName}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    {r.amountRupees != null ? `₹${r.amountRupees}` : "—"}
+                    {r.amountRupees != null ? `₹${r.amountRupees}` : "-"}
                   </td>
                   <td className="px-3 py-2 text-center">{r.status}</td>
                 </tr>
@@ -130,7 +130,7 @@ export default async function WorkspaceConversionsPage({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-[var(--muted-foreground)] tabular-nums">
-          {total === 0 ? "Nothing to show" : `Showing ${first}–${last} of ${total}`}
+          {total === 0 ? "Nothing to show" : `Showing ${first}-${last} of ${total}`}
         </p>
         {pages > 1 ? (
           <div className="flex items-center gap-2">

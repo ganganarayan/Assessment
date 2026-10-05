@@ -28,7 +28,7 @@ export default async function BillingPage() {
 
   // An INTERNAL workspace is not rated against the catalog, so there is no plan to show
   // and nothing to sell. `resolved.plan` is null here, and the old `?? "FREE"` turned
-  // that into "You're on the Free plan" with live Upgrade buttons — the exact opposite
+  // that into "You're on the Free plan" with live Upgrade buttons - the exact opposite
   // of the flag's meaning, and an invitation to buy a plan the tenant already exceeds.
   if (resolved.unlimited) {
     return (
@@ -79,7 +79,7 @@ export default async function BillingPage() {
         {purchased ? (
           <p className="text-sm text-[var(--muted-foreground)]">
             You&apos;re on the <span className="font-semibold text-[var(--foreground)]">{PLAN_LABEL[currentPlan]}</span> plan
-            {resolved.status ? ` (${resolved.status.toLowerCase()})` : ""}. Upgrade any time — it takes effect right after payment.
+            {resolved.status ? ` (${resolved.status.toLowerCase()})` : ""}. Upgrade any time - it takes effect right after payment.
           </p>
         ) : resolved.trialing ? (
           <p className="text-sm text-[var(--muted-foreground)]">
@@ -89,12 +89,12 @@ export default async function BillingPage() {
             </span>{" "}
             remainder of your free trial, with every{" "}
             <span className="font-semibold text-[var(--foreground)]">{PLAN_LABEL[TRIAL_PLAN]}</span> feature switched
-            on. Pick a plan whenever you like — nothing is charged until you do.
+            on. Pick a plan whenever you like - nothing is charged until you do.
           </p>
         ) : (
           <p className="text-sm text-[var(--muted-foreground)]">
             This workspace has{" "}
-            <span className="font-semibold text-[var(--foreground)]">no active plan</span> — the funnel is paused and
+            <span className="font-semibold text-[var(--foreground)]">no active plan</span> - the funnel is paused and
             your data is kept. Choosing a plan restarts it immediately.
           </p>
         )}

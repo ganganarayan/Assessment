@@ -27,13 +27,13 @@ export async function listAssessments(scope: Scope = ALL_TENANTS) {
 }
 
 /** Resolve an assessment for the `?assessment=<id>` analytics filter, within a data
- *  scope. Returns null if it doesn't exist or isn't in scope — so a bad or foreign id
+ *  scope. Returns null if it doesn't exist or isn't in scope - so a bad or foreign id
  *  silently falls back to the unscoped view instead of leaking another tenant's row. */
 export async function getAssessmentForAnalytics(assessmentId: string, scope: Scope = ALL_TENANTS) {
   return prisma.assessment.findFirst({
     where: { id: assessmentId, ...whereScope(scope) },
     // resultPagePublished is selected only to know IF a native VSL page is live (so the
-    // Submissions Result-URL cell can also offer its native link) — not its contents.
+    // Submissions Result-URL cell can also offer its native link) - not its contents.
     select: { id: true, title: true, slug: true, statsResetAt: true, resultPagePublished: true },
   });
 }
@@ -63,7 +63,7 @@ export async function getAssessmentById(id: string) {
  * Public: only PUBLISHED assessments are reachable at /a/[slug].
  *
  * An assessment whose tenant has been soft-deleted is NOT reachable either, even when
- * published. Deleting a tenant has to stop its funnel — otherwise ad traffic keeps
+ * published. Deleting a tenant has to stop its funnel - otherwise ad traffic keeps
  * landing and leads keep accruing to a business the owner thinks is gone, and nobody is
  * watching the inbox.
  *
@@ -73,7 +73,7 @@ export async function getAssessmentById(id: string) {
  */
 /**
  * Cache tag for one funnel's public data. Tagged PER SLUG so publishing one assessment
- * never flushes another's cache — with a single shared tag, one edit would cost every
+ * never flushes another's cache - with a single shared tag, one edit would cost every
  * live funnel a cold read at once, which is worst exactly when traffic is highest.
  */
 export function publicAssessmentTag(slug: string): string {
@@ -84,8 +84,8 @@ export function publicAssessmentTag(slug: string): string {
  * Drop the cached copy of a funnel. Call after any change the public page renders.
  *
  * Paired with the TTL below rather than relied on alone: many things can change what a
- * funnel shows — the assessment row, its questions, options, routes, bands, pages, the
- * result page — and a cache whose correctness depends on every one of those remembering
+ * funnel shows - the assessment row, its questions, options, routes, bands, pages, the
+ * result page - and a cache whose correctness depends on every one of those remembering
  * to call this would eventually serve a funnel that is wrong forever. With the TTL, a
  * missed call costs a minute of staleness instead of permanent wrongness.
  */
@@ -102,7 +102,7 @@ export function invalidatePublicAssessment(slug: string): void {
  *
  * Never throws: a cache flush failing must not fail the save that triggered it. Worst
  * case the TTL clears it a minute later. For a DELETE, call this BEFORE removing the
- * row — afterwards there is no slug left to look up.
+ * row - afterwards there is no slug left to look up.
  */
 export async function invalidatePublicAssessmentById(id: string): Promise<void> {
   const a = await prisma.assessment
@@ -135,7 +135,7 @@ async function readPublishedAssessmentBySlug(slug: string) {
       },
       resultBands: { orderBy: { displayOrder: "asc" } },
       // NOTE: the public renders Assessment.publishedPages (a scalar JSON snapshot,
-      // auto-selected here), NOT the editable draft rows — so unpublished page edits
+      // auto-selected here), NOT the editable draft rows - so unpublished page edits
       // never go live.
     },
   });
@@ -145,7 +145,7 @@ async function readPublishedAssessmentBySlug(slug: string) {
  * The funnel's data, cached.
  *
  * WHY THIS ONE: every visit to /a/<slug> loaded the assessment with its categories,
- * questions, options, routes and bands — a deep multi-join — for data that changes when
+ * questions, options, routes and bands - a deep multi-join - for data that changes when
  * someone publishes, not per request. Under ad traffic that was the same query thousands
  * of times for an identical answer, each one holding a database connection while it ran.
  * The connection pool is the first wall this product hits, so removing the largest

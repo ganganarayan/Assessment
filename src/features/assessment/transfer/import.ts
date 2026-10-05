@@ -88,6 +88,34 @@ function createData(
     questionDisplayMode: body.questionDisplayMode ?? "ALL",
     ...(body.vslCountdownSeconds != null ? { vslCountdownSeconds: body.vslCountdownSeconds } : {}),
     status: "DRAFT",
+
+    // The configuration the old format dropped. Spread conditionally so a file written by
+    // the narrower export still imports and simply leaves these at their column defaults,
+    // rather than overwriting them with nulls.
+    ...(body.qualification != null ? { qualification: body.qualification as Prisma.InputJsonValue } : {}),
+    ...(body.disqualifiedContent != null ? { disqualifiedContent: body.disqualifiedContent as Prisma.InputJsonValue } : {}),
+    ...(body.audienceGate != null ? { audienceGate: body.audienceGate as Prisma.InputJsonValue } : {}),
+    ...(body.resultPage != null ? { resultPage: body.resultPage as Prisma.InputJsonValue } : {}),
+    ...(body.resultPagePublished != null ? { resultPagePublished: body.resultPagePublished as Prisma.InputJsonValue } : {}),
+    ...(body.publishedPages != null ? { publishedPages: body.publishedPages as Prisma.InputJsonValue } : {}),
+    ...(body.metaEvents != null ? { metaEvents: body.metaEvents as Prisma.InputJsonValue } : {}),
+    ...(body.fireMetaCapi != null ? { fireMetaCapi: body.fireMetaCapi } : {}),
+    ...(body.platformSignup != null ? { platformSignup: body.platformSignup } : {}),
+    ...(body.retakePolicy ? { retakePolicy: body.retakePolicy } : {}),
+    ...(body.retakeDays != null ? { retakeDays: body.retakeDays } : {}),
+    ...(body.uniqueIdentifier ? { uniqueIdentifier: body.uniqueIdentifier } : {}),
+    ...(body.trainingUrl != null ? { trainingUrl: body.trainingUrl } : {}),
+    ...(body.targetUrl != null ? { targetUrl: body.targetUrl } : {}),
+    ...(body.tokenTtlSeconds != null ? { tokenTtlSeconds: body.tokenTtlSeconds } : {}),
+    ...(body.resultsContinueUrl != null ? { resultsContinueUrl: body.resultsContinueUrl } : {}),
+    ...(body.resultsContinueLabel != null ? { resultsContinueLabel: body.resultsContinueLabel } : {}),
+    ...(body.paymentUrl != null ? { paymentUrl: body.paymentUrl } : {}),
+    ...(body.paymentHeadline != null ? { paymentHeadline: body.paymentHeadline } : {}),
+    ...(body.paymentButtonLabel != null ? { paymentButtonLabel: body.paymentButtonLabel } : {}),
+    ...(body.paymentAmount != null ? { paymentAmount: body.paymentAmount } : {}),
+    ...(body.paymentEventName ? { paymentEventName: body.paymentEventName } : {}),
+    ...(body.paymentIntroText != null ? { paymentIntroText: body.paymentIntroText } : {}),
+
     ...(userId ? { createdBy: { connect: { id: userId } } } : {}),
     ...(tenantId ? { tenant: { connect: { id: tenantId } } } : {}),
     categories: {
@@ -137,29 +165,63 @@ export interface ImportItem {
 }
 
 /**
- * Import all assessments in ONE transaction — any failure rolls everything back
+ * Import all assessments in ONE transaction - any failure rolls everything back
  * (no partial imports). For replace, the existing slug is deleted first (child
  * rows cascade via FK). A generous timeout covers large "Export All" payloads,
  * whose deeply-nested creates would otherwise exceed Prisma's 5s default.
  */
+export interface ImportOutcome {
+  count: number;
+  /** Slugs that could not be replaced and were imported under a new name instead. */
+  renamed: Array<{ from: string; to: string }>;
+}
+
 export async function performImportAll(
   items: ImportItem[],
   userId: string | null,
   tenantId: string | null = null,
-): Promise<number> {
+): Promise<ImportOutcome> {
   return prisma.$transaction(
     async (tx) => {
+      const renamed: ImportOutcome["renamed"] = [];
       for (const item of items) {
+        let slug = item.finalSlug;
+
         if (item.replace) {
           // Scope the replace to the acting tenant when importing into a workspace,
           // so a tenant can never delete another tenant's (or the platform's) slug.
-          await tx.assessment.deleteMany({
-            where: { slug: item.finalSlug, ...(tenantId ? { tenantId } : {}) },
+          const removed = await tx.assessment.deleteMany({
+            where: { slug, ...(tenantId ? { tenantId } : {}) },
           });
+
+          // Deleted nothing, but the slug may still be taken by a row this caller is not
+          // allowed to replace: another tenant's, or an unowned row left behind by an
+          // import that predates owner stamping. Previously the create then hit the unique
+          // constraint and the whole import died with "a slug collided during import",
+          // which told the operator nothing about what to do next.
+          //
+          // So: import it under a free slug and SAY SO, rather than refusing. A renamed
+          // import is recoverable in ten seconds; a failed one with an opaque message is
+          // a support conversation.
+          if (removed.count === 0) {
+            const blocker = await tx.assessment.findUnique({ where: { slug }, select: { id: true } });
+            if (blocker) {
+              let n = 2;
+              let candidate = `${slug}-${n}`;
+              // Bounded so a pathological case cannot spin inside a transaction.
+              while (n < 100 && (await tx.assessment.findUnique({ where: { slug: candidate }, select: { id: true } }))) {
+                n += 1;
+                candidate = `${slug}-${n}`;
+              }
+              renamed.push({ from: slug, to: candidate });
+              slug = candidate;
+            }
+          }
         }
-        await tx.assessment.create({ data: createData(item.body, item.finalSlug, userId, tenantId) });
+
+        await tx.assessment.create({ data: createData(item.body, slug, userId, tenantId) });
       }
-      return items.length;
+      return { count: items.length, renamed };
     },
     { timeout: 120_000, maxWait: 15_000 },
   );

@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function WorkspaceAssessmentsPage() {
   const { tenantId, impersonating } = await requireWorkspace();
   const [assessments, canEdit] = await Promise.all([listAssessments(tenantOnly(tenantId)), currentUserCanEdit()]);
-  // At the plan cap, the "New assessment" button points to Billing instead — so the
+  // At the plan cap, the "New assessment" button points to Billing instead - so the
   // limit is clear before the form, not only at save. Super admins aren't limited.
   const cap = impersonating ? ({ ok: true } as const) : await assertCanCreateAssessment(tenantId);
 
@@ -22,12 +22,12 @@ export default async function WorkspaceAssessmentsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Assessments</h1>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Your assessments — private to this workspace.
+            Your assessments - private to this workspace.
           </p>
         </div>
         <div className="flex items-center gap-2">
           {/* Export is a read, so it stays available to view-only staff and at the
-              plan cap — unlike Import and New assessment below. The route scopes to
+              plan cap - unlike Import and New assessment below. The route scopes to
               this workspace. */}
           <details className="relative">
             <summary
@@ -100,7 +100,7 @@ export default async function WorkspaceAssessmentsPage() {
                   <td className="px-3 py-2 text-center tabular-nums">{a._count.submissions}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-end gap-2">
-                      {/* Public link only makes sense once live — a draft's /a/{slug}
+                      {/* Public link only makes sense once live - a draft's /a/{slug}
                           isn't served yet. */}
                       {a.status === "PUBLISHED" ? (
                         <CopyPublicLink slug={a.slug} />

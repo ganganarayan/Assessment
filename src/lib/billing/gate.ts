@@ -6,7 +6,7 @@ import { resolvePlan, tenantCan } from "@/lib/billing/entitlements";
 import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
 
 /**
- * Phase 4 — ENFORCEMENT. entitlements.ts RESOLVES a tenant's plan/limits; this module
+ * Phase 4 - ENFORCEMENT. entitlements.ts RESOLVES a tenant's plan/limits; this module
  * is the thin set of server-only gates that ACT on them:
  *
  *  - assessments  HARD cap  (block creation past maxAssessments)
@@ -17,8 +17,8 @@ import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
  *  - features     the five tier-gated capabilities (qualificationGate, conditionalRouting,
  *                 capi, heatmap -> Growth+, apiAccess -> Scale).
  *
- * The PLATFORM scope — the Platform tenant, or a legacy null from before the re-home
- * (isPlatformScope) — is unlimited and unmetered, never gated. It is not a customer of
+ * The PLATFORM scope - the Platform tenant, or a legacy null from before the re-home
+ * (isPlatformScope) - is unlimited and unmetered, never gated. It is not a customer of
  * itself, so metering it would count the owner's own traffic against a plan nobody buys.
  */
 
@@ -56,7 +56,7 @@ export async function assertCanCreateAssessment(tenantId: string | null): Promis
 /**
  * Cheap, NON-consuming peek: is the tenant already at/over its response cap for the
  * current period? Used to skip expensive work (AI statement generation) for a
- * completion that is about to be locked. Advisory only — the authoritative lock
+ * completion that is about to be locked. Advisory only - the authoritative lock
  * decision is `meterResponse` (below). Platform / unlimited → always false.
  */
 export async function responsesOverCap(tenantId: string | null, now: Date = new Date()): Promise<boolean> {
@@ -79,7 +79,7 @@ export interface ResponseMeter {
   seq: number;
   /** The tenant's response limit; null = unlimited. */
   limit: number | null;
-  /** true when seq > limit — the completion is over the cap and must be locked. */
+  /** true when seq > limit - the completion is over the cap and must be locked. */
   locked: boolean;
 }
 
@@ -87,7 +87,7 @@ export interface ResponseMeter {
  * Meter ONE completion against the tenant's response cap and return whether it lands
  * over the cap. Atomic (a single upsert-increment), so the returned count is a stable,
  * gap-free sequence even under concurrent completions. Call this EXACTLY ONCE per
- * completion — only for the winning STARTED->COMPLETED writer — and never for a
+ * completion - only for the winning STARTED->COMPLETED writer - and never for a
  * re-completion (guard on `periodSeq == null`). Platform / unlimited → not metered.
  */
 export async function meterResponse(tenantId: string | null, now: Date = new Date()): Promise<ResponseMeter> {
@@ -114,7 +114,7 @@ export async function meterResponse(tenantId: string | null, now: Date = new Dat
  *
  * 🔴 Reads `readResponseLimit`, NOT `limits.responsesPerMonth`. They differ in exactly
  * one state: parked, where the live limit is 0 and reading it here would lock every lead
- * the tenant ever captured — emptying their workspace and their exports at the moment
+ * the tenant ever captured - emptying their workspace and their exports at the moment
  * they are deciding whether to pay. See the field's note in plan-resolve.
  */
 export async function isResponseLocked(tenantId: string | null, periodSeq: number | null): Promise<boolean> {

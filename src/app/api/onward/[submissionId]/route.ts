@@ -8,9 +8,9 @@ import { isPlatformHost } from "@/lib/seo/urls";
 /**
  * Onward redirect for the "Show results on assess360" flow. The result page's
  * onward button ("Upgrade my state" etc.) points HERE instead of straight at the
- * external resources page, so the click is TRACKED server-side — it bumps the VSL
+ * external resources page, so the click is TRACKED server-side - it bumps the VSL
  * counter (resultFetchCount), the same counter the destination connector bumps for
- * the other audiences — before we 302 the respondent on, with their result token
+ * the other audiences - before we 302 the respondent on, with their result token
  * appended. Nothing is required on the destination page (no code, no connector).
  *
  * The destination is the assessment's saved resultsContinueUrl (operator-set, never
@@ -62,7 +62,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ submissionId: s
   });
 
   const target = sub?.assessment.resultsContinueUrl?.trim() || null;
-  // No submission, or no onward URL configured — nothing to forward to.
+  // No submission, or no onward URL configured - nothing to forward to.
   if (!sub || !target) return NextResponse.redirect(env.NEXT_PUBLIC_APP_URL, 302);
 
   // Record the onward click as a VSL hit, and stamp the first-view time once.
@@ -82,7 +82,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ submissionId: s
   }
 
   // Append the person's token so it rides along to the destination (a bonus for
-  // later correlation — NOT the tracking mechanism). Guard a malformed URL.
+  // later correlation - NOT the tracking mechanism). Guard a malformed URL.
   let dest = target;
   if (sub.resultToken) {
     try {
@@ -97,7 +97,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ submissionId: s
     }
   }
   // Carry the opaque customerId (VidaPulse `cid`) too, so the VSL on the destination
-  // page can bind this viewer — matching the token-gated result link. No-op when off.
+  // page can bind this viewer - matching the token-gated result link. No-op when off.
   dest = appendVidapulseId(dest, await vidapulseParamForTenant(sub.assessment.tenantId), sub.customerId);
   // When the onward URL IS a VidaPulse CTA tracking link, make sure it carries the
   // canonical `cid` too: the append above uses the tenant's (renameable) embed param,

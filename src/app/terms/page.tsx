@@ -74,7 +74,7 @@ export default async function TermsPage() {
 
       <H2>6. Third-party services</H2>
       <P>
-        The Service integrates optional third parties you choose to enable — for example a payment
+        The Service integrates optional third parties you choose to enable - for example a payment
         processor (Razorpay), advertising and analytics tools (Meta), and AI providers (OpenAI,
         Anthropic, Google). Your use of those is subject to their terms, and you are responsible for
         the keys and accounts you connect.

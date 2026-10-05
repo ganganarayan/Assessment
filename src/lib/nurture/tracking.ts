@@ -6,7 +6,7 @@ import "server-only";
  * We rewrite every absolute http(s) link in an outgoing email to a redirect
  * through /e/c/<logId>?u=<base64url original>. The redirect stamps NurtureLog
  * .clickedAt (first click) and 302s to the real URL. Opens are deliberately NOT
- * tracked — pixel opens are noisy (Apple Mail Privacy Protection pre-loads them,
+ * tracked - pixel opens are noisy (Apple Mail Privacy Protection pre-loads them,
  * image blockers miss real ones); a click is the reliable engagement signal.
  */
 

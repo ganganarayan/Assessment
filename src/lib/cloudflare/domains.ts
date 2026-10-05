@@ -7,7 +7,7 @@ import "server-only";
  * fully automate them: on "Add domain" it creates a PROXIED CNAME in the domain's
  * zone pointing at THIS app's host and sets the zone's SSL mode to Full. Cloudflare
  * then serves a valid edge certificate (Universal SSL) for the host and proxies to
- * Railway — no `up.railway.app` target is ever exposed to the tenant.
+ * Railway - no `up.railway.app` target is ever exposed to the tenant.
  *
  * Routing still needs the host registered on Railway (Railway routes by Host); that
  * is handled separately by lib/railway/domains. Cloudflare = TLS + DNS; Railway = routing.
@@ -71,7 +71,7 @@ async function findZoneId(hostname: string): Promise<string | null> {
 
 export interface CloudflareProvisionResult {
   ok: boolean;
-  /** What the tenant's CNAME now points at (the app host) — informational. */
+  /** What the tenant's CNAME now points at (the app host) - informational. */
   target: string;
   error?: string;
 }

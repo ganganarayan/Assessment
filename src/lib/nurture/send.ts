@@ -9,10 +9,10 @@ import { pickResultUrl, vidapulseParamForTenant } from "@/lib/events/completion"
 import { instrumentEmailLinks } from "@/lib/nurture/tracking";
 
 /**
- * Nurture sender — one-shot Email (SMTP) + WhatsApp (Meta Cloud API) fired on opt-in.
+ * Nurture sender - one-shot Email (SMTP) + WhatsApp (Meta Cloud API) fired on opt-in.
  * Best-effort: every attempt is logged to NurtureLog (SENT/FAILED/SKIPPED) and a
  * failure never throws to the caller (the opt-in must not break because a mail server
- * is down). No automatic retry — an operator resends from the Nurture page.
+ * is down). No automatic retry - an operator resends from the Nurture page.
  */
 
 type Channel = "EMAIL" | "WABA";
@@ -73,7 +73,7 @@ export async function sendEmail(
 
   // ZeptoMail: PaaS hosts (Railway) often block outbound SMTP ports, which shows
   // up as "Connection timeout". Send via ZeptoMail's HTTPS API (port 443, never
-  // blocked) instead — same Send-Mail token as the SMTP password.
+  // blocked) instead - same Send-Mail token as the SMTP password.
   if (/(^|\.)zeptomail\./i.test(smtp.host)) {
     return sendViaZeptoMailApi(smtp, to, subject, htmlBody);
   }
@@ -222,7 +222,7 @@ export async function sendNurtureForSubmission(submissionId: string, opts?: { fo
 
   // Once-guard: atomically claim the send. updateMany with the null filter means only
   // the FIRST caller sets the stamp (count 1); a concurrent/duplicate opt-in gets 0 and
-  // bails — so nurture never double-fires. `force` (manual resend) skips the guard.
+  // bails - so nurture never double-fires. `force` (manual resend) skips the guard.
   if (!opts?.force) {
     const claim = await prisma.submission.updateMany({
       where: { id: s.id, nurtureSentAt: null },

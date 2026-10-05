@@ -1,9 +1,9 @@
 /**
- * Divine Leads — Clinic Patient-Acquisition Audit: pure scoring engine.
+ * Divine Leads - Clinic Patient-Acquisition Audit: pure scoring engine.
  *
  * DATA-DRIVEN, NOT HARDCODED. The 23 questions live in the normal builder; each
  * scored question carries a `scoringRole` and each option a working number
- * (`Option.value`). This module knows only the funnel MATH — never the questions.
+ * (`Option.value`). This module knows only the funnel MATH - never the questions.
  *
  * PURE. No DB, no `server-only`, no env reads. The same functions run on the
  * server (initial render + snapshot) and in the browser (the editable calculator),
@@ -14,7 +14,7 @@
  *   casesNow    = E × B × S × C          revenueNow    = casesNow × V
  *   book uplift = Σ configured points, capped at bookRateCap, never below B
  *   show-up     = S < improveBelow ? target : S
- *   CLOSE RATE C IS HELD CONSTANT — current and potential. This is load-bearing.
+ *   CLOSE RATE C IS HELD CONSTANT - current and potential. This is load-bearing.
  *   gap         = revenuePotential − revenueNow
  */
 
@@ -23,14 +23,14 @@
 // ---------------------------------------------------------------------------
 
 export const CLINIC_ROLES = [
-  "ENQUIRIES", // E — new patient enquiries / month (count)
-  "BOOK_RATE", // B — % of enquiries that book (whole percent, 32 = 0.32)
-  "SHOWUP_RATE", // S — % of bookings that attend (whole percent)
-  "CLOSE_RATE", // C — % of attended that go ahead (whole percent) — HELD CONSTANT
-  "TREATMENT_VALUE", // V — average value of one completed treatment (rupees)
-  "AD_SPEND", // A — monthly ad spend (rupees, context only)
-  "DORMANT", // D — dormant enquiries sitting uncontacted (count)
-  "CAPACITY", // K — spare cases/month without hiring (count)
+  "ENQUIRIES", // E - new patient enquiries / month (count)
+  "BOOK_RATE", // B - % of enquiries that book (whole percent, 32 = 0.32)
+  "SHOWUP_RATE", // S - % of bookings that attend (whole percent)
+  "CLOSE_RATE", // C - % of attended that go ahead (whole percent) - HELD CONSTANT
+  "TREATMENT_VALUE", // V - average value of one completed treatment (rupees)
+  "AD_SPEND", // A - monthly ad spend (rupees, context only)
+  "DORMANT", // D - dormant enquiries sitting uncontacted (count)
+  "CAPACITY", // K - spare cases/month without hiring (count)
   "UPLIFT_BOOKRATE", // book-rate points this answer awards (whole percent, 6 = +0.06)
 ] as const;
 
@@ -46,7 +46,7 @@ const RATE_ROLES = new Set<ClinicRole>(["BOOK_RATE", "SHOWUP_RATE", "CLOSE_RATE"
 /**
  * The unit a question's numbers are expressed in. Declared per question in the
  * builder and applied to BOTH the option values and the respondent's typed actual
- * number — so a question worded "out of every 10" can never be read as a percent.
+ * number - so a question worded "out of every 10" can never be read as a percent.
  *
  * This exists because that exact ambiguity produced a 10x error per rate (100x on
  * revenue): a question asking "out of every 10 booked consultations, how many
@@ -72,11 +72,11 @@ export function defaultUnitForRole(role: ClinicRole): ClinicUnit {
  *
  * A question asking "Out of every 10 booked consultations, how many attend?" and
  * answered "7" means SEVENTY PERCENT. Reading that as 7% is the system's error, not
- * the respondent's — their answer was exactly what was asked for. So the scale is
+ * the respondent's - their answer was exactly what was asked for. So the scale is
  * INFERRED here rather than depending on an operator remembering to configure it:
  *
  *   1. the question's own wording ("out of every 10" / "out of 100" / "percent"), then
- *   2. the shape of its options — a rate whose every option is <= 10 is out-of-10
+ *   2. the shape of its options - a rate whose every option is <= 10 is out-of-10
  *      (real percentage bands span far wider, e.g. 45 / 32 / 20 / 12).
  *
  * An explicit Question.scoringUnit still wins over this when set.
@@ -118,7 +118,7 @@ export function toWorkingValue(value: number, unit: ClinicUnit): number {
 
 /**
  * Normalize any rate answer to a fraction in [0,1] that reads the number the way a
- * human meant it — and that can never exceed 100%.
+ * human meant it - and that can never exceed 100%.
  *
  * A rate is fundamentally "out of 100" (a percent). But the source data arrives in
  * whatever scale the builder question happened to use, and mistakes are common:
@@ -162,15 +162,15 @@ export interface EngineConfig {
   bandHigh: number; // gap ≥ this → HIGH
   bandModerate: number; // gap ≥ this → MODERATE (else BELOW_THRESHOLD)
   dormantRate: number; // fraction of the dormant list treated as recoverable
-  // A clinic under minEnquiries is presumed too small to be a real prospect — UNLESS
+  // A clinic under minEnquiries is presumed too small to be a real prospect - UNLESS
   // the implied ANNUAL gap clears this bar, in which case the low-enquiries override
   // steps aside and the normal band ladder (on the monthly gap) decides instead. Does
   // NOT apply to the minTicket override (a genuinely low-ticket clinic stays not-viable
-  // regardless of gap — that economics doesn't suit a retainer either way).
+  // regardless of gap - that economics doesn't suit a retainer either way).
   notViableAnnualGapOverride: number;
   /** Monthly ad budget the performance-marketing projection is built on. */
   adBudgetMonthly: number;
-  /** Monthly service fee for running it — the other half of their outlay. */
+  /** Monthly service fee for running it - the other half of their outlay. */
   serviceFeeMonthly: number;
 }
 
@@ -210,13 +210,13 @@ export function resolveEngineConfig(raw: unknown): EngineConfig {
 /** One selected answer, already reduced to its role + working number. */
 export interface RawAnswer {
   role: ClinicRole;
-  value: number; // Option.value as stored — the RANGE MIDPOINT/fallback (rupees/counts
+  value: number; // Option.value as stored - the RANGE MIDPOINT/fallback (rupees/counts
   // as-is, rates as whole %); used only when actualValue is absent.
-  /** The respondent's own exact number, if they typed one — takes precedence over
+  /** The respondent's own exact number, if they typed one - takes precedence over
    *  `value` (the range midpoint) whenever present. Not applicable to UPLIFT_BOOKRATE. */
   actualValue?: number | null;
-  /** The selected option's label text (e.g. "30–60", "I don't know") — shown in the
-   *  "(assumed — average of X)" tag whenever actualValue is absent. */
+  /** The selected option's label text (e.g. "30-60", "I don't know") - shown in the
+   *  "(assumed - average of X)" tag whenever actualValue is absent. */
   optionLabel?: string | null;
   /** The question's declared unit; absent = the role's default (back-compatible). */
   unit?: ClinicUnit | null;
@@ -235,15 +235,15 @@ export interface ClinicInputs {
   D: number;
   K: number;
   bookUpliftPoints: number; // summed uplift, in rate units (0.06, …)
-  /** Friendly labels of every numeric role where NO actual number was typed — the
+  /** Friendly labels of every numeric role where NO actual number was typed - the
    *  range midpoint (or "don't know" fallback) was used instead. Broader than just
    *  literal "I don't know": ANY unconfirmed range counts, per the respondent's own
    *  choice to leave the actual-number field blank. */
   assumptions: string[];
-  /** Role → the selected option's label text, for roles in `assumptions` — lets the
-   *  UI show exactly which range was averaged ("assumed — average of 30–60"). */
+  /** Role → the selected option's label text, for roles in `assumptions` - lets the
+   *  UI show exactly which range was averaged ("assumed - average of 30-60"). */
   assumedRangeLabel: Partial<Record<ClinicRole, string>>;
-  /** Rate roles whose value fell below RATE_PLAUSIBILITY_FLOOR — almost always a
+  /** Rate roles whose value fell below RATE_PLAUSIBILITY_FLOOR - almost always a
    *  unit mix-up. Drives the "these numbers don't add up" gate on the result. */
   suspectRoles: ClinicRole[];
   weakest: WeakArea[]; // candidate weakest areas, worst-first (top 2 used)
@@ -276,7 +276,7 @@ function toWorking(role: ClinicRole, value: number, unit?: ClinicUnit | null): n
 /**
  * Reduce the selected answers to normalized numeric inputs. Later answers for a
  * role win (there should be one each, except UPLIFT_BOOKRATE which sums). Missing
- * inputs default to 0 — the overrides/guards in computeResult handle that safely.
+ * inputs default to 0 - the overrides/guards in computeResult handle that safely.
  */
 export function deriveInputs(answers: RawAnswer[], config: EngineConfig): ClinicInputs {
   const base: Partial<Record<ClinicRole, number>> = {};
@@ -290,7 +290,7 @@ export function deriveInputs(answers: RawAnswer[], config: EngineConfig): Clinic
     if (!isClinicRole(a.role)) continue;
 
     if (a.role === "UPLIFT_BOOKRATE") {
-      // Behavioral, not a number a respondent would know — no actual-value override.
+      // Behavioral, not a number a respondent would know - no actual-value override.
       const working = toWorking(a.role, a.value, a.unit);
       bookUpliftPoints += working;
       if (a.clause && working > 0) {
@@ -300,14 +300,14 @@ export function deriveInputs(answers: RawAnswer[], config: EngineConfig): Clinic
     }
 
     // The respondent's own exact number wins when given; otherwise fall back to the
-    // selected option's range midpoint (or "don't know" default) — and flag it, since
+    // selected option's range midpoint (or "don't know" default) - and flag it, since
     // ANY unconfirmed range should read as an assumption, not just literal "I don't know".
     const hasActual = a.actualValue != null && Number.isFinite(a.actualValue);
     const rawValue = hasActual ? (a.actualValue as number) : a.value;
     const unit = isClinicUnit(a.unit) ? a.unit : defaultUnitForRole(a.role);
     // Rate roles are normalized to a [0,1] fraction that reads the number the way a
-    // human meant it — 75 out of 10 (→75%) or 65 out of 100 (→65%) both land on a
-    // sensible percent — and can never exceed 100%. This self-corrects a mis-scaled
+    // human meant it - 75 out of 10 (→75%) or 65 out of 100 (→65%) both land on a
+    // sensible percent - and can never exceed 100%. This self-corrects a mis-scaled
     // answer (the source of the 750% / crore-revenue bug) instead of trusting a unit
     // that may be wrong. Non-rate roles (₹, counts) convert straight through.
     const working = RATE_ROLES.has(a.role)
@@ -318,7 +318,7 @@ export function deriveInputs(answers: RawAnswer[], config: EngineConfig): Clinic
       assumptions.push(ROLE_LABEL[a.role]);
       if (a.optionLabel) assumedRangeLabel[a.role] = a.optionLabel;
     }
-    // A rate below its plausibility floor is almost certainly a unit mix-up — flag
+    // A rate below its plausibility floor is almost certainly a unit mix-up - flag
     // it rather than let it silently produce a 10x-wrong revenue figure.
     const floor = RATE_PLAUSIBILITY_FLOOR[a.role];
     if (floor !== undefined && working > 0 && working < floor) suspectRoles.push(a.role);
@@ -361,7 +361,7 @@ export type ClinicBand = "CRITICAL" | "HIGH" | "MODERATE" | "BELOW_THRESHOLD";
  * Maps the clinic ₹-gap band to the assessment's own Result Band LEVEL
  * (CRITICAL/HIGH/MEDIUM/LOW), so the author's own title/description
  * ("Running on Luck", "Engine Running", …) can be looked up and shown. This is
- * the SINGLE source of truth for that mapping — every call site (scoring at
+ * the SINGLE source of truth for that mapping - every call site (scoring at
  * completion, the result page, the PDF) must use this, never re-derive it, so
  * the band shown can never drift between views of the same submission.
  */
@@ -405,7 +405,7 @@ export interface ClinicAuditResult {
   weakestAreas: { key: ClinicRole; clause: string }[];
   assumptions: string[];
   assumedRangeLabel: Partial<Record<ClinicRole, string>>;
-  /** Exact (unrounded) monthly cases — lets callers judge coherence without
+  /** Exact (unrounded) monthly cases - lets callers judge coherence without
    *  re-deriving the chain. Below 1 the funnel doesn't describe a real clinic. */
   casesNowExact: number;
   /**
@@ -418,7 +418,7 @@ export interface ClinicAuditResult {
   performance: {
     adBudget: number;
     serviceFee: number;
-    /** adBudget + serviceFee — what they put in each month. */
+    /** adBudget + serviceFee - what they put in each month. */
     investment: number;
     /** New enquiries the budget buys (unrounded). */
     enquiries: number;
@@ -426,7 +426,7 @@ export interface ClinicAuditResult {
     cases: number;
     /** Additional revenue from the ads, over and above the improved funnel. */
     revenue: number;
-    /** The improved funnel (their existing enquiries) PLUS the ads — gross. */
+    /** The improved funnel (their existing enquiries) PLUS the ads - gross. */
     combinedRevenue: number;
     /** combinedRevenue − investment: what they actually keep. */
     netTotal: number;
@@ -438,7 +438,7 @@ export interface ClinicAuditResult {
   /**
    * The inputs don't describe a viable clinic: fewer than one case a month, or a
    * rate below its plausibility floor. Callers must NOT present money figures from
-   * this result to a respondent — ask them to correct their answers instead.
+   * this result to a respondent - ask them to correct their answers instead.
    */
   dataInconsistent: boolean;
 }
@@ -448,19 +448,19 @@ function round(n: number): number {
 }
 
 /**
- * Compute the full result from normalized inputs. Pure — safe on the client.
+ * Compute the full result from normalized inputs. Pure - safe on the client.
  *
  * IMPORTANT: `inputs` is frequently a snapshot PERSISTED BY AN OLDER BUILD
  * (Submission.resultSnapshot.clinic.inputs), so any field added to ClinicInputs
  * after a submission was scored arrives as `undefined` here. Every collection is
- * therefore read defensively — a missing one must degrade, never throw, or every
+ * therefore read defensively - a missing one must degrade, never throw, or every
  * historical result page and PDF 500s the moment a new field ships.
  */
 export function computeResult(inputs: ClinicInputs, config: EngineConfig): ClinicAuditResult {
   const { E, V, D, K } = inputs;
   // Funnel rates are fractions in [0,1]. deriveInputs already caps fresh answers, but
   // a snapshot persisted BEFORE rate-capping shipped can still carry a rate above 1.0
-  // (a 650% close rate, a 750% show-up) — so cap again here, the last gate every path
+  // (a 650% close rate, a 750% show-up) - so cap again here, the last gate every path
   // (page, PDF, historical snapshot) shares, and no view can ever render above 100%.
   const clampRate = (r: number) => (Number.isFinite(r) ? Math.min(Math.max(r, 0), 1) : 0);
   const B = clampRate(inputs.B);
@@ -471,7 +471,7 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
   const assumedRangeLabel = inputs.assumedRangeLabel ?? {};
   const suspectRoles = inputs.suspectRoles ?? [];
 
-  // Current state — revenue is computed on UNROUNDED cases.
+  // Current state - revenue is computed on UNROUNDED cases.
   const casesNowExact = E * B * S * C;
   const revenueNow = round(casesNowExact * V);
 
@@ -485,7 +485,7 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
   const revenuePotential = round(casesPotentialExact * V);
   const gap = revenuePotential - revenueNow;
 
-  // Five-case chain — uses the clinic's OWN show-up and close rates.
+  // Five-case chain - uses the clinic's OWN show-up and close rates.
   const safe = (x: number) => (x > 0 ? x : NaN);
   const attendedExact = 5 / safe(C);
   const bookedExact = attendedExact / safe(S);
@@ -499,7 +499,7 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
     adSpend: fiveEnquiries * config.costPerEnquiry,
   };
 
-  // Dormant database — deliberately conservative.
+  // Dormant database - deliberately conservative.
   const dormantRecoverable = Math.floor(D * config.dormantRate);
   const dormant = { count: D, recoverable: dormantRecoverable, value: dormantRecoverable * V };
 
@@ -529,7 +529,7 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
   };
 
   // Overrides first, then band on gap. Low-enquiries steps aside when the implied
-  // ANNUAL gap is large enough — a real prospect can still have few enquiries if
+  // ANNUAL gap is large enough - a real prospect can still have few enquiries if
   // each one is worth a lot. Low-ticket has no such override (see config comment).
   const enquiriesTooLow = E < config.minEnquiries;
   const ticketTooLow = V < config.minTicket;
@@ -539,7 +539,7 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
   const capacityBlocked = K < config.capacityBlockedBelow;
 
   // Plausibility is judged HERE, from the final rates, rather than trusted from
-  // `inputs` — so it works identically for a snapshot written by an older build
+  // `inputs` - so it works identically for a snapshot written by an older build
   // (which carries no suspectRoles) as for a freshly scored one.
   const suspectFromRates: ClinicRole[] = [];
   const checkRate = (role: ClinicRole, v: number) => {
@@ -585,7 +585,7 @@ export function computeResult(inputs: ClinicInputs, config: EngineConfig): Clini
     casesNowExact,
     performance,
     suspectRoles: allSuspect,
-    // Under one case a month isn't a clinic that pays rent — it's broken input.
+    // Under one case a month isn't a clinic that pays rent - it's broken input.
     dataInconsistent: allSuspect.length > 0 || (E > 0 && casesNowExact < 1),
   };
 }

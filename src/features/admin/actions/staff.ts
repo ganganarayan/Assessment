@@ -9,13 +9,13 @@ import { requireOwnerAdmin, isSuperAdmin } from "@/lib/auth/guards";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /**
- * Staff provisioning — OWNER/ADMIN ONLY (requireOwnerAdmin bounces staff). A super
+ * Staff provisioning - OWNER/ADMIN ONLY (requireOwnerAdmin bounces staff). A super
  * admin manages platform staff + any tenant's staff; a tenant admin manages only
  * their own tenant's staff. Every mutation targets ONLY rows where staffPermission
  * is set, so an owner/admin can never be modified or deleted here.
  *
  * Staff accounts are created directly (User + credential Account) with Better Auth's
- * own password hasher, so the normal email+password sign-in verifies them — without
+ * own password hasher, so the normal email+password sign-in verifies them - without
  * the signup hook's auto-tenant or any session change for the admin.
  */
 
@@ -81,7 +81,7 @@ export async function getStaff(): Promise<StaffView> {
     },
   });
   const tenants = isSuper
-    // Active only — a deleted tenant must not be offered as somewhere to put a new
+    // Active only - a deleted tenant must not be offered as somewhere to put a new
     // staff member, the same way it is not offered when assigning a login.
     ? await prisma.tenant.findMany({
         where: { deletedAt: null },
@@ -159,7 +159,7 @@ export async function createStaff(input: CreateStaffInput): Promise<ActionResult
 export async function setStaffPermission(userId: string, permission: string): Promise<ActionResult> {
   const { isSuper, ownTenant } = await scope();
   if (permission !== "VIEW" && permission !== "EDIT") return { ok: false, error: "Invalid permission." };
-  // Only a STAFF row can be targeted — an owner/admin (null permission) is never matched.
+  // Only a STAFF row can be targeted - an owner/admin (null permission) is never matched.
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { staffPermission: true, tenantId: true } });
   if (!target || !target.staffPermission) return { ok: false, error: "Staff member not found." };
   if (!isSuper && target.tenantId !== ownTenant) return { ok: false, error: "Not allowed." };

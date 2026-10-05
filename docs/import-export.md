@@ -6,24 +6,24 @@ touching existing assessment functionality.
 ## Why
 
 Build and refine an assessment on staging, export it, then import it into
-production — no manual re-entry, no drift.
+production, no manual re-entry, no drift.
 
 ## One format in, one format out
 
 There is exactly **one JSON format** and **one CSV format**. The same shape is
 used for a single assessment and for "Export All" (a single assessment is just
-an array of one), and import accepts that same shape verbatim — so **anything
+an array of one), and import accepts that same shape verbatim, so **anything
 you export re-imports cleanly**. There are no separate "structure" or
 "responses" exports.
 
 | Format | Role | Lossless | Re-importable |
 | ------ | ---- | -------- | ------------- |
-| **JSON** | Authoritative | ✅ Yes — full structure + meta + lead config | ✅ Yes |
-| **CSV** | Spreadsheet-friendly | ✅ Yes — same fields, flat layout | ✅ Yes |
+| **JSON** | Authoritative | ✅ Yes, full structure + meta + lead config | ✅ Yes |
+| **CSV** | Spreadsheet-friendly | ✅ Yes, same fields, flat layout | ✅ Yes |
 
 Both formats round-trip losslessly (structure, metadata, lead-capture config,
 and result bands). JSON is the most compact; CSV is convenient for reviewing or
-editing in a spreadsheet. The round-trip is covered by an automated test —
+editing in a spreadsheet. The round-trip is covered by an automated test -
 `npm run verify:transfer` (no database required).
 
 ## Export
@@ -51,10 +51,10 @@ editing in a spreadsheet. The round-trip is covered by an automated test —
 If any slug in the file already exists, you choose **one policy** applied to the
 whole import:
 
-- **Cancel** — do nothing.
-- **Create copy** — existing slugs import under `…-copy` (auto-suffixed to stay
+- **Cancel**, do nothing.
+- **Create copy**, existing slugs import under `…-copy` (auto-suffixed to stay
   unique); non-conflicting slugs keep their name.
-- **Replace existing** — for each matching slug, delete the existing assessment
+- **Replace existing**, for each matching slug, delete the existing assessment
   **and its submissions** (FK cascade), then recreate. Destructive; confirmed in
   the UI.
 
@@ -63,14 +63,14 @@ whole import:
 ### Transactional safety
 
 The entire import runs in **one database transaction**. If any step fails, the
-whole import rolls back — **no partial imports**.
+whole import rolls back - **no partial imports**.
 
 Imported assessments are always created as **DRAFT**, so you review and
 **Publish** explicitly after import.
 
 ## JSON schema (v1)
 
-The document is always `{ schemaVersion, exportedAt?, assessments: [...] }` —
+The document is always `{ schemaVersion, exportedAt?, assessments: [...] }` -
 one entry per assessment (an array of one for a single export):
 
 ```jsonc
@@ -116,7 +116,7 @@ one entry per assessment (an array of one for a single export):
           "level": "LOW",          // LOW | MEDIUM | HIGH | CRITICAL
           "title": "Low stress",
           "description": "…",      // nullable
-          "minScore": 0,            // PERCENTAGE 0–100 (banding basis)
+          "minScore": 0,            // PERCENTAGE 0, 100 (banding basis)
           "maxScore": 25,
           "displayOrder": 0
         }
@@ -126,7 +126,7 @@ one entry per assessment (an array of one for a single export):
 }
 ```
 
-> Result bands are matched against the score **percentage (0–100)**, so they
+> Result bands are matched against the score **percentage (0, 100)**, so they
 > stay valid regardless of how many optional questions a respondent skips.
 
 ## CSV format
@@ -149,11 +149,11 @@ option_index, option_label, option_value,
 band_index, band_level, band_title, band_description, band_min, band_max
 ```
 
-- `ASSESSMENT` — one per assessment: title, meta, and the lead-capture flags.
-- `CATEGORY` — one per category (`category_index` keys it); preserves empties.
-- `QUESTION` — one per question (`category_index` + `question_index`).
-- `OPTION` — one per option (`… + option_index`).
-- `BAND` — one per result band (`band_index`).
+- `ASSESSMENT`, one per assessment: title, meta, and the lead-capture flags.
+- `CATEGORY`, one per category (`category_index` keys it); preserves empties.
+- `QUESTION`, one per question (`category_index` + `question_index`).
+- `OPTION`, one per option (`… + option_index`).
+- `BAND`, one per result band (`band_index`).
 
 Content fields are written/read verbatim (commas, quotes, and newlines are
 RFC-4180 quoted), and a leading UTF-8 BOM (added by Excel/Windows on re-save) is
@@ -173,6 +173,6 @@ exact copy.
 
 1. Export an assessment as JSON.
 2. Import it (**Create copy**) → opens as `…-copy` (DRAFT).
-3. Compare structure (categories/questions/options/bands) — identical.
+3. Compare structure (categories/questions/options/bands), identical.
 4. Delete the copy.
 5. Re-import the same JSON to confirm repeatability.

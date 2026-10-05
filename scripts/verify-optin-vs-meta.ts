@@ -2,14 +2,14 @@
  * Reconcile the app's opt-in numbers against what Meta reports.
  *
  * Read-only. Answers the question "Meta says N Complete Registrations, the Stats
- * page says 1 — where did the others come from?" by printing, for one window:
+ * page says 1 - where did the others come from?" by printing, for one window:
  *
  *   - which pixel id each tenant (and the SaaS funnel) fires, so it is visible
- *     when several assessments share ONE pixel — Meta counts per pixel, the Stats
+ *     when several assessments share ONE pixel - Meta counts per pixel, the Stats
  *     card counts per assessment;
  *   - submissions per assessment (the app's own "Opted in");
  *   - every CapiLog row, i.e. every event the SERVER actually sent to Meta and
- *     Meta's reply — anything Meta counted beyond these came from the browser
+ *     Meta's reply - anything Meta counted beyond these came from the browser
  *     (pixel auto-events, the pixel tester, another site on the same pixel) or is
  *     Meta's own modelled/view-through attribution;
  *   - page views (human vs bot) and gate rejections, for the funnel ratio.
@@ -62,7 +62,7 @@ async function main() {
     console.log(`  ${l.createdAt.toISOString()}  ${l.eventName.padEnd(22)} scope=${l.scope} ${l.status}/${l.httpStatus ?? "-"} auto=${l.autoFired} sub=${l.submissionId ?? "-"} ${(l.response ?? "").replace(/\s+/g, " ").slice(0, 100)}`);
   }
   const reg = logs.filter((l) => l.eventName === "CompleteRegistration");
-  console.log(`  TOTAL ${logs.length} rows — CompleteRegistration: ${reg.length} (sent: ${reg.filter((r) => r.status === "sent").length})`);
+  console.log(`  TOTAL ${logs.length} rows - CompleteRegistration: ${reg.length} (sent: ${reg.filter((r) => r.status === "sent").length})`);
 
   const pv = await prisma.pageView.groupBy({ by: ["assessmentId", "isBot"], where: { createdAt: { gte: from } }, _count: { _all: true } });
   console.log("\n== PAGE VIEWS ==");

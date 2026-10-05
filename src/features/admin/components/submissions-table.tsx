@@ -15,14 +15,14 @@ import { type PayloadAttribution } from "@/features/events/types";
 /**
  * The two manual Meta verdict buttons for one row, stacked.
  *
- * Qualify sends QualifiedCompletion, Disqualify sends GateDisqualified — the
+ * Qualify sends QualifiedCompletion, Disqualify sends GateDisqualified - the
  * SAME events the funnel fires automatically, so they land in the audiences that
  * already exist instead of creating review-only ones.
  *
  * Both stay clickable after firing: a verdict can be revised, and Meta collapses
  * a repeat inside its dedup window rather than counting it twice. The stamp under
  * the buttons is what makes a reviewed row visibly different from an untouched
- * one — without it a long list gives you no way to remember where you were.
+ * one - without it a long list gives you no way to remember where you were.
  */
 function MetaVerdictCell({
   submissionId,
@@ -84,7 +84,7 @@ function MetaVerdictCell({
   );
 }
 
-/** Show only the token tail of a result link (from "?t" on) — the base before it is
+/** Show only the token tail of a result link (from "?t" on) - the base before it is
  *  identical for every row, so trimming it makes the per-person part readable. */
 function linkTail(url: string): string {
   const i = url.indexOf("?t");
@@ -124,7 +124,7 @@ function ResultUrlLine({
 export interface SubmissionRow {
   id: string;
   /** True when a previous PDF report is retained, so rollback would do something.
-   *  Drives whether the Restore control is offered at all — a button that usually
+   *  Drives whether the Restore control is offered at all - a button that usually
    *  errors teaches the operator to ignore it. */
   hasPrevReport?: boolean;
   slug: string;
@@ -144,7 +144,7 @@ export interface SubmissionRow {
   maxScore: number | null;
   bandTitle: string | null;
   status: string;
-  /** Destination URL the contact lands on (targetUrl?t=token) — completed only. */
+  /** Destination URL the contact lands on (targetUrl?t=token) - completed only. */
   resultUrl: string | null;
   /** The native assess360 result link, shown as a second copy option when the
    *  assessment has a published native page and the primary link is external. */
@@ -156,7 +156,7 @@ export interface SubmissionRow {
    *  The thank-you page lives in the CRM, so this stamp is the only in-app record
    *  that this person requested a 1:1. */
   ctaClickedAt: string | null;
-  /** Manual Meta review stamps — ISO strings, null until the owner fires one. */
+  /** Manual Meta review stamps - ISO strings, null until the owner fires one. */
   metaQualifiedAt: string | null;
   metaDisqualifiedAt: string | null;
   deviceType: string | null;
@@ -180,12 +180,12 @@ type SortKey = "date" | "lead" | "score";
  *  slice is paginated so the DOM stays small (thousands of rows was the slowdown). */
 const PAGE_SIZE = 25;
 
-const dash = (v: string | null | undefined) => (v && String(v).trim() ? String(v) : "—");
+const dash = (v: string | null | undefined) => (v && String(v).trim() ? String(v) : "-");
 
 /** Join non-empty parts with a separator; em-dash when all are blank. */
 const join = (parts: (string | null)[], sep: string) => {
   const s = parts.filter((p) => p && p.trim()).join(sep);
-  return s || "—";
+  return s || "-";
 };
 
 /**
@@ -207,7 +207,7 @@ export function SubmissionsTable({
    *  super-admin-guarded), so the tenant workspace view leaves this off. */
   canDelete?: boolean;
   /** When a single assessment is already named above (e.g. the heading dropdown),
-   *  suppress the per-group name so it isn't shown twice — just the count remains. */
+   *  suppress the per-group name so it isn't shown twice - just the count remains. */
   hideGroupTitle?: boolean;
   /** Base for the "View in Submissions" jump on a cross-assessment trace hit. */
   basePath?: string;
@@ -229,7 +229,7 @@ export function SubmissionsTable({
   const startTx = start;
   // Cross-assessment fallback: when the local filter finds nothing here, one click
   // resolves the query (a result token or customer id) across EVERY assessment and
-  // date — so a VidaPulse-captured id that lives in another assessment still traces.
+  // date - so a VidaPulse-captured id that lives in another assessment still traces.
   const [xHit, setXHit] = useState<LookupHit | null>(null);
   const [xLooked, setXLooked] = useState(false);
   const [xPending, startLook] = useTransition();
@@ -380,7 +380,7 @@ export function SubmissionsTable({
             </p>
             {/* Fallback: this list is scoped to one assessment + date window. A result
                 token or customer id (e.g. one VidaPulse captured) may live in another
-                assessment — resolve it across the whole workspace in one click. */}
+                assessment - resolve it across the whole workspace in one click. */}
             <Button size="sm" variant="outline" onClick={traceAll} disabled={xPending}>
               {xPending ? "Searching…" : "Search all assessments"}
             </Button>
@@ -539,7 +539,7 @@ export function SubmissionsTable({
                     {/* Contact */}
                     <td className="px-3 py-2">
                       <div className="flex flex-col">
-                        <span className="font-medium">{[s.firstName, s.lastName].filter(Boolean).join(" ") || "—"}</span>
+                        <span className="font-medium">{[s.firstName, s.lastName].filter(Boolean).join(" ") || "-"}</span>
                         <span className="text-xs text-[var(--muted-foreground)]">
                           {s.email ?? ""}{s.mobile ? ` · ${s.mobile}` : ""}
                         </span>
@@ -568,14 +568,14 @@ export function SubmissionsTable({
                             </span>
                           </span>
                         ) : (
-                          <span className="tabular-nums">—</span>
+                          <span className="tabular-nums">-</span>
                         )}
                         {s.bandTitle ? (
                           <span className="text-xs text-[var(--muted-foreground)]">{s.bandTitle}</span>
                         ) : null}
                       </div>
                     </td>
-                    {/* Result URL — shows only the ?t… tail (the base before it is the
+                    {/* Result URL - shows only the ?t… tail (the base before it is the
                         same for every row); Copy still copies the FULL link. When the
                         assessment also has a native page, a second line + Copy is shown. */}
                     <td className="px-3 py-2 align-top">
@@ -597,39 +597,39 @@ export function SubmissionsTable({
                           ) : null}
                         </div>
                       ) : (
-                        "—"
+                        "-"
                       )}
                     </td>
-                    {/* Opt-in (lead submit) / Completion (final submit) — seconds
+                    {/* Opt-in (lead submit) / Completion (final submit) - seconds
                         precision so a lead-capture-after gap of a few seconds is
                         visible instead of both rounding to the same minute. */}
                     <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
                       <div>{formatIST(s.createdAt, true)}</div>
-                      <div className="opacity-70">{s.completedAt ? formatIST(s.completedAt, true) : "—"}</div>
+                      <div className="opacity-70">{s.completedAt ? formatIST(s.completedAt, true) : "-"}</div>
                     </td>
                     {/* Completed tick / Paid */}
                     <td className="whitespace-nowrap px-3 py-2">
                       <div className="flex flex-col">
                         <span className={s.status === "COMPLETED" ? "text-green-600" : "text-[var(--muted-foreground)]"}>
-                          {s.status === "COMPLETED" ? "✓" : "—"}
+                          {s.status === "COMPLETED" ? "✓" : "-"}
                         </span>
                         <span className="text-xs">
                           {s.paidAmount != null ? (
                             <span className="font-medium text-green-600 tabular-nums">₹{s.paidAmount}</span>
                           ) : (
-                            <span className="text-[var(--muted-foreground)]">—</span>
+                            <span className="text-[var(--muted-foreground)]">-</span>
                           )}
                         </span>
                       </div>
                     </td>
-                    {/* Booking requested — who clicked the result page's booking CTA */}
+                    {/* Booking requested - who clicked the result page's booking CTA */}
                     <td className="px-3 py-2 text-center whitespace-nowrap">
                       {s.ctaClickedAt ? (
                         <span className="font-medium text-emerald-600" title={`Requested ${formatIST(s.ctaClickedAt)} IST`}>
                           Yes
                         </span>
                       ) : (
-                        <span className="text-[var(--muted-foreground)]">—</span>
+                        <span className="text-[var(--muted-foreground)]">-</span>
                       )}
                     </td>
                     {/* VSL */}
@@ -645,8 +645,8 @@ export function SubmissionsTable({
                             PDF
                           </a>
                           {/* Only when a previous version is retained. Regenerating a
-                              report is not always an improvement — an AI rerun can come
-                              back worse — and two versions are kept so this is a real
+                              report is not always an improvement - an AI rerun can come
+                              back worse - and two versions are kept so this is a real
                               choice rather than a one-way door. */}
                           {s.hasPrevReport ? (
                             <button
@@ -662,7 +662,7 @@ export function SubmissionsTable({
                                   if (!r.ok) return setDelMsg(r.error);
                                   setDelMsg("Previous PDF restored.");
                                   // The PDF is served through the route, so there is no
-                                  // client state to update — but the row's flag came
+                                  // client state to update - but the row's flag came
                                   // from the server, and after a swap the OTHER version
                                   // is now the previous one, so refresh rather than
                                   // leave a stale "can roll back" state on screen.
@@ -677,10 +677,10 @@ export function SubmissionsTable({
                           ) : null}
                         </div>
                       ) : (
-                        "—"
+                        "-"
                       )}
                     </td>
-                    {/* Meta verdict — send this lead's judgement to the ad account */}
+                    {/* Meta verdict - send this lead's judgement to the ad account */}
                     <td className="whitespace-nowrap px-3 py-2">
                       <MetaVerdictCell
                         submissionId={s.id}
@@ -729,7 +729,7 @@ export function SubmissionsTable({
                           </Button>
                         </div>
                       ) : (
-                        "—"
+                        "-"
                       )}
                     </td>
                     {/* gclid */}
@@ -742,7 +742,7 @@ export function SubmissionsTable({
                     <td className="whitespace-nowrap px-3 py-2 text-xs">{join([s.city, s.region, s.country], ", ")}</td>
                     <td className="whitespace-nowrap px-3 py-2 text-xs">{dash(s.timezone)}</td>
                     <td className="max-w-[160px] truncate px-3 py-2 text-xs" title={s.fbp ?? ""}>{dash(s.fbp)}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs tabular-nums">{s.fbclidTimestamp ?? "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-xs tabular-nums">{s.fbclidTimestamp ?? "-"}</td>
                     {/* Per-row delete */}
                     {canDelete ? (
                       <td className="px-3 py-2 align-top text-right">
@@ -765,7 +765,7 @@ export function SubmissionsTable({
           {totalPages > 1 ? (
             <div className="flex items-center justify-between gap-3 text-xs text-[var(--muted-foreground)]">
               <span className="tabular-nums">
-                {start + 1}–{Math.min(start + PAGE_SIZE, group.rows.length)} of {group.rows.length}
+                {start + 1}-{Math.min(start + PAGE_SIZE, group.rows.length)} of {group.rows.length}
               </span>
               <div className="flex items-center gap-2">
                 <Button

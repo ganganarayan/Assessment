@@ -12,7 +12,7 @@ export interface DeliverArgs {
   body: string;
   webhookId?: string | null;
   submissionId?: string | null;
-  /** Owning tenant (null = platform/Gita) — stamped on the log for scoped views. */
+  /** Owning tenant (null = platform/Gita) - stamped on the log for scoped views. */
   tenantId?: string | null;
   attempt?: number;
 }
@@ -25,7 +25,7 @@ export interface DeliverResult {
 
 /**
  * POST a signed webhook and record exactly one WebhookLog row for the attempt.
- * Never throws — failures are captured in the log so callers can fire-and-forget.
+ * Never throws - failures are captured in the log so callers can fire-and-forget.
  */
 export async function deliverWebhook(args: DeliverArgs): Promise<DeliverResult> {
   const { url, secret, eventName, body } = args;

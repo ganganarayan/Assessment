@@ -1,4 +1,4 @@
-# Assessment Engine SaaS — Setup (Phase 1)
+# Assessment Engine SaaS - Setup (Phase 1)
 
 Production-grade multi-tenant foundation: Next.js 15, TypeScript, Prisma +
 PostgreSQL, Better Auth, Cloudflare R2, shadcn/ui, deployable to Railway.
@@ -55,8 +55,8 @@ npm run db:seed         # create super admin + demo tenant
 
 Seeded accounts (change immediately):
 
-- **Super Admin** — `owner@example.com` / `ChangeMe123!`
-- **Admin** — `admin@acme.com` / `ChangeMe123!`
+- **Super Admin** - `owner@example.com` / `ChangeMe123!`
+- **Admin** - `admin@acme.com` / `ChangeMe123!`
 
 ## 5. Run locally
 
@@ -86,7 +86,7 @@ resolved tenant context.
 ## 7. Deploy to Railway
 
 The project uses **one Railway project with two environments** (no local
-deploy needed — Railway builds from GitHub):
+deploy needed - Railway builds from GitHub):
 
 | Environment     | Git branch | Purpose    |
 | --------------- | ---------- | ---------- |
@@ -99,9 +99,9 @@ is shared by both environments; everything that differs is set as
 
 **One-time setup (per environment):**
 
-1. **Branch mapping** — each environment → Settings → Source → track its
+1. **Branch mapping**, each environment → Settings → Source → track its
    branch (`main` → `main`, `staging` → `orbitq-assess`).
-2. **PostgreSQL** — add a Postgres plugin in *each* environment. Railway
+2. **PostgreSQL**, add a Postgres plugin in *each* environment. Railway
    injects that environment's own `DATABASE_URL` automatically, so production
    and staging migrate independent databases.
 3. **Variables** (set separately in each environment, since values differ):

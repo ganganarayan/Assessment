@@ -4,7 +4,7 @@ import { useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
 
 /**
- * Copies an assessment's PUBLIC link — the plain public page on the SAME host the
+ * Copies an assessment's PUBLIC link - the plain public page on the SAME host the
  * operator is browsing (i.e. exactly what "View public page" opens, with no
  * ?preview or other query). No custom-domain / subdomain manufacturing: whatever
  * origin you're on is the origin that serves the page, so that's the link to share.
@@ -30,7 +30,7 @@ export function CopyPublicLink({ slug }: { slug: string }) {
       try {
         document.execCommand("copy");
       } catch {
-        /* give up silently — nothing more we can do */
+        /* give up silently - nothing more we can do */
       }
       ta.remove();
     }

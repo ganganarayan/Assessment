@@ -21,13 +21,13 @@ import { decryptWithSecret } from "@/lib/crypto";
  * (`tenants/<tenantId>/...`, see `tenantKey`), not by separate buckets or credentials.
  * One set of keys to rotate, and no tenant ever holds a credential that could reach
  * another tenant's objects. The prefix is built here so no caller composes a key by
- * hand — a hand-built key is how one tenant's file ends up under another's path.
+ * hand - a hand-built key is how one tenant's file ends up under another's path.
  *
  * Storage stays OPTIONAL: the client is never created at import time, so the app boots
  * with nothing configured, and the first actual operation throws a clear error instead.
  *
  * The rest of the app depends on this `storage` interface, never on the AWS SDK
- * directly — so the backend stays swappable.
+ * directly - so the backend stays swappable.
  */
 
 interface R2Config {
@@ -83,7 +83,7 @@ export async function isStorageConfigured(): Promise<boolean> {
 
 /**
  * Forget the cached credentials, so the next operation re-reads Settings.
- * Called by the settings save — otherwise a corrected key would not take effect until
+ * Called by the settings save - otherwise a corrected key would not take effect until
  * the process restarted, which reads as "saving did nothing".
  */
 export function resetStorageConfig(): void {
@@ -188,7 +188,7 @@ export const storage = {
 
   /**
    * Fetch an object's bytes. Returns null when it does not exist, rather than throwing,
-   * because "not stored yet" is a normal state every caller has to handle anyway — and
+   * because "not stored yet" is a normal state every caller has to handle anyway - and
    * a missing file should fall back to rendering, not surface as an error to the user.
    *
    * Bytes rather than a stream on purpose: these are small documents, and the caller

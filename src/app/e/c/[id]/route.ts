@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  *   /e/c/<nurtureLogId>?u=<base64url original URL>
  * We stamp NurtureLog.clickedAt on the FIRST click (best-effort, never blocks the
  * redirect), then 302 to the original URL. Only absolute http(s) destinations are
- * honoured — anything else falls back to the app home, so this can't be abused as
+ * honoured - anything else falls back to the app home, so this can't be abused as
  * an open redirect to arbitrary schemes.
  */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

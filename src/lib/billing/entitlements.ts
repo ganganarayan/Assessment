@@ -6,7 +6,7 @@ import { PLAN_LIMITS, usageFraction, usagePeriodKey, type PlanId } from "@/lib/b
 /**
  * Server-side entitlement + usage resolution for a tenant. Mirrors the shape of
  * settings/config.ts (resolveMetaConfig): a `tenantId` of null = the platform/Gita
- * scope, which is UNLIMITED and unmetered. Phase 1 only RESOLVES this — no gate
+ * scope, which is UNLIMITED and unmetered. Phase 1 only RESOLVES this - no gate
  * calls this yet (Phase 2 meters, Phase 4 enforces).
  */
 
@@ -38,7 +38,7 @@ export interface UsageSummary {
 /**
  * Current usage vs limits for the meters UI (Phase 2 wires the RESPONSES counter;
  * in Phase 1 the counter is absent so responses.used reads 0). Assessments and
- * seats are COUNT()ed live — no counter table. Platform scope reports unlimited.
+ * seats are COUNT()ed live - no counter table. Platform scope reports unlimited.
  */
 export async function getUsage(tenantId: string | null, now: Date = new Date()): Promise<UsageSummary> {
   const resolved = await resolvePlan(tenantId);

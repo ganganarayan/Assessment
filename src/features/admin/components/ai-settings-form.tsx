@@ -61,7 +61,7 @@ function ProviderKeyRow({ info }: { info: ProviderKeyView }) {
           autoComplete="off"
           value={val}
           onChange={(e) => setVal(e.target.value)}
-          placeholder={info.hasKey ? "Saved — paste a new key to replace" : "Paste API key"}
+          placeholder={info.hasKey ? "Saved - paste a new key to replace" : "Paste API key"}
         />
       </div>
       <Button size="sm" variant="outline" onClick={save} disabled={saving || !val.trim()}>
@@ -112,12 +112,12 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Provider API keys — saved once per provider, reused whenever you select it. */}
+      {/* Provider API keys - saved once per provider, reused whenever you select it. */}
       <div className="flex flex-col gap-3 rounded-lg border p-4">
         <div>
           <p className="text-sm font-medium">Provider API keys</p>
           <p className="text-xs text-[var(--muted-foreground)]">
-            Save each key once. Switching provider or model below never asks again — it just uses
+            Save each key once. Switching provider or model below never asks again - it just uses
             the saved key. Stored encrypted at rest, never shown again.
           </p>
         </div>
@@ -183,7 +183,7 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
 
       {!selectedHasKey ? (
         <p className="text-xs text-amber-600">
-          No {PROVIDER_LABEL[provider]} key saved yet — add it above before enabling AI.
+          No {PROVIDER_LABEL[provider]} key saved yet - add it above before enabling AI.
         </p>
       ) : null}
 
@@ -218,14 +218,14 @@ export function AiSettingsForm({ initial }: { initial: AiSettingsView }) {
         <div className="rounded-md border p-3 text-sm">
           {test.ok ? (
             <>
-              <p className="font-medium text-green-600">Worked in {test.ms} ms — sample output:</p>
+              <p className="font-medium text-green-600">Worked in {test.ms} ms - sample output:</p>
               <p className="mt-1 whitespace-pre-wrap text-[var(--foreground)]">{test.text}</p>
             </>
           ) : (
             <p className="text-red-500">Failed{test.ms ? ` after ${test.ms} ms` : ""}: {test.error}</p>
           )}
           <p className="mt-2 text-xs text-[var(--muted-foreground)]">
-            Save your settings first — Test uses the saved config.
+            Save your settings first - Test uses the saved config.
           </p>
         </div>
       ) : null}

@@ -37,7 +37,7 @@ export default async function PixelTestPage() {
         server <span className="font-mono">Purchase</span> conversion. Your external thank-you page&apos;s
         browser Purchase pixel <strong>must use the exact same</strong> event name{" "}
         <span className="font-mono">Purchase</span> <strong>and</strong>{" "}
-        <span className="font-mono">eventID = the Razorpay payment id</span> — otherwise Meta counts the
+        <span className="font-mono">eventID = the Razorpay payment id</span> - otherwise Meta counts the
         sale twice. Also set the assessment&apos;s <strong>Price (₹) = 199</strong>: the auto-fire on
         external captures only fires when the captured amount equals that price.
       </div>
@@ -50,7 +50,7 @@ export default async function PixelTestPage() {
 
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-[var(--muted-foreground)]">
         <strong className="text-[var(--foreground)]">Testing only.</strong> Events go to the
-        real pixel, so fire each one <strong>once</strong> just to register it — then it shows
+        real pixel, so fire each one <strong>once</strong> just to register it - then it shows
         up in Events Manager (and the Ads Manager conversion-event dropdown) within a few
         minutes. Don&apos;t spam it; repeated fires add test data to your pixel. Verify in
         Events Manager → <em>Test Events</em> or the Meta Pixel Helper.

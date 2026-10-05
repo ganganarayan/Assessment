@@ -7,7 +7,7 @@
 export const EXTERNAL_ID_KEY = "a360_xid";
 
 /** Read the stored id, minting + persisting one if absent. Null when storage is
- *  blocked (private mode) — the caller simply omits external_id. Client-only. */
+ *  blocked (private mode) - the caller simply omits external_id. Client-only. */
 export function getOrCreateExternalId(): string | null {
   if (typeof window === "undefined") return null;
   try {

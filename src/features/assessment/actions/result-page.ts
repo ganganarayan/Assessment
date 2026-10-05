@@ -9,7 +9,7 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /**
  * VSL result-page persistence. The whole page (theme + ordered blocks) is stored as
- * ONE JSON blob — Assessment.resultPage is the editable DRAFT, resultPagePublished is
+ * ONE JSON blob - Assessment.resultPage is the editable DRAFT, resultPagePublished is
  * the live snapshot the token result page renders. Draft edits stay invisible until
  * Publish, mirroring the relational pages builder. All writes are scoped + edit-gated.
  */

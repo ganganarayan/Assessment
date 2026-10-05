@@ -7,7 +7,7 @@ import { getCurrentTenant } from "@/lib/tenant/context";
 import "./globals.css";
 
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
-/** Only emit CSS for values that are strictly hex — never inject stored text as-is. */
+/** Only emit CSS for values that are strictly hex - never inject stored text as-is. */
 function tenantThemeCss(primary?: string | null, secondary?: string | null): string | null {
   const p = primary && HEX.test(primary) ? primary : null;
   const s = secondary && HEX.test(secondary) ? secondary : null;
@@ -22,7 +22,7 @@ function tenantThemeCss(primary?: string | null, secondary?: string | null): str
  * layout wraps the marketing site, the admin app and every tenant's funnel.
  *
  * It used to hard-code title "Assessment" / "Multi-tenant assessment platform
- * foundation." — scaffolding copy that then became the real, indexable title of every
+ * foundation." - scaffolding copy that then became the real, indexable title of every
  * page that does not set its own, tenant funnels included.
  *
  * - Platform host: the marketing title and description, with a template so a page can

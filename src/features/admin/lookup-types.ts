@@ -4,7 +4,7 @@
  * server action and the client component can import them.
  */
 
-/** A submission resolved by a pasted result token or customer id — the trace target
+/** A submission resolved by a pasted result token or customer id - the trace target
  *  for a VidaPulse viewer, found regardless of assessment or date window. */
 export interface LookupHit {
   submissionId: string;

@@ -71,6 +71,38 @@ async function buildAssessmentBody(
     nextStep: a.nextStep,
     questionDisplayMode: a.questionDisplayMode,
     vslCountdownSeconds: a.vslCountdownSeconds,
+
+    // Everything below was MISSING, and its absence is why an exported funnel arrived in
+    // another environment as a shell: no gate, no exit page, no result page, no ad
+    // configuration, and a file small enough to look broken. Thirty-four fields were being
+    // dropped with no warning, which made "Export" a promise the format could not keep.
+    //
+    // Configuration only, deliberately. Submissions and stats have their own export pages
+    // and their own formats; this one moves a funnel, not its data.
+    qualification: a.qualification ?? null,
+    disqualifiedContent: a.disqualifiedContent ?? null,
+    audienceGate: a.audienceGate ?? null,
+    resultPage: a.resultPage ?? null,
+    resultPagePublished: a.resultPagePublished ?? null,
+    publishedPages: a.publishedPages ?? null,
+    metaEvents: a.metaEvents ?? null,
+    fireMetaCapi: a.fireMetaCapi,
+    platformSignup: a.platformSignup,
+    retakePolicy: a.retakePolicy,
+    retakeDays: a.retakeDays,
+    uniqueIdentifier: a.uniqueIdentifier,
+    trainingUrl: a.trainingUrl,
+    targetUrl: a.targetUrl,
+    tokenTtlSeconds: a.tokenTtlSeconds,
+    resultsContinueUrl: a.resultsContinueUrl,
+    resultsContinueLabel: a.resultsContinueLabel,
+    paidMode: a.paidMode,
+    paymentUrl: a.paymentUrl,
+    paymentHeadline: a.paymentHeadline,
+    paymentButtonLabel: a.paymentButtonLabel,
+    paymentAmount: a.paymentAmount,
+    paymentEventName: a.paymentEventName,
+    paymentIntroText: a.paymentIntroText,
     categories: a.categories.map((c, ci) => ({
       name: c.name,
       description: c.description,
@@ -113,7 +145,7 @@ async function buildBodies(ids: string[]): Promise<AssessmentBodyExport[]> {
   return out;
 }
 
-/** THE JSON export (one assessment or many — same shape). */
+/** THE JSON export (one assessment or many - same shape). */
 export async function buildExportJson(
   ids: string[],
   exportedAt: string,
@@ -121,7 +153,7 @@ export async function buildExportJson(
   return bodiesToJson(await buildBodies(ids), exportedAt);
 }
 
-/** THE CSV export — same lossless schema for one assessment or many. */
+/** THE CSV export - same lossless schema for one assessment or many. */
 export async function buildExportCsv(ids: string[]): Promise<string> {
   return bodiesToCsv(await buildBodies(ids));
 }

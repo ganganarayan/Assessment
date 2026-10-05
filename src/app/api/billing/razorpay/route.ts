@@ -13,7 +13,7 @@ import {
 import { firePlatformPurchase } from "@/lib/billing/platform-events";
 
 /**
- * Platform SaaS subscription webhook — POST /api/billing/razorpay.
+ * Platform SaaS subscription webhook - POST /api/billing/razorpay.
  *
  * Razorpay (the platform-owner's account) calls this for subscription lifecycle
  * events. Verified with the PLATFORM webhook secret (app settings singleton → env).
@@ -139,12 +139,12 @@ export async function POST(req: Request) {
   }
 
   if (event === "subscription.pending") {
-    await markPastDue(tenantId); // charge failed, still retrying — dunning grace
+    await markPastDue(tenantId); // charge failed, still retrying - dunning grace
     return NextResponse.json({ ok: true, pastDue: true });
   }
 
   if (event === "subscription.halted") {
-    await endSubscription(tenantId, "HALTED"); // Razorpay gave up retrying — lapsed
+    await endSubscription(tenantId, "HALTED"); // Razorpay gave up retrying - lapsed
     return NextResponse.json({ ok: true, halted: true });
   }
 

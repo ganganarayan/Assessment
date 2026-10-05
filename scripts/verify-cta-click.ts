@@ -3,7 +3,7 @@
  *
  * The failure mode this guards is silent: the thank-you page lives in the CRM, so if
  * the event name drifts, the trigger disappears from the webhook dropdown, or the
- * payload stops carrying the contact, nothing errors — the owner simply never learns
+ * payload stops carrying the contact, nothing errors - the owner simply never learns
  * that someone asked for a call, and there is no second channel to notice it on.
  *
  *   npx tsx scripts/verify-cta-click.ts
@@ -37,7 +37,7 @@ console.log("Booking CTA click verification\n");
 expect(
   'the event name is exactly "booking_requested"',
   EVENT_NAME[EventType.CTA_CLICKED] === "booking_requested",
-  `got "${EVENT_NAME[EventType.CTA_CLICKED]}" — renaming it orphans the user's saved webhook`,
+  `got "${EVENT_NAME[EventType.CTA_CLICKED]}" - renaming it orphans the user's saved webhook`,
 );
 expect("the name round-trips back to CTA_CLICKED", NAME_TO_TYPE["booking_requested"] === EventType.CTA_CLICKED);
 expect("the name is a legal webhook name", WEBHOOK_NAME_REGEX.test("booking_requested"));
@@ -59,7 +59,7 @@ const envelope = buildEnvelope(
     assessment: { id: "a1", slug: "clarity", title: "Clarity Assessment" },
     lead: { firstName: "Asha", lastName: "Rao", email: "asha@example.com", mobile: "+919000000000" },
     // The route passes this explicitly (the shared builder only derives a result URL
-    // when a score rides along, and a booking click carries none) — asserted below.
+    // when a score rides along, and a booking click carries none) - asserted below.
     resultUrl: ctaResultUrl(BASE, "clarity", "sub_123", "tok_456"),
     cta: { blockId: "blk_1", label: "Apply for your seat", destinationUrl: "https://app.vidapulse.io/api/analytics/cta/link/u1?cid=cust_abc" },
   },

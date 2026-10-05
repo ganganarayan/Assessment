@@ -7,12 +7,12 @@ import { CAPABILITIES } from "@/lib/marketing/content";
 import { saveLandingVideos } from "@/features/platform/landing-videos";
 
 /**
- * Landing-page videos — platform only, so it lives on /platform rather than
+ * Landing-page videos - platform only, so it lives on /platform rather than
  * /admin/settings. /admin is the impersonation surface; a platform-only setting sitting
  * there is exactly the ambiguity the tenancy work has been removing.
  *
  * One box per slot: the hero, then one per capability tile in the order they appear on
- * the page. A blank box is a valid answer and means "leave that spot as it is" — the
+ * the page. A blank box is a valid answer and means "leave that spot as it is" - the
  * hero keeps its image, the tile keeps its plain text layout.
  */
 export function LandingVideosCard({
@@ -55,7 +55,7 @@ export function LandingVideosCard({
         onChange={(e) => onChange(e.target.value)}
         rows={2}
         spellCheck={false}
-        placeholder="Paste the embed code or the video URL — leave blank for no video"
+        placeholder="Paste the embed code or the video URL - leave blank for no video"
         className="w-full rounded-md border bg-[var(--background)] px-3 py-2 font-mono text-xs"
       />
     </div>
@@ -71,7 +71,7 @@ export function LandingVideosCard({
           they do now. {filled} of {CAPABILITIES.length + 1} slots filled.
         </p>
         <p className="mt-2 text-xs text-[var(--muted-foreground)]">
-          Embed code or plain link, both fine, from any host — VidaPulse included. Only the video
+          Embed code or plain link, both fine, from any host - VidaPulse included. Only the video
           address is kept from a pasted snippet, and we draw the player frame ourselves, so view
           tracking works while nothing from the paste can run as script on the public page.
         </p>

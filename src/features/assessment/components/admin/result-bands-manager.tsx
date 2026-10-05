@@ -77,7 +77,7 @@ export function ResultBandsManager({
         {showImport ? (
           <div className="mt-3 flex flex-col gap-2">
             <p className="text-xs text-[var(--muted-foreground)]">
-              Type the score ranges and the band names — the parser fills the rest and levels auto-assign
+              Type the score ranges and the band names - the parser fills the rest and levels auto-assign
               (LOW→CRITICAL). Everything stays editable below. Example:
               <br />
               <span className="font-mono">0-40% low, 41-55, 56-75, 76-100. Holding, Load-Bearing, Running Hot, Redlined</span>
@@ -123,7 +123,7 @@ export function ResultBandsManager({
                 <Badge variant="outline">{b.level}</Badge>
                 <span className="font-medium">{b.title}</span>
                 <span className="text-xs text-[var(--muted-foreground)]">
-                  {b.minScore}–{b.maxScore}%
+                  {b.minScore}-{b.maxScore}%
                 </span>
               </div>
               {b.description ? (

@@ -4,16 +4,16 @@
  * The lockout is deliberately permanent for as long as the flag survives: a rejected
  * visitor should not get back into the funnel, and the back button must not walk them
  * out of it (the funnel forces a reload on a bfcache restore so this is re-read). A
- * cleared cookie or a new device loses it, and nothing can be done about that — a
+ * cleared cookie or a new device loses it, and nothing can be done about that - a
  * non-opt-in leaves no PII to match on. The real exclusion is the Meta custom audience
  * that GateDisqualified populates; this flag is the instant local layer in front of it.
  *
- * The flag now answers ONE question — is this visitor locked out? (any stored
+ * The flag now answers ONE question - is this visitor locked out? (any stored
  * rejection, forever). Whether GateDisqualified should fire is decided SERVER-side
  * from `capiFiredAt` on the visitor's gate_disqualification rows, because the event
  * moved to the Conversions API: a rejection carries no PII and needs none, and firing
  * server-side survives ad blockers and can be counted. The refresh interval below is
- * the rule that decision still uses — firing on every revisit (the original bug)
+ * the rule that decision still uses - firing on every revisit (the original bug)
  * inflated Meta's count past the number of people rejected, while never re-firing
  * lets them age out of the exclusion audience and start seeing the ad again.
  *
@@ -49,7 +49,7 @@ export function gateFlagKey(slug: string): string {
  *
  * Never expires: a non-null result means locked out. A legacy `"1"` (written before
  * this carried any structure) is honoured as a real rejection with an unknown date and
- * no recorded send — so the visitor stays locked out, and the audience refresh below
+ * no recorded send - so the visitor stays locked out, and the audience refresh below
  * will fire once for them, since there is no evidence Meta ever received their event.
  */
 export function readGateRejection(raw: string | null | undefined): GateRejection | null {

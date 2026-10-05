@@ -1,17 +1,17 @@
 -- ===========================================================================
--- Tenancy inspection queries — READ ONLY.
+-- Tenancy inspection queries - READ ONLY.
 --
 -- This file used to also PERFORM the re-home in SQL, as a twin of
 -- `npm run rehome`. That half has been removed, deliberately:
 --
 --   * It listed 14 tables when 16 carry a nullable tenant column. It was
 --     missing gate_entry and funnel_event_count, so a run that reported
---     success would have left both tables pointing at nobody — the gate
+--     success would have left both tables pointing at nobody - the gate
 --     counters and the per-day funnel-event counters silently detached from
 --     the funnel they belong to, and discovered much later by the NOT NULL
 --     migration failing on tables nobody was watching.
 --   * It could not run the preflight. The re-home's real risk is not the
---     UPDATE — it is moving a funnel onto a tenant whose plan lacks CAPI, or
+--     UPDATE - it is moving a funnel onto a tenant whose plan lacks CAPI, or
 --     whose integration values only ever lived in environment variables. Both
 --     produce a funnel that looks perfectly healthy in the admin and silently
 --     stops earning. `npm run rehome` blocks on exactly that; a hand-run SQL
@@ -87,7 +87,7 @@ WHERE lower(email) = lower('ganganarayan.rns@gmail.com');
 -- ---------------------------------------------------------------------------
 -- Is the funnel tenant's integration config actually present?
 --
--- A tenant NEVER falls back to environment variables — that fallback exists for
+-- A tenant NEVER falls back to environment variables - that fallback exists for
 -- the platform scope only. So a blank here after the move means no pixel, no
 -- CAPI, or a checkout that cannot sign an order, with nothing in the admin
 -- looking wrong. Secrets are shown as booleans; never select the ciphertext.

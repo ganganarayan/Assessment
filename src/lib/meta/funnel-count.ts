@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { istDayStart } from "@/lib/date";
 
 /**
- * Count ONE Meta event firing — a running total, not a row per event.
+ * Count ONE Meta event firing - a running total, not a row per event.
  *
  * GateDisqualified has no lead, no submission and (now) no browser pixel behind it,
  * so without this the app cannot answer "is my exclusion audience actually being
@@ -15,7 +15,7 @@ import { istDayStart } from "@/lib/date";
  * so this increments one row per assessment per event per IST day instead.
  *
  * Counts EVENTS, not people: a renewal firing for a visitor already in the audience
- * increments it again — that is what makes it comparable with Meta's own number.
+ * increments it again - that is what makes it comparable with Meta's own number.
  *
  * Fully fail-soft: analytics must never break a respondent-facing path.
  */
@@ -23,7 +23,7 @@ export async function bumpFunnelEventCount(args: {
   assessmentId: string;
   tenantId: string | null;
   eventName: string;
-  /** false = the send failed (network error / Meta rejected it) — counted apart. */
+  /** false = the send failed (network error / Meta rejected it) - counted apart. */
   ok: boolean;
   at?: Date;
 }): Promise<void> {

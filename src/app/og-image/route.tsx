@@ -5,13 +5,13 @@ import { MARKETING } from "@/lib/marketing/content";
  * The share card, generated rather than stored.
  *
  * og:image and twitter:image pointed at /og-image.png for as long as the landing page has
- * existed, and that file has never been in public/ — so every share, every Slack unfurl
+ * existed, and that file has never been in public/ - so every share, every Slack unfurl
  * and the Organization logo in the structured data resolved to a 404.
  *
  * This is a ROUTE rather than Next's app/opengraph-image file convention on purpose. The
  * convention injects its image into every route under app/, which here would mean a
- * tenant's funnel — on the tenant's own custom domain, on a plan whose whole promise is
- * that the Assess360 badge comes off — unfurling as an Assess360 card. Being a plain route
+ * tenant's funnel - on the tenant's own custom domain, on a plan whose whole promise is
+ * that the Assess360 badge comes off - unfurling as an Assess360 card. Being a plain route
  * means only the pages that ASK for it get it: the marketing and policy pages do, tenant
  * surfaces keep no og:image at all, which is what they had before and is not a regression.
  */

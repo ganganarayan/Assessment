@@ -87,7 +87,7 @@ export function PagesBuilder({
     });
 
   // Take the results page down: clear the live snapshot so visitors skip it and go
-  // straight to the destination (VSL). Draft is kept — Publish restores it.
+  // straight to the destination (VSL). Draft is kept - Publish restores it.
   const unpublish = () =>
     start(async () => {
       const r = await unpublishPages(assessmentId);
@@ -106,7 +106,7 @@ export function PagesBuilder({
   const saveBlock = (blockId: string, config: Record<string, unknown>) =>
     start(async () => {
       const r = await updateBlockConfig(blockId, config);
-      delete dirty.current[blockId]; // saved — let server state win from here
+      delete dirty.current[blockId]; // saved - let server state win from here
       if (r.ok && r.data) {
         applyServer(r.data);
         setDirtyPub(true);
@@ -122,10 +122,10 @@ export function PagesBuilder({
         <div className="flex flex-col">
           <span className="text-sm font-medium">
             {!isLive
-              ? "Unpublished — visitors skip this page and go straight to the destination (VSL)"
+              ? "Unpublished - visitors skip this page and go straight to the destination (VSL)"
               : dirtyPub
                 ? "Draft has unpublished changes"
-                : "Published — live version is up to date"}
+                : "Published - live version is up to date"}
           </span>
           <span className="text-xs text-[var(--muted-foreground)]">
             {pending ? "Saving draft…" : "Edits auto-save as a draft. Click Publish to make them live."}
@@ -285,7 +285,7 @@ function BlockEditor({
 
       {block.type === "band_sentence" ? (
         <div className="flex flex-col gap-2">
-          <p className="text-xs text-[var(--muted-foreground)]">A sentence per overall band — shown to whoever lands in that band.</p>
+          <p className="text-xs text-[var(--muted-foreground)]">A sentence per overall band - shown to whoever lands in that band.</p>
           {BAND_LEVELS.map((lvl) => {
             const byBand = (c.byBand ?? {}) as Record<string, string>;
             return (

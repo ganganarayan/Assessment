@@ -10,7 +10,7 @@ import type { Answer, SeoPage } from "./types";
  * Built around stable @id anchors rather than repeating the same entity on every page.
  * That is the difference between telling a search engine "there is an organisation called
  * Assess360" forty times and telling it "there is ONE organisation, and these forty pages
- * all belong to it" — the second is what an entity graph is for, and it is what AI answer
+ * all belong to it" - the second is what an entity graph is for, and it is what AI answer
  * engines lean on when they decide whether a claim has a publisher behind it.
  *
  * Nothing here is invented. No ratings, no review counts, no awards, no customer numbers.
@@ -30,7 +30,7 @@ function compact(node: Node): Node {
 }
 
 /**
- * Organization, WebSite and SoftwareApplication — the three nodes every page references
+ * Organization, WebSite and SoftwareApplication - the three nodes every page references
  * and none of them repeats.
  *
  * `name` is the brand people search for; `legalName` is the registered entity. They are
@@ -146,7 +146,7 @@ export async function pillarGraph(page: SeoPage, answers: ReadonlyArray<Answer>)
 
 /**
  * A knowledge-base answer: one question, so a single-entry FAQPage. The short answer is
- * what goes in `acceptedAnswer` — it is the sentence written to be quoted, and feeding a
+ * what goes in `acceptedAnswer` - it is the sentence written to be quoted, and feeding a
  * crawler the whole body here would only duplicate what is already in the HTML below it.
  */
 export async function answerGraph(answer: Answer, topicTitle: string): Promise<string> {
@@ -175,7 +175,7 @@ export async function answerGraph(answer: Answer, topicTitle: string): Promise<s
   return graph(nodes);
 }
 
-/** The knowledge-base index: a WebPage plus its breadcrumb. No FAQ node — the index is a
+/** The knowledge-base index: a WebPage plus its breadcrumb. No FAQ node - the index is a
  *  list of questions, and claiming it answers them would be a claim about the wrong page. */
 export async function answersIndexGraph(): Promise<string> {
   const url = absolute("/answers");

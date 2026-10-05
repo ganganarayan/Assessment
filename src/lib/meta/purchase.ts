@@ -1,8 +1,8 @@
 import { fbcFromFbclid, type CapiUserData } from "@/lib/meta/capi";
 
 /**
- * Meta STANDARD Purchase event name. Every Purchase source — the external
- * thank-you page browser pixel, this server CAPI, and any re-send — MUST use this
+ * Meta STANDARD Purchase event name. Every Purchase source - the external
+ * thank-you page browser pixel, this server CAPI, and any re-send - MUST use this
  * same name AND the same event_id (the Razorpay payment id) or Meta double-counts.
  */
 export const PURCHASE_EVENT_NAME = "Purchase";
@@ -20,7 +20,7 @@ export interface PurchaseAttributionSource {
   userAgent: string | null;
   fbclidTimestamp: number | null; // unix MILLISECONDS
   createdAt: Date;
-  // Geo captured at opt-in — fed to Meta advanced matching (ct/st/country/zp).
+  // Geo captured at opt-in - fed to Meta advanced matching (ct/st/country/zp).
   country?: string | null;
   city?: string | null;
   region?: string | null;

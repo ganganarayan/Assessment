@@ -8,12 +8,12 @@ import { listCapiLogs } from "@/features/events/data";
 
 export const dynamic = "force-dynamic";
 
-const dash = (v: string | null) => (v && v.trim() ? v : "—");
+const dash = (v: string | null) => (v && v.trim() ? v : "-");
 
 /**
  * Assess360 SaaS marketing-funnel dashboard (super-admin). Top-of-funnel landing
  * views + UTM (from PlatformPageView), signups (tenants), and paid (active
- * subscriptions + MRR) — so ad traffic is traceable through to paying tenants.
+ * subscriptions + MRR) - so ad traffic is traceable through to paying tenants.
  */
 export default async function PlatformStatsPage({
   searchParams,
@@ -96,7 +96,7 @@ export default async function PlatformStatsPage({
         <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
           <strong>{unprovisioned.toLocaleString()}</strong> of {s.signups.toLocaleString()} signups have no
           workspace. Tenant provisioning runs after sign-up and logs its failures without
-          surfacing them — check the service logs for <span className="font-mono">tenant auto-provision failed</span>.
+          surfacing them - check the service logs for <span className="font-mono">tenant auto-provision failed</span>.
         </p>
       ) : null}
 
@@ -105,7 +105,7 @@ export default async function PlatformStatsPage({
           <h2 className="text-lg font-semibold tracking-tight">Signup + subscription events sent to Meta</h2>
           <p className="text-sm text-[var(--muted-foreground)]">
             The SaaS funnel&rsquo;s own Conversions API sends, with Meta&rsquo;s reply. An ad account
-            counts these as registrations — if this is empty while Meta shows some, they came
+            counts these as registrations - if this is empty while Meta shows some, they came
             from a different pixel or funnel.
           </p>
         </div>
@@ -147,7 +147,7 @@ export default async function PlatformStatsPage({
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Traffic by UTM</h2>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Landing views grouped by campaign tags — populates from your ads before any signup.
+            Landing views grouped by campaign tags - populates from your ads before any signup.
           </p>
         </div>
         {utm.length === 0 ? (

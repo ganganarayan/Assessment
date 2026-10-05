@@ -5,22 +5,22 @@
  * and clears the "must change password" flag so sign-in works immediately.
  * Hashes with Better Auth's OWN hasher so email+password sign-in verifies it.
  *
- * YOU choose the password — pass it on the command line. It is never stored in
+ * YOU choose the password - pass it on the command line. It is never stored in
  * this file or in git. Use a password of at least 8 characters (Better Auth min).
  *
- * Run it against the linked Railway environment (nothing runs locally — `railway
+ * Run it against the linked Railway environment (nothing runs locally - `railway
  * run` executes this file on your machine with that service's env injected):
  *   railway run npm run db:reset-password -- you@example.com "YourNewPass123"
  *
  * Use the npm script, not a bare `tsx` call. It adds --conditions=react-server,
- * which makes the `server-only` guard — pulled in through auth.ts ->
- * nurture/send.ts — resolve to its empty build. Without that flag the run dies
+ * which makes the `server-only` guard - pulled in through auth.ts ->
+ * nurture/send.ts - resolve to its empty build. Without that flag the run dies
  * with "Cannot find module 'server-only'" (package absent; Next.js aliases it)
  * or, once installed, with "This module cannot be imported from a Client
  * Component module." The long form is:
  *   railway run npx tsx --conditions=react-server scripts/reset-user-password.ts ...
  *
- * TIP: make sure the right environment is linked first — `railway status`.
+ * TIP: make sure the right environment is linked first - `railway status`.
  */
 import "./public-db-url";
 import { PrismaClient } from "@prisma/client";
@@ -37,7 +37,7 @@ async function main() {
     process.exit(1);
   }
 
-  // No superAdminOnly gate here — running this already requires DB access.
+  // No superAdminOnly gate here - running this already requires DB access.
   // promoteOwner restores the platform owner to SUPER_ADMIN if it was demoted.
   const result = await resetCredentialPassword(email, newPassword, { promoteOwner: true });
   if (!result.ok) {

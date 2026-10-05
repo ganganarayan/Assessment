@@ -2,8 +2,8 @@
  * Turn a pasted video embed into a URL that is safe to put in an iframe.
  *
  * WHY NOT JUST RENDER THE PASTED HTML
- * The obvious implementation — store the snippet, drop it in with
- * dangerouslySetInnerHTML — is stored XSS on the most public page the product has.
+ * The obvious implementation - store the snippet, drop it in with
+ * dangerouslySetInnerHTML - is stored XSS on the most public page the product has.
  * Only the platform owner can set it, so the day-to-day risk is low, but it converts
  * a single compromised admin session into script execution for every visitor to the
  * marketing site, forever, with nothing in the UI hinting that it happened.
@@ -11,7 +11,7 @@
  * So nothing the author types ever reaches the DOM as markup. We take the snippet
  * apart, keep ONLY the `src` URL, check its host against an allowlist, and render our
  * own iframe around it. A paste that does not yield an allowed URL is refused at save
- * time with a message naming what is allowed — never silently dropped, because a
+ * time with a message naming what is allowed - never silently dropped, because a
  * blank hero that the owner believes is set is its own kind of failure.
  *
  * Accepts, in order of how people actually paste things:
@@ -20,7 +20,7 @@
  */
 
 /**
- * NO HOST ALLOWLIST — removed at the owner's instruction.
+ * NO HOST ALLOWLIST - removed at the owner's instruction.
  *
  * A list meant every new video host needed a code change and a deploy before a video
  * could go up, which is the wrong trade for a marketing page the owner edits directly.
@@ -28,7 +28,7 @@
  *
  * What still holds: only the src URL is taken out of a pasted snippet, and we render
  * our own iframe around it. So an <iframe> paste from anywhere works immediately, and
- * no attribute from the paste — onload, style, sandbox, srcdoc — reaches the page.
+ * no attribute from the paste - onload, style, sandbox, srcdoc - reaches the page.
  * The protocol check stays, because http: in an https page is blocked by the browser
  * and would store a video that silently never renders.
  */
@@ -41,7 +41,7 @@ export type EmbedParse =
 /**
  * Normalise the share/watch URLs people paste into the URL a player actually embeds.
  * A YouTube watch link in an iframe renders YouTube's "refused to connect" box, which
- * looks like our bug rather than a wrong paste — so fix it instead of rejecting it.
+ * looks like our bug rather than a wrong paste - so fix it instead of rejecting it.
  */
 function normalize(u: URL): URL {
   const host = u.hostname.toLowerCase().replace(/^www\./, "");
@@ -69,7 +69,7 @@ function normalize(u: URL): URL {
 
 /**
  * Parse whatever the owner pasted into a single embeddable URL, or explain why not.
- * Blank input is `ok: false` with an empty error — callers treat blank as "no video"
+ * Blank input is `ok: false` with an empty error - callers treat blank as "no video"
  * and must not surface it as a validation failure.
  */
 export function parseEmbed(input: string | null | undefined): EmbedParse {
@@ -77,7 +77,7 @@ export function parseEmbed(input: string | null | undefined): EmbedParse {
   if (!raw) return { ok: false, error: "" };
 
   // Pull the src out of an iframe snippet; otherwise treat the whole thing as a URL.
-  // Deliberately the ONLY thing read out of the snippet — width, height, title,
+  // Deliberately the ONLY thing read out of the snippet - width, height, title,
   // allow, style and any on* attribute are discarded rather than passed through.
   const iframeSrc = /<iframe[^>]*\ssrc\s*=\s*["']([^"']+)["']/i.exec(raw)?.[1];
   const candidate = iframeSrc ?? raw;
@@ -87,7 +87,7 @@ export function parseEmbed(input: string | null | undefined): EmbedParse {
       ok: false,
       error:
         "That snippet has no <iframe src=…>, so there is nothing to embed. Paste the iframe embed " +
-        "code or the direct video URL. (Script-tag embeds are not supported — tell me the player " +
+        "code or the direct video URL. (Script-tag embeds are not supported - tell me the player " +
         "and I will add it.)",
     };
   }
@@ -99,7 +99,7 @@ export function parseEmbed(input: string | null | undefined): EmbedParse {
     return { ok: false, error: "That is not a valid URL. Paste the embed code or the video link." };
   }
 
-  // http: is rejected as well as javascript:/data: — an insecure frame on an HTTPS page
+  // http: is rejected as well as javascript:/data: - an insecure frame on an HTTPS page
   // is blocked by the browser anyway, so accepting it would store a video that silently
   // never renders.
   if (url.protocol !== "https:") {

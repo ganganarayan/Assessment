@@ -15,7 +15,7 @@ export const answer: Answer = {
       id: "the-real-test",
       heading: "The test to apply to every question",
       answer:
-        "Ask what you would do differently with each possible answer — if the honest reply is nothing, the question is costing you completions for free.",
+        "Ask what you would do differently with each possible answer - if the honest reply is nothing, the question is costing you completions for free.",
       paragraphs: [
         "Most over-long assessments are long because of questions that felt useful to add and have never once changed a decision. Company size, when you serve every size. Industry, when your advice does not vary by industry. These are the ones to cut first, because cutting them costs nothing at all.",
       ],

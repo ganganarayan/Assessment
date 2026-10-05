@@ -15,13 +15,13 @@ import {
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  // Super = DB role SUPER_ADMIN OR the platform owner — so a PLATFORM STAFF (role
+  // Super = DB role SUPER_ADMIN OR the platform owner - so a PLATFORM STAFF (role
   // SUPER_ADMIN) is recognised as super and routed to /admin, and is never asked to
   // create a workspace. A tenant staff has a tenantId and lands on their workspace.
   const isSuper = isSuperAdmin(user);
   const staff = isStaff(user);
   const roleLabel = isSuper ? "Super Admin" : "Admin";
-  // Read the live tenant from the DB — the session copy of tenantId can be stale
+  // Read the live tenant from the DB - the session copy of tenantId can be stale
   // right after self-provisioning (before the next login refreshes the session).
   const dbUser = isSuper
     ? null
@@ -53,13 +53,13 @@ export default async function DashboardPage() {
           <Row label="Name" value={user.name} />
           <Row label="Username (email)" value={user.email} />
           <Row label="Role" value={roleLabel} />
-          {/* "— (platform / none)" read as a missing value, and that reading was half
+          {/* "- (platform / none)" read as a missing value, and that reading was half
               right: a super admin genuinely has no tenant of their own. What they DO
               have is the Platform tenant, which owns everything they create. Saying
               "none" invited exactly the conclusion that something was wrong. */}
           <Row
             label="Workspace"
-            value={user.tenantId ?? (isSuper ? "Platform — not scoped to any tenant" : "No workspace")}
+            value={user.tenantId ?? (isSuper ? "Platform - not scoped to any tenant" : "No workspace")}
           />
         </CardContent>
       </Card>
@@ -87,14 +87,14 @@ export default async function DashboardPage() {
             <CardDescription>
               {tenant
                 ? "Your tenant is provisioned. Your isolated assessment builder is being finalized and will appear here shortly."
-                : "You don't have a workspace yet — create one to start building assessments. Everything in it stays private to you."}
+                : "You don't have a workspace yet - create one to start building assessments. Everything in it stays private to you."}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm text-[var(--muted-foreground)]">
             {tenant ? (
               <>
                 <span>
-                  Everything you build — assessments, leads, webhooks, APIs — stays private to{" "}
+                  Everything you build - assessments, leads, webhooks, APIs - stays private to{" "}
                   <span className="font-mono">{tenant.slug}</span> and can&apos;t be seen by any other tenant.
                 </span>
                 <Link href="/w" className={buttonVariants({ size: "sm" })}>
@@ -103,7 +103,7 @@ export default async function DashboardPage() {
               </>
             ) : staff ? (
               <span>
-                Your staff account isn&apos;t linked to a workspace yet — ask your admin to assign
+                Your staff account isn&apos;t linked to a workspace yet - ask your admin to assign
                 you. (Staff never create their own workspace.)
               </span>
             ) : (

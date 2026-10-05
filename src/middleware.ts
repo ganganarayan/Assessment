@@ -23,7 +23,7 @@ export function middleware(request: NextRequest) {
   const path = nextUrl.pathname;
 
   // Behind Cloudflare for SaaS the Host is rewritten to one Railway routes, and the
-  // customer's real hostname arrives in a header — honoured only with the proxy
+  // customer's real hostname arrives in a header - honoured only with the proxy
   // secret, so it cannot be used to impersonate a tenant. See lib/tenant/forwarded-host.
   const host = effectiveHost(request.headers);
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "";
@@ -74,10 +74,10 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   // Skip tenant/auth resolution for paths that never need it.
-  //   _next        — Next.js build output, image optimizer, HMR
-  //   api          — route handlers (incl. Better Auth) resolve context themselves
-  //   favicon.ico, robots.txt, sitemap.xml — static crawler/browser assets
-  //   .*\..*       — any file with an extension (images, fonts, css, js, ...)
+  //   _next        - Next.js build output, image optimizer, HMR
+  //   api          - route handlers (incl. Better Auth) resolve context themselves
+  //   favicon.ico, robots.txt, sitemap.xml - static crawler/browser assets
+  //   .*\..*       - any file with an extension (images, fonts, css, js, ...)
   matcher: [
     "/((?!_next|api|favicon\\.ico|robots\\.txt|sitemap\\.xml|.*\\..*).*)",
   ],

@@ -49,9 +49,9 @@ export function CrmPendingList({ rows, count }: { rows: CrmPendingRow[]; count: 
           <tbody className="divide-y">
             {rows.map((r) => (
               <tr key={r.id}>
-                <td className="px-2 py-1">{r.contactName ?? "—"}</td>
-                <td className="px-2 py-1 text-[var(--muted-foreground)]">{r.contactEmail ?? "—"}</td>
-                <td className="px-2 py-1 text-[var(--muted-foreground)]">{r.contactPhone ?? "—"}</td>
+                <td className="px-2 py-1">{r.contactName ?? "-"}</td>
+                <td className="px-2 py-1 text-[var(--muted-foreground)]">{r.contactEmail ?? "-"}</td>
+                <td className="px-2 py-1 text-[var(--muted-foreground)]">{r.contactPhone ?? "-"}</td>
               </tr>
             ))}
           </tbody>

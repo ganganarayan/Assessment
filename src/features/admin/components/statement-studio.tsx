@@ -85,7 +85,7 @@ export function StatementStudio({
         <div>
           <h3 className="font-semibold">Target example, easy read</h3>
           <p className="text-sm text-[var(--muted-foreground)]">
-            How {sampleName}&apos;s result reads in the easy-read style — the framing real
+            How {sampleName}&apos;s result reads in the easy-read style - the framing real
             respondents see above your video.
           </p>
         </div>

@@ -13,7 +13,7 @@ export interface NurtureWabaConfig {
   enabled: boolean;
   template: string; // approved Meta template name
   lang: string; // template language code, e.g. "en" / "en_US"
-  vars: string[]; // ordered body variables ({{1}},{{2}}…) — each text or a placeholder
+  vars: string[]; // ordered body variables ({{1}},{{2}}…) - each text or a placeholder
 }
 export interface NurtureConfig {
   email: NurtureEmailConfig;

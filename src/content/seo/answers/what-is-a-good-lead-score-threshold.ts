@@ -25,7 +25,7 @@ export const answer: Answer = {
       id: "which-error-to-prefer",
       heading: "Decide which mistake you would rather make",
       answer:
-        "A lower threshold lets through more time-wasters; a higher one turns away people you could have helped — and the right trade depends on what a sales hour costs you.",
+        "A lower threshold lets through more time-wasters; a higher one turns away people you could have helped - and the right trade depends on what a sales hour costs you.",
       paragraphs: [
         "A team with spare capacity should set the bar lower and accept some noise. A team whose calendar is the bottleneck should set it higher and accept that some good leads are sent elsewhere. The number is a capacity decision as much as a quality one.",
       ],

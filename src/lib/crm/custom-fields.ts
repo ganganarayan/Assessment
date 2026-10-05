@@ -40,7 +40,7 @@ export const CUSTOM_FIELD_LABELS: Record<CustomFieldKey, string> = {
   "contact.assess_profession": "Profession",
 };
 
-/** Default selection — the fields the diagnosis sender used. */
+/** Default selection - the fields the diagnosis sender used. */
 export const CUSTOM_FIELD_DEFAULTS: CustomFieldKey[] = [
   "contact_name",
   "contact_email",
@@ -64,7 +64,7 @@ export interface CustomFieldData {
   scoreRaw: number | null;
   scoreMax: number | null;
   customerId: string | null;
-  /** Stored on the contact so a CRM page can identify CTA clicks — see EmitInput.resultToken. */
+  /** Stored on the contact so a CRM page can identify CTA clicks - see EmitInput.resultToken. */
   resultToken: string | null;
   resultUrl: string | null;
   aiStatement: string | null;

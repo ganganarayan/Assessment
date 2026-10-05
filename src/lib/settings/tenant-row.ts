@@ -1,11 +1,11 @@
 import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 
 /**
- * AppSetting row addressing — ONE place that decides which row a given tenant's
+ * AppSetting row addressing - ONE place that decides which row a given tenant's
  * settings live in.
  *
  * AppSetting.id defaults to the literal "singleton" (the platform's own row), so a
- * tenant row created WITHOUT an explicit id collides with that row's primary key —
+ * tenant row created WITHOUT an explicit id collides with that row's primary key -
  * the first save for any tenant that has no AppSetting row yet fails with P2002 and
  * takes the whole settings page down with it. Every tenant-scoped upsert therefore
  * passes an id, derived from the tenant id so it stays stable and unique per tenant
@@ -14,13 +14,13 @@ import { isPlatformScope } from "@/lib/tenant/platform-tenant";
  * THE PLATFORM ROW HAS TWO NAMES, ON PURPOSE.
  * The platform's settings are the row with `id = "singleton"`. The re-home sets that
  * same row's `tenantId` to PLATFORM_TENANT_ID, so afterwards it is reachable both by
- * its id and by its tenant. Everything here funnels the platform — whether it arrives
- * as null (pre-re-home) or as "platform" (post) — to `{ id: "singleton" }`, so the
+ * its id and by its tenant. Everything here funnels the platform - whether it arrives
+ * as null (pre-re-home) or as "platform" (post) - to `{ id: "singleton" }`, so the
  * lookup hits the one row in both states.
  *
  * Getting this wrong is why it is centralised: an upsert that addressed the platform
  * by `{ tenantId: "platform" }` before the re-home would not match the singleton, and
- * would CREATE a second row — silently splitting the owner's settings in two, with
+ * would CREATE a second row - silently splitting the owner's settings in two, with
  * the live pixel and Razorpay keys in whichever half the reader happened to pick.
  */
 

@@ -113,10 +113,10 @@ export function ResultPageBuilder({
         <div className="flex flex-col">
           <span className="text-sm font-medium">
             {!isLive
-              ? "Unpublished — the result page falls back to the default score cards"
+              ? "Unpublished - the result page falls back to the default score cards"
               : dirtyPub
                 ? "Draft has unpublished changes"
-                : "Published — live version is up to date"}
+                : "Published - live version is up to date"}
           </span>
           <span className="text-xs text-[var(--muted-foreground)]">
             {pending ? "Saving draft…" : "Edits auto-save as a draft. Click Publish to make them live."}
@@ -142,7 +142,7 @@ export function ResultPageBuilder({
         </div>
       </div>
 
-      {/* Live preview — reflects the current draft (blank until you add blocks). The
+      {/* Live preview - reflects the current draft (blank until you add blocks). The
           respondent's real AI statement is substituted here with placeholder text. */}
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium">Preview</span>
@@ -296,7 +296,7 @@ function BlockEditor({
           <Input placeholder="Link URL (https://…)" value={str(c.url)} onChange={(e) => set({ url: e.target.value })} onBlur={onBlur} />
           <p className="text-xs text-[var(--muted-foreground)]">
             Paste a VidaPulse CTA tracking link here and each click is recorded against this
-            respondent — their id is added to the link automatically. Any other link is used
+            respondent - their id is added to the link automatically. Any other link is used
             exactly as typed.
           </p>
           <div className="grid grid-cols-2 gap-2">

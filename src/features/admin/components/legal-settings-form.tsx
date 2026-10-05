@@ -9,12 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 /**
- * Platform legal / company details — the ONE place the company's identity is edited.
+ * Platform legal / company details - the ONE place the company's identity is edited.
  *
  * These appear on the public policy pages (/privacy, /terms, /refund) and, since the SEO
  * work, in the public JSON-LD Organization that search and AI answer engines read. The
  * two surfaces treat a blank field differently on purpose: a policy page shows a visible
- * "set this in Settings" placeholder, while the structured data OMITS the property —
+ * "set this in Settings" placeholder, while the structured data OMITS the property -
  * publishing a placeholder as a registered name is worse than publishing nothing.
  */
 export function LegalSettingsForm({ initial }: { initial: LegalSettingsView }) {

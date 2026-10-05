@@ -16,7 +16,7 @@ import { storage, tenantKey, isStorageConfigured } from "@/lib/storage/r2";
  *    with the admin. Rendering moves to a worker (see worker.ts).
  *
  * 3. Nothing may reveal where a file sits. The object key is never returned to any
- *    client — not in HTML, JSON, headers or a redirect. Reports are STREAMED through
+ *    client - not in HTML, JSON, headers or a redirect. Reports are STREAMED through
  *    the authorising route, so no bucket URL and no signed link ever reaches a browser.
  *
  * WHY THE FILE NAME IS RANDOM
@@ -25,7 +25,7 @@ import { storage, tenantKey, isStorageConfigured } from "@/lib/storage/r2";
  * key, and the pattern makes the rest of the bucket walkable by guessing ids. A random
  * name means a leaked key reveals exactly one file and implies nothing about any other.
  * The tenant folder stays, because it is what makes per-tenant lifecycle rules and
- * bulk deletion possible — and no tenant ever sees it.
+ * bulk deletion possible - and no tenant ever sees it.
  */
 
 /** Per-tenant folder, random file name. Never shown to a client. */
@@ -72,7 +72,7 @@ export async function putStoredReport(
   bytes: Uint8Array,
 ): Promise<string | null> {
   // An unowned submission (pre re-home) has no tenant folder to write into. Rather than
-  // invent one, it simply is not cached — it still renders and serves normally, and it
+  // invent one, it simply is not cached - it still renders and serves normally, and it
   // starts being cached once the re-home gives it a tenant.
   if (!tenantId) return null;
   if (!(await isStorageConfigured())) return null;
@@ -93,17 +93,17 @@ export async function putStoredReport(
  *
  * Call after a retake, a recomputed score, or a regenerated / re-chosen AI statement.
  * Without it the stored PDF keeps being served after the result it describes has moved
- * on — which is worse than a slow report, because a confidently wrong document looks
+ * on - which is worse than a slow report, because a confidently wrong document looks
  * exactly like a correct one.
  *
  * KEEPS THE LATEST TWO, and does it by rotation:
  *   - whatever sat in `reportPrevKey` is now the third-newest, so its object is deleted
- *   - the current report becomes `reportPrevKey` — kept, so a regeneration that turns
+ *   - the current report becomes `reportPrevKey` - kept, so a regeneration that turns
  *     out worse can be rolled back
  *   - `reportKey` is cleared, so the next request renders the new result
  *
  * The delete happens FIRST and the row is updated second. If the delete fails, the
- * pointer still moves and one file is orphaned in the bucket — the alternative ordering
+ * pointer still moves and one file is orphaned in the bucket - the alternative ordering
  * would leave a row pointing at an object that is already gone, which is the failure
  * that actually hurts because it breaks rollback.
  *
@@ -130,7 +130,7 @@ export async function supersedeStoredReport(submissionId: string): Promise<void>
     .catch(() => {});
 }
 
-/** Retire the reports for several submissions — the bulk paths (recompute, AI rerun).
+/** Retire the reports for several submissions - the bulk paths (recompute, AI rerun).
  *  Sequential on purpose: this runs after the real work and must not add a burst of
  *  concurrent storage deletes on top of it. */
 export async function supersedeStoredReports(submissionIds: string[]): Promise<void> {
@@ -140,7 +140,7 @@ export async function supersedeStoredReports(submissionIds: string[]): Promise<v
 /**
  * Put the previous report back as the current one.
  *
- * SWAPS rather than copies, so the report that was current becomes the previous — which
+ * SWAPS rather than copies, so the report that was current becomes the previous - which
  * means rollback is reversible and an operator who rolls back by mistake is not stuck.
  * Neither object is deleted, so the pair is still exactly two.
  *

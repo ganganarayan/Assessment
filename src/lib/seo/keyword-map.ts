@@ -5,7 +5,7 @@ import { answerPath, seoPath } from "./urls";
  * The keyword map, DERIVED from the content rather than maintained beside it.
  *
  * A hand-kept map and a hand-kept set of pages drift within weeks, and the drift is
- * silent — the map still looks authoritative while describing a site that no longer
+ * silent - the map still looks authoritative while describing a site that no longer
  * exists. Generating it means the map cannot be wrong about what we published; it can
  * only be wrong about what we should have.
  *

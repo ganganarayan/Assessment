@@ -6,10 +6,10 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin, isStaff } from "@/lib/auth/guards";
 
-/** Tenant/user management is OWNER-only — never a staff member (even EDIT). */
+/** Tenant/user management is OWNER-only - never a staff member (even EDIT). */
 const OWNER_ONLY = { ok: false as const, error: "Only an owner can manage tenants and users." };
 
-/** The Platform tenant is structural, not a customer — it cannot be deleted. */
+/** The Platform tenant is structural, not a customer - it cannot be deleted. */
 const PLATFORM_UNDELETABLE = {
   ok: false as const,
   error: "The Assess360 Platform tenant is part of the app and can't be deleted.",
@@ -20,14 +20,14 @@ const PLATFORM_UNDELETABLE = {
  * one.
  *
  * WHY THIS EXISTS: the read actions on this page already fail soft, but the writes did
- * not — so a transient database error during a delete escaped as an exception and Next
+ * not - so a transient database error during a delete escaped as an exception and Next
  * replaced the whole console with its error screen. Losing the entire page because one
  * write hit a blip is the wrong failure: the operator cannot see what happened, cannot
  * tell whether the write landed, and cannot retry without a reload. A returned error
  * puts a red line under the heading and leaves everything else usable.
  *
  * `message` is what the operator sees; the real error goes to the server log. This
- * deliberately wraps only the DB work — the auth guards stay outside it, so their
+ * deliberately wraps only the DB work - the auth guards stay outside it, so their
  * redirect (a thrown NEXT_REDIRECT) is never swallowed as a "failure".
  */
 async function softFail(
@@ -74,7 +74,7 @@ export async function exitTenant(): Promise<void> {
 }
 
 /**
- * Delete a tenant — REVERSIBLY. Stamps `deletedAt`; removes nothing.
+ * Delete a tenant - REVERSIBLY. Stamps `deletedAt`; removes nothing.
  *
  * The tenant leaves the active list, its logins can no longer reach the workspace, its
  * custom domains stop resolving and its assessments stop serving. Every assessment,
@@ -102,7 +102,7 @@ export async function deleteTenant(tenantId: string): Promise<ActionResult> {
   }
 
   // Logins stay ATTACHED, unlike the permanent delete. Nothing cascades from a soft
-  // delete, so detaching them would only make Restore incomplete — the tenant would
+  // delete, so detaching them would only make Restore incomplete - the tenant would
   // come back with no admins. requireWorkspace is what keeps them out meanwhile.
   const r = await softFail(
     "deleteTenant",
@@ -132,8 +132,8 @@ export async function restoreTenant(tenantId: string): Promise<ActionResult> {
 }
 
 /**
- * PERMANENTLY delete a tenant and every row it owns — assessments, submissions,
- * domains, webhooks, payments, settings — via the DB cascade. Irreversible.
+ * PERMANENTLY delete a tenant and every row it owns - assessments, submissions,
+ * domains, webhooks, payments, settings - via the DB cascade. Irreversible.
  *
  * Only reachable for a tenant that is ALREADY soft-deleted. That is the safety: the
  * destructive action cannot be reached from the everyday list at all, so no mis-click
@@ -154,7 +154,7 @@ export async function purgeTenant(tenantId: string, confirmSlug: string): Promis
   if (!t.deletedAt) {
     return {
       ok: false,
-      error: "Delete the tenant first — permanent delete is only available from the deleted list.",
+      error: "Delete the tenant first - permanent delete is only available from the deleted list.",
     };
   }
   if ((confirmSlug ?? "").trim().toLowerCase() !== t.slug.toLowerCase()) {
@@ -184,7 +184,7 @@ export async function purgeTenant(tenantId: string, confirmSlug: string): Promis
  * themselves rather than sells to.
  *
  * Why a flag rather than parking them on SCALE: a plan can lapse. A subscription that
- * expires, or a plan column someone edits, silently drops the tenant to FREE — which
+ * expires, or a plan column someone edits, silently drops the tenant to FREE - which
  * turns off Meta CAPI and caps responses at 25 a month on a tenant that may be spending
  * on ads, with no error anywhere. resolvePlan checks this BEFORE the subscription, so
  * an internal tenant cannot be downgraded by accident.
@@ -262,7 +262,7 @@ export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
 
 /**
  * Soft-deleted tenants, for the "Deleted tenants" section. Their counts are still real
- * — showing how many assessments and leads a tenant still holds is the whole point of
+ * - showing how many assessments and leads a tenant still holds is the whole point of
  * the list, because that is what the permanent delete would destroy.
  */
 export async function listDeletedTenants(): Promise<ActionResult<TenantRow[]>> {
@@ -296,7 +296,7 @@ export async function listDeletedTenants(): Promise<ActionResult<TenantRow[]>> {
 }
 
 /**
- * Create a tenant AND its admin login in one step — mirroring signup (name, email,
+ * Create a tenant AND its admin login in one step - mirroring signup (name, email,
  * password all required). The admin can log in immediately. Bypasses the signup
  * auto-provision hook (we assign the intended tenant directly), so no stray tenant.
  * Slug is derived from the name unless provided.
@@ -339,7 +339,7 @@ export async function createTenant(
   const ctx = await auth.$context;
   const hashed = await ctx.password.hash(pw);
   // Same 14-day trial as a self-signup. Without it the tenant is born with no trial and
-  // no subscription, which resolves as PARKED — an owner-created workspace that is
+  // no subscription, which resolves as PARKED - an owner-created workspace that is
   // read-only from its first second.
   const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
   const t = await prisma.tenant.create({ data: { slug: s.data, name: nm, trialEndsAt } });
@@ -359,7 +359,7 @@ export interface PlatformUserRow {
   tenantName: string | null;
   /** Effective super admin: DB role SUPER_ADMIN OR the platform owner (always). */
   isSuper: boolean;
-  /** The permanent platform owner — can never be demoted, assigned, or deleted. */
+  /** The permanent platform owner - can never be demoted, assigned, or deleted. */
   isOwner: boolean;
 }
 
@@ -412,12 +412,12 @@ export async function assignUserToTenant(userId: string, tenantId: string | null
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, role: true } });
   if (!target) return { ok: false, error: "User not found." };
   if (isPlatformOwner(target.email)) return { ok: false, error: "The platform owner isn't a tenant admin." };
-  // Never silently demote a super admin into a tenant — demote explicitly first.
+  // Never silently demote a super admin into a tenant - demote explicitly first.
   if (tenantId && target.role === Role.SUPER_ADMIN) {
     return { ok: false, error: "Remove super-admin access before assigning this login to a tenant." };
   }
   if (tenantId) {
-    // Never assign into a deleted tenant — the login would be attached to a workspace
+    // Never assign into a deleted tenant - the login would be attached to a workspace
     // it cannot enter, which reads as a broken account rather than a deleted business.
     const t = await prisma.tenant.findFirst({
       where: { id: tenantId, deletedAt: null },
@@ -478,7 +478,7 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
   return r;
 }
 
-/** Restore a soft-deleted login (leaves it unassigned — reassign a tenant after). */
+/** Restore a soft-deleted login (leaves it unassigned - reassign a tenant after). */
 export async function restoreUser(userId: string): Promise<ActionResult> {
   if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { deletedAt: true } });

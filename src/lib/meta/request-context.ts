@@ -43,7 +43,7 @@ const EMPTY: MetaRequestContext = {
 
 export async function getMetaRequestContext(): Promise<MetaRequestContext> {
   // Fail-soft: this only enriches match quality. If the dynamic APIs ever throw
-  // (e.g. called outside a request scope), return empty signals — never let it
+  // (e.g. called outside a request scope), return empty signals - never let it
   // surface into the submission flow.
   try {
     const h = await headers();

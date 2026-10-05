@@ -1,11 +1,11 @@
 /**
- * Domain doctor — "why doesn't sign-in work on this host?", answered without signing in.
+ * Domain doctor - "why doesn't sign-in work on this host?", answered without signing in.
  *
  * READ-ONLY. It changes nothing. Auth trusts a host when Railway ROUTES it to this
  * service (see src/lib/tenant/served-host.ts), so this prints exactly what the app
  * sees: the hosts Railway routes, the registered Domain rows, and the env canonical
  * host. If your domain is missing from the Railway list, point it at the service in
- * Railway — that is the whole fix, and no command is needed to "register" it here.
+ * Railway - that is the whole fix, and no command is needed to "register" it here.
  *
  *   railway run --environment production npx tsx scripts/domain-doctor.ts
  *   railway run --environment production npx tsx scripts/domain-doctor.ts assess360.divineleads.guru
@@ -60,17 +60,17 @@ async function main(): Promise<void> {
   const canonical = hostOf(process.env.BETTER_AUTH_URL) || hostOf(process.env.NEXT_PUBLIC_APP_URL);
   const root = (process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "").toLowerCase();
   console.log(`Canonical host (env): ${canonical || "(unset)"}`);
-  console.log(`Root domain (env):    ${root || "(unset)"}  — this host and *.${root} are always trusted`);
+  console.log(`Root domain (env):    ${root || "(unset)"}  - this host and *.${root} are always trusted`);
 
   const routed = await routedHosts();
   if (routed === null) {
-    console.log("\nRailway: NOT configured (missing token or injected IDs) — auth falls back to Domain rows + env.");
+    console.log("\nRailway: NOT configured (missing token or injected IDs) - auth falls back to Domain rows + env.");
   } else {
     console.log(`\nRailway routes ${routed.length} host(s) to this service:`);
     for (const h of routed) console.log(`  ${h}`);
   }
 
-  // The DB is the BACKSTOP, not the answer — and running with the app service's env
+  // The DB is the BACKSTOP, not the answer - and running with the app service's env
   // (which is where the Railway token lives) hands us a DATABASE_URL on Railway's
   // INTERNAL host, unreachable from a laptop. A DB failure must not take the Railway
   // verdict down with it, so it is reported and the run continues.
@@ -86,7 +86,7 @@ async function main(): Promise<void> {
   }
   if (dbError) {
     console.log(`\nDomain rows: could not read the database (${dbError.trim()}).`);
-    console.log("  Not fatal — Railway's list above is what auth uses. Use --service Postgres to read rows.");
+    console.log("  Not fatal - Railway's list above is what auth uses. Use --service Postgres to read rows.");
   } else {
     console.log(`\nDomain rows in the database (${rows.length}):`);
     for (const r of rows) {
@@ -102,7 +102,7 @@ async function main(): Promise<void> {
       target.endsWith(`.${root}`) ||
       (routed?.includes(target) ?? false) ||
       rows.some((r) => r.hostname.toLowerCase() === target);
-    console.log(`\n${target}: ${trusted ? "TRUSTED — sign-in and password reset work here." : "NOT trusted — point it at this service in Railway."}`);
+    console.log(`\n${target}: ${trusted ? "TRUSTED - sign-in and password reset work here." : "NOT trusted - point it at this service in Railway."}`);
   }
 }
 

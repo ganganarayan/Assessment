@@ -27,7 +27,7 @@ export function CapiTester() {
           response. If this says <span className="font-mono">events_received: 1</span>, the app IS
           reaching Meta. Set the event name to <span className="font-mono">Purchase121</span> to test
           that conversion (value 1, INR). Needs <span className="font-mono">META_CAPI_ACCESS_TOKEN</span> on
-          THIS environment — it&apos;s set on prod, not staging.
+          THIS environment - it&apos;s set on prod, not staging.
         </p>
       </div>
 
@@ -58,8 +58,8 @@ export function CapiTester() {
         <div className="rounded-md border p-3 text-sm">
           <p className={result.ok ? "font-medium text-green-600" : "font-medium text-red-500"}>
             {result.ok
-              ? `✓ Meta accepted it (HTTP ${result.status}) — event "${result.eventName}"`
-              : `✗ Failed — event "${result.eventName}"`}
+              ? `✓ Meta accepted it (HTTP ${result.status}) - event "${result.eventName}"`
+              : `✗ Failed - event "${result.eventName}"`}
             {result.datasetId ? ` · dataset ${result.datasetId}` : ""}
           </p>
           {result.response ? (

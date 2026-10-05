@@ -22,7 +22,7 @@ const schema = z.object({
 });
 export type AiSettingsInput = z.infer<typeof schema>;
 
-/** Encrypted-key column for each provider — keys are stored once, per provider. */
+/** Encrypted-key column for each provider - keys are stored once, per provider. */
 const KEY_COLUMN: Record<AiProvider, "aiClaudeKeyEnc" | "aiOpenAiKeyEnc" | "aiGeminiKeyEnc"> = {
   claude: "aiClaudeKeyEnc",
   openai: "aiOpenAiKeyEnc",

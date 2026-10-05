@@ -8,7 +8,7 @@ import { getMetaRequestContext } from "@/lib/meta/request-context";
  * Assess360 SaaS-funnel CAPI events, fired on the PLATFORM pixel (separate from the
  * Gita assessment pixel). Every send is LOGGED to the CAPI log with Meta's own response
  * (scope "platform"), so a signup or subscription that reached Meta can no longer be
- * missing from the app's own numbers. Fail-soft — the logger never throws, so neither
+ * missing from the app's own numbers. Fail-soft - the logger never throws, so neither
  * signup nor checkout is ever blocked by tracking.
  * Each returns the eventId used, so the browser pixel can fire the SAME event with it
  * (Meta dedups on event_name + event_id).
@@ -16,7 +16,7 @@ import { getMetaRequestContext } from "@/lib/meta/request-context";
 
 const SOURCE_URL = `${env.NEXT_PUBLIC_APP_URL}/`;
 
-/** CompleteRegistration — a free sign-up. */
+/** CompleteRegistration - a free sign-up. */
 export async function firePlatformRegistration(input: { email: string | null; eventId?: string }): Promise<string> {
   const eventId = input.eventId ?? randomUUID();
   const ctx = await getMetaRequestContext().catch(() => ({}) as Awaited<ReturnType<typeof getMetaRequestContext>>);
@@ -36,7 +36,7 @@ export async function firePlatformRegistration(input: { email: string | null; ev
   return eventId;
 }
 
-/** Purchase — a subscription activated. value in USD; eventId = the Razorpay payment
+/** Purchase - a subscription activated. value in USD; eventId = the Razorpay payment
  *  id so verify, the webhook, and the browser pixel all dedup to one Purchase. */
 export async function firePlatformPurchase(input: {
   email: string | null;

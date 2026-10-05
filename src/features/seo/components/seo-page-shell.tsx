@@ -10,7 +10,7 @@ import type { Answer, SeoPage } from "@/lib/seo/types";
 import { seoPath } from "@/lib/seo/urls";
 
 /**
- * The one renderer every composed page uses — pillars today, use-case and comparison
+ * The one renderer every composed page uses - pillars today, use-case and comparison
  * pages next, with no second layout to keep in step.
  *
  * Structure is the argument: breadcrumb, H1, the lede that answers the page's own

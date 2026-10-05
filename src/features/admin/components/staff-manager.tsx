@@ -69,15 +69,15 @@ export function StaffManager({ data }: { data: StaffView }) {
           <div className="flex flex-col gap-1">
             <Label>Permission</Label>
             <select className={SELECT} value={permission} onChange={(e) => setPermission(e.target.value as "VIEW" | "EDIT")}>
-              <option value="VIEW">View only — can see everything, cannot edit</option>
-              <option value="EDIT">Edit — can view and edit</option>
+              <option value="VIEW">View only - can see everything, cannot edit</option>
+              <option value="EDIT">Edit - can view and edit</option>
             </select>
           </div>
           {data.isSuper ? (
             <div className="flex flex-col gap-1 sm:col-span-2">
               <Label>Assign to</Label>
               <select className={SELECT} value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
-                <option value="">Platform (super-admin staff — all tenants)</option>
+                <option value="">Platform (super-admin staff - all tenants)</option>
                 {data.tenants.map((t) => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}

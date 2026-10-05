@@ -22,11 +22,11 @@ function createdAtFilter(range?: Range): Prisma.DateTimeFilter | undefined {
 export interface PlatformFunnelStats {
   landingViews: number;
   uniqueViews: number;
-  /** People who completed sign-up — User rows, which is what CompleteRegistration
+  /** People who completed sign-up - User rows, which is what CompleteRegistration
    *  fires on. The platform owner's own account is excluded (it is not a signup). */
   signups: number;
   /** Signups that actually got a workspace. Provisioning happens in a separate
-   *  auth hook that swallows its failures, so a gap here is a real, silent fault —
+   *  auth hook that swallows its failures, so a gap here is a real, silent fault -
    *  which is why it is its own number rather than being reported AS signups. */
   provisioned: number;
   paidCount: number;
@@ -43,7 +43,7 @@ export async function getPlatformFunnelStats(range?: Range): Promise<PlatformFun
     prisma.platformPageView.groupBy({ by: ["visitorId"], where: pvWhere }),
     // Signups are USERS, not tenants. CompleteRegistration fires the moment the
     // account is created; the tenant is provisioned afterwards by a separate auth
-    // hook that logs its failures and moves on — and is skipped entirely for the
+    // hook that logs its failures and moves on - and is skipped entirely for the
     // owner's own account. Counting tenants here reported 0 signups while Meta
     // counted every one of them, with no way to see the two had diverged.
     prisma.user.count({

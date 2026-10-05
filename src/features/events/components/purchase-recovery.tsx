@@ -33,7 +33,7 @@ export function PurchaseRecovery({ purchases }: { purchases: RecentPurchase[] })
         <p className="text-sm font-medium">Re-send a purchase conversion to Meta</p>
         <p className="text-xs text-[var(--muted-foreground)]">
           For sales whose buyer never returned to the browser, so the conversion never fired. Sends the
-          REAL Purchase event — deduped by the Razorpay payment id, so it won&apos;t double-count an
+          REAL Purchase event - deduped by the Razorpay payment id, so it won&apos;t double-count an
           already-tracked sale. Must be within Meta&apos;s ~7-day window. Needs{" "}
           <span className="font-mono">META_CAPI_ACCESS_TOKEN</span> on this environment (prod).
         </p>
@@ -59,9 +59,9 @@ export function PurchaseRecovery({ purchases }: { purchases: RecentPurchase[] })
                 return (
                   <tr key={p.submissionId}>
                     <td className="whitespace-nowrap px-3 py-1.5 text-xs">{formatIST(p.createdAt)}</td>
-                    <td className="px-3 py-1.5 text-xs">{p.email ?? "—"}</td>
-                    <td className="px-3 py-1.5 text-xs">{p.amountRupees != null ? `₹${p.amountRupees}` : "—"}</td>
-                    <td className="px-3 py-1.5 font-mono text-xs">{p.recordedVia ?? "—"}</td>
+                    <td className="px-3 py-1.5 text-xs">{p.email ?? "-"}</td>
+                    <td className="px-3 py-1.5 text-xs">{p.amountRupees != null ? `₹${p.amountRupees}` : "-"}</td>
+                    <td className="px-3 py-1.5 font-mono text-xs">{p.recordedVia ?? "-"}</td>
                     <td className="px-3 py-1.5 text-xs">
                       {p.metaConversionAt ? (
                         <span className="text-green-600">✓ sent {formatIST(p.metaConversionAt)}</span>
@@ -73,7 +73,7 @@ export function PurchaseRecovery({ purchases }: { purchases: RecentPurchase[] })
                       <div className="flex flex-col items-end gap-1">
                         {p.metaConversionAt || r?.ok ? (
                           <>
-                            <Button size="sm" variant="outline" disabled title="Already sent — no action needed">
+                            <Button size="sm" variant="outline" disabled title="Already sent - no action needed">
                               Sent ✓
                             </Button>
                             <button

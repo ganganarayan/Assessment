@@ -24,7 +24,7 @@ const isHttp = (u: string) => /^https?:\/\//i.test(u);
  * Renders the configured post-assessment pages + blocks. Static blocks (text /
  * video / pay button) come from config; dynamic blocks (overall band / band
  * sentence / category breakdown) come from the respondent's result. Category
- * scores are intentionally BLURRED placeholders — the real numbers only appear on
+ * scores are intentionally BLURRED placeholders - the real numbers only appear on
  * the destination/VSL after payment.
  */
 export function ResultPages({
@@ -112,7 +112,7 @@ function Block({
       return (
         <p className="text-center text-lg">
           {prefix ? <span className="text-[var(--muted-foreground)]">{prefix} </span> : null}
-          <strong className="text-2xl">{result.overallBandTitle ?? "—"}</strong>
+          <strong className="text-2xl">{result.overallBandTitle ?? "-"}</strong>
         </p>
       );
     }
@@ -134,9 +134,9 @@ function Block({
                 {result.categories.map((cat) => (
                   <tr key={cat.name}>
                     <td className="px-3 py-2">{cat.name}</td>
-                    <td className="px-3 py-2 text-[var(--muted-foreground)]">{cat.band ?? "—"}</td>
+                    <td className="px-3 py-2 text-[var(--muted-foreground)]">{cat.band ?? "-"}</td>
                     <td className="px-3 py-2 text-right">
-                      {/* Real score is never sent — blurred placeholder until paid. */}
+                      {/* Real score is never sent - blurred placeholder until paid. */}
                       <span className="select-none blur-sm tabular-nums" aria-hidden>88 / 100</span>
                     </td>
                   </tr>

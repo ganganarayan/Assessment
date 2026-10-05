@@ -87,11 +87,11 @@ console.log("Clinic Audit engine verification\n");
 }
 {
   const r = score({ E: 90, B: 20, S: 55, C: 30, V: 185000, D: 350, K: 17, uplifts: [6, 6] });
-  expect("HIGH band (₹5L–₹10L)", r.band === "HIGH", `band=${r.band} gap=${r.gap}`);
+  expect("HIGH band (₹5L-₹10L)", r.band === "HIGH", `band=${r.band} gap=${r.gap}`);
 }
 {
   const r = score({ E: 90, B: 20, S: 55, C: 30, V: 90000, D: 350, K: 17, uplifts: [6, 6] });
-  expect("MODERATE band (₹2L–₹5L)", r.band === "MODERATE", `band=${r.band} gap=${r.gap}`);
+  expect("MODERATE band (₹2L-₹5L)", r.band === "MODERATE", `band=${r.band} gap=${r.gap}`);
 }
 {
   // Well-performing clinic: fast + high rates, no uplift awarded, gap ≈ 0.
@@ -122,20 +122,20 @@ console.log("Clinic Audit engine verification\n");
 // --- Low-enquiries override steps aside for a large ANNUAL gap -------------
 {
   // E just under min (25 < 30), but a high ticket + real uplift produce a big
-  // annual gap — the low-enquiries not-viable override should waive, and the
+  // annual gap - the low-enquiries not-viable override should waive, and the
   // band should be computed normally from the (still real) monthly gap.
   const r = score({ E: 25, B: 12, S: 35, C: 25, V: 300000, D: 1500, K: 30, uplifts: [6, 5, 6, 3] });
   expect("large annual gap waives low-enquiries not-viable", !r.notViable, `notViable=${r.notViable} gap=${r.gap}`);
   expect("  band computed normally, not forced BELOW_THRESHOLD", r.band !== "BELOW_THRESHOLD", `band=${r.band}`);
 }
 {
-  // E under min, but the gap is genuinely small — override must NOT waive it.
+  // E under min, but the gap is genuinely small - override must NOT waive it.
   const r = score({ E: 20, B: 12, S: 35, C: 30, V: 50000, D: 1500, K: 10 });
   expect("small annual gap keeps low-enquiries not-viable", r.notViable, `notViable=${r.notViable} gap=${r.gap}`);
   expect("  band forced BELOW_THRESHOLD", r.band === "BELOW_THRESHOLD", `band=${r.band}`);
 }
 {
-  // Low TICKET (not enquiries) is never waived by the gap — different economics.
+  // Low TICKET (not enquiries) is never waived by the gap - different economics.
   const r = score({ E: 300, B: 45, S: 95, C: 65, V: 18000, D: 1500, K: 30 });
   expect("low-ticket not-viable is absolute (no gap override)", r.notViable, `notViable=${r.notViable}`);
 }
@@ -162,21 +162,21 @@ console.log("Clinic Audit engine verification\n");
 
 // --- Actual-number override (respondent typed an exact figure) -------------
 {
-  // 90 is the "60–120" range midpoint; the respondent actually knows it's 73.
+  // 90 is the "60-120" range midpoint; the respondent actually knows it's 73.
   const raw = build({ E: 90, B: 20, S: 55, C: 30, V: 90000, D: 350, K: 17 });
-  raw[0] = { ...raw[0]!, actualValue: 73, optionLabel: "60–120" };
+  raw[0] = { ...raw[0]!, actualValue: 73, optionLabel: "60-120" };
   const r = scoreClinicAudit(raw, cfg);
   expect("actual number overrides the range midpoint", r.enquiries === 73, `E=${r.enquiries}`);
   expect("  an actual number is never tagged assumed", !r.assumptions.includes("monthly enquiries"));
 }
 {
-  // A real range was picked (NOT "I don't know") but no actual number was typed —
+  // A real range was picked (NOT "I don't know") but no actual number was typed -
   // must still read as an assumption, with the range label carried for the UI tag.
   const raw = build({ E: 90, B: 20, S: 55, C: 30, V: 90000, D: 350, K: 17 });
-  raw[0] = { ...raw[0]!, optionLabel: "60–120" }; // no actualValue, not flagged "don't know" either
+  raw[0] = { ...raw[0]!, optionLabel: "60-120" }; // no actualValue, not flagged "don't know" either
   const r = scoreClinicAudit(raw, cfg);
   expect("blank actual number still tags the range as assumed", r.assumptions.includes("monthly enquiries"));
-  expect("  range label carried through for the UI tag", r.assumedRangeLabel.ENQUIRIES === "60–120", `label=${r.assumedRangeLabel.ENQUIRIES}`);
+  expect("  range label carried through for the UI tag", r.assumedRangeLabel.ENQUIRIES === "60-120", `label=${r.assumedRangeLabel.ENQUIRIES}`);
 }
 
 // --- Unit handling (the 10x bug that produced 100x-wrong revenue) ----------
@@ -190,7 +190,7 @@ console.log("Clinic Audit engine verification\n");
   expect("  the implausible rates are named", r.suspectRoles.includes("SHOWUP_RATE") && r.suspectRoles.includes("CLOSE_RATE"), `${r.suspectRoles.join()}`);
 }
 {
-  // Same answers, but the questions declare PER_10 — 7 now means 70%, 2 means 20%.
+  // Same answers, but the questions declare PER_10 - 7 now means 70%, 2 means 20%.
   const raw = build({ E: 100, B: 10, S: 7, C: 2, V: 100000, D: 1500, K: 10 }).map((a) =>
     a.role === "SHOWUP_RATE" || a.role === "CLOSE_RATE" ? { ...a, unit: "PER_10" as const } : a,
   );
@@ -369,7 +369,7 @@ console.log("Clinic Audit engine verification\n");
   const zero = wholePatientView({ casesNow: 0, casesPotential: 0, casesPm: 0,
     treatmentValue: V, adBudget: 0, serviceFee: 0 });
   expect("a zero funnel yields zero money", zero.revenueNow === 0 && zero.gap === 0);
-  // A sub-half funnel rounds to 0 patients — the money must follow, never showing
+  // A sub-half funnel rounds to 0 patients - the money must follow, never showing
   // revenue beside "0 patients".
   const tiny = wholePatientView({ casesNow: 0.3, casesPotential: 0.4, casesPm: 0,
     treatmentValue: V, adBudget: 0, serviceFee: 0 });
@@ -379,8 +379,8 @@ console.log("Clinic Audit engine verification\n");
 
 // ---------------------------------------------------------------------------
 // Rate normalization: a rate reads the number the way a human meant it and can
-// never exceed 100%. The real-world bug — a show-up midpoint of 7.5 passing through
-// undivided (750%), a close rate typed as 65 — must resolve to 75% / 65%, never to
+// never exceed 100%. The real-world bug - a show-up midpoint of 7.5 passing through
+// undivided (750%), a close rate typed as 65 - must resolve to 75% / 65%, never to
 // impossible cases or crore revenue.
 // ---------------------------------------------------------------------------
 {
@@ -392,7 +392,7 @@ console.log("Clinic Audit engine verification\n");
   expect("normalize: 0 stays 0", normalizeRateFraction(0, "PER_100") === 0);
 
   // A show-up option midpoint of 7.5 (label "7 or 8") on a mis-set COUNT unit, and a
-  // close rate typed as 65 — the exact shape that produced 750% / ₹14cr.
+  // close rate typed as 65 - the exact shape that produced 750% / ₹14cr.
   const bug: RawAnswer[] = [
     { role: "ENQUIRIES", value: 300 },
     { role: "BOOK_RATE", value: 20, unit: "PER_100" }, // 20%

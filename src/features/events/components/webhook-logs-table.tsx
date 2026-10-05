@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatIST } from "@/lib/date";
 
-// IST across the whole app (matches Submissions/Contacts) — never the raw UTC ISO.
+// IST across the whole app (matches Submissions/Contacts) - never the raw UTC ISO.
 const fmt = (iso: string) => formatIST(iso);
 
 const STATUS: Record<EventActivityRow["deliveryStatus"], { label: string; variant: "success" | "outline" | "muted" }> = {
@@ -86,11 +86,11 @@ function RowGroup({
         <td className="px-3 py-1.5 text-[var(--muted-foreground)]">{open ? "▾" : "▸"}</td>
         <td className="whitespace-nowrap px-3 py-1.5 text-xs">{fmt(row.createdAt)}</td>
         <td className="px-3 py-1.5 font-mono text-xs">{row.eventName}</td>
-        <td className="px-3 py-1.5 text-xs">{row.leadEmail ?? "—"}</td>
+        <td className="px-3 py-1.5 text-xs">{row.leadEmail ?? "-"}</td>
         <td className="px-3 py-1.5">
           <Badge variant={status.variant}>{status.label}</Badge>
         </td>
-        <td className="px-3 py-1.5">{row.responseStatus ?? "—"}</td>
+        <td className="px-3 py-1.5">{row.responseStatus ?? "-"}</td>
       </tr>
       {open ? (
         <tr className="bg-[var(--muted)]/40">
@@ -102,7 +102,7 @@ function RowGroup({
                 <Field label="Method" value="POST" mono />
                 <Field label="Sent at (IST)" value={fmt(row.createdAt)} />
                 <Field label="Event" value={row.eventName} mono />
-                <Field label="URL" value={row.endpoint ?? "—"} mono wrap />
+                <Field label="URL" value={row.endpoint ?? "-"} mono wrap />
                 <p className="mt-1 text-xs font-semibold uppercase text-[var(--muted-foreground)]">Payload sent</p>
                 <pre className="max-h-80 overflow-auto rounded-md border bg-[var(--background)] p-3 text-xs leading-relaxed">
                   {row.payload}
@@ -115,7 +115,7 @@ function RowGroup({
                 <Field label="Status">
                   <Badge variant={status.variant}>{status.label}</Badge>
                 </Field>
-                <Field label="HTTP status" value={row.responseStatus != null ? String(row.responseStatus) : "—"} />
+                <Field label="HTTP status" value={row.responseStatus != null ? String(row.responseStatus) : "-"} />
                 <Field label="Attempts" value={String(row.attemptCount)} />
                 <p className="mt-1 text-xs font-semibold uppercase text-[var(--muted-foreground)]">
                   {row.error ? "Error" : "Body received"}
@@ -131,7 +131,7 @@ function RowGroup({
                   </div>
                 ) : row.deliveryStatus !== "delivered" ? (
                   <p className="text-xs text-[var(--muted-foreground)]">
-                    Retry unavailable — no active webhook for this event.
+                    Retry unavailable - no active webhook for this event.
                   </p>
                 ) : null}
               </div>

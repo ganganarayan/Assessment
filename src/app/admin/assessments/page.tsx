@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
 
-/** Assessments: the PUBLISHED (live) assessments only — an overview with public
+/** Assessments: the PUBLISHED (live) assessments only - an overview with public
  *  links. Editing/creating lives in the Assessment Builder. */
 export default async function AssessmentsPage() {
   const all = await listAssessments(await actingDataScope());

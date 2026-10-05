@@ -74,7 +74,7 @@ export interface SubmissionExportFilter {
   assessmentId?: string;
   /** Explicit "Data window" floor to apply (createdAt >= floor). Pass `null`
    *  to disable filtering entirely. Omit to fall back to the global platform
-   *  floor — only meaningful for the fully unscoped, platform-wide export. */
+   *  floor - only meaningful for the fully unscoped, platform-wide export. */
   floor?: Date | null;
 }
 
@@ -85,7 +85,7 @@ export async function listSubmissionsForExport(
   filter: SubmissionExportFilter = {},
 ): Promise<SubmissionExportRow[]> {
   const floor = filter.floor !== undefined ? filter.floor : await getStatsFloor();
-  // Billing gate: a TENANT export never includes over-cap (locked) leads — excluded at
+  // Billing gate: a TENANT export never includes over-cap (locked) leads - excluded at
   // query time so the EXPORT_CAP still fills with visible rows. The platform/super-admin
   // export (no tenantId filter) is never capped. A null periodSeq is always included.
   let capWhere: Prisma.SubmissionWhereInput = {};
@@ -144,7 +144,7 @@ export async function listSubmissionsForExport(
 
   // Resolve the VidaPulse `cid` param per distinct tenant (an export may span tenants
   // in the platform view), so each row's Result URL carries the customer id alongside
-  // the token — the link operators re-send for VSL nurture.
+  // the token - the link operators re-send for VSL nurture.
   const paramByTenant = new Map<string | null, string | null>();
   for (const tid of new Set(subs.map((s) => s.assessment?.tenantId ?? null))) {
     paramByTenant.set(tid, await vidapulseParamForTenant(tid));

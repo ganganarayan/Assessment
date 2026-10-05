@@ -14,7 +14,7 @@ import {
  * SECURITY: this endpoint is fail-closed. It REQUIRES a shared secret
  * (CRM_HOOK_SECRET) via `Authorization: Bearer <secret>`. If the secret is not
  * configured, the endpoint refuses all requests. The response NEVER echoes the
- * lead PII payload back to the caller — only a delivery flag.
+ * lead PII payload back to the caller - only a delivery flag.
  *
  * Note: the normal public flow already fires this notification server-side on
  * completion (see actions/submission.ts); this route is only for ops/retries.

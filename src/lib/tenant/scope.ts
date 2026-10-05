@@ -6,9 +6,9 @@
  * ways depending on the file:
  *
  *   - the read paths (analytics, contacts, stats) pinned `tenantId: null`
- *     literally — meaning "the platform's OWN rows"
+ *     literally - meaning "the platform's OWN rows"
  *   - the write paths (tenantScope) turned it into `{}`
- *     — meaning "every tenant, show everything"
+ *     - meaning "every tenant, show everything"
  *
  * Same value, contradictory meanings, so the same scope produced a populated
  * Submissions list and an empty Stats page. Making the two cases separate
@@ -32,7 +32,7 @@ export type Scope =
    * This is the one place the old null survives, and it is here because it is a real
    * state of the data, not a meaning: until the backfill runs, some rows genuinely have
    * no owner. It is reached only via `ownerScopeOf()`, for questions of the form "the
-   * other rows belonging to whoever owns this one" — e.g. which assessments a routing
+   * other rows belonging to whoever owns this one" - e.g. which assessments a routing
    * rule may jump to. Answering that with `all` would offer another tenant's rows as
    * targets; answering it with the Platform tenant would return nothing at all while
    * the rows are still unowned.
@@ -55,7 +55,7 @@ export const ALL_TENANTS: Scope = { kind: "all" };
  *   where: { ...whereScope(scope), status: "COMPLETED" }
  *
  * `{ kind: "all" }` contributes NO tenant filter, which is the whole point of the
- * variant being explicit — an unscoped read is now something a caller asks for by
+ * variant being explicit - an unscoped read is now something a caller asks for by
  * name rather than something a null falls into.
  */
 export function whereScope(scope: Scope): { tenantId?: string | null } {
@@ -70,7 +70,7 @@ export function whereScope(scope: Scope): { tenantId?: string | null } {
  * re-home yields the transitional `unowned` scope, so sibling lookups keep matching
  * the same set the row itself belongs to.
  *
- * This is NOT for resolving a caller's permissions — use the acting scope for that.
+ * This is NOT for resolving a caller's permissions - use the acting scope for that.
  */
 export function ownerScopeOf(tenantId: string | null | undefined): Scope {
   return tenantId ? tenantOnly(tenantId) : { kind: "unowned" };

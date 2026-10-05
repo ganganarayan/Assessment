@@ -1,5 +1,5 @@
 /**
- * Per-question breakdown for one submission — the question text, the option the
+ * Per-question breakdown for one submission - the question text, the option the
  * respondent chose, and the weighted points it contributed. PURE (no DB) so it is
  * shared by the completion path (in-hand data) and the live loader (DB data), and
  * is unit-testable. Only ANSWERED questions are included, matching the scoring

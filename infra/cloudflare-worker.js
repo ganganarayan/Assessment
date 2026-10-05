@@ -1,11 +1,11 @@
 /**
- * Assess360 — Cloudflare for SaaS edge Worker.
+ * Assess360 - Cloudflare for SaaS edge Worker.
  *
  * WHAT IT SOLVES
  * Railway routes by Host header. A Cloudflare custom hostname forwards the customer's
  * own hostname (assess.acme.com), which Railway has never heard of, so the request
  * 404s before it reaches the app. Registering each host with Railway instead would
- * consume one custom-domain slot per tenant — the per-service cap this whole setup
+ * consume one custom-domain slot per tenant, the per-service cap this whole setup
  * exists to escape.
  *
  * So the Worker rewrites the request to a host Railway DOES route, and carries the
@@ -47,7 +47,7 @@ export default {
     headers.set("x-assess-proxy", env.PROXY_SECRET);
 
     // Host must match the origin we are actually connecting to, or Railway's router
-    // rejects it — that rewrite is the entire point of this Worker.
+    // rejects it, that rewrite is the entire point of this Worker.
     headers.set("host", env.ORIGIN_HOST);
 
     const proxied = new Request(url.toString(), {

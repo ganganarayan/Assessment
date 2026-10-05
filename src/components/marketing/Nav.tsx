@@ -52,7 +52,7 @@ export function Nav({ anchorBase = "" }: { anchorBase?: string }) {
         <div className="flex items-center gap-2 sm:gap-3">
           <ThemeToggle />
           {/* Returning customers had no way in from the marketing page: the only route to
-              /sign-in was the footer's legal row or typing the URL. Ghost, not outline —
+              /sign-in was the footer's legal row or typing the URL. Ghost, not outline -
               a secondary action next to the trial CTA, which stays the only filled
               button on the page. */}
           <Link

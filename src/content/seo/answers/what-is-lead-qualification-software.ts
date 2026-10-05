@@ -18,7 +18,7 @@ export const answer: Answer = {
       id: "what-it-does",
       heading: "What it actually does",
       answer:
-        "It asks a prospect a short set of questions, scores their answers against criteria you define, and returns a verdict — qualified, not qualified, or somewhere in between — along with the reasoning.",
+        "It asks a prospect a short set of questions, scores their answers against criteria you define, and returns a verdict - qualified, not qualified, or somewhere in between - along with the reasoning.",
       paragraphs: [
         "The criteria are yours, not the vendor's. A recruitment firm might weight hiring volume and time-to-fill; a clinic might weight treatment type and distance from the practice. The software supplies the scoring mechanism and the hosting; you supply the definition of a good customer.",
       ],

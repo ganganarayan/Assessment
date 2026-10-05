@@ -181,7 +181,7 @@ export function AssessmentForm({
   basePath?: string;
   /** The tenant's AI instruction versions, for the per-assessment selector. */
   promptVersions?: { id: string; label: string }[];
-  /** Other assessments in scope (excluding this one) — targets for the audience
+  /** Other assessments in scope (excluding this one) - targets for the audience
    *  gate's "None of the above" onward route. `published` flags whether the target
    *  is live (a draft can't be redirected to yet). */
   assessmentOptions?: { id: string; title: string; slug: string; published?: boolean }[];
@@ -452,7 +452,7 @@ export function AssessmentForm({
                   </span>
                 </label>
                 <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-xs text-[var(--muted-foreground)]">
-                  Suggestions come from your <strong>default audience list</strong> — edit it and clean
+                  Suggestions come from your <strong>default audience list</strong> - edit it and clean
                   up typed answers on the <strong>Audiences</strong> screen. Values that don&apos;t match
                   a suggestion are still saved. Free text can&apos;t route to another assessment; use
                   Dropdown mode for that.
@@ -510,7 +510,7 @@ export function AssessmentForm({
               <p className="border-t pt-3 text-xs text-[var(--muted-foreground)]">
                 To add a &ldquo;None of the above&rdquo; choice, add a role with that label and point
                 it at another assessment. Targets are picked from your assessments (the link is built
-                automatically — never mistyped). A <strong>draft</strong> target still shows in the
+                automatically - never mistyped). A <strong>draft</strong> target still shows in the
                 list but only works once you publish it. Loops back to this assessment are blocked on save.
               </p>
             ) : null}
@@ -652,7 +652,7 @@ export function AssessmentForm({
                 </label>
                 <p className="text-xs text-[var(--muted-foreground)]">
                   On: when someone finishes, the completion event fires as normal and they are
-                  sent straight to sign-up with their email already filled in — instead of a
+                  sent straight to sign-up with their email already filled in - instead of a
                   result page. Someone who already has an account goes to sign-in instead.
                   Platform-owned assessments only.
                 </p>
@@ -719,7 +719,7 @@ export function AssessmentForm({
             <p className="text-sm font-medium">Heatmap / session recording</p>
             <p className="text-xs text-[var(--muted-foreground)]">
               Paste a recording snippet (e.g. MS Clarity) for THIS assessment. It runs across the
-              whole funnel — opt-in, each question, and the result. Blank = use the workspace
+              whole funnel - opt-in, each question, and the result. Blank = use the workspace
               default from Settings (if any).
             </p>
             <Textarea
@@ -766,15 +766,15 @@ export function AssessmentForm({
             <p className="text-sm font-medium">Retake policy</p>
             <p className="text-xs text-[var(--muted-foreground)]">
               Controls how often a respondent (identified below) may retake. Preserves
-              history — each retake is a new submission.
+              history - each retake is a new submission.
             </p>
 
             <fieldset className="flex flex-col gap-2">
               <legend className="text-sm font-medium">Allow retakes?</legend>
               {[
-                { v: "DELAYED", label: "Delayed — allow again after a cooling period" },
-                { v: "NEVER", label: "Never — one submission only" },
-                { v: "UNLIMITED", label: "Unlimited — immediate retakes" },
+                { v: "DELAYED", label: "Delayed - allow again after a cooling period" },
+                { v: "NEVER", label: "Never - one submission only" },
+                { v: "UNLIMITED", label: "Unlimited - immediate retakes" },
               ].map((o) => (
                 <label key={o.v} className="flex items-center gap-2 text-sm">
                   <input
@@ -844,7 +844,7 @@ export function AssessmentForm({
               Use an AI personal statement in the results
             </label>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Off = no AI message is generated or shown — the scores, bands and your template convey
+              Off = no AI message is generated or shown - the scores, bands and your template convey
               the result. When on, pick which system-prompt version drives it (manage under AI →
               System prompt versions).
             </p>
@@ -930,7 +930,7 @@ export function AssessmentForm({
                 />
                 <span>
                   <span className="font-medium">Destination page (VSL)</span>
-                  <span className="block text-xs text-[var(--muted-foreground)]">No payment — submit goes straight to the destination page (carrying the token).</span>
+                  <span className="block text-xs text-[var(--muted-foreground)]">No payment - submit goes straight to the destination page (carrying the token).</span>
                 </span>
               </label>
               <label className="flex items-start gap-2">
@@ -943,14 +943,14 @@ export function AssessmentForm({
                 />
                 <span>
                   <span className="font-medium">Show results on assess360</span>
-                  <span className="block text-xs text-[var(--muted-foreground)]">No external VSL — show the results on our own result page. Webhooks/CRM firing stays the same.</span>
+                  <span className="block text-xs text-[var(--muted-foreground)]">No external VSL - show the results on our own result page. Webhooks/CRM firing stays the same.</span>
                 </span>
               </label>
               {values.nextStep === "RESULTS" ? (
                 <div className="ml-6 flex flex-col gap-3 border-l-2 pl-4">
                   <p className="text-xs text-[var(--muted-foreground)]">
                     Optional: add a button at the bottom of the results page that sends the respondent
-                    to your own page (e.g. a Power Tools page). Plain link — no token is appended.
+                    to your own page (e.g. a Power Tools page). Plain link - no token is appended.
                     Leave blank for no button.
                   </p>
                   <div className="flex flex-col gap-2">
@@ -1020,7 +1020,7 @@ export function AssessmentForm({
                   />
                   <p className="text-xs text-[var(--muted-foreground)]">
                     Fired to Meta (CAPI + browser pixel, deduped) on a verified payment, with value +
-                    currency. Custom + price-independent — keep it stable as you change the price.
+                    currency. Custom + price-independent - keep it stable as you change the price.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -1041,7 +1041,7 @@ export function AssessmentForm({
                     placeholder="After the assessment, unlock your score + a 1-on-1 consultation with GND for ₹199."
                   />
                   <p className="text-xs text-[var(--muted-foreground)]">
-                    Shown on the opt-in form before they start — so the payment is no surprise.
+                    Shown on the opt-in form before they start - so the payment is no surprise.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">

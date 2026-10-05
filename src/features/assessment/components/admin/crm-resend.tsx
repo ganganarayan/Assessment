@@ -144,7 +144,7 @@ export function CrmResend() {
       <p className="text-xs text-[var(--muted-foreground)]">
         Sends each contact whose data changed in-app (band recompute / AI re-run) as{" "}
         <code>contact.event_type = score_updated</code>, in the background, inside the daily IST window
-        below, one every random delay. Fires WhatsApp — keep the gap generous.
+        below, one every random delay. Fires WhatsApp - keep the gap generous.
       </p>
 
       <div className="flex flex-col gap-2">

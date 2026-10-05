@@ -8,7 +8,7 @@ import { retryPendingWebhooks } from "@/lib/webhooks/retry";
  *   POST /api/cron/retry-webhooks   Authorization: Bearer <CRON_SECRET>
  *
  * Primary scheduling is Railway Cron running `scripts/retry-webhooks.ts` every
- * ~1–2 min so the first retry (+2 min) fires close to on time. Fail-closed if no
+ * ~1-2 min so the first retry (+2 min) fires close to on time. Fail-closed if no
  * secret is configured.
  */
 export const dynamic = "force-dynamic";

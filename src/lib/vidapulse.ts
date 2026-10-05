@@ -1,11 +1,11 @@
 /**
- * VidaPulse identity bridge — the tiny, pure surface shared by the server (result
+ * VidaPulse identity bridge - the tiny, pure surface shared by the server (result
  * data action) and the client (VSL video block + destination redirect).
  *
  * The idea (borrowed from Meta `external_id` / Google `user_id`): we mint one opaque,
  * NON-PII id (Submission.customerId) and hand it to VidaPulse verbatim through the
  * embed URL, so VidaPulse can bind its own customer/click record to ours. Only the
- * opaque token ever crosses — never name/email/phone — so it is safe in a URL.
+ * opaque token ever crosses - never name/email/phone - so it is safe in a URL.
  *
  * Kept in a plain module (no "use server") so both the client component and server
  * action can import it without pulling a server action into the bundle.
@@ -51,7 +51,7 @@ export function appendVidapulseId(
 }
 
 /**
- * True for a VidaPulse CTA *tracking* link — the redirect that records a click
+ * True for a VidaPulse CTA *tracking* link - the redirect that records a click
  * before forwarding to the real destination:
  *   https://app.vidapulse.io/api/analytics/cta/link/<uuid>
  *   https://app.vidapulse.io/api/analytics/cta/<video uuid>?to=...
@@ -74,8 +74,8 @@ export function isVidapulseCtaUrl(url: string | null | undefined): boolean {
  * Stamp a VidaPulse CTA tracking link with who is clicking it.
  *
  * WHY BOTH IDS, AND WHY IN THE URL
- * The token (`t`) rides on every link this app emits — fresh completions and
- * every email/WhatsApp nurture link alike — so it is the one that is reliably
+ * The token (`t`) rides on every link this app emits - fresh completions and
+ * every email/WhatsApp nurture link alike - so it is the one that is reliably
  * present; the customerId (`cid`) is the opaque join key. Both are sent, and
  * VidaPulse stores both.
  *

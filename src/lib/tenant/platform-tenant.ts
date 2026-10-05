@@ -1,10 +1,10 @@
 /**
- * The Platform tenant — the SaaS itself, as a real Tenant row.
+ * The Platform tenant - the SaaS itself, as a real Tenant row.
  *
  * WHY A FIXED ID, NOT A CUID
  * Every other tenant gets `@default(cuid())`. This one is pinned to the literal
  * string "platform" so that recognising it is a string compare instead of a DB
- * lookup — `isPlatformTenant()` is called on hot paths (billing gates, Meta config
+ * lookup - `isPlatformTenant()` is called on hot paths (billing gates, Meta config
  * resolution) where an extra query per request would be a real cost, and a cached
  * lookup would need invalidation for a row that never changes.
  *
@@ -26,7 +26,7 @@
 /**
  * The Tenant.id of the Platform tenant. Seeded by the
  * 20260930000000_platform_tenant migration (slug "platform", name
- * "Assess360 Platform", plan SCALE) — never generated at runtime.
+ * "Assess360 Platform", plan SCALE) - never generated at runtime.
  */
 export const PLATFORM_TENANT_ID = "platform";
 
@@ -49,7 +49,7 @@ export function isPlatformScope(tenantId: string | null | undefined): boolean {
 }
 
 /**
- * True when this id is a real BUSINESS tenant — i.e. not the platform and not a legacy
+ * True when this id is a real BUSINESS tenant - i.e. not the platform and not a legacy
  * null. Written as a type predicate so that `if (!isBusinessTenant(id)) return ...`
  * narrows `id` to `string` for the rest of the function; the gates below it index
  * per-tenant tables by that id, and TypeScript has to know it cannot be null.

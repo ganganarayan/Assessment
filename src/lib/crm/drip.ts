@@ -16,15 +16,15 @@ import { istHour, inWindow, msUntilWindowOpen, randomDelayMs } from "@/lib/crm/w
  *  - Atomic claim: a row is sent only by the loop that flips it PENDING -> SENDING
  *    (conditional updateMany), so even two briefly-overlapping loops never double-send.
  *  - Generation token: each started loop gets a fresh `gen`; it runs only while it is
- *    the current generation, so a Stop/restart supersedes it and it exits — never two
+ *    the current generation, so a Stop/restart supersedes it and it exits - never two
  *    live loops for one kind.
  *  - The persisted "armed" flag (crmDripActive / crmCustomActive) is set false ONLY by
  *    an explicit Stop or by boot reconciliation (armed + nothing pending). The loop's
  *    finally never writes it, so a finally-vs-Start race can't strand a stale flag.
  *
  * Survives deploys: instrumentation calls resumeDripOnBoot() on every start, which
- * resets orphaned SENDING rows (crash mid-send) to FAILED — never silently re-sent,
- * important because SCORE fires WhatsApp — and re-arms each armed kind with pending
+ * resets orphaned SENDING rows (crash mid-send) to FAILED - never silently re-sent,
+ * important because SCORE fires WhatsApp - and re-arms each armed kind with pending
  * work. A row is marked SENT right after a successful POST, then the delay runs, so a
  * restart during the (long) gap loses/repeats nothing. Single replica only.
  */
@@ -122,7 +122,7 @@ async function loop(kind: CrmSendKind, gen: number): Promise<void> {
 
       const cfg = await readConfig(kind);
 
-      // Window gate — pause until the IST window next opens (capped so Stop/edits are
+      // Window gate - pause until the IST window next opens (capped so Stop/edits are
       // seen), then re-check. Nothing is claimed while closed.
       if (!inWindow(istHour(), cfg.startHour, cfg.endHour)) {
         await interruptibleSleep(kind, gen, Math.min(msUntilWindowOpen(new Date(), cfg.startHour), WINDOW_RECHECK_MS));
@@ -197,7 +197,7 @@ export async function stopWorker(kind: CrmSendKind): Promise<void> {
 export async function resumeDripOnBoot(): Promise<void> {
   try {
     await prisma.crmSendQueue
-      .updateMany({ where: { status: "SENDING" }, data: { status: "FAILED", lastError: "interrupted by restart — retry to resend" } })
+      .updateMany({ where: { status: "SENDING" }, data: { status: "FAILED", lastError: "interrupted by restart - retry to resend" } })
       .catch(() => {});
 
     const s = await prisma.appSetting.findUnique({

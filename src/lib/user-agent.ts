@@ -1,7 +1,7 @@
 /**
  * Tiny, dependency-free User-Agent parser → device type / browser / OS. Pure and
  * unit-testable. Deliberately coarse: it classifies the common cases for analytics
- * (mobile vs desktop, which browser/OS family) — not a full UA database. Order
+ * (mobile vs desktop, which browser/OS family) - not a full UA database. Order
  * matters: more specific tokens are tested before generic ones.
  */
 export interface ParsedUserAgent {

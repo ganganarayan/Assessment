@@ -39,7 +39,7 @@ export async function recordOptinView(
   attribution?: Record<string, string>,
 ): Promise<void> {
   try {
-    // Global write ceiling — blunts bulk inflation regardless of cookie/IP spoofing.
+    // Global write ceiling - blunts bulk inflation regardless of cookie/IP spoofing.
     if (!rateLimit("pv:global", 5000)) return;
 
     const a = await prisma.assessment.findFirst({
@@ -75,7 +75,7 @@ export async function recordOptinView(
     };
 
     // Classify the client: Meta's ad-review agent + crawlers execute JS (so they
-    // reach this beacon) but carry no UTM — flag them so human metrics exclude the
+    // reach this beacon) but carry no UTM - flag them so human metrics exclude the
     // hit while the log still shows it. userAgent + IP stored for audit/triage.
     const h = await headers();
     const ua = h.get("user-agent");
@@ -127,11 +127,11 @@ export async function recordOptinView(
  *
  * This is the only trace such a person leaves: the opt-in (and therefore the
  * Submission) is the LAST step, so someone who qualifies and then leaves has no
- * row anywhere — and they are exactly who is worth retargeting.
+ * row anywhere - and they are exactly who is worth retargeting.
  *
  * The row stores the Meta match signals captured HERE, server-side, because the
  * AssessmentAbandoned event is not fired now. It is fired hours later by the
- * sweep, once we can actually tell whether they finished — by which time the
+ * sweep, once we can actually tell whether they finished - by which time the
  * browser is long gone. (A page cannot reliably report its own departure: a
  * closed tab runs no JavaScript, so an "I'm leaving" pixel would miss most of
  * the people we're trying to catch.)
@@ -139,7 +139,7 @@ export async function recordOptinView(
  * Upserted on (assessment, visitor), so re-entering the funnel refreshes the
  * signals instead of queueing a second abandonment event for the same person.
  *
- * PUBLIC server action — bounded by a rate limit, ignores bots, and requires a
+ * PUBLIC server action - bounded by a rate limit, ignores bots, and requires a
  * PUBLISHED assessment with the gate actually live. Fully fail-soft.
  */
 export async function recordGatePass(
@@ -219,12 +219,12 @@ const gateDisqualificationSchema = z.object({
 export type GateDisqualificationInput = z.input<typeof gateDisqualificationSchema>;
 
 /**
- * Record ONE qualification-gate rejection — the mirror of recordGatePass, for the
+ * Record ONE qualification-gate rejection - the mirror of recordGatePass, for the
  * visitors the gate turns away.
  *
  * The gate deliberately creates no lead, submission or result, so without this row a
  * disqualified visitor is invisible to every in-app metric while Meta still counts the
- * exclusion event — which is how a funnel reads 0 in the app and non-zero in Meta.
+ * exclusion event - which is how a funnel reads 0 in the app and non-zero in Meta.
  *
  * ASSESSMENT FUNNEL ONLY. The SaaS signup and subscription paths have no gate and
  * must never call this.
@@ -241,20 +241,20 @@ export async function recordGateDisqualification(
     if (!rateLimit("gdq:global", 5000)) return;
 
     const parsed = gateDisqualificationSchema.safeParse(input);
-    if (!parsed.success) return; // malformed payload — never a reason to disturb the visitor
+    if (!parsed.success) return; // malformed payload - never a reason to disturb the visitor
     const { questionId, optionId, repeat, externalId } = parsed.data;
 
     const a = await prisma.assessment.findFirst({
       where: { slug, status: "PUBLISHED" },
       // disqualified/qualification/fireMetaCapi decide whether GateDisqualified is
-      // sent from here — the browser no longer fires it.
+      // sent from here - the browser no longer fires it.
       select: { id: true, slug: true, title: true, tenantId: true, disqualifiedContent: true, qualification: true, fireMetaCapi: true, metaEvents: true },
     });
     if (!a) return;
 
     const c = await cookies();
 
-    // Prefer the URL's UTMs, else the last-touch cookie — so a gate that rejects an
+    // Prefer the URL's UTMs, else the last-touch cookie - so a gate that rejects an
     // entire campaign is attributable even though no lead was ever created.
     let attr = normalizeAttribution(attribution);
     if (!attr) {
@@ -309,7 +309,7 @@ export async function recordGateDisqualification(
       if (!rateLimit(`gdq:ip:${ip}`, 30)) return;
 
       // Cold visitor (gate answered before the view beacon landed, or a blocked cookie):
-      // seed the same visitor id the rest of the funnel uses. Safe — the slug already
+      // seed the same visitor id the rest of the funnel uses. Safe - the slug already
       // resolved to a PUBLISHED assessment, so unknown slugs can't seed cookies.
       vid = generateId(24);
       c.set(VISITOR_COOKIE, vid, {
@@ -336,7 +336,7 @@ export async function recordGateDisqualification(
  * Send GateDisqualified to Meta server-side, and COUNT the firing.
  *
  * Server CAPI, not the browser pixel: a rejection carries no PII (no lead is ever
- * created), and Meta does not need any — client IP, user agent, _fbp/_fbc and the
+ * created), and Meta does not need any - client IP, user agent, _fbp/_fbc and the
  * first-party external_id are match keys in their own right. Firing from here also
  * survives ad blockers and gives an auditable count, which a browser event could not.
  *
@@ -346,7 +346,7 @@ export async function recordGateDisqualification(
  * `capiFiredAt` on this visitor's earlier rows, so a cleared browser cannot cause a
  * re-fire and an ad-blocked browser cannot cause a miss.
  *
- * Fail-soft throughout — the visitor is already looking at the exit page.
+ * Fail-soft throughout - the visitor is already looking at the exit page.
  */
 async function fireGateDisqualified(
   a: {
@@ -367,7 +367,7 @@ async function fireGateDisqualified(
   try {
     // A crawler executing the page's JS must never enter the exclusion audience.
     if (isBot) return;
-    // Routed (non-ad-entry) assessments tell Meta nothing — same rule as the opt-in.
+    // Routed (non-ad-entry) assessments tell Meta nothing - same rule as the opt-in.
     if (!metaEventOn(a.fireMetaCapi, a.metaEvents, "gateDisqualified")) return;
     if (!isQualificationActive(a.qualification)) return;
     const dq = disqualifiedContentSchema.safeParse(a.disqualifiedContent ?? {});
@@ -397,7 +397,7 @@ async function fireGateDisqualified(
           ...ctx,
           state: ctx.region,
           zip: ctx.postalCode,
-          // No email/phone/name exists for a rejected visitor — and none is needed.
+          // No email/phone/name exists for a rejected visitor - and none is needed.
           externalId: externalId ?? visitorId,
         },
         customData: { assessment: a.slug, assessment_name: a.title },

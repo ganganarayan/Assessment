@@ -96,7 +96,7 @@ export async function updateQuestion(
   const denied = await assertEdit();
   if (denied) return denied;
 
-  // Reconcile options IN PLACE — never wholesale-delete. Past respondents'
+  // Reconcile options IN PLACE - never wholesale-delete. Past respondents'
   // answers (SubmissionAnswer) reference Option rows with onDelete: Cascade, so
   // deleting an option silently destroys every historical answer to this question
   // (the score snapshot is denormalized so totals survive, but the per-question
@@ -152,7 +152,7 @@ export async function updateQuestion(
 
 /**
  * Copy ONE question's option scale (labels + point values) onto every OTHER
- * question in the same assessment. Overwrites matching positions in place only —
+ * question in the same assessment. Overwrites matching positions in place only -
  * it never adds or removes options, so option ids (and past respondents' answers)
  * stay intact; a target with a different option count keeps its own count, with
  * just the overlapping rows relabelled. Clinic per-option extras (diagnosis
@@ -204,7 +204,7 @@ export async function copyOptionsToAll(
   return { ok: true, data: { count: targets.length, prev } };
 }
 
-/** Restore a set of options to a prior snapshot — the Revert for copyOptionsToAll. */
+/** Restore a set of options to a prior snapshot - the Revert for copyOptionsToAll. */
 export async function restoreOptions(
   snapshot: OptionSnapshot[],
 ): Promise<ActionResult> {

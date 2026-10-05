@@ -1,4 +1,4 @@
-/** Shared band-range validation (pure) — reused by overall + per-category bands. */
+/** Shared band-range validation (pure) - reused by overall + per-category bands. */
 export interface Range {
   minScore: number;
   maxScore: number;

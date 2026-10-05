@@ -25,7 +25,7 @@ export function AssessmentPicker({
   /** Query params to keep across a change (e.g. { from, to } date range). */
   preserveParams?: Record<string, string | undefined>;
   /** Offer the "All assessments" choice. Off for Submissions, where a merged
-   *  cross-assessment list isn't meaningful — one assessment is always scoped. */
+   *  cross-assessment list isn't meaningful - one assessment is always scoped. */
   allowAll?: boolean;
 }) {
   const router = useRouter();

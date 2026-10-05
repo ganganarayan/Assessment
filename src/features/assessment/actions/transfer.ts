@@ -12,6 +12,7 @@ import {
   slugExists,
   generateCopySlug,
   performImportAll,
+  type ImportOutcome,
   type ImportItem,
 } from "@/features/assessment/transfer/import";
 import type {
@@ -51,7 +52,7 @@ export async function importAssessments(
   raw: string,
   format: Format,
   mode: ImportMode,
-): Promise<ActionResult<{ count: number }> & { errors?: string[] }> {
+): Promise<ActionResult<ImportOutcome> & { errors?: string[] }> {
   const user = await requireSuperAdmin();
   { const __d = editDenied(user); if (__d) return __d; }
   const parsed = parseImportText(raw, format);
@@ -105,17 +106,21 @@ export async function importAssessments(
     // Worth noting for the recurrence guard: it looks for `scope.tenantId` being passed as
     // an owner, and this site passed NOTHING. An omitted argument with a nullable default
     // is the same bug wearing a different shape, and the guard cannot see it.
-    const count = await performImportAll(items, user.id, configTenantOf(await resolveActingScope()));
+    const { count, renamed } = await performImportAll(
+      items,
+      user.id,
+      configTenantOf(await resolveActingScope()),
+    );
     revalidatePath("/admin/assessments");
     revalidatePath("/admin/import");
-    return { ok: true, data: { count } };
+    return { ok: true, data: { count, renamed } };
   } catch (e) {
     const code = e instanceof Prisma.PrismaClientKnownRequestError ? e.code : "";
     if (code === "P2002") {
       return { ok: false, error: "Import failed: a slug collided during import. No changes were made." };
     }
     if (code === "P2028") {
-      return { ok: false, error: "Import timed out — the file is too large for one transaction. No changes were made." };
+      return { ok: false, error: "Import timed out - the file is too large for one transaction. No changes were made." };
     }
     return { ok: false, error: "Import failed; no changes were made." };
   }
@@ -126,7 +131,7 @@ export async function importAssessments(
 // created assessments are assigned to THIS tenant, and replace can only overwrite
 // this tenant's own slugs (see performImportAll's tenant-scoped delete).
 
-/** Tenant preview — identical validation, workspace-guarded. */
+/** Tenant preview - identical validation, workspace-guarded. */
 export async function previewTenantImport(
   raw: string,
   format: Format,
@@ -150,12 +155,12 @@ export async function previewTenantImport(
   return { ok: true, data: items };
 }
 
-/** Tenant import — creates the assessments under the acting tenant. */
+/** Tenant import - creates the assessments under the acting tenant. */
 export async function importTenantAssessments(
   raw: string,
   format: Format,
   mode: ImportMode,
-): Promise<ActionResult<{ count: number }> & { errors?: string[] }> {
+): Promise<ActionResult<ImportOutcome> & { errors?: string[] }> {
   const { user, tenantId, impersonating } = await requireWorkspace();
   { const __d = editDenied(user); if (__d) return __d; }
   const parsed = parseImportText(raw, format);
@@ -190,7 +195,7 @@ export async function importTenantAssessments(
     };
   }
 
-  // Billing gate — an import that ADDS assessments (create/copy; replaces reuse a slug)
+  // Billing gate - an import that ADDS assessments (create/copy; replaces reuse a slug)
   // must fit the plan cap. Super admins (impersonating) are never limited.
   if (!impersonating) {
     const adding = items.filter((i) => !i.replace).length;
@@ -210,16 +215,16 @@ export async function importTenantAssessments(
   }
 
   try {
-    const count = await performImportAll(items, user.id, tenantId);
+    const { count, renamed } = await performImportAll(items, user.id, tenantId);
     revalidatePath("/w/assessments");
-    return { ok: true, data: { count } };
+    return { ok: true, data: { count, renamed } };
   } catch (e) {
     const code = e instanceof Prisma.PrismaClientKnownRequestError ? e.code : "";
     if (code === "P2002") {
       return { ok: false, error: "Import failed: that slug is already taken (globally). Choose “Create copy”." };
     }
     if (code === "P2028") {
-      return { ok: false, error: "Import timed out — the file is too large for one transaction. No changes were made." };
+      return { ok: false, error: "Import timed out - the file is too large for one transaction. No changes were made." };
     }
     return { ok: false, error: "Import failed; no changes were made." };
   }

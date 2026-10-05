@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 /**
- * Billing plan catalog — the SOURCE OF TRUTH for what each tier grants. Pure and
+ * Billing plan catalog - the SOURCE OF TRUTH for what each tier grants. Pure and
  * client-safe (no prisma, no server-only): the marketing pricing UI, the in-app
  * meters, and the server-side gates all read from here.
  *
  * Phase 1 stores and resolves these; it enforces NOTHING (Phase 2 meters usage,
  * Phase 4 gates on it). Numbers mirror the live marketing tiers in
- * src/lib/marketing/content.ts — content.ts holds the display strings ("$39",
+ * src/lib/marketing/content.ts - content.ts holds the display strings ("$39",
  * "300 responses / month"), this holds the machine values the code acts on.
  *
  * A limit of `null` means UNLIMITED (no cap). The platform/Gita tenant (tenantId
@@ -15,9 +15,9 @@ import { z } from "zod";
  */
 
 // String-union plan ids. These are byte-identical to the Prisma `Plan` enum values,
-// so the two are interchangeable without a cast — but this file stays free of any
+// so the two are interchangeable without a cast - but this file stays free of any
 // @prisma/client import so it can ship to the client bundle.
-// FREE is gone — a free tier on a lead-qualification tool attracts the accounts that
+// FREE is gone - a free tier on a lead-qualification tool attracts the accounts that
 // never qualify anyone, and it put the differentiator behind a wall the people evaluating
 // it never crossed. A 14-day Signal trial replaces it. The old enum values survive in
 // Postgres (see the migration) but are not part of the catalog.
@@ -29,7 +29,7 @@ export type PlanId = (typeof PLAN_IDS)[number];
 // catalog is the single list of per-plan capabilities.
 //
 // Gating policy (see the four PLAN_LIMITS entries below): the platform sells on
-// VOLUME first — every PAID tier (Starter/Growth/Scale) carries the full set of
+// VOLUME first - every PAID tier (Starter/Growth/Scale) carries the full set of
 // "everyday" features, and only FOUR capabilities are tier-gated:
 //   qualificationGate, conditionalRouting, heatmap  -> GROWTH and up
 //   apiAccess                                        -> SCALE only
@@ -37,7 +37,7 @@ export type PlanId = (typeof PLAN_IDS)[number];
 //
 // `capi` moved to the paid baseline: server-side conversions are how a paid campaign
 // is measured at all, so gating it to Growth meant a Starter customer running ads was
-// optimising on browser events alone — blocked for a large share of traffic. Charging
+// optimising on browser events alone - blocked for a large share of traffic. Charging
 // for the tier and then withholding the measurement it depends on loses them money and
 // reads as the product being broken.
 export const FEATURES = [
@@ -48,8 +48,8 @@ export const FEATURES = [
   "brandingRemoved",
   // analyticsTracking = Meta browser-pixel events BEYOND the two Free signals.
   // Free always gets PageView and CompleteRegistration (see FREE_BROWSER_EVENTS) so a
-  // free funnel can still be measured and retargeted; everything else — the completion
-  // event above all — needs a paid plan.
+  // free funnel can still be measured and retargeted; everything else - the completion
+  // event above all - needs a paid plan.
   "analyticsTracking",
   "staffRoles",
   "apiAccess",
@@ -64,7 +64,7 @@ export const FEATURES = [
 ] as const;
 
 /**
- * 🟢 FOUR FLAGS DELIBERATELY NOT ADDED — checked, 2026-10-01.
+ * 🟢 FOUR FLAGS DELIBERATELY NOT ADDED - checked, 2026-10-01.
  *
  * The pricing table lists exclusion audiences, the qualified-only optimisation event,
  * first-party match keys and the back-button/repeat lock. Each is ✓ on EVERY tier, and
@@ -72,7 +72,7 @@ export const FEATURES = [
  * buildUserData, the exclusion/qualified events are emitted by the qualification flow
  * itself, and the repeat lock is a per-assessment retake policy.
  *
- * A flag that is true for every plan is dead code that reads as a real gate — and the
+ * A flag that is true for every plan is dead code that reads as a real gate - and the
  * first person to "tidy up" by gating it would silently degrade CAPI match quality for a
  * paying customer, with no error anywhere. They stay as pricing-page rows, which is what
  * they are: things the product does for everyone, worth saying out loud because
@@ -88,7 +88,7 @@ export const PAID_BASE_FEATURES = [
   // $79 wall is a gate the buyer never experiences before deciding.
   "qualificationGate",
   "conditionalRouting",
-  "capi", // server-side Conversions API — measurement, not a premium add-on
+  "capi", // server-side Conversions API - measurement, not a premium add-on
   "pdfReports",
   "webhooks",
   "leadExport",
@@ -97,7 +97,7 @@ export const PAID_BASE_FEATURES = [
   "prioritySupport",
   // 🔴 customDomain, brandingRemoved and aiReports are NOT here. They were, under the old
   // "every paid plan gets everything everyday" policy, and leaving them meant Gate
-  // silently shipped with Signal's entire value — the upgrade had nothing left to sell.
+  // silently shipped with Signal's entire value - the upgrade had nothing left to sell.
   // verify:billing fails if they come back.
 ] as const satisfies ReadonlyArray<Feature>;
 
@@ -118,7 +118,7 @@ export interface PlanLimits {
   /** Seats (users) in the workspace. HARD-capped at invite time. */
   seats: number;
   /**
-   * Ad accounts the tenant may configure. NOT YET ENFORCED — the app has no AdAccount
+   * Ad accounts the tenant may configure. NOT YET ENFORCED - the app has no AdAccount
    * model (docs/FEATURE-GATES.md §8a); a tenant has exactly one Meta config today. The
    * number is carried here so the catalog matches the published pricing and the gate has
    * somewhere to land when the model exists.
@@ -127,19 +127,19 @@ export interface PlanLimits {
   features: FeatureFlags;
 }
 
-/** Every feature off — the Free baseline; higher tiers switch individual flags on. */
+/** Every feature off - the Free baseline; higher tiers switch individual flags on. */
 const NO_FEATURES: FeatureFlags = Object.fromEntries(
   FEATURES.map((f) => [f, false]),
 ) as FeatureFlags;
 
-/** The everyday features on (the "all paid plans get these" set) — the paid baseline. */
+/** The everyday features on (the "all paid plans get these" set) - the paid baseline. */
 const PAID_BASE: FeatureFlags = {
   ...NO_FEATURES,
   ...(Object.fromEntries(PAID_BASE_FEATURES.map((f) => [f, true])) as Partial<FeatureFlags>),
 };
 
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
-  // Gate — the differentiator in full, at the smallest volume. Everything the
+  // Gate - the differentiator in full, at the smallest volume. Everything the
   // qualification mechanism needs is ON: withholding it here would mean the tier that
   // exists to prove the product cannot demonstrate it.
   GATE: {
@@ -149,7 +149,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     adAccounts: 1,
     features: { ...PAID_BASE },
   },
-  // Signal — brand, domain, AI and the badge removed.
+  // Signal - brand, domain, AI and the badge removed.
   SIGNAL: {
     responsesPerMonth: 1000,
     maxAssessments: 10,
@@ -164,7 +164,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
       manualReview: true,
     },
   },
-  // Agency — unlimited scorecards, sub-accounts, API. The sub-account FEATURE does not
+  // Agency - unlimited scorecards, sub-accounts, API. The sub-account FEATURE does not
   // exist yet (docs/FEATURE-GATES.md §8b); the flag is here so the tier is complete.
   AGENCY: {
     responsesPerMonth: 5000,
@@ -181,7 +181,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
       apiAccess: true,
     },
   },
-  // Enterprise — published as "from $499". Real limits come from the per-tenant override
+  // Enterprise - published as "from $499". Real limits come from the per-tenant override
   // resolvePlan already applies, because a flat published number would cap the revenue on
   // the biggest accounts while uncapping their cost.
   ENTERPRISE: {
@@ -278,7 +278,7 @@ export const planLimitsSchema = z.object({
   features: featureFlagsSchema,
 });
 
-/** Partial overrides — any subset of PlanLimits fields; features may be partial too. */
+/** Partial overrides - any subset of PlanLimits fields; features may be partial too. */
 export const planLimitsOverrideSchema = z
   .object({
     responsesPerMonth: z.number().int().nonnegative().nullable(),
@@ -292,7 +292,7 @@ export const planLimitsOverrideSchema = z
 export type PlanLimitsOverride = z.infer<typeof planLimitsOverrideSchema>;
 
 /**
- * Parse a stored snapshot (Json) into PlanLimits. NEVER throws — a corrupt/absent
+ * Parse a stored snapshot (Json) into PlanLimits. NEVER throws - a corrupt/absent
  * snapshot falls back to the code default for `plan`, so a bad row degrades to the
  * catalog value rather than taking down a gate check (same resilience posture as
  * settings/config.ts safeDecrypt).
@@ -343,10 +343,10 @@ export function usagePeriodKey(periodStart: Date | null, now: Date): string {
 }
 
 /**
- * PARKED limits — a lapsed trial or subscription.
+ * PARKED limits - a lapsed trial or subscription.
  *
  * 🔴 Everything off, zero volume. The first version of this returned the GATE catalog
- * alongside `parked: true`, and every gate in the app reads LIMITS, not the flag — so a
+ * alongside `parked: true`, and every gate in the app reads LIMITS, not the flag - so a
  * parked tenant kept the qualification gate, CAPI, webhooks and exports in full. The
  * trial never had to convert. Expressing parked as limits closes it everywhere at once,
  * instead of relying on each of dozens of call sites to check a second field.
@@ -362,7 +362,7 @@ export const PARKED_LIMITS: PlanLimits = {
   features: { ...NO_FEATURES },
 };
 
-/** Unlimited limits — the platform/Gita tenant and any internal/unmetered scope. */
+/** Unlimited limits - the platform/Gita tenant and any internal/unmetered scope. */
 export const UNLIMITED_LIMITS: PlanLimits = {
   responsesPerMonth: null,
   maxAssessments: null,
@@ -378,7 +378,7 @@ export const UNLIMITED_LIMITS: PlanLimits = {
  * page and `verify:billing` all agree on the number.
  *
  * CEILING, not floor: with 30 minutes left the honest answer is "1 day", not "0 days"
- * — a zero would read as already-ended while the tenant still has full Signal
+ * - a zero would read as already-ended while the tenant still has full Signal
  * entitlements, which is the opposite of the truth. 0 is reserved for an expired or
  * absent trial, i.e. exactly the states `resolvePlan` reports as parked.
  */
@@ -395,9 +395,9 @@ export function trialDaysLeft(trialEndsAt: Date | null, now: Date = new Date()):
  * Why a constant and not a helper that builds an error object: the previous attempt
  * (`parkedDenied()`) shipped with zero callers because expressing parked AS LIMITS
  * meant no mutation needed a bespoke check. What the limits CANNOT carry is the
- * reason — a parked tenant hitting `maxAssessments: 0` was told "your plan's limit of
+ * reason - a parked tenant hitting `maxAssessments: 0` was told "your plan's limit of
  * 0 assessments", which reads as a billing bug. So the gates that have a parked-aware
  * message to give import this string; nothing else changes.
  */
 export const PARKED_MESSAGE =
-  "Your trial has ended and this workspace is paused. Nothing was deleted — pick a plan and everything resumes exactly where it left off.";
+  "Your trial has ended and this workspace is paused. Nothing was deleted - pick a plan and everything resumes exactly where it left off.";

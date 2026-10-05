@@ -13,22 +13,22 @@ import { formatIST } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
-const dash = (v: string | null) => (v && v.trim() ? v : "—");
+const dash = (v: string | null) => (v && v.trim() ? v : "-");
 
 /** Join non-empty parts with a separator; em-dash when all are blank. */
 const join = (parts: (string | null)[], sep: string) => {
   const s = parts.filter((p) => p && p.trim()).join(sep);
-  return s || "—";
+  return s || "-";
 };
 
-/** Page-1 gate outcome for one visitor. "—" = they never answered page 1 at all,
+/** Page-1 gate outcome for one visitor. "-" = they never answered page 1 at all,
  *  which is the row that explains views without opt-ins. */
 const GateCell = ({ gate }: { gate: "qualified" | "disqualified" | "disqualified_repeat" | null }) => {
   if (gate === "qualified") return <span className="text-xs font-medium text-green-600">Qualified</span>;
   if (gate === "disqualified") return <span className="text-xs font-medium text-yellow-600">Disqualified</span>;
   if (gate === "disqualified_repeat")
     return <span className="text-xs font-medium text-yellow-600 opacity-70">Disqualified (revisit)</span>;
-  return <span className="text-xs text-[var(--muted-foreground)]">—</span>;
+  return <span className="text-xs text-[var(--muted-foreground)]">-</span>;
 };
 
 const BotTag = () => (
@@ -45,7 +45,7 @@ export default async function WorkspaceStatsPage({
   const { tenantId } = await requireWorkspace();
   const sp = await searchParams;
   const range = { from: sp.from, to: sp.to };
-  // A workspace is always exactly one tenant — never the all-tenants scope.
+  // A workspace is always exactly one tenant - never the all-tenants scope.
   const dataScope = tenantOnly(tenantId);
   const [s, utm, log, botRows] = await Promise.all([
     getAnalyticsStats(range, dataScope),
@@ -143,13 +143,13 @@ export default async function WorkspaceStatsPage({
       </div>
 
       {/* Events actually sent to Meta, as running counts. The numbers above are
-          PEOPLE; these are EVENTS — one visitor can be reported more than once when
+          PEOPLE; these are EVENTS - one visitor can be reported more than once when
           audience membership is renewed, which is why Meta's number is the higher one. */}
       <section className="flex flex-col gap-2">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Fired to Meta</h2>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Conversions API sends from this funnel — events, not people. Compare these with the same
+            Conversions API sends from this funnel - events, not people. Compare these with the same
             event names in Events Manager; your custom audiences are built on them.
           </p>
         </div>
@@ -299,7 +299,7 @@ export default async function WorkspaceStatsPage({
                       </span>
                     </td>
                     <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]" colSpan={8}>
-                      Automated — excluded from all stats.
+                      Automated - excluded from all stats.
                     </td>
                   </tr>
                 ))}

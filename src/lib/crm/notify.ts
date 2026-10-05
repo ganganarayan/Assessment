@@ -5,7 +5,7 @@ import "server-only";
  *
  * On submission completion we emit a normalized payload to an outbound webhook
  * (e.g. MyAppZ automation) configured via CRM_WEBHOOK_URL. Intentionally NOT a
- * full integration — just a single, swappable dispatch point. Failures are
+ * full integration - just a single, swappable dispatch point. Failures are
  * swallowed so a CRM outage never blocks a respondent's result.
  */
 
@@ -26,7 +26,7 @@ export interface SubmissionCompletedPayload {
   scores: {
     total: number;
     max: number;
-    /** total/max as a 0–100 percentage; the basis used for result-band matching. */
+    /** total/max as a 0-100 percentage; the basis used for result-band matching. */
     percentage: number;
     categories: Array<{
       categoryId: string;

@@ -12,13 +12,13 @@ export const dynamic = "force-dynamic";
 /**
  * Indexable, unlike /sign-in: "assess360 free trial" is a real query, and this is the
  * page that answers it. The description states the trial exactly as the pricing section
- * does — 14 days, Signal, no card — because a description that oversells the trial is the
+ * does - 14 days, Signal, no card - because a description that oversells the trial is the
  * kind of thing that gets quoted back at us by an AI answer engine.
  */
 export const metadata: Metadata = platformPageMetadata({
   title: "Start your 14-day trial",
   description:
-    "Create your Assess360 workspace and start a 14-day Signal trial — no card required.",
+    "Create your Assess360 workspace and start a 14-day Signal trial - no card required.",
   path: "/sign-up",
 });
 

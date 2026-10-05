@@ -124,7 +124,7 @@ for (const type of ACTIVE_EVENT_TYPES) {
   expect(`${name} · contact.utm_term null`, env["contact.utm_term"] === null);
   expect(`${name} · contact.gclid null`, env["contact.gclid"] === null);
   // booking_requested adds one metadata key (which button was pressed) via its own
-  // METADATA_BUILDERS entry — the documented extension point. Every other event shares
+  // METADATA_BUILDERS entry - the documented extension point. Every other event shares
   // the uniform assessment metadata.
   const expectedMeta = type === EventType.CTA_CLICKED ? [...META, "cta"] : META;
   expect(`${name} · metadata keys`, keysEq(meta, expectedMeta), JSON.stringify(Object.keys(meta)));

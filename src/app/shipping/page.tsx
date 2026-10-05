@@ -3,7 +3,7 @@ import { platformPageMetadata } from "@/lib/seo/site";
 import { getLegalConfig } from "@/lib/legal/config";
 import { LegalShell, H2, P } from "@/components/marketing/LegalShell";
 
-// Digital service — no physical shipping. This page exists because Indian payment
+// Digital service - no physical shipping. This page exists because Indian payment
 // gateways require a shipping/delivery policy even for software/SaaS.
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   // platform's policy in all of them.
   return platformPageMetadata({
     title: "Shipping & Delivery Policy",
-    description: "How the service is delivered — a digital product, no physical shipping.",
+    description: "How the service is delivered - a digital product, no physical shipping.",
     path: "/shipping",
   });
 }
@@ -34,7 +34,7 @@ export default async function ShippingPage() {
       <P>
         Access is provided electronically. When you create an account, your workspace is available
         immediately. When you subscribe to a paid plan, the corresponding features are enabled on
-        your account as soon as payment is confirmed — typically within a few minutes.
+        your account as soon as payment is confirmed - typically within a few minutes.
       </P>
 
       <H2>No physical goods</H2>

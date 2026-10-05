@@ -71,7 +71,7 @@ export function ThemeColorForm({ initial }: { initial: ThemeColors }) {
       <ColorField
         id="primary-color"
         label="Primary (accent)"
-        hint="Your brand accent — used across your workspace and respondent-facing pages."
+        hint="Your brand accent - used across your workspace and respondent-facing pages."
         value={colors.primaryColor}
         onChange={(v) => setColors((c) => ({ ...c, primaryColor: v }))}
       />

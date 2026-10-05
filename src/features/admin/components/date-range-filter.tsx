@@ -14,7 +14,7 @@ import { setAssessmentStatsWindow } from "@/features/admin/actions/stats-window"
  *  - Default (unscoped / no sticky id): From + To live in the URL and auto-apply as
  *    soon as a field is a complete date (or cleared). An explicit "Apply" is kept.
  *  - Sticky-start (an assessment is scoped): the FROM date is the assessment's OWN
- *    saved reporting start (Assessment.statsResetAt / "Data window") — a DB entry that
+ *    saved reporting start (Assessment.statsResetAt / "Data window") - a DB entry that
  *    sticks PER ASSESSMENT and does NOT carry across assessments. Changing From saves it
  *    (server action) and refreshes; To stays an optional URL-only end date.
  *
@@ -137,11 +137,11 @@ export function DateRangeFilter({
       <div className="flex flex-wrap items-end gap-3">
         <DatePicker
           name="from"
-          label={sticky ? "From (IST) — saved for this assessment" : "From (IST)"}
+          label={sticky ? "From (IST) - saved for this assessment" : "From (IST)"}
           value={f}
           onChange={onFromChange}
         />
-        <DatePicker name="to" label="To (IST) — optional" value={t} onChange={onToChange} />
+        <DatePicker name="to" label="To (IST) - optional" value={t} onChange={onToChange} />
         <Button type="button" size="sm" onClick={onApply} disabled={pending}>
           Apply
         </Button>

@@ -1,5 +1,5 @@
 /**
- * The full internal result page for a respondent — the link the owner opens to decide
+ * The full internal result page for a respondent - the link the owner opens to decide
  * whether someone who asked for a call qualifies.
  *
  * Shared by the booking-CTA webhook payload and the owner notification email so the two

@@ -12,8 +12,8 @@ export type SitemapEntry = {
 /**
  * The sitemap's contents as a PURE function, separate from the route that serves it.
  *
- * The route is gated to the platform host, which is correct — a customer's domain must not
- * publish our URL list — but it also means the sitemap is empty everywhere it can be
+ * The route is gated to the platform host, which is correct - a customer's domain must not
+ * publish our URL list - but it also means the sitemap is empty everywhere it can be
  * inspected before release. Pulling the list out here lets verify-seo assert that every
  * page and every answer is in it, instead of that first being observable in production.
  */

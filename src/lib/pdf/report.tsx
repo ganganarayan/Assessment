@@ -6,8 +6,8 @@ import React from "react";
 import { Document, Page, Text, View, StyleSheet, Font, renderToBuffer } from "@react-pdf/renderer";
 
 /**
- * Branded A4 band report (react-pdf). Consumes the STORED result only — no model
- * call, no scoring/band/AI logic — so every render for a submission is identical
+ * Branded A4 band report (react-pdf). Consumes the STORED result only - no model
+ * call, no scoring/band/AI logic - so every render for a submission is identical
  * bytes. Themed by band (green/yellow/orange/red). Flows to as many pages as the
  * content needs (full category breakdown with every question + the admin note).
  */
@@ -31,7 +31,7 @@ const BAND_ORDER = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
 const BAND_SCALE_LABEL: Record<string, string> = { LOW: "Stable", MEDIUM: "Strained", HIGH: "Overwhelmed", CRITICAL: "Critical" };
 const SCALE_SEGS = [T_LOW.scale, T_MED.scale, T_HIGH.scale, T_CRIT.scale];
 
-/** Severity by a 0–100 share (higher share = more struggle, matching the engine). */
+/** Severity by a 0-100 share (higher share = more struggle, matching the engine). */
 function tierScale(pct: number): string {
   if (pct < 40) return T_LOW.scale;
   if (pct < 60) return T_MED.scale;
@@ -49,7 +49,7 @@ function fallbackBand(pct: number): { level: string; title: string } {
 }
 
 /**
- * Optional per-band "next 15 days" copy. Left null on purpose — real brand-voice
+ * Optional per-band "next 15 days" copy. Left null on purpose - real brand-voice
  * copy is dropped in here later; until then the report shows the band's own stored
  * description (the participant's existing words), never improvised text.
  */
@@ -94,7 +94,7 @@ export interface ReportData {
   aiStatement: string | null;
   resultSuggestion: string | null;
   categories: ReportCategory[];
-  /** Admin "Add to PDF" note — appended at the very bottom. */
+  /** Admin "Add to PDF" note - appended at the very bottom. */
   reportNote: string | null;
 }
 
@@ -202,7 +202,7 @@ function Footer() {
   return (
     <View style={s.footer} fixed>
       <Text style={s.footLine}>
-        Ganga Narayan Das — the monk-engineer teaching the Bhagavad Gita as applied neuroscience for executives
+        Ganga Narayan Das - the monk-engineer teaching the Bhagavad Gita as applied neuroscience for executives
       </Text>
       <Text style={s.footLine}>applygitawisdom.com · connect@applygitawisdom.com</Text>
       <Text style={s.disclaimer}>This is an indicative self-assessment, not a clinical diagnosis.</Text>
@@ -221,9 +221,9 @@ function AssessmentReport({ data }: { data: ReportData }) {
   const noteLines = data.reportNote ? parseNote(data.reportNote) : [];
 
   return (
-    <Document title={`Assess360 Report — ${data.name}`} author="Assess360">
+    <Document title={`Assess360 Report - ${data.name}`} author="Assess360">
       <Page size="A4" style={s.page}>
-        {/* Cover — themed by band */}
+        {/* Cover - themed by band */}
         <View style={[s.cover, { backgroundColor: theme.deep }]}>
           <View style={s.goldRule} />
           <Text style={s.coverKicker}>Your Assess360 Report</Text>
@@ -277,7 +277,7 @@ function AssessmentReport({ data }: { data: ReportData }) {
           )}
         </View>
 
-        {/* Full category breakdown — every question, its answer, and its score */}
+        {/* Full category breakdown - every question, its answer, and its score */}
         {data.categories.length > 0 ? (
           <View style={s.section}>
             <Text style={[s.h2, { color: theme.deep }]}>Category breakdown</Text>
@@ -288,7 +288,7 @@ function AssessmentReport({ data }: { data: ReportData }) {
                   <View style={s.catHead}>
                     <Text style={s.catName}>
                       {c.name}
-                      {c.band ? `  —  ${c.band}` : ""}
+                      {c.band ? `  -  ${c.band}` : ""}
                     </Text>
                     <Text style={s.catScore}>
                       {c.score}/{c.max}
@@ -301,7 +301,7 @@ function AssessmentReport({ data }: { data: ReportData }) {
                     <View key={j} style={s.qRow}>
                       <Text style={s.qText}>
                         {q.text}
-                        {q.answer ? <Text style={s.qAns}> — {q.answer}</Text> : null}
+                        {q.answer ? <Text style={s.qAns}> - {q.answer}</Text> : null}
                       </Text>
                       <Text style={s.qScore}>
                         {q.score}/{q.max}
@@ -325,7 +325,7 @@ function AssessmentReport({ data }: { data: ReportData }) {
           </View>
         ) : null}
 
-        {/* Admin "Add to PDF" note — pasted meeting notes, auto-formatted */}
+        {/* Admin "Add to PDF" note - pasted meeting notes, auto-formatted */}
         {noteLines.length > 0 ? (
           <View style={s.section}>
             <Text style={[s.h2, { color: theme.deep }]}>Your action items</Text>

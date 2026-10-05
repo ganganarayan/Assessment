@@ -24,7 +24,7 @@ const EMPTY_GEO: GeoContext = {
   timezone: null,
 };
 
-/** Cloudflare sends "XX" / "T1" for unknown or Tor exits — treat as no country. */
+/** Cloudflare sends "XX" / "T1" for unknown or Tor exits - treat as no country. */
 function cleanCountry(v: string | null): string | null {
   const c = (v ?? "").trim().toUpperCase();
   if (!c || c === "XX" || c === "T1") return null;
@@ -37,7 +37,7 @@ function clean(v: string | null): string | null {
 }
 
 /**
- * Best-effort timezone for a 2-letter country code — a fallback for when Cloudflare
+ * Best-effort timezone for a 2-letter country code - a fallback for when Cloudflare
  * doesn't send cf-timezone. Single-timezone countries are exact; for large multi-zone
  * countries we use the most populous zone (a reasonable default, not authoritative).
  */

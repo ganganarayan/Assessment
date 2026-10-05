@@ -8,12 +8,12 @@
  *
  *     curl https://assess-production.up.railway.app/ -H 'x-forwarded-host: assess.acme.com'
  *
- * and be served as that tenant — their funnel, their branding, and whatever their
+ * and be served as that tenant - their funnel, their branding, and whatever their
  * host resolves to. Railway's generated domain is public, so this is not theoretical.
  *
  * The header is therefore honoured ONLY alongside a shared secret that the Worker
  * attaches and nobody else knows. No secret configured, or no match, and the header is
- * ignored entirely — the app falls back to the real Host, which is always truthful.
+ * ignored entirely - the app falls back to the real Host, which is always truthful.
  *
  * Deliberately dependency-free (no "server-only") so edge middleware can import it.
  */
@@ -37,7 +37,7 @@ export function effectiveHost(headers: { get(name: string): string | null }): st
 
   const presented = headers.get(PROXY_SECRET_HEADER);
   // Length check first so a missing header never reaches the comparison, and compare
-  // the whole string — this gates routing, not authentication, but there is no reason
+  // the whole string - this gates routing, not authentication, but there is no reason
   // to be sloppy about it.
   if (!presented || presented.length !== secret.length || presented !== secret) return direct;
 

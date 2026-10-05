@@ -27,9 +27,9 @@ function toPlanId(value: unknown): PlanId | null {
 
 export interface CheckoutStart {
   subscriptionId: string;
-  /** PUBLIC Razorpay key — safe to expose; the client opens Checkout with it. */
+  /** PUBLIC Razorpay key - safe to expose; the client opens Checkout with it. */
   keyId: string;
-  /** Hosted Razorpay payment page — the fallback when in-page Checkout can't open. */
+  /** Hosted Razorpay payment page - the fallback when in-page Checkout can't open. */
   shortUrl: string;
 }
 
@@ -56,17 +56,17 @@ export async function startSubscriptionCheckout(planInput: string): Promise<Acti
   const current = await resolvePlan(scope.tenantId);
 
   // An INTERNAL tenant already has every feature and no caps, and stays that way even
-  // with a subscription attached — resolvePlan checks the flag first. Selling it a plan
+  // with a subscription attached - resolvePlan checks the flag first. Selling it a plan
   // would charge for nothing and change nothing, so refuse before Razorpay is touched.
   if (current.unlimited) {
     return {
       ok: false,
-      error: "This workspace is on an internal unlimited plan — there's nothing to upgrade.",
+      error: "This workspace is on an internal unlimited plan - there's nothing to upgrade.",
     };
   }
 
   // Upgrade-only: block same-tier / downgrade.
-  // Parked or trialing has NO purchased plan, so rank 0 — every tier is an upgrade from
+  // Parked or trialing has NO purchased plan, so rank 0 - every tier is an upgrade from
   // there. Using Gate as the fallback would block a parked tenant from buying Gate, which
   // is the one thing they are most likely to want.
   const currentRank = current.plan ? PLAN_ORDER[current.plan] : 0;

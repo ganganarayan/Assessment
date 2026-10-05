@@ -11,7 +11,7 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
 import { formatIST } from "@/lib/date";
 
 /** Diagnostic: fire a server-side CAPI event (any name, default AssessmentCompleted)
- *  to Meta and return Meta's real response. Scoped to the caller — a tenant admin
+ *  to Meta and return Meta's real response. Scoped to the caller - a tenant admin
  *  fires against their OWN dataset; a super admin uses the tenant they've entered (or
  *  the platform/Gita dataset). View-only staff are blocked. */
 export async function testMetaCapi(testEventCode?: string, eventName?: string) {
@@ -70,7 +70,7 @@ export async function resendPurchaseToMeta(submissionId: string, force = false):
   if (p.metaConversionAt && !force) {
     return {
       ok: false,
-      error: `Already sent to Meta on ${formatIST(p.metaConversionAt)} IST — no action needed.`,
+      error: `Already sent to Meta on ${formatIST(p.metaConversionAt)} IST - no action needed.`,
       eventName,
       eventId: p.providerPaymentId,
     };

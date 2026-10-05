@@ -3,7 +3,7 @@
  *
  * The counter stores one row per assessment per event per IST day. If the bucket
  * drifted by a few hours, an evening firing would land on the previous day and the
- * Stats date range — which starts at IST midnight — would silently miss it. No DB,
+ * Stats date range - which starts at IST midnight - would silently miss it. No DB,
  * no network: run it anywhere.
  */
 import { istDayStart } from "../src/lib/date";
@@ -14,7 +14,7 @@ function check(name: string, ok: boolean, detail?: string) {
     console.log(`  PASS  ${name}`);
   } else {
     failures += 1;
-    console.log(`  FAIL  ${name}${detail ? ` — ${detail}` : ""}`);
+    console.log(`  FAIL  ${name}${detail ? ` - ${detail}` : ""}`);
   }
 }
 
@@ -40,7 +40,7 @@ check(
   iso(istDayStart(new Date("2026-09-30T00:01:00+05:30"))),
 );
 
-// A UTC-evening instant is already the NEXT IST day — the case a naive UTC bucket
+// A UTC-evening instant is already the NEXT IST day - the case a naive UTC bucket
 // gets wrong, putting the firing outside a range that starts at IST midnight.
 check(
   "19:00 UTC belongs to the next IST day",

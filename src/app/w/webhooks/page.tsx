@@ -22,7 +22,7 @@ export default async function WorkspaceWebhooksPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Webhooks</h1>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Fire your CRM on assessment events. Private to this workspace — payloads are
+            Fire your CRM on assessment events. Private to this workspace - payloads are
             signed (HMAC-SHA256) in the <span className="font-mono">X-Assess-Signature</span> header.
           </p>
         </div>

@@ -10,7 +10,7 @@ import { requireWorkspace } from "@/lib/auth/guards";
 
 export const dynamic = "force-dynamic";
 
-/** Tenant workspace Pixel Tester — same tools as /admin/pixel-test, scoped to this
+/** Tenant workspace Pixel Tester - same tools as /admin/pixel-test, scoped to this
  *  tenant's own Meta pixel/CAPI config. */
 export default async function WorkspacePixelTestPage() {
   // impersonating = a super admin operating this workspace; a real tenant admin gets
@@ -49,7 +49,7 @@ export default async function WorkspacePixelTestPage() {
 
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-[var(--muted-foreground)]">
         <strong className="text-[var(--foreground)]">Testing only.</strong> Events go to the
-        real pixel, so fire each one <strong>once</strong> just to register it — then it shows
+        real pixel, so fire each one <strong>once</strong> just to register it - then it shows
         up in Events Manager within a few minutes. Don&apos;t spam it; repeated fires add test
         data to your pixel.
       </div>

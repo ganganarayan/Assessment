@@ -1,6 +1,6 @@
 // Deliberately NOT `server-only`. The Railway cron (tsx scripts/sweep-abandoned.ts)
 // reaches this module through the completed_unpaid sweep, and that process runs
-// outside Next, where the `server-only` package does not resolve — importing it is
+// outside Next, where the `server-only` package does not resolve - importing it is
 // a hard crash at load, which takes down every sweep in the script, not just one.
 // The guard only ever prevented CLIENT bundling, which the prisma/env imports below
 // already make impossible in a browser build.
@@ -18,7 +18,7 @@ import { appSettingWhere } from "@/lib/settings/tenant-row";
  * Resolve the tenant's effective VidaPulse param name ("cid" by default; null when
  * that tenant has turned tracking off). Platform/Gita assessments (tenantId null)
  * read the singleton setting. Callers pass this + the submission's opaque customerId
- * into the result-URL builders so the id rides on the URL saved in the CRM — the
+ * into the result-URL builders so the id rides on the URL saved in the CRM - the
  * link operators re-send (WABA/email) to nurture people who didn't watch the VSL.
  */
 export async function vidapulseParamForTenant(tenantId: string | null): Promise<string | null> {
@@ -48,7 +48,7 @@ export function resultUrlFor(
       u.searchParams.set("r", token);
       url = u.toString();
     } catch {
-      /* malformed targetUrl — keep the internal result-page fallback */
+      /* malformed targetUrl - keep the internal result-page fallback */
     }
   }
   // Append the opaque customerId alongside the token (no-op when tracking is off or
@@ -79,8 +79,8 @@ export function shareableResultUrl(
 
 /**
  * Pick the Result URL shown in the Submissions table. A clinic audit (or any
- * assessment set to show results on assess360) must NOT point at an external URL —
- * its result only renders on our own page — so it gets the shareable token link.
+ * assessment set to show results on assess360) must NOT point at an external URL -
+ * its result only renders on our own page - so it gets the shareable token link.
  * Everything else keeps the destination/VSL behaviour (targetUrl + token).
  */
 export function pickResultUrl(args: {
@@ -101,7 +101,7 @@ export function pickResultUrl(args: {
 
 /**
  * Build the full completion EmitInput (score/band/categories/ai/lead/result url)
- * from a submission's stored snapshot — shared by the paid + unpaid emitters.
+ * from a submission's stored snapshot - shared by the paid + unpaid emitters.
  */
 export async function loadCompletionInput(submissionId: string): Promise<EmitInput | null> {
   const s = await prisma.submission.findUnique({
@@ -156,7 +156,7 @@ export async function loadCompletionInput(submissionId: string): Promise<EmitInp
  */
 export async function emitCompletedPaid(submissionId: string): Promise<void> {
   // Key on completedAt (ever completed) + completedPaidAt null, NOT on the live
-  // status — a re-completion may have transiently flipped status to STARTED, and
+  // status - a re-completion may have transiently flipped status to STARTED, and
   // the payment must still be recorded.
   const claim = await prisma.submission.updateMany({
     where: { id: submissionId, completedAt: { not: null }, completedPaidAt: null },

@@ -15,9 +15,9 @@ export const answer: Answer = {
       id: "worked-example",
       heading: "A worked example",
       answer:
-        "Three categories — budget, timing, fit — weighted 3, 2 and 1 produce a very different ranking from the same answers weighted equally.",
+        "Three categories - budget, timing, fit - weighted 3, 2 and 1 produce a very different ranking from the same answers weighted equally.",
       paragraphs: [
-        "Take two prospects. One has budget and no urgency; the other is urgent with no budget. Weighted equally they tie, and your reps have learned nothing. Weight budget at three and the first ranks clearly higher — which may or may not be right for your business, but it is now a decision you made rather than one the default made for you.",
+        "Take two prospects. One has budget and no urgency; the other is urgent with no budget. Weighted equally they tie, and your reps have learned nothing. Weight budget at three and the first ranks clearly higher - which may or may not be right for your business, but it is now a decision you made rather than one the default made for you.",
       ],
       bullets: [],
     },

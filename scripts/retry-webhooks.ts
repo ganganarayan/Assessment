@@ -1,6 +1,6 @@
 /**
  * Railway Cron entrypoint: retry any due webhook deliveries (failed earlier, or
- * whose inline first attempt was killed by a deploy). Schedule every ~1–2 min so
+ * whose inline first attempt was killed by a deploy). Schedule every ~1-2 min so
  * the first retry (+2 min) fires close to on time:
  *   npx tsx scripts/retry-webhooks.ts
  */

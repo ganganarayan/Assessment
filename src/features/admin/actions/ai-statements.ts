@@ -127,7 +127,7 @@ export async function saveReportNote(
   return { ok: true };
 }
 
-/** Make one version the default — it is mirrored into the snapshot so the VSL
+/** Make one version the default - it is mirrored into the snapshot so the VSL
  *  serves it on the next load. */
 export async function setDefaultAiStatement(
   slug: string,

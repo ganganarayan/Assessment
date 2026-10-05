@@ -5,7 +5,7 @@ import { isSingleTenant, type Scope } from "@/lib/tenant/scope";
 
 /**
  * The reporting start date (AppSetting.statsResetAt). When set, all analytics
- * views (dashboard, stats, contacts, submissions) show only records at/after it —
+ * views (dashboard, stats, contacts, submissions) show only records at/after it -
  * a non-destructive "show data from this date onward". Null = all time.
  */
 export async function getStatsFloor(tenantId: string | null = null): Promise<Date | null> {
@@ -20,8 +20,8 @@ export async function getStatsFloor(tenantId: string | null = null): Promise<Dat
 }
 
 /**
- * The reporting floor for a data scope. `{ kind: "all" }` — an owner looking across
- * every tenant — uses the PLATFORM's window, because there is no single tenant whose
+ * The reporting floor for a data scope. `{ kind: "all" }` - an owner looking across
+ * every tenant - uses the PLATFORM's window, because there is no single tenant whose
  * window would apply and the alternative (the later/earlier of N tenants' windows)
  * would silently hide one tenant's rows using another's setting.
  */

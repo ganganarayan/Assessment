@@ -12,7 +12,7 @@ import { tenantAppSettingId } from "@/lib/settings/tenant-row";
  * Per-tenant integration config (Meta ads + Razorpay). Stored on the tenant's own
  * AppSetting row; secrets are encrypted at rest and NEVER returned to the client
  * (the form shows only "saved" + a masked hint). The platform/Gita path never uses
- * these — it keeps using env — so nothing here can affect the live Gita funnel.
+ * these - it keeps using env - so nothing here can affect the live Gita funnel.
  *
  * The runtime FIRE wiring is LIVE: the funnel loads this tenant's pixel, CAPI fires
  * with this tenant's token, and Razorpay must be pointed at this tenant's own webhook
@@ -40,7 +40,7 @@ export async function getIntegrationSettings(): Promise<IntegrationSettingsView>
     prisma.appSetting.findUnique({ where: { tenantId } }),
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true } }),
     // The tenant's OWN domain, preferring a verified one. Razorpay must be pointed
-    // at the host the tenant actually operates on — handing them the platform's
+    // at the host the tenant actually operates on - handing them the platform's
     // domain looks wrong and ties their payment config to someone else's hostname.
     prisma.domain.findFirst({
       where: { tenantId },

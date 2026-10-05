@@ -64,11 +64,11 @@ export function BandRecompute({ assessmentId }: { assessmentId: string }) {
               <p className="mb-1 font-medium">Sample (first {res.samples.length}):</p>
               {res.samples.map((s, i) => (
                 <div key={i} className="border-b py-1 last:border-0">
-                  <span className="font-mono">{s.customerId ?? "—"}</span>
+                  <span className="font-mono">{s.customerId ?? "-"}</span>
                   {s.overall ? (
                     <span>
                       {" "}
-                      · Overall: {s.overall.from ?? "—"} → {s.overall.to ?? "—"}
+                      · Overall: {s.overall.from ?? "-"} → {s.overall.to ?? "-"}
                     </span>
                   ) : null}
                   {s.categories.length > 0 ? (
@@ -77,7 +77,7 @@ export function BandRecompute({ assessmentId }: { assessmentId: string }) {
                       ·{" "}
                       {s.categories.map((c, j) => (
                         <span key={j}>
-                          {c.category}: {c.from ?? "—"} → {c.to ?? "—"}
+                          {c.category}: {c.from ?? "-"} → {c.to ?? "-"}
                           {j < s.categories.length - 1 ? "; " : ""}
                         </span>
                       ))}

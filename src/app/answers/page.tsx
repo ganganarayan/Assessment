@@ -14,7 +14,7 @@ import { answerPath, seoPath } from "@/lib/seo/urls";
 export const metadata: Metadata = platformPageMetadata({
   title: "Answers",
   description:
-    "Short, direct answers about lead qualification, scoring and assessments — one question per page, each answered in a sentence before the detail.",
+    "Short, direct answers about lead qualification, scoring and assessments - one question per page, each answered in a sentence before the detail.",
   path: "/answers",
 });
 
@@ -23,7 +23,7 @@ export const metadata: Metadata = platformPageMetadata({
  * one-sentence answer visible.
  *
  * Showing the answers rather than only the questions makes the index useful in its own
- * right — a reader can get what they came for without a click — and it gives every answer
+ * right - a reader can get what they came for without a click - and it gives every answer
  * page an internal link from a page that is itself linked from the pillars.
  */
 export default async function AnswersIndex() {

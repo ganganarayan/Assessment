@@ -17,7 +17,7 @@ export const answer: Answer = {
       answer:
         "An ad platform optimises toward the event you report, so reporting every form fill teaches it to find form-fillers.",
       paragraphs: [
-        "The loop is doing exactly what it was built to do. It sees which people completed the event, builds a model of who they resemble, and goes looking for more of them. If the event fires for everyone who submits, the model it learns is a model of submitters — a group that overlaps with your buyers only partly, and sometimes barely.",
+        "The loop is doing exactly what it was built to do. It sees which people completed the event, builds a model of who they resemble, and goes looking for more of them. If the event fires for everyone who submits, the model it learns is a model of submitters - a group that overlaps with your buyers only partly, and sometimes barely.",
       ],
       bullets: [],
     },

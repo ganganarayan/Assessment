@@ -8,7 +8,7 @@ import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
  * 🔴 Why it is bound to a user id. The cookie used to hold a bare tenant id with no
  * expiry and nothing tying it to the session that set it, and nothing ever deleted it
  * but the Exit button. So it outlived sign-out: the next super admin to sign in on that
- * browser — including the same person, hours later — silently landed INSIDE whichever
+ * browser - including the same person, hours later - silently landed INSIDE whichever
  * tenant was last entered, and every /admin screen showed that tenant's rows under a
  * banner they had no reason to expect. One stale cookie is the whole bug.
  *
@@ -16,7 +16,7 @@ import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
  * id matches the caller. Both ids are cuids (alphanumeric), so "." can never appear
  * inside one and the split is unambiguous.
  *
- * A legacy bare value — one already sitting in a browser from before this change — has
+ * A legacy bare value - one already sitting in a browser from before this change - has
  * no user id, so it fails the match and is ignored. Nobody has to clear anything by
  * hand; the first page load after the deploy drops out of impersonation.
  */
@@ -26,7 +26,7 @@ export async function readActingTenant(userId: string): Promise<string | null> {
   const raw = (await cookies()).get(ACTING_TENANT_COOKIE)?.value;
   if (!raw) return null;
   const dot = raw.indexOf(".");
-  if (dot <= 0) return null; // legacy bare tenant id, or malformed — not ours
+  if (dot <= 0) return null; // legacy bare tenant id, or malformed - not ours
   return raw.slice(0, dot) === userId ? raw.slice(dot + 1) || null : null;
 }
 

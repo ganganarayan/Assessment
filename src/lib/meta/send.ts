@@ -5,7 +5,7 @@ import { resolveMetaConfig, resolvePlatformMetaConfig } from "@/lib/settings/con
 /**
  * Network sender for Meta Conversions API. Imports env (so it is NOT imported by
  * the pure verify harness). Fully fail-soft: a missing token makes it a no-op,
- * and any HTTP/network error is logged and swallowed — it must never break the
+ * and any HTTP/network error is logged and swallowed - it must never break the
  * submission flow. The inert/config decision lives in the pure resolveCapiConfig.
  */
 
@@ -43,7 +43,7 @@ export async function isCapiConfigured(tenantId: string | null = null): Promise<
 /**
  * Diagnostic: send a real `AssessmentCompleted` event server-side and return
  * Meta's ACTUAL response (events_received / error). This is the source of truth
- * for "is the app's event reaching Meta" — unlike sendCapiEvent it surfaces the
+ * for "is the app's event reaching Meta" - unlike sendCapiEvent it surfaces the
  * status + body instead of swallowing.
  */
 export async function testCapi(testEventCode?: string, eventNameInput?: string, tenantId: string | null = null): Promise<{
@@ -108,7 +108,7 @@ export async function testCapi(testEventCode?: string, eventNameInput?: string, 
 
 /**
  * Like sendCapiEvent but RETURNS Meta's real response (status + body) and never
- * applies a test code — for the admin "re-send a real purchase" recovery tool, so
+ * applies a test code - for the admin "re-send a real purchase" recovery tool, so
  * the operator can see the conversion was accepted (events_received: 1).
  */
 export async function sendCapiEventVerbose(input: CapiEventInput, tenantId: string | null = null): Promise<{
@@ -121,7 +121,7 @@ export async function sendCapiEventVerbose(input: CapiEventInput, tenantId: stri
   if (!cfg) {
     return { ok: false, error: "META_CAPI_ACCESS_TOKEN (and a dataset/pixel id) is NOT set on this environment." };
   }
-  const body = JSON.stringify({ data: [buildCapiEvent(withSourceUrl(input))] }); // real conversion — no test code
+  const body = JSON.stringify({ data: [buildCapiEvent(withSourceUrl(input))] }); // real conversion - no test code
   const url = `https://graph.facebook.com/${cfg.version}/${cfg.datasetId}/events?access_token=${encodeURIComponent(cfg.accessToken)}`;
   try {
     const res = await fetch(url, {
@@ -137,7 +137,7 @@ export async function sendCapiEventVerbose(input: CapiEventInput, tenantId: stri
 }
 
 /**
- * Send a CAPI event on the PLATFORM/app SUBSCRIPTION pixel (Assess360 SaaS funnel) —
+ * Send a CAPI event on the PLATFORM/app SUBSCRIPTION pixel (Assess360 SaaS funnel) -
  * a separate pixel + token from the Gita assessment one. Returns Meta's real response.
  * Inert (ok:false) until the super admin configures the platform pixel in Settings.
  * Never throws.

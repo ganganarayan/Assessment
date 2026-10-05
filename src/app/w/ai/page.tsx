@@ -16,7 +16,7 @@ import {
 export const dynamic = "force-dynamic";
 
 /**
- * Workspace AI — the same LLM connection and prompt versions as /admin/ai, scoped
+ * Workspace AI - the same LLM connection and prompt versions as /admin/ai, scoped
  * to this workspace. The underlying actions resolve through the acting scope, so a
  * real tenant admin edits their own AppSetting row and a super admin who entered
  * this workspace edits the one they are acting as.
@@ -64,7 +64,7 @@ export default async function WorkspaceAiPage() {
         <p className="text-sm text-[var(--muted-foreground)]">
           Connect an LLM to write a short, personalized result message for each respondent. On
           completion, the raw scores (no internal interpretation) are sent to the model, which
-          returns a 100–150 word message. It&apos;s generated once, stored on the submission, and
+          returns a 100-150 word message. It&apos;s generated once, stored on the submission, and
           shown above your video via the destination connector.
         </p>
       </div>

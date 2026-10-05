@@ -5,7 +5,7 @@ import Link from "next/link";
  *
  * It is the only visible difference a $39 customer sees versus $79 on the respondent's
  * screen, so it has to be noticeable enough to be worth removing and quiet enough not to
- * cheapen their funnel. Bottom of the page, small, muted — not a floating overlay that
+ * cheapen their funnel. Bottom of the page, small, muted - not a floating overlay that
  * covers their content.
  *
  * Rendered server-side from the tenant's resolved plan. A client-side check would be

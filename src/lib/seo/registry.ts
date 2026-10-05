@@ -2,13 +2,13 @@ import { answerSchema, seoPageSchema, topicSchema, type Answer, type SeoPage, ty
 import { ANSWER_SOURCES, PAGE_SOURCES, TOPICS as TOPIC_SOURCES } from "@/content/seo";
 
 /**
- * The validated content registry — the single door every surface reads content through.
+ * The validated content registry - the single door every surface reads content through.
  *
  * Shape is validated HERE, at module load, because a malformed answer should never
  * render. Cross-references (does this related slug exist, is this keyword claimed twice)
  * are NOT enforced here: throwing on a dangling link would take the whole site down over
  * a typo in one file. They are reported by `auditContent` instead, which the verify
- * script turns into a build failure — loud where it is cheap, defensive where it is not.
+ * script turns into a build failure - loud where it is cheap, defensive where it is not.
  */
 function parseAll<T>(items: readonly unknown[], schema: { parse(v: unknown): T }, kind: string): T[] {
   return items.map((item, i) => {

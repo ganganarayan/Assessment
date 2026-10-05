@@ -7,7 +7,7 @@ import { requireWorkspace } from "@/lib/auth/guards";
 
 export const dynamic = "force-dynamic";
 
-/** Tenant workspace Data window — same as /admin/data-window, scoped to this tenant. */
+/** Tenant workspace Data window - same as /admin/data-window, scoped to this tenant. */
 export default async function WorkspaceDataWindowPage({
   searchParams,
 }: {
@@ -30,7 +30,7 @@ export default async function WorkspaceDataWindowPage({
         <p className="text-sm text-[var(--muted-foreground)]">
           Pick the date your reporting starts from. The Stats, Contacts, and Submissions
           {scoped ? " for this assessment" : " (and Dashboard)"} then show only data from then
-          onward — a clean slate without deleting anything. Clear it to see all history again.
+          onward - a clean slate without deleting anything. Clear it to see all history again.
         </p>
       </div>
       {scoped ? (

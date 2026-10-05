@@ -14,7 +14,7 @@ export default async function WorkspaceNewAssessmentPage() {
   const { tenantId, impersonating } = await requireWorkspace();
   if (!(await currentUserCanEdit())) redirect("/w/assessments");
 
-  // Billing gate — check the plan cap UP FRONT so we don't let the user fill the
+  // Billing gate - check the plan cap UP FRONT so we don't let the user fill the
   // whole form only to be blocked at save. A super admin acting in a tenant
   // (impersonating) is never limited, matching createAssessment.
   const cap = impersonating ? ({ ok: true } as const) : await assertCanCreateAssessment(tenantId);

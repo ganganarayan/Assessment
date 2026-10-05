@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
  *
  * THE WORKER IS THIS SAME APP, DEPLOYED TWICE. A second Railway service built from the
  * same repo, with REPORT_WORKER_URL pointing at it. No separate codebase, no duplicated
- * render logic, no second build to keep in step — the only difference between the two
+ * render logic, no second build to keep in step - the only difference between the two
  * services is which one receives public traffic.
  *
  * WHY BOTHER, IF IT IS THE SAME CODE: react-pdf lays out the document and buffers the
@@ -14,8 +14,8 @@ import { env } from "@/lib/env";
  * in two, it kills a worker that nobody's respondent is talking to, and the app gets a
  * failed fetch it can fall back from.
  *
- * DEGRADES TO TODAY'S BEHAVIOUR. With REPORT_WORKER_URL unset — or the worker down,
- * slow, or erroring — the caller renders in-process exactly as before. So deploying the
+ * DEGRADES TO TODAY'S BEHAVIOUR. With REPORT_WORKER_URL unset - or the worker down,
+ * slow, or erroring - the caller renders in-process exactly as before. So deploying the
  * worker is an improvement you opt into, not a dependency that can take reports out.
  */
 
@@ -31,7 +31,7 @@ export function workerConfigured(): boolean {
 
 /**
  * Ask the worker for a submission's PDF. Returns the bytes, or null to mean
- * "render it yourself" — every failure is a null, never a throw, because the caller's
+ * "render it yourself" - every failure is a null, never a throw, because the caller's
  * fallback is always better than an error page.
  */
 export async function renderOnWorker(submissionId: string): Promise<Uint8Array | null> {

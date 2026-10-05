@@ -13,10 +13,10 @@ import { readNurtureConfig, fillPlaceholders, toE164Digits, type NurtureConfig }
 import { sendEmail, sendWaba, sendTrackedEmail, sendNurtureForSubmission } from "@/lib/nurture/send";
 
 /**
- * Nurture admin actions — connection settings (SMTP + WhatsApp), the message config,
+ * Nurture admin actions - connection settings (SMTP + WhatsApp), the message config,
  * test sends, manual resend and the send log. All follow the ACTING scope, so the
  * super-admin platform view edits the singleton row and impersonating a tenant edits
- * that tenant — the same as the Ads & payments settings. Secrets are encrypted and
+ * that tenant - the same as the Ads & payments settings. Secrets are encrypted and
  * never returned to the client.
  */
 
@@ -110,7 +110,7 @@ export async function sendSmtpTest(to: string): Promise<ActionResult> {
     <p>This is a test email from your Assessment app, sent to confirm the mail server configuration.
     If you received it, password-reset and nurture emails will send from here.</p>
   </div>`;
-  const err = await sendEmail(scope.tenantId, dest, "SMTP test — your settings work", html);
+  const err = await sendEmail(scope.tenantId, dest, "SMTP test - your settings work", html);
   await prisma.nurtureLog
     .create({
       data: {
@@ -264,7 +264,7 @@ export async function fetchWabaTemplates(): Promise<ActionResult<WabaTemplateOpt
     const json = (await res.json().catch(() => null)) as GraphTemplatesResponse | null;
     if (!res.ok) {
       const m = json?.error?.message ?? `HTTP ${res.status}`;
-      // A management-scope error is the common cause — nudge toward it.
+      // A management-scope error is the common cause - nudge toward it.
       return { ok: false, error: `WhatsApp API: ${String(m).slice(0, 220)}` };
     }
     const rows = Array.isArray(json?.data) ? json!.data! : [];

@@ -10,14 +10,14 @@ import {
 
 /**
  * The respondent's answers for a CLINIC_AUDIT submission, grouped by category and
- * in question order — with, for scored questions, the funnel role, the number the
+ * in question order - with, for scored questions, the funnel role, the number the
  * engine ACTUALLY used, and where that number came from (a typed exact figure vs.
  * the selected option's stored value).
  *
  * This is the diagnostic that makes a misconfigured option value obvious: it shows
  * the chosen option's LABEL next to the value carried, so e.g. an option labelled
- * "7 or 8" (out of 10) carrying the value 7 — which the engine reads as 7%, not
- * 75% — is visible at a glance instead of silently producing absurd revenue.
+ * "7 or 8" (out of 10) carrying the value 7 - which the engine reads as 7%, not
+ * 75% - is visible at a glance instead of silently producing absurd revenue.
  */
 export interface ClinicAnswerRow {
   questionId: string;
@@ -43,13 +43,13 @@ export interface ClinicAnswerCategory {
  * from the snapshot's pre-converted numbers.
  *
  * The snapshot caches inputs that were already scaled at completion time, so a fix
- * to how a scale is interpreted would otherwise only ever help NEW submissions —
+ * to how a scale is interpreted would otherwise only ever help NEW submissions -
  * every result page and PDF created earlier would keep showing the old, wrong
  * reading forever. Re-deriving here means the current interpretation applies to
  * every submission, past and future. The AI prose still comes from the snapshot
  * (it is written once and must stay stable).
  *
- * Returns [] when the submission has no scored answers — callers then fall back to
+ * Returns [] when the submission has no scored answers - callers then fall back to
  * the stored snapshot inputs.
  */
 export async function getClinicRawAnswers(submissionId: string): Promise<RawAnswer[]> {
@@ -94,7 +94,7 @@ export async function getClinicRawAnswers(submissionId: string): Promise<RawAnsw
       value: opt.value,
       actualValue,
       optionLabel: opt.label,
-      // Explicit config wins; else infer from the question's own wording/options —
+      // Explicit config wins; else infer from the question's own wording/options -
       // the same rule the runner and the scorer use.
       unit: isClinicUnit(q.scoringUnit)
         ? q.scoringUnit

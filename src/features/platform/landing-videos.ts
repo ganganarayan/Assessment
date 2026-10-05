@@ -7,13 +7,13 @@ import { parseEmbed, readLandingVideos } from "@/lib/marketing/embed";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /**
- * Landing-page videos — PLATFORM ONLY.
+ * Landing-page videos - PLATFORM ONLY.
  *
  * These live on the singleton AppSetting row and are deliberately excluded from the
  * re-home copy (see scripts/rehome-platform-data.ts): the marketing site is the SaaS
  * shopfront, not something a tenant owns or should inherit.
  *
- * Stored as pasted, validated on save AND re-validated on read — so tightening the
+ * Stored as pasted, validated on save AND re-validated on read - so tightening the
  * host allowlist later retires existing videos instead of leaving them live.
  */
 
@@ -98,7 +98,7 @@ export async function saveLandingVideos(input: LandingVideoInput): Promise<Actio
 
 /**
  * The PUBLIC read used by the landing page: parsed, allowlisted embed URLs only.
- * Never throws — the marketing page must render even if this row is unreadable, so a
+ * Never throws - the marketing page must render even if this row is unreadable, so a
  * failure degrades to "no videos" (the image and the plain tiles) rather than a 500 on
  * the front door.
  */

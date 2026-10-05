@@ -6,7 +6,7 @@ import { EventType } from "@prisma/client";
  * Assess360 is the source of truth ONLY for assessment-related events. Funnel
  * events owned by other systems (video views, call bookings, payments) are NOT
  * emitted here. They may later be POSTed *into* Assess360 via a reserved ingest
- * API for unified reporting — the names below are reserved but NOT implemented.
+ * API for unified reporting - the names below are reserved but NOT implemented.
  */
 export const RESERVED_EXTERNAL_EVENTS = [
   "external.vsl_viewed",
@@ -16,7 +16,7 @@ export const RESERVED_EXTERNAL_EVENTS = [
 /** Enum value -> public dotted event name used in payloads, logs, and UI. */
 export const EVENT_NAME: Record<EventType, string> = {
   [EventType.LEAD_CREATED]: "optin", // merged opt-in (was lead.created + assessment.started)
-  [EventType.ASSESSMENT_STARTED]: "assessment.started", // DROPPED — never emitted; retained only to render historical logs
+  [EventType.ASSESSMENT_STARTED]: "assessment.started", // DROPPED - never emitted; retained only to render historical logs
   [EventType.ASSESSMENT_COMPLETED]: "assessment.completed", // legacy; superseded by completed_unpaid
   [EventType.ASSESSMENT_COMPLETED_PAID]: "completed_paid", // paid mode, on payment
   [EventType.ASSESSMENT_COMPLETED_UNPAID]: "completed_unpaid", // ALL completions w/o in-app payment (free + paid-unpaid sweep)
@@ -33,7 +33,7 @@ export const NAME_TO_TYPE: Record<string, EventType> = Object.fromEntries(
 );
 
 /** All event types (for name resolution / historical logs). ASSESSMENT_STARTED is
- *  intentionally omitted — it is dropped (never emitted); its EVENT_NAME mapping is
+ *  intentionally omitted - it is dropped (never emitted); its EVENT_NAME mapping is
  *  kept above only so old logs still render a friendly name. */
 export const ALL_EVENT_TYPES: EventType[] = [
   EventType.LEAD_CREATED,
@@ -57,7 +57,7 @@ export const ALL_EVENT_TYPES: EventType[] = [
 export const ACTIVE_EVENT_TYPES: EventType[] = [
   EventType.LEAD_CREATED, // optin
   // ASSESSMENT_COMPLETED is intentionally EXCLUDED: free completions now emit
-  // completed_unpaid (unified), so a "Completed — free" trigger would never fire.
+  // completed_unpaid (unified), so a "Completed - free" trigger would never fire.
   EventType.ASSESSMENT_COMPLETED_PAID, // paid mode, on payment
   EventType.ASSESSMENT_COMPLETED_UNPAID, // ALL completions w/o in-app payment (free + paid-unpaid)
   EventType.RESULT_VIEWED,
@@ -67,7 +67,7 @@ export const ACTIVE_EVENT_TYPES: EventType[] = [
 ];
 
 /**
- * Dotted names the app actually emits — the ONLY valid outbound-webhook event
+ * Dotted names the app actually emits - the ONLY valid outbound-webhook event
  * names. The admin UI offers these in a dropdown and createWebhook rejects
  * anything else, so a typo (e.g. "aeeseement.completed") can never be saved as a
  * silently-never-delivering webhook.
@@ -77,9 +77,9 @@ export const EMITTED_EVENT_NAMES: string[] = ACTIVE_EVENT_TYPES.map((t) => EVENT
 /** Human label for each trigger, shown in the webhook trigger dropdown. */
 export const EVENT_LABEL: Partial<Record<EventType, string>> = {
   [EventType.LEAD_CREATED]: "Opt-in (lead created)",
-  [EventType.ASSESSMENT_COMPLETED]: "Completed — free assessment (legacy)",
-  [EventType.ASSESSMENT_COMPLETED_PAID]: "Completed — paid (on payment)",
-  [EventType.ASSESSMENT_COMPLETED_UNPAID]: "Completed — no payment (free + unpaid)",
+  [EventType.ASSESSMENT_COMPLETED]: "Completed - free assessment (legacy)",
+  [EventType.ASSESSMENT_COMPLETED_PAID]: "Completed - paid (on payment)",
+  [EventType.ASSESSMENT_COMPLETED_UNPAID]: "Completed - no payment (free + unpaid)",
   [EventType.RESULT_VIEWED]: "Result viewed",
   [EventType.ASSESSMENT_ABANDONED]: "Abandoned",
   [EventType.RESULT_LINK_REQUESTED]: "Result link requested",
@@ -92,7 +92,7 @@ export const DEFAULT_EVENT_NAME: Partial<Record<EventType, string>> = Object.fro
 ) as Partial<Record<EventType, string>>;
 
 /** Free-form delivered-name rule: lowercase letters/digits in dotted OR underscore
- *  segments — no binding to one separator. e.g. optin, completed_paid, lead.created. */
+ *  segments - no binding to one separator. e.g. optin, completed_paid, lead.created. */
 export const WEBHOOK_NAME_REGEX = /^[a-z0-9]+([._][a-z0-9]+)*$/;
 
 /* ---------------------------------------------------- canonical payload ---- */
@@ -152,7 +152,7 @@ export interface PayloadClinic {
 }
 
 /** The result-page button a respondent pressed to ask for a call. `label` and `url`
- *  are snapshotted at click time — the page is editable, so re-reading the block later
+ *  are snapshotted at click time - the page is editable, so re-reading the block later
  *  could describe a button that has since changed or been removed. */
 export interface PayloadCta {
   blockId: string;
@@ -181,7 +181,7 @@ export interface AssessmentMetadata {
  * key `contact.<key>` (e.g. `contact.utm_source`). No nested contact object.
  *
  * The top level is stable across all events; only `metadata` varies by event
- * type — so new event types add their own metadata builder without changing
+ * type - so new event types add their own metadata builder without changing
  * this base schema. New contact custom fields just add another `contact.<key>`.
  */
 export interface EventEnvelope {
@@ -201,7 +201,7 @@ export interface EventEnvelope {
 
 /**
  * Normalized input emitters pass to `emitEvent`. The central assembler
- * (lib/events/payload.ts) turns this into an EventEnvelope — emitters never
+ * (lib/events/payload.ts) turns this into an EventEnvelope - emitters never
  * hand-build payloads.
  */
 export interface EmitInput {
@@ -210,7 +210,7 @@ export interface EmitInput {
   /**
    * The result token. Present inside resultUrl already, but sent as its own
    * field so a CRM can store it and merge it into a page that has no way to
-   * identify the visitor otherwise — VidaPulse.setId('<token>', '<cid>') on a
+   * identify the visitor otherwise - VidaPulse.setId('<token>', '<cid>') on a
    * landing page makes its CTA links traceable back to this respondent.
    */
   resultToken?: string | null;
@@ -243,7 +243,7 @@ export interface WebhookRow {
   status: "ACTIVE" | "INACTIVE";
   logCount: number;
   lastFired: string | null;
-  /** True once a successful delivery has occurred — name/url are then frozen. */
+  /** True once a successful delivery has occurred - name/url are then frozen. */
   locked: boolean;
 }
 

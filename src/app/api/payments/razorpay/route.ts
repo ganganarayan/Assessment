@@ -1,7 +1,7 @@
 import { handleRazorpayWebhook } from "@/lib/payments/razorpay-webhook";
 
 /**
- * Razorpay webhook — POST /api/payments/razorpay (public; called by Razorpay).
+ * Razorpay webhook - POST /api/payments/razorpay (public; called by Razorpay).
  * PLATFORM / Gita tenant (tenantId = null): HMAC-verified with the singleton's
  * webhook secret, falling back to RAZORPAY_WEBHOOK_SECRET (env).
  *
