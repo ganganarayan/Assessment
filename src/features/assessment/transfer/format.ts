@@ -85,6 +85,18 @@ export const CSV_COLUMNS = [
   "band_description",
   "band_min",
   "band_max",
+  // Everything the flat columns cannot express, as JSON on the ASSESSMENT row.
+  //
+  // The CSV was ALWAYS the lesser format: it carried about eighteen of the forty-six
+  // fields the JSON did, long before the gate and the result page were added to the
+  // export. Widening it field by field would mean thirty more columns today and a new one
+  // every time an assessment gains a setting, with a parser to match, and the two formats
+  // would drift apart again the moment somebody forgot.
+  //
+  // So the flat columns stay, because they are the readable part people actually open in
+  // a spreadsheet, and this column guarantees the round trip. Import prefers it when
+  // present and falls back to the flat columns for files written before it existed.
+  "assessment_json",
 ] as const;
 
 type Col = (typeof CSV_COLUMNS)[number];
@@ -118,6 +130,9 @@ export function bodiesToCsv(bodies: AssessmentBodyExport[]): string {
         collect_profession: a.collectProfession,
         profession_required: a.professionRequired,
         engine: a.engine ?? "GENERIC",
+        // Categories, questions, options and bands are expressed as their own rows, so
+        // they are stripped here rather than duplicated.
+        assessment_json: JSON.stringify({ ...a, categories: undefined, resultBands: undefined }),
       }),
     );
 
@@ -337,6 +352,24 @@ export function csvToDocument(
       acc.professionRequired = toBool(cell(row, "profession_required"), true);
       const eng = cell(row, "engine").trim().toUpperCase();
       acc.engine = eng === "CLINIC_AUDIT" ? "CLINIC_AUDIT" : "GENERIC";
+
+      // The full body, when the file carries it. Applied OVER the flat columns, so a CSV
+      // round-trips with the same fidelity as the JSON: the gate, the exit page, the
+      // result page, the ad configuration. Malformed JSON is ignored rather than failing
+      // the import, because the flat columns above have already produced a usable
+      // assessment and losing the extras beats losing the file.
+      const blob = cell(row, "assessment_json").trim();
+      if (blob) {
+        try {
+          const parsed = JSON.parse(blob) as Record<string, unknown>;
+          for (const [k, v] of Object.entries(parsed)) {
+            if (k === "categories" || k === "resultBands" || v === undefined) continue;
+            (acc as unknown as Record<string, unknown>)[k] = v;
+          }
+        } catch {
+          /* keep the flat-column values */
+        }
+      }
     } else if (type === "CATEGORY") {
       recognized += 1;
       const c = ensureCat(acc, toInt(cell(row, "category_index")));
