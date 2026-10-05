@@ -101,6 +101,35 @@ export const assessmentBodyExport = z.object({
   nextStep: z.enum(["PAYMENT", "DESTINATION", "RESULTS"]).optional(),
   questionDisplayMode: z.enum(["ALL", "CATEGORY", "SINGLE"]).optional(),
   vslCountdownSeconds: z.number().int().optional(),
+
+  // All optional, so every file written by the older, narrower export still imports.
+  // `unknown` for the JSON blobs on purpose: their shapes are validated by their own
+  // schemas when the builder reads them, and re-validating here would reject a document
+  // written by a newer version of those shapes rather than carrying it through.
+  qualification: z.unknown().nullable().optional(),
+  disqualifiedContent: z.unknown().nullable().optional(),
+  audienceGate: z.unknown().nullable().optional(),
+  resultPage: z.unknown().nullable().optional(),
+  resultPagePublished: z.unknown().nullable().optional(),
+  publishedPages: z.unknown().nullable().optional(),
+  metaEvents: z.unknown().nullable().optional(),
+  fireMetaCapi: z.boolean().optional(),
+  platformSignup: z.boolean().optional(),
+  retakePolicy: z.enum(["DELAYED", "NEVER", "UNLIMITED"]).optional(),
+  retakeDays: z.number().int().optional(),
+  uniqueIdentifier: z.enum(["EMAIL", "MOBILE"]).optional(),
+  trainingUrl: z.string().nullable().optional(),
+  targetUrl: z.string().nullable().optional(),
+  tokenTtlSeconds: z.number().int().nullable().optional(),
+  resultsContinueUrl: z.string().nullable().optional(),
+  resultsContinueLabel: z.string().nullable().optional(),
+  paidMode: z.boolean().optional(),
+  paymentUrl: z.string().nullable().optional(),
+  paymentHeadline: z.string().nullable().optional(),
+  paymentButtonLabel: z.string().nullable().optional(),
+  paymentAmount: z.number().int().nullable().optional(),
+  paymentEventName: z.string().optional(),
+  paymentIntroText: z.string().nullable().optional(),
   categories: z.array(categoryExport),
   resultBands: z.array(resultBandExport),
 });

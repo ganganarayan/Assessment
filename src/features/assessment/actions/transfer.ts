@@ -12,6 +12,7 @@ import {
   slugExists,
   generateCopySlug,
   performImportAll,
+  type ImportOutcome,
   type ImportItem,
 } from "@/features/assessment/transfer/import";
 import type {
@@ -51,7 +52,7 @@ export async function importAssessments(
   raw: string,
   format: Format,
   mode: ImportMode,
-): Promise<ActionResult<{ count: number }> & { errors?: string[] }> {
+): Promise<ActionResult<ImportOutcome> & { errors?: string[] }> {
   const user = await requireSuperAdmin();
   { const __d = editDenied(user); if (__d) return __d; }
   const parsed = parseImportText(raw, format);
@@ -105,10 +106,14 @@ export async function importAssessments(
     // Worth noting for the recurrence guard: it looks for `scope.tenantId` being passed as
     // an owner, and this site passed NOTHING. An omitted argument with a nullable default
     // is the same bug wearing a different shape, and the guard cannot see it.
-    const count = await performImportAll(items, user.id, configTenantOf(await resolveActingScope()));
+    const { count, renamed } = await performImportAll(
+      items,
+      user.id,
+      configTenantOf(await resolveActingScope()),
+    );
     revalidatePath("/admin/assessments");
     revalidatePath("/admin/import");
-    return { ok: true, data: { count } };
+    return { ok: true, data: { count, renamed } };
   } catch (e) {
     const code = e instanceof Prisma.PrismaClientKnownRequestError ? e.code : "";
     if (code === "P2002") {
@@ -155,7 +160,7 @@ export async function importTenantAssessments(
   raw: string,
   format: Format,
   mode: ImportMode,
-): Promise<ActionResult<{ count: number }> & { errors?: string[] }> {
+): Promise<ActionResult<ImportOutcome> & { errors?: string[] }> {
   const { user, tenantId, impersonating } = await requireWorkspace();
   { const __d = editDenied(user); if (__d) return __d; }
   const parsed = parseImportText(raw, format);
@@ -210,9 +215,9 @@ export async function importTenantAssessments(
   }
 
   try {
-    const count = await performImportAll(items, user.id, tenantId);
+    const { count, renamed } = await performImportAll(items, user.id, tenantId);
     revalidatePath("/w/assessments");
-    return { ok: true, data: { count } };
+    return { ok: true, data: { count, renamed } };
   } catch (e) {
     const code = e instanceof Prisma.PrismaClientKnownRequestError ? e.code : "";
     if (code === "P2002") {
