@@ -1,5 +1,4 @@
 import { requireWorkspace } from "@/lib/auth/guards";
-import { getAiSettings } from "@/features/admin/actions/ai-settings";
 import { getIntegrationSettings, updateMetaSettings, updateRazorpaySettings, updateHeatmapSettings, updateVidapulseSettings } from "@/features/workspace/actions/integrations";
 import { HeatmapSettingsForm } from "@/features/workspace/components/heatmap-settings-form";
 import { getDomainSettings } from "@/features/workspace/actions/domains";
@@ -9,7 +8,6 @@ import { getThemeColors } from "@/features/workspace/actions/theme";
 import { BookingSettingsForm } from "@/features/workspace/components/booking-settings-form";
 import { SupportSettingsForm } from "@/features/workspace/components/support-settings-form";
 import { ThemeColorForm } from "@/features/workspace/components/theme-color-form";
-import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
 import { DomainSettings } from "@/features/workspace/components/domain-settings";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
@@ -34,7 +32,6 @@ export const dynamic = "force-dynamic";
  */
 export default async function WorkspaceSettingsPage() {
   const { impersonating } = await requireWorkspace();
-  const settings = await getAiSettings();
   const integrations = await getIntegrationSettings();
   const domains = await getDomainSettings();
   const bookingUrl = await getBookingUrl();
@@ -54,19 +51,6 @@ export default async function WorkspaceSettingsPage() {
           and never shared with any other tenant or the platform.
         </p>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>AI - LLM connection</CardTitle>
-          <CardDescription>
-            Choose a provider and paste its API key. The key is encrypted at rest and never
-            shown again. Disable any time to fall back to the static suggestion.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AiSettingsForm initial={settings} />
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>

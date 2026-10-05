@@ -20,7 +20,7 @@ import { getOrCreateExternalId } from "@/lib/external-id";
 import { appendVidapulseId } from "@/lib/vidapulse";
 import { detectUnitFromQuestion, isClinicRole, type ClinicRole } from "@/lib/scoring/clinic-audit";
 import { buildSpine, nextIndex, walk, type RouteSpec } from "@/lib/routing/engine";
-import { waitSeconds, type FlowInput } from "@/features/assessment/flow/stages";
+import { waitSeconds, terminalStage, type FlowInput } from "@/features/assessment/flow/stages";
 import { STAGE_DEFAULTS } from "@/features/assessment/flow/stage-defaults";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -203,6 +203,9 @@ interface Lockout {
   policy: "DELAYED" | "NEVER";
   lastCompletedAt: string | null;
   nextAvailableAt: string | null;
+  /** Server-confirmed: a previous result exists and can be emailed. When false the
+   *  offer is not made, instead of making it and then hedging about it. */
+  resultAvailable: boolean;
 }
 
 function fmtDate(iso: string | null): string | null {
@@ -503,6 +506,23 @@ export function AssessmentRunner({
   // Next/Back cancels the in-flight advance instead of double-firing.
   const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * Hand the respondent to signup with what we already know about them.
+   *
+   * window.location, not router.push: this leaves the funnel for the app shell, and a
+   * hard navigation guarantees a clean server render of /sign-up with the prefill.
+   * /sign-up sends an email that already has an account on to sign-in, so this one
+   * call serves both a new prospect and a returning one.
+   */
+  function goToSignup() {
+    const params = new URLSearchParams();
+    if (lead.email) params.set("email", lead.email);
+    const name = [lead.firstName, lead.lastName].filter(Boolean).join(" ").trim();
+    if (name) params.set("name", name);
+    const qs = params.toString();
+    window.location.href = qs ? `/sign-up?${qs}` : "/sign-up";
+  }
+
   function submitLead(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -523,10 +543,23 @@ export function AssessmentRunner({
         return;
       }
       if (res.data?.status === "locked") {
+        // A signup funnel has no result to withhold and no second run to sell. Whoever
+        // is here already completed it, which means they already have (or started) an
+        // account - so the right answer is the account, not a dead end telling them to
+        // come back in fifteen days. /sign-up routes a known email on to sign-in, so
+        // this lands them wherever they actually belong.
+        //
+        // This is the retake lock doing its job and the ENDING deciding what that
+        // means, rather than one screen being right for every funnel.
+        if (terminalStage(flowInput) === "SIGNUP") {
+          goToSignup();
+          return;
+        }
         setLockout({
           policy: res.data.policy,
           lastCompletedAt: res.data.lastCompletedAt,
           nextAvailableAt: res.data.nextAvailableAt,
+          resultAvailable: res.data.resultAvailable,
         });
         setStep("locked");
         return;
@@ -778,11 +811,7 @@ export function AssessmentRunner({
       // window.location, not router.push: this leaves the funnel for the app shell, and
       // a hard navigation guarantees a clean server render of /sign-up with the prefill.
       if (assessment.platformSignup) {
-        const params = new URLSearchParams();
-        if (lead.email) params.set("email", lead.email);
-        const name = [lead.firstName, lead.lastName].filter(Boolean).join(" ").trim();
-        if (name) params.set("name", name);
-        window.location.href = `/sign-up?${params.toString()}`;
+        goToSignup();
         return;
       }
       // Page builder: if pages are configured, show them (results teaser + the pay
@@ -1392,11 +1421,14 @@ export function AssessmentRunner({
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          {assessment.collectEmail ? (
+          {/* Offered only when the server confirmed there is a result to send. The
+              screen has already stated that a completed run exists, so following the
+              offer with "if a previous result exists" read as the app contradicting
+              itself one line later. */}
+          {assessment.collectEmail && lockout.resultAvailable ? (
             emailSent ? (
               <p className="text-sm">
-                If a previous result exists for your details, we’ve emailed it to your
-                registered address.
+                Sent. Your previous result is on its way to the email address you used.
               </p>
             ) : (
               <Button onClick={emailPreviousResults} disabled={pending}>

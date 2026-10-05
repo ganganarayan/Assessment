@@ -1,8 +1,18 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { SignUpForm } from "@/features/auth/components/sign-up-form";
+import { SignOutButton } from "@/features/auth/components/sign-out-button";
+import { buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { PlatformPixel } from "@/components/platform-pixel";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { platformPageMetadata } from "@/lib/seo/site";
@@ -35,13 +45,43 @@ export default async function SignUpPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await getSession();
-  if (session) redirect("/dashboard");
-
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const email = one(sp.email).trim().toLowerCase();
   const name = one(sp.name).trim();
+
+  const session = await getSession();
+  if (session) {
+    const signedInAs = (session.user.email ?? "").trim().toLowerCase();
+    // Same person, or no email to compare: they are already a customer, send them in.
+    if (!email || email === signedInAs) redirect("/dashboard");
+    // Different person. This browser holds somebody else's session and a prospect has
+    // just finished the funnel with their own email. Neither answer is safe to pick
+    // for them: continuing silently shows them an account that is not theirs, and
+    // signing them out silently ends a session they may still want. So ask.
+    return (
+      <main className="flex min-h-screen items-center justify-center p-6">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle>You are already signed in</CardTitle>
+            <CardDescription>
+              This browser is signed in as <strong>{session.user.email}</strong>, but you just
+              entered <strong>{email}</strong>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <Link href="/dashboard" className={buttonVariants({ className: "w-full" })}>
+              Continue as {session.user.email}
+            </Link>
+            <SignOutButton
+              redirectTo={`/sign-up?${new URLSearchParams({ email, ...(name ? { name } : {}) }).toString()}`}
+              label={`Sign out and create an account for ${email}`}
+            />
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
 
   if (email) {
     const existing = await prisma.user

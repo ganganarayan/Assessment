@@ -13,16 +13,24 @@ import { builtInPromptsAllowed } from "@/lib/ai/scope";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
 
 /**
- * Resolve a version id to a PromptVersion, scoped to a tenant. Built-in code
- * versions (v1/v2) win by id; otherwise the tenant's stored AiPromptVersion row is
- * wrapped via instructionVersion(); a missing/blank id falls back to the default.
+ * Resolve a version id to a PromptVersion, scoped to a tenant.
+ *
+ * The built-in code versions resolve ONLY for the scopes that own them (the platform
+ * and the owner's own businesses). For anyone else a built-in id resolves to NOTHING
+ * rather than to the owner's prompt: a tenant must not generate with instructions
+ * they cannot see, and inheriting the default silently would do exactly that on every
+ * workspace that never picked a version.
+ *
+ * Null means "no version": the caller skips generation and the result renders without
+ * an AI message, which is the same fail-soft path as an unconfigured provider.
  */
 export async function resolvePromptVersion(
   versionId: string | null | undefined,
   tenantId: string | null,
-): Promise<PromptVersion> {
+): Promise<PromptVersion | null> {
+  const allowBuiltins = await builtInPromptsAllowed(tenantId);
   const code = versionId ? PROMPT_VERSIONS.find((v) => v.id === versionId) : undefined;
-  if (code) return code;
+  if (code) return allowBuiltins ? code : null;
   if (versionId) {
     const row = await prisma.aiPromptVersion.findFirst({
       where: { id: versionId, tenantId },
@@ -30,7 +38,7 @@ export async function resolvePromptVersion(
     });
     if (row) return instructionVersion(row);
   }
-  return getPromptVersion(versionId);
+  return allowBuiltins ? getPromptVersion(versionId) : null;
 }
 
 /** The tenant's word-count window (assembled prompts ask the model for this range). */

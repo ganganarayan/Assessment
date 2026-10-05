@@ -6,7 +6,16 @@ import { authClient } from "@/lib/auth/auth-client";
 import { endImpersonation } from "@/features/auth/actions/session";
 import { Button } from "@/components/ui/button";
 
-export function SignOutButton() {
+export function SignOutButton({
+  redirectTo = "/sign-in",
+  label = "Sign out",
+}: {
+  /** Where to land after signing out. The signup hand-off sends them back to
+   *  /sign-up with the prefill intact, so the prospect carries on where they were
+   *  instead of having to find the funnel again. */
+  redirectTo?: string;
+  label?: string;
+} = {}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -18,13 +27,13 @@ export function SignOutButton() {
     await endImpersonation().catch(() => {});
     await authClient.signOut();
     setLoading(false);
-    router.push("/sign-in");
+    router.push(redirectTo);
     router.refresh();
   }
 
   return (
     <Button variant="outline" onClick={onSignOut} disabled={loading}>
-      {loading ? "Signing out…" : "Sign out"}
+      {loading ? "Signing out…" : label}
     </Button>
   );
 }

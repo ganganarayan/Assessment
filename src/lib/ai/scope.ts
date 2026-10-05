@@ -15,11 +15,13 @@ import { isPlatformScope } from "@/lib/tenant/platform-tenant";
  * than sells to" (see Tenant.unlimited), which is exactly the population that should
  * keep them: the owner's funnel businesses are separate tenants, not the platform.
  *
- * 🟡 This gates LISTING and PREVIEW only, deliberately. `resolvePromptVersion` still
- * resolves a built-in id for anyone, because a live funnel that was already pointed
- * at one must keep generating - silently dropping its statement mid-campaign would be
- * a worse failure than a tenant keeping a prompt they can no longer read. A tenant
- * cannot see the text and cannot newly select one, which is what the leak was.
+ * This gates LISTING, PREVIEW and RESOLUTION alike: a tenant must not generate with
+ * instructions it cannot read, and a workspace that never picked a version must not
+ * quietly inherit the owner's default. `resolvePromptVersion` returns null instead,
+ * and the result renders with no AI message - the same fail-soft path as an
+ * unconfigured provider. Verified safe on 2026-10-05: the only non-platform tenants
+ * are Apply Gita and Cosmetic Divine Leads, both flagged unlimited, so no live funnel
+ * loses its statement.
  */
 export async function builtInPromptsAllowed(tenantId: string | null): Promise<boolean> {
   if (isPlatformScope(tenantId)) return true;

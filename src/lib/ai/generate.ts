@@ -4,8 +4,9 @@ import { env } from "@/lib/env";
 import { decryptWithSecret } from "@/lib/crypto";
 import { buildStatementMessages, humanizeStatement } from "@/lib/ai/prompt";
 import { applyCrisisLine } from "@/lib/ai/crisis";
-import { PREVIEW_SAMPLE } from "@/lib/ai/prompt-versions";
+import { PREVIEW_SAMPLE, NEUTRAL_SAMPLE } from "@/lib/ai/prompt-versions";
 import { resolvePromptVersion, getWordWindow } from "@/lib/ai/versions";
+import { builtInPromptsAllowed } from "@/lib/ai/scope";
 import { DEFAULT_MODEL, isAiProvider, type AiConfig, type StatementInput } from "@/lib/ai/types";
 import { CLINIC_SYSTEM_PROMPT } from "@/lib/ai/clinic-prompt";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
@@ -85,6 +86,9 @@ export async function generatePersonalStatementResult(
     }
     // The assessment's chosen version wins; else the tenant default (cfg.promptVersion).
     const version = await resolvePromptVersion(versionId ?? cfg.promptVersion, tenantId);
+    if (!version) {
+      return { text: null, error: "No system prompt version is set for this workspace. Add one under AI." };
+    }
     const words = await getWordWindow(tenantId);
     // Instruction (V3+) versions are self-contained: do NOT fold in the historical
     // tenant guidance - the owner's instructions are the ONLY steer.
@@ -165,9 +169,15 @@ export async function testStatement(versionId?: string, tenantId: string | null 
     return { ok: false, ms: 0, error: "No API key saved (or it couldn't be read). Save a provider + key first." };
   }
   const version = await resolvePromptVersion(versionId ?? cfg.promptVersion, tenantId);
+  if (!version) {
+    return { ok: false, ms: 0, error: "No system prompt version is set. Add one under AI, then test." };
+  }
   const words = await getWordWindow(tenantId);
+  // Same rule as the on-screen preview: a tenant tests against a neutral scenario, not
+  // against the owner's own assessment.
+  const sample = (await builtInPromptsAllowed(tenantId)) ? PREVIEW_SAMPLE : NEUTRAL_SAMPLE;
   const { system, user } = buildStatementMessages(
-    { ...PREVIEW_SAMPLE, guidance: version.minimal ? null : cfg.guidance },
+    { ...sample, guidance: version.minimal ? null : cfg.guidance },
     version,
     words,
   );
@@ -175,7 +185,7 @@ export async function testStatement(versionId?: string, tenantId: string | null 
   try {
     const raw = await callProvider(cfg, system, user);
     const styled = raw ? (version.minimal ? raw : humanizeStatement(raw)) : raw;
-    const text = styled ? applyCrisisLine(styled, PREVIEW_SAMPLE.bandLevel, PREVIEW_SAMPLE.percentage) : styled;
+    const text = styled ? applyCrisisLine(styled, sample.bandLevel, sample.percentage) : styled;
     return { ok: true, ms: Date.now() - t0, text: text ?? "(model returned an empty response)" };
   } catch (e) {
     return { ok: false, ms: Date.now() - t0, error: e instanceof Error ? e.message : String(e) };
