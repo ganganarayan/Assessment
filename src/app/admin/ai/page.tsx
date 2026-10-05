@@ -54,6 +54,7 @@ export default async function AiSettingsPage() {
             wordMin={settings.wordMin}
             wordMax={settings.wordMax}
             sampleName={settings.sampleName}
+            showBuiltins={settings.showBuiltins}
           />
         </CardContent>
       </Card>

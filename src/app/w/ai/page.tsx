@@ -86,9 +86,9 @@ export default async function WorkspaceAiPage() {
         <CardHeader>
           <CardTitle>System prompt versions</CardTitle>
           <CardDescription>
-            Write plain <strong>instructions</strong> per version (V3, V4…); the app assembles the
-            full system prompt around them. Set one as this workspace&apos;s default; each
-            assessment can pick its own in the builder. Built-in V1/V2 are read-only references.
+            Write plain <strong>instructions</strong> per version; the app assembles the full
+            system prompt around them. Set one as this workspace&apos;s default; each assessment
+            can pick its own in the builder.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -97,6 +97,7 @@ export default async function WorkspaceAiPage() {
             wordMin={settings.wordMin}
             wordMax={settings.wordMax}
             sampleName={settings.sampleName}
+            showBuiltins={settings.showBuiltins}
           />
         </CardContent>
       </Card>

@@ -44,6 +44,7 @@
     "verify:seo": "tsx scripts/verify-seo.ts",
     "verify:payments": "tsx --conditions=react-server scripts/verify-payments.ts",
     "verify:routing": "tsx scripts/verify-routing.ts",
+    "verify:flow": "tsx scripts/verify-flow.ts",
     "verify:gate-flag": "tsx scripts/verify-gate-flag.ts",
     "verify:platform-capi": "tsx scripts/verify-platform-capi.ts",
     "verify:cta-click": "tsx scripts/verify-cta-click.ts",

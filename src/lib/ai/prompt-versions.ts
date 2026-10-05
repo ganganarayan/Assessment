@@ -195,6 +195,64 @@ export const PREVIEW_SAMPLE: StatementInput = {
   guidance: null,
 };
 
+/**
+ * The sample a TENANT sees when previewing their own instructions.
+ *
+ * PREVIEW_SAMPLE above is the platform owner's own scenario - their assessment title,
+ * their category names, their question wording. Rendering it inside a customer's
+ * workspace publishes the owner's product as the worked example, which is both a
+ * leak and confusing (a clinic owner previewing their prompt against an emotional
+ * stability assessment). This one carries the same SHAPE - three categories, a high
+ * overall band, per-question answers - with nothing identifying in it, so the
+ * assembled preview still demonstrates what the model receives.
+ */
+export const NEUTRAL_SAMPLE: StatementInput = {
+  firstName: "Sample",
+  profession: "Business Owner",
+  assessmentTitle: "Your assessment",
+  scoreRaw: 40,
+  max: 60,
+  percentage: 67,
+  band: "High",
+  bandLevel: "HIGH",
+  categories: [
+    {
+      name: "Category one",
+      score: 10,
+      max: 12,
+      band: "High",
+      questions: [
+        { text: "First question in this category", answer: "Option they chose", score: 4, max: 4 },
+        { text: "Second question in this category", answer: "Option they chose", score: 3, max: 4 },
+        { text: "Third question in this category", answer: "Option they chose", score: 3, max: 4 },
+      ],
+    },
+    {
+      name: "Category two",
+      score: 4,
+      max: 12,
+      band: "Low",
+      questions: [
+        { text: "First question in this category", answer: "Option they chose", score: 2, max: 4 },
+        { text: "Second question in this category", answer: "Option they chose", score: 1, max: 4 },
+        { text: "Third question in this category", answer: "Option they chose", score: 1, max: 4 },
+      ],
+    },
+    {
+      name: "Category three",
+      score: 9,
+      max: 12,
+      band: "Medium",
+      questions: [
+        { text: "First question in this category", answer: "Option they chose", score: 3, max: 4 },
+        { text: "Second question in this category", answer: "Option they chose", score: 3, max: 4 },
+        { text: "Third question in this category", answer: "Option they chose", score: 3, max: 4 },
+      ],
+    },
+  ],
+  guidance: null,
+};
+
 /** A hand-quality reference (the framed example shown in the dashboard) in the
  *  current voice: open on the strongest area, name EVERY category by severity,
  *  hit the missing purpose hard, then the purpose-hope + been-there bridge. */

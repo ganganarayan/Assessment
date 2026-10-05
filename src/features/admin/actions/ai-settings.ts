@@ -9,7 +9,13 @@ import { encryptWithSecret, decryptWithSecret } from "@/lib/crypto";
 import { isAiProvider, type AiProvider } from "@/lib/ai/types";
 import { testStatement } from "@/lib/ai/generate";
 import { listPromptVersions } from "@/lib/ai/versions";
-import { PREVIEW_SAMPLE, SAMPLE_EASY_READ, DEFAULT_PROMPT_VERSION } from "@/lib/ai/prompt-versions";
+import { builtInPromptsAllowed } from "@/lib/ai/scope";
+import {
+  PREVIEW_SAMPLE,
+  NEUTRAL_SAMPLE,
+  SAMPLE_EASY_READ,
+  DEFAULT_PROMPT_VERSION,
+} from "@/lib/ai/prompt-versions";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { tenantAppSettingId } from "@/lib/settings/tenant-row";
 
@@ -61,6 +67,10 @@ export interface AiSettingsView {
   versions: PromptVersionView[];
   sampleName: string;
   sampleEasyRead: string;
+  /** Whether this scope sees the built-in reference versions (platform + the owner's
+   *  own businesses). False in a customer workspace: no built-ins, no built-in length
+   *  control, and an empty list means "write your first one", not "something is wrong". */
+  showBuiltins: boolean;
 }
 
 /** The AppSetting row for a scope: the singleton for the platform/super view, or the
@@ -95,11 +105,18 @@ export async function getAiSettings(): Promise<AiSettingsView> {
     ...keyInfo(enc[p]),
   }));
 
-  // Tenant default version id (falls back to the built-in default when unset/invalid).
-  const rows = await listPromptVersions(configTenantOf(scope));
+  // Tenant default version id. Falls back to the built-in default ONLY where the
+  // built-ins are visible; in a customer workspace there is nothing to fall back to,
+  // so an unset/stale default resolves to none and the AI statement is simply skipped
+  // until they write a version of their own.
+  const configTenant = configTenantOf(scope);
+  const showBuiltins = await builtInPromptsAllowed(configTenant);
+  const rows = await listPromptVersions(configTenant);
   const active = rows.some((r) => r.id === s?.aiPromptVersion)
     ? (s?.aiPromptVersion as string)
-    : DEFAULT_PROMPT_VERSION;
+    : showBuiltins
+      ? DEFAULT_PROMPT_VERSION
+      : "";
   const versions: PromptVersionView[] = rows.map((r) => ({ ...r, active: r.id === active }));
 
   return {
@@ -112,8 +129,11 @@ export async function getAiSettings(): Promise<AiSettingsView> {
     wordMin: s?.aiWordMin ?? 200,
     wordMax: s?.aiWordMax ?? 280,
     versions,
-    sampleName: PREVIEW_SAMPLE.firstName ?? "Sample",
-    sampleEasyRead: SAMPLE_EASY_READ,
+    // The worked example is the owner's own scenario and the owner's own written
+    // reference statement. Neither belongs in a customer's workspace.
+    sampleName: (showBuiltins ? PREVIEW_SAMPLE.firstName : NEUTRAL_SAMPLE.firstName) ?? "Sample",
+    sampleEasyRead: showBuiltins ? SAMPLE_EASY_READ : "",
+    showBuiltins,
   };
 }
 

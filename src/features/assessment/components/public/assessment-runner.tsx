@@ -20,6 +20,8 @@ import { getOrCreateExternalId } from "@/lib/external-id";
 import { appendVidapulseId } from "@/lib/vidapulse";
 import { detectUnitFromQuestion, isClinicRole, type ClinicRole } from "@/lib/scoring/clinic-audit";
 import { buildSpine, nextIndex, walk, type RouteSpec } from "@/lib/routing/engine";
+import { waitSeconds, type FlowInput } from "@/features/assessment/flow/stages";
+import { STAGE_DEFAULTS } from "@/features/assessment/flow/stage-defaults";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -222,6 +224,14 @@ export function AssessmentRunner({
   /** Admin preview flag (?preview=1); server verifies the caller before bypassing. */
   preview?: boolean;
 }) {
+  // The configuration that decides where this run ends (and therefore whether the
+  // post-Submit screen counts down at all). Derived once, in one place.
+  const flowInput: FlowInput = {
+    platformSignup: assessment.platformSignup,
+    pageCount: assessment.pages.length,
+    paidMode: assessment.paidMode,
+    vslCountdownSeconds: assessment.vslCountdownSeconds,
+  };
   const gate = assessment.audienceGate;
   const freeMode = gate?.mode === "FREETEXT";
   // A free-text gate shows even with no options; a dropdown needs at least one.
@@ -1359,20 +1369,19 @@ export function AssessmentRunner({
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <h2 className="text-2xl font-bold tracking-tight">
-            You have already completed this assessment
+            {lockout.policy === "NEVER"
+              ? STAGE_DEFAULTS.onceOnly.heading
+              : STAGE_DEFAULTS.alreadyCompleted.heading}
           </h2>
           {lockout.policy === "NEVER" ? (
-            <p className="text-[var(--muted-foreground)]">
-              This assessment can be taken only once.
-            </p>
+            <p className="text-[var(--muted-foreground)]">{STAGE_DEFAULTS.onceOnly.body}</p>
           ) : (
             <p className="text-[var(--muted-foreground)]">
-              Meaningful emotional and behavioural change requires time and consistent
-              implementation.
+              {STAGE_DEFAULTS.alreadyCompleted.body}
               {nextDate ? (
                 <>
                   {" "}
-                  Your next reassessment will be available on <strong>{nextDate}</strong>.
+                  {STAGE_DEFAULTS.alreadyCompleted.nextAvailablePrefix} <strong>{nextDate}</strong>.
                 </>
               ) : null}
             </p>
@@ -1412,7 +1421,11 @@ export function AssessmentRunner({
   }
 
   if (step === "evaluating") {
-    return <EvaluatingCountdown redirectUrl={redirectUrl} seconds={assessment.vslCountdownSeconds} />;
+    // Seconds come from where this run ENDS, not from the step. A destination redirect
+    // gets the owner's anticipation countdown; a signup handoff, a result page or a
+    // payment screen gets 0 and shows a plain spinner, because the next screen appears
+    // as soon as the server answers. See features/assessment/flow/stages.
+    return <EvaluatingCountdown redirectUrl={redirectUrl} seconds={waitSeconds(flowInput)} />;
   }
 
   if (step === "details") {
@@ -1701,6 +1714,11 @@ export function AssessmentRunner({
 function EvaluatingCountdown({ redirectUrl, seconds }: { redirectUrl: string | null; seconds?: number }) {
   // Per-assessment duration; fall back to the constant for any bad/missing value.
   const start = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds as number)) : VSL_COUNTDOWN_SECONDS;
+  // 0 means "no anticipation timer on this path" (see flow/stages.waitSeconds): show
+  // the spinner alone. A ✓ that appears instantly and then sits there reads as the
+  // page having finished and stalled, which is exactly what it looked like on the
+  // signup handoff.
+  const counting = start > 0;
   const [n, setN] = useState(start);
   useEffect(() => {
     if (n <= 0) return;
@@ -1714,11 +1732,13 @@ function EvaluatingCountdown({ redirectUrl, seconds }: { redirectUrl: string | n
     <div className="flex min-h-[55vh] flex-col items-center justify-center gap-6 text-center">
       <div className="relative h-36 w-36">
         <div className="absolute inset-0 animate-spin rounded-full border-4 border-[var(--muted)] border-t-[var(--primary)]" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-5xl font-bold tabular-nums">{n > 0 ? n : "✓"}</span>
-        </div>
+        {counting ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-5xl font-bold tabular-nums">{n > 0 ? n : "✓"}</span>
+          </div>
+        ) : null}
       </div>
-      <p className="text-lg font-medium">Analyzing your results…</p>
+      <p className="text-lg font-medium">{STAGE_DEFAULTS.evaluating.label}</p>
     </div>
   );
 }

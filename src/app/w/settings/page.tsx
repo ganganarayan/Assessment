@@ -15,7 +15,8 @@ import { DomainSettings } from "@/features/workspace/components/domain-settings"
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
 import { WorkspaceLogins } from "@/features/workspace/components/workspace-logins";
 import { listWorkspaceLogins } from "@/features/workspace/actions/logins";
-import { PromptVersionsManager } from "@/features/admin/components/prompt-versions-manager";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -184,21 +185,21 @@ export default async function WorkspaceSettingsPage() {
         </Card>
       )}
 
+      {/* System prompt versions used to be duplicated here as well as on /w/ai. Two
+          editors over one row is two places to get it wrong, and it doubled the surface
+          that had to be scoped correctly. One home: AI. */}
       <Card>
         <CardHeader>
           <CardTitle>System prompt versions</CardTitle>
           <CardDescription>
-            Write plain instructions per version; the app assembles the full system prompt around
-            them. Set a default; each assessment can pick its own in the builder.
+            Your result-message instructions live under <strong>AI</strong>, together with the
+            model settings that use them.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PromptVersionsManager
-            versions={settings.versions}
-            wordMin={settings.wordMin}
-            wordMax={settings.wordMax}
-            sampleName={settings.sampleName}
-          />
+          <Link href="/w/ai" className={buttonVariants({ size: "sm", variant: "outline" })}>
+            Open AI settings
+          </Link>
         </CardContent>
       </Card>
     </div>
