@@ -3,6 +3,7 @@
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requireSuperAdmin, requireWorkspace, editDenied } from "@/lib/auth/guards";
+import { resolveActingScope, configTenantOf } from "@/lib/tenant/acting";
 import { prisma } from "@/lib/db/prisma";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -96,8 +97,17 @@ export async function importAssessments(
   }
 
   try {
-    const count = await performImportAll(items, user.id);
+    // Stamp the OWNER, exactly as create and duplicate do. Omitting it let the parameter
+    // fall back to its `null` default, which writes an unowned row - and the console lists
+    // under the Platform tenant, so an imported assessment was created successfully and
+    // then invisible, while a second attempt correctly reported the slug as taken.
+    //
+    // Worth noting for the recurrence guard: it looks for `scope.tenantId` being passed as
+    // an owner, and this site passed NOTHING. An omitted argument with a nullable default
+    // is the same bug wearing a different shape, and the guard cannot see it.
+    const count = await performImportAll(items, user.id, configTenantOf(await resolveActingScope()));
     revalidatePath("/admin/assessments");
+    revalidatePath("/admin/import");
     return { ok: true, data: { count } };
   } catch (e) {
     const code = e instanceof Prisma.PrismaClientKnownRequestError ? e.code : "";
