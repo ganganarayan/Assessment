@@ -41,6 +41,8 @@ export function ImportWizard({
   const [errors, setErrors] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [inputKey, setInputKey] = useState(0);
+  // How many assessments the last import created. Null until one succeeds.
+  const [imported, setImported] = useState<number | null>(null);
   const [pending, start] = useTransition();
 
   const anyExists = items?.some((i) => i.slugExists) ?? false;
@@ -95,9 +97,38 @@ export function ImportWizard({
         if (res.errors) setErrors(res.errors);
         return;
       }
-      router.push(doneHref);
+      // Confirm BEFORE navigating. This used to push straight to the list, so a
+      // successful import looked identical to one that silently did nothing - which is
+      // exactly how it read while imported rows were being written unowned and never
+      // appeared in that list. An explicit count is the difference between "it worked"
+      // and "I think it worked".
+      setImported(res.data?.count ?? 0);
       router.refresh();
     });
+  }
+
+  if (imported !== null) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Import successful</CardTitle>
+          <CardDescription>
+            {imported === 1 ? "1 assessment was imported." : `${imported} assessments were imported.`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-3">
+          <Button onClick={() => { router.push(doneHref); router.refresh(); }}>
+            View assessments
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => { setImported(null); reset(); }}
+          >
+            Import another
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
