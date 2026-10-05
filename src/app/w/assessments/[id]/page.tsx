@@ -97,6 +97,7 @@ export default async function WorkspaceEditAssessmentPage({
     useAiStatement: a.useAiStatement,
     nextStep: a.nextStep,
     paymentUrl: a.paymentUrl ?? "",
+    paymentReturnParam: a.paymentReturnParam ?? "",
     paymentHeadline: a.paymentHeadline ?? "",
     paymentButtonLabel: a.paymentButtonLabel ?? "",
     paymentAmount: a.paymentAmount ?? undefined,

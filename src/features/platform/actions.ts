@@ -204,6 +204,32 @@ export async function setTenantUnlimited(tenantId: string, unlimited: boolean): 
   return r;
 }
 
+/**
+ * Turn respondent payments on or off for ONE tenant.
+ *
+ * Default true, so nothing changes for a tenant already collecting. Off means their
+ * funnels run FREE: no payment step is offered, and paid mode is ignored when the
+ * public assessment resolves, rather than a payment screen appearing and then
+ * refusing. ANDed with the platform master switch in Settings.
+ *
+ * This is the owner's lever, not the tenant's: the platform carries Razorpay and the
+ * external-gateway return, and the owner decides who may use them.
+ */
+export async function setTenantPayments(tenantId: string, enabled: boolean): Promise<ActionResult> {
+  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+  if (!t) return { ok: false, error: "Tenant not found." };
+  const r = await softFail(
+    "setTenantPayments",
+    "Couldn't change that tenant (a temporary database error). Try again.",
+    async () => {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { paymentsEnabled: enabled } });
+    },
+  );
+  revalidatePath("/platform");
+  return r;
+}
+
 /** Platform-owner (super-admin) tenant + user management. Stage 1: create tenants,
  *  assign existing logins to a tenant as its admin, promote/demote super admins.
  *  Creating the login itself is self-serve (/sign-up), then assigned here. */
@@ -223,6 +249,8 @@ export interface TenantRow {
   deletedAt: string | null;
   /** Internal tenant: unlimited limits, every feature on, never metered. */
   unlimited: boolean;
+  /** May this tenant collect payments from respondents? Default true. */
+  paymentsEnabled: boolean;
 }
 
 export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
@@ -252,6 +280,7 @@ export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
         source: [t.acqUtmSource, t.acqUtmCampaign].filter((v) => v && v.trim()).join(" · ") || null,
         deletedAt: t.deletedAt?.toISOString() ?? null,
         unlimited: t.unlimited,
+        paymentsEnabled: t.paymentsEnabled,
       })),
     };
   } catch (e) {
@@ -287,6 +316,7 @@ export async function listDeletedTenants(): Promise<ActionResult<TenantRow[]>> {
         source: [t.acqUtmSource, t.acqUtmCampaign].filter((v) => v && v.trim()).join(" · ") || null,
         deletedAt: t.deletedAt?.toISOString() ?? null,
         unlimited: t.unlimited,
+        paymentsEnabled: t.paymentsEnabled,
       })),
     };
   } catch (e) {

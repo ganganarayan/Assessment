@@ -125,6 +125,7 @@ export const assessmentBodyExport = z.object({
   resultsContinueLabel: z.string().nullable().optional(),
   paidMode: z.boolean().optional(),
   paymentUrl: z.string().nullable().optional(),
+  paymentReturnParam: z.string().nullable().optional(),
   paymentHeadline: z.string().nullable().optional(),
   paymentButtonLabel: z.string().nullable().optional(),
   paymentAmount: z.number().int().nullable().optional(),

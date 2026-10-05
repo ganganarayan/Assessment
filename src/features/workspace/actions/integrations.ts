@@ -27,6 +27,9 @@ export interface IntegrationSettingsView {
   hasRazorpayWebhookSecret: boolean;
   /** Where THIS tenant must point Razorpay → Settings → Webhooks. */
   webhookUrl: string;
+  /** Where THIS tenant points an EXTERNAL gateway's success redirect. One string for
+   *  every respondent; the browser is matched on arrival. See api/pay/return. */
+  paymentReturnUrl: string;
   /** Heatmap/recording snippet (e.g. MS Clarity), shown as-is so it can be edited. */
   heatmapCode: string;
   /** VidaPulse identity bridge: pass the opaque customerId into the VSL embed. */
@@ -56,6 +59,7 @@ export async function getIntegrationSettings(): Promise<IntegrationSettingsView>
     hasRazorpaySecret: !!s?.razorpayKeySecretEnc,
     hasRazorpayWebhookSecret: !!s?.razorpayWebhookSecretEnc,
     webhookUrl: `${base}/api/payments/razorpay/${tenant?.slug ?? ""}`,
+    paymentReturnUrl: `${base}/api/pay/return/${tenant?.slug ?? ""}`,
     heatmapCode: s?.heatmapCode ?? "",
     vidapulseTrackingEnabled: s?.vidapulseTrackingEnabled ?? true,
     vidapulseParam: s?.vidapulseParam ?? "cid",

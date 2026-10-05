@@ -57,6 +57,8 @@ import { formatINR, pctLabel } from "@/lib/format/inr";
 import { isRazorpayConfigured, createOrder } from "@/lib/payments/razorpay";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { type PaymentCheckout } from "@/lib/payments/types";
+import { paymentsAllowed } from "@/lib/payments/enabled";
+import { createHandoff } from "@/lib/payments/handoff";
 
 const PAYMENT_BUSINESS_NAME = "Assess360";
 import { buildSpine, walk, type RouteSpec } from "@/lib/routing/engine";
@@ -182,6 +184,10 @@ async function resolvePaidCheckout(opts: {
   customer: { name: string | null; email: string | null; phone: string | null };
 }): Promise<{ payment?: PaymentCheckout; paymentRedirectUrl?: string }> {
   if (!opts.paidMode) return {};
+  // The owner's switches (platform master AND this tenant's) sit above the
+  // assessment's own paid mode. Off means this funnel runs free - no payment step is
+  // offered at all, rather than one that appears and then refuses.
+  if (!(await paymentsAllowed(opts.tenantId))) return {};
 
   const rzp = await resolveRazorpayConfig(opts.tenantId);
   if (isRazorpayConfigured(rzp) && rzp.keyId && opts.paymentAmount && opts.paymentAmount > 0) {
@@ -212,10 +218,21 @@ async function resolvePaidCheckout(opts: {
     }
   }
 
-  // No Razorpay Checkout configured (no keys/amount): use the static link if set.
-  // NOTE: a fixed static link can't carry a per-buyer submissionId, so those sales
-  // aren't auto-tracked - prefer the Price (Checkout) for tracked paid assessments.
-  return opts.paymentUrl ? { paymentRedirectUrl: withToken(opts.paymentUrl, opts.token) } : {};
+  // No Razorpay Checkout configured (no keys/amount): the tenant's own payment link.
+  //
+  // A fixed link cannot carry a per-buyer submissionId, and the success URL configured
+  // on their gateway is one string for every respondent, so the return cannot be told
+  // apart by the URL either. The hand-off below is what tells them apart: a row plus a
+  // nonce in an httpOnly cookie, claimed at /api/pay/return/<tenant>. The ?t= token is
+  // still appended because a handful of gateways do preserve query parameters, and
+  // where one does the return needs nothing else.
+  if (!opts.paymentUrl) return {};
+  await createHandoff({
+    tenantId: opts.tenantId,
+    submissionId: opts.submissionId,
+    email: opts.customer.email,
+  });
+  return { paymentRedirectUrl: withToken(opts.paymentUrl, opts.token) };
 }
 
 

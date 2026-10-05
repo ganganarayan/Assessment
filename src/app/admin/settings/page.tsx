@@ -23,6 +23,8 @@ import {
   getPlatformSubscriptionPixel,
 } from "@/features/admin/actions/platform-integrations";
 import { PlatformPixelForm } from "@/features/admin/components/platform-pixel-form";
+import { PaymentsMasterSwitch } from "@/features/admin/components/payments-master-switch";
+import { getPlatformPayments } from "@/features/admin/actions/platform-integrations";
 import { LegalSettingsForm } from "@/features/admin/components/legal-settings-form";
 import { NurtureConnectionSettings } from "@/features/nurture/components/nurture-connection-settings";
 import { getNurtureSettings } from "@/features/nurture/actions";
@@ -54,12 +56,13 @@ export default async function SettingsPage() {
   const impersonating = actingId !== null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
-  const [integrations, domains, legal, platformPixel, logins] = await Promise.all([
+  const [integrations, domains, legal, platformPixel, logins, paymentsOn] = await Promise.all([
     impersonating ? getIntegrationSettings() : getPlatformIntegrationSettings(),
     impersonating ? getDomainSettings() : Promise.resolve(null),
     impersonating ? Promise.resolve(null) : getLegalSettings(),
     impersonating ? Promise.resolve(null) : getPlatformSubscriptionPixel(),
     impersonating ? listWorkspaceLogins() : Promise.resolve(null),
+    impersonating ? Promise.resolve(true) : getPlatformPayments(),
   ]);
 
   return (
@@ -101,6 +104,24 @@ export default async function SettingsPage() {
           />
         </CardContent>
       </Card>
+
+      {!impersonating ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Respondent payments (all tenants)</CardTitle>
+            <CardDescription>
+              Whether tenants may collect money from the people who take their assessments.
+              Each tenant has its own switch in the platform console; this one sits above all
+              of them. Razorpay is the only gateway we integrate - a tenant using anything
+              else sends respondents to their own payment link and back via the Return URL in
+              their settings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PaymentsMasterSwitch initial={paymentsOn} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {!impersonating && platformPixel ? (
         <Card>

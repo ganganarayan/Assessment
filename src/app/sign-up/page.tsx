@@ -53,30 +53,49 @@ export default async function SignUpPage({
   const session = await getSession();
   if (session) {
     const signedInAs = (session.user.email ?? "").trim().toLowerCase();
-    // Same person, or no email to compare: they are already a customer, send them in.
-    if (!email || email === signedInAs) redirect("/dashboard");
-    // Different person. This browser holds somebody else's session and a prospect has
-    // just finished the funnel with their own email. Neither answer is safe to pick
-    // for them: continuing silently shows them an account that is not theirs, and
-    // signing them out silently ends a session they may still want. So ask.
+    // A plain visit with a live session: nothing has just happened, send them in.
+    if (!email) redirect("/dashboard");
+
+    /**
+     * An `email` parameter means A FUNNEL JUST FINISHED, and finishing an assessment
+     * is not the same event as signing in. Fusing them is how a tenant testing their
+     * own funnel with their own login address gets thrown into the app mid-test, and
+     * how a prospect on a shared browser lands in a stranger's workspace. So from here
+     * on this page always ACKNOWLEDGES and offers a button; it never teleports.
+     *
+     * The automatic hop is only wrong when it is automatic. Once they click, taking
+     * them to their workspace is exactly what they asked for.
+     */
+    const samePerson = email === signedInAs;
     return (
       <main className="flex min-h-screen items-center justify-center p-6">
         <Card className="w-full max-w-sm">
           <CardHeader>
-            <CardTitle>You are already signed in</CardTitle>
+            <CardTitle>{samePerson ? "You already have an account" : "You are already signed in"}</CardTitle>
             <CardDescription>
-              This browser is signed in as <strong>{session.user.email}</strong>, but you just
-              entered <strong>{email}</strong>.
+              {samePerson ? (
+                <>
+                  That is done. <strong>{session.user.email}</strong> is already set up, so there
+                  is nothing to create.
+                </>
+              ) : (
+                <>
+                  This browser is signed in as <strong>{session.user.email}</strong>, but you just
+                  entered <strong>{email}</strong>.
+                </>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <Link href="/dashboard" className={buttonVariants({ className: "w-full" })}>
-              Continue as {session.user.email}
+              {samePerson ? "Go to my workspace" : `Continue as ${session.user.email}`}
             </Link>
-            <SignOutButton
-              redirectTo={`/sign-up?${new URLSearchParams({ email, ...(name ? { name } : {}) }).toString()}`}
-              label={`Sign out and create an account for ${email}`}
-            />
+            {samePerson ? null : (
+              <SignOutButton
+                redirectTo={`/sign-up?${new URLSearchParams({ email, ...(name ? { name } : {}) }).toString()}`}
+                label={`Sign out and create an account for ${email}`}
+              />
+            )}
           </CardContent>
         </Card>
       </main>
