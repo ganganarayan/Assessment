@@ -1,4 +1,4 @@
-// Assessment Engine SaaS — Prisma Schema (Phase 1)
+// Assessment Engine SaaS - Prisma Schema (Phase 1)
 // Only foundation models: Tenant, Domain, Theme, User (+ Better Auth tables).
 // Assessment / Category / Question models arrive in Phase 2.
 
@@ -31,7 +31,7 @@ enum StaffPermission {
 }
 
 // ---------------------------------------------------------------------------
-// Tenant — the core multi-tenancy boundary. Everything scopes to a Tenant.
+// Tenant - the core multi-tenancy boundary. Everything scopes to a Tenant.
 // ---------------------------------------------------------------------------
 
 model Tenant {
@@ -50,7 +50,7 @@ model Tenant {
   // Soft delete. Deleting a tenant from the platform console sets this instead of
   // removing the row: the tenant disappears from the active list, its logins can no
   // longer reach the workspace, its custom domains stop resolving and its assessments
-  // stop serving — but every assessment, lead, payment and setting is still there, so
+  // stop serving - but every assessment, lead, payment and setting is still there, so
   // Restore puts the whole business back exactly as it was.
   //
   // The permanent, cascading delete is a SECOND action available only from the deleted
@@ -62,26 +62,26 @@ model Tenant {
   // Billing (Phase 1). The SaaS subscription plan for THIS tenant, billed on the
   // PLATFORM-OWNER's Razorpay account in USD (NOT the tenant's own respondent keys).
   // Default FREE. Changed only by the Razorpay subscription webhook or a super-admin
-  // override — never trusted from the client. razorpayCustomerId links this tenant to
+  // override - never trusted from the client. razorpayCustomerId links this tenant to
   // its Razorpay customer across the subscription lifecycle. The PLATFORM tenant is a
   // real row here (id "platform", seeded by migration) and carries SCALE, but code
-  // short-circuits it to unlimited/unmetered regardless — the platform is not a
+  // short-circuits it to unlimited/unmetered regardless - the platform is not a
   // customer of itself. See src/lib/tenant/platform-tenant.ts.
   // 🟡 NOT consulted by resolution. resolvePlan reads the SUBSCRIPTION (and the trial);
   // a tenant with neither is parked. This column records the last plan transacted, for
-  // reporting — setting it by hand entitles nobody. Use Tenant.unlimited for an internal
+  // reporting - setting it by hand entitles nobody. Use Tenant.unlimited for an internal
   // workspace that should bypass the catalog.
   plan               Plan    @default(GATE)
   razorpayCustomerId String?
 
   // INTERNAL tenant: one the platform owner runs themselves rather than sells to.
-  // Resolves to unlimited limits and every feature on, exactly like the platform —
+  // Resolves to unlimited limits and every feature on, exactly like the platform -
   // no plan, no subscription, no metering, no feature gate.
   //
   // This exists because the owner operates several of their own businesses on this
   // install. Without it each one has to be parked on a paid plan it will never be
   // billed for, and any that is missed silently loses Meta CAPI and locks at 25
-  // responses a month — which, on a tenant running paid ads, is money lost with no
+  // responses a month - which, on a tenant running paid ads, is money lost with no
   // error anywhere. A flag states the intent; a fake SCALE plan only implies it.
   unlimited Boolean @default(false)
 
@@ -90,7 +90,7 @@ model Tenant {
   // published and none chosen, the root keeps its generic page rather than guessing.
   primaryAssessmentId String?
 
-  // Acquisition attribution — the ad/campaign this tenant (a self-serve signup) came
+  // Acquisition attribution - the ad/campaign this tenant (a self-serve signup) came
   // from, captured from the last-touch UTM cookie at signup. The full set is kept as
   // JSON; the common fields are denormalized for fast grouping in the platform funnel
   // dashboard. Null = organic / pre-dating this tracking.
@@ -128,7 +128,7 @@ enum TenantStatus {
 }
 
 // ---------------------------------------------------------------------------
-// Billing (Phase 1) — SaaS subscription plan + usage metering. Phase 1 stores
+// Billing (Phase 1) - SaaS subscription plan + usage metering. Phase 1 stores
 // state only; NOTHING is enforced yet (Phase 2 meters, Phase 4 gates). The plan
 // LIMITS themselves live in code (src/lib/billing/plans.ts) as the source of
 // truth; Subscription.limitsSnapshot freezes them at purchase time so a future
@@ -169,7 +169,7 @@ enum UsageMetric {
 }
 
 // ---------------------------------------------------------------------------
-// Domain — custom domains mapped to a tenant for white-label hosting.
+// Domain - custom domains mapped to a tenant for white-label hosting.
 // ---------------------------------------------------------------------------
 
 model Domain {
@@ -186,7 +186,7 @@ model Domain {
   // the last-seen Railway certificate status (e.g. "ISSUED"/"ISSUING").
   railwayDomainId String?
   // Cloudflare for SaaS custom-hostname id. When set, TLS + routing for this host are
-  // handled by Cloudflare's custom-hostname edge rather than a Railway custom domain —
+  // handled by Cloudflare's custom-hostname edge rather than a Railway custom domain -
   // which is what lifts the per-service domain cap on the Railway plan. Null for hosts
   // provisioned the old way (Railway custom domain) or added manually.
   cfHostnameId    String?
@@ -209,7 +209,7 @@ model Domain {
 }
 
 // ---------------------------------------------------------------------------
-// Theme — per-tenant branding/presentation config (kept independent of logic).
+// Theme - per-tenant branding/presentation config (kept independent of logic).
 // ---------------------------------------------------------------------------
 
 model Theme {
@@ -228,7 +228,7 @@ model Theme {
 }
 
 // ---------------------------------------------------------------------------
-// Subscription — ONE per paid tenant. The Razorpay subscription is the source of
+// Subscription - ONE per paid tenant. The Razorpay subscription is the source of
 // truth for status/period; this row mirrors it so the app can gate without a
 // Razorpay round-trip. A FREE tenant has NO Subscription row (absence = Free).
 // ---------------------------------------------------------------------------
@@ -254,7 +254,7 @@ model Subscription {
   // Entitlements FROZEN at purchase (a copy of PLAN_LIMITS for `plan`). Resolution
   // reads this first so a later catalog change never re-rates this customer.
   limitsSnapshot Json
-  // Optional per-tenant overrides for one-off/enterprise deals — wins over the
+  // Optional per-tenant overrides for one-off/enterprise deals - wins over the
   // snapshot AND the code default. Null for everyone normally.
   limitOverrides Json?
 
@@ -269,7 +269,7 @@ model Subscription {
 }
 
 // ---------------------------------------------------------------------------
-// UsageCounter — metered usage per tenant, per metric, per period. RESPONSES is
+// UsageCounter - metered usage per tenant, per metric, per period. RESPONSES is
 // incremented on each submission (Phase 2). periodKey = the billing-period start
 // (paid) or "YYYY-MM" calendar month (Free), so a new period starts a fresh row
 // at count 0. A nightly job reconciles counts against Submission.
@@ -293,7 +293,7 @@ model UsageCounter {
 }
 
 // ---------------------------------------------------------------------------
-// BillingEvent — idempotency ledger for Razorpay subscription webhooks. Every
+// BillingEvent - idempotency ledger for Razorpay subscription webhooks. Every
 // processed event id is recorded so a redelivery is a no-op. Same discipline as
 // the CAPI/webhook dedupe elsewhere.
 // ---------------------------------------------------------------------------
@@ -310,7 +310,7 @@ model BillingEvent {
 }
 
 // ---------------------------------------------------------------------------
-// RazorpayPlan — cache of the Razorpay Plan objects we create via the API at
+// RazorpayPlan - cache of the Razorpay Plan objects we create via the API at
 // runtime (the VidaPulse model: no Plans are hand-made in the dashboard). Keyed
 // by our PlanId; created once on the first checkout for that tier and reused on
 // every subsequent subscription. Platform-level (billed on the platform-owner's
@@ -318,9 +318,9 @@ model BillingEvent {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// PlatformPageView — analytics for the Assess360 SaaS MARKETING landing (the root
+// PlatformPageView - analytics for the Assess360 SaaS MARKETING landing (the root
 // site). Parallel to PageView (which is assessment-scoped): this one has no
-// assessment — it tracks the top of the SaaS funnel (landing views + UTM) before
+// assessment - it tracks the top of the SaaS funnel (landing views + UTM) before
 // any signup, so ad traffic is visible even with zero conversions. Feeds the
 // super-admin platform funnel dashboard.
 // ---------------------------------------------------------------------------
@@ -359,7 +359,7 @@ model PlatformPageView {
 }
 
 model RazorpayPlan {
-  // Our plan id ("STARTER" | "GROWTH" | "SCALE") — never FREE (nothing to charge).
+  // Our plan id ("STARTER" | "GROWTH" | "SCALE") - never FREE (nothing to charge).
   planKey        String @id
   razorpayPlanId String @unique
   // The amount the Razorpay Plan was created with, in the smallest USD unit (cents),
@@ -374,7 +374,7 @@ model RazorpayPlan {
 }
 
 // ---------------------------------------------------------------------------
-// User — application users. The platform OWNER is SUPER_ADMIN and belongs to the
+// User - application users. The platform OWNER is SUPER_ADMIN and belongs to the
 // Platform tenant; super-admin access comes from the role, never from the tenant
 // (lib/auth/guards isSuperAdmin), so attaching a tenant costs no access. Rows still
 // carrying tenantId = null pre-date the re-home.
@@ -393,7 +393,7 @@ model User {
   // Soft delete: set = removed (hidden from active logins, unassigned from tenant,
   // sessions revoked) but recoverable from the "Deleted users" section.
   deletedAt          DateTime?
-  // TRUE after a super admin sets the password — the user is forced to change it on
+  // TRUE after a super admin sets the password - the user is forced to change it on
   // next login before reaching the app; cleared once they set their own.
   mustChangePassword Boolean          @default(false)
   createdAt          DateTime         @default(now())
@@ -465,7 +465,7 @@ model Verification {
 }
 
 // ---------------------------------------------------------------------------
-// ApiToken — scoped, tenant-aware bearer tokens for external data endpoints
+// ApiToken - scoped, tenant-aware bearer tokens for external data endpoints
 // (the shared auth layer behind /api/meta-match and future consumers like a
 // mentor API). Only the sha256 `tokenHash` is stored; the plaintext is shown to
 // the admin once at mint time. `scope` binds a key to ONE data domain (least
@@ -544,7 +544,7 @@ enum AssessmentEngine {
   CLINIC_AUDIT
 }
 
-// The step the flow moves to after the Results page. Explicit binding — every
+// The step the flow moves to after the Results page. Explicit binding - every
 // flow must resolve to one. paidMode is kept in sync (PAYMENT => paidMode on).
 enum NextStep {
   PAYMENT // take payment (Razorpay), then the destination
@@ -553,13 +553,13 @@ enum NextStep {
 }
 
 // ---------------------------------------------------------------------------
-// Assessment — the top-level container. Public at /a/[slug] when PUBLISHED.
+// Assessment - the top-level container. Public at /a/[slug] when PUBLISHED.
 // ---------------------------------------------------------------------------
 
 model Assessment {
   // Platform signup funnel: after the lead form and the completion event, send the
   // person to /sign-up prefilled with their email instead of a result page. Only
-  // honoured on a PLATFORM-owned assessment — a tenant must never be able to mint
+  // honoured on a PLATFORM-owned assessment - a tenant must never be able to mint
   // logins on the SaaS itself.
   platformSignup Boolean @default(false)
   id             String  @id @default(cuid())
@@ -662,14 +662,14 @@ model Assessment {
 
   // Destination page the respondent lands on after completing (with ?t=<token>).
   // Its ORIGIN (derived on save) is what authorizes the public read endpoint's
-  // CORS — the admin never configures CORS directly.
+  // CORS - the admin never configures CORS directly.
   targetUrl       String?
   targetOrigin    String? // scheme://host[:port], derived from targetUrl
   tokenTtlSeconds Int? // result-token TTL; null => system default
 
   // "Show results on assess360" (nextStep RESULTS) only: an OPTIONAL onward link
   // rendered as a plain button at the bottom of the result page (both the generic
-  // band result and the clinic recalc). No token is appended — it points at a plain
+  // band result and the clinic recalc). No token is appended - it points at a plain
   // external landing page. Null/blank => no button (unchanged result page).
   resultsContinueUrl   String?
   resultsContinueLabel String? // button text; null/blank => "Continue"
@@ -685,7 +685,7 @@ model Assessment {
   // Which AI result-instructions version drives THIS assessment's statement. Null =>
   // the tenant default (AppSetting.aiPromptVersion). A built-in code id or AiPromptVersion id.
   aiPromptVersionId String?
-  // When false, no AI personal statement is generated/shown — the results (scores,
+  // When false, no AI personal statement is generated/shown - the results (scores,
   // bands, category meanings, template) convey the message on their own.
   useAiStatement    Boolean @default(true)
 
@@ -704,12 +704,12 @@ model Assessment {
   // price changes (₹199→₹299…). Default "Purchase121".
   paymentEventName   String  @default("Purchase121")
   // Payment notice shown on the opt-in/lead form, above the Start button (paid
-  // mode only) — sets the expectation up front so there are no surprises.
+  // mode only) - sets the expectation up front so there are no surprises.
   paymentIntroText   String?
 
   // ---- Audience gate + cascade routing (Phase 2) ----
   // A first-screen role DROPDOWN. Each role (and an optional "None of the above")
-  // routes PER-CHOICE — either continue in THIS assessment (lead form + questions)
+  // routes PER-CHOICE - either continue in THIS assessment (lead form + questions)
   // or redirect to another assessment, which shows its own gate (cascade). Stored as
   // JSON so the shape can evolve without a migration. Shape:
   //   { label?, placeholder?, roles: [{ id, label, target }],
@@ -727,7 +727,7 @@ model Assessment {
   // Only an explicit false turns one off; null/absent = all on, so an assessment saved
   // before this existed keeps reporting exactly what it did. These events feed live ad
   // audiences, so a default of "off" would have quietly stopped populating audiences on
-  // funnels that are currently spending. Purchase is NOT here — it fires from the
+  // funnels that are currently spending. Purchase is NOT here - it fires from the
   // Razorpay webhook, which has no assessment in scope. See features/assessment/meta-events.
   metaEvents Json?
 
@@ -735,7 +735,7 @@ model Assessment {
   // Page-1 gating questions shown one-at-a-time BEFORE the assessment. Each option
   // qualifies or disqualifies. Shape: { enabled, questions: [{ id, text, options:
   // [{ id, label, disqualifies }] }] }. A disqualifying answer routes to the
-  // disqualified page and creates NO lead / submission / result / Lead-CAPI — only
+  // disqualified page and creates NO lead / submission / result / Lead-CAPI - only
   // an optional custom "Disqualified" Meta pixel event (for ad exclusion). Null = no gate.
   qualification       Json?
   // Content shown to a disqualified visitor (heading/subtext/body/button + the
@@ -749,9 +749,9 @@ model Assessment {
   publishedPages   Json?
   pagesPublishedAt DateTime?
 
-  // VSL result page (RESULTS mode): a self-contained marketing page — eyebrow,
+  // VSL result page (RESULTS mode): a self-contained marketing page - eyebrow,
   // headline, the respondent's AI statement, a VSL video embed, styled buttons and
-  // YouTube testimonials — shown at /a/:slug/r/:id?t=… . resultPage is the editable
+  // YouTube testimonials - shown at /a/:slug/r/:id?t=… . resultPage is the editable
   // DRAFT (theme + ordered blocks JSON); resultPagePublished is the live snapshot the
   // token page renders. Null published = fall back to the default score cards.
   resultPage            Json?
@@ -785,7 +785,7 @@ model Assessment {
 }
 
 // ---------------------------------------------------------------------------
-// AssessmentPage / PageBlock — the post-assessment page builder. Pages render in
+// AssessmentPage / PageBlock - the post-assessment page builder. Pages render in
 // order after the questions; each holds ordered, typed blocks whose `config` is
 // type-specific JSON (so new block types never change the schema). See
 // features/assessment/pages/blocks.ts for the block vocabulary.
@@ -822,7 +822,7 @@ model PageBlock {
 }
 
 // ---------------------------------------------------------------------------
-// PageView — one row per opt-in (public assessment) page load, for analytics.
+// PageView - one row per opt-in (public assessment) page load, for analytics.
 // visitorId comes from a long-lived cookie so "unique" = distinct visitors.
 // ---------------------------------------------------------------------------
 
@@ -864,7 +864,7 @@ model PageView {
   os         String?
 
   // Owning tenant (denormalized from the assessment; null = platform/Gita). Scalar
-  // only — no FK — since page views are high-write and already cascade via assessment.
+  // only - no FK - since page views are high-write and already cascade via assessment.
   tenantId String?
 
   @@index([assessmentId])
@@ -877,7 +877,7 @@ model PageView {
 }
 
 // ---------------------------------------------------------------------------
-// Category — groups questions; ordered for display.
+// Category - groups questions; ordered for display.
 // ---------------------------------------------------------------------------
 
 model Category {
@@ -904,7 +904,7 @@ model Category {
 }
 
 // ---------------------------------------------------------------------------
-// Question — single-select for MVP; carries a weight for scoring.
+// Question - single-select for MVP; carries a weight for scoring.
 // ---------------------------------------------------------------------------
 
 model Question {
@@ -914,12 +914,12 @@ model Question {
   weight       Float        @default(1)
   required     Boolean      @default(true)
   displayOrder Int          @default(0)
-  // CLINIC_AUDIT engine only: the funnel role this question feeds — one of
+  // CLINIC_AUDIT engine only: the funnel role this question feeds - one of
   // ENQUIRIES, BOOK_RATE, SHOWUP_RATE, CLOSE_RATE, TREATMENT_VALUE, AD_SPEND,
   // DORMANT, CAPACITY, UPLIFT_BOOKRATE. Null = not a scoring input (context /
   // qualifier). Ignored by the GENERIC engine. See lib/scoring/clinic-audit.ts.
   scoringRole  String?
-  // CLINIC_AUDIT: the UNIT this question's numbers are expressed in — PER_10
+  // CLINIC_AUDIT: the UNIT this question's numbers are expressed in - PER_10
   // ("out of every 10"), PER_100 (percent / "out of every 100"), RUPEES, COUNT,
   // or POINTS (book-rate uplift). Applies to BOTH the option values and the
   // respondent's typed actual number, so a question worded "out of every 10"
@@ -943,9 +943,9 @@ model Question {
 }
 
 // ---------------------------------------------------------------------------
-// QuestionRoute — conditional-routing rule (Phase 1). One per ANSWER OPTION
+// QuestionRoute - conditional-routing rule (Phase 1). One per ANSWER OPTION
 // (optionId @unique): when the respondent picks that option, the flow does the
-// route's action — continue linearly (NEXT), jump forward to a specific question
+// route's action - continue linearly (NEXT), jump forward to a specific question
 // or category, or end the questions (SKIP_TO_END). Targets are forward-only
 // (validated on save) and additive: an assessment with no routes behaves exactly
 // as before. targetQuestionId/targetCategoryId are plain scalar refs (no FK), so
@@ -980,14 +980,14 @@ model QuestionRoute {
 }
 
 // ---------------------------------------------------------------------------
-// Option — selectable answer with a numeric score value (e.g. 1..4).
+// Option - selectable answer with a numeric score value (e.g. 1..4).
 // ---------------------------------------------------------------------------
 
 model Option {
   id              String   @id @default(cuid())
   label           String
   // GENERIC engine: the score point (1..4). CLINIC_AUDIT engine: the working figure
-  // for the question's scoringRole — rupees/counts as-is (90000, 90), rates & uplift
+  // for the question's scoringRole - rupees/counts as-is (90000, 90), rates & uplift
   // as whole-number percent (32 = 0.32 book rate, 6 = +0.06 uplift). Int-only.
   value           Int
   // CLINIC_AUDIT: fixed "weakest area" diagnosis line shown when this answer is one
@@ -1012,7 +1012,7 @@ model Option {
 }
 
 // ---------------------------------------------------------------------------
-// ResultBand — score range -> interpretation shown after submission.
+// ResultBand - score range -> interpretation shown after submission.
 // ---------------------------------------------------------------------------
 
 model ResultBand {
@@ -1036,8 +1036,8 @@ model ResultBand {
 }
 
 // ---------------------------------------------------------------------------
-// CategoryResultBand — per-CATEGORY band: a percentage range -> {label, meaning}.
-// Mirrors ResultBand but scoped to a Category. minScore/maxScore are 0–100
+// CategoryResultBand - per-CATEGORY band: a percentage range -> {label, meaning}.
+// Mirrors ResultBand but scoped to a Category. minScore/maxScore are 0-100
 // percentages (same basis as overall bands). Non-overlap validated like overall.
 // ---------------------------------------------------------------------------
 
@@ -1045,7 +1045,7 @@ model CategoryResultBand {
   id           String   @id @default(cuid())
   label        String
   meaning      String?
-  minScore     Float // percentage 0–100
+  minScore     Float // percentage 0-100
   maxScore     Float
   displayOrder Int      @default(0)
   createdAt    DateTime @default(now())
@@ -1059,7 +1059,7 @@ model CategoryResultBand {
 }
 
 // ---------------------------------------------------------------------------
-// Submission — one run of an assessment. Lead snapshot stored inline.
+// Submission - one run of an assessment. Lead snapshot stored inline.
 // ---------------------------------------------------------------------------
 
 model Submission {
@@ -1112,8 +1112,17 @@ model Submission {
   // and matches the browser pixel's advanced-matching external_id.
   metaExternalId       String?
   // Answers to the qualification gate's TEXT questions (keyed by question id). For
-  // MANUAL review only (never qualifies) — surfaced in the Submissions "Custom details".
+  // MANUAL review only (never qualifies) - surfaced in the Submissions "Custom details".
   qualificationAnswers Json?
+
+  // Points earned at the QUALIFICATION GATE, and the most that gate could have awarded.
+  // Stored at start rather than recomputed at completion, because the gate config can be
+  // edited between the two and a score that silently changes under a respondent is worse
+  // than one that is slightly stale. Null on every submission created before gate scoring
+  // existed, and on any funnel whose gate awards nothing, which is why the scorer treats
+  // absent as zero rather than as an error.
+  gateScore Int?
+  gateMax   Int?
   // Geo (Cloudflare) + device (parsed UA), captured at Start. region/postalCode feed
   // Meta CAPI advanced matching (st/zp); country is the 2-letter ISO code.
   country              String?
@@ -1125,7 +1134,7 @@ model Submission {
   browser              String?
   os                   String?
   // Unix MILLISECONDS (matches Meta's fbc format fb.1.<ms>.<fbclid> exactly, so no
-  // unit conversion anywhere). Double, because a ms epoch overflows Int4 — the value
+  // unit conversion anywhere). Double, because a ms epoch overflows Int4 - the value
   // is always an integer and is exact in a double well beyond any realistic date.
   fbclidTimestamp      Float?
 
@@ -1166,7 +1175,7 @@ model Submission {
 
   // AI-generated personalized statement (stored against this submission/date).
   aiStatement String?
-  // Admin-authored "Add to PDF" note — the post-call action items / meeting summary
+  // Admin-authored "Add to PDF" note - the post-call action items / meeting summary
   // appended at the bottom of the PDF report. Not shown to the respondent elsewhere.
   reportNote  String? @db.Text
 
@@ -1183,14 +1192,14 @@ model Submission {
   crmLastError String?
   // Set when a contact is FROZEN into the current resend batch (at Start). The
   // drip sends only queued rows, so a batch sends exactly the set pending when it
-  // started — never contacts dirtied later. Cleared on successful send.
+  // started - never contacts dirtied later. Cleared on successful send.
   crmQueuedAt  DateTime?
 
   startedAt          DateTime  @default(now())
   completedAt        DateTime?
   abandonedAt        DateTime? // set by the abandonment sweep when STARTED past the delay
   // Manual Meta review (Submissions table buttons). The owner reads the lead and
-  // fires QualifiedCompletion or GateDisqualified by hand — for the gate's TEXT
+  // fires QualifiedCompletion or GateDisqualified by hand - for the gate's TEXT
   // answers, which never auto-qualify. Stamps exist so a reviewed row is visibly
   // different from an untouched one; re-clicking is allowed and re-stamps.
   metaQualifiedAt    DateTime?
@@ -1210,7 +1219,7 @@ model Submission {
   // Billing gate: the 1-based index of this completion WITHIN its tenant's billing
   // period (stamped once, at the winning STARTED->COMPLETED flip, from the RESPONSES
   // usage counter). A response is "over cap / locked" when periodSeq > the tenant's
-  // CURRENT responsesPerMonth limit — compared live, so raising the plan instantly
+  // CURRENT responsesPerMonth limit - compared live, so raising the plan instantly
   // unlocks past leads with no backfill. null = completed before this gate shipped
   // (grandfathered visible) or an unmetered platform/Gita submission.
   periodSeq          Int?
@@ -1244,16 +1253,16 @@ model Submission {
 }
 
 // ---------------------------------------------------------------------------
-// GateEntry — one row per visitor who PASSED the qualification gate (page 1).
+// GateEntry - one row per visitor who PASSED the qualification gate (page 1).
 //
 // Why this exists: passing page 1 creates no Submission (that happens at the
 // opt-in, which is the LAST step), so someone who qualifies and then leaves is
-// invisible — exactly the person worth retargeting. This row is the only record
+// invisible - exactly the person worth retargeting. This row is the only record
 // they leave.
 //
 // It is deliberately NOT a Submission: it holds no lead, no answers, no score,
 // and never appears in the Submissions table, counts, billing caps or stats. It
-// exists solely to carry the Meta match signals (fbp/fbc/ip/ua/geo — captured
+// exists solely to carry the Meta match signals (fbp/fbc/ip/ua/geo - captured
 // server-side at pass time, because the browser is gone by the time we fire) so
 // the abandonment sweep can send AssessmentAbandoned hours later.
 //
@@ -1285,11 +1294,11 @@ model GateEntry {
   abandonedFiredAt DateTime?
 
   // Owning tenant (denormalized from the assessment; null = platform/Gita). Scalar
-  // only — no FK — matching PageView / GateDisqualification. Added so "Qualified"
+  // only - no FK - matching PageView / GateDisqualification. Added so "Qualified"
   // reads through the same tenant + date scope as every other funnel number.
   tenantId String?
 
-  // One row per visitor per assessment — a re-entry updates the existing row
+  // One row per visitor per assessment - a re-entry updates the existing row
   // rather than queueing a second abandonment event for the same person.
   @@unique([assessmentId, visitorId])
   @@index([abandonedFiredAt, passedAt]) // the sweep's scan
@@ -1299,18 +1308,18 @@ model GateEntry {
 }
 
 // ---------------------------------------------------------------------------
-// FunnelEventCount — how many Meta events the funnel actually FIRED, as a running
+// FunnelEventCount - how many Meta events the funnel actually FIRED, as a running
 // count rather than a row per firing.
 //
 // GateDisqualified is a browser-pixel-only event: nothing server-side ever saw it,
 // so "is my exclusion audience being built?" was unanswerable from the app. Writing
 // a row per firing would duplicate GateDisqualification (which counts PEOPLE) and
 // grow without bound, so this is a counter: one row per assessment per event per
-// IST day, incremented in place. Day buckets — not one lifetime total — so the
+// IST day, incremented in place. Day buckets - not one lifetime total - so the
 // Stats date range and the per-assessment Data window still apply.
 //
 // Counts EVENTS, not people: a renewal firing for a visitor already in the audience
-// increments it again. That is the point — it is the number to compare with Meta.
+// increments it again. That is the point - it is the number to compare with Meta.
 // ---------------------------------------------------------------------------
 model FunnelEventCount {
   id           String     @id @default(cuid())
@@ -1321,7 +1330,7 @@ model FunnelEventCount {
   /// through the same tenant scope as the rest of the Stats page.
   tenantId String?
 
-  /// The Meta event name exactly as fired — GateDisqualified, QualifiedCompletion,
+  /// The Meta event name exactly as fired - GateDisqualified, QualifiedCompletion,
   /// AssessmentCompleted. The ad account's audiences are keyed on these strings.
   eventName String
 
@@ -1346,7 +1355,7 @@ model FunnelEventCount {
 }
 
 // ---------------------------------------------------------------------------
-// NurtureLog — one row per Email/WhatsApp send attempt fired on opt-in (or a
+// NurtureLog - one row per Email/WhatsApp send attempt fired on opt-in (or a
 // manual resend/test). Best-effort delivery: failures are recorded here (no auto
 // retry) so an operator can see and re-send. Scoped per tenant.
 // ---------------------------------------------------------------------------
@@ -1362,7 +1371,7 @@ model NurtureLog {
   error        String?
   // First time a tracked link in this email was clicked (EMAIL only). Set by the
   // /e/c/[id] click-redirect; null = not clicked (or not an email). Opens are not
-  // tracked (deliberately — pixel opens are noisy); a click is the reliable signal.
+  // tracked (deliberately - pixel opens are noisy); a click is the reliable signal.
   clickedAt    DateTime?
   createdAt    DateTime    @default(now())
 
@@ -1372,7 +1381,7 @@ model NurtureLog {
 }
 
 // ---------------------------------------------------------------------------
-// AiStatement — versioned personalized messages for a submission. Many per
+// AiStatement - versioned personalized messages for a submission. Many per
 // submission; the one with isDefault=true is mirrored into resultSnapshot
 // .aiStatement and is what the VSL serves. source: "ai" (model) | "manual"
 // (admin-written). Nothing is auto-deleted.
@@ -1394,7 +1403,7 @@ model AiStatement {
 }
 
 // ---------------------------------------------------------------------------
-// SubmissionAnswer — chosen option per question (one answer per question).
+// SubmissionAnswer - chosen option per question (one answer per question).
 // ---------------------------------------------------------------------------
 
 model SubmissionAnswer {
@@ -1417,7 +1426,7 @@ model SubmissionAnswer {
 }
 
 // ---------------------------------------------------------------------------
-// SubmissionCategoryScore — computed per-category score for a submission.
+// SubmissionCategoryScore - computed per-category score for a submission.
 // ---------------------------------------------------------------------------
 
 model SubmissionCategoryScore {
@@ -1444,7 +1453,7 @@ model SubmissionCategoryScore {
 // Assess360 is the source of truth ONLY for assessment-related events.
 // External funnel events (e.g. external.vsl_viewed, external.strategy_call_booked)
 // are owned by other systems and may be POSTed in later via a reserved ingest
-// API — they are intentionally NOT part of this enum.
+// API - they are intentionally NOT part of this enum.
 enum EventType {
   LEAD_CREATED // optin (merged opt-in; was lead.created + assessment.started)
   ASSESSMENT_STARTED // assessment.started (legacy; no longer emitted)
@@ -1459,7 +1468,7 @@ enum EventType {
 }
 
 // ---------------------------------------------------------------------------
-// EventLog — append-only ledger. ALWAYS written when an event is emitted,
+// EventLog - append-only ledger. ALWAYS written when an event is emitted,
 // independent of webhook delivery. Powers the Events feed + audit + replay.
 // ---------------------------------------------------------------------------
 
@@ -1486,8 +1495,8 @@ model EventLog {
 }
 
 // ---------------------------------------------------------------------------
-// Webhook — a webhook IS the event definition. Keyed by event name (immutable,
-// unique). Lifecycle: ACTIVE <-> INACTIVE; Purge deletes the row (config only —
+// Webhook - a webhook IS the event definition. Keyed by event name (immutable,
+// unique). Lifecycle: ACTIVE <-> INACTIVE; Purge deletes the row (config only -
 // EventLog/WebhookLog history is never deleted). Routing + registry are one.
 // ---------------------------------------------------------------------------
 
@@ -1499,12 +1508,12 @@ enum WebhookStatus {
 model Webhook {
   id               String        @id @default(cuid())
   // The internal event that TRIGGERS this webhook (delivery matches on this, not
-  // on name) — so the name is free for the CRM. Many webhooks may share a trigger.
+  // on name) - so the name is free for the CRM. Many webhooks may share a trigger.
   eventType        EventType
   // The delivered event identifier (free format: lowercase, "." or "_"). Becomes
   // event / event_type / contact.event_type in the payload. Name is editable only
   // until the first successful delivery (then frozen to protect a working CRM
-  // mapping); the URL stays editable. The name is NO LONGER globally unique — the
+  // mapping); the URL stays editable. The name is NO LONGER globally unique - the
   // same event may fan out to several endpoints (multiple CRMs). Only an exact
   // (tenant, name, url) triple is blocked (see @@unique), so a duplicate endpoint
   // can't be added twice.
@@ -1524,7 +1533,7 @@ model Webhook {
 
   // Block an exact duplicate endpoint for the same tenant. NOTE: Postgres treats
   // NULLs as distinct, so this does NOT catch dupes among null-tenant (platform)
-  // rows — createWebhook/editWebhook enforce that case at the application layer.
+  // rows - createWebhook/editWebhook enforce that case at the application layer.
   @@unique([tenantId, name, url])
   @@index([status])
   @@index([eventType, status])
@@ -1533,7 +1542,7 @@ model Webhook {
 }
 
 // ---------------------------------------------------------------------------
-// WebhookLog — one row per delivery attempt; supports inspection + retry.
+// WebhookLog - one row per delivery attempt; supports inspection + retry.
 // ---------------------------------------------------------------------------
 
 model WebhookLog {
@@ -1565,7 +1574,7 @@ model WebhookLog {
 }
 
 // ---------------------------------------------------------------------------
-// WebhookDelivery — durable delivery QUEUE (one row per webhook per event). A
+// WebhookDelivery - durable delivery QUEUE (one row per webhook per event). A
 // pending row survives a deploy/restart, so the retry cron (lib/webhooks/retry.ts)
 // can re-attempt with backoff even when the inline first attempt is killed
 // mid-flight. url/secret/body are denormalized so a retry is byte-identical and
@@ -1596,7 +1605,7 @@ model WebhookDelivery {
 }
 
 // ---------------------------------------------------------------------------
-// CrmSendQueue — the throttled background send queue for the SCORE and CUSTOM
+// CrmSendQueue - the throttled background send queue for the SCORE and CUSTOM
 // CRM senders. One row per job. The worker drains PENDING rows of its kind
 // oldest-first, inside a daily IST window, with a random delay between sends.
 // Contact fields are denormalized so the pending viewer needs no join and
@@ -1638,16 +1647,16 @@ model CrmSendQueue {
 }
 
 // ---------------------------------------------------------------------------
-// Payment — one row per recorded payment (forward-compatible across use cases).
+// Payment - one row per recorded payment (forward-compatible across use cases).
 // NOW: purpose="assessment_unlock" (pay to see results), tied to a submission.
 // LATER (SaaS tiers): purpose="subscription" with plan="starter"/"pro". The same
-// table + webhook handle both. No FK to submission — payment history must persist.
+// table + webhook handle both. No FK to submission - payment history must persist.
 // ---------------------------------------------------------------------------
 
 model Payment {
   id                String    @id @default(cuid())
   provider          String    @default("razorpay")
-  providerPaymentId String?   @unique // razorpay payment id — dedups webhook retries
+  providerPaymentId String?   @unique // razorpay payment id - dedups webhook retries
   providerOrderId   String?
   providerLinkId    String? // razorpay payment_link id
   purpose           String // "assessment_unlock" | (future) "subscription"
@@ -1660,7 +1669,7 @@ model Payment {
   event             String? // razorpay event that recorded it
   notes             Json?
   // Set when the Meta Purchase conversion (CAPI) was confirmed sent for this
-  // payment — null = never fired. Authoritative answer to "did Meta get this sale".
+  // payment - null = never fired. Authoritative answer to "did Meta get this sale".
   metaConversionAt  DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -1680,11 +1689,11 @@ model Payment {
 }
 
 // ---------------------------------------------------------------------------
-// AppSetting — singleton platform settings (configurable automation knobs).
+// AppSetting - singleton platform settings (configurable automation knobs).
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// CapiLog — one row per captured Razorpay payment: the record of the Purchase
+// CapiLog - one row per captured Razorpay payment: the record of the Purchase
 // CAPI event (auto-fired for configured amounts, else pending for manual firing)
 // plus Meta's actual response. The audit trail for "what did we send and what did
 // Meta say". Deduped by the Razorpay payment id.
@@ -1713,7 +1722,7 @@ model CapiLog {
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   // Which funnel this event belongs to. Both funnels write rows with tenantId null
-  // and the same standard event names, so without this they are indistinguishable —
+  // and the same standard event names, so without this they are indistinguishable -
   // an assessment opt-in and an Assess360 signup both read "CompleteRegistration".
   // "assessment" = the respondent funnel (per-tenant / Gita pixel).
   // "platform"   = the Assess360 SaaS funnel (signup + subscription, platform pixel).
@@ -1727,7 +1736,7 @@ model CapiLog {
 }
 
 // ---------------------------------------------------------------------------
-// AiPromptVersion — a tenant-authored "instructions for the system prompt". The
+// AiPromptVersion - a tenant-authored "instructions for the system prompt". The
 // owner writes plain instructions (how to shape the message from the scores); the
 // app assembles the real system prompt = fixed scaffold + these instructions. The
 // built-in code versions (v1-mentor/v2-easy-read) stay in code; DB ones start at V3.
@@ -1750,10 +1759,10 @@ model AiPromptVersion {
 model AppSetting {
   id       String  @id @default("singleton")
   // Owning tenant. The PLATFORM's config is the id="singleton" row, whose tenantId is
-  // set to "platform" by the re-home — so that one row is reachable both by its id and
+  // set to "platform" by the re-home - so that one row is reachable both by its id and
   // by its tenant, and all addressing goes through lib/settings/tenant-row so the two
   // names can never create a second row. Each tenant gets ONE additional row. A tenant
-  // NEVER reads the singleton (so the platform's own keys stay private) — an
+  // NEVER reads the singleton (so the platform's own keys stay private) - an
   // unconfigured tenant simply has no AI, and no pixel, CAPI or checkout either.
   tenantId String? @unique
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -1761,13 +1770,13 @@ model AppSetting {
   abandonedAfterHours Int @default(24)
 
   // Legal / company details shown ONLY on the public policy pages (/privacy,
-  // /terms, /refund) — never on the marketing landing. Read from the singleton row
+  // /terms, /refund) - never on the marketing landing. Read from the singleton row
   // by those pages and substituted into the India-focused policy copy. Blank =
   // a visible placeholder telling the owner to fill it in Settings.
   legalEntityName        String?
   legalAddress           String?
   legalContactEmail      String?
-  legalGoverningLocation String? // e.g. "Bengaluru, Karnataka" — governing-law seat
+  legalGoverningLocation String? // e.g. "Bengaluru, Karnataka" - governing-law seat
 
   // Two more entity facts, kept in the SAME row as the rest of the legal details so
   // there is one place to edit them. These feed the public JSON-LD Organization as well
@@ -1778,7 +1787,7 @@ model AppSetting {
   legalFoundedOn String?
 
   // Support contact shown to RESPONDENTS. When a tenant is over its response cap, a
-  // lead who finishes the assessment sees a neutral "results unavailable — contact
+  // lead who finishes the assessment sees a neutral "results unavailable - contact
   // support" screen instead of their scorecard, with this address. Blank = no address
   // shown (the screen still renders, just without a mailto). Per-tenant; the singleton
   // row holds the platform/Gita fallback.
@@ -1787,7 +1796,7 @@ model AppSetting {
   // AI personalized-statement config (platform-level). The API key is stored
   // ENCRYPTED at rest (see lib/crypto) and never returned to the client.
   aiEnabled       Boolean @default(false)
-  aiProvider      String? // "claude" | "openai" | "gemini" — which provider to USE
+  aiProvider      String? // "claude" | "openai" | "gemini" - which provider to USE
   aiModel         String?
   // Legacy single key (kept for back-compat/fallback). New keys are stored PER
   // provider below, so switching provider/model never re-prompts or breaks.
@@ -1798,7 +1807,7 @@ model AppSetting {
   aiOpenAiKeyEnc  String?
   aiGeminiKeyEnc  String?
   aiGuidance      String?
-  // Default result-statement prompt version — the tenant-wide default that a new
+  // Default result-statement prompt version - the tenant-wide default that a new
   // assessment inherits (an assessment can override via Assessment.aiPromptVersionId).
   // May be a built-in code id ("v1-mentor"/"v2-easy-read") or an AiPromptVersion id.
   aiPromptVersion String?
@@ -1809,16 +1818,16 @@ model AppSetting {
   // Per-tenant Meta (ads) config. On the singleton these stay null and the code uses
   // the platform env (NEXT_PUBLIC_META_PIXEL_ID / META_CAPI_ACCESS_TOKEN); a tenant
   // stores its OWN. The CAPI token is ENCRYPTED at rest. Wiring (client pixel + CAPI
-  // fire) resolves these per tenant — null tenant => env, unchanged.
+  // fire) resolves these per tenant - null tenant => env, unchanged.
   // NOTE: this pixel tracks ASSESSMENT RESPONDENTS (the Gita funnel).
   metaPixelId      String?
   metaCapiTokenEnc String?
 
-  // Platform / app SUBSCRIPTION funnel pixel — a SEPARATE Meta pixel for Assess360's
+  // Platform / app SUBSCRIPTION funnel pixel - a SEPARATE Meta pixel for Assess360's
   // own SaaS funnel: landing PageView, free-signup CompleteRegistration, and the
   // subscription Purchase. Distinct from metaPixelId above (which is the Gita
   // assessment pixel). Only meaningful on the singleton row (platform-owned); the
-  // CAPI token is ENCRYPTED at rest. No env fallback — unset = the funnel fires nothing.
+  // CAPI token is ENCRYPTED at rest. No env fallback - unset = the funnel fires nothing.
   platformPixelId      String?
   platformCapiTokenEnc String?
 
@@ -1843,7 +1852,7 @@ model AppSetting {
   // VidaPulse video (iframe). When enabled, the opaque Submission.customerId (never
   // any PII) is appended to that embed's src under vidapulseParam, so VidaPulse can
   // bind its own customer/click record to ours. Enabled + "cid" by default (harmless
-  // on any player — an unknown query param is ignored). null tenant => singleton value.
+  // on any player - an unknown query param is ignored). null tenant => singleton value.
   vidapulseTrackingEnabled Boolean @default(true)
   vidapulseParam           String  @default("cid")
 
@@ -1864,7 +1873,7 @@ model AppSetting {
   // results page renders a "Book a 1-on-1 call" CTA pointing here; null = hide it.
   bookingUrl String?
 
-  // Marketing landing videos — PLATFORM ONLY, never copied to a tenant.
+  // Marketing landing videos - PLATFORM ONLY, never copied to a tenant.
   // { hero?: string, tiles?: { "<capability title>": string } }. Each value is the
   // embed code or URL exactly as pasted; it is re-validated against the host allowlist
   // on every read (lib/marketing/embed), so nothing author-supplied is trusted merely
@@ -1872,13 +1881,13 @@ model AppSetting {
   // look exactly as they do today.
   landingVideos Json?
 
-  // Cloudflare R2 object storage — PLATFORM level, one bucket for the whole install.
+  // Cloudflare R2 object storage - PLATFORM level, one bucket for the whole install.
   // Per-tenant isolation is by KEY PREFIX inside that bucket (tenants/<id>/...), not by
   // separate buckets or credentials: one set of keys to rotate, and a tenant never
   // holds credentials that could reach another tenant's objects.
   //
   // Configured here rather than in environment variables, like every other integration
-  // — env holds only what the app needs to boot. The secret is encrypted at rest.
+  // - env holds only what the app needs to boot. The secret is encrypted at rest.
   r2AccountId          String?
   r2AccessKeyId        String?
   r2SecretAccessKeyEnc String?
@@ -1892,10 +1901,10 @@ model AppSetting {
   // values. Stored as a JSON array of trimmed labels. null tenant => singleton row.
   audienceCanonical Json?
 
-  // ---- Nurture (one-shot Email + WhatsApp on opt-in) — PER TENANT -----------
+  // ---- Nurture (one-shot Email + WhatsApp on opt-in) - PER TENANT -----------
   // SMTP transactional email. Password ENCRYPTED at rest, never returned to the
   // client. Each tenant has its OWN sender; the singleton row is the platform/Gita
-  // sender. No env fallback (new feature) — unconfigured => that channel just no-ops.
+  // sender. No env fallback (new feature) - unconfigured => that channel just no-ops.
   smtpHost               String?
   smtpPort               Int?
   smtpSecure             Boolean @default(false)
@@ -1906,13 +1915,13 @@ model AppSetting {
   // Meta WhatsApp Cloud API (business-initiated = approved TEMPLATE messages only).
   // Access token ENCRYPTED. apiVersion/countryCode fall back to code defaults when blank.
   wabaPhoneNumberId      String?
-  // WhatsApp Business Account (WABA) id — the parent of the phone number. Needed to
+  // WhatsApp Business Account (WABA) id - the parent of the phone number. Needed to
   // LIST approved message templates (GET /{wabaId}/message_templates). Optional; only
   // the template picker uses it (sending needs just the phone number id + token).
   wabaBusinessAccountId  String?
   wabaAccessTokenEnc     String?
   wabaApiVersion         String? // e.g. "v21.0"
-  wabaDefaultCountryCode String? // e.g. "91" — prepended to bare local mobiles for E.164
+  wabaDefaultCountryCode String? // e.g. "91" - prepended to bare local mobiles for E.164
   // The Nurture messages + on/off toggles, as JSON:
   //   { email: { enabled, subject, body }, waba: { enabled, template, lang, vars: string[] } }
   nurtureConfig          Json?
@@ -1930,7 +1939,7 @@ model AppSetting {
 
   // CRM "diagnosis_update" backfill: its OWN automation endpoint, distinct from
   // crmResendUrl (which is the WhatsApp-firing score_updated automation). This is
-  // now the generic CUSTOM sender's endpoint — refuses to run until set.
+  // now the generic CUSTOM sender's endpoint - refuses to run until set.
   crmDiagnosisUrl    String?
   // CUSTOM sender (was "Diagnosis"): fully configurable name, routing event_type,
   // selected payload fields, daily IST window, random delay, and armed flag.
@@ -1952,7 +1961,7 @@ model AppSetting {
 /// One rejection by the Page-1 qualification gate. The gate creates NO lead /
 /// submission / result, so before this model a disqualified visitor left no trace at
 /// all and every in-app counter read 0 while Meta still counted the exclusion event.
-/// ASSESSMENT FUNNEL ONLY — the SaaS signup + subscription paths have no gate and
+/// ASSESSMENT FUNNEL ONLY - the SaaS signup + subscription paths have no gate and
 /// never write here. High-write + fail-soft, mirroring PageView's conventions.
 model GateDisqualification {
   id           String     @id @default(cuid())
@@ -1969,7 +1978,7 @@ model GateDisqualification {
   // When GateDisqualified was actually SENT to Meta for this rejection (server CAPI).
   // Null = nothing was sent for this row: a revisit Meta already knows about, a
   // funnel with the event switched off, or a send that failed. Replaces the old
-  // localStorage `firedAt` stamp — the browser no longer fires this event, so the
+  // localStorage `firedAt` stamp - the browser no longer fires this event, so the
   // audience-refresh decision has to be readable server-side.
   capiFiredAt DateTime?
 
@@ -2003,7 +2012,7 @@ model GateDisqualification {
   os         String?
 
   // Owning tenant (denormalized from the assessment; null = platform/Gita). Scalar
-  // only — no FK — matching PageView: high-write, already cascades via assessment.
+  // only - no FK - matching PageView: high-write, already cascades via assessment.
   tenantId String?
 
   @@index([assessmentId])
@@ -2019,7 +2028,7 @@ model GateDisqualification {
 /// One click on a result-page booking CTA ("Apply for your seat", "Book a call", …).
 ///
 /// The thank-you page lives in the CRM, so without this row nobody can tell WHO asked
-/// for a call — the click leaves the app and never comes back. The button therefore
+/// for a call - the click leaves the app and never comes back. The button therefore
 /// routes through /api/cta/[submissionId]/[blockId], which writes this row and then
 /// forwards to the real destination with the VidaPulse ids intact.
 ///
@@ -2036,7 +2045,7 @@ model CtaClick {
   tenantId     String?
   createdAt    DateTime   @default(now())
 
-  // Which button block was clicked, and what it said/pointed at when clicked — the
+  // Which button block was clicked, and what it said/pointed at when clicked - the
   // page is editable, so the label and destination are snapshotted rather than looked
   // up later against a block that may have changed or been deleted.
   blockId        String

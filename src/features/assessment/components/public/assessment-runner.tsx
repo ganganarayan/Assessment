@@ -42,9 +42,9 @@ export interface PublicQuestion {
   options: PublicOption[];
 }
 
-/** CLINIC_AUDIT numeric roles a respondent might know an exact figure for — the
+/** CLINIC_AUDIT numeric roles a respondent might know an exact figure for - the
  *  "actual number" field renders below the range choice for these only. Excludes
- *  UPLIFT_BOOKRATE (behavioral — response speed/follow-up — not a number to type). */
+ *  UPLIFT_BOOKRATE (behavioral - response speed/follow-up - not a number to type). */
 const CLINIC_ACTUAL_FIELD: Record<string, { prompt: string; placeholder: string }> = {
   ENQUIRIES: { prompt: "Know your actual monthly enquiries?", placeholder: "e.g. 42" },
   BOOK_RATE: { prompt: "Know your actual booking rate?", placeholder: "e.g. 27" },
@@ -82,18 +82,18 @@ function unitAffordance(unit: string): { prefix: string | null; suffix: string |
   }
 }
 
-/** Reject an entry that can't be what they meant — the guard that would have
+/** Reject an entry that can't be what they meant - the guard that would have
  *  caught "7" typed into a percentage field when the question said "out of 10". */
 function actualNumberError(role: string, unit: string, raw: string): string | null {
   const n = Number(raw);
-  if (!raw.trim() || !Number.isFinite(n)) return null; // blank is fine — we use the range
+  if (!raw.trim() || !Number.isFinite(n)) return null; // blank is fine - we use the range
   if (n <= 0) return "Enter a number greater than zero.";
-  if (unit === "PER_10" && n > 10) return "This question is out of 10 — enter a number from 1 to 10.";
-  if (unit === "PER_100" && n > 100) return "Enter it as a percentage — 100 or less.";
+  if (unit === "PER_10" && n > 10) return "This question is out of 10 - enter a number from 1 to 10.";
+  if (unit === "PER_100" && n > 100) return "Enter it as a percentage - 100 or less.";
   // A percentage this low is nearly always an "out of 10" answer typed into a
   // percent field (7 meaning 7-in-10). Ask, rather than silently mis-scoring.
   if (unit === "PER_100" && (role === "SHOWUP_RATE" || role === "CLOSE_RATE") && n <= 10) {
-    return `That reads as ${n}% — fewer than ${n} in every 100. If you meant ${n} out of 10, enter ${n * 10}.`;
+    return `That reads as ${n}% - fewer than ${n} in every 100. If you meant ${n} out of 10, enter ${n * 10}.`;
   }
   return null;
 }
@@ -167,7 +167,7 @@ export interface PublicAssessment {
     options: { key: string; label: string; redirectSlug: string | null }[];
   } | null;
   // Qualification gate (Page 1): questions shown one-at-a-time before the assessment.
-  // A disqualifying answer routes to the disqualified page — no lead/submission/result.
+  // A disqualifying answer routes to the disqualified page - no lead/submission/result.
   qualification: {
     enabled: boolean;
     questions: {
@@ -234,8 +234,13 @@ export function AssessmentRunner({
   const [step, setStep] = useState<Step>(qual ? "qualify" : gated ? "gate" : "intro");
   // Current qualification question index (one at a time, auto-advance).
   const [qualIndex, setQualIndex] = useState(0);
-  // Answers to qualification TEXT questions (keyed by question id) — manual review.
+  // Answers to qualification TEXT questions (keyed by question id) - manual review.
   const [qualTextAnswers, setQualTextAnswers] = useState<Record<string, string>>({});
+  // Which option the respondent picked on each gate question, by question id. Only the
+  // IDS travel: the points attached to them are resolved on the server from the stored
+  // gate config, because a score the browser could name is a score the browser could
+  // change. Disqualifying picks never get here - that path ends the visit.
+  const [qualChoices, setQualChoices] = useState<Record<string, string>>({});
   // Audience gate: the current dropdown selection (option key) + the role label the
   // respondent picked (threaded to startSubmission; stored as their audience/role).
   const [gateChoice, setGateChoice] = useState<string>("");
@@ -306,7 +311,7 @@ export function AssessmentRunner({
   // Back/forward hardening: if the browser restores this page from its back-forward
   // cache (bfcache), the funnel's JS mount effects don't re-run, so a disqualified or
   // completed person could resurface a stale mid-flow page. Force a FRESH reload on a
-  // bfcache restore — the fresh load re-runs the gate (disqualified → exit via the
+  // bfcache restore - the fresh load re-runs the gate (disqualified → exit via the
   // gate_dq flag) and the retake lockout, so the previous page can't be reused.
   useEffect(() => {
     if (preview) return;
@@ -330,21 +335,21 @@ export function AssessmentRunner({
   useEffect(() => {
     if (!qual || preview) return;
     try {
-      // A stored rejection never expires — a rejected visitor stays out of the funnel,
+      // A stored rejection never expires - a rejected visitor stays out of the funnel,
       // and the bfcache reload above routes a back-navigation through here too.
       if (readGateRejection(localStorage.getItem(gateFlagKey(assessment.slug))) !== null) {
         dqCauseRef.current = { repeat: true };
         setStep("disqualified");
       }
     } catch {
-      /* blocked storage — ignore */
+      /* blocked storage - ignore */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Record the rejection (the gate creates no lead or submission, so this row is the
   // only trace). GateDisqualified itself is sent SERVER-side from that same call: a
-  // rejection carries no PII, and CAPI needs none — IP, user agent, _fbp/_fbc and the
+  // rejection carries no PII, and CAPI needs none - IP, user agent, _fbp/_fbc and the
   // first-party external_id are match keys on their own. That keeps the event out of
   // ad blockers' reach and makes every firing countable, which a browser event never
   // was. The server also owns the once-per-refresh-window rule, so a revisit stays
@@ -369,14 +374,14 @@ export function AssessmentRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  // Record that the page-1 gate was PASSED — the only trace left by someone who
+  // Record that the page-1 gate was PASSED - the only trace left by someone who
   // qualifies and then leaves before the opt-in (which is the last step, so no
   // Submission exists yet). Nothing is sent to Meta here: AssessmentAbandoned is
   // fired later by the sweep, once it can tell an abandoner from a completer.
   //
   // Called from BOTH gate exits (the last radio question and the text-question
   // Continue), guarded by a ref for this mount and by localStorage across mounts,
-  // so a refresh or a return visit doesn't re-record. Fire-and-forget — the
+  // so a refresh or a return visit doesn't re-record. Fire-and-forget - the
   // respondent never waits on it, and a failure never blocks entry.
   const gatePassFiredRef = useRef(false);
   function markGatePassed() {
@@ -386,7 +391,7 @@ export function AssessmentRunner({
       if (localStorage.getItem(`gate_pass:${assessment.slug}`) === "1") return;
       localStorage.setItem(`gate_pass:${assessment.slug}`, "1");
     } catch {
-      /* private mode / blocked storage — fall through and record anyway */
+      /* private mode / blocked storage - fall through and record anyway */
     }
     const vid = getOrCreateExternalId();
     if (!vid) return; // no first-party id → nothing Meta could match on later
@@ -412,7 +417,7 @@ export function AssessmentRunner({
   const requiredUnanswered = questions.filter(
     (q) => q.required && !answers[q.id],
   ).length;
-  /** First invalid typed actual number, if any — a wrong unit here silently skews
+  /** First invalid typed actual number, if any - a wrong unit here silently skews
    *  every figure on the result, so it must be corrected before submitting. */
   const firstActualError = questions.reduce<string | null>((found, q) => {
     if (found || !q.scoringRole || !CLINIC_ACTUAL_FIELD[q.scoringRole]) return found;
@@ -426,7 +431,7 @@ export function AssessmentRunner({
   // Conditional routing. The spine mirrors the SINGLE-mode screen order (page 1
   // then 2, each in displayOrder), so a spine index equals a screen index. Routing
   // is honored ONLY in SINGLE mode and only when at least one option carries a
-  // route — otherwise everything below is inert and the flow is unchanged.
+  // route - otherwise everything below is inert and the flow is unchanged.
   const spine = buildSpine(
     assessment.categories.map((c) => ({
       id: c.id,
@@ -449,7 +454,7 @@ export function AssessmentRunner({
     ? questions.filter((q) => reachedSet!.has(q.id) && q.required && !answers[q.id]).length
     : requiredUnanswered;
 
-  // Honeypot input ref — hidden from humans; a filled value marks a bot opt-in.
+  // Honeypot input ref - hidden from humans; a filled value marks a bot opt-in.
   const hpRef = useRef<HTMLInputElement>(null);
   // Pending auto-advance timer (paginated modes): picking an option moves to the
   // next screen after a short beat. Held in a ref so a re-selection or a manual
@@ -470,7 +475,7 @@ export function AssessmentRunner({
     const honeypot = hpRef.current?.value ?? "";
     const optin = Object.keys(optinAnswers).length ? optinAnswers : undefined;
     start(async () => {
-      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot, optin, selectedRole ?? undefined, getOrCreateExternalId() ?? undefined, Object.keys(qualTextAnswers).length ? qualTextAnswers : undefined);
+      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot, optin, selectedRole ?? undefined, getOrCreateExternalId() ?? undefined, Object.keys(qualTextAnswers).length ? qualTextAnswers : undefined, Object.keys(qualChoices).length ? qualChoices : undefined);
       if (!res.ok) {
         setError(res.error);
         return;
@@ -498,7 +503,7 @@ export function AssessmentRunner({
       if (res.data?.status === "started" && res.data.answers) {
         setAnswers(res.data.answers);
       }
-      // Lead-capture-after: questions are already answered — go straight to the
+      // Lead-capture-after: questions are already answered - go straight to the
       // pre-results details (if any) or complete now, using the FRESH ids.
       if (assessment.leadCaptureAfter) {
         if (assessment.preResultFields.length > 0) {
@@ -524,7 +529,7 @@ export function AssessmentRunner({
   }
 
   // Qualification (Page 1): pick an answer. A disqualifying option routes to the
-  // disqualified page — NO lead / submission / result is ever created (optionally
+  // disqualified page - NO lead / submission / result is ever created (optionally
   // fires a custom "Disqualified" pixel event for ad exclusion). A qualifying answer
   // auto-advances to the next question, then enters the assessment after the last.
   function pickQualOption(option: { id: string; disqualifies: boolean }) {
@@ -543,7 +548,7 @@ export function AssessmentRunner({
             // GateDisqualified event and stamps the flag once it has.
             localStorage.setItem(gateFlagKey(assessment.slug), writeGateRejection());
           } catch {
-            /* private mode / blocked storage — non-fatal */
+            /* private mode / blocked storage - non-fatal */
           }
         }
         // A fresh rejection: the effect fires the pixel event and records the row.
@@ -552,16 +557,18 @@ export function AssessmentRunner({
         return;
       }
       if (!qual) return;
+      const answeredId = qual.questions[qualIndex]?.id;
+      if (answeredId) setQualChoices((m) => ({ ...m, [answeredId]: option.id }));
       if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
       else {
-        markGatePassed(); // cleared the whole gate — they are now in the funnel
+        markGatePassed(); // cleared the whole gate - they are now in the funnel
         setStep(gated ? "gate" : "intro");
       }
     }, 160);
   }
 
   // Qualification TEXT question "Continue": validate required, then advance (these
-  // never qualify/disqualify — the answer is stored for the owner's manual review).
+  // never qualify/disqualify - the answer is stored for the owner's manual review).
   function submitQualText(questionId: string, required: boolean) {
     const v = (qualTextAnswers[questionId] ?? "").trim();
     if (required && !v) {
@@ -572,7 +579,7 @@ export function AssessmentRunner({
     if (!qual) return;
     if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
     else {
-      markGatePassed(); // cleared the whole gate — they are now in the funnel
+      markGatePassed(); // cleared the whole gate - they are now in the funnel
       setStep(gated ? "gate" : "intro");
     }
   }
@@ -582,7 +589,7 @@ export function AssessmentRunner({
   function submitGate() {
     if (!gate) return;
     // Free-text mode: accept whatever they typed (or picked from suggestions). No
-    // routing — always continue in this assessment.
+    // routing - always continue in this assessment.
     if (gate.mode === "FREETEXT") {
       const typed = freeAudience.trim();
       if (gate.required && !typed) {
@@ -689,7 +696,7 @@ export function AssessmentRunner({
         return;
       }
       // Billing gate: the workspace is over its response cap. The answers were captured,
-      // but the result is locked — show a neutral "results unavailable" screen with the
+      // but the result is locked - show a neutral "results unavailable" screen with the
       // support email. No pixel, no payment, no redirect (the server suppressed the
       // whole fan-out too).
       if (res.data?.capLocked) {
@@ -697,7 +704,7 @@ export function AssessmentRunner({
         setStep("capLocked");
         return;
       }
-      // Meta Pixel: assessment finished (custom event) — fire before the
+      // Meta Pixel: assessment finished (custom event) - fire before the
       // redirect, ONLY for the winning completion (server returns an eventId
       // then). The eventId dedups against the server-side CAPI event.
       if (res.data?.eventId) {
@@ -731,7 +738,7 @@ export function AssessmentRunner({
         }
         setPagePayment(res.data?.payment ?? null);
         setPagePaymentUrl(res.data?.paymentRedirectUrl ?? null);
-        // Free fallback destination only — in paid mode the button pays, never
+        // Free fallback destination only - in paid mode the button pays, never
         // redirects to the (free) result.
         setPageResultDest(assessment.paidMode ? null : (res.data?.resultUrl ?? null));
         const r = await getResultForPages(sid);
@@ -741,7 +748,7 @@ export function AssessmentRunner({
       }
       // Paid mode: take payment instead of going to the VSL/result (results are
       // already stored; after paying, the user lands on the VSL with the token).
-      // Razorpay Checkout opens with the lead's details prefilled — no form to fill;
+      // Razorpay Checkout opens with the lead's details prefilled - no form to fill;
       // on success Razorpay redirects to /api/payments/verify which sends them on.
       if (res.data?.payment) {
         try {
@@ -770,7 +777,7 @@ export function AssessmentRunner({
       }
       // Hand the destination URL to the countdown screen: it shows a fixed
       // VSL_COUNTDOWN_SECONDS anticipation timer (started at Submit, overlapping
-      // scoring) and redirects once it elapses AND this URL is ready — guaranteeing
+      // scoring) and redirects once it elapses AND this URL is ready - guaranteeing
       // a minimum wait without ever cutting scoring short. Append event=1 so the
       // destination's VSL-view pixel fires ONCE on this post-completion redirect;
       // the link saved to the CRM stays without it, so later opens don't re-fire.
@@ -800,7 +807,7 @@ export function AssessmentRunner({
       return;
     }
     // Paid mode with no payment method available: do NOT fall through to the free
-    // result — surface an error so they can retry.
+    // result - surface an error so they can retry.
     if (assessment.paidMode) {
       setPayError("We couldn't start the payment just now. Please try again.");
       return;
@@ -826,7 +833,7 @@ export function AssessmentRunner({
     );
   }
 
-  // Reusable pieces of the opt-in form — shown on the intro screen (lead-first) OR on
+  // Reusable pieces of the opt-in form - shown on the intro screen (lead-first) OR on
   // the dedicated leadForm step (lead-after). Defined here so both steps share them.
   const honeypotInput = (
     <input
@@ -962,7 +969,7 @@ export function AssessmentRunner({
     return (
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">Thanks — your responses are in.</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Thanks - your responses are in.</h1>
           <p className="text-[var(--muted-foreground)]">
             Your results aren&apos;t available to view right now. If you&apos;d like your
             results, please reach out and we&apos;ll help you out.
@@ -1099,7 +1106,7 @@ export function AssessmentRunner({
                 );
               })()}
               {gate.suggestions.length > 0 ? (
-                <p className="text-xs text-cyan-400">Start typing to see suggestions — or enter your own.</p>
+                <p className="text-xs text-cyan-400">Start typing to see suggestions - or enter your own.</p>
               ) : null}
             </>
           ) : (
@@ -1136,7 +1143,7 @@ export function AssessmentRunner({
       assessment.introNotice && assessment.introNotice.trim()
         ? assessment.introNotice
         : assessment.retakePolicy === "NEVER"
-          ? "Please answer honestly — this assessment can be taken only once."
+          ? "Please answer honestly - this assessment can be taken only once."
           : assessment.retakePolicy === "DELAYED"
             ? `Please answer honestly in one sitting. Once you submit, you won't be able to retake this assessment for ${assessment.retakeDays} day${assessment.retakeDays === 1 ? "" : "s"}.`
             : null;
@@ -1382,13 +1389,13 @@ export function AssessmentRunner({
     );
   }
 
-  // step === "questions" — paginate the questions by the display mode.
+  // step === "questions" - paginate the questions by the display mode.
   const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(" ");
   const leadContact = [lead.email, lead.mobile].filter(Boolean).join(" · ");
 
   type QGroup = { cat: (typeof assessment.categories)[number]; qs: (typeof assessment.categories)[number]["questions"] };
   // Categories are grouped by PAGE (1 = assessment, 2 = queries). Page 1's screens come
-  // first, then page 2's — so the two scored pages are always visually separate.
+  // first, then page 2's - so the two scored pages are always visually separate.
   const pageGroups = [1, 2]
     .map((p) => assessment.categories.filter((c) => (c.page ?? 1) === p))
     .filter((g) => g.length > 0);
@@ -1451,7 +1458,7 @@ export function AssessmentRunner({
   };
 
   // Does the current screen carry an optional "actual number" field? If so we do
-  // NOT auto-advance — the respondent may still want to type that number.
+  // NOT auto-advance - the respondent may still want to type that number.
   const currentHasActualField = current
     .flatMap((g) => g.qs)
     .some((q) => q.scoringRole != null && CLINIC_ACTUAL_FIELD[q.scoringRole] != null);
@@ -1502,7 +1509,7 @@ export function AssessmentRunner({
       {leadName || leadContact ? (
         <div className="rounded-lg border bg-[var(--muted)] px-4 py-2 text-sm">
           {leadName ? <span className="font-medium">{leadName}</span> : null}
-          {leadName && leadContact ? <span className="text-[var(--muted-foreground)]"> — </span> : null}
+          {leadName && leadContact ? <span className="text-[var(--muted-foreground)]"> - </span> : null}
           {leadContact ? <span className="text-[var(--muted-foreground)]">{leadContact}</span> : null}
         </div>
       ) : null}
@@ -1542,7 +1549,7 @@ export function AssessmentRunner({
                 return (
                   <div className="mt-1 flex flex-col gap-1 border-t pt-3">
                     <label htmlFor={`actual-${q.id}`} className="text-xs text-[var(--muted-foreground)]">
-                      {actualField.prompt} Enter it below (optional) — otherwise we&apos;ll use the
+                      {actualField.prompt} Enter it below (optional) - otherwise we&apos;ll use the
                       midpoint of your selected range. {aff.hint}
                     </label>
                     <div className="flex items-center gap-2">
