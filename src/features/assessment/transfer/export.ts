@@ -98,6 +98,7 @@ async function buildAssessmentBody(
     resultsContinueLabel: a.resultsContinueLabel,
     paidMode: a.paidMode,
     paymentUrl: a.paymentUrl,
+    paymentReturnParam: a.paymentReturnParam,
     paymentHeadline: a.paymentHeadline,
     paymentButtonLabel: a.paymentButtonLabel,
     paymentAmount: a.paymentAmount,

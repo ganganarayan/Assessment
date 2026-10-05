@@ -3,24 +3,34 @@ import { prisma } from "@/lib/db/prisma";
 import {
   PROMPT_VERSIONS,
   PREVIEW_SAMPLE,
+  NEUTRAL_SAMPLE,
   getPromptVersion,
   instructionVersion,
   type PromptVersion,
 } from "@/lib/ai/prompt-versions";
 import { buildStatementMessages } from "@/lib/ai/prompt";
+import { builtInPromptsAllowed } from "@/lib/ai/scope";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
 
 /**
- * Resolve a version id to a PromptVersion, scoped to a tenant. Built-in code
- * versions (v1/v2) win by id; otherwise the tenant's stored AiPromptVersion row is
- * wrapped via instructionVersion(); a missing/blank id falls back to the default.
+ * Resolve a version id to a PromptVersion, scoped to a tenant.
+ *
+ * The built-in code versions resolve ONLY for the scopes that own them (the platform
+ * and the owner's own businesses). For anyone else a built-in id resolves to NOTHING
+ * rather than to the owner's prompt: a tenant must not generate with instructions
+ * they cannot see, and inheriting the default silently would do exactly that on every
+ * workspace that never picked a version.
+ *
+ * Null means "no version": the caller skips generation and the result renders without
+ * an AI message, which is the same fail-soft path as an unconfigured provider.
  */
 export async function resolvePromptVersion(
   versionId: string | null | undefined,
   tenantId: string | null,
-): Promise<PromptVersion> {
+): Promise<PromptVersion | null> {
+  const allowBuiltins = await builtInPromptsAllowed(tenantId);
   const code = versionId ? PROMPT_VERSIONS.find((v) => v.id === versionId) : undefined;
-  if (code) return code;
+  if (code) return allowBuiltins ? code : null;
   if (versionId) {
     const row = await prisma.aiPromptVersion.findFirst({
       where: { id: versionId, tenantId },
@@ -28,7 +38,7 @@ export async function resolvePromptVersion(
     });
     if (row) return instructionVersion(row);
   }
-  return getPromptVersion(versionId);
+  return allowBuiltins ? getPromptVersion(versionId) : null;
 }
 
 /** The tenant's word-count window (assembled prompts ask the model for this range). */
@@ -53,25 +63,35 @@ export interface PromptVersionRow {
   system: string;
 }
 
-/** Every version available to a tenant: the two built-ins (read-only) + the tenant's
- *  own instruction versions (V3+), each with its assembled system prompt for preview. */
+/**
+ * Every version this scope may see: its own instruction versions, plus the built-in
+ * references ONLY where they belong (the platform and the owner's own businesses -
+ * see builtInPromptsAllowed). A customer tenant gets its own versions and nothing
+ * else, previewed against a neutral sample rather than the owner's assessment.
+ */
 export async function listPromptVersions(tenantId: string | null): Promise<PromptVersionRow[]> {
-  const words = await getWordWindow(tenantId);
+  const [words, allowBuiltins] = await Promise.all([
+    getWordWindow(tenantId),
+    builtInPromptsAllowed(tenantId),
+  ]);
+  const sample = allowBuiltins ? PREVIEW_SAMPLE : NEUTRAL_SAMPLE;
   // Newest first, so a version the owner just added is at the TOP of the list.
   const rows = await prisma.aiPromptVersion.findMany({
     where: { tenantId },
     orderBy: { number: "desc" },
     select: { id: true, number: true, label: true, instructions: true },
   });
-  const builtins: PromptVersionRow[] = PROMPT_VERSIONS.map((v) => ({
-    id: v.id,
-    number: null,
-    label: v.label,
-    description: v.description,
-    builtin: true,
-    instructions: "",
-    system: buildStatementMessages(PREVIEW_SAMPLE, v, words).system,
-  }));
+  const builtins: PromptVersionRow[] = allowBuiltins
+    ? PROMPT_VERSIONS.map((v) => ({
+        id: v.id,
+        number: null,
+        label: v.label,
+        description: v.description,
+        builtin: true,
+        instructions: "",
+        system: buildStatementMessages(sample, v, words).system,
+      }))
+    : [];
   const custom: PromptVersionRow[] = rows.map((r) => ({
     id: r.id,
     number: r.number,
@@ -79,14 +99,25 @@ export async function listPromptVersions(tenantId: string | null): Promise<Promp
     description: "Your custom instructions.",
     builtin: false,
     instructions: r.instructions,
-    system: buildStatementMessages(PREVIEW_SAMPLE, instructionVersion(r), words).system,
+    system: buildStatementMessages(sample, instructionVersion(r), words).system,
   }));
   // Owner's own versions first (newest at top), built-in references last.
   return [...custom, ...builtins];
 }
 
-/** The next tenant version number (built-ins occupy 1-2, so tenant versions start at 3). */
+/**
+ * The next version number for this scope.
+ *
+ * Where the built-ins are visible they occupy 1 and 2, so the owner's own versions
+ * start at 3 and the labels on screen stay in order. A customer tenant never sees
+ * them, so numbering from 3 would look like two versions had been deleted - theirs
+ * start at 1. Existing rows always win (max + 1), so no tenant's numbering shifts.
+ */
 export async function nextVersionNumber(tenantId: string | null): Promise<number> {
-  const max = await prisma.aiPromptVersion.aggregate({ where: { tenantId }, _max: { number: true } });
-  return Math.max(2, max._max.number ?? 2) + 1;
+  const [max, allowBuiltins] = await Promise.all([
+    prisma.aiPromptVersion.aggregate({ where: { tenantId }, _max: { number: true } }),
+    builtInPromptsAllowed(tenantId),
+  ]);
+  const floor = allowBuiltins ? 2 : 0;
+  return Math.max(floor, max._max.number ?? floor) + 1;
 }

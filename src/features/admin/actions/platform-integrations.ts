@@ -30,6 +30,10 @@ export async function getPlatformIntegrationSettings(): Promise<IntegrationSetti
     hasRazorpayWebhookSecret: !!s?.razorpayWebhookSecretEnc,
     // The platform/Gita webhook is the un-suffixed route.
     webhookUrl: `${env.NEXT_PUBLIC_APP_URL}/api/payments/razorpay`,
+    // The platform scope has no tenant slug to route a return to, and its own funnels
+    // use Razorpay directly, so there is nothing to paste anywhere. Blank, and the
+    // field renders as the empty box it is rather than a broken-looking URL.
+    paymentReturnUrl: "",
     heatmapCode: s?.heatmapCode ?? "",
     vidapulseTrackingEnabled: s?.vidapulseTrackingEnabled ?? true,
     vidapulseParam: s?.vidapulseParam ?? "cid",
@@ -214,4 +218,34 @@ export async function updatePlatformRazorpaySettings(
   await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
   revalidatePath("/admin/settings");
   return { ok: true };
+}
+
+/**
+ * The PLATFORM MASTER SWITCH for respondent payments (singleton row).
+ *
+ * False stops every tenant funnel taking money, above each tenant's own switch and
+ * above each assessment's paid mode. Nothing is deleted and no configuration is lost:
+ * the funnels run free until it is turned back on.
+ */
+export async function setPlatformPayments(enabled: boolean): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  await prisma.appSetting.upsert({
+    where: { id: "singleton" },
+    update: { paymentsEnabledGlobal: enabled },
+    create: { id: "singleton", paymentsEnabledGlobal: enabled },
+  });
+  revalidatePath("/admin/settings");
+  revalidatePath("/platform");
+  return { ok: true };
+}
+
+/** Current state of the master switch, for the settings screen. */
+export async function getPlatformPayments(): Promise<boolean> {
+  await requireSuperAdmin();
+  const s = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: { paymentsEnabledGlobal: true },
+  });
+  return s?.paymentsEnabledGlobal !== false;
 }

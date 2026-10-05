@@ -110,6 +110,7 @@ function createData(
     ...(body.resultsContinueUrl != null ? { resultsContinueUrl: body.resultsContinueUrl } : {}),
     ...(body.resultsContinueLabel != null ? { resultsContinueLabel: body.resultsContinueLabel } : {}),
     ...(body.paymentUrl != null ? { paymentUrl: body.paymentUrl } : {}),
+    ...(body.paymentReturnParam != null ? { paymentReturnParam: body.paymentReturnParam } : {}),
     ...(body.paymentHeadline != null ? { paymentHeadline: body.paymentHeadline } : {}),
     ...(body.paymentButtonLabel != null ? { paymentButtonLabel: body.paymentButtonLabel } : {}),
     ...(body.paymentAmount != null ? { paymentAmount: body.paymentAmount } : {}),

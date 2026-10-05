@@ -124,6 +124,33 @@ export function IntegrationSettingsForm({
         </div>
       </div>
 
+      {/* External gateway. Deliberately AFTER Razorpay: a tenant who fills in keys
+          above never needs this, and the return URL only resolves the browser, not
+          the payment. */}
+      <div className="flex flex-col gap-3 border-t pt-4">
+        <p className="text-sm font-medium">Using a different payment gateway</p>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          If you collect payment with your own payment link somewhere else, paste the address
+          below as the <strong>success</strong> or <strong>redirect</strong> URL on that link.
+          Respondents come back here and we take them straight to their results.
+        </p>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Return URL (paste into your payment link&apos;s success redirect)</Label>
+          <Input
+            readOnly
+            value={initial.paymentReturnUrl}
+            onFocus={(e) => e.currentTarget.select()}
+            className="font-mono text-xs"
+          />
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Same address for every respondent, which is all a payment link allows. If someone
+            returns in a different browser we ask for their email and match them that way. If
+            your gateway adds its own reference to the redirect, name that parameter in the
+            assessment&apos;s payment settings and we will record it.
+          </p>
+        </div>
+      </div>
+
       {/* VidaPulse */}
       <div className="flex flex-col gap-3 border-t pt-4">
         <p className="text-sm font-medium">VidaPulse video tracking</p>

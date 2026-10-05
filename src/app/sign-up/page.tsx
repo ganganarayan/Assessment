@@ -1,8 +1,18 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { SignUpForm } from "@/features/auth/components/sign-up-form";
+import { SignOutButton } from "@/features/auth/components/sign-out-button";
+import { buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { PlatformPixel } from "@/components/platform-pixel";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { platformPageMetadata } from "@/lib/seo/site";
@@ -35,13 +45,62 @@ export default async function SignUpPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await getSession();
-  if (session) redirect("/dashboard");
-
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const email = one(sp.email).trim().toLowerCase();
   const name = one(sp.name).trim();
+
+  const session = await getSession();
+  if (session) {
+    const signedInAs = (session.user.email ?? "").trim().toLowerCase();
+    // A plain visit with a live session: nothing has just happened, send them in.
+    if (!email) redirect("/dashboard");
+
+    /**
+     * An `email` parameter means A FUNNEL JUST FINISHED, and finishing an assessment
+     * is not the same event as signing in. Fusing them is how a tenant testing their
+     * own funnel with their own login address gets thrown into the app mid-test, and
+     * how a prospect on a shared browser lands in a stranger's workspace. So from here
+     * on this page always ACKNOWLEDGES and offers a button; it never teleports.
+     *
+     * The automatic hop is only wrong when it is automatic. Once they click, taking
+     * them to their workspace is exactly what they asked for.
+     */
+    const samePerson = email === signedInAs;
+    return (
+      <main className="flex min-h-screen items-center justify-center p-6">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle>{samePerson ? "You already have an account" : "You are already signed in"}</CardTitle>
+            <CardDescription>
+              {samePerson ? (
+                <>
+                  That is done. <strong>{session.user.email}</strong> is already set up, so there
+                  is nothing to create.
+                </>
+              ) : (
+                <>
+                  This browser is signed in as <strong>{session.user.email}</strong>, but you just
+                  entered <strong>{email}</strong>.
+                </>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <Link href="/dashboard" className={buttonVariants({ className: "w-full" })}>
+              {samePerson ? "Go to my workspace" : `Continue as ${session.user.email}`}
+            </Link>
+            {samePerson ? null : (
+              <SignOutButton
+                redirectTo={`/sign-up?${new URLSearchParams({ email, ...(name ? { name } : {}) }).toString()}`}
+                label={`Sign out and create an account for ${email}`}
+              />
+            )}
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
 
   if (email) {
     const existing = await prisma.user

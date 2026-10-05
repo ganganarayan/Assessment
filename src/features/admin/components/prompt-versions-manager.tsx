@@ -21,11 +21,15 @@ export function PromptVersionsManager({
   wordMin,
   wordMax,
   sampleName,
+  showBuiltins = true,
 }: {
   versions: PromptVersionView[];
   wordMin: number;
   wordMax: number;
   sampleName: string;
+  /** False in a customer workspace: no built-in references exist there, so the
+   *  built-in length control has nothing to govern and is hidden with them. */
+  showBuiltins?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -49,7 +53,9 @@ export function PromptVersionsManager({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Word window - applies to the built-in V1/V2 only */}
+      {/* Word window - applies to the built-in V1/V2 only, so it is shown only where
+          those exist. Your own versions state their own length in the instructions. */}
+      {showBuiltins ? (
       <div className="flex flex-col gap-2 rounded-lg border p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
@@ -70,6 +76,7 @@ export function PromptVersionsManager({
           instructions (e.g. &ldquo;180&ndash;240 words&rdquo;).
         </p>
       </div>
+      ) : null}
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-[var(--muted-foreground)]">
@@ -81,6 +88,17 @@ export function PromptVersionsManager({
           + Add system prompt version
         </Button>
       </div>
+
+      {versions.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-6 text-center text-sm text-[var(--muted-foreground)]">
+          <p className="font-medium text-[var(--foreground)]">No system prompt versions yet.</p>
+          <p className="mt-1">
+            Add one and write the instructions in your own words. They become the system prompt
+            exactly as written, and the respondent&apos;s scores are supplied as data. Until you add
+            one, results are shown without an AI message.
+          </p>
+        </div>
+      ) : null}
 
       {versions.map((v) => (
         <VersionCard key={v.id} v={v} sampleName={sampleName} />

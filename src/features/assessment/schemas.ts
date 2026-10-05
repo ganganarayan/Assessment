@@ -278,6 +278,14 @@ export const assessmentSchema = z.object({
   // action derives the legacy paidMode boolean from this.
   nextStep: z.enum(["PAYMENT", "DESTINATION", "RESULTS"]).default("DESTINATION"),
   paymentUrl: z.string().url("Enter a valid payment URL.").optional().or(z.literal("")),
+  // The query parameter an EXTERNAL gateway appends to its success redirect. A bare
+  // parameter name, so it can be read off the URL without guessing.
+  paymentReturnParam: z
+    .string()
+    .max(60)
+    .regex(/^[A-Za-z0-9_.-]*$/, "Use only letters, numbers, dots, dashes or underscores.")
+    .optional()
+    .or(z.literal("")),
   paymentHeadline: z.string().max(2000).optional().or(z.literal("")),
   paymentButtonLabel: z.string().max(200).optional().or(z.literal("")),
   // Price in INR rupees for the Razorpay payment link (e.g. 199).

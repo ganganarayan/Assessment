@@ -151,6 +151,7 @@ const DEFAULTS: AssessmentFormValues = {
   useAiStatement: true,
   nextStep: "DESTINATION",
   paymentUrl: "",
+  paymentReturnParam: "",
   paymentHeadline: "",
   paymentButtonLabel: "",
   paymentAmount: undefined,
@@ -1024,13 +1025,34 @@ export function AssessmentForm({
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="paymentUrl">Static payment link URL (fallback)</Label>
+                  <Label htmlFor="paymentUrl">Payment link URL (your own gateway)</Label>
                   <Input
                     id="paymentUrl"
                     value={values.paymentUrl ?? ""}
                     onChange={(e) => set("paymentUrl", e.target.value)}
                     placeholder="https://your-payment-page.com/pay"
                   />
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Used when no Razorpay keys are saved. Set your payment link&apos;s success
+                    redirect to the Return URL in Settings, or respondents have no way back to
+                    their results.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="paymentReturnParam">
+                    Reference parameter on the return (optional)
+                  </Label>
+                  <Input
+                    id="paymentReturnParam"
+                    value={values.paymentReturnParam ?? ""}
+                    onChange={(e) => set("paymentReturnParam", e.target.value)}
+                    placeholder="e.g. session_id"
+                  />
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Only if your gateway adds its own reference to the redirect. Name the
+                    parameter and we record its value against the payment. Leave blank
+                    otherwise - the return works without it.
+                  </p>
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="paymentIntroText">Payment notice (opt-in form, above Start)</Label>

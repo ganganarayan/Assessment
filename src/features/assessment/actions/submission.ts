@@ -57,6 +57,8 @@ import { formatINR, pctLabel } from "@/lib/format/inr";
 import { isRazorpayConfigured, createOrder } from "@/lib/payments/razorpay";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { type PaymentCheckout } from "@/lib/payments/types";
+import { paymentsAllowed } from "@/lib/payments/enabled";
+import { createHandoff } from "@/lib/payments/handoff";
 
 const PAYMENT_BUSINESS_NAME = "Assess360";
 import { buildSpine, walk, type RouteSpec } from "@/lib/routing/engine";
@@ -182,6 +184,10 @@ async function resolvePaidCheckout(opts: {
   customer: { name: string | null; email: string | null; phone: string | null };
 }): Promise<{ payment?: PaymentCheckout; paymentRedirectUrl?: string }> {
   if (!opts.paidMode) return {};
+  // The owner's switches (platform master AND this tenant's) sit above the
+  // assessment's own paid mode. Off means this funnel runs free - no payment step is
+  // offered at all, rather than one that appears and then refuses.
+  if (!(await paymentsAllowed(opts.tenantId))) return {};
 
   const rzp = await resolveRazorpayConfig(opts.tenantId);
   if (isRazorpayConfigured(rzp) && rzp.keyId && opts.paymentAmount && opts.paymentAmount > 0) {
@@ -212,10 +218,21 @@ async function resolvePaidCheckout(opts: {
     }
   }
 
-  // No Razorpay Checkout configured (no keys/amount): use the static link if set.
-  // NOTE: a fixed static link can't carry a per-buyer submissionId, so those sales
-  // aren't auto-tracked - prefer the Price (Checkout) for tracked paid assessments.
-  return opts.paymentUrl ? { paymentRedirectUrl: withToken(opts.paymentUrl, opts.token) } : {};
+  // No Razorpay Checkout configured (no keys/amount): the tenant's own payment link.
+  //
+  // A fixed link cannot carry a per-buyer submissionId, and the success URL configured
+  // on their gateway is one string for every respondent, so the return cannot be told
+  // apart by the URL either. The hand-off below is what tells them apart: a row plus a
+  // nonce in an httpOnly cookie, claimed at /api/pay/return/<tenant>. The ?t= token is
+  // still appended because a handful of gateways do preserve query parameters, and
+  // where one does the return needs nothing else.
+  if (!opts.paymentUrl) return {};
+  await createHandoff({
+    tenantId: opts.tenantId,
+    submissionId: opts.submissionId,
+    email: opts.customer.email,
+  });
+  return { paymentRedirectUrl: withToken(opts.paymentUrl, opts.token) };
 }
 
 
@@ -226,6 +243,8 @@ export type StartResult =
       policy: "DELAYED" | "NEVER";
       lastCompletedAt: string | null;
       nextAvailableAt: string | null; // null = never (NEVER policy)
+      /** A previous result exists AND can be emailed (token + address on file). */
+      resultAvailable: boolean;
     };
 
 /** Load a resuming respondent's prior answers (questionId -> optionId): the live
@@ -635,19 +654,31 @@ export async function startSubmission(
         ? await tx.submission.findFirst({
             where: { assessmentId: assessment.id, identifierValue, completedPaidAt: { not: null } },
             orderBy: { completedPaidAt: "desc" },
-            select: { completedPaidAt: true },
+            select: { completedPaidAt: true, resultToken: true, leadEmail: true },
           })
         : await tx.submission.findFirst({
             where: { assessmentId: assessment.id, identifierValue, status: "COMPLETED" },
             orderBy: { completedAt: "desc" },
-            select: { completedAt: true },
+            select: { completedAt: true, resultToken: true, leadEmail: true },
           });
       const lockAt = paidMode
         ? (last as { completedPaidAt: Date | null } | null)?.completedPaidAt ?? null
         : (last as { completedAt: Date | null } | null)?.completedAt ?? null;
       const verdict = evaluateLockout(policy, assessment.retakeDays, lockAt, new Date());
       if (verdict.locked) {
-        return { kind: "locked" as const, lastCompletedAt: lockAt, nextAvailableAt: verdict.nextAvailableAt };
+        // Does a previous result actually EXIST to send? The lock screen used to offer
+        // "Email My Previous Results" to anyone, then answer with "if a previous result
+        // exists for your details…" - the app hedging about a record it had just told
+        // them it holds. requestPreviousResults needs a result token and a deliverable
+        // address, so that is exactly the condition, resolved here instead of guessed
+        // on screen. (Enumeration is not a concern at this point: reaching this screen
+        // already told them a completed run exists for this identifier.)
+        return {
+          kind: "locked" as const,
+          lastCompletedAt: lockAt,
+          nextAvailableAt: verdict.nextAvailableAt,
+          resultAvailable: Boolean(last?.resultToken && last?.leadEmail),
+        };
       }
       // Resume the latest UNPAID attempt. Paid mode: a STARTED row OR a completed-
       // but-unpaid one (so they edit + pay). Free mode: STARTED only. Refresh the
@@ -698,6 +729,7 @@ export async function startSubmission(
           policy,
           lastCompletedAt: outcome.lastCompletedAt?.toISOString() ?? null,
           nextAvailableAt: outcome.nextAvailableAt?.toISOString() ?? null,
+          resultAvailable: outcome.resultAvailable,
         },
       };
     }
@@ -998,6 +1030,9 @@ export async function completeSubmission(
       paymentUrl: true,
       paymentAmount: true,
       useAiStatement: true,
+      // Signup funnels hand off to /sign-up and never render a result, so there is
+      // nobody to read a statement. Selected here so generation can be skipped.
+      platformSignup: true,
       nextStep: true,
       engine: true,
       engineConfig: true,
@@ -1231,6 +1266,22 @@ export async function completeSubmission(
   let matchedClinicBand: { id: string; level: string; title: string; description: string | null } | null = null;
   let aiStatement: string | null = null;
 
+  /**
+   * Generate the AI statement at all?
+   *
+   * A signup funnel ends at /sign-up. No result page is ever rendered for that run,
+   * so the statement is written for nobody - and the respondent pays for it in wall
+   * clock: the LLM call is awaited inside completion, so a funnel whose next screen
+   * is a form sat on "Analyzing your results…" for 8 to 10 seconds before the
+   * redirect fired. That is the single slowest thing between an ad click and a
+   * trial signup, spent on output nothing displays.
+   *
+   * Scoring, metering, the completion event and the CAPI fan-out are untouched: the
+   * run is still measured exactly like any other, which is the whole point of the
+   * funnel. Only the unread text is skipped.
+   */
+  const wantsAiStatement = assessment.useAiStatement && !overCap && !assessment.platformSignup;
+
   if (assessment.engine === "CLINIC_AUDIT") {
     const config = resolveEngineConfig(assessment.engineConfig);
     const rawAnswers: RawAnswer[] = [];
@@ -1262,14 +1313,14 @@ export async function completeSubmission(
     clinicResult = result;
     clinicBandName = result.band;
     matchedClinicBand = matchClinicResultBand(result.band, assessment.resultBands);
-    if (assessment.useAiStatement && !overCap) {
+    if (wantsAiStatement) {
       const ctx = buildClinicPromptContext(result, questions, optionByQuestionId, submission.leadProfession);
       aiStatement = await generateClinicStatement(buildClinicContext(ctx), submission.tenantId);
     }
     clinicSnap = { inputs, config, prose: aiStatement };
   } else {
     // GENERIC: the personalized statement over the overall + per-category bands.
-    aiStatement = assessment.useAiStatement && !overCap
+    aiStatement = wantsAiStatement
       ? await generatePersonalStatement({
           firstName: submission.leadFirstName,
           profession: submission.leadProfession,

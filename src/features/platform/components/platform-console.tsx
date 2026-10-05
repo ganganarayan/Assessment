@@ -8,6 +8,7 @@ import {
   createTenant,
   deleteTenant,
   setTenantUnlimited,
+  setTenantPayments,
   restoreTenant,
   purgeTenant,
   listTenants,
@@ -106,6 +107,14 @@ export function PlatformConsole({
     start(async () => {
       setError(null);
       const r = await setTenantUnlimited(t.id, !t.unlimited);
+      if (!r.ok) return setError(r.error);
+      await refresh();
+    });
+
+  const togglePayments = (t: TenantRow) =>
+    start(async () => {
+      setError(null);
+      const r = await setTenantPayments(t.id, !t.paymentsEnabled);
       if (!r.ok) return setError(r.error);
       await refresh();
     });
@@ -263,6 +272,21 @@ export function PlatformConsole({
                             }
                           >
                             {t.unlimited ? "Use plan" : "Make unlimited"}
+                          </Button>
+                        )}
+                        {t.id === PLATFORM_TENANT_ID ? null : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={pending}
+                            onClick={() => togglePayments(t)}
+                            title={
+                              t.paymentsEnabled
+                                ? "Stop this tenant collecting payments from respondents (their funnels run free; nothing is deleted)"
+                                : "Let this tenant collect payments from respondents again"
+                            }
+                          >
+                            {t.paymentsEnabled ? "Payments: on" : "Payments: off"}
                           </Button>
                         )}
                         {t.id === PLATFORM_TENANT_ID ? (

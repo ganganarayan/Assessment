@@ -43,7 +43,14 @@ export function middleware(request: NextRequest) {
   // guard just told us this cookie is dead (?expired=1): bouncing then produces an
   // endless /sign-in ↔ /dashboard loop that the browser renders as a blank page.
   const sessionExpired = nextUrl.searchParams.has(SESSION_EXPIRED_PARAM);
-  if (isAuthPage && hasSession && !sessionExpired) {
+  // ALSO unless this is the signup hand-off carrying a specific email. The edge has
+  // no session data, only a cookie, so it cannot tell whose session this is - and
+  // bouncing regardless (with nextUrl.clone(), which keeps the query string) dropped
+  // a prospect into whatever account the browser happened to hold, at a URL reading
+  // /dashboard?email=theirs. On a shared or kiosk browser that is somebody else's
+  // workspace. The page can read the session and compare, so the decision moves there.
+  const signupHandoff = path === "/sign-up" && nextUrl.searchParams.has("email");
+  if (isAuthPage && hasSession && !sessionExpired && !signupHandoff) {
     const url = nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

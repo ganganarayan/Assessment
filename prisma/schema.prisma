@@ -85,6 +85,14 @@ model Tenant {
   // error anywhere. A flag states the intent; a fake SCALE plan only implies it.
   unlimited Boolean @default(false)
 
+  // Per-tenant respondent-payment switch, set by the platform owner. Default TRUE, so
+  // nothing changes for a tenant already taking money. Turned off, this tenant's
+  // funnels run free: the payment step is not offered and paid mode is forced off when
+  // the public assessment is resolved, rather than failing at the moment someone tries
+  // to pay. ANDed with AppSetting.paymentsEnabledGlobal on the singleton, which is the
+  // master; the per-assessment paidMode remains the most specific switch of the three.
+  paymentsEnabled Boolean @default(true)
+
   // The assessment served at this tenant's own root (its subdomain or a custom
   // domain). Null = fall back to the tenant's only published assessment; with several
   // published and none chosen, the root keeps its generic page rather than guessing.
@@ -116,6 +124,7 @@ model Tenant {
   subscription   Subscription?
   usageCounters  UsageCounter[]
   nurtureLogs    NurtureLog[]
+  paymentHandoffs PaymentHandoff[]
 
   @@index([status])
   @@index([deletedAt])
@@ -696,6 +705,12 @@ model Assessment {
   // destination/VSL (carrying the token) where results + the calendar button show.
   paidMode           Boolean @default(false)
   paymentUrl         String?
+  // EXTERNAL gateway mode only (a payment link, no Razorpay keys). The query
+  // parameter that gateway appends to its success URL carrying its own reference,
+  // e.g. "session_id" or "razorpay_payment_id". Blank = the gateway appends nothing,
+  // which is the common case; the return is then resolved by the handoff cookie or
+  // the email fallback. See api/pay/return/[tenant].
+  paymentReturnParam String?
   paymentHeadline    String?
   paymentButtonLabel String?
   paymentAmount      Int? // price in INR rupees (e.g. 199); ×100 = paise for Razorpay
@@ -1688,6 +1703,53 @@ model Payment {
   @@map("payment")
 }
 
+enum PaymentHandoffStatus {
+  PENDING
+  CONSUMED
+}
+
+/**
+ * EXTERNAL-GATEWAY return ticket.
+ *
+ * A tenant using their own payment link (not Razorpay keys) configures ONE success
+ * URL on their gateway, the same string for every respondent, so the return cannot
+ * carry a per-person token. This row is the per-person half: created the moment we
+ * send someone to the payment link, matched on the way back by a nonce held in an
+ * httpOnly SameSite=Lax cookie on our own host.
+ *
+ * Single use is a property of THIS ROW, not of the URL: the second arrival with the
+ * same nonce finds CONSUMED and unlocks nothing.
+ *
+ * 🔴 What this proves is that a browser came back from the gateway, NOT that money
+ * moved. It cannot see a failed or refunded payment, and someone who abandons on the
+ * payment page and navigates to the return URL in the same browser inside the window
+ * unlocks the result. That is the stated cost of taking no gateway integration. A
+ * tenant who needs proof uses their own Razorpay keys and the real webhook.
+ */
+model PaymentHandoff {
+  id           String               @id @default(cuid())
+  tenantId     String
+  tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  submissionId String
+  /** The cookie value. Unguessable and unique, so a lookup needs the cookie. */
+  nonce        String               @unique
+  status       PaymentHandoffStatus @default(PENDING)
+  /** Lowercased email, for the fallback when the cookie is lost (the payment page
+   *  opened in a different browser - routine from the Instagram in-app browser). */
+  email        String?
+  /** Whatever the gateway appended on return, when it appends anything. Recorded for
+   *  reconciliation; never trusted as proof of payment. */
+  reference    String?
+  createdAt    DateTime             @default(now())
+  expiresAt    DateTime
+  consumedAt   DateTime?
+
+  @@index([tenantId, email, status])
+  @@index([submissionId])
+  @@index([expiresAt])
+  @@map("payment_handoff")
+}
+
 // ---------------------------------------------------------------------------
 // AppSetting - singleton platform settings (configurable automation knobs).
 // ---------------------------------------------------------------------------
@@ -1836,6 +1898,13 @@ model AppSetting {
   razorpayKeyId            String?
   razorpayKeySecretEnc     String?
   razorpayWebhookSecretEnc String?
+
+  // PLATFORM MASTER SWITCH for respondent payments, meaningful ONLY on the singleton
+  // row. False = no tenant funnel can take money, whatever its own switch or its
+  // assessments say. The owner is not in the business of underwriting how other
+  // people collect payments, so there has to be one lever that stops all of it at
+  // once without editing any tenant. Default true: existing behaviour.
+  paymentsEnabledGlobal Boolean @default(true)
 
   // Analytics baseline. When set, the Stats + Contacts pages count only
   // records at/after this instant (a non-destructive "reset to 0").

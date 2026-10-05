@@ -1,5 +1,4 @@
 import { requireWorkspace } from "@/lib/auth/guards";
-import { getAiSettings } from "@/features/admin/actions/ai-settings";
 import { getIntegrationSettings, updateMetaSettings, updateRazorpaySettings, updateHeatmapSettings, updateVidapulseSettings } from "@/features/workspace/actions/integrations";
 import { HeatmapSettingsForm } from "@/features/workspace/components/heatmap-settings-form";
 import { getDomainSettings } from "@/features/workspace/actions/domains";
@@ -9,13 +8,13 @@ import { getThemeColors } from "@/features/workspace/actions/theme";
 import { BookingSettingsForm } from "@/features/workspace/components/booking-settings-form";
 import { SupportSettingsForm } from "@/features/workspace/components/support-settings-form";
 import { ThemeColorForm } from "@/features/workspace/components/theme-color-form";
-import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
 import { DomainSettings } from "@/features/workspace/components/domain-settings";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
 import { WorkspaceLogins } from "@/features/workspace/components/workspace-logins";
 import { listWorkspaceLogins } from "@/features/workspace/actions/logins";
-import { PromptVersionsManager } from "@/features/admin/components/prompt-versions-manager";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -33,7 +32,6 @@ export const dynamic = "force-dynamic";
  */
 export default async function WorkspaceSettingsPage() {
   const { impersonating } = await requireWorkspace();
-  const settings = await getAiSettings();
   const integrations = await getIntegrationSettings();
   const domains = await getDomainSettings();
   const bookingUrl = await getBookingUrl();
@@ -53,19 +51,6 @@ export default async function WorkspaceSettingsPage() {
           and never shared with any other tenant or the platform.
         </p>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>AI - LLM connection</CardTitle>
-          <CardDescription>
-            Choose a provider and paste its API key. The key is encrypted at rest and never
-            shown again. Disable any time to fall back to the static suggestion.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AiSettingsForm initial={settings} />
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -184,21 +169,21 @@ export default async function WorkspaceSettingsPage() {
         </Card>
       )}
 
+      {/* System prompt versions used to be duplicated here as well as on /w/ai. Two
+          editors over one row is two places to get it wrong, and it doubled the surface
+          that had to be scoped correctly. One home: AI. */}
       <Card>
         <CardHeader>
           <CardTitle>System prompt versions</CardTitle>
           <CardDescription>
-            Write plain instructions per version; the app assembles the full system prompt around
-            them. Set a default; each assessment can pick its own in the builder.
+            Your result-message instructions live under <strong>AI</strong>, together with the
+            model settings that use them.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PromptVersionsManager
-            versions={settings.versions}
-            wordMin={settings.wordMin}
-            wordMax={settings.wordMax}
-            sampleName={settings.sampleName}
-          />
+          <Link href="/w/ai" className={buttonVariants({ size: "sm", variant: "outline" })}>
+            Open AI settings
+          </Link>
         </CardContent>
       </Card>
     </div>
