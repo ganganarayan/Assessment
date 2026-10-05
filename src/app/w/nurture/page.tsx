@@ -5,12 +5,12 @@ import { requireWorkspace } from "@/lib/auth/guards";
 export const dynamic = "force-dynamic";
 
 /**
- * Workspace Nurture — the one-shot Email + WhatsApp that fire when a lead opts in,
+ * Workspace Nurture - the one-shot Email + WhatsApp that fire when a lead opts in,
  * same as /admin/nurture but scoped to this workspace. The actions resolve through
  * the acting scope, so a tenant admin edits their own messages and logs.
  *
  * Connection credentials (SMTP, WhatsApp Cloud) live in Settings; this page is the
- * messages themselves. Not plan-gated — a workspace that has configured its own
+ * messages themselves. Not plan-gated - a workspace that has configured its own
  * sender should be able to use it.
  */
 export default async function WorkspaceNurturePage() {

@@ -24,7 +24,7 @@ export default function AppError({
     <main className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center gap-4 px-4 py-16 text-center">
       <h1 className="text-xl font-semibold tracking-tight">Something went wrong</h1>
       <p className="text-sm text-[var(--muted-foreground)]">
-        A temporary error stopped this page from loading. This is usually transient —
+        A temporary error stopped this page from loading. This is usually transient -
         please try again.
       </p>
       <div className="flex gap-2">

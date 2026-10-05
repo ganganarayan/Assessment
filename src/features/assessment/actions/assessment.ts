@@ -94,13 +94,13 @@ export async function createAssessment(
   const existing = await prisma.assessment.findUnique({ where: { slug: d.slug } });
   if (existing) return { ok: false, error: "That slug is already in use." };
 
-  // Billing gate — assessment cap (HARD). The app owner (super admin) is never limited;
+  // Billing gate - assessment cap (HARD). The app owner (super admin) is never limited;
   // a tenant is blocked at its plan's maxAssessments.
   if (!scope.isSuper) {
     const cap = await assertCanCreateAssessment(scope.tenantId);
     if (!cap.ok) {
       // A parked tenant's cap is 0, and the generic sentence rendered as "your plan's
-      // limit of 0 assessments" — which reads as a billing bug rather than an expired
+      // limit of 0 assessments" - which reads as a billing bug rather than an expired
       // trial, and gives no hint that paying fixes it. The limits express the BLOCK
       // correctly; only the reason has to come from the resolved state.
       if ((await resolvePlan(scope.tenantId)).parked) return { ok: false, error: PARKED_MESSAGE };
@@ -181,7 +181,7 @@ export async function createAssessment(
       fireMetaCapi: d.fireMetaCapi,
       metaEvents: d.metaEvents as unknown as Prisma.InputJsonValue,
       createdById: scope.user.id,
-      // The row's OWNER, never null — a super admin with no workspace entered owns via
+      // The row's OWNER, never null - a super admin with no workspace entered owns via
       // the Platform tenant. Stamping scope.tenantId here wrote null, which the console
       // (scoped to Platform) could then never find again.
       tenantId: configTenantOf(scope),
@@ -301,7 +301,7 @@ export async function deleteAssessment(id: string): Promise<ActionResult> {
   if (!(await ownsAssessment(id, scope))) {
     return { ok: false, error: "Not found." };
   }
-  // BEFORE the delete — afterwards there is no row to read the slug from, and a stale
+  // BEFORE the delete - afterwards there is no row to read the slug from, and a stale
   // cached copy would keep serving a funnel that no longer exists.
   await invalidatePublicAssessmentById(id);
   await prisma.assessment.delete({ where: { id } });
@@ -325,7 +325,7 @@ export async function setAssessmentStatus(
   // block, and `maxAssessments: 0` already stops them creating a new one.
   //
   // Without this a parked tenant could publish an assessment that then serves the paused
-  // page — an ad campaign pointed at a dead link, which is the specific outcome parking
+  // page - an ad campaign pointed at a dead link, which is the specific outcome parking
   // is designed to avoid. Super admins are exempt: they are not rated against a plan.
   if (publish && !scope.isSuper && (await resolvePlan(scope.tenantId)).parked) {
     return { ok: false, error: PARKED_MESSAGE };
@@ -350,7 +350,7 @@ export async function setAssessmentStatus(
 /**
  * Deep-copy an assessment (all categories → questions → options + category bands,
  * result bands, and result pages → blocks) into a fresh DRAFT with a unique slug.
- * Never copies submissions/payments/events — the copy starts clean. Scoped: a tenant
+ * Never copies submissions/payments/events - the copy starts clean. Scoped: a tenant
  * can only duplicate its own; the copy inherits the acting tenant.
  */
 export async function duplicateAssessment(id: string): Promise<ActionResult<{ id: string }>> {
@@ -361,7 +361,7 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
   const src = await getAssessmentById(id);
   if (!src) return { ok: false, error: "Not found." };
 
-  // Billing gate — a duplicate is a new assessment, so it counts against the cap too.
+  // Billing gate - a duplicate is a new assessment, so it counts against the cap too.
   if (!scope.isSuper) {
     const cap = await assertCanCreateAssessment(scope.tenantId);
     if (!cap.ok) {
@@ -387,7 +387,7 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
       slug,
       status: "DRAFT",
       publishedAt: null,
-      // The copy is a draft — nothing is live yet. The draft page ROWS are copied
+      // The copy is a draft - nothing is live yet. The draft page ROWS are copied
       // below so it can be edited + published; the live snapshot starts empty.
       publishedPages: Prisma.DbNull,
       pagesPublishedAt: null,
@@ -454,7 +454,7 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
       fireMetaCapi: src.fireMetaCapi,
       metaEvents: (src.metaEvents ?? undefined) as unknown as Prisma.InputJsonValue | undefined,
       createdById: scope.user.id,
-      // The row's OWNER, never null — a super admin with no workspace entered owns via
+      // The row's OWNER, never null - a super admin with no workspace entered owns via
       // the Platform tenant. Stamping scope.tenantId here wrote null, which the console
       // (scoped to Platform) could then never find again.
       tenantId: configTenantOf(scope),

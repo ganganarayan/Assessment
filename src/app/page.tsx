@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     // `absolute` because the root layout now carries a title template: a plain string
-    // here would render "Assess360 — Qualify leads before the sales call · Assess360".
+    // here would render "Assess360 - Qualify leads before the sales call · Assess360".
     title: { absolute: MARKETING.title },
     description: MARKETING.description,
     alternates: { canonical: MARKETING.domain + "/" },
@@ -47,7 +47,7 @@ export default async function HomePage() {
   const { slug, source } = await getTenantContext();
 
   // Whose host is this? A tenant's, if the Domain table (or a subdomain, when one is
-  // configured) says so — otherwise the platform's. Asking the data instead of
+  // configured) says so - otherwise the platform's. Asking the data instead of
   // comparing against a configured root is what lets the platform move hosts, or run
   // with no root domain at all, without the landing page disappearing.
   const tenant = await getCurrentTenant();
@@ -69,7 +69,7 @@ export default async function HomePage() {
   }
 
   // Tenant root (subdomain or custom domain). Land on that tenant's funnel, which is
-  // what anyone typing the bare domain is looking for — it used to show the generic
+  // what anyone typing the bare domain is looking for - it used to show the generic
   // "foundation ready" page instead, so a customer who pointed their own domain at us
   // got a dead end unless they knew to add /a/<slug> by hand.
   {

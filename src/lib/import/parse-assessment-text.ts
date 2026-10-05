@@ -1,5 +1,5 @@
 /**
- * Plain-text / Markdown assessment importer — parser.
+ * Plain-text / Markdown assessment importer - parser.
  *
  * Turns a human-written spec into a structured draft the import action creates in
  * one transaction. Pure + deterministic (no AI), so scores are never misread and
@@ -26,7 +26,7 @@
  *   - HIGH 71-100 = Resilient | strong foundation
  *
  * Questions are NUMBERED; options/bands are bullets ("-" or "*"). Band ranges are
- * percentages (0–100), inclusive, and must not overlap (a gap is only a warning).
+ * percentages (0-100), inclusive, and must not overlap (a gap is only a warning).
  */
 
 export type OverallLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
@@ -78,8 +78,8 @@ const RE_CATEGORY_KW = /^category:\s*(.+)$/i;
 const RE_QUESTION = /^(?:\d+[.)]|Q[:.])\s+(.+)$/i;
 const RE_BULLET = /^[-*•]\s+(.+)$/;
 const RE_OPTION = /^(.+?)\s*=\s*(-?\d+)\s*$/;
-const RE_CAT_BAND = /^(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)\s*=\s*(.+)$/;
-const RE_OVERALL_BAND = /^(LOW|MEDIUM|HIGH|CRITICAL)\s+(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)\s*=\s*(.+)$/i;
+const RE_CAT_BAND = /^(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)\s*=\s*(.+)$/;
+const RE_OVERALL_BAND = /^(LOW|MEDIUM|HIGH|CRITICAL)\s+(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)\s*=\s*(.+)$/i;
 
 /** Split "Title | Description" → [title, description|null]. */
 function splitTitleDesc(s: string): [string, string | null] {
@@ -134,7 +134,7 @@ export function parseAssessmentText(input: string): ParseResult {
       return;
     }
 
-    // Meta lines (Title / Description / Engine) — only meaningful before content.
+    // Meta lines (Title / Description / Engine) - only meaningful before content.
     const meta = RE_META.exec(t);
     if (meta && !RE_BULLET.test(t) && !RE_QUESTION.test(t)) {
       const key = meta[1]!.trim().toLowerCase();
@@ -149,7 +149,7 @@ export function parseAssessmentText(input: string): ParseResult {
       }
       if (key === "engine") {
         if (val && val.toUpperCase() !== "GENERIC") {
-          warnings.push(`Line ${ln}: engine "${val}" ignored — import creates GENERIC assessments.`);
+          warnings.push(`Line ${ln}: engine "${val}" ignored - import creates GENERIC assessments.`);
         }
         return;
       }
@@ -160,7 +160,7 @@ export function parseAssessmentText(input: string): ParseResult {
     const q = RE_QUESTION.exec(t);
     if (q) {
       if (!curCat) {
-        errors.push(`Line ${ln}: question before any category — add a "## Category" first.`);
+        errors.push(`Line ${ln}: question before any category - add a "## Category" first.`);
         return;
       }
       curQ = { text: q[1]!.trim(), options: [] };
@@ -262,8 +262,8 @@ export function parseAssessmentText(input: string): ParseResult {
   };
 }
 
-/** Range sanity for a band set: 0–100 + min≤max + no overlap are ERRORS; gaps and
- *  not covering 0–100 are WARNINGS. Returned (not pushed) so callers decide whether
+/** Range sanity for a band set: 0-100 + min≤max + no overlap are ERRORS; gaps and
+ *  not covering 0-100 are WARNINGS. Returned (not pushed) so callers decide whether
  *  band issues block (step-2 import) or only warn (step-1 parse). */
 export function analyzeBands(
   ranges: { min: number; max: number }[],
@@ -272,7 +272,7 @@ export function analyzeBands(
   const errors: string[] = [];
   const warnings: string[] = [];
   for (const r of ranges) {
-    if (r.min < 0 || r.max > 100) errors.push(`${label}: range ${r.min}-${r.max} is outside 0–100.`);
+    if (r.min < 0 || r.max > 100) errors.push(`${label}: range ${r.min}-${r.max} is outside 0-100.`);
     if (r.min > r.max) errors.push(`${label}: range ${r.min}-${r.max} has min greater than max.`);
   }
   const sorted = [...ranges].sort((a, b) => a.min - b.min);

@@ -27,7 +27,7 @@ export function OperationsPanel({
   showCrmTools = false,
 }: {
   assessments: OpAssessment[];
-  /** CRM senders are singleton (platform-wide) — only the super-admin console shows them. */
+  /** CRM senders are singleton (platform-wide) - only the super-admin console shows them. */
   showCrmTools?: boolean;
 }) {
   const [sel, setSel] = useState(assessments[0]?.id ?? "");
@@ -36,7 +36,7 @@ export function OperationsPanel({
   const [countErr, setCountErr] = useState<string | null>(null);
 
   // Auto-load the completions / submissions count whenever the selected assessment
-  // changes — no button. Same per-assessment reporting-start floor as the count the
+  // changes - no button. Same per-assessment reporting-start floor as the count the
   // re-run uses, so what's shown is exactly what a re-run would process.
   useEffect(() => {
     if (!sel) return;
@@ -115,7 +115,7 @@ export function OperationsPanel({
         </p>
         <p className="text-xs text-[var(--muted-foreground)]">
           These tools run against the selected assessment
-          {showCrmTools ? " (the Score sender is global — every changed contact)" : ""}. The count
+          {showCrmTools ? " (the Score sender is global - every changed contact)" : ""}. The count
           above uses this assessment&apos;s saved reporting-start date; recompute and the AI re-run
           process the completions only (the rest have no stored result). Switching assessments
           resets the panels below.
@@ -144,13 +144,13 @@ export function OperationsPanel({
       {/* CRM is configured once for the whole app (the senders read the platform settings
           row, not the acting tenant's), so these tools only belong on the super-admin
           console. Rendering them in a tenant workspace would let a tenant drive the
-          platform's CRM — and the config they saw would not be their own. */}
+          platform's CRM - and the config they saw would not be their own. */}
       {showCrmTools ? (
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold">CRM senders</h2>
           <p className="text-xs text-[var(--muted-foreground)]">
             Background senders to your CRM. Each runs server-side inside its own daily IST window, one
-            contact every random delay — survives page close and deploys. Every send is logged under{" "}
+            contact every random delay - survives page close and deploys. Every send is logged under{" "}
             <a href="/admin/webhook-logs?view=crm" className="underline">Webhook Logs → CRM sends</a>.
             The custom sender targets the selected assessment; the score sender is global. Lifecycle
             webhooks (opt-in / started / completed) still fire immediately.

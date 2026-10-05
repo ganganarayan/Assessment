@@ -31,7 +31,7 @@ function buildResultUrl(
       u.searchParams.set("t", token);
       url = u.toString();
     } catch {
-      /* malformed targetUrl — keep the internal result-page fallback */
+      /* malformed targetUrl - keep the internal result-page fallback */
     }
   }
   return appendVidapulseId(url, vidapulseParam, customerId);
@@ -39,7 +39,7 @@ function buildResultUrl(
 
 /**
  * A Prisma `where` fragment scoping `createdAt` to the selected date range AND
- * the reporting start floor (AppSetting.statsResetAt) — the effective lower bound
+ * the reporting start floor (AppSetting.statsResetAt) - the effective lower bound
  * is the later of the two. No range + no floor => `{}` => ALL records, all time.
  */
 /**
@@ -48,14 +48,14 @@ function buildResultUrl(
  *
  * 🟡 This function is where the tenant-null ambiguity actually bit. It used to take
  * `tenantId: string | null` and pin it LITERALLY, so an owner with no workspace
- * entered got `tenantId: null` — "only rows owned by nobody". The write paths read the
+ * entered got `tenantId: null` - "only rows owned by nobody". The write paths read the
  * same null as "every tenant". Hence a populated Submissions list beside an empty
  * Stats page. It now takes a Scope, where "one tenant" and "all tenants" are separate
  * variants, so the two readings cannot be confused: whereScope pins a tenant for
  * { kind: "tenant" } and contributes no filter for { kind: "all" }.
  */
 /** Optional per-assessment scoping. When assessmentId is set, `floor` is that
- *  assessment's own reporting window (its statsResetAt) — passed explicitly so the
+ *  assessment's own reporting window (its statsResetAt) - passed explicitly so the
  *  global stats-floor is not applied on top. */
 export interface AssessmentScope {
   assessmentId?: string | null;
@@ -69,7 +69,7 @@ async function createdAtScope(
 ): Promise<Record<string, unknown>> {
   const { gte, lte } = istDateRangeToUtc(range?.from, range?.to);
   // An assessment-scoped view passes its own floor; otherwise each view uses its OWN
-  // reporting window — the tenant's for a workspace, the platform's when looking
+  // reporting window - the tenant's for a workspace, the platform's when looking
   // across all of them.
   const floor = opts && "floor" in opts ? opts.floor ?? null : await statsFloorFor(scope);
   const where: Record<string, unknown> = { ...floorCreatedAt(floor, gte, lte), ...whereScope(scope) };
@@ -79,7 +79,7 @@ async function createdAtScope(
 
 /**
  * The same window / tenant / assessment scope, re-keyed for a model whose timestamp
- * column is not `createdAt` — GateEntry uses `passedAt`, FunnelEventCount uses `day`.
+ * column is not `createdAt` - GateEntry uses `passedAt`, FunnelEventCount uses `day`.
  * Keeps one definition of "in scope" instead of three that can drift apart.
  */
 function rekeyScope(scope: Record<string, unknown>, field: string): Record<string, unknown> {
@@ -102,7 +102,7 @@ export async function getAnalyticsStats(
   opts?: AssessmentScope,
 ) {
   const scope = await createdAtScope(range, dataScope, opts);
-  // Page-view metrics count real humans only — bot/crawler hits (e.g. Meta's
+  // Page-view metrics count real humans only - bot/crawler hits (e.g. Meta's
   // ad-review agent) are recorded but never counted as traffic.
   const humanScope = { ...scope, isBot: false };
 
@@ -125,7 +125,7 @@ export async function getAnalyticsStats(
       _sum: { amount: true },
     }),
     // Turned away by the qualification gate. FRESH rejections only (`repeat` rows are
-    // revisits by someone already rejected) and humans only — so this is people, not
+    // revisits by someone already rejected) and humans only - so this is people, not
     // the event volume Meta sees. Zero for an ungated assessment.
     prisma.gateDisqualification.count({ where: { ...scope, repeat: false, isBot: false } }),
     // Revisits by someone the gate already rejected: they are short-circuited to the
@@ -136,7 +136,7 @@ export async function getAnalyticsStats(
     // Passed the gate. The mirror of "turned away": everyone who answered page 1 is
     // one or the other, so views - (qualified + disqualified) is the bounce.
     prisma.gateEntry.count({ where: rekeyScope(scope, "passedAt") }),
-    // How many events the funnel actually FIRED at Meta (not how many people) —
+    // How many events the funnel actually FIRED at Meta (not how many people) -
     // GateDisqualified, QualifiedCompletion / AssessmentCompleted.
     prisma.funnelEventCount.groupBy({
       by: ["eventName"],
@@ -201,9 +201,9 @@ export interface PageViewLogRow {
   content: string | null;
   fbclid: string | null;
   gclid: string | null;
-  /** Automated client (bot/crawler/renderer) — shown labeled, excluded from stats. */
+  /** Automated client (bot/crawler/renderer) - shown labeled, excluded from stats. */
   isBot: boolean;
-  /** Client IP + User-Agent (admin-only) — for triaging untagged/blank traffic. */
+  /** Client IP + User-Agent (admin-only) - for triaging untagged/blank traffic. */
   ip: string | null;
   userAgent: string | null;
   /** Geo (Cloudflare) + device (parsed UA) enrichment. */
@@ -217,10 +217,10 @@ export interface PageViewLogRow {
   os: string | null;
   /**
    * What the page-1 gate did with this visitor, resolved at read time:
-   *   "qualified"           — passed the gate,
-   *   "disqualified"        — answered a disqualifying option,
-   *   "disqualified_repeat" — was already rejected and sent straight to the exit page,
-   *   null                  — never answered page 1 (landed and left).
+   *   "qualified"           - passed the gate,
+   *   "disqualified"        - answered a disqualifying option,
+   *   "disqualified_repeat" - was already rejected and sent straight to the exit page,
+   *   null                  - never answered page 1 (landed and left).
    * Per VISITOR, not per view: a view is stamped with the outcome that visitor
    * reached on this assessment, which is what makes "450 views, 1 opt-in" readable.
    */
@@ -232,7 +232,7 @@ export interface PageViewLogRow {
  * "<assessmentId>|<visitorId>" so one visitor's outcome never leaks across funnels.
  *
  * Two grouped reads for the whole page (no N+1). Precedence: a fresh rejection beats
- * a repeat, and either beats a pass — someone who passed once and was rejected later
+ * a repeat, and either beats a pass - someone who passed once and was rejected later
  * is a rejected visitor.
  */
 async function gateOutcomes(
@@ -258,7 +258,7 @@ async function gateOutcomes(
 }
 
 /** Recent page views (one row per visit, no lead data) for the live log. Bot hits
- *  are EXCLUDED by default (the live log shows one collapsed bot row instead — see
+ *  are EXCLUDED by default (the live log shows one collapsed bot row instead - see
  *  getBotViewSummary); pass includeBots for the raw export where every hit is a row. */
 /** One page of the page-view log, plus enough to draw the pager. */
 export interface PageViewPage {
@@ -275,8 +275,8 @@ export const PAGE_VIEW_PAGE_SIZE = 25;
 /**
  * The page-view log, newest first, one page at a time.
  *
- * PageView is the highest-volume table in the product — a row per visit, not per lead
- * — so this is the list most likely to grow past what a page can hold. Paged in the
+ * PageView is the highest-volume table in the product - a row per visit, not per lead
+ * - so this is the list most likely to grow past what a page can hold. Paged in the
  * QUERY rather than sliced after loading, so the cost of opening Stats does not grow
  * with the tenant.
  *
@@ -287,7 +287,7 @@ export async function listPageViews(opts: {
   from?: string;
   to?: string;
   limit?: number;
-  /** Rows to skip — set by listPageViewsPaged; the export path leaves it at 0. */
+  /** Rows to skip - set by listPageViewsPaged; the export path leaves it at 0. */
   skip?: number;
   scope?: Scope;
   assessmentId?: string | null;
@@ -361,7 +361,7 @@ export async function listPageViews(opts: {
  *
  * The count is a second query rather than something derived from the rows, because a
  * page of 25 cannot tell you how many there are. It runs against the same `where`, so
- * the total always matches what is being paged — a count taken against a different
+ * the total always matches what is being paged - a count taken against a different
  * filter is how pagers end up promising pages that render empty.
  *
  * `page` is clamped to a page that exists, so a stale or hand-edited ?page= lands on
@@ -407,7 +407,7 @@ export interface BotSourceRow {
   lastAt: string;
 }
 
-/** Read cap — bot volume is tiny; guards only against a pathological flood. */
+/** Read cap - bot volume is tiny; guards only against a pathological flood. */
 const BOT_ROWS_CAP = 5000;
 
 /** All bot page views in scope, CLUBBED BY SOURCE into one row each (running count
@@ -464,7 +464,7 @@ export interface ContactRow {
   profession: string | null;
   /** Stable 8-char id (also sent to the CRM as contact.customer_id). */
   customerId: string | null;
-  /** 16-char result token — the t= value in the post-assessment URL. */
+  /** 16-char result token - the t= value in the post-assessment URL. */
   resultToken: string | null;
   /** Full destination URL the contact lands on (targetUrl?t=token). */
   resultUrl: string | null;
@@ -536,7 +536,7 @@ export interface ContactExportRow {
  *
  * The number this replaced was 100,000, chosen so a client-side text box could match
  * everything. That made one operator's page load cost more memory than a thousand
- * respondents, and it grew with the tenant — so the biggest customer broke it first.
+ * respondents, and it grew with the tenant - so the biggest customer broke it first.
  */
 export const SUBMISSIONS_WINDOW = 500;
 

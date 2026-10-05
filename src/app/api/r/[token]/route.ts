@@ -13,7 +13,7 @@ import { loadPurchaseSettings, resolvePurchasePlan } from "@/lib/meta/capi-log";
  * LATEST-ONLY: the token identifies a PERSON (via its own row's identifierValue);
  * the page renders that person's NEWEST completed submission for the same
  * assessment, so a retake surfaces on the original (already-emailed/embedded)
- * token automatically. No expiry (see lib/result/read.ts). No version navigator —
+ * token automatically. No expiry (see lib/result/read.ts). No version navigator -
  * exactly one reading (the newest) is ever exposed.
  *
  * Security is the unguessable token (no auth). CORS is PER-TENANT: the request
@@ -80,7 +80,7 @@ interface ServedRow {
  * The person's NEWEST completed reading for this assessment. Paid assessments key
  * on payment (completedPaidAt) so an unpaid draft never surfaces; free ones key on
  * completion. Null when the person has no completed reading (or the token row has
- * no identifier — anonymous, ungroupable), in which case the caller serves the
+ * no identifier - anonymous, ungroupable), in which case the caller serves the
  * token's own row.
  */
 async function newestForPerson(row: TokenRow): Promise<ServedRow | null> {
@@ -148,7 +148,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
     newest,
   );
 
-  // Billing gate: never serve a result that is over the tenant's response cap — the
+  // Billing gate: never serve a result that is over the tenant's response cap - the
   // lead's result stays locked until the workspace upgrades. Treated as "no result".
   if (served && (await isResponseLocked(served.tenantId, served.periodSeq))) {
     return NextResponse.json({ error: "Result not available" }, { status: 404, headers });

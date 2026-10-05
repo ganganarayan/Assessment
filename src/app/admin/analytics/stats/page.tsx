@@ -16,22 +16,22 @@ import { actingTenantId, actingDataScope } from "@/lib/tenant/acting";
 
 export const dynamic = "force-dynamic";
 
-const dash = (v: string | null) => (v && v.trim() ? v : "—");
+const dash = (v: string | null) => (v && v.trim() ? v : "-");
 
 /** Join non-empty parts with a separator; em-dash when all are blank. */
 const join = (parts: (string | null)[], sep: string) => {
   const s = parts.filter((p) => p && p.trim()).join(sep);
-  return s || "—";
+  return s || "-";
 };
 
-/** Page-1 gate outcome for one visitor. "—" = they never answered page 1 at all,
+/** Page-1 gate outcome for one visitor. "-" = they never answered page 1 at all,
  *  which is the row that explains views without opt-ins. */
 const GateCell = ({ gate }: { gate: "qualified" | "disqualified" | "disqualified_repeat" | null }) => {
   if (gate === "qualified") return <span className="text-xs font-medium text-green-600">Qualified</span>;
   if (gate === "disqualified") return <span className="text-xs font-medium text-yellow-600">Disqualified</span>;
   if (gate === "disqualified_repeat")
     return <span className="text-xs font-medium text-yellow-600 opacity-70">Disqualified (revisit)</span>;
-  return <span className="text-xs text-[var(--muted-foreground)]">—</span>;
+  return <span className="text-xs text-[var(--muted-foreground)]">-</span>;
 };
 
 const BotTag = () => (
@@ -47,8 +47,8 @@ export default async function StatsPage({
 }) {
   const sp = await searchParams;
   // Two different questions, two different answers (see lib/tenant/acting):
-  //   t          — which workspace is entered, if any (assessment lookup, data window)
-  //   dataScope  — which rows to REPORT on; no workspace entered = every tenant
+  //   t          - which workspace is entered, if any (assessment lookup, data window)
+  //   dataScope  - which rows to REPORT on; no workspace entered = every tenant
   const t = await actingTenantId();
   const dataScope = await actingDataScope();
   const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, dataScope) : null;
@@ -76,7 +76,7 @@ export default async function StatsPage({
   ]);
   const log = logPage.rows;
 
-  /** Keep the current filters when moving between pages — only `page` changes. */
+  /** Keep the current filters when moving between pages - only `page` changes. */
   const pageHref = (n: number) => {
     const q = new URLSearchParams();
     if (sp.from) q.set("from", sp.from);
@@ -113,7 +113,7 @@ export default async function StatsPage({
   const effectiveFloor: Date | null = scoped ? scoped.statsResetAt : await getStatsFloor(t);
   const scopeLabel = scoped ? "Funnel numbers for this assessment" : "Funnel numbers across all assessments";
   const note = scoped
-    ? `${scopeLabel} from ${stickyStart || "the beginning"}${sp.to ? ` → ${sp.to}` : ""} (IST) — saved for this assessment.`
+    ? `${scopeLabel} from ${stickyStart || "the beginning"}${sp.to ? ` → ${sp.to}` : ""} (IST) - saved for this assessment.`
     : sp.from || sp.to
       ? `Showing ${sp.from ?? "start"} → ${sp.to ?? "today"} (IST).`
       : effectiveFloor
@@ -192,13 +192,13 @@ export default async function StatsPage({
       </div>
 
       {/* Events actually sent to Meta, as running counts. The numbers above are
-          PEOPLE; these are EVENTS — one visitor can be reported more than once when
+          PEOPLE; these are EVENTS - one visitor can be reported more than once when
           audience membership is renewed, which is why Meta's number is the higher one. */}
       <section className="flex flex-col gap-2">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Fired to Meta</h2>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Conversions API sends from this funnel — events, not people. Compare these with the same
+            Conversions API sends from this funnel - events, not people. Compare these with the same
             event names in Events Manager; your custom audiences are built on them.
           </p>
         </div>
@@ -271,7 +271,7 @@ export default async function StatsPage({
         ) : null}
       </section>
 
-      {/* Traffic by UTM — how many page views came from which source. */}
+      {/* Traffic by UTM - how many page views came from which source. */}
       <section className="flex flex-col gap-2">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Traffic by UTM</h2>
@@ -313,14 +313,14 @@ export default async function StatsPage({
         )}
       </section>
 
-      {/* Live page-view log — one row per visit, IST timestamp + UTMs, no lead. */}
+      {/* Live page-view log - one row per visit, IST timestamp + UTMs, no lead. */}
       <section className="flex flex-col gap-2">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Page-view log</h2>
           <p className="text-sm text-[var(--muted-foreground)]">
-            {logPage.total.toLocaleString()} human visits, newest first — page{" "}
+            {logPage.total.toLocaleString()} human visits, newest first - page{" "}
             {logPage.page.toLocaleString()} of {logPage.pages.toLocaleString()}. A visitor becomes a contact once
-            they opt in — they then appear with lead data on Contacts. Automated hits (Meta
+            they opt in - they then appear with lead data on Contacts. Automated hits (Meta
             ad-review, crawlers) are clubbed by source into the <BotTag /> rows below and excluded
             from every number above.
           </p>
@@ -397,7 +397,7 @@ export default async function StatsPage({
                       </span>
                     </td>
                     <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]" colSpan={10}>
-                      Automated — excluded from all stats.
+                      Automated - excluded from all stats.
                     </td>
                   </tr>
                 ))}

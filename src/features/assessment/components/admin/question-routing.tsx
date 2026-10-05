@@ -120,7 +120,7 @@ export function QuestionRoutingEditor({
 
       {!hasForward ? (
         <p className="text-xs text-[var(--muted-foreground)]">
-          This is the last question in the flow — there is nowhere forward to route to.
+          This is the last question in the flow - there is nowhere forward to route to.
           You can still send an answer straight to the results.
         </p>
       ) : null}

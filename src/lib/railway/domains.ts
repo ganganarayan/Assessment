@@ -4,17 +4,17 @@ import "server-only";
  * Railway Public API client for CUSTOM DOMAIN provisioning.
  *
  * A tenant custom domain only gets a valid TLS cert once it's REGISTERED on the
- * Railway service — otherwise Railway serves its `*.up.railway.app` wildcard and the
+ * Railway service - otherwise Railway serves its `*.up.railway.app` wildcard and the
  * browser rejects it. This registers/deregisters the domain via Railway's GraphQL API
  * so Railway issues a Let's Encrypt cert automatically and hands back the CNAME target
  * the tenant must point DNS at.
  *
  * Config (all from the runtime env):
- *  - RAILWAY_API_TOKEN      — a Railway account/workspace token (user-provided secret)
- *  - RAILWAY_PROJECT_ID     — auto-injected by Railway at runtime
- *  - RAILWAY_ENVIRONMENT_ID — auto-injected (differs per env, so prod domains land on
+ *  - RAILWAY_API_TOKEN      - a Railway account/workspace token (user-provided secret)
+ *  - RAILWAY_PROJECT_ID     - auto-injected by Railway at runtime
+ *  - RAILWAY_ENVIRONMENT_ID - auto-injected (differs per env, so prod domains land on
  *                             the prod service and staging on staging automatically)
- *  - RAILWAY_SERVICE_ID     — auto-injected
+ *  - RAILWAY_SERVICE_ID     - auto-injected
  *
  * When the token isn't set the caller falls back to manual behaviour (no throw).
  */
@@ -108,7 +108,7 @@ const clean = (s: string | null | undefined) => (s ?? "").trim().replace(/\.$/, 
  *
  * Only used as a fallback when Railway doesn't hand back a hostlabel. The zone is
  * assumed to be the last two labels, which is right for acme.com and wrong for
- * co.uk-style suffixes — acceptable because it is a display hint next to the full
+ * co.uk-style suffixes - acceptable because it is a display hint next to the full
  * host, not something anything depends on.
  */
 function labelOf(host: string): string {
@@ -123,7 +123,7 @@ function pickResult(cd: CustomDomain | null | undefined): RailwayDomainResult | 
   const dnsRecords: RailwayDnsRecord[] = raw
     .filter((r) => clean(r.requiredValue).length > 0)
     .map((r) => ({
-      // Railway hands back an enum like "DNS_RECORD_TYPE_CNAME"/"…_TXT" — show the
+      // Railway hands back an enum like "DNS_RECORD_TYPE_CNAME"/"…_TXT" - show the
       // bare record type (CNAME / TXT / A) the DNS provider actually expects.
       type: (r.recordType ?? "CNAME").replace(/^DNS_RECORD_TYPE_/i, "").toUpperCase(),
       // The LABEL, not the FQDN. Cloudflare, GoDaddy and Namecheap all append the zone
@@ -146,7 +146,7 @@ function pickResult(cd: CustomDomain | null | undefined): RailwayDomainResult | 
 }
 
 /** Register the host with Railway so it provisions a TLS cert. Idempotent-ish: if the
- *  domain already exists Railway errors — the caller treats that as already-provisioned. */
+ *  domain already exists Railway errors - the caller treats that as already-provisioned. */
 export async function railwayCreateCustomDomain(domain: string): Promise<RailwayDomainResult | null> {
   const env = railwayEnv();
   if (!env) return null;
@@ -167,7 +167,7 @@ export async function railwayCreateCustomDomain(domain: string): Promise<Railway
  * Poll a Railway custom domain's CURRENT status (cert + the full DNS record set,
  * including the ownership-verification TXT that only appears once validation starts).
  *
- * Railway has no `customDomain(id)` query — the working read is the service's domain
+ * Railway has no `customDomain(id)` query - the working read is the service's domain
  * LIST (`domains(project, environment, service)`), from which we pick our row by id
  * (falling back to the hostname). This is what makes "Check status" actually refresh
  * the records/cert instead of silently erroring.
@@ -199,7 +199,7 @@ export async function railwayCustomDomainStatus(
   return pickResult(cd);
 }
 
-/** Deregister the host from Railway (on domain removal). Never throws to the caller —
+/** Deregister the host from Railway (on domain removal). Never throws to the caller -
  *  a failed cleanup shouldn't block deleting our own row. */
 export async function railwayDeleteCustomDomain(railwayDomainId: string): Promise<void> {
   const env = railwayEnv();
@@ -214,7 +214,7 @@ export async function railwayDeleteCustomDomain(railwayDomainId: string): Promis
 /**
  * A Railway certificate status that means HTTPS is live.
  *
- * 🔴 `CERTIFICATE_STATUS_TYPE_VALID` — Railway's actual success value — matched none of
+ * 🔴 `CERTIFICATE_STATUS_TYPE_VALID` - Railway's actual success value - matched none of
  * the words this used to look for, so a domain with a perfectly good certificate sat
  * at "Provisioning · Not live yet" forever. Worse than cosmetic: `verified` is set from
  * this, and getCurrentTenant() refuses to resolve an unverified domain, so the tenant's
@@ -231,12 +231,12 @@ export function certIsLive(certStatus: string | null | undefined): boolean {
 }
 
 /**
- * Every hostname Railway currently ROUTES to this service+environment — both the
+ * Every hostname Railway currently ROUTES to this service+environment - both the
  * custom domains and the generated *.up.railway.app one.
  *
  * This is the honest answer to "is this host ours?". A request only reaches this app
  * on a given Host because Railway routes it, so Railway's list IS the set of hosts we
- * serve — no env var to update, no row to insert, no command to run. Point a new
+ * serve - no env var to update, no row to insert, no command to run. Point a new
  * domain at the service and it authenticates; remove it and it stops.
  *
  * Returns null (not an empty list) when Railway isn't configured or the call fails,

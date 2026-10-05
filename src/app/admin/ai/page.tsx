@@ -21,7 +21,7 @@ export default async function AiSettingsPage() {
         <p className="text-sm text-[var(--muted-foreground)]">
           Connect an LLM to write a short, personalized result message for each respondent. On
           completion, the raw scores (no internal interpretation) are sent to the model, which
-          returns a 100–150 word message. It&apos;s generated once, stored on the submission, and
+          returns a 100-150 word message. It&apos;s generated once, stored on the submission, and
           shown above your video via the destination connector.
         </p>
       </div>

@@ -139,7 +139,7 @@ export async function listEventActivity(opts: {
 /**
  * CRM send log: WebhookLog rows written by the SCORE/CUSTOM senders (eventName
  * prefixed "crm:"). Mapped onto EventActivityRow so the same expandable table
- * renders them — Name (the sender's editable name), Webhook, full Payload, status.
+ * renders them - Name (the sender's editable name), Webhook, full Payload, status.
  * Not retryable from here (re-send via the CRM panel's Retry/Start).
  */
 export async function listCrmSendLogs(opts: {
@@ -258,7 +258,7 @@ export interface CapiLogRow {
 export interface CapiLogQuery {
   /** Page size. */
   take?: number;
-  /** Rows to skip — page offset. Pairs with `take` and the matching countCapiLogs(). */
+  /** Rows to skip - page offset. Pairs with `take` and the matching countCapiLogs(). */
   skip?: number;
   /**
    * Which funnel. Defaults to the assessment (respondent) funnel so the existing
@@ -270,7 +270,7 @@ export interface CapiLogQuery {
   scope?: "assessment" | "platform";
   /**
    * "payments" restricts to rows that carry money. The log holds every CAPI event the
-   * funnel fires — opt-in (CompleteRegistration), completion, and Purchase — so a view
+   * funnel fires - opt-in (CompleteRegistration), completion, and Purchase - so a view
    * that means "payments" has to say so.
    *
    * The test is `amountPaise != null`, NOT `eventName = "Purchase"`: a high-ticket
@@ -282,7 +282,7 @@ export interface CapiLogQuery {
 }
 
 /** The one place the Conversions filter is expressed, so a list and its count cannot
- *  drift apart — a paginated view whose total counts different rows than the page
+ *  drift apart - a paginated view whose total counts different rows than the page
  *  shows is worse than no count at all. */
 function capiLogWhere(tenantId: string | null, q: CapiLogQuery) {
   return {
@@ -292,7 +292,7 @@ function capiLogWhere(tenantId: string | null, q: CapiLogQuery) {
   };
 }
 
-/** How many rows a given query matches — the total behind the pager. */
+/** How many rows a given query matches - the total behind the pager. */
 export async function countCapiLogs(tenantId: string | null, q: CapiLogQuery = {}): Promise<number> {
   return prisma.capiLog.count({ where: capiLogWhere(tenantId, q) });
 }

@@ -5,7 +5,7 @@
  *
  * 1. **200, not 404.** A parked tenant's funnel is almost always a live ad
  *    destination. A 404 reads as an outage, makes the ad platform mark the URL
- *    broken, and can get a campaign disapproved — punishing a lapsed customer by
+ *    broken, and can get a campaign disapproved - punishing a lapsed customer by
  *    damaging their ad account is not what parking is for.
  * 2. **Nothing about billing.** The reader is a respondent who clicked an ad, not the
  *    tenant. "This workspace's trial expired" tells a stranger something private and
@@ -15,7 +15,7 @@
  *    pause.
  *
  * Unbranded on purpose: the Assess360 badge is a Gate entitlement, and `PARKED_LIMITS`
- * turns every feature off — including `brandingRemoved`. Rendering the badge here would
+ * turns every feature off - including `brandingRemoved`. Rendering the badge here would
  * stamp our name on someone's dead ad link.
  */
 export function FunnelPaused({ title }: { title: string | null }) {

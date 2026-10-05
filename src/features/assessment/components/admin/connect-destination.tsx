@@ -8,9 +8,9 @@ const CONNECTOR_VERSION = "v15";
 /**
  * Two snippets, because the customer's page builder runs scripts ONLY in the
  * <head> and the body accepts HTML only:
- *   - Part A (HEAD): the connector <script> — reads ?t, fetches /api/r/:token,
+ *   - Part A (HEAD): the connector <script> - reads ?t, fetches /api/r/:token,
  *     and fills #ai-statement (waits for DOMContentLoaded so the body exists).
- *   - Part B (BODY): a plain empty <div id="ai-statement"> — invisible until the
+ *   - Part B (BODY): a plain empty <div id="ai-statement"> - invisible until the
  *     head script fills it. No display:none / no reveal step, so the two pieces
  *     can't get out of sync.
  */
@@ -28,7 +28,7 @@ export function ConnectDestination({
   if (!targetUrl) {
     return (
       <p className="text-sm text-[var(--muted-foreground)]">
-        Set a <strong>Destination page URL</strong> above and save — then your copy-paste
+        Set a <strong>Destination page URL</strong> above and save - then your copy-paste
         connector code will appear here.
       </p>
     );
@@ -43,17 +43,17 @@ export function ConnectDestination({
   return (
     <div className="flex flex-col gap-4">
       <ol className="list-decimal pl-5 text-sm text-[var(--muted-foreground)]">
-        <li><strong>First remove any old assess360 code</strong> from the page (old <span className="font-mono">id=&quot;ai-statement&quot;</span> / <span className="font-mono">assess360-results</span> blocks and any <span className="font-mono">{"{%contact.ai_statement%}"}</span> tag) — duplicate pastes get auto-renamed by the builder and break it.</li>
+        <li><strong>First remove any old assess360 code</strong> from the page (old <span className="font-mono">id=&quot;ai-statement&quot;</span> / <span className="font-mono">assess360-results</span> blocks and any <span className="font-mono">{"{%contact.ai_statement%}"}</span> tag) - duplicate pastes get auto-renamed by the builder and break it.</li>
         <li>Paste <strong>Part A</strong> in the page&apos;s <span className="font-mono">&lt;head&gt;</span> (where scripts run).</li>
         <li>Paste <strong>Part B</strong> in the page <strong>body, right above your video</strong> (the AI message).</li>
         <li>Paste <strong>Part C</strong> in the page <strong>body, below your video and CTA button</strong> (the score + category breakdown).</li>
         <li>Paste <strong>Part D</strong> where you want the <strong>Book a 1:1 Diagnosis Conversation</strong> button (e.g. right below the video). Its link comes from <strong>Settings → Booking / calendar link</strong>; if that&apos;s blank the button stays hidden.</li>
-        <li>All parts use classes (not ids), so they survive re-pastes. One fetch fills B, C and D — no extra latency. Console shows <span className="font-mono">[assess360] connector {CONNECTOR_VERSION} active</span>.</li>
+        <li>All parts use classes (not ids), so they survive re-pastes. One fetch fills B, C and D - no extra latency. Console shows <span className="font-mono">[assess360] connector {CONNECTOR_VERSION} active</span>.</li>
       </ol>
-      <CodeBlock title={`Part A — paste in <head> (connector ${CONNECTOR_VERSION})`} code={partA} />
-      <CodeBlock title="Part B — paste in body, above your video" code={partB} />
-      <CodeBlock title="Part C — paste in body, below your video + CTA" code={partC} />
-      <CodeBlock title="Part D — paste where the Book button should appear" code={partD} />
+      <CodeBlock title={`Part A - paste in <head> (connector ${CONNECTOR_VERSION})`} code={partA} />
+      <CodeBlock title="Part B - paste in body, above your video" code={partB} />
+      <CodeBlock title="Part C - paste in body, below your video + CTA" code={partC} />
+      <CodeBlock title="Part D - paste where the Book button should appear" code={partD} />
     </div>
   );
 }
@@ -86,7 +86,7 @@ function CodeBlock({ title, code }: { title: string; code: string }) {
 
 function buildHeadSnippet(endpointBase: string, bandWords: Record<string, string>): string {
   const wordsJson = JSON.stringify(bandWords).replace(/</g, "\\u003c");
-  return `<!-- assess360 connector ${CONNECTOR_VERSION} — paste in the page HEAD -->
+  return `<!-- assess360 connector ${CONNECTOR_VERSION} - paste in the page HEAD -->
 <link rel="preconnect" href="${endpointBase}">
 <script>
 (function () {
@@ -128,7 +128,7 @@ function buildHeadSnippet(endpointBase: string, bandWords: Record<string, string
     var html =
       '<div class="assess360-score-total" style="font-size:1.2rem;font-weight:700;margin:0 0 .6rem">' +
       "Overall: " + d.scoreRaw + " / " + d.max + " (" + d.scorePercent + "%)" +
-      (band ? " — " + esc(band) : "") + "</div>";
+      (band ? " - " + esc(band) : "") + "</div>";
     var cats = d.categories || [];
     if (cats.length) {
       html += '<div class="assess360-score-categories">';
@@ -144,7 +144,7 @@ function buildHeadSnippet(endpointBase: string, bandWords: Record<string, string
     }
     for (var j = 0; j < box.length; j++) box[j].innerHTML = html;
   }
-  // Browser conversion pixel — fires ONLY on the post-payment landing (event=1),
+  // Browser conversion pixel - fires ONLY on the post-payment landing (event=1),
   // once, with eventID = the Razorpay payment id so Meta dedups it against the
   // server-side CAPI event. The event NAME (e.g. Purchase121) comes from the app,
   // value-independent. Needs the Meta Pixel base code (fbq) on this page.
@@ -158,7 +158,7 @@ function buildHeadSnippet(endpointBase: string, bandWords: Record<string, string
     if (d.purchase.value != null) cd.value = d.purchase.value;
     window.fbq("trackCustom", d.purchase.eventName || "Purchase121", cd, { eventID: d.purchase.eventId });
   }
-  // Primary CTA — point every ".assess360-cta" anchor at the clinic's calendar
+  // Primary CTA - point every ".assess360-cta" anchor at the clinic's calendar
   // link (from Settings). No link set => hide the button rather than leave a dead
   // control. The label is only set when the element is empty, so a hand-written
   // label in the page is preserved.
@@ -181,7 +181,7 @@ function buildHeadSnippet(endpointBase: string, bandWords: Record<string, string
     var hasStmt = document.querySelectorAll('.assess360-ai-statement, [id^="ai-statement"]').length;
     var hasScore = document.querySelectorAll(".assess360-score").length;
     if (!hasStmt && !hasScore) {
-      console.warn("[assess360] no targets found — paste Part B (above video) and/or Part C (below video)");
+      console.warn("[assess360] no targets found - paste Part B (above video) and/or Part C (below video)");
     }
     fillStatement(d);
     fillScore(d);
@@ -199,7 +199,7 @@ function buildBodySnippet(): string {
   // Class-based (NOT id) so the page builder never renames it on duplicate paste.
   // Invisible until the head script fills it.
   // font-size 1.2rem (your "12") reads well on desktop; edit it here to taste.
-  return `<!-- assess360 results ${CONNECTOR_VERSION} — paste in body, above your video -->
+  return `<!-- assess360 results ${CONNECTOR_VERSION} - paste in body, above your video -->
 <h2 style="font-size:1.8rem;font-weight:800;text-align:center;margin:0 0 14px">Please Read Carefully</h2>
 <div class="assess360-ai-statement" style="white-space:pre-line;font-size:1.2rem;line-height:1.6"></div>`;
 }
@@ -208,7 +208,7 @@ function buildCtaSnippet(): string {
   // Class-based anchor, hidden until the head script sets its href from the
   // tenant's booking link. Restyle .assess360-cta in your page CSS; the inline
   // styles are only a sensible default so it looks like a button out of the box.
-  return `<!-- assess360 CTA ${CONNECTOR_VERSION} — paste where the Book button should appear -->
+  return `<!-- assess360 CTA ${CONNECTOR_VERSION} - paste where the Book button should appear -->
 <div style="text-align:center;margin:18px 0">
   <a class="assess360-cta" href="#" style="display:none;background:#c79a3b;color:#fff;font-weight:700;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:1.1rem">Book a 1:1 Diagnosis Conversation</a>
 </div>`;
@@ -218,7 +218,7 @@ function buildScoreSnippet(): string {
   // Class-based placeholder filled by the head script from the SAME single fetch
   // (no extra request). Put it below the video and CTA. Style .assess360-score,
   // .assess360-score-total, .assess360-score-row in your page CSS to taste.
-  return `<!-- assess360 score ${CONNECTOR_VERSION} — paste in body, below your video + CTA -->
+  return `<!-- assess360 score ${CONNECTOR_VERSION} - paste in body, below your video + CTA -->
 <h2 style="font-size:1.5rem;font-weight:700;text-align:center;margin:0 0 12px">Your Assessment Numbers Below</h2>
 <div class="assess360-score" style="font-size:1.05rem;line-height:1.6"></div>`;
 }

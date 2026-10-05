@@ -5,7 +5,7 @@ import { SignInForm } from "@/features/auth/components/sign-in-form";
 
 /**
  * A login box: nothing to rank for, nothing to answer with, and it was in the sitemap.
- * noindex, follow — the links out of it (the marketing site, the policies) are fine to
+ * noindex, follow - the links out of it (the marketing site, the policies) are fine to
  * crawl, the box itself is not worth a crawl.
  */
 export const metadata: Metadata = {

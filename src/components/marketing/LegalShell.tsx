@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Nav } from "@/components/marketing/Nav";
 import { Footer } from "@/components/marketing/Footer";
 
-/** Frame for the public policy pages — marketing Nav + Footer around a prose column. */
+/** Frame for the public policy pages - marketing Nav + Footer around a prose column. */
 export function LegalShell({
   title,
   updated,

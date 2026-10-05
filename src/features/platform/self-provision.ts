@@ -21,7 +21,7 @@ function slugFrom(seed: string): string {
  */
 export async function provisionMyWorkspace(): Promise<ActionResult> {
   const user = await requireUser();
-  // The platform owner is never a tenant — guard by email too, in case the DB
+  // The platform owner is never a tenant - guard by email too, in case the DB
   // role has drifted (a demoted owner must not be re-tenanted here).
   if (isSuperAdmin(user) || isPlatformOwner(user.email)) {
     return { ok: false, error: "Super admins manage tenants from the platform console." };

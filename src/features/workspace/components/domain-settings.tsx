@@ -13,7 +13,7 @@ import {
   type DomainSettingsView,
 } from "@/features/workspace/actions/domains";
 
-/** "assess.acme.com" -> "assess" — what a DNS provider's Name field actually wants. */
+/** "assess.acme.com" -> "assess" - what a DNS provider's Name field actually wants. */
 function labelOf(host: string): string {
   const parts = host.split(".").filter(Boolean);
   return parts.length <= 2 ? "@" : parts.slice(0, parts.length - 2).join(".");
@@ -73,7 +73,7 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
       const r = await addDomain(hostname);
       if (r.ok) setHostname("");
       return r;
-    }, "Domain added — add the DNS records shown below at your provider, then Check status.");
+    }, "Domain added - add the DNS records shown below at your provider, then Check status.");
 
   return (
     <div className="flex flex-col gap-5">
@@ -81,11 +81,11 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
         Bring your own domain (e.g. <span className="font-mono">assess.yourbrand.com</span>). Add it
         below, then copy the <span className="font-semibold">DNS records shown for it</span> into your
         domain provider (GoDaddy, Namecheap, Cloudflare, etc.). HTTPS is issued
-        <span className="font-semibold"> automatically</span> once those records resolve — click{" "}
+        <span className="font-semibold"> automatically</span> once those records resolve - click{" "}
         <span className="font-semibold">Check status</span> and it goes live.
       </div>
 
-      {/* Add — paid only. Existing domains below keep working either way; only adding
+      {/* Add - paid only. Existing domains below keep working either way; only adding
           a new one is gated, so a lapse never takes a live domain off the air. */}
       {initial.canAdd ? (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -137,7 +137,7 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => verifyDomain(d.id), "✓ Custom domain live — now serving over HTTPS.")}>Check status</Button>
+                  <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => verifyDomain(d.id), "✓ Custom domain live - now serving over HTTPS.")}>Check status</Button>
                   {(d.certLive || d.verified) && !d.isPrimary ? (
                     <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => setPrimaryDomain(d.id), "Primary domain updated.")}>Make primary</Button>
                   ) : null}
@@ -147,7 +147,7 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
               {d.certLive || d.verified ? (
                 // Confirmation once the certificate is live.
                 <div className="rounded-md bg-green-500/10 px-2.5 py-1.5 text-xs font-medium text-green-600">
-                  ✓ Custom domain live — serving your funnel over HTTPS at{" "}
+                  ✓ Custom domain live - serving your funnel over HTTPS at{" "}
                   <span className="font-mono">{d.hostname}</span>.
                 </div>
               ) : (
@@ -155,12 +155,12 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
                 <div className="flex flex-col gap-2 rounded-md border border-[var(--border)] bg-[var(--muted)]/30 px-3 py-2.5">
                   <p className="text-xs font-semibold">Add these DNS records at your domain provider</p>
                   <p className="text-xs text-[var(--muted-foreground)]">
-                    Name is the <strong>sub-domain label only</strong> — most providers (Cloudflare,
+                    Name is the <strong>sub-domain label only</strong> - most providers (Cloudflare,
                     GoDaddy, Namecheap) add your domain to it automatically, so typing the full host
                     creates a doubled one. Set the CNAME to <strong>DNS only</strong> / unproxied.
                   </p>
                   <p className="text-xs text-[var(--muted-foreground)]">
-                    Sign-in and password reset work on this host as soon as it reaches us — you do not
+                    Sign-in and password reset work on this host as soon as it reaches us - you do not
                     need to wait for the certificate. What is still pending below is HTTPS.
                   </p>
                   <div className="flex flex-col gap-1.5">
@@ -182,7 +182,7 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
                   </div>
                   <p className="text-[11px] text-[var(--muted-foreground)]">
                     DNS can take a few minutes (sometimes up to an hour) to propagate. Once added, click{" "}
-                    <span className="font-semibold">Check status</span> — HTTPS is issued automatically and the
+                    <span className="font-semibold">Check status</span> - HTTPS is issued automatically and the
                     domain goes live.
                   </p>
                 </div>

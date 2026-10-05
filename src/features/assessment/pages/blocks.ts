@@ -1,6 +1,6 @@
 /**
  * Page-builder block vocabulary. Pages (AssessmentPage) hold ordered, typed blocks
- * (PageBlock) whose `config` is type-specific JSON — so new block types never touch
+ * (PageBlock) whose `config` is type-specific JSON - so new block types never touch
  * the schema. Plain types (safe on client + server). Static blocks the admin fills;
  * dynamic blocks render from the respondent's result.
  */
@@ -19,7 +19,7 @@ export const BLOCK_TYPES: { type: BlockType; label: string; dynamic: boolean }[]
   { type: "pay_button", label: "Payment button", dynamic: false },
   { type: "overall_band", label: "Overall band (dynamic)", dynamic: true },
   { type: "band_sentence", label: "Band sentence (dynamic, per band)", dynamic: true },
-  { type: "category_scores", label: "Category breakdown — scores blurred (dynamic)", dynamic: true },
+  { type: "category_scores", label: "Category breakdown - scores blurred (dynamic)", dynamic: true },
 ];
 
 export const BAND_LEVELS = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
@@ -71,7 +71,7 @@ export interface AssessmentPageData {
   blocks: PageBlockData[];
 }
 
-/** Stable, id-free serialization of a page tree — used to tell whether the draft
+/** Stable, id-free serialization of a page tree - used to tell whether the draft
  *  differs from the published snapshot (so the UI can show "unpublished changes").
  *  Sorts object keys so config key-order never causes a false difference. */
 export function normalizePages(pages: AssessmentPageData[]): string {

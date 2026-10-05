@@ -25,7 +25,7 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
   const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
 
   const candidates = await prisma.submission.findMany({
-    // completedAt: null excludes ever-completed submissions — a paid-mode respondent
+    // completedAt: null excludes ever-completed submissions - a paid-mode respondent
     // who completed then returned to edit is reset to STARTED (keeping the old
     // startedAt), and must NOT be swept as abandoned / nurtured as a lost lead.
     where: { status: "STARTED", abandonedAt: null, completedAt: null, startedAt: { lt: cutoff } },
@@ -78,7 +78,7 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
 
 /**
  * Fire Meta `AssessmentAbandoned` for visitors who PASSED the page-1 gate and
- * then never completed — the retargeting pool.
+ * then never completed - the retargeting pool.
  *
  * Why a sweep and not a pixel on the page: abandonment is only knowable AFTER
  * the fact. A closed tab runs no JavaScript, so the very people worth catching
@@ -93,7 +93,7 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
  * Idempotent + concurrency-safe in the same style as sweepAbandoned(): the
  * abandonedFiredAt stamp is claimed with a guarded updateMany before the event
  * is sent, so overlapping runs can't double-fire. The claim is taken BEFORE the
- * send deliberately — a duplicate Meta event is worse than a missed one here,
+ * send deliberately - a duplicate Meta event is worse than a missed one here,
  * because the audience it feeds is already populated by the first.
  *
  * The send itself carries no PII: fbp/fbc/ip/ua/external_id only, which is all
@@ -139,14 +139,14 @@ export async function sweepGateAbandoned(): Promise<{ fired: number; scanned: nu
     });
 
     // Claim the row either way. A completer is stamped so the sweep stops
-    // reconsidering them on every run — the stamp means "decided", not "sent".
+    // reconsidering them on every run - the stamp means "decided", not "sent".
     const claim = await prisma.gateEntry.updateMany({
       where: { id: g.id, abandonedFiredAt: null },
       data: { abandonedFiredAt: new Date() },
     });
     if (claim.count === 0) continue; // another run got there first
 
-    if (completed > 0) continue; // they finished — QualifiedCompletion already fired
+    if (completed > 0) continue; // they finished - QualifiedCompletion already fired
     // The assessment may have been switched to routed (no Meta) after the pass.
     if (!metaEventOn(g.assessment.fireMetaCapi, g.assessment.metaEvents, "abandoned")) continue;
 

@@ -1,7 +1,7 @@
 /**
- * verify:billing — Phase 1 billing entitlement checks.
+ * verify:billing - Phase 1 billing entitlement checks.
  *
- * Exercises the PURE plan/limit helpers (src/lib/billing/plans.ts) — no DB, so it
+ * Exercises the PURE plan/limit helpers (src/lib/billing/plans.ts) - no DB, so it
  * runs anywhere (staging DB is unreachable locally, see the db-internal-only note).
  * The DB-touching resolvers (entitlements.ts) are validated on staging in Phase 2.
  *
@@ -43,7 +43,7 @@ function check(name: string, cond: boolean): void {
   }
 }
 
-console.log("Billing — plan catalog (Gate / Signal / Agency / Enterprise)");
+console.log("Billing - plan catalog (Gate / Signal / Agency / Enterprise)");
 check("Gate = 150 responses / 2 scorecards / 1 seat / 1 ad account",
   PLAN_LIMITS.GATE.responsesPerMonth === 150 && PLAN_LIMITS.GATE.maxAssessments === 2 &&
   PLAN_LIMITS.GATE.seats === 1 && PLAN_LIMITS.GATE.adAccounts === 1);
@@ -61,7 +61,7 @@ check("Gate 39 / Signal 79 / Agency 199 / Enterprise 499",
   PLAN_PRICE_USD.GATE === 39 && PLAN_PRICE_USD.SIGNAL === 79 &&
   PLAN_PRICE_USD.AGENCY === 199 && PLAN_PRICE_USD.ENTERPRISE === 499);
 
-console.log("Feature gates — the differentiator ships in the ENTRY tier");
+console.log("Feature gates - the differentiator ships in the ENTRY tier");
 // This is the whole pricing thesis: a qualification gate behind a $79 wall is a gate the
 // buyer never experiences before deciding. If this check ever fails, the pricing page and
 // the product disagree about what $39 buys.
@@ -103,7 +103,7 @@ check("the trial grants Signal for 14 days", TRIAL_PLAN === "SIGNAL" && TRIAL_DA
   const end = new Date("2026-10-15T00:00:00Z");
   check("14 whole days left reads as 14", trialDaysLeft(end, new Date("2026-10-01T00:00:00Z")) === 14);
   // CEILING, not floor. With 30 minutes left the tenant still holds full Signal
-  // entitlements, so "0 days" would announce an end that has not happened — and 0 is the
+  // entitlements, so "0 days" would announce an end that has not happened - and 0 is the
   // value the banner and the billing page treat as parked.
   check("a part-day left reads as 1, never 0", trialDaysLeft(end, new Date("2026-10-14T23:30:00Z")) === 1);
   check("an expired trial reads as 0", trialDaysLeft(end, new Date("2026-10-15T00:00:01Z")) === 0);
@@ -118,14 +118,14 @@ check("parked = zero responses, zero scorecards, zero ad accounts",
   PARKED_LIMITS.responsesPerMonth === 0 && PARKED_LIMITS.maxAssessments === 0 &&
   PARKED_LIMITS.adAccounts === 0);
 check("parked grants NO feature at all", FEATURES.every((f) => !hasFeature(PARKED_LIMITS, f)));
-// The funnel route and startSubmission both branch on `parked`, not on these numbers —
+// The funnel route and startSubmission both branch on `parked`, not on these numbers -
 // because a limit of 0 means capture-but-lock (store the lead, withhold the result),
 // which is right for an over-cap payer and wrong for a tenant with no plan.
 check("parked is over limit at the very first response", isOverLimit(0, PARKED_LIMITS.responsesPerMonth));
 check("parked keeps one seat, so the owner can still sign in and pay", PARKED_LIMITS.seats === 1);
 // The READ path must never use the 0 above: `resolvePlan` exposes `readResponseLimit`,
 // frozen at the last entitling plan, so parking hides nothing the tenant had earned. For
-// a lapsed TRIAL that frozen value is the trial's own allowance — which therefore has to
+// a lapsed TRIAL that frozen value is the trial's own allowance - which therefore has to
 // be a real number, not 0, or a lapsed trial empties its own workspace.
 // null (unlimited) and any positive number both pass; only a literal 0 fails.
 check("a lapsed trial's leads stay readable (trial allowance is non-zero)",

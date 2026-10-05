@@ -87,7 +87,7 @@ async function provisionDomain(
     }
   }
 
-  // Routing + TLS (Railway) — the SOURCE OF TRUTH. Railway routes by Host and issues
+  // Routing + TLS (Railway) - the SOURCE OF TRUTH. Railway routes by Host and issues
   // the Let's Encrypt cert once DNS resolves; it also tells us the exact DNS records
   // the domain owner must add. On "Check status" we POLL the existing record rather
   // than re-create (customDomainCreate errors on an already-registered host).
@@ -103,14 +103,14 @@ async function provisionDomain(
     }
   }
 
-  // TLS + DNS (Cloudflare) — only succeeds for zones on OUR Cloudflare account (the
+  // TLS + DNS (Cloudflare) - only succeeds for zones on OUR Cloudflare account (the
   // domains we host). For a client's OWN domain this simply fails, which is fine: the
   // client adds the DNS records shown below instead. Never a verification gate.
   if (cloudflareConfigured()) {
     try {
       await cloudflareProvisionDomain(hostname, origin);
     } catch {
-      /* external zone — not ours to manage; the shown records are the path */
+      /* external zone - not ours to manage; the shown records are the path */
     }
   }
 
@@ -137,19 +137,19 @@ async function provisionDomain(
     // Keep Railway's own words when present (ISSUING/ISSUED/…); else pending/active.
     // 🔴 A Railway failure used to vanish here: the row was created, Railway knew
     // nothing about the host, and the tenant was handed a CNAME pointing at our app
-    // host instead of their routing target — DNS they could add and wait on forever.
+    // host instead of their routing target - DNS they could add and wait on forever.
     // Carry the error into certStatus so the badge says so (certIsLive treats anything
     // containing "error" as not live, which is correct).
     certStatus:
-      rw?.certStatus ?? (verified ? "active" : railwayError ? `ERROR — ${railwayError.slice(0, 120)}` : "pending"),
-    // Only surface a real Railway error — a Cloudflare miss on an external zone is expected.
+      rw?.certStatus ?? (verified ? "active" : railwayError ? `ERROR - ${railwayError.slice(0, 120)}` : "pending"),
+    // Only surface a real Railway error - a Cloudflare miss on an external zone is expected.
     error: railwayError ?? undefined,
   };
 }
 
 /**
  * Per-tenant custom domains. Every row is scoped to the acting workspace tenant
- * (requireWorkspace), so a tenant can only ever see/mutate its OWN domains — the
+ * (requireWorkspace), so a tenant can only ever see/mutate its OWN domains - the
  * hostname column is globally unique, so one tenant claiming a host blocks it for
  * everyone.
  *
@@ -209,7 +209,7 @@ export interface DomainSettingsView {
   /** TRUE when Cloudflare manages DNS automatically (no manual CNAME for the tenant). */
   autoDns: boolean;
   /** FALSE on Free: the add form is replaced by an upgrade note. Existing domains
-   *  still render and keep working — only adding a new one is gated. */
+   *  still render and keep working - only adding a new one is gated. */
   canAdd: boolean;
 }
 
@@ -221,7 +221,7 @@ const hostnameSchema = z
   .max(253, "Domain is too long.")
   .regex(
     /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+$/,
-    "Enter a bare hostname like assess.yourbrand.com — no https:// or path.",
+    "Enter a bare hostname like assess.yourbrand.com - no https:// or path.",
   );
 
 export async function getDomainSettings(): Promise<DomainSettingsView> {
@@ -309,7 +309,7 @@ export async function addDomain(rawHostname: string): Promise<ActionResult> {
   const root = env.NEXT_PUBLIC_ROOT_DOMAIN.toLowerCase();
   if (root) {
     // Two different refusals wearing one message. Typing the root itself is not "a
-    // subdomain is automatic" — it is the app's own address, and saying so is the
+    // subdomain is automatic" - it is the app's own address, and saying so is the
     // difference between a user who understands and one who retypes it three times.
     if (hostname === root) {
       return {
@@ -318,7 +318,7 @@ export async function addDomain(rawHostname: string): Promise<ActionResult> {
       };
     }
     if (hostname.endsWith(`.${root}`)) {
-      return { ok: false, error: `Subdomains of ${root} are automatic — you only need this for your OWN domain.` };
+      return { ok: false, error: `Subdomains of ${root} are automatic - you only need this for your OWN domain.` };
     }
   }
 
@@ -338,7 +338,7 @@ export async function addDomain(rawHostname: string): Promise<ActionResult> {
     throw e;
   }
 
-  // Auto-provision routing (Railway) + TLS/DNS (Cloudflare). Non-fatal on failure —
+  // Auto-provision routing (Railway) + TLS/DNS (Cloudflare). Non-fatal on failure -
   // the row exists and "Check status" retries.
   const p = await provisionDomain(hostname);
   await prisma.domain.update({
@@ -366,7 +366,7 @@ async function pointsToUs(hostname: string): Promise<boolean> {
   try {
     const cnames = await dns.resolveCname(hostname);
     // 🔴 Guard the empty root: without it `h.endsWith(".")` is the test, which is true
-    // for a trailing-dot FQDN — every domain on earth would verify as pointing at us.
+    // for a trailing-dot FQDN - every domain on earth would verify as pointing at us.
     if (cnames.some((c) => {
       const h = c.toLowerCase().replace(/\.$/, "");
       return h === target || (!!root && (h === root || h.endsWith(`.${root}`)));
@@ -374,7 +374,7 @@ async function pointsToUs(hostname: string): Promise<boolean> {
       return true;
     }
   } catch {
-    /* no CNAME (apex/flattened) — fall through to A-record compare */
+    /* no CNAME (apex/flattened) - fall through to A-record compare */
   }
 
   try {
@@ -387,7 +387,7 @@ async function pointsToUs(hostname: string): Promise<boolean> {
 }
 
 /**
- * "Check status" — with Railway managing, this (re)registers if needed, refreshes the
+ * "Check status" - with Railway managing, this (re)registers if needed, refreshes the
  * cert status, and flips `verified` once the cert is live. Without Railway it's the
  * CNAME auto-detect path.
  */
@@ -422,7 +422,7 @@ export async function verifyDomain(id: string): Promise<ActionResult> {
       ok: false,
       error:
         p.error ??
-        "Not live yet — add the DNS records shown below at your provider, then Check status again in a minute.",
+        "Not live yet - add the DNS records shown below at your provider, then Check status again in a minute.",
     };
   }
 
@@ -443,7 +443,7 @@ export async function setPrimaryDomain(id: string): Promise<ActionResult> {
 
   const domain = await prisma.domain.findFirst({ where: { id, tenantId }, select: { id: true, verified: true } });
   if (!domain) return { ok: false, error: "Domain not found." };
-  if (!domain.verified) return { ok: false, error: "The domain isn't live yet — check its status before making it primary." };
+  if (!domain.verified) return { ok: false, error: "The domain isn't live yet - check its status before making it primary." };
 
   await prisma.$transaction([
     prisma.domain.updateMany({ where: { tenantId, isPrimary: true }, data: { isPrimary: false } }),

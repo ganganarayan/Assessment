@@ -1,6 +1,6 @@
 /**
  * Shared, pure formatting/derivation helpers for the clinic-audit calculation
- * trail — imported by BOTH the web result page and the PDF report so the two can
+ * trail - imported by BOTH the web result page and the PDF report so the two can
  * never render different numbers or different "assumed" tags for the same figure.
  * No React, no server-only: safe in a client bundle and in the PDF's Node render.
  */
@@ -12,7 +12,7 @@ export function fmt1(n: number): string {
   return Number.isInteger(r) ? String(r) : r.toFixed(1);
 }
 
-/** A funnel-stage count: one decimal under 20 (so small counts stay honest — never
+/** A funnel-stage count: one decimal under 20 (so small counts stay honest - never
  *  rounds a real 2.4 down to a misleading "2"), whole numbers above. */
 export function fmtStep(n: number): string {
   if (n <= 0) return "0";
@@ -21,7 +21,7 @@ export function fmtStep(n: number): string {
 
 /** The final "cases" step needs special handling: a sub-1 monthly rate must never
  *  render as a bare "0" (which would make "0 cases × price = revenue" look broken
- *  to a reader) — show the honest fraction plus a plain-English frequency. */
+ *  to a reader) - show the honest fraction plus a plain-English frequency. */
 export function caseLine(n: number): { text: string; hint: string | null } {
   if (n <= 0) return { text: "0", hint: null };
   if (n < 1) {
@@ -32,7 +32,7 @@ export function caseLine(n: number): { text: string; hint: string | null } {
 }
 
 /**
- * Whole patients. You cannot treat 1.4 people — the exact figure is what the funnel
+ * Whole patients. You cannot treat 1.4 people - the exact figure is what the funnel
  * mathematically yields, but the number of humans through the door is an integer.
  * Both are shown: the exact figure keeps the arithmetic checkable, the rounded one
  * is what actually happens. Rounds half up (1.4 → 1, 4.5 → 5, 4.8 → 5).
@@ -57,7 +57,7 @@ export function buildTrail(E: number, B: number, S: number, C: number) {
 }
 
 /**
- * "assumed" / "assumed — avg of X" tag text for one figure, or null when it isn't
+ * "assumed" / "assumed - avg of X" tag text for one figure, or null when it isn't
  * an assumption (an actual number was given) or the reader has since edited that
  * field (their edit is now their own number, not ours).
  */
@@ -69,10 +69,10 @@ export function assumedTagText(
   fieldEdited: boolean,
 ): string | null {
   // Both may be absent on a result computed from a snapshot persisted before these
-  // fields existed — degrade to "no tag" rather than throwing on every old result.
+  // fields existed - degrade to "no tag" rather than throwing on every old result.
   if (fieldEdited || !(assumptions ?? []).includes(label)) return null;
   const range = (assumedRangeLabel ?? {})[role];
-  return range ? `assumed — avg of ${range}` : "assumed";
+  return range ? `assumed - avg of ${range}` : "assumed";
 }
 
 /**
@@ -81,7 +81,7 @@ export function assumedTagText(
  * A clinic owner reads "1 patient a month" and "₹1,40,000 a month" as one claim, so
  * the two must reconcile: if we say one patient, the money must be one treatment
  * value. The exact chain still appears in the calculation trail (that is what makes
- * the arithmetic checkable) — but every summary number the reader quotes back to us
+ * the arithmetic checkable) - but every summary number the reader quotes back to us
  * is derived from the rounded patient count, so no line ever contradicts another.
  *
  * Shared by the web page and the PDF so the two cannot drift apart.

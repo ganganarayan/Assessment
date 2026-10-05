@@ -16,7 +16,7 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
  * plain scalar) are not affected. Irreversible.
  *
  * TENANT-SCOPED: a tenant admin/staff-with-edit may delete ONLY their own tenant's
- * submissions — the delete is filtered by tenantId, so passing another tenant's id
+ * submissions - the delete is filtered by tenantId, so passing another tenant's id
  * simply matches nothing. A super admin acting globally (tenantId null) may delete
  * any. View-only staff are refused. This is what lets /w/submissions expose delete
  * safely, not just the platform console.
@@ -46,7 +46,7 @@ export async function deleteSubmissions(ids: string[]): Promise<ActionResult> {
 
 /**
  * Manually send a Meta verdict for ONE submission, after the owner has read the
- * lead — the gate's TEXT questions never auto-qualify anyone, so this is how
+ * lead - the gate's TEXT questions never auto-qualify anyone, so this is how
  * that judgement reaches Meta.
  *
  *   "QUALIFIED"    → QualifiedCompletion  (the same event a real completion fires)
@@ -58,14 +58,14 @@ export async function deleteSubmissions(ids: string[]): Promise<ActionResult> {
  * On firing Disqualified for someone already in the Qualified audience: Meta has
  * no "remove from audience" event, and this does not attempt one. It works
  * because the ad sets exclude the GateDisqualified audience, and an exclusion
- * beats an inclusion — so the person stops being targeted without ever leaving
+ * beats an inclusion - so the person stops being targeted without ever leaving
  * the first audience. That exclusion must exist in Ads Manager for this button
  * to have any effect.
  *
  * The eventId is stable per (submission, verdict), so a double-click or a second
  * look inside Meta's dedup window collapses to one event instead of inflating
  * the count. Outside that window it counts again, which is harmless for audience
- * membership (a set — being added twice adds nobody).
+ * membership (a set - being added twice adds nobody).
  *
  * Fires regardless of the assessment's Meta routing flag, by design: this is a
  * deliberate human action, not automated funnel telemetry.
@@ -141,7 +141,7 @@ export async function sendMetaVerdict(
   );
 
   // Counted alongside the funnel's automatic firings, so the Stats "Fired to Meta"
-  // total is every event this assessment sent — by hand or by itself.
+  // total is every event this assessment sent - by hand or by itself.
   await bumpFunnelEventCount({
     assessmentId: s.assessment.id,
     tenantId: s.tenantId,

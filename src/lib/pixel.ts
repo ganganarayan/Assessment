@@ -10,7 +10,7 @@ declare global {
 
 /**
  * `eventID` (optional) deduplicates this browser event against the server-side
- * Conversions API event of the same name — pass the id the server returned.
+ * Conversions API event of the same name - pass the id the server returned.
  */
 export function pixelTrack(
   event: string,

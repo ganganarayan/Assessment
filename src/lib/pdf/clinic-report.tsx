@@ -1,4 +1,4 @@
-// (No "server-only" pragma — matches report.tsx: the fs + @react-pdf/renderer
+// (No "server-only" pragma - matches report.tsx: the fs + @react-pdf/renderer
 // imports already make this server-only de facto, and dropping it lets a verify
 // script render offline.)
 import { readFileSync } from "fs";
@@ -11,10 +11,10 @@ import { formatINR, pctLabel } from "@/lib/format/inr";
 
 /**
  * Divine Leads clinic-audit PDF. Renders the EXACT same calculation trail as the
- * web result page (clinic-audit-result.tsx) — same shared helpers from
- * lib/scoring/clinic-trail.ts, same figures, same "assumed" tags — so the two can
+ * web result page (clinic-audit-result.tsx) - same shared helpers from
+ * lib/scoring/clinic-trail.ts, same figures, same "assumed" tags - so the two can
  * never show different numbers for the same submission. No band headline (dropped
- * from the web page too — the calculation speaks for itself); no generic score/
+ * from the web page too - the calculation speaks for itself); no generic score/
  * category report (meaningless for clinic option values, which are rupees/rates,
  * not score points).
  */
@@ -81,7 +81,7 @@ const s = StyleSheet.create({
   calcVal: { fontFamily: "Lato" },
   calcValRevenue: { fontFamily: "Lato", fontWeight: "bold", color: TEAL },
   calcValRevenuePot: { fontFamily: "Lato", fontWeight: "bold", color: GOLD },
-  // No italic — only Lato Regular/Bold are registered (react-pdf can't synthesize
+  // No italic - only Lato Regular/Bold are registered (react-pdf can't synthesize
   // italic; requesting it throws "Could not resolve font" at render time).
   assumedTag: { fontSize: 7.5, color: GOLD },
   section: { marginTop: 18 },
@@ -144,7 +144,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
   const caseToday = caseLine(todayTrail.cases);
   const casePot = caseLine(potTrail.cases);
   const pmTrail = buildTrail(r.performance.enquiries, r.bookRateImproved, r.showUpImproved, r.closeRate);
-  // Summary figures in whole patients — same helper the web page uses, so the two
+  // Summary figures in whole patients - same helper the web page uses, so the two
   // surfaces cannot report different money for the same patient count.
   const whole = wholePatientView({
     casesNow: todayTrail.cases,
@@ -158,7 +158,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
   const casePotLabel = `${casePot.text} patient${casePot.text === "1" ? "" : "s"}/month${casePot.hint ? ` (${casePot.hint})` : ""}`;
 
   return (
-    <Document title={`Patient Acquisition Audit — ${data.name}`} author="Assess360">
+    <Document title={`Patient Acquisition Audit - ${data.name}`} author="Assess360">
       <Page size="A4" style={s.page}>
         <View style={s.cover}>
           <View style={s.goldRule} />
@@ -173,7 +173,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
 
         {r.dataInconsistent ? (
           <Text style={s.note}>
-            These answers don&apos;t describe a working clinic — they compute to under one
+            These answers don&apos;t describe a working clinic - they compute to under one
             completed treatment a month, so a figure was almost certainly entered in the wrong
             scale (for a question asking &quot;out of every 10&quot;, answering 7 means 70%, not
             7%). The figures below are shown for reference only and should not be relied on until
@@ -201,9 +201,9 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
           </View>
         </View>
 
-        {/* Full calculation trail — identical to the web page, stage by stage. */}
+        {/* Full calculation trail - identical to the web page, stage by stage. */}
         <View style={s.calc}>
-          <Text style={s.calcTitle}>Today — how we got this number</Text>
+          <Text style={s.calcTitle}>Today - how we got this number</Text>
           <CalcRow label="Monthly enquiries" tag={eTag} value={fmtStep(r.enquiries)} />
           <CalcRow label={`× Booking rate (${pctLabel(r.bookRateNow)})`} tag={bTag} value={`= ${fmtStep(todayTrail.booked)} booked`} />
           <CalcRow label={`× Show-up rate (${pctLabel(r.showUpNow)})`} tag={sTag} value={`= ${fmtStep(todayTrail.attended)} attended`} />
@@ -226,7 +226,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
           <CalcRow label="Monthly enquiries (same)" value={fmtStep(r.enquiries)} />
           <CalcRow label={`× Booking rate (${pctLabel(r.bookRateImproved)})`} value={`= ${fmtStep(potTrail.booked)} booked`} />
           <CalcRow label={`× Show-up rate (${pctLabel(r.showUpImproved)})`} value={`= ${fmtStep(potTrail.attended)} attended`} />
-          <CalcRow label={`× Close rate (${pctLabel(r.closeRate)}, unchanged — never modelled as improving)`} value={`= ${casePotLabel}`} />
+          <CalcRow label={`× Close rate (${pctLabel(r.closeRate)}, unchanged - never modelled as improving)`} value={`= ${casePotLabel}`} />
           <CalcRow
             label={`× Treatment value (${formatINR(r.treatmentValue)})`}
             value={`= ${formatINR(r.revenuePotential)}/month`}
@@ -241,7 +241,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
 
         {r.assumptions.length > 0 ? (
           <Text style={s.note}>
-            Figures marked &quot;assumed&quot; were used because no exact number was given — the
+            Figures marked &quot;assumed&quot; were used because no exact number was given - the
             midpoint of the selected range was used instead. Editable on the interactive result page.
           </Text>
         ) : null}
@@ -250,7 +250,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
           <Text style={s.h2}>With performance marketing</Text>
           <Text style={s.p}>
             On an ad budget of {formatINR(r.performance.adBudget)} a month, at{" "}
-            {formatINR(data.costPerEnquiry)} per enquiry — converted at the improved booking and
+            {formatINR(data.costPerEnquiry)} per enquiry - converted at the improved booking and
             show-up rates, and your own close rate, unchanged.
           </Text>
           <View style={s.calc}>
@@ -271,7 +271,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
             />
           </View>
           <Text style={[s.p, { marginTop: 8 }]}>
-            This is additional — over and above what your clinic earns today.
+            This is additional - over and above what your clinic earns today.
           </Text>
         </View>
 
@@ -293,7 +293,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
             <Text style={s.verdict}>
               You spend {formatINR(whole.investment)} a month. You keep{" "}
               {formatINR(whole.netTotal)}. That is {formatINR(whole.netGain)} a month more profit
-              than you make today — {formatINR(whole.netGain * 12)} over a year.
+              than you make today - {formatINR(whole.netGain * 12)} over a year.
             </Text>
           ) : null}
         </View>
@@ -302,7 +302,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
           <View style={s.section} wrap={false}>
             <Text style={s.h2}>The unattended gold mine in your clinic</Text>
             <Text style={s.p}>
-              You are already sitting on {r.dormant.recoverable} recoverable cases —{" "}
+              You are already sitting on {r.dormant.recoverable} recoverable cases -{" "}
               {formatINR(r.dormant.value)}{dTag ? ` (${dTag})` : ""} of treatment value in enquiries
               you have already paid for and nobody has called back. It costs you nothing in ads to go
               and get it.
@@ -328,7 +328,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
         ) : null}
 
         <View style={s.footer} fixed>
-          <Text style={s.footLine}>Patient Acquisition Audit — Assess360</Text>
+          <Text style={s.footLine}>Patient Acquisition Audit - Assess360</Text>
         </View>
       </Page>
     </Document>

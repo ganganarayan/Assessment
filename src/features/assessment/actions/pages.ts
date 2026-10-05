@@ -11,7 +11,7 @@ import { resolveVidapulseParam } from "@/lib/vidapulse";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
 import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 
-/** Result data the public page-2 needs for dynamic blocks. Bands only — the real
+/** Result data the public page-2 needs for dynamic blocks. Bands only - the real
  *  numeric scores are NEVER sent (the teaser blurs them; the VSL shows them after
  *  payment via the token), so a viewer can't read scores from the response. */
 export interface PageResultData {
@@ -69,7 +69,7 @@ export async function loadPages(assessmentId: string): Promise<AssessmentPageDat
   }));
 }
 
-/** Publish: snapshot the current draft (rows) into Assessment.publishedPages — the
+/** Publish: snapshot the current draft (rows) into Assessment.publishedPages - the
  *  only thing the public renders. Auto-saved draft edits stay invisible until this. */
 export async function publishPages(assessmentId: string): Promise<ActionResult<{ publishedAt: string }>> {
   if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };

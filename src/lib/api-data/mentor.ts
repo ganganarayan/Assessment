@@ -6,11 +6,11 @@ import { authenticateApiToken } from "@/lib/api-auth/verify";
 import { normalizeEmail, buildMentorResponse, type MentorRecord } from "@/lib/mentor/read";
 
 /**
- * Handler for the gita_mentor read. Version-agnostic — mounted by the route files
+ * Handler for the gita_mentor read. Version-agnostic - mounted by the route files
  * (canonical /api/v1/mentor + the deprecated unversioned alias).
  *
  * Tenant-scoped by the token. Returns the most recent COMPLETED result; if none
- * exists, { found:false } / 200 — the mentor's cue to ask the person to take the
+ * exists, { found:false } / 200 - the mentor's cue to ask the person to take the
  * assessment first, then re-fetch. Separate scope from meta_match: this key can
  * read results but NOT the marketing match fields, and vice versa.
  */

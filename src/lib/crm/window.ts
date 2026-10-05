@@ -1,7 +1,7 @@
 /**
  * Pure time-window + delay helpers for the throttled CRM senders. IST is a fixed
  * UTC+5:30 offset with no DST, so the IST hour is pure arithmetic on the UTC epoch
- * — no timezone library, and the Railway server's own TZ is irrelevant.
+ * - no timezone library, and the Railway server's own TZ is irrelevant.
  */
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;

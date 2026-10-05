@@ -8,7 +8,7 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /**
  * Set the SIGNED-IN user's own password and clear the forced-change flag. Used by the
- * /change-password screen after a super admin set a temporary password — the user is
+ * /change-password screen after a super admin set a temporary password - the user is
  * authenticated (they just logged in with the temp password), so no current-password
  * is required; this is a forced reset, not a self-service change.
  */

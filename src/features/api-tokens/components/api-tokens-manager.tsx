@@ -68,7 +68,7 @@ export function ApiTokensManager({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Endpoint reference — one block per scope, so each consumer's URLs are clear. */}
+      {/* Endpoint reference - one block per scope, so each consumer's URLs are clear. */}
       <div className="flex flex-col gap-4 rounded-lg border p-4 text-sm">
         <p className="font-medium">Endpoints</p>
         {scopes.map((s) => {
@@ -124,7 +124,7 @@ export function ApiTokensManager({
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         {minted ? (
           <div className="flex flex-col gap-2 rounded-md border border-green-600/40 bg-green-600/10 p-3">
-            <p className="text-xs font-medium">Copy this now — it is shown only once.</p>
+            <p className="text-xs font-medium">Copy this now - it is shown only once.</p>
             <div className="flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate rounded bg-[var(--background)] px-2 py-1 text-sm">{minted}</code>
               <Button size="sm" onClick={() => copy(minted)}>Copy</Button>
@@ -154,9 +154,9 @@ export function ApiTokensManager({
                 <tr key={t.id}>
                   <td className="px-3 py-2 font-mono text-xs">{t.prefix}…</td>
                   <td className="px-3 py-2">{t.scope}</td>
-                  <td className="px-3 py-2 text-[var(--muted-foreground)]">{t.label ?? "—"}</td>
+                  <td className="px-3 py-2 text-[var(--muted-foreground)]">{t.label ?? "-"}</td>
                   <td className="px-3 py-2 text-[var(--muted-foreground)]">
-                    {t.lastUsedAt ? new Date(t.lastUsedAt).toLocaleString() : "—"}
+                    {t.lastUsedAt ? new Date(t.lastUsedAt).toLocaleString() : "-"}
                   </td>
                   <td className="px-3 py-2">
                     {t.revokedAt ? (

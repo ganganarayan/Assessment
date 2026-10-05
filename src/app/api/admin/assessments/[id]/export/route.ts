@@ -23,7 +23,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   if (!a) return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
 
   // While operating inside a workspace, only that workspace's assessments are
-  // exportable — otherwise an id from another tenant would still export here.
+  // exportable - otherwise an id from another tenant would still export here.
   const acting = await actingTenantId();
   if (acting && a.tenantId !== acting) {
     return NextResponse.json({ error: "Assessment not found" }, { status: 404 });

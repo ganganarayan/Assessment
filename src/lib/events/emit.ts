@@ -52,7 +52,7 @@ export async function emitEvent(type: EventType, input: EmitInput): Promise<void
   });
 
   // 2) ENQUEUE a durable delivery per matching webhook (awaited, so it survives a
-  //    deploy), then fire the first attempt inline — non-blocking. If that inline
+  //    deploy), then fire the first attempt inline - non-blocking. If that inline
   //    attempt is killed mid-flight, the pending row is retried by the cron
   //    (lib/webhooks/retry). Tenant scoping is unchanged: Gita/platform events
   //    resolve to tenantId null and fire to the null-tenant webhooks as before.

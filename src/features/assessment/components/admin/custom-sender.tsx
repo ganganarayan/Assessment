@@ -180,7 +180,7 @@ export function CustomSender({ assessmentId }: { assessmentId: string }) {
       <p className="text-xs text-[var(--muted-foreground)]">
         A fully configurable background send to every completed contact: pick the name (shown in the
         log), endpoint, <code>contact.event_type</code> value, and exactly which payload fields go.
-        Runs inside the daily IST window, one every random delay. Separate from the score sender — never
+        Runs inside the daily IST window, one every random delay. Separate from the score sender - never
         touches the WhatsApp endpoint.
       </p>
 

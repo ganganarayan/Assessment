@@ -1,8 +1,8 @@
 // Deliberately NOT `server-only`: the Railway cron (tsx scripts/sweep-abandoned.ts)
 // fires AssessmentAbandoned through here, and that process runs outside Next, where
 // the `server-only` package does not resolve at all. Client bundling is still
-// impossible — this module pulls in prisma and env, which fail loudly in a browser
-// build — so the guard was buying nothing the imports below don't already enforce.
+// impossible - this module pulls in prisma and env, which fail loudly in a browser
+// build - so the guard was buying nothing the imports below don't already enforce.
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { tenantCan } from "@/lib/billing/plan-resolve";
@@ -21,7 +21,7 @@ export interface CapiSendOutcome {
 /**
  * Fire a LIFECYCLE Meta CAPI event (opt-in `CompleteRegistration`, completion
  * `AssessmentCompleted`) AND persist the send + Meta's ACTUAL response to the
- * CAPI log — so the log viewer shows, per event, whether Meta accepted it
+ * CAPI log - so the log viewer shows, per event, whether Meta accepted it
  * (events_received) or rejected it (status + body). Fire-and-forget safe: never
  * throws. Unlike the old fire-and-forget sendCapiEvent it does not swallow the
  * outcome, which is why "the tester passes but real events don't show" is now
@@ -44,7 +44,7 @@ export async function sendAndLogLifecycleCapi(
   };
 
   // Billing gate: server-side Conversions API is a Growth+ capability. A tenant without
-  // it never reaches Meta (the browser Pixel stays available — that is analyticsTracking,
+  // it never reaches Meta (the browser Pixel stays available - that is analyticsTracking,
   // not gated here). Platform/Gita scope (tenantId null) is unlimited and passes.
   if (!(await tenantCan(ctx.tenantId, "capi"))) {
     await prisma.capiLog
@@ -79,13 +79,13 @@ export async function sendAndLogLifecycleCapi(
 
 /**
  * Fire a PLATFORM (Assess360 SaaS) CAPI event and persist the send plus Meta's actual
- * response — the sibling of sendAndLogLifecycleCapi for the other pixel.
+ * response - the sibling of sendAndLogLifecycleCapi for the other pixel.
  *
  * The SaaS funnel used to call sendPlatformCapiEvent directly as `void ….catch(() => {})`,
  * so a signup or subscription reached Meta while the app kept no record of it at all:
  * no row, no response, not even a console line. The Conversions log therefore read 0
  * registrations no matter what Meta received, which is indistinguishable from "nobody
- * signed up" — exactly the gap that makes an app number and a Meta number impossible
+ * signed up" - exactly the gap that makes an app number and a Meta number impossible
  * to reconcile.
  *
  * Rows are written with scope "platform" so they are never confused with an assessment
@@ -259,7 +259,7 @@ export async function recordCapture(input: {
     });
     rowId = row.id;
   } catch {
-    return; // unique race — another handler recorded it
+    return; // unique race - another handler recorded it
   }
 
   if (plan.autoFire) {
@@ -304,7 +304,7 @@ export async function fireCapiLogRow(
   const r = await sendCapiEventVerbose({
     eventName,
     eventId: log.providerPaymentId,
-    // The capture time, not "now" — a late auto/manual fire must carry the real
+    // The capture time, not "now" - a late auto/manual fire must carry the real
     // sale time so it stays in Meta's dedup/attribution window.
     eventTimeMs: log.createdAt.getTime(),
     eventSourceUrl: sub?.assessment?.targetUrl ?? env.NEXT_PUBLIC_APP_URL,

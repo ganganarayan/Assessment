@@ -113,7 +113,7 @@ async function buildBodies(ids: string[]): Promise<AssessmentBodyExport[]> {
   return out;
 }
 
-/** THE JSON export (one assessment or many — same shape). */
+/** THE JSON export (one assessment or many - same shape). */
 export async function buildExportJson(
   ids: string[],
   exportedAt: string,
@@ -121,7 +121,7 @@ export async function buildExportJson(
   return bodiesToJson(await buildBodies(ids), exportedAt);
 }
 
-/** THE CSV export — same lossless schema for one assessment or many. */
+/** THE CSV export - same lossless schema for one assessment or many. */
 export async function buildExportCsv(ids: string[]): Promise<string> {
   return bodiesToCsv(await buildBodies(ids));
 }

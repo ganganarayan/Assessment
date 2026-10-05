@@ -11,27 +11,27 @@ export const DEFAULT_MODEL: Record<AiProvider, string> = {
 };
 
 /** Selectable models per provider for the AI settings dropdown. Curated (a short
- *  100–150 word statement doesn't need the top tier) + a "Custom…" escape hatch in
+ *  100-150 word statement doesn't need the top tier) + a "Custom…" escape hatch in
  *  the form for anything not listed. Keep the cheap/fast option first. */
 export const MODELS_BY_PROVIDER: Record<AiProvider, { value: string; label: string }[]> = {
   claude: [
-    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5 — fast, cheapest" },
-    { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 — balanced" },
+    { value: "claude-haiku-4-5", label: "Claude Haiku 4.5 - fast, cheapest" },
+    { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 - balanced" },
     { value: "claude-sonnet-5", label: "Claude Sonnet 5" },
-    { value: "claude-opus-4-8", label: "Claude Opus 4.8 — most capable" },
+    { value: "claude-opus-4-8", label: "Claude Opus 4.8 - most capable" },
     { value: "claude-opus-4-7", label: "Claude Opus 4.7" },
   ],
   openai: [
-    { value: "gpt-4o-mini", label: "GPT-4o mini — fast, cheapest" },
-    { value: "gpt-4o", label: "GPT-4o — balanced" },
+    { value: "gpt-4o-mini", label: "GPT-4o mini - fast, cheapest" },
+    { value: "gpt-4o", label: "GPT-4o - balanced" },
     { value: "gpt-4.1", label: "GPT-4.1" },
     { value: "gpt-5-mini", label: "GPT-5 mini" },
-    { value: "gpt-5", label: "GPT-5 — most capable" },
+    { value: "gpt-5", label: "GPT-5 - most capable" },
   ],
   gemini: [
-    { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash — fast, cheapest" },
-    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro — balanced" },
-    { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro — most capable" },
+    { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash - fast, cheapest" },
+    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro - balanced" },
+    { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro - most capable" },
     { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
     { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
   ],
@@ -62,7 +62,7 @@ export interface StatementInput {
   percentage: number;
   /** Overall band TITLE (e.g. "Unstable"). */
   band: string | null;
-  /** Overall band LEVEL (LOW/MEDIUM/HIGH/CRITICAL) — used verbatim in the message. */
+  /** Overall band LEVEL (LOW/MEDIUM/HIGH/CRITICAL) - used verbatim in the message. */
   bandLevel?: string | null;
   categories: {
     name: string;

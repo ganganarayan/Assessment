@@ -9,10 +9,10 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
 import { type IntegrationSettingsView } from "@/features/workspace/actions/integrations";
 
 /**
- * PLATFORM (Gita / singleton) integration config — the super-admin editor for the
+ * PLATFORM (Gita / singleton) integration config - the super-admin editor for the
  * keys that used to live ONLY in env. Writes the `id="singleton"` AppSetting row,
  * which `resolveMetaConfig(null)` / `resolveRazorpayConfig(null)` read FIRST, with
- * env as the fallback — so setting them here moves the platform off env without a
+ * env as the fallback - so setting them here moves the platform off env without a
  * redeploy, and leaving them blank keeps the existing env behaviour.
  *
  * Distinct from the per-tenant editor (features/workspace/actions/integrations.ts):
@@ -73,7 +73,7 @@ export interface PlatformPixelView {
   hasCapiToken: boolean;
 }
 
-/** The Assess360 SaaS-funnel pixel (landing / signup / subscription) — SEPARATE from
+/** The Assess360 SaaS-funnel pixel (landing / signup / subscription) - SEPARATE from
  *  the Gita assessment pixel above. Singleton row; token never returned. */
 export async function getPlatformSubscriptionPixel(): Promise<PlatformPixelView> {
   await requireSuperAdmin();
@@ -126,7 +126,7 @@ export interface LegalSettingsView {
   address: string;
   contactEmail: string;
   governingLocation: string;
-  /** GSTIN — a public tax identifier, so it is safe in public structured data. */
+  /** GSTIN - a public tax identifier, so it is safe in public structured data. */
   gstin: string;
   /** ISO year-month, e.g. "2024-02". Month precision is all schema.org needs. */
   foundedOn: string;

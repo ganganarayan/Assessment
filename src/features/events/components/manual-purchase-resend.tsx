@@ -75,7 +75,7 @@ export function ManualPurchaseResend() {
                     </Button>
                   </td>
                   <td className={`px-3 py-2 text-xs ${st?.ok === false ? "text-red-500" : "text-[var(--muted-foreground)]"}`}>
-                    {st?.result ?? "—"}
+                    {st?.result ?? "-"}
                   </td>
                 </tr>
               );

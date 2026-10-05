@@ -39,7 +39,7 @@ export function StatsWindowForm({
         return;
       }
       if (clear) setValue("");
-      setMsg(clear ? "Cleared — showing all data." : "Saved — showing data from the selected date onward.");
+      setMsg(clear ? "Cleared - showing all data." : "Saved - showing data from the selected date onward.");
       router.refresh();
     });
 
@@ -78,7 +78,7 @@ export function StatsWindowForm({
 
       <p className="text-xs text-[var(--muted-foreground)]">
         Applies to the Dashboard, Stats, Contacts, and Submissions (and their exports). Older records
-        stay in the database and reappear the moment you clear the date — nothing is deleted. Existing
+        stay in the database and reappear the moment you clear the date - nothing is deleted. Existing
         result links you&apos;ve already sent are unaffected.
       </p>
     </div>

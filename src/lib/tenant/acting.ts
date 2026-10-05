@@ -7,7 +7,7 @@ import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { tenantOnly, whereScope, type Scope } from "@/lib/tenant/scope";
 
 /**
- * The "acting tenant" — the tenant whose workspace the current user is operating in.
+ * The "acting tenant" - the tenant whose workspace the current user is operating in.
  *  - A tenant admin always acts as their own tenant.
  *  - A super admin acts as the tenant they've "entered" (impersonation cookie); when
  *    they haven't entered one, tenantId is null = the platform-wide global view.
@@ -37,7 +37,7 @@ export async function resolveActingTenant(): Promise<ActingTenant> {
  * The tenant a surface is scoped to: the tenant a super admin has "entered"
  * (impersonation), or null when they have not.
  *
- * 🟡 The null here means "no single tenant", NOT "the platform's own rows" — that
+ * 🟡 The null here means "no single tenant", NOT "the platform's own rows" - that
  * distinction is what the old code got wrong. Prefer `actingDataScope()` (rows to
  * show) or `actingConfigTenantId()` (config row to write), which say which of the two
  * they mean. This stays for callers that genuinely want "the entered tenant, if any",
@@ -52,14 +52,14 @@ export interface ActingScope {
   /** Tenant to scope writes/reads to. null = super-admin global (edit anything). */
   tenantId: string | null;
   isSuper: boolean;
-  /** False for VIEW-only staff — mutation actions must bail (assertScopeCanEdit). */
+  /** False for VIEW-only staff - mutation actions must bail (assertScopeCanEdit). */
   canEdit: boolean;
 }
 
 /** For a mutation action using resolveActingScope(): returns an error result to
  *  return when the caller is view-only staff, else null to proceed. */
 export function scopeEditDenied(scope: ActingScope): { ok: false; error: string } | null {
-  return scope.canEdit ? null : { ok: false, error: "You have view-only access — ask an admin for edit rights." };
+  return scope.canEdit ? null : { ok: false, error: "You have view-only access - ask an admin for edit rights." };
 }
 
 /** For a mutation action that authorizes via assessmentInScope() (not the scope
@@ -107,7 +107,7 @@ export function tenantScope(scope: ActingScope): { tenantId?: string | null } {
  *                                  the platform's own rows
  *   "which rows may I TOUCH?"    → tenantScope returned `{}`, i.e. every tenant
  *
- * Same state, opposite answers — which is why the same session produced a populated
+ * Same state, opposite answers - which is why the same session produced a populated
  * Submissions list and an empty Stats page. There is also a third question hiding in
  * there: "which CONFIG row do I write?", which means the platform's own row and
  * nothing else.
@@ -116,7 +116,7 @@ export function tenantScope(scope: ActingScope): { tenantId?: string | null } {
  * nullable string, so they cannot be confused at a call site again:
  *
  *   dataScopeOf()   → Scope. Lists, reports, exports, deletes. An owner with no
- *                     workspace entered gets { kind: "all" } — every tenant. That
+ *                     workspace entered gets { kind: "all" } - every tenant. That
  *                     matches what the write paths already did, and it is what a SaaS
  *                     owner console should show. It is ALSO what keeps the funnel
  *                     screens populated after the funnel moves to its own tenant:
@@ -132,12 +132,12 @@ export function tenantScope(scope: ActingScope): { tenantId?: string | null } {
 /**
  * Which rows this caller may read/act on.
  *
- * A super admin who has NOT entered a workspace scopes to the PLATFORM tenant — its own
- * rows — not to every tenant. Before the funnel was re-homed this returned ALL_TENANTS,
+ * A super admin who has NOT entered a workspace scopes to the PLATFORM tenant - its own
+ * rows - not to every tenant. Before the funnel was re-homed this returned ALL_TENANTS,
  * for a reason that has now expired: the funnel lived on no tenant at all, so a
  * platform-scoped console would have shown nothing and the owner's own screens would
  * have gone blank. The funnel now belongs to its tenant and is read by entering that
- * workspace, so "everything, everywhere" is no longer the owner's default view — it is
+ * workspace, so "everything, everywhere" is no longer the owner's default view - it is
  * just every tenant's data pooled into one list with no indication of whose is whose.
  *
  * This answers reads AND writes (tenantScope wraps it), so it is also the authorization
@@ -147,7 +147,7 @@ export function tenantScope(scope: ActingScope): { tenantId?: string | null } {
  *
  * 🟡 Accepted consequence: there is no cross-tenant list any more. Adding one means an
  * explicitly owner-only screen that asks for ALL_TENANTS by name, which is the honest
- * way to express it — not a scope that quietly means "all" whenever nobody entered
+ * way to express it - not a scope that quietly means "all" whenever nobody entered
  * anywhere.
  */
 export function dataScopeOf(scope: ActingScope): Scope {
@@ -162,11 +162,11 @@ export async function actingDataScope(): Promise<Scope> {
 }
 
 /**
- * The third question — "which tenant OWNS the row I am about to write?" — and the one
+ * The third question - "which tenant OWNS the row I am about to write?" - and the one
  * that cost an assessment.
  *
  * 🔴 THE BUG THIS EXISTS TO KILL. Writes stamped `scope.tenantId` directly. For a super
- * admin who has not entered a workspace that is `null`, so the row was saved unowned —
+ * admin who has not entered a workspace that is `null`, so the row was saved unowned -
  * while `dataScopeOf` (above) sends the same caller's READS to the Platform tenant.
  * Written as null, searched for as "platform": an assessment created from /admin
  * disappeared the instant it was saved. It was never lost, and its public funnel served
@@ -174,13 +174,13 @@ export async function actingDataScope(): Promise<Scope> {
  *
  * So this returns a NON-NULLABLE id, and that type is the fix. `dataScopeOf` answers
  * "which rows may I see" and may legitimately be a whole tenant or none; this answers
- * "whose row is this" and there is no honest null — every row belongs to somebody. A
+ * "whose row is this" and there is no honest null - every row belongs to somebody. A
  * write site that tries to pass a nullable value now fails to compile instead of
  * silently orphaning a row, which is why the signature matters more than the body.
  *
  * The platform's own work is owned by the PLATFORM TENANT. That is what the Platform
  * tenant is for: "super admin" is a role, not a place to put rows. Nothing here rates,
- * meters or gates the owner — those are separate questions, answered by the billing
+ * meters or gates the owner - those are separate questions, answered by the billing
  * resolver, which treats the platform scope as unlimited.
  */
 export function configTenantOf(scope: ActingScope): string {

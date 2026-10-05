@@ -18,7 +18,7 @@ export interface AuthUser {
 }
 
 /**
- * Gate every protected surface on the account's current DB state (fresh — not the
+ * Gate every protected surface on the account's current DB state (fresh - not the
  * possibly-stale session): a soft-deleted user is bounced to sign-in, and a user
  * whose password was set by a super admin is forced to /change-password first.
  * Called from the role guards below (not requireUser, so /change-password itself
@@ -38,7 +38,7 @@ export function isStaff(user: { staffPermission?: string | null }): boolean {
   return user.staffPermission === "VIEW" || user.staffPermission === "EDIT";
 }
 
-/** Whether the CURRENT signed-in user may edit — for server components/pages to
+/** Whether the CURRENT signed-in user may edit - for server components/pages to
  *  hide edit controls from VIEW-only staff. Reads the session (no redirect). */
 export async function currentUserCanEdit(): Promise<boolean> {
   const session = await getSession();
@@ -54,18 +54,18 @@ export function canEdit(user: { staffPermission?: string | null }): boolean {
 /** For a mutation Server Action: returns an error result to bail with when the
  *  caller is view-only, else null to proceed. */
 export function editDenied(user: { staffPermission?: string | null }): { ok: false; error: string } | null {
-  return canEdit(user) ? null : { ok: false, error: "You have view-only access — ask an admin for edit rights." };
+  return canEdit(user) ? null : { ok: false, error: "You have view-only access - ask an admin for edit rights." };
 }
 
-/** THROW when the caller is view-only — for mutation actions whose return type is
+/** THROW when the caller is view-only - for mutation actions whose return type is
  *  not ActionResult (so a graceful error object wouldn't type-check). Safe: the
  *  write never runs. */
 export function assertCanEditOrThrow(user: { staffPermission?: string | null }): void {
-  if (!canEdit(user)) throw new Error("View-only access — ask an admin for edit rights.");
+  if (!canEdit(user)) throw new Error("View-only access - ask an admin for edit rights.");
 }
 
 /**
- * Require a FULL owner/admin (never a staff member) — for staff management and any
+ * Require a FULL owner/admin (never a staff member) - for staff management and any
  * owner-only action. Staff (even EDIT) are redirected away.
  */
 export async function requireOwnerAdmin(): Promise<AuthUser> {
@@ -94,7 +94,7 @@ export function isSuperAdmin(user: { role?: string | null; email: string }): boo
 }
 
 /**
- * Require the platform owner (super admin) — the platform console + tenant
+ * Require the platform owner (super admin) - the platform console + tenant
  * management. Authenticated non-super users are sent to their tenant workspace.
  */
 export async function requireSuperAdmin(): Promise<AuthUser> {
@@ -108,8 +108,8 @@ export async function requireSuperAdmin(): Promise<AuthUser> {
 
 /**
  * Require a TENANT admin and return their tenant scope. A tenant admin is a
- * non-super user with a tenantId. (Super-admin impersonation — acting *as* a
- * tenant — is resolved separately in Stage 2 via the acting-tenant context.)
+ * non-super user with a tenantId. (Super-admin impersonation - acting *as* a
+ * tenant - is resolved separately in Stage 2 via the acting-tenant context.)
  * Redirects a tenant-less user to the info dashboard.
  */
 export async function requireTenantAdmin(): Promise<{ user: AuthUser; tenantId: string }> {

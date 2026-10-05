@@ -4,7 +4,7 @@
  * page with no ids of its own supply them.
  *
  * Why this matters: a CTA click can only be traced back to a respondent if the
- * ids are IN THE URL. The Referer header cannot carry them — our own CTA anchors
+ * ids are IN THE URL. The Referer header cannot carry them - our own CTA anchors
  * are rel="noreferrer", page builders set referrer policies, and the Facebook /
  * Instagram in-app browsers strip it outright. Getting the stamp wrong is
  * silent: clicks keep working, they just arrive anonymous.
@@ -62,7 +62,7 @@ const VIDEO = "https://app.vidapulse.io/api/analytics/cta/27bbe6ad-95c9-4ee2-835
   expect("no ids means no rewrite", stampVidapulseCtaUrl(LINK, null, null) === LINK);
 }
 
-// (c) Partial identity — an older link may carry only one of the two.
+// (c) Partial identity - an older link may carry only one of the two.
 {
   const tokenOnly = new URL(stampVidapulseCtaUrl(LINK, null, TOK) ?? "");
   expect("token alone still stamps", tokenOnly.searchParams.get("t") === TOK);
@@ -73,7 +73,7 @@ const VIDEO = "https://app.vidapulse.io/api/analytics/cta/27bbe6ad-95c9-4ee2-835
   expect("cid alone adds no empty token", cidOnly.searchParams.get("t") === null);
 }
 
-// (d) An id the owner already put on the link wins — we never overwrite it.
+// (d) An id the owner already put on the link wins - we never overwrite it.
 {
   const preset = `${LINK}?t=THEIRTOKEN&cid=THEIRCID`;
   const u = new URL(stampVidapulseCtaUrl(preset, CID, TOK) ?? "");

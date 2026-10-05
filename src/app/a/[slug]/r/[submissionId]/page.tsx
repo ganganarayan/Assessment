@@ -30,7 +30,7 @@ export const dynamic = "force-dynamic";
  *
  * This route had no metadata at all, so it inherited the root default and was as
  * indexable as the homepage. A result page is one person's scored answers at a guessable
- * URL shape — robots.txt does not cover it (its "/r/" rule matches only paths that START
+ * URL shape - robots.txt does not cover it (its "/r/" rule matches only paths that START
  * with /r/, not /a/<slug>/r/<id>), so the instruction has to live here.
  *
  * `follow: false` as well as `index: false`: the page carries the respondent's onward CTA
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
 /**
  * Result page reached at /a/:slug/r/:submissionId.
  *  - The signed-in PLATFORM OWNER sees the full result (the admin "Result" link
- *    in Submissions lands here) — for review.
+ *    in Submissions lands here) - for review.
  *  - Everyone else (the public) NEVER sees results here; results are delivered
  *    only via the destination page (token + connector). This is our decision.
  */
@@ -131,13 +131,13 @@ export default async function ResultPage({
   if (!submission || submission.assessment.slug !== slug) notFound();
 
   const user = await getCurrentUser();
-  // isSuperOwner gates the RAW ADMIN VIEW below (AI statement tools etc.) — those
+  // isSuperOwner gates the RAW ADMIN VIEW below (AI statement tools etc.) - those
   // actions (features/admin/actions/ai-statements.ts) are super-admin-only, so
   // exposing that branch to a tenant admin would render buttons that silently
   // redirect on click. Stays super-admin-only.
   const isSuperOwner = user ? isSuperAdmin(user) : false;
   // canViewInternally additionally allows a TENANT admin/staff to view (read-only)
-  // a result belonging to their OWN tenant, without a token — this is what the
+  // a result belonging to their OWN tenant, without a token - this is what the
   // "Result" link in /w/submissions (and /admin/submissions) relies on. Previously
   // this was isSuperOwner-only, so a tenant admin clicking "Result" on their own
   // submission fell through every branch to the blank public fallback page.
@@ -160,18 +160,18 @@ export default async function ResultPage({
   const continueLabel = submission.assessment.resultsContinueLabel?.trim() || "Continue";
   // The button routes through /api/onward/:id (not the raw external URL) so the click
   // is tracked server-side (bumps the VSL counter) and the token rides along to the
-  // destination — with NO code required on the destination page. Null => no button.
+  // destination - with NO code required on the destination page. Null => no button.
   const onwardHref = continueUrl ? `/api/onward/${submissionId}` : null;
 
-  // Billing gate: a result over the tenant's response cap is LOCKED — neither the
+  // Billing gate: a result over the tenant's response cap is LOCKED - neither the
   // respondent nor the tenant admin may see it (only the platform owner, who is never
-  // limited, can review). Show a neutral "results unavailable — contact support" page.
+  // limited, can review). Show a neutral "results unavailable - contact support" page.
   const locked = await isResponseLocked(submission.assessment.tenantId, submission.periodSeq);
   if (locked && !isSuperOwner) {
     const supportEmail = await supportEmailFor(submission.assessment.tenantId);
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-md flex-col justify-center gap-4 px-4 py-16">
-        <h1 className="text-2xl font-bold tracking-tight">Thanks — your responses are in.</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Thanks - your responses are in.</h1>
         <p className="text-[var(--muted-foreground)]">
           Your results aren&apos;t available to view right now. If you&apos;d like your results,
           please reach out and we&apos;ll help you out.
@@ -190,14 +190,14 @@ export default async function ResultPage({
     );
   }
 
-  // result.viewed represents the RESPONDENT opening their result — don't fire it
+  // result.viewed represents the RESPONDENT opening their result - don't fire it
   // for an internal (admin/tenant) review.
   if (!canViewInternally) await markResultViewed(submissionId);
 
   const snap = submission.resultSnapshot as unknown as ResultSnapshot | null;
 
   // Categories in the builder's order (displayOrder), not the stored snapshot's
-  // scoring-iteration order — so the serial numbers baked into names/questions read
+  // scoring-iteration order - so the serial numbers baked into names/questions read
   // in sequence. Also repairs already-completed submissions saved before this fix.
   const catOrder = new Map(submission.assessment.categories.map((c) => [c.name, c.displayOrder]));
   const orderedCats = snap
@@ -205,7 +205,7 @@ export default async function ResultPage({
     : [];
 
   // ---- Clinic-audit engine: branded interactive result --------------------
-  // Reachable by the submission id ALONE — no token, no sign-in. The id is an
+  // Reachable by the submission id ALONE - no token, no sign-in. The id is an
   // unguessable cuid, and this page is built to be forwarded ("Send this to the
   // clinic owner"), so requiring ?t= made the SAME url behave differently for the
   // sender and the recipient: whoever opened it without the token got a bare
@@ -223,18 +223,18 @@ export default async function ResultPage({
         })
       : null;
     // The ₹-gap band is still computed and stored (submission.ts) for INTERNAL
-    // triage — Submissions table, CRM webhook segmentation. It is deliberately NOT
+    // triage - Submissions table, CRM webhook segmentation. It is deliberately NOT
     // shown to the respondent: a fixed category label can only ever contradict the
     // calculation trail below (a small-gap clinic can still be genuinely desperate;
-    // a big-gap one merely comfortable) — the numbers make the case on their own.
+    // a big-gap one merely comfortable) - the numbers make the case on their own.
     // Re-derive the funnel inputs from the STORED ANSWERS instead of trusting the
     // snapshot's pre-converted numbers, so a correction to how a question's scale is
-    // read applies to every submission — including ones scored before the fix. Falls
+    // read applies to every submission - including ones scored before the fix. Falls
     // back to the snapshot when the answers are unavailable.
     const rawAnswers = await getClinicRawAnswers(submissionId);
     // Merge the STORED config over the current defaults: a snapshot written before
     // a config key existed carries no value for it, and reading that key straight
-    // off the snapshot yields undefined — which turns every derived figure into NaN.
+    // off the snapshot yields undefined - which turns every derived figure into NaN.
     const liveConfig = resolveEngineConfig(snap.clinic.config);
     const liveInputs = rawAnswers.length > 0 ? deriveInputs(rawAnswers, liveConfig) : snap.clinic.inputs;
     const original = computeResult(liveInputs, liveConfig);
@@ -244,7 +244,7 @@ export default async function ResultPage({
     const resultUrl = `${proto}://${host}/a/${slug}/r/${submissionId}${
       token ? `?t=${encodeURIComponent(token)}` : ""
     }`;
-    // Raw funnel inputs, for the internal-only block below — role, the number the
+    // Raw funnel inputs, for the internal-only block below - role, the number the
     // engine actually used, and whether it was assumed (range midpoint) or a typed
     // actual figure. Never shown to the respondent.
     const inputRows: { label: string; value: string; assumed: boolean }[] = [
@@ -257,20 +257,20 @@ export default async function ResultPage({
       { label: "Dormant list", value: String(original.dormant.count), assumed: original.assumptions.includes("dormant list size") },
       { label: "Spare capacity", value: String(original.capacity), assumed: original.assumptions.includes("spare capacity") },
     ];
-    // Their answers, question by question, grouped by category — shown in full to
+    // Their answers, question by question, grouped by category - shown in full to
     // internal viewers (with the value the engine used, so a misconfigured option
     // is visible), and to the respondent so they can spot a typo in what they filled.
     const clinicAnswers = await getClinicAnswers(submissionId);
     return (
       <main style={{ minHeight: "100vh", background: "#F7F5F0" }}>
-        {/* Colours come from the THEME tokens, never a hardcoded white — the app
+        {/* Colours come from the THEME tokens, never a hardcoded white - the app
             renders dark for signed-in staff, so a fixed white panel made every
             value (which inherits --foreground) white-on-white and invisible. */}
         {showInternal ? (
           <div className="border-b border-[var(--border)] bg-[var(--background)] text-[var(--foreground)]">
             <div className="mx-auto w-full max-w-2xl px-4 py-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-                Internal — not shown to the respondent
+                Internal - not shown to the respondent
               </p>
               {original.dataInconsistent ? (
                 <div className="mt-2 rounded-md border border-amber-500 bg-amber-500/10 px-3 py-2 text-sm">
@@ -285,7 +285,7 @@ export default async function ResultPage({
                         .join(" and ")}{" "}
                       came out implausibly low. If those questions are worded &ldquo;out of every
                       10&rdquo;, set their <strong>unit to &ldquo;Out of 10&rdquo;</strong> in the
-                      builder — otherwise an answer of 7 is read as 7%, not 70%.
+                      builder - otherwise an answer of 7 is read as 7%, not 70%.
                     </>
                   ) : (
                     <>This funnel computes to under one case a month, so a figure is in the wrong scale.</>
@@ -306,14 +306,14 @@ export default async function ResultPage({
                 </div>
               ) : null}
               <div className="mt-2 grid grid-cols-1 gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
-                <Field label="Name">{[submission.leadFirstName, submission.leadLastName].filter(Boolean).join(" ") || "—"}</Field>
-                <Field label="Phone">{submission.leadMobile?.trim() || "—"}</Field>
-                <Field label="Email">{submission.leadEmail?.trim() || "—"}</Field>
-                <Field label={submission.assessment.professionLabel?.trim() || "Profession"}>{submission.leadProfession?.trim() || "—"}</Field>
-                <Field label="Completed">{submission.completedAt ? new Date(submission.completedAt).toLocaleString() : "—"}</Field>
+                <Field label="Name">{[submission.leadFirstName, submission.leadLastName].filter(Boolean).join(" ") || "-"}</Field>
+                <Field label="Phone">{submission.leadMobile?.trim() || "-"}</Field>
+                <Field label="Email">{submission.leadEmail?.trim() || "-"}</Field>
+                <Field label={submission.assessment.professionLabel?.trim() || "Profession"}>{submission.leadProfession?.trim() || "-"}</Field>
+                <Field label="Completed">{submission.completedAt ? new Date(submission.completedAt).toLocaleString() : "-"}</Field>
                 <Field label="Internal band">{original.band}{original.notViable ? " · not viable" : ""}{original.capacityBlocked ? " · capacity-blocked" : ""}</Field>
               </div>
-              {/* Always visible (not a <details>) — collapsed content is invisible
+              {/* Always visible (not a <details>) - collapsed content is invisible
                   when the page is printed or saved to PDF, which is exactly when
                   these figures are needed most. */}
               <div className="mt-3 text-sm">
@@ -367,7 +367,7 @@ export default async function ResultPage({
   }
 
   // ---- Native VSL result page (RESULTS mode, builder-built) ----------------
-  // Rendered whenever the TOKEN (respondent) link is used — including by a signed-in
+  // Rendered whenever the TOKEN (respondent) link is used - including by a signed-in
   // admin previewing via ?t=. It must come BEFORE the admin-review branch below, which
   // otherwise intercepts every super-admin visit (even with a token) and shows the raw
   // admin view instead of the page the respondent actually sees. The no-token internal
@@ -382,8 +382,8 @@ export default async function ResultPage({
   ) {
     const vslPage = readResultPage(submission.assessment.resultPagePublished ?? null);
     if (vslPage.blocks.length > 0) {
-      // A real respondent reaching the native VSL page counts as a VSL load — the SAME
-      // resultFetchCount the external destination bumps via /api/r — so the "VSL" column
+      // A real respondent reaching the native VSL page counts as a VSL load - the SAME
+      // resultFetchCount the external destination bumps via /api/r - so the "VSL" column
       // reflects native and external views alike. Admin previews (canViewInternally) are
       // excluded. Fire-and-forget so a count write never blocks the render.
       if (!canViewInternally) {
@@ -414,7 +414,7 @@ export default async function ResultPage({
     }
   }
 
-  // ---- Admin review: full result (super admin only — see canViewInternally note
+  // ---- Admin review: full result (super admin only - see canViewInternally note
   //      above re: AiStatementManager's actions being super-admin-gated) ---------
   if (isSuperOwner && submission.status === "COMPLETED" && snap) {
     const aiRows = await getAiStatements(submissionId);
@@ -444,12 +444,12 @@ export default async function ResultPage({
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-x-10 gap-y-2 text-sm sm:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Field label="Name">{[submission.leadFirstName, submission.leadLastName].filter(Boolean).join(" ") || "—"}</Field>
-                <Field label="Phone">{submission.leadMobile?.trim() || "—"}</Field>
-                <Field label="Email">{submission.leadEmail?.trim() || "—"}</Field>
+                <Field label="Name">{[submission.leadFirstName, submission.leadLastName].filter(Boolean).join(" ") || "-"}</Field>
+                <Field label="Phone">{submission.leadMobile?.trim() || "-"}</Field>
+                <Field label="Email">{submission.leadEmail?.trim() || "-"}</Field>
               </div>
               <div className="flex flex-col gap-2">
-                <Field label="Customer ID">{submission.customerId || "—"}</Field>
+                <Field label="Customer ID">{submission.customerId || "-"}</Field>
                 <Field label="Result link">
                   {(() => {
                     const link = resultUrlFor(submission.assessment.targetUrl, slug, submissionId, submission.resultToken);
@@ -469,7 +469,7 @@ export default async function ResultPage({
                     Download
                   </a>
                 </Field>
-                <Field label={submission.assessment.professionLabel?.trim() || "Profession"}>{submission.leadProfession?.trim() || "—"}</Field>
+                <Field label={submission.assessment.professionLabel?.trim() || "Profession"}>{submission.leadProfession?.trim() || "-"}</Field>
               </div>
             </CardContent>
           </Card>
@@ -507,7 +507,7 @@ export default async function ResultPage({
                       <div className="flex items-center justify-between gap-3">
                         <span className="font-medium">
                           {c.name}
-                          {c.band ? ` — ${c.band}` : ""}
+                          {c.band ? ` - ${c.band}` : ""}
                         </span>
                         <span className="shrink-0 font-medium">
                           {c.score} / {c.max}
@@ -526,7 +526,7 @@ export default async function ResultPage({
                               <span>
                                 {q.text}
                                 {q.answer ? (
-                                  <span className="text-[var(--foreground)]"> — {q.answer}</span>
+                                  <span className="text-[var(--foreground)]"> - {q.answer}</span>
                                 ) : null}
                               </span>
                               <span className="shrink-0 tabular-nums">
@@ -557,8 +557,8 @@ export default async function ResultPage({
     snap &&
     (canViewInternally || (!!token && token === submission.resultToken))
   ) {
-    // (The published VSL page, when present, is rendered earlier — before the admin
-    // branch — so the token link shows it even to a signed-in admin. This branch is the
+    // (The published VSL page, when present, is rendered earlier - before the admin
+    // branch - so the token link shows it even to a signed-in admin. This branch is the
     // score-cards fallback for RESULTS assessments with no published result page.)
     // Group the category breakdown by page (1 = assessment, 2 = queries) so both
     // scored pages show as separate sections. Page is looked up by name at render time.
@@ -611,7 +611,7 @@ export default async function ResultPage({
             </Card>
           ))}
           {/* Onward button (nextStep RESULTS): routes via /api/onward/:id so the
-              click is tracked (VSL) and the token rides along — no code needed on
+              click is tracked (VSL) and the token rides along - no code needed on
               the destination page. */}
           {onwardHref ? (
             <a

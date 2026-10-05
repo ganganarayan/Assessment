@@ -5,7 +5,7 @@ import type { StatementInput } from "@/lib/ai/types";
  * multiple styles side by side so they can be A/B compared in the dashboard;
  * the active one (what real respondents get) is stored on AppSetting. Removing a
  * loser later is just deleting its entry here. The user/data message is shared
- * across versions (built in prompt.ts) — only the SYSTEM prompt differs.
+ * across versions (built in prompt.ts) - only the SYSTEM prompt differs.
  */
 export interface PromptVersion {
   id: string;
@@ -65,10 +65,10 @@ const v2EasyRead: PromptVersion = {
 };
 
 /**
- * Bridge — symptom → cause. A behavioural redesign: the free message is NOT an
+ * Bridge - symptom → cause. A behavioural redesign: the free message is NOT an
  * assessment summary, it is the bridge to the paid diagnosis. It acknowledges,
  * names ONE genuine strength and ONE struggle, then surfaces ONE real, specific,
- * UNRESOLVED contradiction in the respondent's own answers to drive curiosity —
+ * UNRESOLVED contradiction in the respondent's own answers to drive curiosity -
  * without ever revealing the pattern, cause, or fix. `minimal: true` so it reaches
  * the reader verbatim (no bandLine, no dash-stripping, no historical guidance);
  * crisis is baked in via the {{CRISIS_LINE}} token (applied post-generation).
@@ -77,7 +77,7 @@ const v3Bridge: PromptVersion = {
   id: "v3-bridge",
   label: "Bridge · symptom → cause (curiosity, no reveal)",
   description:
-    "The free message becomes a bridge to the paid diagnosis. Warm acknowledgement + profession, one real strength, one struggle, then ONE real contradiction the model finds in their OWN answers but NEVER discloses (no naming, no why, no interpretation) — referenced only as 'one particular combination' to create high curiosity, then hope → video → diagnosis. Never walks the categories, never reveals the pattern or cause.",
+    "The free message becomes a bridge to the paid diagnosis. Warm acknowledgement + profession, one real strength, one struggle, then ONE real contradiction the model finds in their OWN answers but NEVER discloses (no naming, no why, no interpretation) - referenced only as 'one particular combination' to create high curiosity, then hope → video → diagnosis. Never walks the categories, never reveals the pattern or cause.",
   minimal: true,
   buildSystem: (input) =>
     [
@@ -110,7 +110,7 @@ export const DEFAULT_PROMPT_VERSION = v2EasyRead.id;
 /**
  * The system prompt for a tenant instruction version is the owner's text,
  * VERBATIM. No scaffold, no word count, no crisis block, no "use the band words"
- * line — nothing that could contradict what they wrote. The only thing the app
+ * line - nothing that could contradict what they wrote. The only thing the app
  * adds (in prompt.ts) is the prompt-injection safety guard, which never changes
  * the message. The score/category DATA is supplied in the user message, so the
  * instructions stay purely about how to interpret and write.

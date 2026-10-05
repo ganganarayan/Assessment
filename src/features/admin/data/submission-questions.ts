@@ -9,7 +9,7 @@ import {
 /**
  * Load the per-question breakdown for a submission from the stored answers + the
  * assessment's questions/options. The data is denormalized into SubmissionAnswer
- * at completion, so this works for ANY completed submission (old or new) — it
+ * at completion, so this works for ANY completed submission (old or new) - it
  * powers both the result-page display and the AI regenerate path without needing
  * the breakdown baked into the snapshot.
  */

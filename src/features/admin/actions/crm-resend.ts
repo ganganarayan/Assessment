@@ -308,7 +308,7 @@ export async function startCustom(
   return { ok: true, data: { enqueued } };
 }
 
-/** Count how many contacts the given scope would queue — preview before sending. */
+/** Count how many contacts the given scope would queue - preview before sending. */
 export async function previewCustomCount(
   assessmentId: string,
   scope: CustomScope = "all",
@@ -323,7 +323,7 @@ export async function stopCustom(): Promise<ActionResult> {
   return { ok: true };
 }
 
-/** Empty the CUSTOM queue (everything not mid-send) — discard a stale/leftover run
+/** Empty the CUSTOM queue (everything not mid-send) - discard a stale/leftover run
  *  so the next Start queues only the chosen scope. */
 export async function clearCustomPending(): Promise<ActionResult<{ cleared: number }>> {
   assertCanEditOrThrow(await requireSuperAdmin());

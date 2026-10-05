@@ -38,10 +38,10 @@ export default async function SubmissionsPage({
   const sp = await searchParams;
   const t = await actingTenantId();
   // "which workspace is entered" (t) is a different question from "which rows to list"
-  // (dataScope) — no workspace entered means every tenant, not rows owned by nobody.
+  // (dataScope) - no workspace entered means every tenant, not rows owned by nobody.
   const dataScope = await actingDataScope();
   // The VSL `cid` param for this tenant (submissions are scoped to one tenant's
-  // assessment) — appended to each row's Result URL so the "Copy" link an operator
+  // assessment) - appended to each row's Result URL so the "Copy" link an operator
   // sends for nurture carries the customer id into VidaPulse.
   const vidapulseParam = await vidapulseParamForTenant(t);
   const assessmentOptions = (await listAssessments(dataScope)).map((a) => ({ id: a.id, title: a.title }));
@@ -49,12 +49,12 @@ export default async function SubmissionsPage({
   // use the URL id, else default to the newest assessment (list is createdAt desc).
   const scopedId = sp.assessment ?? assessmentOptions[0]?.id;
   const scoped = scopedId ? await getAssessmentForAnalytics(scopedId, dataScope) : null;
-  // A BOUNDED window of the most recent submissions — not the whole table.
+  // A BOUNDED window of the most recent submissions - not the whole table.
   //
   // This used to fetch up to 100,000 rows so the search box could match across
   // everything client-side. Every one of them was then mapped, had its payment status
   // looked up, and was serialized into the page payload, so one operator opening this
-  // screen cost more memory than a thousand respondents finishing an assessment — and
+  // screen cost more memory than a thousand respondents finishing an assessment - and
   // it grew with the tenant, so the busiest customer broke it first.
   //
   // The window keeps instant sort and filter over recent leads, which is what this

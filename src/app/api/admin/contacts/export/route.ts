@@ -7,7 +7,7 @@ import { formatIST } from "@/lib/date";
 
 /**
  * Super-admin contacts export. GET /api/admin/contacts/export?format=csv|json
- * &from=&to= — returns ALL contacts in the date range (else all-time) as an
+ * &from=&to= - returns ALL contacts in the date range (else all-time) as an
  * attachment. Name/email/phone are separate columns.
  */
 export const dynamic = "force-dynamic";

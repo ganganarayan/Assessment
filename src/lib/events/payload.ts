@@ -1,11 +1,11 @@
 /**
- * Central webhook/event payload assembler — the SINGLE source of truth for the
+ * Central webhook/event payload assembler - the SINGLE source of truth for the
  * payload shape. Both real emission (lib/events/emit.ts) and the config-screen
  * preview (admin/webhooks) build payloads through here, so the preview can never
  * drift from what is actually sent.
  *
  * Pure: takes `baseUrl` as an argument (no env import) so it is unit-testable
- * without a server/DB — see scripts/verify-webhook-payload.ts.
+ * without a server/DB - see scripts/verify-webhook-payload.ts.
  *
  * Extensibility: the top-level envelope is fixed; only `metadata` varies by
  * event type via METADATA_BUILDERS. A new event type registers its own builder
@@ -160,7 +160,7 @@ export function buildEnvelope(
   const pctRounded = score && score.percentage != null ? Math.round(score.percentage) : null;
   envelope["contact.customer_id"] = input.customerId ?? null;
   // Stored so a CRM page can hand it back to VidaPulse.setId() and make its own
-  // CTA links traceable — see EmitInput.resultToken.
+  // CTA links traceable - see EmitInput.resultToken.
   envelope["contact.result_token"] = input.resultToken ?? null;
   // snake_case fields (the CRM maps these); camelCase kept for back-compat.
   envelope["contact.assessment_score"] = pctRounded;
@@ -172,13 +172,13 @@ export function buildEnvelope(
   envelope["contact.scoreRaw"] = score?.total ?? null; // back-compat
   envelope["contact.max"] = score?.max ?? null; // back-compat
   envelope["contact.result_band"] = band?.level ?? null;
-  // The human band word shown in the Result column (Critical / Strained / etc.) —
+  // The human band word shown in the Result column (Critical / Strained / etc.) -
   // the contact's diagnosis. result_band keeps the LEVEL; this is the title.
   envelope["contact.assessment_diagnosis"] = band?.title ?? null;
   envelope["contact.result_url"] = (m.resultUrl as string | null) ?? null;
   envelope["contact.ai_statement"] = input.aiStatement ?? null;
 
-  // Clinic-audit computed figures (CLINIC_AUDIT engine only) — flat contact fields
+  // Clinic-audit computed figures (CLINIC_AUDIT engine only) - flat contact fields
   // so the CRM/n8n can map the money numbers directly, plus a metadata.clinic block.
   if (input.clinic) {
     const c = input.clinic;

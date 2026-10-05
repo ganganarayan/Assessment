@@ -5,12 +5,12 @@ import { railwayRoutedHosts } from "@/lib/railway/domains";
 import { effectiveHost } from "@/lib/tenant/forwarded-host";
 
 /**
- * "Is this a hostname we serve?" — the ONE answer, for everything that needs it.
+ * "Is this a hostname we serve?" - the ONE answer, for everything that needs it.
  *
  * 🔴 The bug this exists to end. Three separate things each held their own idea of
  * "our domain": Better Auth's trustedOrigins (an env list), its baseURL (one env
  * string), and the Domain table (the real, per-tenant list). The moment a domain
- * changed, they disagreed — and the symptom is brutal to read, because the origin
+ * changed, they disagreed - and the symptom is brutal to read, because the origin
  * check runs on EVERY non-GET request and throws before anything else happens. Sign-in
  * returns "Invalid origin" without the password being checked; "Forgot password"
  * returns 403 before sendResetPassword runs, so no email is attempted while the screen
@@ -22,7 +22,7 @@ import { effectiveHost } from "@/lib/tenant/forwarded-host";
  *
  * 🟡 Why not simply trust the Host header. Because the reset link is built from it. A
  * forged `Host: evil.com` would mint a password-reset URL pointing at the attacker and
- * mail it to the real user — account takeover from one header. Every host is therefore
+ * mail it to the real user - account takeover from one header. Every host is therefore
  * checked against the list below, and anything unrecognised falls back to canonical.
  */
 
@@ -30,19 +30,19 @@ import { effectiveHost } from "@/lib/tenant/forwarded-host";
 export function normalizeHost(host: string | null | undefined): string {
   const h = (host ?? "").trim().toLowerCase();
   if (!h) return "";
-  // IPv6 literals arrive bracketed ("[::1]:3000") — keep the bracketed part intact.
+  // IPv6 literals arrive bracketed ("[::1]:3000") - keep the bracketed part intact.
   const withoutPort = h.startsWith("[") ? h.slice(0, h.indexOf("]") + 1) : (h.split(":")[0] ?? "");
   return withoutPort.replace(/\.$/, "");
 }
 
-/** The app's canonical host, from env. Bootstrap only — never the sole authority. */
+/** The app's canonical host, from env. Bootstrap only - never the sole authority. */
 export function canonicalHost(): string {
   for (const candidate of [env.BETTER_AUTH_URL, env.NEXT_PUBLIC_APP_URL]) {
     try {
       const h = normalizeHost(new URL(candidate).host);
       if (h) return h;
     } catch {
-      /* malformed env value — try the next */
+      /* malformed env value - try the next */
     }
   }
   return normalizeHost(env.NEXT_PUBLIC_ROOT_DOMAIN);
@@ -54,7 +54,7 @@ export function canonicalOrigin(): string {
     try {
       return new URL(candidate).origin;
     } catch {
-      /* malformed env value — try the next */
+      /* malformed env value - try the next */
     }
   }
   // With no root configured there is nothing left to fall back to. Return empty rather
@@ -87,7 +87,7 @@ function isRootOrSubdomain(host: string): boolean {
 const CACHE_TTL_MS = 60_000;
 /** Hard cap: the key is a request-supplied hostname, so an attacker spraying random
  *  Host headers would otherwise grow this map without bound. Past the cap the whole
- *  map is dropped — the cost is one query per host afterwards, never memory. */
+ *  map is dropped - the cost is one query per host afterwards, never memory. */
 const CACHE_MAX = 500;
 const cache = new Map<string, { served: boolean; at: number }>();
 
@@ -98,7 +98,7 @@ async function hasDomainRow(host: string): Promise<boolean> {
   let served = false;
   try {
     // Deliberately NOT filtered on `verified`. Verified means "the cert is live",
-    // which is a provisioning milestone — but if a request is physically arriving on
+    // which is a provisioning milestone - but if a request is physically arriving on
     // this host, it already routes here, and refusing to authenticate it only locks
     // the tenant out of the screen they'd use to finish setting it up.
     const row = await prisma.domain.findUnique({ where: { hostname: host }, select: { id: true } });
@@ -115,31 +115,31 @@ async function hasDomainRow(host: string): Promise<boolean> {
   return served;
 }
 
-/** Forget a cached answer — call after a domain is added or removed. */
+/** Forget a cached answer - call after a domain is added or removed. */
 export function forgetServedHost(host: string | null | undefined): void {
   const h = normalizeHost(host);
   if (h) cache.delete(h);
 }
 
 /**
- * Hosts Railway routes to this service — the PRIMARY source of truth.
+ * Hosts Railway routes to this service - the PRIMARY source of truth.
  *
  * 🟢 Why this and not a row or an env var. A request physically arrives on a Host only
  * because Railway routes that Host to this service. So Railway's own list is, by
  * definition, the set of hosts we serve. Point a domain at the service and it
- * authenticates; detach it and it stops — no env edit, no redeploy, no command, and
+ * authenticates; detach it and it stops - no env edit, no redeploy, no command, and
  * nothing to keep in sync. Changing the platform's domain tomorrow just works.
  *
  * Cached for 5 minutes, with one in-flight request shared between callers, because
  * this sits in front of every non-GET request.
  *
  * 🟡 On failure the LAST GOOD list is kept and reused past its TTL. A Railway API blip
- * must never un-trust every domain at once — that would lock every tenant out of their
+ * must never un-trust every domain at once - that would lock every tenant out of their
  * own site until the API recovered. Stale-but-working beats correct-and-down.
  */
 const ROUTED_TTL_MS = 5 * 60_000;
 /** After a failed lookup, wait this long before asking again. Without it a Railway
- *  outage would mean one 15s-timeout API call in front of EVERY sign-in — the API
+ *  outage would mean one 15s-timeout API call in front of EVERY sign-in - the API
  *  hammered and the app crawling, at the worst possible moment. */
 const ROUTED_RETRY_MS = 30_000;
 let routed: { hosts: string[]; at: number } | null = null;
@@ -161,7 +161,7 @@ async function railwayServes(host: string): Promise<boolean> {
   return routed?.hosts.includes(host) ?? false;
 }
 
-/** Forget the routed-host list — call after adding or removing a Railway domain. */
+/** Forget the routed-host list - call after adding or removing a Railway domain. */
 export function forgetRoutedHosts(): void {
   routed = null;
   routedAttemptedAt = 0;
@@ -193,7 +193,7 @@ function schemeOf(headers: Headers, host: string): string {
 /**
  * The origin a link mailed to this request's user should point at: the host they are
  * actually using when we serve it, else canonical. This is what makes a reset link
- * land back on the tenant's own domain instead of ours — and what stops a forged Host
+ * land back on the tenant's own domain instead of ours - and what stops a forged Host
  * header from redirecting the token somewhere else.
  */
 export async function originForRequest(request: Request | undefined | null): Promise<string> {
@@ -228,6 +228,6 @@ export async function linkForRequest(url: string, request: Request | undefined |
     u.host = target.host;
     return u.toString();
   } catch {
-    return url; // not absolute — leave it exactly as Better Auth produced it
+    return url; // not absolute - leave it exactly as Better Auth produced it
   }
 }

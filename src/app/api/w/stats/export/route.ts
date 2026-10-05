@@ -12,7 +12,7 @@ import { formatIST } from "@/lib/date";
 
 /**
  * Tenant-scoped Stats export. GET /api/w/stats/export?dataset=utm|pageviews
- * &format=csv|json&from=&to= — same shape as the super-admin export, restricted to
+ * &format=csv|json&from=&to= - same shape as the super-admin export, restricted to
  * the signed-in tenant's own traffic.
  */
 export const dynamic = "force-dynamic";

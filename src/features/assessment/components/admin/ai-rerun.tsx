@@ -112,7 +112,7 @@ export function AiRerun({ assessmentId }: { assessmentId: string }) {
       <p className="text-xs text-[var(--muted-foreground)]">
         Regenerates each completed contact&apos;s AI message from their CURRENT bands (after the
         recompute above) using the active prompt. The new message becomes the served default; old
-        versions are kept. Runs in rounds of 5, ~15–20s each, so this takes a few minutes for ~85
+        versions are kept. Runs in rounds of 5, ~15-20s each, so this takes a few minutes for ~85
         contacts. Keep this page open until it finishes.
       </p>
       <div className="flex flex-wrap gap-3">
@@ -145,7 +145,7 @@ export function AiRerun({ assessmentId }: { assessmentId: string }) {
           ) : null}
           {failed > 0 ? (
             <p className="text-xs text-[var(--muted-foreground)]">
-              Failures usually mean AI is off or the key is invalid — check Settings, then re-run (already-updated
+              Failures usually mean AI is off or the key is invalid - check Settings, then re-run (already-updated
               contacts just get refreshed again).
             </p>
           ) : null}
@@ -161,12 +161,12 @@ export function AiRerun({ assessmentId }: { assessmentId: string }) {
           {samples.map((s, i) => (
             <div key={i} className="rounded border p-3 text-sm">
               <p className="mb-1 text-xs font-medium text-[var(--muted-foreground)]">
-                <span className="font-mono">{s.customerId ?? "—"}</span>
+                <span className="font-mono">{s.customerId ?? "-"}</span>
                 {s.firstName ? ` · ${s.firstName}` : ""}
                 {` · ${s.profession ?? "no profession"}`} · {s.scorePercent}%
                 {s.band ? ` · ${s.band}` : ""}
               </p>
-              <p className="whitespace-pre-line">{s.text ?? "(no response — is AI enabled?)"}</p>
+              <p className="whitespace-pre-line">{s.text ?? "(no response - is AI enabled?)"}</p>
             </div>
           ))}
         </div>

@@ -9,7 +9,7 @@ import { type ResultSnapshot } from "@/lib/result/snapshot";
 
 const TIMEOUT_MS = 15_000;
 
-/** Result of a single CRM send — includes the exact url + payload so the worker
+/** Result of a single CRM send - includes the exact url + payload so the worker
  *  can log precisely what was sent. */
 export interface CrmSendResult {
   ok: boolean;

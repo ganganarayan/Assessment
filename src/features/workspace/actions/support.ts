@@ -8,7 +8,7 @@ import { tenantAppSettingId } from "@/lib/settings/tenant-row";
 
 /**
  * Per-tenant support email. Read + written on the tenant's own AppSetting row (never
- * the platform singleton). Shown to a RESPONDENT on the neutral "results unavailable —
+ * the platform singleton). Shown to a RESPONDENT on the neutral "results unavailable -
  * contact support" screen when the workspace is over its response cap. Blank = the
  * screen renders without a mailto.
  */
@@ -27,7 +27,7 @@ export async function updateSupportEmail(email: string): Promise<ActionResult> {
   if (denied) return denied;
 
   const trimmed = email.trim();
-  // Light validation — a single address with an @ and a dotted domain. Blank clears it.
+  // Light validation - a single address with an @ and a dotted domain. Blank clears it.
   if (trimmed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
     return { ok: false, error: "Enter a valid email address." };
   }

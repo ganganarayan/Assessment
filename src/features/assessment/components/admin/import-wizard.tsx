@@ -83,7 +83,7 @@ export function ImportWizard({
     if (!raw) return;
     if (mode === "replace") {
       const ok = confirm(
-        "Replace will permanently DELETE the existing assessment(s) with matching slug(s) — including their submissions — then recreate. Continue?",
+        "Replace will permanently DELETE the existing assessment(s) with matching slug(s) - including their submissions - then recreate. Continue?",
       );
       if (!ok) return;
     }
@@ -161,7 +161,7 @@ export function ImportWizard({
                       <td className="px-3 py-1.5">{it.questionCount}</td>
                       <td className="px-3 py-1.5">{it.resultBandCount}</td>
                       <td className="px-3 py-1.5">
-                        {it.slugExists ? <Badge variant="muted">exists</Badge> : "—"}
+                        {it.slugExists ? <Badge variant="muted">exists</Badge> : "-"}
                       </td>
                     </tr>
                   ))}

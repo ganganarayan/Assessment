@@ -11,7 +11,7 @@ import { resetCredentialPassword } from "@/lib/auth/recover";
  *   { "email": "you@example.com", "newPassword": "at-least-8-chars" }
  *
  * Resets the password ONLY on a SUPER_ADMIN account, then you sign in normally.
- * It does NOT log anyone in — it just sets a real password. When the secret is
+ * It does NOT log anyone in - it just sets a real password. When the secret is
  * unset the route is disabled and returns 404 (so it isn't discoverable). Unset
  * or rotate ADMIN_RECOVERY_SECRET in Railway to revoke it.
  */
@@ -26,7 +26,7 @@ function safeEqual(a: string, b: string): boolean {
 
 export async function POST(req: Request) {
   const secret = env.ADMIN_RECOVERY_SECRET;
-  // Disabled unless a secret is configured — 404 keeps it undiscoverable.
+  // Disabled unless a secret is configured - 404 keeps it undiscoverable.
   if (!secret) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const header = req.headers.get("authorization") ?? "";

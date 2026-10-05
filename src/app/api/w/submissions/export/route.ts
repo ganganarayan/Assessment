@@ -11,7 +11,7 @@ import { formatIST } from "@/lib/date";
 
 /**
  * Tenant-scoped submissions export. GET /api/w/submissions/export?assessment=<id>&format=csv|json
- * — same shape as the super-admin export, but restricted to the signed-in
+ * - same shape as the super-admin export, but restricted to the signed-in
  * tenant's own submissions for the given assessment.
  */
 export const dynamic = "force-dynamic";

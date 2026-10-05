@@ -13,7 +13,7 @@ import { platformPageMetadata } from "@/lib/seo/site";
  * is what this originally was. The catch-all worked, but it quietly broke the
  * `no-html-link-for-pages` lint rule across the whole repo: with a dynamic segment at the
  * root, that rule starts treating arbitrary paths as pages and fails the build on `<a>`
- * tags in seven unrelated files — including download endpoints under /api that have to be
+ * tags in seven unrelated files - including download endpoints under /api that have to be
  * plain anchors. Explicit routes keep the clean root URL, keep the lint rule honest, let
  * Next match statically, and leave unknown paths to 404 on their own.
  *

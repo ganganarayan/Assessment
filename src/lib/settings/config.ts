@@ -1,6 +1,6 @@
 // Deliberately NOT `server-only`. The Railway cron (tsx scripts/sweep-abandoned.ts)
 // resolves a tenant's Meta config to fire AssessmentAbandoned, and that process runs
-// outside Next, where the `server-only` package does not resolve at all — importing
+// outside Next, where the `server-only` package does not resolve at all - importing
 // it there is a hard crash that would take the whole cron down, existing sweeps
 // included. The guard only ever prevented CLIENT bundling, which the prisma/env/
 // crypto imports below already make impossible in a browser build.
@@ -12,12 +12,12 @@ import { appSettingWhere } from "@/lib/settings/tenant-row";
 
 /**
  * Per-tenant integration config (Meta pixel/CAPI, Razorpay), resolved from the
- * AppSetting row — NOT env. A tenant reads its OWN row and never falls back.
+ * AppSetting row - NOT env. A tenant reads its OWN row and never falls back.
  *
  * ENV IS FOR LAUNCHING THE APP, NOT FOR CONFIGURING TENANTS.
  * That is the standing rule: environment variables hold only what the process needs
  * to boot (database URL, auth secret, app URL, object storage). Every integration
- * value — pixel, CAPI token, Razorpay keys, AI keys, SMTP, WhatsApp — belongs in
+ * value - pixel, CAPI token, Razorpay keys, AI keys, SMTP, WhatsApp - belongs in
  * in-app Settings, stored per tenant, because a per-tenant value cannot live in a
  * single process-wide variable without one tenant inheriting another's.
  *
@@ -28,13 +28,13 @@ import { appSettingWhere } from "@/lib/settings/tenant-row";
  * gap report is clean, delete the fallback and the vars together.
  *
  * 🔴 The fallback does NOT apply to a business tenant. Moving the funnel onto its own
- * tenant therefore requires its AppSetting row to be populated FIRST — a blank row
+ * tenant therefore requires its AppSetting row to be populated FIRST - a blank row
  * means no pixel, no CAPI and a checkout that cannot sign an order.
  */
 
 /**
  * Note that a value was served from env rather than Settings. Logged once per key per
- * process (not per request — this sits on the funnel hot path) so a deploy's logs name
+ * process (not per request - this sits on the funnel hot path) so a deploy's logs name
  * exactly what still has to be entered in Settings, without flooding them.
  */
 const envFallbacksWarned = new Set<string>();
@@ -43,7 +43,7 @@ function noteEnvFallback(key: string): void {
   envFallbacksWarned.add(key);
   console.warn(
     `[settings/config] ${key} came from an environment variable, not Settings. ` +
-      `Enter it in Settings for the platform tenant — env is for launching the app only. ` +
+      `Enter it in Settings for the platform tenant - env is for launching the app only. ` +
       `(npm run settings:from-env copies it across.)`,
   );
 }
@@ -62,7 +62,7 @@ const SEL_RZP = { razorpayKeyId: true, razorpayKeySecretEnc: true, razorpayWebho
 
 /**
  * Decrypt an encrypted secret, NEVER throwing. A corrupt/undecryptable stored value
- * (e.g. saved under a different secret, or malformed) must not crash the caller —
+ * (e.g. saved under a different secret, or malformed) must not crash the caller -
  * for money/analytics config a bad token has to degrade to "unset", not take down the
  * live opt-in or checkout. Returns null on any failure so the platform falls back to
  * env and a tenant is simply treated as unconfigured.
@@ -80,7 +80,7 @@ function safeDecrypt(enc: string | null | undefined): string | null {
 /**
  * The AppSetting row for a tenant. Addressing goes through appSettingWhere so the
  * platform resolves to the singleton row whether it arrives as null (pre-re-home) or
- * as PLATFORM_TENANT_ID (post) — one row, reachable by either name.
+ * as PLATFORM_TENANT_ID (post) - one row, reachable by either name.
  */
 async function settingRow<T>(tenantId: string | null, select: T) {
   return prisma.appSetting.findUnique({
@@ -101,10 +101,10 @@ export async function resolveMetaConfig(tenantId: string | null): Promise<MetaCo
   const isPlatform = isPlatformScope(tenantId);
   const pixelId = orEnv(s?.metaPixelId?.trim() || null, isPlatform, "NEXT_PUBLIC_META_PIXEL_ID", env.NEXT_PUBLIC_META_PIXEL_ID);
   // Stored token wins; a corrupt/undecryptable one falls back to env for the platform
-  // (keeps the live funnel firing), or leaves a tenant unconfigured — never throws.
+  // (keeps the live funnel firing), or leaves a tenant unconfigured - never throws.
   const capiToken = orEnv(safeDecrypt(s?.metaCapiTokenEnc), isPlatform, "META_CAPI_ACCESS_TOKEN", env.META_CAPI_ACCESS_TOKEN);
   // Dataset id: for a tenant the pixel id IS the dataset. The platform may still point
-  // CAPI at a different dataset via env — 🟡 if that var is set to something other than
+  // CAPI at a different dataset via env - 🟡 if that var is set to something other than
   // the pixel id, events change destination the moment the funnel moves to a tenant,
   // because a tenant has no equivalent override. Check it before re-homing.
   const datasetId = isPlatform ? env.META_DATASET_ID ?? pixelId : pixelId;
@@ -118,7 +118,7 @@ export interface PlatformMetaConfig {
 }
 
 /**
- * The Assess360 SaaS-funnel pixel (landing / signup / subscription) — a SEPARATE
+ * The Assess360 SaaS-funnel pixel (landing / signup / subscription) - a SEPARATE
  * Meta pixel from the Gita assessment one resolved by resolveMetaConfig. Read ONLY
  * from the singleton row; NO env fallback (a brand-new pixel), so it stays inert
  * until the super admin sets it in Settings. Never throws.
@@ -134,7 +134,7 @@ export async function resolvePlatformMetaConfig(): Promise<PlatformMetaConfig> {
 /**
  * Resolve a tenant's heatmap/recording snippet (e.g. MS Clarity). Read from the
  * tenant's own AppSetting row; the platform/Gita path reads the singleton. No env
- * fallback (new feature) — null/blank means the funnel injects nothing.
+ * fallback (new feature) - null/blank means the funnel injects nothing.
  */
 export async function resolveHeatmapCode(tenantId: string | null): Promise<string | null> {
   const s = (await settingRow(tenantId, { heatmapCode: true })) as { heatmapCode: string | null } | null;
@@ -180,7 +180,7 @@ export interface SmtpConfig {
 }
 
 /** Resolve a tenant's SMTP config (its own row; singleton for platform). No env
- *  fallback — an unconfigured tenant simply cannot send email. */
+ *  fallback - an unconfigured tenant simply cannot send email. */
 export async function resolveSmtpConfig(tenantId: string | null): Promise<SmtpConfig> {
   const s = (await settingRow(tenantId, {
     smtpHost: true,
@@ -206,7 +206,7 @@ export async function resolveSmtpConfig(tenantId: string | null): Promise<SmtpCo
     user: s?.smtpUser?.trim() || null,
     // 🔴 Trim on READ, not just on save. An API token pasted out of a provider console
     // very often carries a trailing newline or space, and a credential is sent
-    // verbatim — ZeptoMail answers a token with one stray character as
+    // verbatim - ZeptoMail answers a token with one stray character as
     // "SERR_157 Invalid API Token found", which reads like a wrong key and sends you
     // hunting for the wrong thing. Trimming here also repairs rows that were already
     // saved with the whitespace, with no re-save needed.

@@ -9,17 +9,17 @@ import { snapshotFor } from "@/lib/billing/entitlements";
 
 /**
  * SaaS subscription billing on the PLATFORM-OWNER's Razorpay account (USD). Ported
- * from the VidaPulse model: no Plans are hand-made in the Razorpay dashboard — the
+ * from the VidaPulse model: no Plans are hand-made in the Razorpay dashboard - the
  * app creates each Plan via `POST /v1/plans` on the first checkout for a tier and
  * caches it (RazorpayPlan), then creates a Subscription against it. Keys resolve
- * from the platform/Gita settings row (app settings) with env fallback — the SAME
+ * from the platform/Gita settings row (app settings) with env fallback - the SAME
  * account the Gita funnel uses, but a different Razorpay PRIMITIVE (subscriptions,
  * not orders), kept isolated from the Gita INR purchase pipeline.
  */
 
 /**
  * Chargeable tiers. Enterprise is excluded: it is published as "from $499" and sold by
- * negotiation, so there is no fixed Razorpay plan to charge against — quoting one would
+ * negotiation, so there is no fixed Razorpay plan to charge against - quoting one would
  * be the flat number the pricing deliberately avoids.
  */
 export type PaidPlanId = Exclude<PlanId, "ENTERPRISE">;
@@ -130,7 +130,7 @@ interface RazorpaySubscriptionCreated {
 
 export interface CreatedCheckout {
   subscriptionId: string;
-  /** Razorpay-hosted payment page — the fallback when in-page Checkout can't open. */
+  /** Razorpay-hosted payment page - the fallback when in-page Checkout can't open. */
   shortUrl: string;
 }
 
@@ -148,7 +148,7 @@ export async function createSubscription(tenant: TenantForBilling, plan: PaidPla
     plan_id: planId,
     customer_id: customerId,
     quantity: 1,
-    total_count: 120, // up to 10 years of monthly cycles — effectively perpetual
+    total_count: 120, // up to 10 years of monthly cycles - effectively perpetual
     customer_notify: 0, // we handle comms ourselves
     notes: { tenantId: tenant.id, plan },
   });
@@ -194,7 +194,7 @@ export interface ActivateInput {
 /**
  * Activate (or renew) a tenant's paid subscription: freeze the plan's limits, set
  * ACTIVE + the billing period, and set Tenant.plan so resolvePlan reads the paid
- * tier and the gates enforce it. Idempotent — safe to call from both /verify and the
+ * tier and the gates enforce it. Idempotent - safe to call from both /verify and the
  * webhook. If the tenant had a DIFFERENT active Razorpay subscription, cancel it so
  * an upgrade never leaves two live subscriptions charging.
  */
@@ -236,7 +236,7 @@ export async function markPastDue(tenantId: string): Promise<void> {
 
 /**
  * End a tenant's subscription (cancelled/completed/halted-terminal): drop it to FREE.
- * entitledPlan returns null for CANCELED/HALTED — the tenant becomes PARKED, since
+ * entitledPlan returns null for CANCELED/HALTED - the tenant becomes PARKED, since
  * there is no free tier to fall back to any more. Tenant.plan is deliberately NOT
  * rewritten: resolution reads the subscription, and stamping a dead catalog value on the
  * tenant only creates a second, disagreeing answer. The frozen snapshot stays for the record.

@@ -20,7 +20,7 @@ import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
  * OUTSIDE Next.js.
  *
  * Why the split: entitlements.ts is `server-only`, a package that does not
- * resolve under plain Node — so anything importing it cannot run in the Railway
+ * resolve under plain Node - so anything importing it cannot run in the Railway
  * cron (`tsx scripts/sweep-abandoned.ts`). The cron needs the feature gate,
  * because a sweep decides whether a tenant may send Conversions API events, and
  * a Free tenant must not.
@@ -44,12 +44,12 @@ export function entitledPlan(plan: Plan, status: SubscriptionStatus): PlanId | n
 }
 
 export interface ResolvedPlan {
-  /** null = not rated against the catalog at all — the platform, or an internal tenant. */
+  /** null = not rated against the catalog at all - the platform, or an internal tenant. */
   plan: PlanId | null;
   status: SubscriptionStatus | null;
   limits: PlanLimits;
   isPlatform: boolean;
-  /** Inside the 14-day Signal trial — full Signal entitlements, nothing paid yet. */
+  /** Inside the 14-day Signal trial - full Signal entitlements, nothing paid yet. */
   trialing: boolean;
   /**
    * Whole days left in the trial (ceiling), 0 when not trialing. Resolved here rather
@@ -58,18 +58,18 @@ export interface ResolvedPlan {
    */
   trialDaysLeft: number;
   /**
-   * PARKED: no plan, no trial left. Read-only — the funnel is paused and nothing new is
+   * PARKED: no plan, no trial left. Read-only - the funnel is paused and nothing new is
    * accepted, but every existing submission, export and report stays visible and NOTHING
    * is deleted. Parking is reversible by paying; deletion would not be.
    */
   parked: boolean;
   /**
-   * The response limit the READ path compares an ALREADY-STORED `periodSeq` against —
+   * The response limit the READ path compares an ALREADY-STORED `periodSeq` against -
    * the result page, /api/r, the leads list and the export. Equal to
    * `limits.responsesPerMonth` in every state but one.
    *
    * 🔴 Why it has to be separate when parked. `PARKED_LIMITS.responsesPerMonth` is 0,
-   * and `isResponseLocked` locks any seq above the limit — so reading the parked limit
+   * and `isResponseLocked` locks any seq above the limit - so reading the parked limit
    * on the read path locks EVERY lead the tenant ever captured. The workspace goes
    * blank, the exports empty out, and the promise parking is built on ("nothing is
    * deleted, everything stays visible") becomes false at the one moment the tenant is
@@ -78,7 +78,7 @@ export interface ResolvedPlan {
    * It is not simply "unlimited when parked" either: a tenant 50 leads over their cap
    * could then unlock those 50 by CANCELLING, which prices the overage at zero and
    * rewards churn. So parking freezes the read limit at the last plan that entitled
-   * them — the subscription's own snapshot, or the trial's allowance for a lapsed trial.
+   * them - the subscription's own snapshot, or the trial's allowance for a lapsed trial.
    * Leads they had earned stay readable; leads they had not stay locked.
    */
   readResponseLimit: number | null;
@@ -86,7 +86,7 @@ export interface ResolvedPlan {
    * True when this scope is unmetered and un-gated: the platform itself, or a tenant the
    * owner flagged INTERNAL on /platform. `plan: null` alone does not say which, and every
    * caller that wrote `plan ?? "FREE"` therefore displayed and treated an unlimited tenant
-   * as Free — the opposite of what the flag means. Read this instead of inferring.
+   * as Free - the opposite of what the flag means. Read this instead of inferring.
    */
   unlimited: boolean;
 }
@@ -95,7 +95,7 @@ export interface ResolvedPlan {
  * The response allowance a PARKED tenant's already-stored leads are judged against:
  * whatever the lapsed subscription was frozen at (with its overrides), else the trial's.
  *
- * Reads the snapshot regardless of the subscription's status, which is the whole point —
+ * Reads the snapshot regardless of the subscription's status, which is the whole point -
  * `entitledPlan` has already decided the status entitles nothing, and this is asking a
  * different question: what were they entitled to WHEN THEY CAPTURED these leads.
  */
@@ -109,10 +109,10 @@ function lastEntitledResponseLimit(sub: Subscription | null): number | null {
 /**
  * Resolve a tenant's effective plan + limits. Order of precedence for limits:
  * per-tenant overrides > frozen snapshot (subscription) > code default (PLAN_LIMITS).
- * Never throws — a corrupt snapshot degrades to the catalog value.
+ * Never throws - a corrupt snapshot degrades to the catalog value.
  */
 export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan> {
-  // The platform is never rated against a plan — not even the SCALE value its Tenant
+  // The platform is never rated against a plan - not even the SCALE value its Tenant
   // row carries. Short-circuiting here (rather than reading the row) keeps the owner's
   // own funnel unmetered and un-gateable no matter what the column says, and means the
   // hot path costs a string compare instead of a query.
@@ -144,7 +144,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
 
   // An INTERNAL tenant the owner runs themselves: unlimited and un-gated, like the
   // platform. Checked before the subscription so a lapsed or absent subscription can
-  // never quietly drop it to FREE — which would take Meta CAPI down on a tenant that
+  // never quietly drop it to FREE - which would take Meta CAPI down on a tenant that
   // is spending on ads, with nothing surfacing the change.
   if (tenant.unlimited) {
     return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: false, unlimited: true, trialing: false, trialDaysLeft: 0, parked: false, readResponseLimit: null };
@@ -153,7 +153,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
   const sub = tenant.subscription;
   const effective = sub ? entitledPlan(sub.plan, sub.status) : null;
 
-  // No entitling subscription: the trial decides. Inside it, full Signal — the trial has
+  // No entitling subscription: the trial decides. Inside it, full Signal - the trial has
   // to show the mechanism, not a crippled version of it. Outside it, parked.
   if (effective === null) {
     const trialing = tenant.trialEndsAt != null && tenant.trialEndsAt.getTime() > Date.now();
@@ -166,7 +166,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
       trialing,
       trialDaysLeft: trialing ? trialDaysLeft(tenant.trialEndsAt) : 0,
       parked: !trialing,
-      // Parked: freeze the read limit at the last plan that entitled them — the lapsed
+      // Parked: freeze the read limit at the last plan that entitled them - the lapsed
       // subscription's own frozen snapshot, or (no subscription at all) the trial's
       // allowance, since the trial is what let them collect in the first place.
       readResponseLimit: trialing

@@ -105,7 +105,7 @@ export async function importAssessments(
       return { ok: false, error: "Import failed: a slug collided during import. No changes were made." };
     }
     if (code === "P2028") {
-      return { ok: false, error: "Import timed out — the file is too large for one transaction. No changes were made." };
+      return { ok: false, error: "Import timed out - the file is too large for one transaction. No changes were made." };
     }
     return { ok: false, error: "Import failed; no changes were made." };
   }
@@ -116,7 +116,7 @@ export async function importAssessments(
 // created assessments are assigned to THIS tenant, and replace can only overwrite
 // this tenant's own slugs (see performImportAll's tenant-scoped delete).
 
-/** Tenant preview — identical validation, workspace-guarded. */
+/** Tenant preview - identical validation, workspace-guarded. */
 export async function previewTenantImport(
   raw: string,
   format: Format,
@@ -140,7 +140,7 @@ export async function previewTenantImport(
   return { ok: true, data: items };
 }
 
-/** Tenant import — creates the assessments under the acting tenant. */
+/** Tenant import - creates the assessments under the acting tenant. */
 export async function importTenantAssessments(
   raw: string,
   format: Format,
@@ -180,7 +180,7 @@ export async function importTenantAssessments(
     };
   }
 
-  // Billing gate — an import that ADDS assessments (create/copy; replaces reuse a slug)
+  // Billing gate - an import that ADDS assessments (create/copy; replaces reuse a slug)
   // must fit the plan cap. Super admins (impersonating) are never limited.
   if (!impersonating) {
     const adding = items.filter((i) => !i.replace).length;
@@ -209,7 +209,7 @@ export async function importTenantAssessments(
       return { ok: false, error: "Import failed: that slug is already taken (globally). Choose “Create copy”." };
     }
     if (code === "P2028") {
-      return { ok: false, error: "Import timed out — the file is too large for one transaction. No changes were made." };
+      return { ok: false, error: "Import timed out - the file is too large for one transaction. No changes were made." };
     }
     return { ok: false, error: "Import failed; no changes were made." };
   }

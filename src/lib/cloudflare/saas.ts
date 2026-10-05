@@ -1,13 +1,13 @@
 import "server-only";
 
 /**
- * Cloudflare for SaaS — CUSTOM HOSTNAMES.
+ * Cloudflare for SaaS - CUSTOM HOSTNAMES.
  *
  * WHY THIS EXISTS, AND HOW IT DIFFERS FROM cloudflare/domains.ts
  * The older module provisions a domain that lives in the OWNER's own Cloudflare
  * account: it finds the zone and writes a proxied CNAME. That works for domains you
  * control and does nothing for a customer's own domain, whose zone is in their
- * account — `findZoneId` returns null and the caller silently falls back to Railway.
+ * account - `findZoneId` returns null and the caller silently falls back to Railway.
  *
  * Railway is the real constraint: it caps custom domains per service by plan, and
  * every tenant domain consumes one slot. "Every tenant brings their own domain" then
@@ -18,12 +18,12 @@ import "server-only";
  * our fallback origin. Railway never learns about the host at all, so no slot is used
  * and the ceiling becomes Cloudflare's (100 included, then cents per hostname).
  *
- * THE HOST-HEADER PROBLEM — why a Worker is part of this
+ * THE HOST-HEADER PROBLEM - why a Worker is part of this
  * Railway routes by Host. Cloudflare forwards the customer's hostname intact, which
  * Railway would not recognise, so a request would 404 before reaching the app. The
  * Worker in infra/cloudflare-worker.js rewrites the request to a host Railway DOES
  * route and carries the original hostname in a header, with a shared secret proving
- * the header came from us. See lib/tenant/forwarded-host.ts for the receiving half —
+ * the header came from us. See lib/tenant/forwarded-host.ts for the receiving half -
  * that secret is what stops anyone from claiming to be any tenant.
  *
  * Config (all optional; absent = this path is simply off and the caller falls back):
@@ -115,7 +115,7 @@ interface CustomHostname {
   ownership_verification?: { type?: string | null; name?: string | null; value?: string | null } | null;
 }
 
-/** "assess.acme.com" -> "assess" — what a DNS provider's Name field wants. */
+/** "assess.acme.com" -> "assess" - what a DNS provider's Name field wants. */
 function labelOf(host: string): string {
   const parts = host.split(".").filter(Boolean);
   return parts.length <= 2 ? "@" : parts.slice(0, parts.length - 2).join(".");
@@ -183,7 +183,7 @@ export async function cloudflareCreateCustomHostname(hostname: string): Promise<
     });
     return shape(cfg, ch);
   } catch (e) {
-    // Already registered (ours, from an earlier attempt) — read it back rather than
+    // Already registered (ours, from an earlier attempt) - read it back rather than
     // surfacing a duplicate error the operator can do nothing with.
     const existing = await cloudflareFindCustomHostname(host);
     if (existing) return existing;
@@ -213,7 +213,7 @@ export async function cloudflareCustomHostnameStatus(id: string): Promise<SaasHo
   return shape(cfg, ch);
 }
 
-/** Remove a custom hostname. Never throws — a failed cleanup must not block deletion. */
+/** Remove a custom hostname. Never throws - a failed cleanup must not block deletion. */
 export async function cloudflareDeleteCustomHostname(id: string): Promise<void> {
   const cfg = saasConfig();
   if (!cfg) return;

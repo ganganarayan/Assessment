@@ -14,7 +14,7 @@ import {
 /**
  * The Audiences screen: edit the tenant's canonical "default list" (which feeds the
  * free-text field's suggestions) and normalize the values respondents have already
- * typed — fix typos / map variants onto a canonical role, across every matching
+ * typed - fix typos / map variants onto a canonical role, across every matching
  * submission at once. Both actions follow the acting scope on the server.
  */
 export function AudienceManager({
@@ -73,7 +73,7 @@ export function AudienceManager({
           <Label className="text-sm font-medium">Normalize submitted answers</Label>
           <p className="text-xs text-[var(--muted-foreground)]">
             Every distinct audience value stored on your submissions, most common first. Rename one to
-            fix a typo or map a variant onto a canonical role — it updates every matching submission at
+            fix a typo or map a variant onto a canonical role - it updates every matching submission at
             once. To merge several variants, rename each to the same target.
             {nonCanonical > 0 ? (
               <span className="mt-1 block text-amber-600 dark:text-amber-400">

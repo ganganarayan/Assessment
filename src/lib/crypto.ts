@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypt
 
 /**
  * Symmetric encryption for secrets stored at rest (e.g. a tenant's LLM API key).
- * AES-256-GCM with a key derived from a caller-supplied secret — PURE (no env),
+ * AES-256-GCM with a key derived from a caller-supplied secret - PURE (no env),
  * so it is unit-testable. The env-bound wrappers live in the callers.
  *
  * Format: "v1:<ivB64>:<tagB64>:<ciphertextB64>".

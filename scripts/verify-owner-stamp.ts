@@ -1,5 +1,5 @@
 /**
- * verify:owner-stamp — runs in the BUILD, so an orphaning write can never ship.
+ * verify:owner-stamp - runs in the BUILD, so an orphaning write can never ship.
  *
  * No database, no network, no env: a source scan and an exit code. See
  * owner-stamp-check.ts for what it looks for and why TypeScript cannot do this job yet.

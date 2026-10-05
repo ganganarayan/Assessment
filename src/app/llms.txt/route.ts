@@ -4,16 +4,16 @@ import { TOPICS, PAGES, answersForTopic } from "@/lib/seo/registry";
 import { absolute, answerUrl, seoUrl } from "@/lib/seo/urls";
 
 /**
- * llms.txt — a plain-text map of the site for language models, in the emerging
+ * llms.txt - a plain-text map of the site for language models, in the emerging
  * convention: a title, a one-line description, then linked sections with a short gloss
  * per entry.
  *
  * Worth having precisely because it is nearly free: the content is already typed data, so
  * this file is a projection of the registry rather than a document anyone has to maintain.
  * It is not a standard anybody is obliged to honour, and it is not a substitute for the
- * HTML being readable — which is why every answer below also exists as a real page.
+ * HTML being readable - which is why every answer below also exists as a real page.
  *
- * Served anywhere that is not a TENANT's host — the same test the pillar and answer pages
+ * Served anywhere that is not a TENANT's host - the same test the pillar and answer pages
  * use, deliberately not the stricter "is this the production host" that robots.txt and the
  * sitemap use. Those two are ownership claims about the host serving them; this is a
  * document that mirrors pages which themselves render on staging. Gating it to production

@@ -3,8 +3,8 @@
  *
  * WHY THIS EXISTS SEPARATELY FROM `rehome`
  * `rehome --tenant <slug>` sweeps EVERY row still carrying `tenantId = null` into one
- * named tenant. That is correct for the original migration — the owner's whole funnel
- * moving to Apply Gita in one go — and wrong for the case this script serves.
+ * named tenant. That is correct for the original migration - the owner's whole funnel
+ * moving to Apply Gita in one go - and wrong for the case this script serves.
  *
  * A super admin creating an assessment from /admin before the configTenantOf fix got a
  * row stamped `null`, landing it in the same bucket as the legacy funnel rows. Running
@@ -60,7 +60,7 @@ interface ChildDelegate {
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 const child = (tx: Tx | typeof prisma, name: string): ChildDelegate => {
   const d = (tx as unknown as Record<string, ChildDelegate | undefined>)[name];
-  if (!d) throw new Error(`No Prisma delegate named "${name}" — the schema changed under this script.`);
+  if (!d) throw new Error(`No Prisma delegate named "${name}" - the schema changed under this script.`);
   return d;
 };
 
@@ -71,13 +71,13 @@ async function list(): Promise<void> {
     select: { id: true, slug: true, title: true, status: true, createdAt: true },
   });
   if (!rows.length) {
-    console.log("No unowned assessments — every assessment already has a tenant.");
+    console.log("No unowned assessments - every assessment already has a tenant.");
     return;
   }
   console.log(`${rows.length} assessment(s) with tenantId = null (invisible in the console):\n`);
   for (const r of rows) {
     console.log(`  ${r.createdAt.toISOString().slice(0, 16)}  ${r.status.padEnd(9)}  ${r.id}`);
-    console.log(`      ${r.slug}  —  "${r.title}"`);
+    console.log(`      ${r.slug}  -  "${r.title}"`);
   }
   console.log("\nAdopt one with:  --id <id>   (add --apply to write)");
 }
@@ -121,7 +121,7 @@ async function adopt(id: string, tenantId: string, apply: boolean): Promise<void
   console.log(`  ${"total".padEnd(24)} ${total}`);
 
   if (!apply) {
-    console.log("\n🟡 DRY RUN — nothing written. Re-run with --apply to move these rows.");
+    console.log("\n🟡 DRY RUN - nothing written. Re-run with --apply to move these rows.");
     return;
   }
 
@@ -159,7 +159,7 @@ main()
   .catch((e) => {
     const msg = e instanceof Error ? e.message : String(e);
     if (/Can't reach database server|P1001/.test(msg)) {
-      console.error("\n🔴 No database — prefix with `railway run --environment production` (or orbitq-assess).");
+      console.error("\n🔴 No database - prefix with `railway run --environment production` (or orbitq-assess).");
     } else {
       console.error(msg);
     }

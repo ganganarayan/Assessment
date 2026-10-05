@@ -16,7 +16,7 @@ const serverSchema = z.object({
   BETTER_AUTH_URL: z.string().url(),
 
   // DEPRECATED: R2 is configured in super-admin Settings now (encrypted at rest), not
-  // here — env holds only what the app needs to boot. lib/storage/r2.ts no longer reads
+  // here - env holds only what the app needs to boot. lib/storage/r2.ts no longer reads
   // these. Kept so an existing deployment that still has them set does not fail
   // validation on boot; delete both these lines and the Railway variables together.
   R2_ACCOUNT_ID: z.string().min(1).optional(),
@@ -25,15 +25,15 @@ const serverSchema = z.object({
   R2_BUCKET_NAME: z.string().min(1).optional(),
   R2_PUBLIC_URL: z.string().url().optional(),
 
-  // PDF report worker — INFRASTRUCTURE, so it belongs in env rather than Settings:
+  // PDF report worker - INFRASTRUCTURE, so it belongs in env rather than Settings:
   // these say where this process sits in the deployment, which is not something a
   // tenant or an admin configures.
   //
   // The worker is this same app deployed as a second Railway service. Leave these unset
   // and reports render in-process exactly as before.
-  //   REPORT_WORKER_URL    — the worker service's internal URL (app only)
-  //   REPORT_WORKER_SECRET — shared secret; the worker's entire authorisation
-  //   IS_REPORT_WORKER=1   — set on the WORKER only, so it never calls itself
+  //   REPORT_WORKER_URL    - the worker service's internal URL (app only)
+  //   REPORT_WORKER_SECRET - shared secret; the worker's entire authorisation
+  //   IS_REPORT_WORKER=1   - set on the WORKER only, so it never calls itself
   REPORT_WORKER_URL: z.string().url().optional(),
   REPORT_WORKER_SECRET: z.string().min(16, "Use at least 16 characters.").optional(),
   IS_REPORT_WORKER: z.string().optional(),
@@ -74,7 +74,7 @@ const serverSchema = z.object({
   RAZORPAY_PLAN_ID_SCALE: z.string().min(1).optional(),
   // 🔴 Tier-named overrides. The old three were created for Starter $39 / Growth $89 /
   // Scale $199. Signal sells at $79, so reusing RAZORPAY_PLAN_ID_GROWTH would charge a
-  // customer $89 off a $79 page — a refund and a trust problem, not a bug report. Set
+  // customer $89 off a $79 page - a refund and a trust problem, not a bug report. Set
   // these to plans created at the CURRENT prices; the legacy vars remain only as a
   // fallback for tiers whose price did not move.
   RAZORPAY_PLAN_ID_GATE: z.string().min(1).optional(),
@@ -85,12 +85,12 @@ const serverSchema = z.object({
 const publicSchema = z.object({
   // OPTIONAL on purpose. It names the apex whose SUBDOMAINS are tenants
   // (slug.<root>). Railway can tell us which hosts route here, but not which of them
-  // carries that meaning — that is a product decision, not something to infer. Leave
+  // carries that meaning - that is a product decision, not something to infer. Leave
   // it unset and subdomain tenants are simply off: every tenant is reached on its own
   // custom domain, which is how the product is actually sold. Empty string = unset.
   NEXT_PUBLIC_ROOT_DOMAIN: z.string().optional().default(""),
   NEXT_PUBLIC_APP_URL: z.string().url(),
-  // Meta (Facebook) Pixel id. Optional — when unset, no pixel is injected.
+  // Meta (Facebook) Pixel id. Optional - when unset, no pixel is injected.
   // NEXT_PUBLIC_* is inlined at BUILD time, so a rebuild is needed after setting it.
   NEXT_PUBLIC_META_PIXEL_ID: z.string().min(1).optional(),
 });

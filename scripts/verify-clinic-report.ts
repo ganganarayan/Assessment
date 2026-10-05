@@ -10,14 +10,14 @@ import { DEFAULT_ENGINE_CONFIG, computeResult, deriveInputs } from "../src/lib/s
 async function main() {
   const inputs = deriveInputs(
     [
-      // No actual number typed — range midpoint used, tagged "assumed — avg of X"
+      // No actual number typed - range midpoint used, tagged "assumed - avg of X"
       // on the PDF (exercises that render path).
       { role: "ENQUIRIES", value: 20, optionLabel: "Under 30" },
       { role: "BOOK_RATE", value: 12, optionLabel: "Under 15" },
       { role: "SHOWUP_RATE", value: 35, optionLabel: "Fewer than 5" },
-      // An actual number WAS typed — must be used verbatim and never tagged.
+      // An actual number WAS typed - must be used verbatim and never tagged.
       { role: "CLOSE_RATE", value: 30, actualValue: 33, optionLabel: "2 or 3" },
-      { role: "TREATMENT_VALUE", value: 112000, optionLabel: "₹60,000–₹1,20,000" },
+      { role: "TREATMENT_VALUE", value: 112000, optionLabel: "₹60,000-₹1,20,000" },
       { role: "AD_SPEND", value: 15000 },
       { role: "DORMANT", value: 1500, optionLabel: "More than 1,000" },
       { role: "CAPACITY", value: 10 },
@@ -55,6 +55,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error("FAIL — threw:", e);
+  console.error("FAIL - threw:", e);
   process.exit(1);
 });

@@ -16,7 +16,7 @@ import { platformPageMetadata } from "@/lib/seo/site";
  * One question, one URL.
  *
  * The description is the answer's own one-sentence form rather than a written-for-search
- * summary — it is already the shortest true statement of the page, and writing a second
+ * summary - it is already the shortest true statement of the page, and writing a second
  * one would only create something to keep in sync.
  */
 export async function generateMetadata({

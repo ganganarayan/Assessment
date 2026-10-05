@@ -3,7 +3,7 @@ import { analyzeBands, type OverallLevel } from "./parse-assessment-text";
 
 /**
  * Compact band parser for the "Import bands from text" box on an existing
- * assessment. The admin types just the ranges + the band names — nothing per line:
+ * assessment. The admin types just the ranges + the band names - nothing per line:
  *
  *   0 - 40% low, 41 - 55, 56 - 75, 76 to 100. Holding, Load-Bearing, Running Hot, Redlined
  *
@@ -26,7 +26,7 @@ export interface CompactBandsResult {
 }
 
 const LEVELS: OverallLevel[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
-const RANGE = /(\d+(?:\.\d+)?)\s*(?:-|–|—|to)\s*(\d+(?:\.\d+)?)/i;
+const RANGE = /(\d+(?:\.\d+)?)\s*(?:-|-|-|to)\s*(\d+(?:\.\d+)?)/i;
 const LEVEL_WORD = /\b(low|medium|high|critical)\b/i;
 
 /** Spread a band's index across the 4 levels (n=4 → LOW,MEDIUM,HIGH,CRITICAL). */
@@ -75,7 +75,7 @@ export function parseCompactBands(input: string): CompactBandsResult {
     return { bands: [], errors, warnings };
   }
   if (labels.length !== n) {
-    warnings.push(`Found ${n} range(s) but ${labels.length} name(s) — paired in order; fill any blanks after import.`);
+    warnings.push(`Found ${n} range(s) but ${labels.length} name(s) - paired in order; fill any blanks after import.`);
   }
 
   const bands: CompactBand[] = ranges.map((r, i) => ({
@@ -85,7 +85,7 @@ export function parseCompactBands(input: string): CompactBandsResult {
     max: r.max,
   }));
 
-  // Range sanity (0–100, min≤max, no overlap = errors; gaps/coverage = warnings).
+  // Range sanity (0-100, min≤max, no overlap = errors; gaps/coverage = warnings).
   const a = analyzeBands(ranges.map((r) => ({ min: r.min, max: r.max })), "Bands");
   errors.push(...a.errors);
   warnings.push(...a.warnings);

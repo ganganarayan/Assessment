@@ -11,7 +11,7 @@ import {
 } from "@/features/platform/storage-settings";
 
 /**
- * File storage (Cloudflare R2) — platform scope, so it lives on /platform.
+ * File storage (Cloudflare R2) - platform scope, so it lives on /platform.
  *
  * The secret is write-only: the form shows whether one is stored and leaves it alone
  * unless you type a replacement. That is what lets the bucket name or public URL be
@@ -45,7 +45,7 @@ export function StorageSettingsCard({ initial }: { initial: StorageSettingsView 
       setOk(null);
       const r = await testStorage();
       if (!r.ok) return setError(r.error);
-      setOk(`Storage works — wrote and deleted a test file in ${r.data?.ms ?? 0}ms.`);
+      setOk(`Storage works - wrote and deleted a test file in ${r.data?.ms ?? 0}ms.`);
     });
 
   const field = (
@@ -78,7 +78,7 @@ export function StorageSettingsCard({ initial }: { initial: StorageSettingsView 
         <h2 className="text-lg font-semibold">File storage (Cloudflare R2)</h2>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
           One bucket for the whole platform. Each workspace&apos;s files are kept under its own
-          path inside it, so no tenant can reach another&apos;s — and there is a single set of keys
+          path inside it, so no tenant can reach another&apos;s - and there is a single set of keys
           to rotate. Nothing is stored on the app server, so generated files never consume its
           disk or memory.
         </p>
@@ -102,7 +102,7 @@ export function StorageSettingsCard({ initial }: { initial: StorageSettingsView 
       )}
       {field(
         "r2-secret",
-        hasSecret ? "Secret access key (stored — type to replace)" : "Secret access key",
+        hasSecret ? "Secret access key (stored - type to replace)" : "Secret access key",
         hasSecret
           ? "Leave blank to keep the stored key. Cloudflare shows a secret once, so if it was lost, create a new token."
           : "Shown once by Cloudflare when the token is created. Stored encrypted.",
@@ -140,7 +140,7 @@ export function StorageSettingsCard({ initial }: { initial: StorageSettingsView 
         </Button>
       </div>
       <p className="text-xs text-[var(--muted-foreground)]">
-        Test writes a tiny file and deletes it again — it proves the keys, the bucket name and
+        Test writes a tiny file and deletes it again - it proves the keys, the bucket name and
         write permission together, which a credential-shape check cannot.
       </p>
     </section>

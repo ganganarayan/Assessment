@@ -12,7 +12,7 @@ export default async function WorkspaceImportPage() {
   const { tenantId, impersonating } = await requireWorkspace();
   if (!(await currentUserCanEdit())) redirect("/w/assessments");
 
-  // Billing gate — importing creates assessments, so warn up front at the cap rather
+  // Billing gate - importing creates assessments, so warn up front at the cap rather
   // than after the upload. Super admins (impersonating) are never limited.
   const cap = impersonating ? ({ ok: true } as const) : await assertCanCreateAssessment(tenantId);
   if (!cap.ok) {
@@ -49,7 +49,7 @@ export default async function WorkspaceImportPage() {
         <h1 className="mt-2 text-2xl font-bold tracking-tight">Import assessment</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
           Plain text / Markdown you write yourself, or a JSON/CSV export. Both are validated and previewed
-          before anything is written — into this workspace.
+          before anything is written - into this workspace.
         </p>
       </div>
 

@@ -24,8 +24,8 @@ import {
 export const dynamic = "force-dynamic";
 
 /**
- * The owning tenant's plan, deduped per request. This runs on the public funnel — an ad
- * landing page — so it is the one plan lookup on a genuinely hot path. React's cache()
+ * The owning tenant's plan, deduped per request. This runs on the public funnel - an ad
+ * landing page - so it is the one plan lookup on a genuinely hot path. React's cache()
  * collapses repeat calls within a single render without caching ACROSS requests, which
  * matters: a tenant who upgrades must lose the badge, and an unparked tenant must serve
  * the funnel again, on the very next page view rather than whenever a TTL expires.
@@ -45,7 +45,7 @@ const planFor = cache(async (tenantId: string | null) => resolvePlan(tenantId));
  *
  * 2. A CANONICAL on the tenant's own origin. The slug lookup below is global, not
  *    host-scoped, so this exact funnel also answers on the platform domain and on every
- *    other tenant domain — the same document at N addresses. The canonical names the
+ *    other tenant domain - the same document at N addresses. The canonical names the
  *    tenant's own domain as the real one, which is where their ads point anyway.
  *
  * 3. A REAL title. Inheriting the root default used to mean every funnel on earth was
@@ -124,7 +124,7 @@ export default async function PublicAssessmentPage({
   } | null;
   let audienceGate: PublicAssessment["audienceGate"] = null;
   if (gateRaw && gateRaw.mode === "FREETEXT") {
-    // Free-text audience field: no options/routing — just capture, with live
+    // Free-text audience field: no options/routing - just capture, with live
     // suggestions from the tenant's canonical list.
     const suggestions = await resolveAudienceCanonical(a.tenantId);
     audienceGate = {
@@ -212,7 +212,7 @@ export default async function PublicAssessmentPage({
     })(),
     disqualified: (() => {
       // Parse against {} when unset so defaults (incl. fireDisqualifiedEvent: true)
-      // apply — otherwise enabling the gate without saving the exit page would
+      // apply - otherwise enabling the gate without saving the exit page would
       // silently never fire the GateDisqualified exclusion event.
       const p = disqualifiedContentSchema.safeParse(a.disqualifiedContent ?? {});
       return p.success ? p.data : EMPTY_DISQUALIFIED;

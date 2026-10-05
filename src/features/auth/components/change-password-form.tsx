@@ -13,7 +13,7 @@ import { forceSetOwnPassword } from "@/features/auth/actions/password";
  * 🟡 The CURRENT-password field was removed at the owner's request. The trade-off is
  * explicit: it was what stopped someone who had got hold of an already-signed-in
  * browser from taking the account over outright. What still limits that is the session
- * revocation on the server — every other session is dropped the moment the password
+ * revocation on the server - every other session is dropped the moment the password
  * changes, so a stolen session cannot quietly persist alongside the real owner.
  *
  * Two modes remain, differing only in where they send you afterwards:

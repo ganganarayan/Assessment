@@ -66,7 +66,7 @@ export function AiStatementManager({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Personalized message — versions</CardTitle>
+        <CardTitle className="text-lg">Personalized message - versions</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex gap-2">
@@ -142,7 +142,7 @@ export function AiStatementManager({
                       name={`default-${submissionId}`}
                       checked={r.isDefault}
                       disabled={pending}
-                      onChange={() => run(() => setDefaultAiStatement(slug, submissionId, r.id), "Default updated — this goes to the VSL.")}
+                      onChange={() => run(() => setDefaultAiStatement(slug, submissionId, r.id), "Default updated - this goes to the VSL.")}
                     />
                     <span className="font-medium">Version {i + 1}</span>
                     {r.isDefault ? (

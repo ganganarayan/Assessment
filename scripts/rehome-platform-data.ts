@@ -11,7 +11,7 @@
  *      npm run rehome -- --platform --apply
  *      Attaches the OWNER's account to the Platform tenant and stamps the singleton
  *      AppSetting as the Platform tenant's row. Touches no funnel data, so it is the
- *      safe half — do it first and confirm you can still sign in.
+ *      safe half - do it first and confirm you can still sign in.
  *
  *   2. npm run rehome -- --tenant apply-gita            # DRY RUN
  *      npm run rehome -- --tenant apply-gita --apply
@@ -62,12 +62,12 @@ type Tx = Omit<
 >;
 
 /**
- * Every tenant-scoped table that moves with the funnel. Order is irrelevant — no FK
+ * Every tenant-scoped table that moves with the funnel. Order is irrelevant - no FK
  * breaks, because each row's tenant is a column, not a parent it must follow.
  *
  * 🔴 This list must stay exhaustive. `gateEntry` and `funnelEventCount` were missing
  * from it originally, which would have left both tables' rows pointing at null after a
- * "successful" move — the gate counters and the funnel-event day counters would have
+ * "successful" move - the gate counters and the funnel-event day counters would have
  * quietly stopped matching the funnel they belong to, and the later NOT NULL migration
  * would then have failed on tables nobody was watching. To check this list against the
  * schema, print every model with a nullable tenant column:
@@ -110,15 +110,15 @@ function delegate(client: Tx, name: TableName): TenantScopedDelegate {
  * marketing videos would all be handed to the funnel tenant.
  *
  * Most of those are inert today only because their readers address the singleton by
- * id — the moment any one becomes per-tenant it starts firing with the platform's
+ * id - the moment any one becomes per-tenant it starts firing with the platform's
  * values under a tenant's name. And copying a company's legal details and webhook
  * URLs into a tenant row is wrong on its own terms, inert or not.
  *
  * The rule for adding to this list: does this setting describe ASSESS360 (the SaaS
  * that sells to tenants), or does it describe the business running the funnel? Only
- * the first belongs here. Anything a tenant legitimately needs its own copy of —
+ * the first belongs here. Anything a tenant legitimately needs its own copy of -
  * pixel, CAPI token, Razorpay keys, SMTP, support address, stats window, heatmap,
- * VidaPulse — is NOT platform-only: the platform keeps its values on the singleton
+ * VidaPulse - is NOT platform-only: the platform keeps its values on the singleton
  * and the tenant gets its own, and they are free to differ afterwards.
  */
 const SETTINGS_SKIP = new Set([
@@ -128,7 +128,7 @@ const SETTINGS_SKIP = new Set([
   "createdAt",
   "updatedAt",
 
-  // The Assess360 SaaS signup funnel — a different pixel from the assessment one.
+  // The Assess360 SaaS signup funnel - a different pixel from the assessment one.
   "platformPixelId",
   "platformCapiTokenEnc",
 
@@ -136,7 +136,7 @@ const SETTINGS_SKIP = new Set([
   "landingVideos",
 
   // Object storage. There is ONE bucket for the whole app, partitioned by key prefix
-  // (`tenants/<id>/...`), and resolveR2Config reads `id: "singleton"` unconditionally —
+  // (`tenants/<id>/...`), and resolveR2Config reads `id: "singleton"` unconditionally -
   // it never looks at a tenant row. Copying these would duplicate an encrypted secret
   // into a row nothing reads, with no UI to rotate it: the R2 card is /platform only.
   "r2AccountId",
@@ -149,14 +149,14 @@ const SETTINGS_SKIP = new Set([
 /*
  * NOT excluded, deliberately, though it might look like it should be:
  *
- *  - legal* — the platform and the funnel tenant are the SAME company here, so the
+ *  - legal* - the platform and the funnel tenant are the SAME company here, so the
  *    tenant wants the same entity, address and governing location, not a blank row.
- *  - crm* (15 fields) — the automation is wanted on both. The endpoints will diverge
+ *  - crm* (15 fields) - the automation is wanted on both. The endpoints will diverge
  *    later; copying gives a working starting point to edit rather than a blank one.
- *  - passwordResetWebhookUrl — same reasoning; read from the singleton today, so the
+ *  - passwordResetWebhookUrl - same reasoning; read from the singleton today, so the
  *    tenant copy is inert until per-tenant auth mail exists.
  *  - metaPixelId / metaCapiTokenEnc / razorpay* / smtp* / waba* / supportEmail /
- *    statsResetAt / heatmapCode / vidapulse* — both levels need their OWN values. The
+ *    statsResetAt / heatmapCode / vidapulse* - both levels need their OWN values. The
  *    copy is a starting point; the platform keeps its own on the singleton and the two
  *    are free to diverge immediately after.
  *
@@ -166,7 +166,7 @@ const SETTINGS_SKIP = new Set([
 
 /**
  * Fields the moved funnel cannot run without, and the environment variable that used to
- * cover for each one. The env fallback applies to the PLATFORM scope only — the moment
+ * cover for each one. The env fallback applies to the PLATFORM scope only - the moment
  * these rows belong to a business tenant, a blank field is simply blank: no pixel, no
  * CAPI, and a checkout that cannot sign an order. That is why a blank here blocks
  * --apply rather than warning.
@@ -216,7 +216,7 @@ function writeManifest(m: Manifest, label: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Step 1 — the platform half: the owner's account and the platform settings row
+// Step 1 - the platform half: the owner's account and the platform settings row
 // ---------------------------------------------------------------------------
 
 async function platformStep(apply: boolean) {
@@ -227,15 +227,15 @@ async function platformStep(apply: boolean) {
   if (!platform) {
     console.error(
       `No Platform tenant row (id "${PLATFORM_TENANT_ID}"). It is created by the\n` +
-        "20260930000000_platform_tenant migration — deploy that first, or run\n" +
+        "20260930000000_platform_tenant migration - deploy that first, or run\n" +
         "npx prisma migrate deploy against this database.",
     );
     process.exit(1);
   }
   console.log(
-    `Platform tenant: ${platform.name} (${platform.slug}) ${platform.id} — plan ${platform.plan}`,
+    `Platform tenant: ${platform.name} (${platform.slug}) ${platform.id} - plan ${platform.plan}`,
   );
-  console.log(apply ? "\nMODE: APPLY — this writes.\n" : "\nMODE: DRY RUN — nothing is written.\n");
+  console.log(apply ? "\nMODE: APPLY - this writes.\n" : "\nMODE: DRY RUN - nothing is written.\n");
 
   const owner = await prisma.user.findFirst({
     where: { email: { equals: PLATFORM_OWNER_EMAIL, mode: "insensitive" } },
@@ -253,7 +253,7 @@ async function platformStep(apply: boolean) {
     // account that would then have no way into the platform console.
     console.error(
       `  REFUSING: the owner's role is ${owner.role}, not SUPER_ADMIN. Fix the role first\n` +
-        "  (scripts/promote-to-super-admin.ts, or /api/admin/recover) — attaching a tenant to a\n" +
+        "  (scripts/promote-to-super-admin.ts, or /api/admin/recover) - attaching a tenant to a\n" +
         "  demoted owner would leave no route back into /admin.",
     );
     process.exit(1);
@@ -271,7 +271,7 @@ async function platformStep(apply: boolean) {
     select: { id: true, tenantId: true },
   });
   if (!singleton) {
-    console.log('AppSetting "singleton": MISSING — nothing to stamp.');
+    console.log('AppSetting "singleton": MISSING - nothing to stamp.');
   } else {
     console.log(`AppSetting "singleton": tenant=${singleton.tenantId ?? "null"}`);
     if (singleton.tenantId && singleton.tenantId !== PLATFORM_TENANT_ID) {
@@ -336,7 +336,7 @@ async function platformStep(apply: boolean) {
 }
 
 // ---------------------------------------------------------------------------
-// Step 2 — the funnel half, behind a preflight
+// Step 2 - the funnel half, behind a preflight
 // ---------------------------------------------------------------------------
 
 interface Preflight {
@@ -361,7 +361,7 @@ function preflightConfig(
   // Plan. Only GROWTH and SCALE carry `capi`; FREE also caps responses at 25/month and
   // disables the qualification gate, conditional routing, heatmap and API tokens. The
   // answer comes from resolvePlan, so a tenant flagged INTERNAL passes on the flag alone
-  // — its `plan` column is ignored at runtime and must not block the move here either.
+  // - its `plan` column is ignored at runtime and must not block the move here either.
   if (!entitlement.capi) {
     blockers.push(
       `plan is ${entitlement.label}, which has capi=false. Moving the funnel here stops Meta CAPI, ` +
@@ -383,7 +383,7 @@ function preflightConfig(
         ? `${c.field} is blank in Settings on BOTH rows and lives only in ${c.env}. Env covers the ` +
             `platform scope only, so ${c.what} STOPS the moment these rows belong to a tenant.\n` +
             "      Fix:  npm run settings:from-env   (writes env values into Settings), then re-run."
-        : `${c.field} is blank everywhere — ${c.what} is already unconfigured and would stay that ` +
+        : `${c.field} is blank everywhere - ${c.what} is already unconfigured and would stay that ` +
             "way.\n      Fix:  enter it in Settings for this workspace, then re-run.",
     );
   }
@@ -431,7 +431,7 @@ async function tenantStep(slug: string, apply: boolean) {
   console.log(
     `Its admins:    ${admins.map((a) => `${a.email} [${a.role}]`).join(", ") || "(none)"}`,
   );
-  console.log(apply ? "\nMODE: APPLY — this writes.\n" : "\nMODE: DRY RUN — nothing is written.\n");
+  console.log(apply ? "\nMODE: APPLY - this writes.\n" : "\nMODE: DRY RUN - nothing is written.\n");
 
   // Ask the resolver the app itself uses, not the `plan` column: an INTERNAL tenant is
   // unlimited regardless of what that column says, and re-deriving it here would block
@@ -444,7 +444,7 @@ async function tenantStep(slug: string, apply: boolean) {
   console.log(
     `Plan: ${entitlement.label}` +
       (resolved.unlimited
-        ? " — flagged internal on /platform; not metered, every feature on"
+        ? " - flagged internal on /platform; not metered, every feature on"
         : resolved.status
           ? ` (subscription ${resolved.status})`
           : " (no subscription)"),
@@ -452,7 +452,7 @@ async function tenantStep(slug: string, apply: boolean) {
 
   // BEFORE counts, per table, for BOTH the source (null) and the destination. Printed as
   // a pair so the after-counts can be checked arithmetically rather than by "the
-  // destination has some rows now" — which passes even when a whole table was skipped.
+  // destination has some rows now" - which passes even when a whole table was skipped.
   console.log("\nPer-table counts (null = moves, tenant = already owned):");
   const before: Record<string, { nul: number; own: number }> = {};
   let total = 0;
@@ -471,7 +471,7 @@ async function tenantStep(slug: string, apply: boolean) {
   const kept: string[] = [];
 
   if (!singleton) {
-    console.log("\nNo platform AppSetting row — nothing to copy.");
+    console.log("\nNo platform AppSetting row - nothing to copy.");
   } else {
     for (const [k, v] of Object.entries(singleton)) {
       if (SETTINGS_SKIP.has(k) || isBlank(v)) continue;
@@ -493,11 +493,11 @@ async function tenantStep(slug: string, apply: boolean) {
   });
 
   if (warnings.length > 0) {
-    console.log("\n🟡 Warnings (not blocking — confirm these are intended):");
+    console.log("\n🟡 Warnings (not blocking - confirm these are intended):");
     for (const w of warnings) console.log(`  - ${w}`);
   }
   if (remaining.length > 0) {
-    console.log("\n🔴 Preflight FAILED — the move would break the funnel:");
+    console.log("\n🔴 Preflight FAILED - the move would break the funnel:");
     for (const b of remaining) console.log(`  - ${b}`);
   } else {
     console.log("\n🟢 Preflight passed: the plan carries CAPI and every critical value is present.");
@@ -514,7 +514,7 @@ async function tenantStep(slug: string, apply: boolean) {
   if (remaining.length > 0 && !process.argv.includes("--allow-dark-funnel")) {
     console.error(
       "\nRefusing to apply while the preflight fails. This is the check that stops the funnel going\n" +
-        "dark — a moved funnel with no pixel, no CAPI or no signable checkout looks completely fine\n" +
+        "dark - a moved funnel with no pixel, no CAPI or no signable checkout looks completely fine\n" +
         "in the admin and silently stops earning.\n" +
         "If you have decided to accept that, re-run with --allow-dark-funnel.",
     );
@@ -574,9 +574,9 @@ async function tenantStep(slug: string, apply: boolean) {
     const own = await delegate(prisma, name).count({ where: { tenantId: tenant.id } });
     const b = before[name];
     // Every TABLES entry was recorded in the BEFORE loop above. If one is missing, the
-    // reconciliation is meaningless — throw rather than default to 0, which would make a
+    // reconciliation is meaningless - throw rather than default to 0, which would make a
     // table that was never counted look like it balanced perfectly.
-    if (!b) throw new Error(`No before-count recorded for ${name} — cannot verify the move.`);
+    if (!b) throw new Error(`No before-count recorded for ${name} - cannot verify the move.`);
     const expect = b.nul + b.own;
     const ok = nul === 0 && own === expect;
     if (!ok) bad++;
@@ -592,14 +592,14 @@ async function tenantStep(slug: string, apply: boolean) {
   console.log(
     bad === 0
       ? "\n🟢 Every table reconciles."
-      : `\n🔴 ${bad} table(s) do NOT reconcile — investigate before trusting this move.`,
+      : `\n🔴 ${bad} table(s) do NOT reconcile - investigate before trusting this move.`,
   );
   console.log(`Manifest: ${out}`);
   console.log(`Undo with: npm run rehome -- --revert ${out}`);
 }
 
 // ---------------------------------------------------------------------------
-// Revert — exact, from a manifest
+// Revert - exact, from a manifest
 // ---------------------------------------------------------------------------
 
 async function revert(path: string) {
@@ -645,7 +645,7 @@ async function revert(path: string) {
   if (m.settingsCopied.length > 0) {
     console.log(
       `\nNOTE: ${m.settingsCopied.length} AppSetting field(s) were copied to the tenant and are NOT ` +
-        `reverted — copying never overwrote a tenant value: ${m.settingsCopied.join(", ")}`,
+        `reverted - copying never overwrote a tenant value: ${m.settingsCopied.join(", ")}`,
     );
   }
 }

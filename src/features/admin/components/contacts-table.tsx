@@ -18,12 +18,12 @@ const UTM = [
   "gclid",
 ] as const;
 
-const tick = (v: boolean) => (v ? "✓" : "—");
+const tick = (v: boolean) => (v ? "✓" : "-");
 
 /** Join non-empty parts with a separator; em-dash when all are blank. */
 const join = (parts: (string | null)[], sep: string) => {
   const s = parts.filter((p) => p && p.trim()).join(sep);
-  return s || "—";
+  return s || "-";
 };
 
 /** Contacts table with row selection + delete (super-admin). Selection is over
@@ -176,11 +176,11 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                 <td className="px-3 py-2">
                   <div className="flex flex-col">
                     <span className="font-medium">
-                      {[r.firstName, r.lastName].filter(Boolean).join(" ") || "—"}
+                      {[r.firstName, r.lastName].filter(Boolean).join(" ") || "-"}
                     </span>
-                    <span className="text-xs text-[var(--muted-foreground)]">{r.email ?? "—"}</span>
-                    <span className="text-xs text-[var(--muted-foreground)]">{r.mobile ?? "—"}</span>
-                    <span className="text-xs text-[var(--muted-foreground)]">{r.profession ?? "—"}</span>
+                    <span className="text-xs text-[var(--muted-foreground)]">{r.email ?? "-"}</span>
+                    <span className="text-xs text-[var(--muted-foreground)]">{r.mobile ?? "-"}</span>
+                    <span className="text-xs text-[var(--muted-foreground)]">{r.profession ?? "-"}</span>
                     {r.customAnswers.map((a) => (
                       <span key={a.label} className="text-xs text-[var(--muted-foreground)]">
                         <span className="font-medium">{a.label}:</span> {a.value}
@@ -188,7 +188,7 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                     ))}
                   </div>
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{r.customerId ?? "—"}</td>
+                <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{r.customerId ?? "-"}</td>
                 <td className="px-3 py-2 align-top">
                   {r.resultUrl ? (
                     <div className="flex w-[200px] items-start gap-2">
@@ -205,7 +205,7 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                       </Button>
                     </div>
                   ) : (
-                    "—"
+                    "-"
                   )}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
@@ -222,21 +222,21 @@ export function ContactsTable({ rows }: { rows: ContactRow[] }) {
                       ) : null}
                     </div>
                   ) : (
-                    "—"
+                    "-"
                   )}
                 </td>
                 <td className="px-3 py-2 text-center tabular-nums">{r.vslLoads}</td>
                 {UTM.map((u) => (
                   <td key={u} className="whitespace-nowrap px-3 py-2 text-xs">
-                    {r.attribution?.[u] ?? "—"}
+                    {r.attribution?.[u] ?? "-"}
                   </td>
                 ))}
-                <td className="whitespace-nowrap px-3 py-2 text-xs tabular-nums">{r.fbclidTimestamp ?? "—"}</td>
-                <td className="max-w-[160px] truncate px-3 py-2 text-xs" title={r.fbp ?? ""}>{r.fbp ?? "—"}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-xs">{r.clientIp ?? "—"}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-xs tabular-nums">{r.fbclidTimestamp ?? "-"}</td>
+                <td className="max-w-[160px] truncate px-3 py-2 text-xs" title={r.fbp ?? ""}>{r.fbp ?? "-"}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-xs">{r.clientIp ?? "-"}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs">{join([r.deviceType, r.browser, r.os], " · ")}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-xs">{join([r.city, r.region, r.country], ", ")}</td>
-                <td className="max-w-[220px] truncate px-3 py-2 text-xs" title={r.userAgent ?? ""}>{r.userAgent ?? "—"}</td>
+                <td className="max-w-[220px] truncate px-3 py-2 text-xs" title={r.userAgent ?? ""}>{r.userAgent ?? "-"}</td>
               </tr>
             ))}
           </tbody>

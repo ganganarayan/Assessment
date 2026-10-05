@@ -11,7 +11,7 @@ import { buildStatementMessages, humanizeStatement } from "../src/lib/ai/prompt"
 import { PROMPT_VERSIONS, getPromptVersion, type PromptVersion } from "../src/lib/ai/prompt-versions";
 import type { StatementInput } from "../src/lib/ai/types";
 
-// Shim for the new buildStatementMessages(input, version, words) signature — the
+// Shim for the new buildStatementMessages(input, version, words) signature - the
 // script exercises the code versions with the standard word window.
 const VERIFY_WORDS = { min: 200, max: 280 };
 function bsm(input: StatementInput, version?: PromptVersion | string) {
@@ -151,7 +151,10 @@ console.log("AI feature verification\n");
   const top = applyCrisisLine(withToken, "CRITICAL", 92);
   expect("crisis: token -> verbatim line at CRITICAL 92", top.includes(CRISIS_LINE));
   expect("crisis: phone number preserved", top.includes("14416"));
-  expect("crisis: em dash preserved (not humanized)", top.includes("reach out — in India"));
+  // The crisis line is user-facing copy, so it no longer contains a long dash to preserve.
+  // What still matters is that the block is emitted VERBATIM rather than run through
+  // humanizeStatement, so the assertion is now on the exact sentence.
+  expect("crisis: line emitted verbatim", top.includes("reach out - in India you can call Tele-MANAS"));
   expect("crisis: token consumed", !top.includes(CRISIS_TOKEN));
   expect(
     "crisis: appended when token missing",

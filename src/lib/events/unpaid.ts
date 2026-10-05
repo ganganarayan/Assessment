@@ -8,7 +8,7 @@ const BATCH = 500;
 
 /**
  * Find paid-mode submissions that COMPLETED but have no payment after the delay,
- * mark them (once) and emit `completed_unpaid` — the nudge pipeline. Mirrors the
+ * mark them (once) and emit `completed_unpaid` - the nudge pipeline. Mirrors the
  * abandoned sweep: the COMPLETED->completedUnpaidAt flip is a compare-and-swap, so
  * the event fires at most once even if the sweep overlaps itself or a late payment.
  */

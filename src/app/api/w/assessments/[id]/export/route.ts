@@ -5,7 +5,7 @@ import { buildExportJson, buildExportCsv, exportFilename } from "@/features/asse
 
 /**
  * Tenant-scoped export of ONE assessment (same portable format as the admin route).
- * The assessment must belong to the acting workspace's tenant — a tenant can never
+ * The assessment must belong to the acting workspace's tenant - a tenant can never
  * export another tenant's (or the platform's) assessment.
  *   GET /api/w/assessments/<id>/export?format=json|csv
  */

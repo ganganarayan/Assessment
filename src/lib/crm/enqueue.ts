@@ -45,7 +45,7 @@ export async function enqueueScore(): Promise<number> {
 export type CustomScope = "all" | "paid";
 
 /**
- * The Submission WHERE for a CUSTOM broadcast — the SINGLE source of truth shared
+ * The Submission WHERE for a CUSTOM broadcast - the SINGLE source of truth shared
  * by the count preview and the actual enqueue, so the previewed number always
  * matches what gets queued.
  * - scope="paid": COMPLETED contacts of this assessment that ALSO have a captured
@@ -85,7 +85,7 @@ export async function enqueueCustom(assessmentId: string, scope: CustomScope = "
   return enqueue(CrmSendKind.CUSTOM, subs);
 }
 
-/** How many contacts the same scope WOULD queue — for the pre-send count preview. */
+/** How many contacts the same scope WOULD queue - for the pre-send count preview. */
 export async function countCustomTargets(assessmentId: string, scope: CustomScope = "all"): Promise<number> {
   const { where, empty } = await customTargetWhere(assessmentId, scope);
   if (empty) return 0;

@@ -1,6 +1,6 @@
 /**
  * Format an instant as "DD-MM-YYYY HH:MM" in IST (UTC+5:30, no DST), or
- * "DD-MM-YYYY HH:MM:SS" with `withSeconds` — needed where two nearby instants
+ * "DD-MM-YYYY HH:MM:SS" with `withSeconds` - needed where two nearby instants
  * (e.g. opt-in vs completion on a lead-capture-after assessment) would otherwise
  * round to the same minute and look identical.
  *

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { handleRazorpayWebhook } from "@/lib/payments/razorpay-webhook";
 
 /**
- * Per-tenant Razorpay webhook — POST /api/payments/razorpay/[tenant].
+ * Per-tenant Razorpay webhook - POST /api/payments/razorpay/[tenant].
  * `[tenant]` is the tenant SLUG. Razorpay for that tenant's account is configured
  * to call this URL, so the HMAC is verified with THAT tenant's own webhook secret.
  * An unknown slug is rejected (never falls back to the platform secret).

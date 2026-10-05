@@ -15,7 +15,7 @@ function isAssessmentEditor(pathname: string) {
 interface NavItem {
   href: string;
   label: string;
-  /** Match this exact path only (not startsWith) — for parent/child paths. */
+  /** Match this exact path only (not startsWith) - for parent/child paths. */
   exact?: boolean;
 }
 
@@ -87,7 +87,7 @@ export function WorkspaceNav() {
                 {it.label}
               </Link>
               {/* While editing an assessment, the builder's panels are switched from
-                  here, as a branch under Assessments — the same place /admin puts them.
+                  here, as a branch under Assessments - the same place /admin puts them.
                   Without this branch the workspace rendered all three panels but showed
                   only the first: BuilderTabPanels falls back to tabs[0] when no tab is
                   active, so Results and VSL Result Page existed and were unreachable. */}

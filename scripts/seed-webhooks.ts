@@ -1,6 +1,6 @@
 /**
  * Seed the existing CRM webhook (assessment.completed) and ensure the AppSetting
- * singleton exists. Idempotent — safe on any environment:
+ * singleton exists. Idempotent - safe on any environment:
  *   npx tsx scripts/seed-webhooks.ts
  * Reads CRM_WEBHOOK_URL from the environment.
  */

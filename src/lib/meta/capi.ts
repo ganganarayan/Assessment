@@ -2,11 +2,11 @@ import { hashEmail, hashPhone, hashName, hashCityState, hashCountry, hashZip, ha
 
 /**
  * Pure builder for a single Meta Conversions API (server-side) event. No env, no
- * network — so it is fully unit-testable. The network sender lives in send.ts.
+ * network - so it is fully unit-testable. The network sender lives in send.ts.
  *
  * Dedup contract: pass the SAME `eventId` here and as the browser pixel's
  * `{ eventID }` for the SAME `eventName`, and Meta merges the two into one event
- * (48h window) — so an ad-blocker dropping the browser pixel never loses the
+ * (48h window) - so an ad-blocker dropping the browser pixel never loses the
  * conversion, and a delivered browser pixel is not double-counted.
  */
 
@@ -26,7 +26,7 @@ export interface CapiUserData {
   state?: string | null; // region / province
   country?: string | null; // 2-letter ISO
   zip?: string | null; // postal code
-  /** First-party id (per-visitor UUID). A standalone Meta match key — no PII needed;
+  /** First-party id (per-visitor UUID). A standalone Meta match key - no PII needed;
    *  matches the browser pixel's advanced-matching external_id. */
   externalId?: string | null;
 }
@@ -147,7 +147,7 @@ export function fbcFromFbclid(fbclid: string | null | undefined, creationTimeMs:
  * Extract the REAL creation time (as unix MILLISECONDS) from a browser `_fbc`
  * cookie `fb.1.<creationTimeMs>.<fbclid>`. This is the authoritative fbclid
  * timestamp when the pixel wrote _fbc. Returns null when absent/malformed (then
- * the caller falls back to the opt-in time). Milliseconds — same unit as Meta's
+ * the caller falls back to the opt-in time). Milliseconds - same unit as Meta's
  * fbc format and the fbclidTimestamp column, so nothing needs converting.
  */
 export function fbcCreationMs(fbc: string | null | undefined): number | null {

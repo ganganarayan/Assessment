@@ -110,7 +110,7 @@ export default async function WorkspaceEditAssessmentPage({
     metaEvents: readMetaEvents(a.metaEvents),
   };
 
-  // Other assessments in this workspace — targets for the audience gate onward route.
+  // Other assessments in this workspace - targets for the audience gate onward route.
   const routeTargets = (await listAssessments(tenantOnly(tenantId)))
     .filter((x) => x.id !== a.id)
     .map((x) => ({ id: x.id, title: x.title, slug: x.slug, published: x.status === "PUBLISHED" }));
@@ -217,7 +217,7 @@ export default async function WorkspaceEditAssessmentPage({
         <h2 className="text-lg font-semibold">Qualification gate (Page 1)</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
           Screen respondents <strong>before</strong> the assessment. A disqualifying answer sends them to a
-          separate page and creates <strong>no lead, submission or result</strong> — only an optional
+          separate page and creates <strong>no lead, submission or result</strong> - only an optional
           &quot;Disqualified&quot; Meta pixel event so you can exclude them from ads. Add text questions for
           info you&apos;ll review manually.
         </p>
@@ -244,9 +244,9 @@ export default async function WorkspaceEditAssessmentPage({
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Result Bands</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
-          Bands are matched against the score <strong>percentage (0–100)</strong>,
+          Bands are matched against the score <strong>percentage (0-100)</strong>,
           so results stay comparable even when optional questions are skipped.
-          Ranges must not overlap; cover 0–100 with no gaps.
+          Ranges must not overlap; cover 0-100 with no gaps.
         </p>
         <ResultBandsManager assessmentId={a.id} bands={bands} />
       </section>
@@ -256,7 +256,7 @@ export default async function WorkspaceEditAssessmentPage({
         <p className="text-xs text-[var(--muted-foreground)]">
           Per-category evaluation shown on the destination page. Pick a category, a
           level, the <strong>category&apos;s own</strong> score range (its score ÷ its max,
-          0–100), and a suggestion. Ranges must not overlap within a category.
+          0-100), and a suggestion. Ranges must not overlap within a category.
         </p>
         <CategoryBandsManager assessmentId={a.id} categories={categoryOptions} bands={categoryBands} />
       </section>
@@ -287,7 +287,7 @@ export default async function WorkspaceEditAssessmentPage({
       <h2 className="text-lg font-semibold">VSL Result Page</h2>
       <p className="text-xs text-[var(--muted-foreground)]">
         The marketing page shown when <em>Next step</em> is <strong>Show results on assess360</strong>
-        — eyebrow, headline, the respondent&apos;s AI statement, your VSL video (embed code), buttons
+        - eyebrow, headline, the respondent&apos;s AI statement, your VSL video (embed code), buttons
         and YouTube testimonials. Publish to make it live; unpublished falls back to the score cards.
       </p>
       <ResultPageBuilder

@@ -15,7 +15,7 @@ import { isServedHost, linkForRequest } from "@/lib/tenant/served-host";
 
 /**
  * Read the last-touch UTM attribution cookie (set in middleware) and shape it for a
- * Tenant create — the ad/campaign a self-serve signup came from. Best-effort: returns
+ * Tenant create - the ad/campaign a self-serve signup came from. Best-effort: returns
  * {} when there is no cookie / it is malformed, so provisioning never breaks.
  */
 async function readAcquisitionAttribution(): Promise<{
@@ -80,7 +80,7 @@ export const auth = betterAuth({
   /**
    * Trusted origins for the CSRF/origin check. Beyond the app's own URL + the root
    * domain (and its subdomains), a tenant admin may sign in on their OWN custom
-   * domain — so if the request's origin is a VERIFIED custom domain in our Domain
+   * domain - so if the request's origin is a VERIFIED custom domain in our Domain
    * table, trust it too. Without this, sign-in from a custom domain is rejected with
    * "Invalid origin" before the password is ever checked.
    */
@@ -95,14 +95,14 @@ export const auth = betterAuth({
     ].filter((v): v is string => !!v);
     // Every host we serve is trusted, resolved from the data that already decides
     // routing (isServedHost) rather than from this env list. That is what lets a
-    // tenant's own domain authenticate the moment it points here — no env edit, no
+    // tenant's own domain authenticate the moment it points here - no env edit, no
     // redeploy per domain. The env entries above remain only as bootstrap.
     //
     // Three sources, because this list is checked against two different things: the
     // Origin/Referer header (the CSRF check) AND body URLs like `redirectTo`, which
     // the forgot-password form sets to the browser's own origin. A request can carry a
     // redirectTo without an Origin header, so the host the request ARRIVED on is a
-    // candidate too — still gated by isServedHost, so only our own domains are added.
+    // candidate too - still gated by isServedHost, so only our own domains are added.
     const headers = request?.headers;
     if (headers) {
       const originish = headers.get("origin") || headers.get("referer") || "";
@@ -115,7 +115,7 @@ export const auth = betterAuth({
           const u = new URL(candidate);
           if (!list.includes(u.origin) && (await isServedHost(u.host))) list.push(u.origin);
         } catch {
-          /* malformed header — ignore */
+          /* malformed header - ignore */
         }
       }
     }
@@ -133,7 +133,7 @@ export const auth = betterAuth({
     // send fails, fall back to the legacy CRM webhook so we never silently drop it.
     sendResetPassword: async ({ user, url, token }, request) => {
       // Better Auth builds this link from its STATIC baseURL, so on any other domain
-      // the mail arrives pointing at a host the person isn't using — and, once the
+      // the mail arrives pointing at a host the person isn't using - and, once the
       // canonical host moves, at one that may not answer at all. Re-home it onto the
       // domain the request actually came in on, validated first (see served-host).
       url = await linkForRequest(url, request);
@@ -153,7 +153,7 @@ export const auth = betterAuth({
       // resolveSmtpConfig reads that tenant's row and nothing else, so "SMTP is not
       // configured" came back, the webhook was usually unset too, and the reset email
       // was dropped with only a server log to show for it. The person just never
-      // receives it — which is indistinguishable from the app being broken.
+      // receives it - which is indistinguishable from the app being broken.
       //
       // Password reset is a PLATFORM function, not tenant marketing: the tenant's own
       // sender is preferred (right domain, right branding) but the platform's is the
@@ -245,7 +245,7 @@ export const auth = betterAuth({
     user: {
       create: {
         // Self-serve provisioning: every new signup (except the platform owner) gets
-        // their OWN tenant automatically and becomes its admin — no manual setup.
+        // their OWN tenant automatically and becomes its admin - no manual setup.
         // Never throws into the signup flow; a failure just leaves them assignable.
         after: async (user) => {
           try {
@@ -262,7 +262,7 @@ export const auth = betterAuth({
             }
             // Stamp acquisition attribution (the ad/campaign this signup came from)
             // from the last-touch UTM cookie set in middleware, so every tenant is
-            // traceable to its source. Best-effort — never blocks provisioning.
+            // traceable to its source. Best-effort - never blocks provisioning.
             const acq = await readAcquisitionAttribution();
             // Every new workspace starts a 14-day Signal trial. Set at provisioning
             // rather than at first login, so the clock starts when the account does and

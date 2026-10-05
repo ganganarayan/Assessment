@@ -29,11 +29,11 @@ export async function rollbackReport(submissionId: string): Promise<ActionResult
 
   const rolled = await rollbackStoredReport(submissionId);
   // Distinguish "nothing to roll back to" from success, rather than reporting a change
-  // that did not happen — an operator who clicks and sees "done" will assume the older
+  // that did not happen - an operator who clicks and sees "done" will assume the older
   // report is now live.
   return rolled
     ? { ok: true }
-    : { ok: false, error: "No previous report to restore — this one has not been regenerated yet." };
+    : { ok: false, error: "No previous report to restore - this one has not been regenerated yet." };
 }
 
 /** Whether a submission HAS a previous report, so the UI only offers rollback when it

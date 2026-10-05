@@ -7,7 +7,7 @@ import { type AiStatementRow } from "@/features/admin/actions/ai-statements";
 /**
  * All versioned messages for a submission (oldest first). Lazy backfill: an
  * existing submission with a snapshot message but no version rows yet gets its
- * current message seeded as version 1 (default) the first time it's viewed —
+ * current message seeded as version 1 (default) the first time it's viewed -
  * so old contacts work without a bulk migration.
  */
 export async function getAiStatements(submissionId: string): Promise<AiStatementRow[]> {

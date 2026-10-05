@@ -29,7 +29,7 @@ const BATCH = 5;
  * The saved reporting-start floor for this assessment (Assessment.statsResetAt),
  * as a `createdAt` where-fragment. Every count and the re-run itself apply this so
  * the numbers match the Submissions page and we never touch pre-window contacts.
- * Module-local (not exported) — this "use server" file exports only async actions.
+ * Module-local (not exported) - this "use server" file exports only async actions.
  */
 async function assessmentFloor(assessmentId: string): Promise<Record<string, unknown>> {
   const a = await prisma.assessment.findUnique({
@@ -67,7 +67,7 @@ export interface AiSample {
 
 /**
  * Generate sample statements for a few REAL contacts spanning different overall
- * bands, using the current bands + active prompt — WITHOUT saving anything (no
+ * bands, using the current bands + active prompt - WITHOUT saving anything (no
  * version created, no default changed, nothing dirtied). Lets the owner judge the
  * prompt on real data and tweak it before committing to the full (billable) run.
  */

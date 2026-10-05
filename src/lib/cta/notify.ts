@@ -8,12 +8,12 @@ import { formatIST } from "@/lib/date";
 import { ctaResultUrl } from "@/lib/cta/result-url";
 
 /**
- * "Someone asked for a call" — the owner notification for a booking-CTA click.
+ * "Someone asked for a call" - the owner notification for a booking-CTA click.
  *
  * The thank-you page lives in the CRM, so this email is how the owner learns who to
  * evaluate. That makes it the wrong thing to fire and forget: every attempt is stamped
  * on the CtaClick row, and a failure stays `pending` with a backoff so the cron retries
- * it. Only once the schedule is exhausted is it marked `dead` — visible, not silent.
+ * it. Only once the schedule is exhausted is it marked `dead` - visible, not silent.
  *
  * Confirmation to the RESPONDENT is deliberately not sent here: it goes from the CRM,
  * off the `booking_requested` webhook, so it comes from the owner's sending identity
@@ -29,7 +29,7 @@ function esc(v: string): string {
 }
 
 function row(label: string, value: string | null): string {
-  return `<tr><td style="padding:6px 12px 6px 0;color:#555;white-space:nowrap">${esc(label)}</td><td style="padding:6px 0"><strong>${esc(value || "—")}</strong></td></tr>`;
+  return `<tr><td style="padding:6px 12px 6px 0;color:#555;white-space:nowrap">${esc(label)}</td><td style="padding:6px 0"><strong>${esc(value || "-")}</strong></td></tr>`;
 }
 
 /**
@@ -73,11 +73,11 @@ export async function sendCtaNotification(clickId: string): Promise<void> {
 
   const s = click.submission;
   const name = [s.leadFirstName, s.leadLastName].filter(Boolean).join(" ") || null;
-  // The FULL internal result page — what the owner reads to decide whether this person
+  // The FULL internal result page - what the owner reads to decide whether this person
   // qualifies. Token-bearing, so it opens without a sign-in.
   const resultUrl = ctaResultUrl(env.NEXT_PUBLIC_APP_URL, s.assessment.slug, s.id, s.resultToken);
 
-  const subject = `Call requested: ${name ?? s.leadEmail ?? "someone"} — ${s.assessment.title}`;
+  const subject = `Call requested: ${name ?? s.leadEmail ?? "someone"} - ${s.assessment.title}`;
   const html = `<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#111">
     <p style="font-size:16px;margin:0 0 4px"><strong>${esc(name ?? "A respondent")}</strong> asked to book a call.</p>
     <p style="color:#555;margin:0 0 16px;font-size:14px">${esc(click.label ?? "Booking CTA")} &middot; ${esc(formatIST(click.createdAt))} IST</p>

@@ -48,24 +48,24 @@ export interface QuestionData {
   options: QuestionOptionData[];
 }
 
-/** How this question's numbers are expressed — applies to BOTH the option values
+/** How this question's numbers are expressed - applies to BOTH the option values
  *  and the respondent's typed actual number, so a question worded "out of every
  *  10" can never be read as a percentage. */
 const CLINIC_UNIT_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Default for the role" },
   { value: "PER_10", label: "Out of 10 (e.g. “7 or 8”)" },
-  { value: "PER_100", label: "Out of 100 / percent (e.g. “25–40”)" },
+  { value: "PER_100", label: "Out of 100 / percent (e.g. “25-40”)" },
   { value: "RUPEES", label: "Rupees ₹" },
   { value: "COUNT", label: "Plain count" },
   { value: "POINTS", label: "Uplift points (whole percent)" },
 ];
 
-/** Engine of the parent assessment — CLINIC_AUDIT unlocks the funnel scoring fields. */
+/** Engine of the parent assessment - CLINIC_AUDIT unlocks the funnel scoring fields. */
 export type BuilderEngine = "GENERIC" | "CLINIC_AUDIT";
 
 /** Clinic-audit funnel roles (must match ClinicRole in lib/scoring/clinic-audit.ts). */
 const CLINIC_ROLE_OPTIONS: { value: string; label: string }[] = [
-  { value: "", label: "— not scored —" },
+  { value: "", label: "- not scored -" },
   { value: "ENQUIRIES", label: "Enquiries / month (E)" },
   { value: "BOOK_RATE", label: "Booking rate % (B)" },
   { value: "SHOWUP_RATE", label: "Show-up rate % (S)" },
@@ -114,7 +114,7 @@ export function QuestionsManager({
   onRevertOptions?: (questionId: string) => void;
   /** Question ids that currently have an undo snapshot (show a Revert button). */
   revertableIds?: Map<string, unknown>;
-  /** A copy/revert is in flight (from the parent) — disable the row controls. */
+  /** A copy/revert is in flight (from the parent) - disable the row controls. */
   busy?: boolean;
 }) {
   const router = useRouter();
@@ -362,7 +362,7 @@ function QuestionForm({
               <p className="text-xs text-[var(--muted-foreground)]">
                 Applies to the option numbers below <em>and</em> the respondent&apos;s typed actual
                 number. <strong>Leave on &ldquo;Default&rdquo; unless you need to override.</strong>{" "}
-                The scale is read from your question&apos;s own wording — a question asking
+                The scale is read from your question&apos;s own wording - a question asking
                 &ldquo;out of every 10&rdquo; answered 7 scores as 70%, one asking &ldquo;out of
                 every 100&rdquo; answered 10 scores as 10%. Set this only if a question&apos;s
                 wording is ambiguous.
@@ -436,7 +436,7 @@ function QuestionForm({
               <Input
                 value={o.clause}
                 onChange={(e) => setOption(i, { clause: e.target.value })}
-                placeholder="Diagnosis line for this answer (optional — shown if it's a top-2 weakness)"
+                placeholder="Diagnosis line for this answer (optional - shown if it's a top-2 weakness)"
                 className="text-xs"
               />
             ) : null}

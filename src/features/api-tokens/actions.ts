@@ -36,7 +36,7 @@ export async function listApiTokens(tenantId: string | null): Promise<ActionResu
 
 /**
  * Mint a token: returns the PLAINTEXT exactly once (only the hash is stored).
- * Platform-owned (tenantId null) for now — the tenant column is ready for when
+ * Platform-owned (tenantId null) for now - the tenant column is ready for when
  * tenant admins mint their own scoped keys.
  */
 export async function mintApiToken(scope: string, label: string): Promise<ActionResult<{ token: string }>> {
@@ -61,7 +61,7 @@ export async function mintApiToken(scope: string, label: string): Promise<Action
   return { ok: true, data: { token: plaintext } };
 }
 
-/** Revoke (soft) — the token stops authenticating immediately. */
+/** Revoke (soft) - the token stops authenticating immediately. */
 export async function revokeApiToken(id: string): Promise<ActionResult> {
   const acting = await resolveActingScope();
   const denied = scopeEditDenied(acting);

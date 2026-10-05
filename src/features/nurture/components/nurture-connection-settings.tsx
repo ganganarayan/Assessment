@@ -56,12 +56,12 @@ function SmtpForm({ initial }: { initial: NurtureSettingsView["smtp"] }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm font-medium">Email — SMTP</p>
+      <p className="text-sm font-medium">Email - SMTP</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Host"><Input value={v.host} placeholder="smtp.yourhost.com" onChange={(e) => setV({ ...v, host: e.target.value })} /></Field>
         <Field label="Port"><Input value={v.port} placeholder="587" inputMode="numeric" onChange={(e) => setV({ ...v, port: e.target.value })} /></Field>
         <Field label="Username"><Input value={v.user} onChange={(e) => setV({ ...v, user: e.target.value })} /></Field>
-        <Field label={`Password ${initial.hasPass ? "(saved — leave blank to keep)" : ""}`}>
+        <Field label={`Password ${initial.hasPass ? "(saved - leave blank to keep)" : ""}`}>
           <Input type="password" value={v.pass} placeholder={initial.hasPass ? "••••••••" : ""} onChange={(e) => setV({ ...v, pass: e.target.value })} />
         </Field>
         <Field label="From name"><Input value={v.fromName} placeholder="Ganga Narayan Das" onChange={(e) => setV({ ...v, fromName: e.target.value })} /></Field>
@@ -69,7 +69,7 @@ function SmtpForm({ initial }: { initial: NurtureSettingsView["smtp"] }) {
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={v.secure} onChange={(e) => setV({ ...v, secure: e.target.checked })} />
-        Use TLS/SSL (secure) — usually on for port 465, off for 587
+        Use TLS/SSL (secure) - usually on for port 465, off for 587
       </label>
       <div>
         <Button size="sm" onClick={save} disabled={pending}>Save email settings</Button>
@@ -121,11 +121,11 @@ function WabaForm({ initial }: { initial: NurtureSettingsView["waba"] }) {
     });
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm font-medium">WhatsApp — Meta Cloud API</p>
+      <p className="text-sm font-medium">WhatsApp - Meta Cloud API</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Phone number ID"><Input value={v.phoneNumberId} onChange={(e) => setV({ ...v, phoneNumberId: e.target.value })} /></Field>
         <Field label="Business Account ID (for templates)"><Input value={v.businessAccountId} placeholder="WABA id from WhatsApp Manager" onChange={(e) => setV({ ...v, businessAccountId: e.target.value })} /></Field>
-        <Field label={`Access token ${initial.hasToken ? "(saved — leave blank to keep)" : ""}`}>
+        <Field label={`Access token ${initial.hasToken ? "(saved - leave blank to keep)" : ""}`}>
           <Input type="password" value={v.accessToken} placeholder={initial.hasToken ? "••••••••" : ""} onChange={(e) => setV({ ...v, accessToken: e.target.value })} />
         </Field>
         <Field label="API version"><Input value={v.apiVersion} placeholder="v21.0" onChange={(e) => setV({ ...v, apiVersion: e.target.value })} /></Field>
@@ -135,7 +135,7 @@ function WabaForm({ initial }: { initial: NurtureSettingsView["waba"] }) {
         The token is a permanent WhatsApp Cloud API access token. Default country code is prepended to
         local mobiles (e.g. a 10-digit Indian number) so WhatsApp gets a full international number. The
         <strong> Business Account ID</strong> (WABA id, from Meta WhatsApp Manager) is only needed to load
-        your approved templates on the Nurture page — the token must have <strong>whatsapp_business_management</strong>.
+        your approved templates on the Nurture page - the token must have <strong>whatsapp_business_management</strong>.
       </p>
       <div>
         <Button size="sm" onClick={save} disabled={pending}>Save WhatsApp settings</Button>

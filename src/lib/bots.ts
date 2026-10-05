@@ -1,6 +1,6 @@
 /**
  * Confident non-human user-agents: search + AI crawlers, headless browsers, and
- * raw HTTP libraries. Kept deliberately TIGHT — real browser UAs (Chrome, Safari,
+ * raw HTTP libraries. Kept deliberately TIGHT - real browser UAs (Chrome, Safari,
  * Firefox, Edge, mobile webviews) never contain these tokens, so a match is a safe
  * signal to refuse a lead opt-in without risking a real respondent.
  *
@@ -12,7 +12,7 @@ const CRAWLER_RE =
 
 export function isCrawlerUserAgent(ua: string | null | undefined): boolean {
   const s = (ua ?? "").trim();
-  if (!s) return false; // absent UA is ambiguous — don't block a real opt-in on it
+  if (!s) return false; // absent UA is ambiguous - don't block a real opt-in on it
   return CRAWLER_RE.test(s);
 }
 
@@ -20,8 +20,8 @@ export function isCrawlerUserAgent(ua: string | null | undefined): boolean {
  * Broader bot flag for ANALYTICS attribution (distinct from isCrawlerUserAgent,
  * which gates opt-ins). Why separate: the opt-in page view fires from a client
  * beacon, so only JS-capable clients trip it. Meta's ad-review renderer and
- * link-preview crawlers DO run JS but fetch the bare landing URL with no UTM — so
- * they land as sourceless "—" views that inflate traffic on every ad launch. We
+ * link-preview crawlers DO run JS but fetch the bare landing URL with no UTM - so
+ * they land as sourceless "-" views that inflate traffic on every ad launch. We
  * still RECORD these hits (for audit, and so the discrepancy is explainable) but
  * flag them, so every human-facing metric can exclude them.
  *
@@ -93,7 +93,7 @@ const BOT_UA = new RegExp(
 );
 
 /**
- * True if the User-Agent looks like a bot / crawler / automation client — or is
+ * True if the User-Agent looks like a bot / crawler / automation client - or is
  * missing entirely (a real browser always sends one; an absent UA is a script).
  * For ANALYTICS only; use isCrawlerUserAgent to gate opt-ins.
  */

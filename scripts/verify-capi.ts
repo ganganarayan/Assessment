@@ -21,7 +21,7 @@ console.log("Meta CAPI feature verification\n");
 
 // (a) Known SHA-256 vector.
 {
-  // sha256("hello") — well-known test vector.
+  // sha256("hello") - well-known test vector.
   const v = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
   expect("sha256Hex('hello')", sha256Hex("hello") === v, sha256Hex("hello"));
 }

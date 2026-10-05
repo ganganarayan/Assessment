@@ -18,7 +18,7 @@ import {
  * respondent's AI statement, a VSL video embed, styled buttons and YouTube
  * testimonials, footer. Mobile-first single column. Colours are dynamic (per-page
  * theme), so they are applied as inline styles rather than Tailwind tokens. No
- * scores/bands — pure marketing. Reachable in the IG in-app browser via the token
+ * scores/bands - pure marketing. Reachable in the IG in-app browser via the token
  * link, no sign-in.
  */
 export function VslResultPage({
@@ -34,7 +34,7 @@ export function VslResultPage({
   customerId: string | null;
   resultToken: string | null;
   vidapulseParam: string | null;
-  /** Whose result page this is. Null in an admin preview — booking CTAs then link
+  /** Whose result page this is. Null in an admin preview - booking CTAs then link
    *  straight out rather than recording a click nobody made. */
   submissionId?: string | null;
 }) {
@@ -178,11 +178,11 @@ function ButtonBlock({
   // The link is used EXACTLY as typed (normalizeHref only fixes a missing scheme),
   // with one exception: a VidaPulse CTA tracking link is stamped with who is
   // clicking it. That has to happen here, server-side, because the anchor below
-  // carries rel="noreferrer" — without the ids in the URL, the click arrives at
+  // carries rel="noreferrer" - without the ids in the URL, the click arrives at
   // VidaPulse anonymous. Any other link is returned untouched.
   const direct = stampVidapulseCtaUrl(normalizeHref(config.url), customerId, resultToken);
   // A booking CTA goes via /api/cta instead, which records who clicked, fires the CRM
-  // webhook and emails the owner, then 302s to this very same stamped destination —
+  // webhook and emails the owner, then 302s to this very same stamped destination -
   // the respondent lands in the identical place either way. Needs a submissionId, so
   // an admin preview (which has none) keeps linking straight out.
   const href =
@@ -230,7 +230,7 @@ function VideoBlock({
 }) {
   const src = extractEmbedSrc(code);
   if (!src) return null;
-  // Carry the opaque VidaPulse id into the embed (identity bridge) — no-op for a
+  // Carry the opaque VidaPulse id into the embed (identity bridge) - no-op for a
   // non-absolute src or when tracking is off / no customerId.
   const finalSrc = appendVidapulseId(src, vidapulseParam, customerId);
   return (

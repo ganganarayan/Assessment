@@ -27,7 +27,7 @@ export default async function WorkspaceSubmissionsPage({
   const { tenantId } = await requireWorkspace();
   const canDelete = await currentUserCanEdit();
   const sp = await searchParams;
-  // The VSL `cid` param for this tenant — appended to each row's Result URL so the
+  // The VSL `cid` param for this tenant - appended to each row's Result URL so the
   // "Copy" link an operator sends for nurture carries the customer id to VidaPulse.
   const vidapulseParam = await vidapulseParamForTenant(tenantId);
   const assessmentOptions = (await listAssessments(tenantOnly(tenantId))).map((a) => ({ id: a.id, title: a.title }));
@@ -44,7 +44,7 @@ export default async function WorkspaceSubmissionsPage({
     to: sp.to,
   });
   const stickyStart = scoped?.statsResetAt ? formatIST(scoped.statsResetAt.toISOString()).split(" ")[0] : "";
-  // Billing gate: over-cap completions are captured but LOCKED — the tenant can neither
+  // Billing gate: over-cap completions are captured but LOCKED - the tenant can neither
   // view nor export them until they upgrade. Partition them out here and surface only a
   // padlocked count. `periodSeq` is stamped on the winning completion; a null seq
   // (in-progress or grandfathered) is always visible.
@@ -138,7 +138,7 @@ export default async function WorkspaceSubmissionsPage({
             <span className="font-semibold text-[var(--foreground)]">
               {lockedCount} lead{lockedCount === 1 ? "" : "s"} locked
             </span>{" "}
-            — you&apos;ve gone past your plan&apos;s response limit
+            - you&apos;ve gone past your plan&apos;s response limit
             {respLimit != null ? ` of ${respLimit.toLocaleString()} / month` : ""}. These responses
             were captured and are safe, but you can&apos;t view or export them until you upgrade.
             Upgrade to unlock every lead instantly.
@@ -173,7 +173,7 @@ export default async function WorkspaceSubmissionsPage({
         </p>
       ) : (
         <p className="text-xs text-[var(--muted-foreground)]">
-          Every submission to your assessments — private to this workspace. Type to search; click a
+          Every submission to your assessments - private to this workspace. Type to search; click a
           column heading to sort.
         </p>
       )}

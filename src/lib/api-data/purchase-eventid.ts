@@ -8,14 +8,14 @@ import { rateLimit } from "@/lib/rate-limit";
  * The browser Purchase pixel must fire with the SAME event_id the server CAPI
  * event uses, or Meta counts the sale twice. That id is the Razorpay payment id
  * (`pay_...`), which we already store on every captured payment as
- * `capiLog.providerPaymentId` (see lib/meta/capi-log.ts) — and the server fire
+ * `capiLog.providerPaymentId` (see lib/meta/capi-log.ts) - and the server fire
  * uses it as `eventId`. So this endpoint returns the newest captured payment in a
  * short time window, filtered by an amount band, and the browser fires the pixel
  * with `eventID = event_id`. Disjoint bands (₹499 booking vs ₹46k+ enrolment)
  * keep the two funnels from picking up each other's payment.
  *
  * Public, no auth, no PII in the response. Byte-for-byte: `event_id` is the exact
- * `pay_...` string — any transformation would break dedup.
+ * `pay_...` string - any transformation would break dedup.
  */
 
 const ALLOWED_ORIGINS = new Set([

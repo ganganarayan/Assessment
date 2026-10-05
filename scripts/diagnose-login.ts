@@ -1,6 +1,6 @@
 /** READ-ONLY login diagnostic: why can't <email or tenant> sign in?
  *  Usage: railway run --environment production npx tsx scripts/diagnose-login.ts <search>
- *  Prints no password hashes — only whether one exists. */
+ *  Prints no password hashes - only whether one exists. */
 import "./public-db-url";
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();

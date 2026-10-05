@@ -1,7 +1,7 @@
 /**
  * Per-assessment selection of which Meta events an assessment reports.
  *
- * `Assessment.fireMetaCapi` stays the master switch — off means this assessment tells
+ * `Assessment.fireMetaCapi` stays the master switch - off means this assessment tells
  * Meta nothing, which is what keeps a routed (non ad-entry) assessment from polluting
  * the ad account's learning. `metaEvents` then narrows WHICH events fire when the
  * master is on.
@@ -31,7 +31,7 @@ export type MetaEventKey = (typeof META_EVENT_KEYS)[number];
 
 export type MetaEventFlags = Record<MetaEventKey, boolean>;
 
-/** Everything on — the default, and what a null column means. */
+/** Everything on - the default, and what a null column means. */
 export const ALL_META_EVENTS: MetaEventFlags = {
   registration: true,
   completion: true,
@@ -54,7 +54,7 @@ export const META_EVENT_META: Record<MetaEventKey, { label: string; event: strin
   gateDisqualified: {
     label: "Disqualified",
     event: "GateDisqualified",
-    help: "Fires when the page-1 gate rejects someone. Its only purpose is an exclusion audience — turn it off and you lose the ability to stop paying for unfit traffic.",
+    help: "Fires when the page-1 gate rejects someone. Its only purpose is an exclusion audience - turn it off and you lose the ability to stop paying for unfit traffic.",
   },
   abandoned: {
     label: "Abandoned",
@@ -70,7 +70,7 @@ export function readMetaEvents(value: unknown): MetaEventFlags {
   const out = { ...ALL_META_EVENTS };
   for (const k of META_EVENT_KEYS) {
     // Only an explicit `false` turns one off. A missing key, or a value of some other
-    // type, stays on — so a partial or hand-edited object can never silently mute an
+    // type, stays on - so a partial or hand-edited object can never silently mute an
     // event that is feeding a live audience.
     if (v[k] === false) out[k] = false;
   }

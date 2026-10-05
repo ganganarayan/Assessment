@@ -9,7 +9,7 @@ import { resolveActingScope } from "@/lib/tenant/acting";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /**
- * The logins that belong to the workspace you are currently in — and the one place
+ * The logins that belong to the workspace you are currently in - and the one place
  * that can set one of their passwords.
  *
  * 🔴 Why this exists. Settings used to offer exactly one password control: "Change
@@ -17,7 +17,7 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
  * session belongs to, so a super admin who entered a tenant and used it changed their
  * OWN password while believing they were fixing the tenant's. The tenant stayed locked
  * out, the owner's own credentials silently moved, and (before the fix in
- * changeOwnPassword) the session was revoked on the way out — "it logged out and did
+ * changeOwnPassword) the session was revoked on the way out - "it logged out and did
  * nothing". A control that acts on somebody other than the account named on the screen
  * has to be a different control, not the same one in a different context.
  */
@@ -30,7 +30,7 @@ export interface WorkspaceLogin {
   staffPermission: string | null;
   /** True while a super-admin-set password is still waiting to be changed. */
   mustChangePassword: boolean;
-  /** No credential account yet — this login cannot sign in with a password at all. */
+  /** No credential account yet - this login cannot sign in with a password at all. */
   noPassword: boolean;
 }
 
@@ -71,7 +71,7 @@ export async function listWorkspaceLogins(): Promise<ActionResult<WorkspaceLogin
  *
  * Authorization is the workspace boundary itself: the target must belong to the tenant
  * the caller is acting as, which a tenant admin can only ever be their own and a super
- * admin only one they have explicitly entered. The platform owner is never a target —
+ * admin only one they have explicitly entered. The platform owner is never a target -
  * that account recovers through Forgot password or the break-glass script, so a tenant
  * screen can never reach it.
  */

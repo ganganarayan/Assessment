@@ -26,7 +26,7 @@ export default async function PlatformPage() {
     getLandingVideosRaw(),
     getStorageSettings(),
   ]);
-  // Any loader that failed (a transient DB error) surfaces as a banner — the page
+  // Any loader that failed (a transient DB error) surfaces as a banner - the page
   // still renders with whatever loaded, instead of a full-page server crash.
   const loadErrors = [t, dt, u, d, lv, st]
     .filter((r): r is { ok: false; error: string } => !r.ok)

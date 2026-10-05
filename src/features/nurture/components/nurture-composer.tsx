@@ -18,7 +18,7 @@ import {
 } from "@/features/nurture/actions";
 
 /**
- * Nurture message composer — the single Email + WhatsApp that fire once on opt-in.
+ * Nurture message composer - the single Email + WhatsApp that fire once on opt-in.
  * Email on top, WhatsApp below. Connection credentials live in Settings; this page is
  * only the message content, test sends and the send log.
  */
@@ -90,33 +90,33 @@ export function NurtureComposer({
         Placeholders: {NURTURE_PLACEHOLDERS.map((p) => `{{${p}}}`).join("  ")}
       </p>
 
-      {/* Email — top */}
+      {/* Email - top */}
       <section className="flex flex-col gap-3 rounded-lg border p-4">
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" checked={cfg.email.enabled} onChange={(e) => setEmail({ enabled: e.target.checked })} />
-          Email — send on completion
+          Email - send on completion
         </label>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Subject</Label>
-          <Input value={cfg.email.subject} placeholder="Welcome, {{firstName}} — your results are on the way" onChange={(e) => setEmail({ subject: e.target.value })} />
+          <Input value={cfg.email.subject} placeholder="Welcome, {{firstName}} - your results are on the way" onChange={(e) => setEmail({ subject: e.target.value })} />
         </div>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Body (HTML allowed)</Label>
-          <Textarea rows={7} value={cfg.email.body} placeholder={"<p>Hi {{firstName}},</p>\n<p>Your results are ready — view them here:</p>\n<p><a href=\"{{resultUrl}}\">{{resultUrl}}</a></p>"} onChange={(e) => setEmail({ body: e.target.value })} spellCheck={false} />
+          <Textarea rows={7} value={cfg.email.body} placeholder={"<p>Hi {{firstName}},</p>\n<p>Your results are ready - view them here:</p>\n<p><a href=\"{{resultUrl}}\">{{resultUrl}}</a></p>"} onChange={(e) => setEmail({ body: e.target.value })} spellCheck={false} />
         </div>
         <TestSend kind="email" />
       </section>
 
-      {/* WhatsApp — below */}
+      {/* WhatsApp - below */}
       <section className="flex flex-col gap-3 rounded-lg border p-4">
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" checked={cfg.waba.enabled} onChange={(e) => setWaba({ enabled: e.target.checked })} />
-          WhatsApp — send on completion
+          WhatsApp - send on completion
         </label>
         <p className="text-xs text-[var(--muted-foreground)]">
           WhatsApp business-initiated messages must use a <strong>pre-approved template</strong> from your
           Meta WhatsApp account. Enter its exact name + language, then map its body variables
-          (&#123;&#123;1&#125;&#125;, &#123;&#123;2&#125;&#125;…) below — each can be plain text or a placeholder.
+          (&#123;&#123;1&#125;&#125;, &#123;&#123;2&#125;&#125;…) below - each can be plain text or a placeholder.
         </p>
         {/* Pull approved templates from Meta so you can pick instead of typing. */}
         <div className="flex flex-col gap-2 rounded-md border border-dashed p-3">
@@ -204,7 +204,7 @@ export function NurtureComposer({
                   <tr key={r.id} className="border-t border-[var(--border)]">
                     <td className="whitespace-nowrap px-3 py-2">{new Date(r.createdAt).toLocaleString()}</td>
                     <td className="px-3 py-2">{r.channel}</td>
-                    <td className="break-all px-3 py-2">{r.toAddress ?? "—"}</td>
+                    <td className="break-all px-3 py-2">{r.toAddress ?? "-"}</td>
                     <td className="px-3 py-2">
                       <span className={r.status === "SENT" ? "text-green-600" : r.status === "FAILED" ? "text-red-600" : "text-[var(--muted-foreground)]"}>
                         {r.status}
@@ -218,10 +218,10 @@ export function NurtureComposer({
                           <span className="text-red-600" title="No tracked link clicked yet">✗</span>
                         )
                       ) : (
-                        <span className="text-[var(--muted-foreground)]" title="Click tracking applies to sent emails only">—</span>
+                        <span className="text-[var(--muted-foreground)]" title="Click tracking applies to sent emails only">-</span>
                       )}
                     </td>
-                    <td className="max-w-[280px] break-words px-3 py-2 text-[var(--muted-foreground)]">{r.error ?? "—"}</td>
+                    <td className="max-w-[280px] break-words px-3 py-2 text-[var(--muted-foreground)]">{r.error ?? "-"}</td>
                   </tr>
                 ))}
               </tbody>

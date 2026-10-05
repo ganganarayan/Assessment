@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function OperationsPage() {
   // Scope the pickable assessments the same way every other /admin list does. This used
   // to read actingTenantId() directly, which means "tenantId IS NULL" when no workspace
-  // is entered — that was the platform's funnel before the re-home and is nobody's rows
+  // is entered - that was the platform's funnel before the re-home and is nobody's rows
   // after it, so it would have drifted away from the rest of the console.
   const assessments = await prisma.assessment.findMany({
     where: whereScope(await actingDataScope()),

@@ -12,7 +12,7 @@ import { formatIST } from "@/lib/date";
 
 /**
  * Super-admin Stats export. GET /api/admin/stats/export?dataset=utm|pageviews
- * &format=csv|json&from=&to= — exports the two Stats tables (traffic by UTM, or
+ * &format=csv|json&from=&to= - exports the two Stats tables (traffic by UTM, or
  * the per-visit page-view log) for the date range (else all-time).
  */
 export const dynamic = "force-dynamic";

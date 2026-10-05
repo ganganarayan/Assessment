@@ -9,13 +9,13 @@ import { resetStorageConfig, storage, tenantKey } from "@/lib/storage/r2";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /**
- * Cloudflare R2 credentials — PLATFORM scope, super admin only.
+ * Cloudflare R2 credentials - PLATFORM scope, super admin only.
  *
  * One bucket for the whole install; tenants are isolated by key prefix (see
  * lib/storage/r2 tenantKey). Kept in Settings rather than environment variables so keys
  * can be rotated without a deploy.
  *
- * The secret is never returned to the client — the editor shows whether one is SET and
+ * The secret is never returned to the client - the editor shows whether one is SET and
  * lets you replace it. Sending it back would put a live storage credential in a page
  * payload and in the browser's memory for no reason.
  */
@@ -61,7 +61,7 @@ export async function getStorageSettings(): Promise<ActionResult<StorageSettings
 export interface StorageSettingsInput {
   accountId: string;
   accessKeyId: string;
-  /** Blank leaves the stored secret untouched — that is how you edit the other fields
+  /** Blank leaves the stored secret untouched - that is how you edit the other fields
    *  without having to paste the key again. */
   secretAccessKey: string;
   bucketName: string;
@@ -80,7 +80,7 @@ export async function saveStorageSettings(input: StorageSettingsInput): Promise<
   const secret = t(input.secretAccessKey);
 
   // A public URL that is not a URL produces object links that silently 404 later, far
-  // from the cause — so it is rejected here rather than stored.
+  // from the cause - so it is rejected here rather than stored.
   if (publicUrl) {
     try {
       const u = new URL(publicUrl);
@@ -108,7 +108,7 @@ export async function saveStorageSettings(input: StorageSettingsInput): Promise<
   }
 
   // Drop the cached credentials, or a corrected key would not apply until the process
-  // restarted — which reads as the save having done nothing.
+  // restarted - which reads as the save having done nothing.
   resetStorageConfig();
   revalidatePath("/platform");
   return { ok: true };
@@ -119,7 +119,7 @@ export async function saveStorageSettings(input: StorageSettingsInput): Promise<
  *
  * A real round trip rather than a credential-shape check: the ways R2 actually fails
  * are a wrong account id, a token without write permission, and a bucket name that does
- * not exist — none of which are visible until something is written. Writes under the
+ * not exist - none of which are visible until something is written. Writes under the
  * platform tenant's own prefix and deletes it again, so a test leaves nothing behind.
  */
 export async function testStorage(): Promise<ActionResult<{ ms: number }>> {
@@ -136,7 +136,7 @@ export async function testStorage(): Promise<ActionResult<{ ms: number }>> {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[platform] testStorage failed:", msg);
     // The SDK's message names the actual cause (NoSuchBucket, InvalidAccessKeyId,
-    // AccessDenied), which is exactly what is needed to fix it — so pass it through
+    // AccessDenied), which is exactly what is needed to fix it - so pass it through
     // instead of flattening it to "test failed".
     return { ok: false, error: msg };
   }

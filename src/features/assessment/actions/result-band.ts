@@ -52,7 +52,7 @@ export async function createResultBand(
 /**
  * Bulk-fill the overall result bands from a compact text spec (ranges + names).
  * REPLACES the current result bands for the assessment (idempotent, editable
- * afterward). Ranges are validated (0–100, no overlap); a gap is only a warning.
+ * afterward). Ranges are validated (0-100, no overlap); a gap is only a warning.
  */
 export async function importResultBandsFromText(
   assessmentId: string,

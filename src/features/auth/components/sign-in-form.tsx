@@ -48,7 +48,7 @@ export function SignInForm() {
       return;
     }
 
-    // A fresh sign-in always starts on your OWN surface — never resuming a workspace
+    // A fresh sign-in always starts on your OWN surface - never resuming a workspace
     // this browser was left impersonating.
     await endImpersonation().catch(() => {});
     router.push("/dashboard");

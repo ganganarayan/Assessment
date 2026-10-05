@@ -14,7 +14,7 @@ import { type CapiLogRow } from "@/features/events/data";
 
 /**
  * CAPI log: every captured payment's Purchase event + Meta's response. Standard
- * amounts auto-fire; everything else is `pending` — fire it manually here (event
+ * amounts auto-fire; everything else is `pending` - fire it manually here (event
  * name editable per row for high-ticket sales). Plus the auto-fire settings.
  */
 export function CapiLogPanel({
@@ -66,7 +66,7 @@ export function CapiLogPanel({
         <p className="text-xs text-[var(--muted-foreground)]">
           Every captured payment is logged. Amounts in the auto-fire list send{" "}
           <span className="font-mono">Purchase</span> automatically; others stay{" "}
-          <span className="font-mono">pending</span> — fire them below. Amounts above the
+          <span className="font-mono">pending</span> - fire them below. Amounts above the
           high-ticket threshold use your custom event name.
         </p>
       </div>
@@ -130,13 +130,13 @@ export function CapiLogPanel({
                   <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">{formatIST(r.createdAt)}</td>
                   <td className="px-3 py-2 text-xs">
                     <div className="flex flex-col">
-                      <span>{r.name ?? "—"}</span>
-                      <span className="text-[var(--muted-foreground)]">{r.email ?? "—"}</span>
-                      <span className="text-[var(--muted-foreground)]">{r.phone ?? "—"}</span>
-                      <span className="font-mono text-[10px] text-[var(--muted-foreground)]">{r.providerPaymentId ?? "—"}</span>
+                      <span>{r.name ?? "-"}</span>
+                      <span className="text-[var(--muted-foreground)]">{r.email ?? "-"}</span>
+                      <span className="text-[var(--muted-foreground)]">{r.phone ?? "-"}</span>
+                      <span className="font-mono text-[10px] text-[var(--muted-foreground)]">{r.providerPaymentId ?? "-"}</span>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{r.amountRupees != null ? `₹${r.amountRupees}` : "—"}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{r.amountRupees != null ? `₹${r.amountRupees}` : "-"}</td>
                   <td className="px-3 py-2">
                     <Input
                       className="h-8 w-36 text-xs"
@@ -151,7 +151,7 @@ export function CapiLogPanel({
                     {r.autoFired ? <span className="block text-[10px] text-[var(--muted-foreground)]">auto</span> : null}
                   </td>
                   <td className="max-w-[240px] truncate px-3 py-2 text-xs text-[var(--muted-foreground)]" title={r.response ?? ""}>
-                    {r.httpStatus ? `HTTP ${r.httpStatus} · ` : ""}{r.response ?? "—"}
+                    {r.httpStatus ? `HTTP ${r.httpStatus} · ` : ""}{r.response ?? "-"}
                   </td>
                   <td className="px-3 py-2">
                     <Button size="sm" disabled={pending || done} onClick={() => fire(r)}>

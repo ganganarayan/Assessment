@@ -93,7 +93,7 @@ export function PlatformConsole({
       setError(null);
       if (
         !confirm(
-          `Delete "${t.name}"?\n\nIt moves to Deleted tenants. Its funnel stops, its domains stop resolving and its admins lose access — but nothing is erased, and you can restore it.`,
+          `Delete "${t.name}"?\n\nIt moves to Deleted tenants. Its funnel stops, its domains stop resolving and its admins lose access - but nothing is erased, and you can restore it.`,
         )
       )
         return;
@@ -181,7 +181,7 @@ export function PlatformConsole({
       <section className="flex flex-col gap-3 rounded-lg border p-4">
         <h2 className="text-lg font-semibold">Create a tenant</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
-          Creates the tenant AND its admin login. Name, email and password are required — the admin
+          Creates the tenant AND its admin login. Name, email and password are required - the admin
           can sign in immediately. Slug is auto-derived from the name unless you set one.
         </p>
         <div className="flex flex-wrap items-end gap-3">
@@ -234,7 +234,7 @@ export function PlatformConsole({
                     <td className="px-3 py-2 text-center tabular-nums">{t.adminCount}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.assessmentCount}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.submissionCount}</td>
-                    <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]">{t.source ?? "—"}</td>
+                    <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]">{t.source ?? "-"}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-col gap-0.5">
                         <span>{t.status}</span>
@@ -363,14 +363,14 @@ export function PlatformConsole({
         </div>
       </section>
 
-      {/* Deleted tenants — the only place the permanent delete exists */}
+      {/* Deleted tenants - the only place the permanent delete exists */}
       {deletedTenants.length > 0 ? (
         <section className="flex flex-col gap-2">
           <h2 className="text-lg font-semibold">Deleted tenants ({deletedTenants.length})</h2>
           <p className="text-xs text-[var(--muted-foreground)]">
             Their funnels are off and their admins are locked out, but nothing has been erased.
             Restore brings the tenant back with all of its data. Delete permanently is the only
-            action that actually destroys anything — and it cannot be undone.
+            action that actually destroys anything - and it cannot be undone.
           </p>
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">

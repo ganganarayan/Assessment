@@ -12,7 +12,7 @@ import { fmtStep, caseLine, buildTrail, assumedTagText, roundPatients, roundedRe
 import { formatINR, monthlyLabel, pctLabel } from "@/lib/format/inr";
 
 /**
- * Divine Leads clinic-audit result — the interactive, forwardable page. The reader
+ * Divine Leads clinic-audit result - the interactive, forwardable page. The reader
  * can check the arithmetic himself by editing the three inputs; everything derived
  * recomputes via the SAME pure engine (never a second copy). The BAND is fixed from
  * the original submission (editing can't change it). Self-contained brand styling.
@@ -103,7 +103,7 @@ interface Props {
   /** Optional onward button (nextStep RESULTS): a PLAIN external link, no token. */
   continueUrl?: string | null;
   continueLabel?: string;
-  /** Their own answers, grouped by category — shown back to them so a typo in what
+  /** Their own answers, grouped by category - shown back to them so a typo in what
    *  they filled is visible and correctable (every figure here drives the maths). */
   answers?: {
     name: string;
@@ -123,7 +123,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
   // Committed, clamped numeric values that actually drive the math.
   const [E, setE] = useState(inputs.E);
   const [V, setV] = useState(inputs.V);
-  // Close rate is edited out of 100 (a percent), never out of 10 — an "out of 10"
+  // Close rate is edited out of 100 (a percent), never out of 10 - an "out of 10"
   // field invited answers like 65 that read as 650%. Capped at 100 = 100%.
   const [C100, setC100] = useState(Math.round(inputs.C * 100));
   // Ad budget drives the performance-marketing projection. Editable so the
@@ -152,8 +152,8 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
 
   const eEdited = E !== inputs.E;
   const vEdited = V !== inputs.V;
-  // Close rate is edited as a percent (0–100). Rounding to a whole percent must NEVER
-  // leak into the actual math unless the reader genuinely typed a new value — so the
+  // Close rate is edited as a percent (0-100). Rounding to a whole percent must NEVER
+  // leak into the actual math unless the reader genuinely typed a new value - so the
   // effective C stays the EXACT original rate (matching the PDF/submission bit-for-
   // bit) until cEdited is true, only then switching to the (now intentional) C100/100.
   const cEdited = C100 !== Math.round(inputs.C * 100);
@@ -167,7 +167,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
     [inputs, liveConfig, E, V, effectiveC],
   );
   const edited = eEdited || vEdited || cEdited;
-  // An "assumed" tag only applies to the ORIGINAL submission's fallback figures —
+  // An "assumed" tag only applies to the ORIGINAL submission's fallback figures -
   // once the reader edits that specific field, it's their own number, not ours.
   const assumedTag = (role: ClinicRole, label: string, fieldEdited: boolean) =>
     assumedTagText(original.assumptions, original.assumedRangeLabel, role, label, fieldEdited);
@@ -215,7 +215,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
     setAdStr(String(config.adBudgetMonthly)); setAdBudget(config.adBudgetMonthly);
   };
 
-  const waHref = `https://wa.me/?text=${encodeURIComponent(`${title} — see the numbers here: ${resultUrl}`)}`;
+  const waHref = `https://wa.me/?text=${encodeURIComponent(`${title} - see the numbers here: ${resultUrl}`)}`;
 
   // Match each flagged role back to the actual question the respondent answered, so
   // the correction notice can point at a specific question instead of a vague role.
@@ -249,7 +249,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
 
       {/* Incoherent inputs: fewer than one case a month, or a rate so low it's
           almost certainly a unit mix-up. Showing money figures here would be
-          worse than showing nothing — "0 cases" next to a positive revenue reads
+          worse than showing nothing - "0 cases" next to a positive revenue reads
           as broken, and the underlying number is wrong anyway. Ask instead. */}
       {original.dataInconsistent ? (
         <div className="cap-lead" style={{ marginTop: 12 }}>
@@ -266,7 +266,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
           </p>
 
           {/* Name the EXACT questions to re-answer, with what they said and how it
-              was read — a generic "one of your figures is wrong" is unactionable. */}
+              was read - a generic "one of your figures is wrong" is unactionable. */}
           {suspectQuestions.length > 0 ? (
             <div style={{ marginTop: 12 }}>
               <p style={{ fontSize: 14, fontWeight: 600 }}>Please re-check these answers:</p>
@@ -274,7 +274,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
                 <div key={i} style={{ marginTop: 8, paddingLeft: 10, borderLeft: "3px solid var(--gold)" }}>
                   <p style={{ fontSize: 14, fontWeight: 600 }}>{q.text}</p>
                   <p style={{ fontSize: 14, color: "var(--muted)" }}>
-                    You answered <strong>{q.answerLabel ?? "—"}</strong> — we read that as{" "}
+                    You answered <strong>{q.answerLabel ?? "-"}</strong> - we read that as{" "}
                     <strong>{q.readAs}</strong>
                     {q.likelyMeant ? (
                       <>
@@ -291,7 +291,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
           ) : null}
 
           <p style={{ fontSize: 15, marginTop: 12 }}>
-            Your other answers are listed under &ldquo;What you told us&rdquo; below — keep this page
+            Your other answers are listed under &ldquo;What you told us&rdquo; below - keep this page
             open, open the audit in a new window, and re-enter everything the same except the
             answers above.
           </p>
@@ -309,7 +309,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         <h1 style={{ fontSize: 26, marginTop: 4 }}>Your numbers right now</h1>
       ) : null}
 
-      {/* Everything money-related is withheld when the inputs are incoherent —
+      {/* Everything money-related is withheld when the inputs are incoherent -
           a wrong figure presented confidently is worse than no figure at all. */}
       {!original.dataInconsistent ? (
       <>
@@ -334,10 +334,10 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         </div>
       </div>
 
-      {/* Editable inputs — say plainly that they ARE editable; a gold underline
+      {/* Editable inputs - say plainly that they ARE editable; a gold underline
           alone doesn't tell anyone they may overwrite the figure. */}
       <div className="edit-lead">Change any of the figures below and see the effect.</div>
-      {/* One short label per field, no per-field hint — three equal one-line labels
+      {/* One short label per field, no per-field hint - three equal one-line labels
           keep the columns on a shared baseline instead of staggering by height. */}
       <div className="inputs">
         <div className={`field${eInvalid ? " invalid" : ""}`}>
@@ -358,10 +358,10 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       </div>
       {edited ? <button className="link" onClick={reset}>Reset to my answers</button> : null}
 
-      {/* The full calculation, every stage, in the open — the reader can check it
+      {/* The full calculation, every stage, in the open - the reader can check it
           against their own rough numbers. Never hidden behind a toggle. */}
       <div className="calc" aria-live="polite">
-        <p className="calc-title">Today — how we got this number</p>
+        <p className="calc-title">Today - how we got this number</p>
         <div className="calc-row">
           <span>Monthly enquiries</span>
           <span className="num">
@@ -394,7 +394,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
           </span>
           <span className="num">= {formatINR(result.revenueNow)}/month</span>
         </div>
-        {/* You can't treat a fraction of a person — show what that means in whole
+        {/* You can't treat a fraction of a person - show what that means in whole
             patients alongside the exact arithmetic. */}
         <div className="calc-row op rounded">
           <span>In whole patients</span>
@@ -421,7 +421,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
           <span className="num">= {fmtStep(potTrail.attended)} attended</span>
         </div>
         <div className="calc-row op final">
-          <span>× Close rate ({pctLabel(result.closeRate)}, unchanged — this is yours, never modelled as improving)</span>
+          <span>× Close rate ({pctLabel(result.closeRate)}, unchanged - this is yours, never modelled as improving)</span>
           <span className="num">
             = {casePot.text} patient{casePot.text === "1" ? "" : "s"}/month
             {casePot.hint ? ` (${casePot.hint})` : ""}
@@ -443,7 +443,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
 
       {result.closeRate === 0 ? (
         <p className="note" style={{ marginTop: 12 }}>
-          At a 0% close rate no consultations are converting — that is a consultation-room
+          At a 0% close rate no consultations are converting - that is a consultation-room
           question, not an acquisition one. Adding enquiries won&apos;t change it.
         </p>
       ) : null}
@@ -452,7 +452,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       {result.assumptions.length > 0 ? (
         <p className="note" style={{ marginTop: 12 }}>
           Figures marked <em>assumed</em> above were used because you weren&apos;t sure of the real
-          number. Enquiries, treatment value, and close rate are editable higher up the page —
+          number. Enquiries, treatment value, and close rate are editable higher up the page -
           change them and every number here recalculates.
         </p>
       ) : null}
@@ -462,7 +462,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
         <div className="cap-lead">
           <strong>Acquisition is not your constraint right now.</strong> You reported little spare
           capacity, so more enquiries would create pressure rather than revenue. Fix throughput
-          first — the numbers below still show what the demand is worth.
+          first - the numbers below still show what the demand is worth.
         </div>
       ) : null}
 
@@ -482,7 +482,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
           and show-up rates and your own close rate, unchanged.
         </p>
         <div className="field" style={{ maxWidth: 260, marginTop: 10 }}>
-          <label htmlFor="dl-ad">Ad budget a month — change it to see the figures move</label>
+          <label htmlFor="dl-ad">Ad budget a month - change it to see the figures move</label>
           <input
             id="dl-ad"
             inputMode="numeric"
@@ -527,7 +527,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
           </div>
         </div>
         <p style={{ fontSize: 14, marginTop: 8 }}>
-          <strong>This is additional</strong> — over and above what your clinic earns today.
+          <strong>This is additional</strong> - over and above what your clinic earns today.
         </p>
       </div>
 
@@ -550,7 +550,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
             <span className="rung-cap">After AI automation</span>
             <span className="rung-amt num">{formatINR(whole.revenuePotential)}</span>
             <span className="rung-sub">
-              {whole.patientsPotential} patient{whole.patientsPotential === 1 ? "" : "s"} a month — same
+              {whole.patientsPotential} patient{whole.patientsPotential === 1 ? "" : "s"} a month - same
               enquiries, nothing bought
             </span>
           </div>
@@ -585,7 +585,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
           <p className="verdict">
             You spend {formatINR(whole.investment)} a month. You keep {formatINR(whole.netTotal)}.
             That is <strong>{formatINR(whole.netGain)} a month more profit</strong> than you make
-            today — {formatINR(whole.netGain * 12)} over a year.
+            today - {formatINR(whole.netGain * 12)} over a year.
           </p>
         ) : null}
       </div>
@@ -606,7 +606,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       </>
       ) : null}
 
-      {/* What they told us — every figure above is derived from these answers, so
+      {/* What they told us - every figure above is derived from these answers, so
           showing them back makes a mis-tap or typo findable rather than silent. */}
       {answers && answers.length > 0 ? (
         <div className="block">
@@ -621,7 +621,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
               {cat.rows.map((r, i) => (
                 <div key={i} className="calc-row">
                   <span style={{ maxWidth: "62%" }}>{r.text}</span>
-                  <span className="num">{r.answerLabel ?? "—"}</span>
+                  <span className="num">{r.answerLabel ?? "-"}</span>
                 </div>
               ))}
             </div>
@@ -630,7 +630,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
       ) : null}
 
       {/* Close: book the appointment, and forward it to whoever decides. The calendar
-          is deliberately NOT embedded here — it loads a heavy third-party frame in the
+          is deliberately NOT embedded here - it loads a heavy third-party frame in the
           middle of the argument and pulls attention off the numbers. The button opens
           it in its own tab instead. */}
       <div className="block">

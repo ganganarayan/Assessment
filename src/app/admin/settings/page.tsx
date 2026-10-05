@@ -107,7 +107,7 @@ export default async function SettingsPage() {
           <CardHeader>
             <CardTitle>App / subscription pixel (Assess360 SaaS)</CardTitle>
             <CardDescription>
-              A separate Meta pixel for the Assess360 SaaS funnel — landing PageView, free
+              A separate Meta pixel for the Assess360 SaaS funnel - landing PageView, free
               sign-up CompleteRegistration, and subscription Purchase. Distinct from the Gita
               assessment pixel above. No env fallback: unset means the funnel fires nothing.
             </CardDescription>
@@ -123,7 +123,7 @@ export default async function SettingsPage() {
           <CardTitle>Heatmap &amp; session recording {impersonating ? "(this tenant)" : "(platform · Gita)"}</CardTitle>
           <CardDescription>
             Paste a recording snippet (e.g. MS Clarity). It runs on every funnel page
-            (opt-in → each question → result), so the whole session records —
+            (opt-in → each question → result), so the whole session records -
             {impersonating ? " for the tenant you're currently in." : " for your platform (Gita) assessments."}
           </CardDescription>
         </CardHeader>
@@ -154,7 +154,7 @@ export default async function SettingsPage() {
           <CardHeader>
             <CardTitle>Legal &amp; company details</CardTitle>
             <CardDescription>
-              Shown only on the public policy pages (Privacy, Terms, Refund) — never on the
+              Shown only on the public policy pages (Privacy, Terms, Refund) - never on the
               marketing landing. Fill these before going live; blank fields show a placeholder
               on those pages.
             </CardDescription>
@@ -171,7 +171,7 @@ export default async function SettingsPage() {
             <CardTitle>Custom domains (this tenant)</CardTitle>
             <CardDescription>
               Serve this tenant&apos;s funnel on its own domain. Add a host, point its DNS at us, and
-              verify — verified domains route straight to this tenant.
+              verify - verified domains route straight to this tenant.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -191,7 +191,7 @@ export default async function SettingsPage() {
       )}
 
       {/* 🔴 While impersonating, "your own password" is the SUPER ADMIN's, not this
-          tenant's — the trap that let an owner change their own credentials believing
+          tenant's - the trap that let an owner change their own credentials believing
           they were fixing a locked-out tenant. Inside a workspace the card is this
           workspace's logins instead; your own password lives on the platform console. */}
       {impersonating ? (
@@ -200,7 +200,7 @@ export default async function SettingsPage() {
             <CardTitle>Workspace logins</CardTitle>
             <CardDescription>
               The people who can sign in to this tenant. Set a password here to get a locked-out
-              admin back in — they choose their own on the next sign-in. To change YOUR password,
+              admin back in - they choose their own on the next sign-in. To change YOUR password,
               exit to the platform first.
             </CardDescription>
           </CardHeader>

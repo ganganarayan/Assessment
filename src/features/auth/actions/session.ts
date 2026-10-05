@@ -10,7 +10,7 @@ import { clearActingTenant } from "@/lib/tenant/acting-cookie";
  * owner signing back in and silently resuming a workspace they entered hours ago.
  * Signing in should always land on your own surface, never mid-impersonation.
  *
- * Deliberately ungated — it only deletes a cookie, and it has to work for a caller
+ * Deliberately ungated - it only deletes a cookie, and it has to work for a caller
  * who is on their way out of (or into) a session.
  */
 export async function endImpersonation(): Promise<void> {

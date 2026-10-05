@@ -1,12 +1,12 @@
 /**
- * Show exactly what a tenant's workspace will contain AFTER the re-home — before
+ * Show exactly what a tenant's workspace will contain AFTER the re-home - before
  * anything is written.
  *
  *   npx tsx scripts/preview-rehome.ts --tenant apply-gita
  *   npx tsx scripts/preview-rehome.ts --tenant apply-gita --samples 10
  *
  * Prefix with `railway run` (add `--environment production` for prod), from the repo
- * root — `railway run` executes in the current directory.
+ * root - `railway run` executes in the current directory.
  *
  * STRICTLY READ-ONLY. It opens no transaction and issues no write of any kind, so it is
  * safe against production at any time and can be run as often as you like.
@@ -15,21 +15,21 @@
  * The re-home does not copy or delete anything: every row keeps its id and its contents,
  * and the step sets the `tenantId` column that is currently NULL. Because the rows are
  * only visible under super-admin until that column is set, there is no way to LOOK at
- * the workspace you are about to create — you would have to perform the move to see it.
+ * the workspace you are about to create - you would have to perform the move to see it.
  * This closes that gap: same counts, same sample rows, same settings decisions the mover
  * will make, with nothing written. Inspect here, then apply.
  *
  * It answers three questions:
  *   1. What data lands in the workspace?           (per table, with sample rows)
  *   2. Which settings come with it, and which do not?
- *   3. What will STILL read the platform row afterwards? — the honest gap, and the part
+ *   3. What will STILL read the platform row afterwards? - the honest gap, and the part
  *      that is easy to miss, because those values copy across and then sit unread.
  */
 import "./public-db-url";
 import { prisma } from "../src/lib/db/prisma";
 import { resolvePlan } from "../src/lib/billing/plan-resolve";
 
-/** Kept in step with TABLES in rehome-platform-data.ts — the tables the move covers. */
+/** Kept in step with TABLES in rehome-platform-data.ts - the tables the move covers. */
 const TABLES = [
   "assessment",
   "submission",
@@ -62,7 +62,7 @@ function delegate(name: TableName): CountOnly {
 /** Kept in step with SETTINGS_SKIP in rehome-platform-data.ts, with the reason for each. */
 const SKIPPED: { field: string; why: string }[] = [
   { field: "platformPixelId", why: "the Assess360 signup pixel, not the funnel's" },
-  { field: "platformCapiTokenEnc", why: "same — platform CAPI, not the funnel's" },
+  { field: "platformCapiTokenEnc", why: "same - platform CAPI, not the funnel's" },
   { field: "landingVideos", why: "the marketing site, which is the SaaS shopfront" },
   { field: "r2AccountId", why: "one bucket app-wide; read from the platform row only" },
   { field: "r2AccessKeyId", why: "same" },
@@ -73,7 +73,7 @@ const SKIPPED: { field: string; why: string }[] = [
 const SKIP_SET = new Set([...SKIPPED.map((s) => s.field), "id", "tenantId", "createdAt", "updatedAt"]);
 
 /**
- * Code paths that read `appSetting` by `id: "singleton"` — the PLATFORM row — rather
+ * Code paths that read `appSetting` by `id: "singleton"` - the PLATFORM row - rather
  * than by the acting tenant. These do not follow the move: the matching fields are
  * copied onto the tenant row and then nothing reads them, so changing them in the
  * workspace has no effect until the reader is made scope-aware.
@@ -93,7 +93,7 @@ const SINGLETON_READERS: { what: string; where: string; effect: string }[] = [
     effect: "the cron sweeps every tenant on the platform's threshold",
   },
   {
-    what: "CRM drip + custom send (crm* — 15 fields)",
+    what: "CRM drip + custom send (crm* - 15 fields)",
     where: "src/lib/crm/drip.ts, src/lib/crm/send.ts",
     effect: "singleton-only by decision; the copied values are inert until per-tenant CRM exists",
   },
@@ -115,7 +115,7 @@ const SINGLETON_READERS: { what: string; where: string; effect: string }[] = [
   {
     what: "R2 object storage credentials",
     where: "src/lib/storage/r2.ts",
-    effect: "by design — one bucket, partitioned by `tenants/<id>/` key prefix",
+    effect: "by design - one bucket, partitioned by `tenants/<id>/` key prefix",
   },
 ];
 
@@ -138,7 +138,7 @@ function isBlank(v: unknown): boolean {
 
 /** Enough of an email to recognise a row, not enough to harvest one out of a log. */
 function maskEmail(v: string | null): string {
-  if (!v) return "—";
+  if (!v) return "-";
   const at = v.indexOf("@");
   if (at < 1) return "***";
   return `${v.slice(0, 2)}***${v.slice(at)}`;
@@ -166,7 +166,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`PREVIEW — nothing is written. Tenant: ${tenant.name} (${tenant.slug}) ${tenant.id}`);
+  console.log(`PREVIEW - nothing is written. Tenant: ${tenant.name} (${tenant.slug}) ${tenant.id}`);
   const plan = await resolvePlan(tenant.id);
   console.log(
     `Plan: ${plan.unlimited ? "unlimited (internal)" : String(plan.plan)}` +
@@ -204,7 +204,7 @@ async function main() {
     console.log(`\n   assessment (${assessments.length} shown)`);
     for (const a of assessments) {
       console.log(
-        `     ${a.createdAt.toISOString().slice(0, 10)}  ${String(a.status).padEnd(9)} ${String(a.engine).padEnd(13)} ${a.slug}  —  ${a.title}`,
+        `     ${a.createdAt.toISOString().slice(0, 10)}  ${String(a.status).padEnd(9)} ${String(a.engine).padEnd(13)} ${a.slug}  -  ${a.title}`,
       );
     }
 
@@ -224,7 +224,7 @@ async function main() {
     for (const s of submissions) {
       console.log(
         `     ${s.createdAt.toISOString().slice(0, 16).replace("T", " ")}  ${String(s.status).padEnd(10)}` +
-          ` score=${String(s.totalScore ?? "—").padEnd(6)} ${String(s.assessment?.slug ?? "—").padEnd(22)} ${maskEmail(s.identifierValue)}`,
+          ` score=${String(s.totalScore ?? "-").padEnd(6)} ${String(s.assessment?.slug ?? "-").padEnd(22)} ${maskEmail(s.identifierValue)}`,
       );
     }
 
@@ -252,7 +252,7 @@ async function main() {
   heading("3. Settings");
   const singleton = await prisma.appSetting.findUnique({ where: { id: "singleton" } });
   const target = await prisma.appSetting.findUnique({ where: { tenantId: tenant.id } });
-  console.log(`   Tenant settings row: ${target ? "exists" : "MISSING — the move creates it"}`);
+  console.log(`   Tenant settings row: ${target ? "exists" : "MISSING - the move creates it"}`);
 
   if (!singleton) {
     console.log("   🟡 No platform settings row, so nothing would be copied.");
@@ -292,7 +292,7 @@ async function main() {
     console.log(`     ${g.where}\n`);
   }
 
-  console.log("Preview complete — nothing was written.");
+  console.log("Preview complete - nothing was written.");
   console.log(`Next: npx tsx scripts/rehome-platform-data.ts --tenant ${tenant.slug}    (dry run)`);
 }
 

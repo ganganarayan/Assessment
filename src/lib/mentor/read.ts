@@ -1,7 +1,7 @@
 /**
  * Pure builder for the Gita Mentor read (no DB / no env) so it is unit testable.
  * Shapes a COMPLETED submission + its result snapshot into the mentor payload.
- * Domain: assessment RESULTS (psychographic) — deliberately separate from the
+ * Domain: assessment RESULTS (psychographic) - deliberately separate from the
  * meta_match marketing fields; a gita_mentor key never sees marketing PII.
  */
 import { type ResultSnapshot, type CategoryResultEntry } from "@/lib/result/snapshot";

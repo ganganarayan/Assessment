@@ -19,7 +19,7 @@ export default async function ApiTokensPage() {
         <h1 className="text-2xl font-bold tracking-tight">API Tokens</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
           Scoped bearer keys for external data endpoints. Each key unlocks only its own
-          scope (least privilege) and is stored hashed — the plaintext is shown once at
+          scope (least privilege) and is stored hashed - the plaintext is shown once at
           generation. Use the <span className="font-mono">meta_match</span> scope for the
           n8n CAPI lookup.
         </p>

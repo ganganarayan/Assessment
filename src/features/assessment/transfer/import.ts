@@ -137,7 +137,7 @@ export interface ImportItem {
 }
 
 /**
- * Import all assessments in ONE transaction — any failure rolls everything back
+ * Import all assessments in ONE transaction - any failure rolls everything back
  * (no partial imports). For replace, the existing slug is deleted first (child
  * rows cascade via FK). A generous timeout covers large "Export All" payloads,
  * whose deeply-nested creates would otherwise exceed Prisma's 5s default.

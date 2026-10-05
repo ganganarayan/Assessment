@@ -1,5 +1,5 @@
 /**
- * Railway Cron entrypoint: run the sweeps —
+ * Railway Cron entrypoint: run the sweeps -
  *   - assessment.abandoned (started, never completed past the delay)
  *   - completed_unpaid (completed, no payment after 30 min)
  *   - gate abandoned (passed the page-1 gate, never completed → Meta

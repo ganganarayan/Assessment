@@ -5,7 +5,7 @@ import { requireWorkspace } from "@/lib/auth/guards";
 
 export const dynamic = "force-dynamic";
 
-/** Tenant workspace Operations — the same panel as /admin/operations, scoped to this
+/** Tenant workspace Operations - the same panel as /admin/operations, scoped to this
  *  workspace's tenant, MINUS the CRM senders: those read the platform settings row, so
  *  they are singleton-wide and belong on the super-admin console only. */
 export default async function WorkspaceOperationsPage() {

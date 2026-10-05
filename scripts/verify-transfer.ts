@@ -1,6 +1,6 @@
 /**
  * Round-trip verification for the unified export/import format. Exercises the
- * PURE serialize/parse layer (transfer/format.ts) — no DB required — against an
+ * PURE serialize/parse layer (transfer/format.ts) - no DB required - against an
  * adversarial assessment: duplicate category names, duplicate question text, an
  * empty category, commas/quotes/newlines/leading+trailing spaces in content,
  * zero/negative option values, multiple assessments, BOM, and the legacy/wrong

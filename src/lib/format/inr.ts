@@ -3,7 +3,7 @@
  * audit result page AND the AI context builder, so both quote identical figures).
  */
 
-/** ₹17,25,000 — Indian digit grouping (last 3, then pairs). Rounds to whole rupees. */
+/** ₹17,25,000 - Indian digit grouping (last 3, then pairs). Rounds to whole rupees. */
 export function formatINR(n: number): string {
   const neg = n < 0;
   const s = Math.round(Math.abs(n)).toString();
@@ -20,7 +20,7 @@ function trim(n: number): string {
   return Number(n.toFixed(2)).toString();
 }
 
-/** "17.25 lakh" / "1.2 crore" / "45,000" — human sub-label for a rupee amount. */
+/** "17.25 lakh" / "1.2 crore" / "45,000" - human sub-label for a rupee amount. */
 export function lakhLabel(n: number): string {
   const a = Math.abs(n);
   if (a >= 1e7) return `${trim(n / 1e7)} crore`;

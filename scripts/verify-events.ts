@@ -1,5 +1,5 @@
 /**
- * Event Engine verification harness — proves Phase 1 end-to-end against a real
+ * Event Engine verification harness - proves Phase 1 end-to-end against a real
  * database, using the SAME code paths the app uses (startSubmission,
  * completeSubmission, markResultViewed, sweepAbandoned, emitEvent, webhook
  * dispatch + HMAC). Prints evidence for all 8 checks.
@@ -54,7 +54,7 @@ async function main() {
   let createdAssessmentId: string | null = null;
   let submissionId: string | null = null;
   let oldSubmissionId: string | null = null;
-  // Name is no longer globally unique — operate on the row by id.
+  // Name is no longer globally unique - operate on the row by id.
   const originalEndpoint = await prisma.webhook.findFirst({
     where: { name: "assessment.completed", tenantId: null },
   });
@@ -248,7 +248,7 @@ async function main() {
       }
       line("\n(cleaned up test data; set VERIFY_KEEP=1 to retain it)");
     } else {
-      line("\n(VERIFY_KEEP=1 — test data retained for inspection)");
+      line("\n(VERIFY_KEEP=1 - test data retained for inspection)");
     }
 
     server.close();

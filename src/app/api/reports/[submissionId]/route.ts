@@ -19,7 +19,7 @@ import { getClinicRawAnswers } from "@/features/admin/data/clinic-answers";
  *   GET /api/reports/{submissionId}          → inline (view in browser)
  *   GET /api/reports/{submissionId}?download=1 → attachment (save)
  *
- * Generated on demand from the STORED snapshot + stored AI statement — no model
+ * Generated on demand from the STORED snapshot + stored AI statement - no model
  * call, so every render is identical bytes.
  *
  * Auth: the platform owner (any submission), OR a tenant admin/staff viewing a
@@ -34,7 +34,7 @@ const safeName = (s: string) => s.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+
 
 /**
  * The PDF response. One place, so a stored file and a freshly rendered one are served
- * identically — and so the object key never leaks: the bytes are STREAMED through this
+ * identically - and so the object key never leaks: the bytes are STREAMED through this
  * route after authorisation, never handed out as a bucket URL or a signed link. Nothing
  * a client receives says where the file sits.
  */
@@ -60,7 +60,7 @@ function pdfResponse(req: Request, bytes: Uint8Array, firstName: string): Respon
  * Compared in constant time, because a plain `===` on a secret leaks its length and
  * prefix to anyone who can time the response.
  *
- * 🔴 This secret is the worker's ENTIRE authorisation — it bypasses the user check
+ * 🔴 This secret is the worker's ENTIRE authorisation - it bypasses the user check
  * below. The worker service must not be publicly reachable; on Railway that means
  * giving it no public domain and calling it on the internal network.
  */
@@ -126,7 +126,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
   const dateIST = formatIST(sub.completedAt ?? sub.createdAt);
 
   // A stored copy short-circuits everything below: no layout, no fonts, no buffering.
-  // Skipped on an internal call, because the worker is being asked to RENDER — reading
+  // Skipped on an internal call, because the worker is being asked to RENDER - reading
   // back a stored file there would make the request a no-op.
   if (!internal) {
     const stored = await getStoredReport(submissionId);
@@ -141,20 +141,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
       void putStoredReport(submissionId, sub.assessment.tenantId, fromWorker);
       return pdfResponse(req, fromWorker, firstName);
     }
-    // Worker unset, down, or erroring — fall through and render here, exactly as before.
+    // Worker unset, down, or erroring - fall through and render here, exactly as before.
   }
 
   let pdf: Buffer;
   if (sub.assessment.engine === "CLINIC_AUDIT" && snap.clinic) {
     // Clinic engine: the EXACT same calculation trail as the web result page (same
-    // shared helpers, same figures, same "assumed" tags) — never the generic score/
+    // shared helpers, same figures, same "assumed" tags) - never the generic score/
     // category report (meaningless for clinic option values, which are rupees/rates,
     // not score points).
     // Re-derive from the stored ANSWERS (not the snapshot's pre-converted numbers)
-    // so the PDF reflects the current interpretation for older submissions too —
+    // so the PDF reflects the current interpretation for older submissions too -
     // and stays byte-identical to the web result page.
     const rawAnswers = await getClinicRawAnswers(submissionId);
-    // Merge the stored config over current defaults — a snapshot predating a config
+    // Merge the stored config over current defaults - a snapshot predating a config
     // key would otherwise feed undefined into the maths and render NaN.
     const liveConfig = resolveEngineConfig(snap.clinic.config);
     const liveInputs = rawAnswers.length > 0 ? deriveInputs(rawAnswers, liveConfig) : snap.clinic.inputs;
@@ -174,13 +174,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
     };
     pdf = await renderClinicReportPdf(data);
   } else {
-    // Per-question detail (text + chosen answer + score) — the FULL breakdown, merged
+    // Per-question detail (text + chosen answer + score) - the FULL breakdown, merged
     // into each category by name.
     const breakdown = await getSubmissionQuestionBreakdown(submissionId);
     const qsByCategory = new Map(breakdown.map((b) => [b.name, b.questions]));
 
     // Categories in the builder's displayOrder (not the stored snapshot's scoring
-    // order), so the baked-in serial numbers read in sequence — also fixes reports
+    // order), so the baked-in serial numbers read in sequence - also fixes reports
     // for submissions completed before the ordering fix.
     const catOrder = new Map(sub.assessment.categories.map((c) => [c.name, c.displayOrder]));
     const orderedCats = Array.isArray(snap.categories)
@@ -215,7 +215,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
   }
 
   // Locally rendered: keep it, so this is the last time this report costs a render.
-  // Not on an internal call — the worker returns the bytes and the APP stores them, so
+  // Not on an internal call - the worker returns the bytes and the APP stores them, so
   // there is one writer and the worker stays a pure renderer.
   if (!internal) {
     void putStoredReport(submissionId, sub.assessment.tenantId, new Uint8Array(pdf));

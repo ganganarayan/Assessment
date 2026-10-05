@@ -17,7 +17,7 @@ async function ownsWebhook(id: string, scope: Awaited<ReturnType<typeof resolveA
   return !!found;
 }
 
-// Delivered event name: free format — lowercase, dotted OR underscore segments.
+// Delivered event name: free format - lowercase, dotted OR underscore segments.
 const nameSchema = z
   .string()
   .trim()
@@ -79,7 +79,7 @@ export async function createWebhook(
  * Edit name + URL.
  *  - Before the first successful delivery: both name and URL are editable.
  *  - After it (locked): the URL stays editable (re-point the endpoint), but the
- *    delivered NAME is frozen — a live CRM maps on it, so a silent rename would
+ *    delivered NAME is frozen - a live CRM maps on it, so a silent rename would
  *    break their automation. Renaming a locked webhook needs unlockWebhook first.
  * Fire counts are tracked per (name, url) combination, so re-pointing the URL
  * starts a fresh count and preserves the previous endpoint's count in the logs.
@@ -123,7 +123,7 @@ export async function editWebhook(
 /**
  * Unlock a delivered webhook so its name can be edited again (super admin only).
  * Clears firstDeliveredAt. The delivered name a CRM maps on can then change, so
- * this is a deliberate, gated action — the UI confirms the break-your-CRM risk.
+ * this is a deliberate, gated action - the UI confirms the break-your-CRM risk.
  */
 export async function unlockWebhook(id: string): Promise<ActionResult> {
   const scope = await resolveActingScope();

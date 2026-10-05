@@ -1,10 +1,10 @@
 import Script from "next/script";
 
 /**
- * Assess360 SaaS-funnel Meta Pixel base code — a SEPARATE pixel from the Gita
+ * Assess360 SaaS-funnel Meta Pixel base code - a SEPARATE pixel from the Gita
  * assessment one (components/meta-pixel.tsx). Loads fbevents, inits the platform
  * pixel, and fires a PageView. Mounted on the marketing landing, sign-up, and the
- * /w app — never on /a/* (that stays Gita-only). Renders nothing when unset.
+ * /w app - never on /a/* (that stays Gita-only). Renders nothing when unset.
  *
  * Funnel events (CompleteRegistration on signup, Purchase on subscription) are fired
  * from the client via lib/meta/platform-pixel-client.ts using `trackSingle` so they

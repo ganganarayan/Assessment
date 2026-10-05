@@ -28,7 +28,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Workspace settings. getAiSettings/updateAiSettings/testAi resolve the acting
- * scope, so this reads + writes THIS tenant's AppSetting row — never the platform
+ * scope, so this reads + writes THIS tenant's AppSetting row - never the platform
  * singleton. An unconfigured tenant simply has no AI (it never borrows Gita's key).
  */
 export default async function WorkspaceSettingsPage() {
@@ -56,7 +56,7 @@ export default async function WorkspaceSettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>AI — LLM connection</CardTitle>
+          <CardTitle>AI - LLM connection</CardTitle>
           <CardDescription>
             Choose a provider and paste its API key. The key is encrypted at rest and never
             shown again. Disable any time to fall back to the static suggestion.
@@ -90,7 +90,7 @@ export default async function WorkspaceSettingsPage() {
           <CardTitle>Heatmap &amp; session recording</CardTitle>
           <CardDescription>
             Paste a recording snippet (e.g. MS Clarity) to record every respondent&apos;s session
-            across your funnel — opt-in, each question, and the result page.
+            across your funnel - opt-in, each question, and the result page.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -128,7 +128,7 @@ export default async function WorkspaceSettingsPage() {
         <CardHeader>
           <CardTitle>Support email</CardTitle>
           <CardDescription>
-            The address respondents are pointed to if their results can&apos;t be shown —
+            The address respondents are pointed to if their results can&apos;t be shown -
             for example when your plan&apos;s monthly response limit is reached.
           </CardDescription>
         </CardHeader>
@@ -141,7 +141,7 @@ export default async function WorkspaceSettingsPage() {
         <CardHeader>
           <CardTitle>Custom domains</CardTitle>
           <CardDescription>
-            Serve your funnel on your own domain. Add a host, point its DNS at us, and verify —
+            Serve your funnel on your own domain. Add a host, point its DNS at us, and verify -
             verified domains route straight to this workspace.
           </CardDescription>
         </CardHeader>
@@ -156,7 +156,7 @@ export default async function WorkspaceSettingsPage() {
             <CardTitle>Workspace logins</CardTitle>
             <CardDescription>
               The people who can sign in to this workspace. Set a password here to get a locked-out
-              admin back in — they choose their own on the next sign-in. To change YOUR password,
+              admin back in - they choose their own on the next sign-in. To change YOUR password,
               exit to the platform first.
             </CardDescription>
           </CardHeader>

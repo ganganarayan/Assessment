@@ -15,7 +15,7 @@ import { type LookupResult } from "@/features/admin/lookup-types";
  * lets the page stop loading every submission into memory just so a text box can match.
  *
  * 🔴 Scope fix: this used to filter by `actingTenantId()`, which is NULL for a super
- * admin who has not entered a workspace — so it searched only rows owned by nobody.
+ * admin who has not entered a workspace - so it searched only rows owned by nobody.
  * That is fine while the owner's funnel lives in the null scope and returns NOTHING the
  * moment it moves to a real tenant. It now follows the data scope, so no workspace
  * entered means every tenant (and a tenant admin still sees only their own).

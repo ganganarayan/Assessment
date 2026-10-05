@@ -108,7 +108,7 @@ export async function reconstructLostAnswers(
       const missingMaxInSnap = round2(snapCat.max - survivingMax);
       // Only reconstruct if the snapshot max confirms THIS question was answered
       // at completion (its max contribution is present). Otherwise it was a
-      // genuinely-skipped optional question — leave it alone.
+      // genuinely-skipped optional question - leave it alone.
       if (Math.abs(missingMaxInSnap - qMax) > EPS) continue;
 
       const missingContribution = round2(snapCat.score - survivingScore);

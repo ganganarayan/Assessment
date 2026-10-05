@@ -17,6 +17,6 @@ export function firePlatformBrowserEvent(
   try {
     fbq("trackSingle", pixelId, eventName, data, eventId ? { eventID: eventId } : undefined);
   } catch {
-    /* pixel not ready — non-fatal */
+    /* pixel not ready - non-fatal */
   }
 }

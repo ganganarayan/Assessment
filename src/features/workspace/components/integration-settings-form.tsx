@@ -15,7 +15,7 @@ type SaveVidapulse = (param: string, enabled: boolean) => Promise<SaveResult>;
  * Shared Meta + Razorpay key editor. The SAVE actions are injected so the same form
  * drives three scopes: a tenant workspace, a super admin impersonating a tenant
  * (both use the per-tenant actions), and the platform/Gita singleton (platform
- * actions). Secrets are write-only — never round-tripped to the client.
+ * actions). Secrets are write-only - never round-tripped to the client.
  */
 export function IntegrationSettingsForm({
   initial,
@@ -81,7 +81,7 @@ export function IntegrationSettingsForm({
         </div>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">
-            Meta CAPI access token {initial.hasCapiToken ? <span className="text-green-600">(saved — leave blank to keep)</span> : null}
+            Meta CAPI access token {initial.hasCapiToken ? <span className="text-green-600">(saved - leave blank to keep)</span> : null}
           </Label>
           <Input
             type="password"
@@ -139,7 +139,7 @@ export function IntegrationSettingsForm({
         <div className="flex flex-col gap-1">
           <Label className="text-xs">URL parameter name</Label>
           <Input value={vpParam} onChange={(e) => setVpParam(e.target.value)} placeholder="cid" className="font-mono text-xs" />
-          <p className="text-xs text-[var(--muted-foreground)]">Default is cid — e.g. the embed loads as …/embed/&lt;id&gt;?cid=&lt;customer id&gt;.</p>
+          <p className="text-xs text-[var(--muted-foreground)]">Default is cid - e.g. the embed loads as …/embed/&lt;id&gt;?cid=&lt;customer id&gt;.</p>
         </div>
         <div>
           <Button size="sm" onClick={saveVidapulse} disabled={pending}>Save VidaPulse settings</Button>

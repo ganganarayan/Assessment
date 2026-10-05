@@ -4,7 +4,7 @@ import { slugSchema } from "@/features/assessment/schemas";
 /**
  * Portable assessment transfer format (export/import).
  *
- * JSON is the AUTHORITATIVE, lossless format — it captures everything needed to
+ * JSON is the AUTHORITATIVE, lossless format - it captures everything needed to
  * recreate an assessment in another environment (staging -> production). No
  * database ids, tenant, owner, submissions, or timestamps are included; those
  * are environment-specific and regenerated on import.
@@ -76,7 +76,7 @@ export const assessmentBodyExport = z.object({
   // Scoring engine + its parameter overrides.
   engine: z.enum(["GENERIC", "CLINIC_AUDIT"]).optional(),
   engineConfig: z.unknown().nullable().optional(),
-  // Funnel copy / opt-in configuration (environment-agnostic — carried for fidelity).
+  // Funnel copy / opt-in configuration (environment-agnostic - carried for fidelity).
   eyebrow: z.string().nullable().optional(),
   subheadline: z.string().nullable().optional(),
   buttonColor: z.string().nullable().optional(),
@@ -106,7 +106,7 @@ export const assessmentBodyExport = z.object({
 });
 
 /**
- * THE export/import document — one format for everything. A single assessment
+ * THE export/import document - one format for everything. A single assessment
  * exports as an array of one; "Export All" as an array of many. Import accepts
  * exactly this shape, so any export round-trips back in.
  */

@@ -1,6 +1,6 @@
 /**
  * Pure builders for the public result snapshot (the exact GET /api/r/:token
- * shape) — no DB, so it is unit-testable and is the single source of truth for
+ * shape) - no DB, so it is unit-testable and is the single source of truth for
  * both the read endpoint and webhook 2.
  */
 import { pickResultBand, type ScoringBand } from "@/features/assessment/scoring";
@@ -9,7 +9,7 @@ import { type ClinicInputs, type EngineConfig } from "@/lib/scoring/clinic-audit
 /**
  * Clinic-audit engine payload embedded in the snapshot. Stores the normalized
  * numeric inputs + the resolved config so the result page (and its editable
- * calculator) can recompute via the SAME pure function — never a second copy —
+ * calculator) can recompute via the SAME pure function - never a second copy -
  * and the AI prose (written once from the original answers). Absent for GENERIC.
  */
 export interface ClinicSnapshot {
@@ -50,7 +50,7 @@ export interface ResultSnapshot {
   clinic?: ClinicSnapshot;
 }
 
-/** Integer percentage (0–100). */
+/** Integer percentage (0-100). */
 export function pct(score: number, max: number): number {
   return max > 0 ? Math.round((score / max) * 100) : 0;
 }

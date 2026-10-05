@@ -13,7 +13,7 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-/** Today's calendar date in IST (UTC+5:30, no DST) — independent of where the admin is. */
+/** Today's calendar date in IST (UTC+5:30, no DST) - independent of where the admin is. */
 function istToday(): { y: number; m: number; d: number } {
   const ist = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
   return { y: ist.getUTCFullYear(), m: ist.getUTCMonth(), d: ist.getUTCDate() };

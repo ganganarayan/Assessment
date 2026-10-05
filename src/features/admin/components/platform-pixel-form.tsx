@@ -39,7 +39,7 @@ export function PlatformPixelForm({ initial }: { initial: { pixelId: string; has
           id="platform-capi-token"
           type="password"
           autoComplete="off"
-          placeholder={initial.hasCapiToken ? "•••••••• (saved — leave blank to keep)" : "Paste the CAPI access token"}
+          placeholder={initial.hasCapiToken ? "•••••••• (saved - leave blank to keep)" : "Paste the CAPI access token"}
           value={capiToken}
           onChange={(e) => setCapiToken(e.target.value)}
         />

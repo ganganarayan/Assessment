@@ -1,5 +1,5 @@
 /**
- * Crisis-care resource line — TOP BAND ONLY (overall band CRITICAL and percentage
+ * Crisis-care resource line - TOP BAND ONLY (overall band CRITICAL and percentage
  * >= 90). The model writes a brief, varied, warm lead-in and emits a CRISIS_TOKEN
  * placeholder; this module swaps the token for the FIXED resource line. Crucially
  * this runs AFTER humanizeStatement, so the line's em dash and phone number are
@@ -11,7 +11,7 @@ export const CRISIS_TOKEN = "{{CRISIS_LINE}}";
 
 /** The exact resource line. Never alter, rephrase, or regenerate this string. */
 export const CRISIS_LINE =
-  "If you ever feel you can't carry it alone right now, please reach out — in India you can call Tele-MANAS free, any time, on 14416.";
+  "If you ever feel you can't carry it alone right now, please reach out - in India you can call Tele-MANAS free, any time, on 14416.";
 
 /** Highest band (CRITICAL) at 90% or above. */
 export function qualifiesForCrisisLine(

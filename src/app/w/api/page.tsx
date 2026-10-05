@@ -16,7 +16,7 @@ export default async function WorkspaceApiTokensPage() {
         <h1 className="text-2xl font-bold tracking-tight">API Tokens</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
           Scoped bearer keys for external data endpoints. Each key is bound to this
-          workspace — it only ever reads <strong>your</strong> leads — and is stored
+          workspace - it only ever reads <strong>your</strong> leads - and is stored
           hashed (the plaintext is shown once at generation).
         </p>
       </div>

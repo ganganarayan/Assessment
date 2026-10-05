@@ -110,7 +110,7 @@ export default async function EditAssessmentPage({
     metaEvents: readMetaEvents(a.metaEvents),
   };
 
-  // Other assessments in this scope — targets for the audience gate's onward route.
+  // Other assessments in this scope - targets for the audience gate's onward route.
   const routeTargets = (await listAssessments(ownerScopeOf(a.tenantId)))
     .filter((x) => x.id !== a.id)
     .map((x) => ({ id: x.id, title: x.title, slug: x.slug, published: x.status === "PUBLISHED" }));
@@ -238,7 +238,7 @@ export default async function EditAssessmentPage({
         <h2 className="text-lg font-semibold">Qualification gate (Page 1)</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
           Screen respondents <strong>before</strong> the assessment. A disqualifying answer sends them to a
-          separate page and creates <strong>no lead, submission or result</strong> — only an optional
+          separate page and creates <strong>no lead, submission or result</strong> - only an optional
           &quot;Disqualified&quot; Meta pixel event so you can exclude them from ads.
         </p>
         <QualificationManager
@@ -264,9 +264,9 @@ export default async function EditAssessmentPage({
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Result Bands</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
-          Bands are matched against the score <strong>percentage (0–100)</strong>,
+          Bands are matched against the score <strong>percentage (0-100)</strong>,
           so results stay comparable even when optional questions are skipped.
-          Ranges must not overlap; cover 0–100 with no gaps.
+          Ranges must not overlap; cover 0-100 with no gaps.
         </p>
         <ResultBandsManager assessmentId={a.id} bands={bands} />
       </section>
@@ -276,7 +276,7 @@ export default async function EditAssessmentPage({
         <p className="text-xs text-[var(--muted-foreground)]">
           Per-category evaluation shown on the destination page. Pick a category, a
           level, the <strong>category&apos;s own</strong> score range (its score ÷ its max,
-          0–100), and a suggestion. Ranges must not overlap within a category. Applies to
+          0-100), and a suggestion. Ranges must not overlap within a category. Applies to
           <strong> new submissions</strong> (results are captured at completion).
         </p>
         <CategoryBandsManager assessmentId={a.id} categories={categoryOptions} bands={categoryBands} />
@@ -293,7 +293,7 @@ export default async function EditAssessmentPage({
     <section className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold">Results page</h2>
       <p className="text-xs text-[var(--muted-foreground)]">
-        The single page shown after the questions. Add blocks — text/write-up, video embed,
+        The single page shown after the questions. Add blocks - text/write-up, video embed,
         payment button, and dynamic blocks (overall band, a per-band sentence, and the category
         breakdown with <strong>scores blurred</strong> until payment). Edits auto-save as a draft;
         click <strong>Publish</strong> to make them live. The step after this page (Payment or
@@ -315,7 +315,7 @@ export default async function EditAssessmentPage({
       <h2 className="text-lg font-semibold">VSL Result Page</h2>
       <p className="text-xs text-[var(--muted-foreground)]">
         The marketing page shown to the respondent when <em>Next step</em> is
-        <strong> Show results on assess360</strong>. Build it from blocks — eyebrow, headline, the
+        <strong> Show results on assess360</strong>. Build it from blocks - eyebrow, headline, the
         respondent&apos;s AI statement, your VSL video (paste the embed code), styled buttons and
         YouTube testimonials, footer. Delivered on the token link (opens in the Instagram in-app
         browser, no sign-in). Publish to make it live; unpublished falls back to the score cards.

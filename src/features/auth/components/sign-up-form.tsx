@@ -57,7 +57,7 @@ export function SignUpForm({ prefill }: { prefill?: { name?: string; email?: str
     }
 
     // SaaS funnel: fire CompleteRegistration on the platform pixel (server CAPI +
-    // matching browser event, deduped by eventId). Best-effort — never blocks signup.
+    // matching browser event, deduped by eventId). Best-effort - never blocks signup.
     try {
       const { eventId, pixelId } = await trackSaasRegistration(parsed.data.email);
       firePlatformBrowserEvent(pixelId, "CompleteRegistration", {}, eventId);

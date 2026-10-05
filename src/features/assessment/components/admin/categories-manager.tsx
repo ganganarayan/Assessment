@@ -146,13 +146,13 @@ export function CategoriesManager({
     <div className="flex flex-col gap-4">
       <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-xs text-[var(--muted-foreground)]">
         Each category is a group of scored questions. Set a category&apos;s <strong>Page</strong> to
-        <strong> Page 2 — Queries</strong> to put it (and the questions you add inside it) on the
+        <strong> Page 2 - Queries</strong> to put it (and the questions you add inside it) on the
         separate second scored page. Give it its own <strong>Category bands</strong> below for the
         results text.
         {page2Count > 0 ? (
           <> You have <strong>{page2Count}</strong> Page-2 categor{page2Count === 1 ? "y" : "ies"} (look for the “Page 2 · Queries” badge).</>
         ) : (
-          <> No Page-2 categories yet — add one, or edit an existing category and switch its Page.</>
+          <> No Page-2 categories yet - add one, or edit an existing category and switch its Page.</>
         )}
       </p>
       {optMsg ? (
@@ -228,8 +228,8 @@ export function CategoriesManager({
             onChange={(e) => setPage(Number(e.target.value))}
             className="h-10 max-w-xs rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
           >
-            <option value={1}>Page 1 — Assessment</option>
-            <option value={2}>Page 2 — Queries (separate scored page)</option>
+            <option value={1}>Page 1 - Assessment</option>
+            <option value={2}>Page 2 - Queries (separate scored page)</option>
           </select>
         </div>
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
@@ -279,8 +279,8 @@ function CategoryEditForm({
         onChange={(e) => setPage(Number(e.target.value))}
         className="h-9 max-w-xs rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
       >
-        <option value={1}>Page 1 — Assessment</option>
-        <option value={2}>Page 2 — Queries</option>
+        <option value={1}>Page 1 - Assessment</option>
+        <option value={2}>Page 2 - Queries</option>
       </select>
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex gap-2">

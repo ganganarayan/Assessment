@@ -6,18 +6,18 @@
  *   npx tsx scripts/verify-tenancy.ts --funnel apply-gita --expect-complete
  *
  * Prefix with `railway run` (add `--environment production` for prod), FROM THE REPO
- * ROOT — `railway run` executes in the current directory. Called through `npm run
+ * ROOT - `railway run` executes in the current directory. Called through `npm run
  * verify:tenancy -- …` npm warns about the flags and may swallow them, so prefer tsx.
  *
  * Read-only: it writes nothing, so it is safe to run against production at any time.
  * Run it BEFORE the re-home (to see the starting state), AFTER each step (to confirm it
- * did what it claimed), and again before the later NOT NULL migration — that migration
+ * did what it claimed), and again before the later NOT NULL migration - that migration
  * fails halfway on any table this still reports as holding nulls, and the whole point of
  * checking here is to find those tables while failing is free.
  *
  * SEVERITY IS PHASE-AWARE, AND THE PHASE IS YOURS TO STATE. Unowned rows and a missing
  * tenant settings row are what the re-home is FOR, so by default they report 🟡, not 🔴
- * — a tool that reports the expected starting state as thirteen failures teaches you to
+ * - a tool that reports the expected starting state as thirteen failures teaches you to
  * ignore its output, which is worse than not having it. Pass `--expect-complete` to
  * assert the finished state: the same rows become 🔴 and the run exits 1. Use that form
  * after the move and as the NOT NULL migration gate. Nothing is inferred.
@@ -82,11 +82,11 @@ let failures = 0;
 
 function check(ok: boolean, label: string, detail = "") {
   if (!ok) failures++;
-  console.log(`  ${ok ? "🟢" : "🔴"} ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  ${ok ? "🟢" : "🔴"} ${label}${detail ? ` - ${detail}` : ""}`);
 }
 
 function note(label: string, detail = "") {
-  console.log(`  🟡 ${label}${detail ? ` — ${detail}` : ""}`);
+  console.log(`  🟡 ${label}${detail ? ` - ${detail}` : ""}`);
 }
 
 function isBlank(v: unknown): boolean {
@@ -171,13 +171,13 @@ async function main() {
    * WHICH STATE IS BEING ASSERTED?
    *
    * Unowned rows and a missing tenant settings row are the NORMAL state before the move
-   * — they are the very things the move fixes. Reporting them as 🔴 on a database nobody
+   * - they are the very things the move fixes. Reporting them as 🔴 on a database nobody
    * has re-homed yet cries wolf on the run this tool most exists for ("see the starting
    * state"), and exits 1 while doing it. So the caller SAYS which state to assert, with
    * --expect-complete, and nothing is inferred.
    *
    * An earlier version guessed it instead: "the funnel tenant owns rows, so the move must
-   * have run". That is wrong — a tenant can create its own assessments and submissions
+   * have run". That is wrong - a tenant can create its own assessments and submissions
    * directly, and cosmetic-divine-leads already has. The guess turned an ordinary tenant
    * with its own data into a phantom "partial move" report. A flag the caller sets is
    * both simpler and correct.
@@ -188,8 +188,8 @@ async function main() {
   console.log("  These are what the later NOT NULL migration will reject.");
   console.log(
     expectComplete
-      ? "  Severity: 🔴 — --expect-complete given: asserting the finished state.\n"
-      : "  Severity: 🟡 — asserting the pre-move state, so these are expected.\n" +
+      ? "  Severity: 🔴 - --expect-complete given: asserting the finished state.\n"
+      : "  Severity: 🟡 - asserting the pre-move state, so these are expected.\n" +
           "  Pass --expect-complete after the move (and before the NOT NULL migration).\n",
   );
   let nulls = 0;
@@ -223,7 +223,7 @@ async function main() {
       check(
         hasFeature(limits, "capi"),
         "plan carries the CAPI entitlement",
-        `effective plan ${eff}${hasFeature(limits, "capi") ? "" : " — FREE/STARTER have capi=false, which silently stops Meta CAPI and caps responses"}`,
+        `effective plan ${eff}${hasFeature(limits, "capi") ? "" : " - FREE/STARTER have capi=false, which silently stops Meta CAPI and caps responses"}`,
       );
       const row = await prisma.appSetting.findUnique({ where: { tenantId: t.id } });
       if (!row && !expectComplete) {
@@ -247,7 +247,7 @@ async function main() {
     console.log("\n(Pass --funnel <slug> to also check the funnel tenant's plan and integration config.)");
   }
 
-  // The same guard the BUILD runs (verify:owner-stamp) — repeated here so a tenancy
+  // The same guard the BUILD runs (verify:owner-stamp) - repeated here so a tenancy
   // audit reports it alongside the row counts rather than in a separate place.
   const offenders = findOwnerStampOffenders();
   check(
@@ -263,7 +263,7 @@ async function main() {
     failures === 0
       ? `\n🟢 All checks passed against ${asserted}.` +
           (expectComplete ? "" : "\n   Re-run with --expect-complete after the move to assert the finished state.")
-      : `\n🔴 ${failures} check(s) failed against ${asserted} — see above.`,
+      : `\n🔴 ${failures} check(s) failed against ${asserted} - see above.`,
   );
   if (failures > 0) process.exitCode = 1;
 }

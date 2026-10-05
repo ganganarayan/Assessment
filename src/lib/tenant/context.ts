@@ -29,7 +29,7 @@ export async function getCurrentTenant() {
   const { slug, source, host } = await getTenantContext();
 
   // A soft-deleted tenant resolves to nothing, on BOTH paths. "Deleted" has to mean
-  // the public surface stops — otherwise its subdomain and custom domains keep serving
+  // the public surface stops - otherwise its subdomain and custom domains keep serving
   // and keep collecting leads into a business the owner believes is gone.
   if (source === "subdomain" && slug) {
     return prisma.tenant.findFirst({
@@ -45,7 +45,7 @@ export async function getCurrentTenant() {
     });
     if (!domain) return null;
     // 🔴 Deliberately NOT gated on `verified`. That flag tracks CERTIFICATE issuance,
-    // which is a provisioning milestone, not a statement about who owns the host — and
+    // which is a provisioning milestone, not a statement about who owns the host - and
     // it goes stale: a valid Railway cert reported as CERTIFICATE_STATUS_TYPE_VALID
     // failed certIsLive's word list, so `verified` stayed false and this returned null.
     // The visible result was the tenant's own domain serving the PLATFORM's landing
@@ -54,7 +54,7 @@ export async function getCurrentTenant() {
     // The honest test is the one that already happened: the hostname column is globally
     // unique, so only one tenant can ever claim a host, and a request only ARRIVES here
     // because that host is routed to us. Row + arrival is proof of ownership; a
-    // certificate's status is not. Point the DNS and it serves — no "Check status" step.
+    // certificate's status is not. Point the DNS and it serves - no "Check status" step.
     return domain.tenant.deletedAt ? null : domain.tenant;
   }
 

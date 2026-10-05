@@ -71,7 +71,7 @@ console.log("VSL / token feature verification\n");
   expect("resultBandLevel defaults null", bare.resultBandLevel === null);
 }
 
-// (d) Read outcome: 404 / 200 (expiry is DISABLED — see verify:result for the
+// (d) Read outcome: 404 / 200 (expiry is DISABLED - see verify:result for the
 //     age-independence and latest-only resolution checks).
 {
   expect("read 404 (missing)", readResult(null).status === 404);

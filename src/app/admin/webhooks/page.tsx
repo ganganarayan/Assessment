@@ -32,7 +32,7 @@ export default async function WebhooksPage() {
         <h1 className="text-2xl font-bold tracking-tight">Webhooks</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
           A webhook = a <strong>trigger</strong> (an app event) delivered under a name you choose for
-          your CRM. Pick the trigger, name it dotted or underscore — your choice. Payloads are signed
+          your CRM. Pick the trigger, name it dotted or underscore - your choice. Payloads are signed
           (HMAC-SHA256) in the <span className="font-mono">X-Assess-Signature</span> header. The same event
           can fan out to several URLs. A name is editable until its first successful delivery, then locked;
           the URL stays editable, and each name+URL keeps its own fire count.
@@ -46,7 +46,7 @@ export default async function WebhooksPage() {
             <CardTitle>Password reset webhook</CardTitle>
             <CardDescription>
               Platform-wide. When someone uses “Forgot password”, assess360 POSTs the reset link
-              (10-min expiry) to this URL — your CRM catches it and emails the user. Payload:
+              (10-min expiry) to this URL - your CRM catches it and emails the user. Payload:
               <span className="font-mono"> {"{ type: \"password_reset\", email, name, reset_url, token }"}</span>.
             </CardDescription>
           </CardHeader>

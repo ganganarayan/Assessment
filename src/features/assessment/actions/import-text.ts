@@ -93,13 +93,13 @@ export interface SuggestedCategory {
 export interface CreatedFromText {
   id: string;
   slug: string;
-  /** Bands parsed from the text — SUGGESTIONS only, edited + imported in step 2. */
+  /** Bands parsed from the text - SUGGESTIONS only, edited + imported in step 2. */
   overallBands: SuggestedOverallBand[];
   categories: SuggestedCategory[];
 }
 
 /**
- * STEP 1 — create the assessment STRUCTURE (categories → questions → options)
+ * STEP 1 - create the assessment STRUCTURE (categories → questions → options)
  * from pasted text. NO bands are written here; the parsed bands are returned as
  * editable suggestions for step 2 (importBandsForAssessment).
  */
@@ -109,7 +109,7 @@ export async function createAssessmentFromText(text: string): Promise<ActionResu
   if (denied) return denied;
   if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
 
-  // Billing gate — an import is a new assessment, so it counts against the cap.
+  // Billing gate - an import is a new assessment, so it counts against the cap.
   if (!scope.isSuper) {
     const cap = await assertCanCreateAssessment(scope.tenantId);
     if (!cap.ok) {
@@ -158,7 +158,7 @@ export async function createAssessmentFromText(text: string): Promise<ActionResu
     select: { id: true, slug: true },
   });
 
-  // Categories were created in draft order — read them back (ordered) to attach the
+  // Categories were created in draft order - read them back (ordered) to attach the
   // band suggestions to their new ids for step 2.
   const cats = await prisma.category.findMany({
     where: { assessmentId: created.id },
@@ -201,9 +201,9 @@ export interface ImportBandsInput {
 const LEVELS = new Set(Object.values(BandLevel) as string[]);
 
 /**
- * STEP 2 — import the (edited) bands onto an assessment created in step 1.
+ * STEP 2 - import the (edited) bands onto an assessment created in step 1.
  * Replaces any existing bands for that assessment + its categories, so it's safe
- * to re-run. Ranges are hard-validated here (overlap / 0–100) — errors block.
+ * to re-run. Ranges are hard-validated here (overlap / 0-100) - errors block.
  */
 export async function importBandsForAssessment(input: ImportBandsInput): Promise<ActionResult> {
   const scope = await resolveActingScope();

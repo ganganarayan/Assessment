@@ -10,7 +10,7 @@ export function ImpersonationBanner({ tenantName }: { tenantName: string }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm">
       <span>
-        Acting as tenant <strong>{tenantName}</strong> — super-admin impersonation.
+        Acting as tenant <strong>{tenantName}</strong> - super-admin impersonation.
       </span>
       <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => { await exitTenant(); })}>
         Exit to platform

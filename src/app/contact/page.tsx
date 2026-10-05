@@ -42,7 +42,7 @@ export default async function ContactPage() {
       </P>
 
       <H2>Support hours</H2>
-      <P>Monday to Friday, 10:00–18:00 IST (excluding public holidays).</P>
+      <P>Monday to Friday, 10:00-18:00 IST (excluding public holidays).</P>
     </LegalShell>
   );
 }

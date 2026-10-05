@@ -1,5 +1,5 @@
 /**
- * Minimal in-memory fixed-window rate limiter (best-effort, PER INSTANCE — not
+ * Minimal in-memory fixed-window rate limiter (best-effort, PER INSTANCE - not
  * shared across Railway replicas). Cheap defense against bulk token probing on
  * the public read endpoint; for hard guarantees use an edge/proxy limiter.
  *

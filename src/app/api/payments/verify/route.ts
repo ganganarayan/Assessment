@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 /**
  * Razorpay Checkout (redirect:true) POSTs here after a successful payment. We
  * verify the signature, then 302 the customer to the destination/VSL with the
- * result token — the token is only revealed after a verified payment, so the
+ * result token - the token is only revealed after a verified payment, so the
  * results can't be reached for free. The submission id rides in ?submission=.
  */
 
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
   }
   const amountRupees = s.assessment.paymentAmount ?? (order.amount != null ? order.amount / 100 : null);
 
-  // Record the payment (authoritative — has the submission link). Dedup/idempotent.
+  // Record the payment (authoritative - has the submission link). Dedup/idempotent.
   await prisma.payment
     .upsert({
       where: { providerPaymentId: paymentId },
@@ -106,13 +106,13 @@ export async function POST(req: Request) {
     })
     .catch(() => {});
 
-  // CRM "completed_paid" event (once) — the paid pipeline.
+  // CRM "completed_paid" event (once) - the paid pipeline.
   await emitCompletedPaid(submissionId);
 
   const dest = vslUrl(s.assessment.targetUrl, s.assessment.slug, submissionId, s.resultToken);
   const finalUrl = dest + (dest.includes("?") ? "&" : "?") + "event=1";
 
-  // Server-side Purchase (CAPI) via the unified log — deduped by the Razorpay
+  // Server-side Purchase (CAPI) via the unified log - deduped by the Razorpay
   // payment id and fired per the auto-fire amount rules (same path as the webhook,
   // so an in-app payment can't double-fire under two event names). Fire-and-forget;
   // never blocks the redirect.

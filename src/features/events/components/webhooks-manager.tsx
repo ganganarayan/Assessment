@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatIST } from "@/lib/date";
 
 // IST everywhere (matches the rest of the app), never the raw UTC ISO.
-const fmt = (iso: string | null) => (iso ? formatIST(iso) : "—");
+const fmt = (iso: string | null) => (iso ? formatIST(iso) : "-");
 
 export interface TriggerOption {
   value: string;
@@ -100,7 +100,7 @@ export function WebhooksManager({
   function unlock(r: WebhookRow) {
     if (
       !confirm(
-        "Unlock this webhook so its event name can be edited again?\n\nA live CRM maps on the current name — renaming it can BREAK that automation until you re-map it there.",
+        "Unlock this webhook so its event name can be edited again?\n\nA live CRM maps on the current name - renaming it can BREAK that automation until you re-map it there.",
       )
     )
       return;
@@ -161,9 +161,9 @@ export function WebhooksManager({
         </div>
         <p className="px-1 text-xs text-[var(--muted-foreground)]">
           Pick the <strong>trigger</strong> (which app event fires it), then name the event however your
-          CRM expects — dotted (<span className="font-mono">lead.created</span>) or underscore
+          CRM expects - dotted (<span className="font-mono">lead.created</span>) or underscore
           (<span className="font-mono">completed_paid</span>). The <strong>same trigger can fan out to
-          several endpoints</strong> — add another webhook with the same name and a different URL to send
+          several endpoints</strong> - add another webhook with the same name and a different URL to send
           the same event to multiple places. After the first successful delivery the name is locked (the
           URL stays editable); each name+URL keeps its own fire count.
         </p>
@@ -262,7 +262,7 @@ function Table({
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
                         disabled={r.locked}
-                        title={r.locked ? "Name is locked after first delivery — Unlock to rename" : undefined}
+                        title={r.locked ? "Name is locked after first delivery - Unlock to rename" : undefined}
                       />
                     </td>
                     <td className="px-3 py-1.5" colSpan={3}>

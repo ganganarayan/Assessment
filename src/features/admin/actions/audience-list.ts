@@ -12,7 +12,7 @@ import { Prisma } from "@prisma/client";
  * The tenant's canonical audience list ("your default list of roles") + the tools to
  * clean up free-typed audience values against it. Everything follows the acting scope
  * (resolveActingScope), so the super-admin global view edits the platform singleton and
- * impersonating a tenant edits that tenant — the same as Ads & payments settings.
+ * impersonating a tenant edits that tenant - the same as Ads & payments settings.
  */
 
 /** The AppSetting row id for a scope: the platform singleton, or the tenant's row. */
@@ -74,7 +74,7 @@ export interface AudienceUsageRow {
 }
 
 /** Every distinct audience value stored on this scope's submissions, with counts and
- *  a flag for whether it matches the canonical list — the input to the normalize UI. */
+ *  a flag for whether it matches the canonical list - the input to the normalize UI. */
 export async function getAudienceUsage(): Promise<{ rows: AudienceUsageRow[]; canonical: string[] }> {
   const scope = await resolveActingScope();
   const canonical = await readCanonical(scope.tenantId);

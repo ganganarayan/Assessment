@@ -14,7 +14,7 @@ import { BillingBanner } from "@/features/billing/components/billing-banner";
 /**
  * The tenant workspace shell. requireWorkspace resolves a CONCRETE acting tenant
  * (the tenant admin's own, or the one a super admin has entered). Only the pages
- * built under /w exist here, and each scopes its queries to that tenant — so no
+ * built under /w exist here, and each scopes its queries to that tenant - so no
  * unscoped page can leak another tenant's data.
  */
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
@@ -29,7 +29,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     // The provider is what lets the sidebar switch the builder panels: the nav holds the
     // tabs, the editor page renders them, and both read the same React state so an
     // unsaved edit survives switching. Without it useBuilderTab() is null and the editor
-    // silently shows only its first panel — which is why Results and VSL Result Page
+    // silently shows only its first panel - which is why Results and VSL Result Page
     // existed in the workspace but could not be reached.
     <BuilderTabProvider>
     <div className="md:flex md:min-h-screen">

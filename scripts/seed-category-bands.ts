@@ -10,7 +10,7 @@
  *       { "min": 50, "max": 100, "label": "Strong",         "meaning": "…" }
  *     ] }
  * ]
- * Percentages are 0–100 (same basis as overall bands). Ranges must not overlap.
+ * Percentages are 0-100 (same basis as overall bands). Ranges must not overlap.
  */
 import { readFileSync } from "node:fs";
 import { prisma } from "../src/lib/db/prisma";

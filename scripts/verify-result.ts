@@ -1,6 +1,6 @@
 /**
  * Pure checks for the result read path:
- *  - expiry is DISABLED (an old token still renders — never 410)
+ *  - expiry is DISABLED (an old token still renders - never 410)
  *  - a token resolves to the person's NEWEST reading, with a safe fallback.
  * Run: npm run verify:result
  */
