@@ -26,7 +26,10 @@ export interface CompactBandsResult {
 }
 
 const LEVELS: OverallLevel[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
-const RANGE = /(\d+(?:\.\d+)?)\s*(?:-|-|-|to)\s*(\d+(?:\.\d+)?)/i;
+const RANGE = /(\d+(?:\.\d+)?)\s*(?:-|–|—|to)\s*(\d+(?:\.\d+)?)/i;
+// The long dashes in that alternation are DELIBERATE and must survive any dash sweep:
+// this parses text people paste from Word or Google Docs, where autocorrect rewrites
+// "0-50" as "0–50". Matching them here is how they get removed, not a use of them.
 const LEVEL_WORD = /\b(low|medium|high|critical)\b/i;
 
 /** Spread a band's index across the 4 levels (n=4 → LOW,MEDIUM,HIGH,CRITICAL). */
