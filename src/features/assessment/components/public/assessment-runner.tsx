@@ -231,6 +231,19 @@ export function AssessmentRunner({
     assessment.qualification && assessment.qualification.enabled && assessment.qualification.questions.length > 0
       ? assessment.qualification
       : null;
+  /**
+   * Did a qualification gate actually run for this respondent?
+   *
+   * When it did, the funnel is already under way by the time the gate is cleared, so the
+   * intro's headline, subheadline and cover image are an interruption rather than an
+   * opening: the person has answered several questions and then gets handed a title page.
+   * So the gate's presence suppresses the landing copy and numbers the screens as two
+   * sections of one run.
+   *
+   * Derived from `qual` rather than tracked in state, because it is a property of the
+   * assessment, not of where the respondent has got to.
+   */
+  const gateRan = qual !== null;
   const [step, setStep] = useState<Step>(qual ? "qualify" : gated ? "gate" : "intro");
   // Current qualification question index (one at a time, auto-advance).
   const [qualIndex, setQualIndex] = useState(0);
@@ -587,7 +600,7 @@ export function AssessmentRunner({
       if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
       else {
         markGatePassed(); // cleared the whole gate - they are now in the funnel
-        setStep(gated ? "gate" : "intro");
+        setStep(gated ? "gate" : afterIntroStep());
       }
     }, 160);
   }
@@ -623,7 +636,7 @@ export function AssessmentRunner({
       }
       setError(null);
       setSelectedRole(typed || null);
-      setStep("intro");
+      setStep(afterIntroStep());
       return;
     }
     const opt = gate.options.find((o) => o.key === gateChoice);
@@ -637,7 +650,19 @@ export function AssessmentRunner({
       return;
     }
     setSelectedRole(opt.label); // continue in this assessment
-    setStep("intro");
+    setStep(afterIntroStep());
+  }
+
+  /**
+   * Where to go once the gates are done.
+   *
+   * Lead-capture-AFTER: the intro is nothing but a title and a Start button, so after a
+   * qualification gate it is pure friction and gets skipped. Lead-FIRST: the intro screen
+   * IS the opt-in form, so it must still render; only its landing copy is suppressed.
+   */
+  function afterIntroStep(): Step {
+    if (!gateRan || !assessment.leadCaptureAfter) return "intro";
+    return hasScoredQuestions ? "questions" : "leadForm";
   }
 
   function emailPreviousResults() {
@@ -928,15 +953,24 @@ export function AssessmentRunner({
         {assessment.eyebrow ? (
           <p className="text-sm font-semibold uppercase tracking-wide text-[#D4AF37]">{assessment.eyebrow}</p>
         ) : null}
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">{assessment.title}</h1>
-          {assessment.subheadline ? (
-            <p className="text-[var(--muted-foreground)]">{assessment.subheadline}</p>
-          ) : null}
+        {/*
+          Title left, section counter right, matching the assessment screens exactly so
+          the two halves of the funnel read as one run of questions. Sections rather than
+          one running total on purpose: a respondent can see there are two sets and how far
+          through each they are, and the numbers stay honest even for someone who never
+          reaches section 2, which a single "1 of 20" would not.
+        */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">{assessment.title}</h1>
+            {assessment.subheadline ? (
+              <p className="text-[var(--muted-foreground)]">{assessment.subheadline}</p>
+            ) : null}
+          </div>
+          <span className="shrink-0 text-xs text-[var(--muted-foreground)]">
+            Section 1 ({qualIndex + 1}/{qual.questions.length})
+          </span>
         </div>
-        <p className="text-xs text-[var(--muted-foreground)]">
-          Question {qualIndex + 1} of {qual.questions.length}
-        </p>
         <div className="flex flex-col gap-3">
           <Label>
             {question.text}
@@ -1172,13 +1206,18 @@ export function AssessmentRunner({
           : assessment.retakePolicy === "DELAYED"
             ? `Please answer honestly in one sitting. Once you submit, you won't be able to retake this assessment for ${assessment.retakeDays} day${assessment.retakeDays === 1 ? "" : "s"}.`
             : null;
+    // After a qualification gate the respondent is mid-funnel, so the cover image, eyebrow,
+    // title, subheadline and description are an interruption rather than an opening. They
+    // are dropped; the retake notice below is kept because it is a warning, not decoration.
+    // In lead-FIRST mode this screen is also the opt-in form, which is why the copy is
+    // suppressed here rather than the whole step being skipped.
     const landing = (
       <>
-        {assessment.coverImageUrl ? (
+        {assessment.coverImageUrl && !gateRan ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={assessment.coverImageUrl} alt="" className="aspect-video w-full rounded-lg object-cover" />
         ) : null}
-        <div className="flex flex-col gap-2">
+        <div className={gateRan ? "hidden" : "flex flex-col gap-2"}>
           {assessment.eyebrow ? (
             <p className="text-sm font-semibold uppercase tracking-wide text-[#D4AF37]">{assessment.eyebrow}</p>
           ) : null}
@@ -1536,8 +1575,16 @@ export function AssessmentRunner({
         <h2 className="text-xl font-semibold">{assessment.title}</h2>
         {screens.length > 1 ? (
           <span className="shrink-0 text-xs text-[var(--muted-foreground)]">
-            {/* Routing makes the path length vary, so show only the step reached. */}
-            {routingActive ? `Step ${pathStack.length}` : `Step ${idx + 1} of ${screens.length}`}
+            {/* Numbered as section 2 ONLY when a gate actually ran, so an assessment
+                without one is not told it is the second of something. Routing makes the
+                path length vary, so it shows the step reached rather than a total. */}
+            {gateRan
+              ? routingActive
+                ? `Section 2 (${pathStack.length})`
+                : `Section 2 (${idx + 1}/${screens.length})`
+              : routingActive
+                ? `Step ${pathStack.length}`
+                : `Step ${idx + 1} of ${screens.length}`}
           </span>
         ) : null}
       </div>
