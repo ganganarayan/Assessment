@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireSuperAdmin, requireWorkspace, editDenied } from "@/lib/auth/guards";
 import { resolveActingScope, configTenantOf } from "@/lib/tenant/acting";
 import { prisma } from "@/lib/db/prisma";
-import { resolvePlan } from "@/lib/billing/entitlements";
+import { resolvePlan, tenantCan } from "@/lib/billing/entitlements";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import {
   parseImportText,
@@ -163,6 +163,11 @@ export async function importTenantAssessments(
 ): Promise<ActionResult<ImportOutcome> & { errors?: string[] }> {
   const { user, tenantId, impersonating } = await requireWorkspace();
   { const __d = editDenied(user); if (__d) return __d; }
+  // The gate is enforced HERE, not only on the screen. A hidden form is not a plan
+  // limit: this action is reachable by anyone who can reach the workspace.
+  if (!impersonating && !(await tenantCan(tenantId, "bulkImport"))) {
+    return { ok: false, error: "Importing from a JSON or CSV export is part of Agency. Upgrade your plan, or write the assessment from plain text." };
+  }
   const parsed = parseImportText(raw, format);
   if (!parsed.ok) return { ok: false, error: "Validation failed.", errors: parsed.errors };
 

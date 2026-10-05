@@ -59,7 +59,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
   },
 ];
 
-export function WorkspaceNav() {
+export function WorkspaceNav({ hidden = [] }: { hidden?: string[] }) {
   const pathname = usePathname();
   const tab = useBuilderTab();
   const editing = isAssessmentEditor(pathname);
@@ -75,7 +75,7 @@ export function WorkspaceNav() {
               {group.section}
             </p>
           ) : null}
-          {group.items.map((it) => (
+          {group.items.filter((it) => !hidden.includes(it.href)).map((it) => (
             <div key={it.href} className="flex flex-col">
               <Link
                 href={it.href}

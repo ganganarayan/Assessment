@@ -44,10 +44,10 @@ export async function mintApiToken(scope: string, label: string): Promise<Action
   const denied = scopeEditDenied(acting);
   if (denied) return denied;
   if (!acting.isSuper && !acting.tenantId) return { ok: false, error: "No workspace." };
-  // Billing gate: API access is a Scale-only capability. The app owner (super admin) is
+  // Billing gate: API access is an Agency capability. The app owner (super admin) is
   // never limited; a tenant needs the apiAccess feature to mint keys.
   if (!acting.isSuper && !(await tenantCan(acting.tenantId, "apiAccess"))) {
-    return { ok: false, error: "API access is available on the Scale plan. Upgrade to mint API keys." };
+    return { ok: false, error: "API access is part of Agency. Upgrade your plan to mint API keys." };
   }
   if (!isApiTokenScope(scope)) return { ok: false, error: "Unknown scope." };
   const { plaintext, tokenHash, prefix } = generateApiToken(scope);

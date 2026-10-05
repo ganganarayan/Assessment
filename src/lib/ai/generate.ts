@@ -7,7 +7,10 @@ import { applyCrisisLine } from "@/lib/ai/crisis";
 import { PREVIEW_SAMPLE, NEUTRAL_SAMPLE } from "@/lib/ai/prompt-versions";
 import { resolvePromptVersion, getWordWindow } from "@/lib/ai/versions";
 import { builtInPromptsAllowed } from "@/lib/ai/scope";
-import { DEFAULT_MODEL, isAiProvider, type AiConfig, type StatementInput } from "@/lib/ai/types";
+import { DEFAULT_MODEL, isAiProvider, type AiConfig, type AiProvider, type StatementInput } from "@/lib/ai/types";
+import { isPlatformScope } from "@/lib/tenant/platform-tenant";
+import { resolvePlan, tenantCan } from "@/lib/billing/entitlements";
+import { modelForTenant, parsePlanModels } from "@/lib/ai/plan-models";
 import { CLINIC_SYSTEM_PROMPT } from "@/lib/ai/clinic-prompt";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
 
@@ -25,32 +28,107 @@ const TIMEOUT_MS = 30_000;
 // instructions (e.g. "180-240 words"), not this ceiling. ~240 words ≈ 330 tokens.
 const MAX_TOKENS = 900;
 
+/** Decrypt whichever key a settings row holds for its selected provider. */
+function keyFromRow(s: {
+  aiProvider: string | null;
+  aiClaudeKeyEnc: string | null;
+  aiOpenAiKeyEnc: string | null;
+  aiGeminiKeyEnc: string | null;
+  aiApiKeyEnc: string | null;
+}): { provider: AiProvider; apiKey: string } | null {
+  if (!s.aiProvider || !isAiProvider(s.aiProvider)) return null;
+  const perProvider = {
+    claude: s.aiClaudeKeyEnc,
+    openai: s.aiOpenAiKeyEnc,
+    gemini: s.aiGeminiKeyEnc,
+  }[s.aiProvider];
+  // Fall back to the legacy single key so pre-migration configs keep working.
+  const enc = perProvider ?? s.aiApiKeyEnc;
+  if (!enc) return null;
+  const apiKey = decryptWithSecret(enc, env.BETTER_AUTH_SECRET);
+  return apiKey ? { provider: s.aiProvider, apiKey } : null;
+}
+
+/**
+ * Resolve the provider, key and model for one scope.
+ *
+ * PLATFORM scope reads the singleton and is unchanged.
+ *
+ * A TENANT no longer brings a key. Asking a customer for an API key reads as the
+ * product being a wrapper, and it hands them an argument against the response caps
+ * that are the actual meter. So a tenant generates on the PLATFORM's key, and the
+ * platform picks the model per plan (see lib/ai/plan-models) - the tenant chooses the
+ * words, the owner chooses what producing them costs. Nothing says so on screen.
+ *
+ * Three things still gate a tenant:
+ *   - the `aiReports` entitlement, so Gate has no AI and a PARKED workspace generates
+ *     nothing (parked limits turn every feature off);
+ *   - a system prompt version of their own, resolved by the caller;
+ *   - the per-assessment `useAiStatement` toggle, read by the caller.
+ *
+ * A tenant that still holds its own key keeps using it. That is the owner's internal
+ * businesses, which were configured before this and should not change behaviour, and
+ * it costs one branch.
+ */
 async function readAiConfig(requireEnabled: boolean, tenantId: string | null = null): Promise<AiConfig | null> {
   try {
-    // Gita/platform (tenantId null) reads the singleton, unchanged. A tenant reads
-    // ONLY its own row - never the singleton - so Gita's API key is never used for,
-    // or exposed to, a tenant. An unconfigured tenant simply gets no AI (returns null).
-    const s = await prisma.appSetting.findUnique({ where: appSettingWhere(tenantId) as never });
-    if (!s || !s.aiProvider) return null;
-    if (requireEnabled && !s.aiEnabled) return null;
-    if (!isAiProvider(s.aiProvider)) return null;
-    // Use the key stored for the SELECTED provider; fall back to the legacy single
-    // key so pre-migration configs keep working.
-    const perProvider = {
-      claude: s.aiClaudeKeyEnc,
-      openai: s.aiOpenAiKeyEnc,
-      gemini: s.aiGeminiKeyEnc,
-    }[s.aiProvider];
-    const enc = perProvider ?? s.aiApiKeyEnc;
-    if (!enc) return null;
-    const apiKey = decryptWithSecret(enc, env.BETTER_AUTH_SECRET);
-    if (!apiKey) return null;
+    if (isPlatformScope(tenantId)) {
+      const s = await prisma.appSetting.findUnique({ where: appSettingWhere(null) as never });
+      if (!s) return null;
+      if (requireEnabled && !s.aiEnabled) return null;
+      const key = keyFromRow(s);
+      if (!key) return null;
+      return {
+        provider: key.provider,
+        model: s.aiModel?.trim() || DEFAULT_MODEL[key.provider],
+        apiKey: key.apiKey,
+        guidance: s.aiGuidance ?? null,
+        promptVersion: s.aiPromptVersion ?? null,
+      };
+    }
+
+    // Entitlement first: no sense decrypting a key for a tenant that may not use it.
+    if (!(await tenantCan(tenantId, "aiReports"))) return null;
+
+    const [own, platform, tenant] = await Promise.all([
+      prisma.appSetting.findUnique({ where: appSettingWhere(tenantId) as never }),
+      prisma.appSetting.findUnique({ where: appSettingWhere(null) as never }),
+      prisma.tenant.findUnique({
+        where: { id: tenantId as string },
+        select: { aiModelOverride: true },
+      }),
+    ]);
+
+    // A tenant with its own key keeps its own provider, model and enable toggle.
+    const ownKey = own ? keyFromRow(own) : null;
+    if (ownKey) {
+      if (requireEnabled && !own?.aiEnabled) return null;
+      return {
+        provider: ownKey.provider,
+        model: own?.aiModel?.trim() || DEFAULT_MODEL[ownKey.provider],
+        apiKey: ownKey.apiKey,
+        guidance: own?.aiGuidance ?? null,
+        promptVersion: own?.aiPromptVersion ?? null,
+      };
+    }
+
+    // The ordinary path: the platform's key, the platform's choice of model.
+    const platformKey = platform ? keyFromRow(platform) : null;
+    if (!platformKey) return null;
+    const resolved = await resolvePlan(tenantId);
+    const model = modelForTenant({
+      override: tenant?.aiModelOverride,
+      plan: resolved.plan,
+      planModels: parsePlanModels(platform?.aiPlanModels ?? null),
+    });
     return {
-      provider: s.aiProvider,
-      model: s.aiModel?.trim() || DEFAULT_MODEL[s.aiProvider],
-      apiKey,
-      guidance: s.aiGuidance ?? null,
-      promptVersion: s.aiPromptVersion ?? null,
+      provider: platformKey.provider,
+      model,
+      apiKey: platformKey.apiKey,
+      // The tenant's own historical guidance still applies to their own versions; the
+      // platform's never leaks across.
+      guidance: own?.aiGuidance ?? null,
+      promptVersion: own?.aiPromptVersion ?? null,
     };
   } catch (e) {
     // Fail-soft at the source: a DB blip here must never break the caller.
