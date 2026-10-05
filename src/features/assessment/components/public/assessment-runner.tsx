@@ -241,6 +241,25 @@ export function AssessmentRunner({
   // gate config, because a score the browser could name is a score the browser could
   // change. Disqualifying picks never get here - that path ends the visit.
   const [qualChoices, setQualChoices] = useState<Record<string, string>>({});
+
+  /**
+   * Does this assessment have any SCORED questions at all?
+   *
+   * It is legitimate for it not to: a funnel can be built entirely out of qualification
+   * gate questions, where the gate is the assessment and the points are earned there. But
+   * the questions step was written assuming there is always something to show, and with
+   * nothing to show it rendered an empty screen whose Submit button could never succeed:
+   * the server requires at least one answer, rejects it, and drops the respondent back on
+   * the same empty screen. An infinite loop at the end of a paid funnel, with no error
+   * anybody could see.
+   *
+   * Counted exactly the way the screen builder counts, INCLUDING the page filter, so a
+   * category sitting on a page outside {1, 2} is treated as what it is here: invisible.
+   */
+  const scoredQuestionCount = assessment.categories
+    .filter((c) => (c.page ?? 1) === 1 || (c.page ?? 1) === 2)
+    .reduce((n, c) => n + c.questions.length, 0);
+  const hasScoredQuestions = scoredQuestionCount > 0;
   // Audience gate: the current dropdown selection (option key) + the role label the
   // respondent picked (threaded to startSubmission; stored as their audience/role).
   const [gateChoice, setGateChoice] = useState<string>("");
@@ -511,6 +530,12 @@ export function AssessmentRunner({
         } else {
           runCompletion(undefined, newSid ?? undefined, newTok ?? undefined);
         }
+        return;
+      }
+      // Nothing to ask: skip the questions step rather than showing an empty one.
+      if (!hasScoredQuestions) {
+        if (assessment.preResultFields.length > 0) setStep("details");
+        else runCompletion(undefined, newSid ?? undefined, newTok ?? undefined);
         return;
       }
       setScreenIndex(0); // start at the first question page
@@ -1183,7 +1208,17 @@ export function AssessmentRunner({
             type="button"
             disabled={pending}
             style={ctaStyle}
-            onClick={() => { setError(null); setScreenIndex(0); setPathStack([0]); setStep("questions"); }}
+            onClick={() => {
+              setError(null);
+              setScreenIndex(0);
+              setPathStack([0]);
+              // No scored questions: go straight to whatever comes after them.
+              if (!hasScoredQuestions) {
+                setStep(assessment.leadCaptureAfter ? "leadForm" : "questions");
+                return;
+              }
+              setStep("questions");
+            }}
           >
             {assessment.startButtonLabel?.trim() || "Start"}
           </Button>

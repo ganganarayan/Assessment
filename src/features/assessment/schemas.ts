@@ -494,6 +494,11 @@ export const answersSchema = z.object({
         optionId: z.string().min(1),
       }),
     )
-    .min(1, "Answer at least one question."),
+    // NOT .min(1). A funnel can be built entirely from qualification gate questions, with
+    // no scored questions behind them, and such a submission legitimately carries zero
+    // answers. The schema cannot see the assessment, so it cannot tell that apart from a
+    // genuinely empty submission; completeSubmission makes that call instead, where the
+    // question count is known. See the emptiness guard there.
+    .default([]),
 });
 export type AnswersInput = z.infer<typeof answersSchema>;

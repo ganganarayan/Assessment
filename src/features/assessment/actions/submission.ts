@@ -1061,6 +1061,16 @@ export async function completeSubmission(
   );
   const questionById = new Map(questions.map((q) => [q.id, q]));
 
+  // The emptiness guard, moved here from answersSchema because only this side knows
+  // whether there was anything to answer. An assessment WITH questions that submits none
+  // is a broken client and is refused exactly as before. An assessment built entirely
+  // from its qualification gate has nothing to answer, and a zero-answer submission is
+  // the correct and only possible shape, so it is allowed through to be scored on its
+  // gate points alone.
+  if (questions.length > 0 && parsed.data.answers.length === 0) {
+    return { ok: false, error: "Answer at least one question." };
+  }
+
   // Build answer value map (last answer per question wins).
   const answerValueByQuestionId = new Map<string, number>();
   const optionByQuestionId = new Map<string, string>();
