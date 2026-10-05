@@ -21,7 +21,7 @@ import { appendVidapulseId } from "@/lib/vidapulse";
 import { detectUnitFromQuestion, isClinicRole, type ClinicRole } from "@/lib/scoring/clinic-audit";
 import { buildSpine, nextIndex, walk, type RouteSpec } from "@/lib/routing/engine";
 import { waitSeconds, terminalStage, type FlowInput } from "@/features/assessment/flow/stages";
-import { STAGE_DEFAULTS } from "@/features/assessment/flow/stage-defaults";
+import { STAGE_DEFAULTS, optinCopy } from "@/features/assessment/flow/stage-defaults";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -143,6 +143,8 @@ export interface PublicAssessment {
   optinFields: PreResultField[];
   introNotice: string | null;
   startButtonLabel: string | null;
+  /** One sentence above the opt-in form; blank renders nothing. */
+  qualifiedNote: string | null;
   resultsButtonLabel: string | null;
   paidMode: boolean;
   /** Finish -> /sign-up prefilled, instead of a result page (platform funnel). */
@@ -235,6 +237,9 @@ export function AssessmentRunner({
     paidMode: assessment.paidMode,
     vslCountdownSeconds: assessment.vslCountdownSeconds,
   };
+  // The opt-in heading and sub-line. Terminal-aware: a signup funnel has no results to
+  // promise, so it must not say "to see your results".
+  const optin = optinCopy(terminalStage(flowInput));
   const gate = assessment.audienceGate;
   const freeMode = gate?.mode === "FREETEXT";
   // A free-text gate shows even with no options; a dropdown needs at least one.
@@ -922,6 +927,23 @@ export function AssessmentRunner({
     );
   }
 
+  /**
+   * The one sentence above the opt-in form.
+   *
+   * After a gate this is the first thing a qualified respondent reads. Passing the gate
+   * is the moment of most investment in the whole funnel - several questions answered,
+   * and told they are through - and until now it was answered with a bare form. This is
+   * where the offer goes.
+   *
+   * Styled as a notice rather than a heading so it reads as something gained, and sits
+   * with the form rather than competing with it.
+   */
+  const qualifiedNote = assessment.qualifiedNote?.trim() ? (
+    <p className="rounded-md border border-green-600/40 bg-green-600/10 px-4 py-3 text-sm font-medium whitespace-pre-line text-[var(--foreground)]">
+      {assessment.qualifiedNote.trim()}
+    </p>
+  ) : null;
+
   // Reusable pieces of the opt-in form - shown on the intro screen (lead-first) OR on
   // the dedicated leadForm step (lead-after). Defined here so both steps share them.
   const honeypotInput = (
@@ -972,9 +994,10 @@ export function AssessmentRunner({
       <form onSubmit={submitLead} className="flex flex-col gap-6">
         {honeypotInput}
         <div className="flex flex-col gap-1">
-          <h2 className="text-2xl font-bold tracking-tight">Almost done</h2>
-          <p className="text-[var(--muted-foreground)]">Enter your details to see your results.</p>
+          <h2 className="text-2xl font-bold tracking-tight">{optin.heading}</h2>
+          <p className="text-[var(--muted-foreground)]">{optin.subtext}</p>
         </div>
+        {qualifiedNote}
         {leadFieldsBlock}
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         <Button size="lg" type="submit" disabled={pending} style={ctaStyle}>
@@ -1271,6 +1294,10 @@ export function AssessmentRunner({
         {retakeNotice ? (
           <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-[var(--foreground)]">{retakeNotice}</p>
         ) : null}
+        {/* Last, so it sits directly above the fields: after a gate the landing copy
+            above is hidden, which leaves this as the first thing a qualified person
+            reads before being asked for anything. */}
+        {qualifiedNote}
       </>
     );
 

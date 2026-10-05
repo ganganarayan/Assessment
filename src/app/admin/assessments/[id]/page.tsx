@@ -49,6 +49,7 @@ export default async function EditAssessmentPage({
     slug: a.slug,
     eyebrow: a.eyebrow ?? "",
     subheadline: a.subheadline ?? "",
+    qualifiedNote: a.qualifiedNote ?? "",
     description: a.description ?? "",
     buttonColor: a.buttonColor ?? "",
     buttonTextColor: a.buttonTextColor ?? "",

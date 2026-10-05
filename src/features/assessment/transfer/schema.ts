@@ -79,6 +79,7 @@ export const assessmentBodyExport = z.object({
   // Funnel copy / opt-in configuration (environment-agnostic - carried for fidelity).
   eyebrow: z.string().nullable().optional(),
   subheadline: z.string().nullable().optional(),
+  qualifiedNote: z.string().nullable().optional(),
   buttonColor: z.string().nullable().optional(),
   buttonTextColor: z.string().nullable().optional(),
   heatmapCode: z.string().nullable().optional(),

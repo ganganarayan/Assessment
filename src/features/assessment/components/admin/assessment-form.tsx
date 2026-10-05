@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   createAssessment,
@@ -8,6 +8,7 @@ import {
 } from "@/features/assessment/actions/assessment";
 import type { AssessmentInput, PreResultField, AudienceGateInput } from "@/features/assessment/schemas";
 import { EMPTY_AUDIENCE_GATE } from "@/features/assessment/schemas";
+import { useAutosave } from "@/components/use-autosave";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -103,6 +104,7 @@ const DEFAULTS: AssessmentFormValues = {
   slug: "",
   eyebrow: "",
   subheadline: "",
+  qualifiedNote: "",
   description: "",
   buttonColor: "",
   buttonTextColor: "",
@@ -221,25 +223,47 @@ export function AssessmentForm({
   // that actually has roles.
   const gateOn = freeMode || gate.roles.length > 0;
 
+  /**
+   * The body both the Save button and autosave send. Shared so the two can never
+   * disagree about what "saved" means, and so comparing payloads is a reliable test of
+   * whether anything actually changed.
+   */
+  const buildPayload = useCallback(
+    () => ({
+      // Clean the profession options + pre-result fields (drop blank lines / empty
+      // fields) before validation.
+      ...values,
+      professionOptions: values.professionOptions.map((s) => s.trim()).filter(Boolean),
+      audienceGate: {
+        ...values.audienceGate,
+        // Trim role labels and drop blank rows before validation.
+        roles: values.audienceGate.roles
+          .map((r) => ({ ...r, label: r.label.trim() }))
+          .filter((r) => r.label.length > 0),
+      },
+      preResultFields: cleanFields(values.preResultFields),
+      optinFields: cleanFields(values.optinFields),
+    }),
+    [values],
+  );
+
+  // Autosave on leaving a field. Never in create mode: a blur must not bring a row
+  // into existence. The Save button below is untouched.
+  const autosaveSave = useCallback(
+    (payload: AssessmentInput) => updateAssessment(id as string, payload),
+    [id],
+  );
+  const autosave = useAutosave<HTMLFormElement>({
+    enabled: mode === "edit" && !!id,
+    build: buildPayload,
+    save: autosaveSave,
+  });
+
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     start(async () => {
-      // Clean the profession options + pre-result fields (drop blank lines / empty
-      // fields) before validation.
-      const payload = {
-        ...values,
-        professionOptions: values.professionOptions.map((s) => s.trim()).filter(Boolean),
-        audienceGate: {
-          ...values.audienceGate,
-          // Trim role labels and drop blank rows before validation.
-          roles: values.audienceGate.roles
-            .map((r) => ({ ...r, label: r.label.trim() }))
-            .filter((r) => r.label.length > 0),
-        },
-        preResultFields: cleanFields(values.preResultFields),
-        optinFields: cleanFields(values.optinFields),
-      };
+      const payload = buildPayload();
       const res =
         mode === "create"
           ? await createAssessment(payload)
@@ -248,6 +272,7 @@ export function AssessmentForm({
         setError(res.error);
         return;
       }
+      autosave.markSaved(payload);
       if (mode === "create" && res.data) {
         router.push(`${basePath}/${res.data.id}`);
       } else {
@@ -262,7 +287,8 @@ export function AssessmentForm({
         <CardTitle>{mode === "create" ? "New assessment" : "Settings"}</CardTitle>
         <CardDescription>Core details and lead capture.</CardDescription>
       </CardHeader>
-      <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit} {...autosave.bind} className="relative">
+        {autosave.flash}
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="eyebrow">Eyebrow</Label>
@@ -296,6 +322,21 @@ export function AssessmentForm({
               onChange={(e) => set("subheadline", e.target.value)}
               placeholder="Secondary line shown below the headline"
             />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="qualifiedNote">Line above the opt-in form</Label>
+            <Textarea
+              id="qualifiedNote"
+              value={values.qualifiedNote ?? ""}
+              onChange={(e) => set("qualifiedNote", e.target.value)}
+              placeholder="You qualified. 14 days of Signal, worth $79 a month, free and no card."
+            />
+            <p className="text-xs text-[var(--muted-foreground)]">
+              One sentence, shown directly above the opt-in fields. After a qualification gate
+              this is the first thing a qualified person reads, so it is where the offer goes.
+              Blank shows nothing.
+            </p>
           </div>
 
           <div className="flex flex-col gap-2">

@@ -176,6 +176,8 @@ export const assessmentSchema = z.object({
   slug: slugSchema,
   eyebrow: z.string().max(200).optional().or(z.literal("")),
   subheadline: z.string().max(500).optional().or(z.literal("")),
+  // One sentence above the opt-in form - the offer a qualified respondent reads first.
+  qualifiedNote: z.string().max(400).optional().or(z.literal("")),
   description: z.string().max(2000).optional().or(z.literal("")),
   // Funnel CTA styling (hex like "#16a34a"); blank = default green/white theme.
   buttonColor: z.string().max(20).optional().or(z.literal("")),

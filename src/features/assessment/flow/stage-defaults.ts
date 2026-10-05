@@ -1,3 +1,5 @@
+import { type TerminalStage } from "@/features/assessment/flow/stages";
+
 /**
  * Default respondent-facing copy for the SYSTEM screens: the ones the respondent
  * reaches by state rather than by answering anything (retake lock, scoring wait).
@@ -30,4 +32,28 @@ export const STAGE_DEFAULTS = {
   evaluating: {
     label: "Analyzing your results…",
   },
+  /** The opt-in form's own heading. Terminal-aware, see optinHeading below. */
+  optin: {
+    heading: "Almost done",
+    resultSubtext: "Enter your details to see your results.",
+    signupSubtext: "Enter your details to start your trial.",
+  },
 } as const;
+
+/**
+ * The opt-in form's heading and sub-line.
+ *
+ * It used to say "Enter your details to see your results" on every funnel, including
+ * the signup funnel, where there are no results: that run ends at /sign-up and never
+ * renders one. Promising a result there is both a distraction and untrue, which is the
+ * sort of mismatch a respondent feels without being able to name.
+ */
+export function optinCopy(terminal: TerminalStage): { heading: string; subtext: string } {
+  return {
+    heading: STAGE_DEFAULTS.optin.heading,
+    subtext:
+      terminal === "SIGNUP"
+        ? STAGE_DEFAULTS.optin.signupSubtext
+        : STAGE_DEFAULTS.optin.resultSubtext,
+  };
+}

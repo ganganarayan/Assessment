@@ -49,6 +49,7 @@ async function buildAssessmentBody(
     engineConfig: a.engineConfig ?? null,
     eyebrow: a.eyebrow,
     subheadline: a.subheadline,
+    qualifiedNote: a.qualifiedNote,
     buttonColor: a.buttonColor,
     buttonTextColor: a.buttonTextColor,
     heatmapCode: a.heatmapCode,

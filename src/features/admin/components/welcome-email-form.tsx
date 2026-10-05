@@ -67,7 +67,8 @@ export function WelcomeEmailForm({ initial }: { initial: WelcomeEmailView }) {
         <p className="text-xs text-[var(--muted-foreground)]">
           Leave either blank to use the built-in copy. Placeholders:{" "}
           <code>{"{{name}}"}</code> <code>{"{{email}}"}</code> <code>{"{{workspaceUrl}}"}</code>{" "}
-          <code>{"{{signInUrl}}"}</code> <code>{"{{resetUrl}}"}</code>.
+          <code>{"{{signInUrl}}"}</code> <code>{"{{resetUrl}}"}</code>{" "}
+          <code>{"{{supportEmail}}"}</code>.
         </p>
         <p className="text-xs text-[var(--muted-foreground)]">
           🔴 There is no password placeholder. A new signup chose their own password, and a
@@ -94,7 +95,9 @@ export function WelcomeEmailForm({ initial }: { initial: WelcomeEmailView }) {
       </div>
       <p className="text-xs text-[var(--muted-foreground)]">
         Save first, then test: the test sends what is stored, not what is on screen. It goes
-        out through the platform sender configured in Settings.
+        out through the platform sender configured in Settings, and{" "}
+        <code>{"{{supportEmail}}"}</code> comes from the support address set there. If that is
+        blank, the paragraph offering it is dropped rather than sent half-empty.
       </p>
     </div>
   );

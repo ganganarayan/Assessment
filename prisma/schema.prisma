@@ -758,6 +758,14 @@ model Assessment {
   // disqualified page and creates NO lead / submission / result / Lead-CAPI - only
   // an optional custom "Disqualified" Meta pixel event (for ad exclusion). Null = no gate.
   qualification       Json?
+  // ONE sentence shown directly above the opt-in form.
+  //
+  // After a qualification gate this is the first thing a qualified person reads, and
+  // the only thing standing between answering several questions and being handed a bare
+  // form. Deliberately a single free-text line rather than a structured block: this copy
+  // is an offer, offers change weekly, and anything with more fields than that becomes a
+  // thing to maintain instead of a thing to rewrite. Null/blank = nothing rendered.
+  qualifiedNote String?
   // Content shown to a disqualified visitor (heading/subtext/body/button + the
   // fire-"Disqualified"-event toggle). Nothing about the visitor is stored.
   disqualifiedContent Json?

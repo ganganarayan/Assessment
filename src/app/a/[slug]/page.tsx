@@ -163,6 +163,7 @@ export default async function PublicAssessmentPage({
     title: a.title,
     eyebrow: a.eyebrow,
     subheadline: a.subheadline,
+    qualifiedNote: a.qualifiedNote,
     description: a.description,
     buttonColor: a.buttonColor,
     buttonTextColor: a.buttonTextColor,

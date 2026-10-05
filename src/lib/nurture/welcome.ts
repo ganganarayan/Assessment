@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { sendEmail } from "@/lib/nurture/send";
+import { supportEmailFor } from "@/lib/billing/gate";
 
 /**
  * The one email a new workspace receives, the moment it is provisioned.
@@ -26,6 +27,7 @@ export const WELCOME_PLACEHOLDERS = [
   "{{workspaceUrl}}",
   "{{resetUrl}}",
   "{{signInUrl}}",
+  "{{supportEmail}}",
 ] as const;
 
 /** Shipped copy, used when the owner has not written their own yet. Plain, specific,
@@ -42,7 +44,8 @@ export const DEFAULT_WELCOME_BODY = `<p>Hi {{name}},</p>
   <li><strong>Publish and share the link.</strong> Every response lands in Submissions with its score, its band and where it came from.</li>
 </ol>
 <p>If you ever need to change your password, you can <a href="{{resetUrl}}">set a new one here</a>. We will never send you a password by email.</p>
-<p>You can sign in any time at <a href="{{signInUrl}}">{{signInUrl}}</a>.</p>`;
+<p>You can sign in any time at <a href="{{signInUrl}}">{{signInUrl}}</a>.</p>
+<p>Any questions, just email <a href="mailto:{{supportEmail}}">{{supportEmail}}</a> and a human will answer.</p>`;
 
 function fill(template: string, vars: Record<string, string>): string {
   // An unknown placeholder is left exactly as written rather than blanked: a visible
@@ -84,7 +87,13 @@ export async function sendWelcomeTestTo(to: string, name?: string | null): Promi
     });
 
     const base = env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "");
+    // The support address comes from Settings, never from a constant in this file: it is
+    // the kind of value that changes once and then has to be right in every message
+    // that already went out as well as every one that has not.
+    const support = (await supportEmailFor(null)) ?? "";
+
     const vars: Record<string, string> = {
+      supportEmail: support,
       name: (name ?? "").trim() || "there",
       email: to,
       workspaceUrl: `${base}/w`,
@@ -96,7 +105,12 @@ export async function sendWelcomeTestTo(to: string, name?: string | null): Promi
     };
 
     const subject = fill(s?.welcomeEmailSubject?.trim() || DEFAULT_WELCOME_SUBJECT, vars);
-    const html = fill(s?.welcomeEmailBody?.trim() || DEFAULT_WELCOME_BODY, vars);
+    let template = s?.welcomeEmailBody?.trim() || DEFAULT_WELCOME_BODY;
+    // No support address configured? Drop the paragraph that offers one rather than
+    // mailing "just email  and a human will answer". A line that depends on a value
+    // nobody has set is removed, not rendered half-empty.
+    if (!support) template = template.replace(/<p>(?:(?!<\/p>)[\s\S])*\{\{supportEmail\}\}(?:(?!<\/p>)[\s\S])*<\/p>\s*/g, "");
+    const html = fill(template, vars);
     return await sendEmail(null, to, subject, html);
   } catch (e) {
     return e instanceof Error ? e.message : String(e);
