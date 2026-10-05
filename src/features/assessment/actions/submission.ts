@@ -8,6 +8,7 @@ import {
   answersSchema,
   professionOptionsFor,
   isQualificationActive,
+  qualificationSchema,
   completionEventName,
   type LeadInput,
   type AnswersInput,
@@ -65,7 +66,7 @@ import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/s
 import { supersedeStoredReport } from "@/lib/reports/store";
 
 /** The ONE system-level fallback for the result-token TTL (overridable per
- *  assessment). 30 days — long enough that revisits and the emailed result link
+ *  assessment). 30 days - long enough that revisits and the emailed result link
  *  (clicked hours/days later) still resolve; the token is a high-entropy,
  *  per-submission id behind which only that person's own result sits. */
 const DEFAULT_RESULT_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
@@ -94,7 +95,7 @@ function buildResultUrl(
       u.searchParams.set("r", token); // same token, for VidaPulse ?r= capture
       url = u.toString();
     } catch {
-      /* malformed targetUrl — keep the internal result-page fallback */
+      /* malformed targetUrl - keep the internal result-page fallback */
     }
   }
   return appendVidapulseId(url, vidapulseParam, customerId);
@@ -125,12 +126,12 @@ function buildClinicPromptContext(
     { label: "Monthly enquiries", value: `${result.enquiries}` },
     { label: "Average treatment value", value: formatINR(result.treatmentValue) },
     {
-      label: "Performance marketing — ad budget",
+      label: "Performance marketing - ad budget",
       value: `${formatINR(result.performance.adBudget)}/month buying ${Math.round(result.performance.enquiries)} new enquiries`,
     },
-    { label: "Performance marketing — additional revenue (over and above today)", value: `${formatINR(result.performance.revenue)}/month` },
-    { label: "Performance marketing — total monthly outlay (fee + ad budget)", value: formatINR(result.performance.investment) },
-    { label: "Performance marketing — net monthly gain after both costs", value: formatINR(result.performance.netGain) },
+    { label: "Performance marketing - additional revenue (over and above today)", value: `${formatINR(result.performance.revenue)}/month` },
+    { label: "Performance marketing - total monthly outlay (fee + ad budget)", value: formatINR(result.performance.investment) },
+    { label: "Performance marketing - net monthly gain after both costs", value: formatINR(result.performance.netGain) },
     { label: "Dormant list recoverable", value: `${result.dormant.recoverable} cases (${formatINR(result.dormant.value)})` },
     { label: "Spare capacity (cases/month)", value: `${result.capacity}` },
   ];
@@ -165,11 +166,11 @@ function withToken(paymentUrl: string, token: string | null): string {
 
 /**
  * What a paid submit should do INSTEAD of going to the destination/VSL. Razorpay
- * Checkout (a created Order + prefilled customer) when configured + a price is set —
+ * Checkout (a created Order + prefilled customer) when configured + a price is set -
  * the client opens the payment UI directly and Razorpay redirects to /api/payments/
  * verify on success. Otherwise the static payment link (with ?t=<token>). Both empty
  * when paid mode is off, or when paid is on but no method is usable (the caller must
- * then NOT fall through to the free VSL — see the runner).
+ * then NOT fall through to the free VSL - see the runner).
  */
 async function resolvePaidCheckout(opts: {
   tenantId: string | null;
@@ -203,7 +204,7 @@ async function resolvePaidCheckout(opts: {
       };
       return { payment };
     } catch {
-      // Razorpay Checkout (the trackable method — its order carries the submissionId)
+      // Razorpay Checkout (the trackable method - its order carries the submissionId)
       // failed. Do NOT fall back to a bare static link here: that payment would have
       // no submissionId, so the webhook would (correctly) ignore it and the sale would
       // be lost from the stats/CRM/Meta. Return nothing → the runner shows a retry.
@@ -213,7 +214,7 @@ async function resolvePaidCheckout(opts: {
 
   // No Razorpay Checkout configured (no keys/amount): use the static link if set.
   // NOTE: a fixed static link can't carry a per-buyer submissionId, so those sales
-  // aren't auto-tracked — prefer the Price (Checkout) for tracked paid assessments.
+  // aren't auto-tracked - prefer the Price (Checkout) for tracked paid assessments.
   return opts.paymentUrl ? { paymentRedirectUrl: withToken(opts.paymentUrl, opts.token) } : {};
 }
 
@@ -270,7 +271,7 @@ type StartAssessment = {
 };
 
 /** Fire the single opt-in event (LEAD_CREATED -> "optin"). The old separate
- *  assessment.started event is merged into this one — only one webhook now. */
+ *  assessment.started event is merged into this one - only one webhook now. */
 async function emitStart(
   assessment: StartAssessment,
   submissionId: string,
@@ -302,7 +303,7 @@ async function fireRegistration(
   lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null; profession: string | null },
   attr: ReturnType<typeof normalizeAttribution>,
   /** Phase 2: fire Meta (CAPI + return the pixel eventId) only when true. The CRM
-   *  lead event still fires regardless — routed assessments keep their leads, they
+   *  lead event still fires regardless - routed assessments keep their leads, they
    *  just don't tell Meta (keeps Meta's learning tied to the ad-entry assessment). */
   fireMeta: boolean,
   /** First-party visitor id (from the browser) → CAPI external_id. */
@@ -382,12 +383,15 @@ export async function startSubmission(
   externalId?: string,
   /** Qualification gate TEXT answers (manual review), keyed by question id. */
   qualAnswers?: Record<string, string>,
+  /** Gate CHOICE picks: question id -> option id. Points are resolved server-side from
+   *  the stored gate config, never taken from the client. */
+  qualChoices?: Record<string, string>,
 ): Promise<ActionResult<StartResult>> {
-  // Bot guard #1 — honeypot: a hidden form field no human fills. If it carries a
+  // Bot guard #1 - honeypot: a hidden form field no human fills. If it carries a
   // value, silently refuse (no submission created) so bot opt-ins never pollute the
   // funnel. Same generic error a real user would never trigger.
   if (!preview && honeypot && honeypot.trim()) {
-    console.warn(`[start] blocked by HONEYPOT (slug=${slug}, len=${honeypot.trim().length}) — likely autofill/password-manager, not a bot`);
+    console.warn(`[start] blocked by HONEYPOT (slug=${slug}, len=${honeypot.trim().length}) - likely autofill/password-manager, not a bot`);
     return { ok: false, error: "Something went wrong. Please try again." };
   }
   const assessment = await prisma.assessment.findFirst({
@@ -416,6 +420,7 @@ export async function startSubmission(
       fireMetaCapi: true,
       metaEvents: true,
       audienceGate: true,
+      qualification: true,
     },
   });
   if (!assessment) return { ok: false, error: "Assessment not available." };
@@ -426,7 +431,7 @@ export async function startSubmission(
   // This is the one place parked had to be more than limits. `PARKED_LIMITS` sets
   // responsesPerMonth 0, which routes a completion through CAPTURE-BUT-LOCK: the
   // answers are stored and the result withheld. Correct for an over-cap PAYING tenant
-  // (they upgrade and the leads unlock) but wrong here — it keeps collecting personal
+  // (they upgrade and the leads unlock) but wrong here - it keeps collecting personal
   // data for a tenant with no live plan, for leads nobody may ever see. Parking stops
   // the intake; it never deletes what is already there.
   //
@@ -442,7 +447,7 @@ export async function startSubmission(
   // Audience-gate role. In DROPDOWN mode, keep it only if it's one of THIS
   // assessment's gate roles (guards against a tampered client). In FREETEXT mode the
   // respondent types their own value, so accept any non-empty input (trimmed, capped)
-  // — the admin cleans it up later on the normalize screen.
+  // - the admin cleans it up later on the normalize screen.
   const gateCfg = assessment.audienceGate as
     | { mode?: string; roles?: { label?: string }[] }
     | null;
@@ -458,7 +463,7 @@ export async function startSubmission(
         : null;
   // When the assessment has an audience gate (a role dropdown OR a free-text field),
   // the audience input REPLACES the profession field (hidden client-side, fed into
-  // leadProfession below), so the profession-required check must not fire — otherwise
+  // leadProfession below), so the profession-required check must not fire - otherwise
   // gated assessments hard-block.
   const gated = gateCfg?.mode === "FREETEXT" || gateRoleLabels.size > 0;
 
@@ -485,14 +490,14 @@ export async function startSubmission(
   if (assessment.collectProfession && assessment.professionRequired && !profession && !gated)
     return { ok: false, error: "Profession is required." };
   // Membership check: the value must be one of THIS assessment's options (custom
-  // list, else the default) — guards a direct POST bypassing the dropdown. An
+  // list, else the default) - guards a direct POST bypassing the dropdown. An
   // empty/optional value is allowed through above.
   if (profession && !professionOptionsFor(assessment.professionOptions).includes(profession))
     return { ok: false, error: "Please select a valid profession." };
 
   // Sanitize untrusted attribution from the landing URL (known keys, capped).
   // Fall back to the saved attribution cookie (set in middleware) when this
-  // opt-in URL carried none — e.g. the visitor landed with UTMs, then navigated.
+  // opt-in URL carried none - e.g. the visitor landed with UTMs, then navigated.
   let attr = normalizeAttribution(attribution);
   if (!attr) attr = await readAttributionCookie();
   // Meta match signals for later CAPI attribution (exposed via /api/meta-match).
@@ -500,7 +505,7 @@ export async function startSubmission(
   // the pixel base code sets on page load (before this Start action). fbclidTimestamp
   // anchors fbc reconstruction (fb.1.<ts>.<fbclid>) when the _fbc cookie is absent.
   const metaCtx = await getMetaRequestContext();
-  // Bot guard #2 — known crawlers/scrapers (search + AI bots, HTTP libraries) must
+  // Bot guard #2 - known crawlers/scrapers (search + AI bots, HTTP libraries) must
   // not create submissions. Real browser UAs never match; a match is a confident bot.
   if (!preview && isCrawlerUserAgent(metaCtx.clientUserAgent)) {
     console.warn(`[start] blocked by CRAWLER-UA (slug=${slug}, ua=${(metaCtx.clientUserAgent ?? "").slice(0, 120)})`);
@@ -515,10 +520,10 @@ export async function startSubmission(
   const leadFields = { firstName, lastName, email, mobile, profession };
   // Mint the customerId once (8 chars; the @unique index is the collision backstop).
   const newCustomerId = generateCustomerId();
-  // Unguessable edit token — returned at Start, required to save drafts / complete.
+  // Unguessable edit token - returned at Start, required to save drafts / complete.
   const newEditToken = generateToken();
 
-  // Admin preview/testing bypasses the lockout — ONLY when the ?preview=1 flag is
+  // Admin preview/testing bypasses the lockout - ONLY when the ?preview=1 flag is
   // set AND the caller is the authenticated platform owner (never the flag alone).
   let adminPreview = false;
   if (preview) {
@@ -526,7 +531,7 @@ export async function startSubmission(
     adminPreview = u ? isPlatformOwner(u.email) : false;
   }
 
-  // Extra opt-in field answers — sanitized + capped (untrusted client input).
+  // Extra opt-in field answers - sanitized + capped (untrusted client input).
   const cleanOptin = optinAnswers && typeof optinAnswers === "object"
     ? Object.fromEntries(
         Object.entries(optinAnswers)
@@ -537,7 +542,7 @@ export async function startSubmission(
     : {};
   const optinData = Object.keys(cleanOptin).length ? { optinAnswers: cleanOptin as unknown as Prisma.InputJsonValue } : {};
 
-  // Qualification gate TEXT answers (manual-review) — sanitized + capped, keyed by
+  // Qualification gate TEXT answers (manual-review) - sanitized + capped, keyed by
   // question id. Never gates; stored for the owner to read in Custom details.
   const cleanQual = qualAnswers && typeof qualAnswers === "object"
     ? Object.fromEntries(
@@ -547,7 +552,28 @@ export async function startSubmission(
           .map(([k, v]) => [String(k).slice(0, 60), String(v).slice(0, 1000)]),
       )
     : {};
-  const qualData = Object.keys(cleanQual).length ? { qualificationAnswers: cleanQual as unknown as Prisma.InputJsonValue } : {};
+  // Gate CHOICE picks, resolved against the STORED gate rather than trusted. The client
+  // sends option ids; the labels and the points come from the assessment, so a tampered
+  // payload can at worst name an option that does not exist, which is then ignored.
+  const gate = qualificationSchema.safeParse(assessment.qualification);
+  const cleanChoices: Record<string, string> = {};
+  let gateScore = 0;
+  let gateMax = 0;
+  if (gate.success && qualChoices && typeof qualChoices === "object") {
+    for (const q of gate.data.questions) {
+      if (q.type !== "choice" || q.options.length === 0) continue;
+      // The achievable ceiling counts every ASKED question, matching how computeScores
+      // treats the assessment: a question nobody could score on still raises the bar.
+      gateMax += q.options.reduce((m, o) => Math.max(m, o.points), 0);
+      const pickedId = qualChoices[q.id];
+      const picked = q.options.find((o) => o.id === pickedId);
+      if (!picked) continue;
+      gateScore += picked.points;
+      cleanChoices[q.id] = picked.label.slice(0, 1000);
+    }
+  }
+  const storedQual = { ...cleanQual, ...cleanChoices };
+  const qualData = Object.keys(storedQual).length ? { qualificationAnswers: storedQual as unknown as Prisma.InputJsonValue } : {};
 
   // First-party id (browser UUID). Trim + length-cap untrusted client input.
   const cleanXid = typeof externalId === "string" ? externalId.trim().slice(0, 64) || null : null;
@@ -556,6 +582,11 @@ export async function startSubmission(
     assessmentId: assessment.id,
     tenantId: assessment.tenantId,
     status: "STARTED" as const,
+    // Null, not 0, when the gate awards nothing: "this funnel has no gate scoring" and
+    // "they scored zero at the gate" are different facts, and only one of them should
+    // read as a deliberate zero later.
+    gateScore: gateMax > 0 ? gateScore : null,
+    gateMax: gateMax > 0 ? gateMax : null,
     leadFirstName: assessment.collectFirstName ? firstName : null,
     leadLastName: assessment.collectLastName ? lastName : null,
     leadEmail: assessment.collectEmail ? email : null,
@@ -585,7 +616,7 @@ export async function startSubmission(
     ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
   };
 
-  // Lockout path — serialize per-(assessment + identifier) with an advisory lock
+  // Lockout path - serialize per-(assessment + identifier) with an advisory lock
   // so concurrent submits can't slip two leads through, and a blocked retaker
   // creates NO row / event / webhook. Lockout is scoped to THIS assessment +
   // identifier (completing assessment A never blocks assessment B).
@@ -594,7 +625,7 @@ export async function startSubmission(
   // (Set retakePolicy=UNLIMITED to allow free retakes; ?preview=1 as owner bypasses.)
   if (!adminPreview && assessment.retakePolicy !== "UNLIMITED" && identifierValue) {
     const policy = assessment.retakePolicy as "DELAYED" | "NEVER";
-    // Paid assessments lock on PAYMENT (completedPaidAt), not mere completion —
+    // Paid assessments lock on PAYMENT (completedPaidAt), not mere completion -
     // so an unpaid completer can return, resume, edit, and pay. Free assessments
     // lock on completion as before.
     const paidMode = assessment.paidMode;
@@ -675,7 +706,7 @@ export async function startSubmission(
       eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid);
     }
     // Nurture (one-shot Email + WhatsApp) now fires on COMPLETION, not here, so the
-    // {{resultUrl}} placeholder resolves to the finished result — see completeSubmission.
+    // {{resultUrl}} placeholder resolves to the finished result - see completeSubmission.
     const answers = outcome.kind === "reused" ? await loadResumeAnswers(outcome.submissionId) : undefined;
     return {
       ok: true,
@@ -801,13 +832,13 @@ export async function completeSubmission(
   ActionResult<{
     submissionId: string;
     // Omitted on PAID exits so the token-bearing VSL url never reaches the client
-    // before payment — the verify route reveals it only after a verified payment.
+    // before payment - the verify route reveals it only after a verified payment.
     resultUrl?: string;
     payment?: PaymentCheckout;
     paymentRedirectUrl?: string;
     eventId?: string;
     // Billing gate: the tenant is over its response cap, so this completion is locked.
-    // The lead is shown a neutral "results unavailable — contact support" screen with
+    // The lead is shown a neutral "results unavailable - contact support" screen with
     // `supportEmail` instead of a result/VSL. No other data fields are returned.
     capLocked?: boolean;
     supportEmail?: string | null;
@@ -823,6 +854,8 @@ export async function completeSubmission(
     select: {
       id: true,
       status: true,
+      gateScore: true,
+      gateMax: true,
       editToken: true,
       completedPaidAt: true,
       assessmentId: true,
@@ -855,7 +888,7 @@ export async function completeSubmission(
   });
   if (!submission) return { ok: false, error: "Submission not found." };
 
-  // Parked between START and COMPLETE — a respondent mid-assessment when the trial ran
+  // Parked between START and COMPLETE - a respondent mid-assessment when the trial ran
   // out, or a tab left open overnight. Refuse rather than meter: metering would stamp a
   // periodSeq against a limit of 0, locking the lead behind the cap screen, which claims
   // a volume problem the tenant does not have. The partial submission stays as-is.
@@ -873,7 +906,7 @@ export async function completeSubmission(
   // which the operator re-sends via WABA/email to nurture non-watchers to the VSL.
   const vidapulseParam = await vidapulseParamForTenant(submission.tenantId);
 
-  // Persist the optional pre-results details (sanitized + capped — untrusted client
+  // Persist the optional pre-results details (sanitized + capped - untrusted client
   // input). Saved regardless of the completion branch; non-fatal on failure.
   if (preResultAnswers && typeof preResultAnswers === "object") {
     const clean = Object.fromEntries(
@@ -889,7 +922,7 @@ export async function completeSubmission(
     }
   }
 
-  // Persist the respondent's ACTUAL numbers (sanitized — only finite numeric
+  // Persist the respondent's ACTUAL numbers (sanitized - only finite numeric
   // strings survive). Saved regardless of the completion branch; non-fatal on
   // failure. Read back below when building the clinic engine's answers.
   let cleanActual: Record<string, string> = {};
@@ -933,10 +966,10 @@ export async function completeSubmission(
   };
   if (submission.status === "COMPLETED") {
     if (submission.completedPaidAt || !submission.assessment.paidMode) {
-      return returnCompleted(); // paid (or free) — locked, no redo
+      return returnCompleted(); // paid (or free) - locked, no redo
     }
     // Payment table is the source of truth (a capture may be recorded before
-    // completedPaidAt is set): if paid, never re-score — return the existing result.
+    // completedPaidAt is set): if paid, never re-score - return the existing result.
     const paidRow = await prisma.payment.findFirst({
       where: { submissionId, purpose: "assessment_unlock", status: "captured" },
       select: { id: true },
@@ -978,7 +1011,7 @@ export async function completeSubmission(
       tenant: { select: { id: true, slug: true, name: true } },
       categories: {
         // Order categories + their questions by displayOrder so scoring iterates in
-        // the SAME sequence the builder shows — the stored snapshot's category order
+        // the SAME sequence the builder shows - the stored snapshot's category order
         // then matches the builder (and the baked-in serial numbers stay in sequence).
         orderBy: { displayOrder: "asc" },
         select: {
@@ -1009,7 +1042,7 @@ export async function completeSubmission(
   });
   if (!assessment) return { ok: false, error: "Assessment not found." };
 
-  // Billing gate — response cap. Peek (non-consuming) whether the tenant is already at
+  // Billing gate - response cap. Peek (non-consuming) whether the tenant is already at
   // its response limit, so we can skip the expensive AI statement for a completion that
   // is about to be locked. The AUTHORITATIVE lock decision is `meterResponse`, taken
   // once below for the winning STARTED->COMPLETED writer. Platform/unlimited → false.
@@ -1100,6 +1133,12 @@ export async function completeSubmission(
   const { categoryScores, totalScore, maxScore, percentage } = computeScores(
     scoringQuestions,
     answerValueByQuestionId,
+    // Points earned at the gate, recorded when the respondent passed it. Absent on every
+    // submission predating gate scoring and on every funnel whose gate awards nothing, so
+    // absent has to mean zero rather than a problem.
+    submission.gateMax && submission.gateMax > 0
+      ? { score: submission.gateScore ?? 0, max: submission.gateMax }
+      : undefined,
   );
   // Bands are matched against the percentage (invariant to skipped optional Qs).
   const band = pickResultBand(assessment.resultBands, percentage);
@@ -1176,7 +1215,7 @@ export async function completeSubmission(
   let clinicSnap: ClinicSnapshot | null = null;
   let clinicBandName: string | null = null;
   let clinicResult: ClinicAuditResult | null = null;
-  // The author's own Result Band row matching the clinic ₹-gap band (by level) —
+  // The author's own Result Band row matching the clinic ₹-gap band (by level) -
   // via the SAME shared mapping the result page uses, so the Submissions table,
   // the PDF, and the result page can never disagree on the diagnosis shown.
   let matchedClinicBand: { id: string; level: string; title: string; description: string | null } | null = null;
@@ -1199,8 +1238,8 @@ export async function completeSubmission(
         actualValue,
         optionLabel: opt.label,
         // Explicit config wins; otherwise infer the scale from the question's own
-        // wording/options, so "out of every 10" answered 7 scores as 70% — which is
-        // what the respondent plainly meant — with nothing to configure.
+        // wording/options, so "out of every 10" answered 7 scores as 70% - which is
+        // what the respondent plainly meant - with nothing to configure.
         unit: isClinicUnit(q.scoringUnit)
           ? q.scoringUnit
           : detectUnitFromQuestion(q.scoringRole as ClinicRole, q.text, q.options.map((o) => o.value)),
@@ -1234,7 +1273,7 @@ export async function completeSubmission(
         }, submission.tenantId, submission.assessment.aiPromptVersionId)
       : null;
   }
-  // "Show results on assess360" (nextStep RESULTS): never redirect to an external VSL —
+  // "Show results on assess360" (nextStep RESULTS): never redirect to an external VSL -
   // force our own internal result page.
   const vslTarget = assessment.nextStep === "RESULTS" ? null : assessment.targetUrl;
 
@@ -1244,7 +1283,7 @@ export async function completeSubmission(
     max: maxScore,
     scorePercent: Math.round(percentage),
     // Clinic: the author's OWN band title (matched via CLINIC_BAND_TO_LEVEL), never
-    // the raw internal band constant — falls back to the raw constant only if the
+    // the raw internal band constant - falls back to the raw constant only if the
     // author hasn't set all 4 Result Band levels yet, so the field is never empty.
     resultBand: clinicResult ? (matchedClinicBand?.title ?? clinicBandName) : (band?.title ?? null),
     resultBandLevel: clinicResult ? clinicBandName : (band?.level ?? null),
@@ -1286,7 +1325,7 @@ export async function completeSubmission(
         totalScore,
         maxScore,
         // Clinic: the matched Result Band row (by level), NOT the generic percentage-
-        // based `band` — that percentage is meaningless for clinic option values (they're
+        // based `band` - that percentage is meaningless for clinic option values (they're
         // rupees/rates, not score points) and was the cause of the Submissions table
         // showing a DIFFERENT diagnosis than the actual result page for the same lead.
         resultBandId: clinicResult ? (matchedClinicBand?.id ?? null) : (band?.id ?? null),
@@ -1302,7 +1341,7 @@ export async function completeSubmission(
 
   // A RE-completion (a retake against the same submission) has just replaced the
   // result, so any stored PDF describes the previous one. A no-op on a first
-  // completion, since nothing has been rendered yet — so this costs a single indexed
+  // completion, since nothing has been rendered yet - so this costs a single indexed
   // read on the hot path and no writes. Not awaited: a respondent must never wait on
   // cache housekeeping, and the worst case is the next report view re-renders.
   void supersedeStoredReport(submissionId);
@@ -1332,13 +1371,13 @@ export async function completeSubmission(
     };
   }
 
-  // Billing gate — response cap (CAPTURE-BUT-LOCK). The lead's answers + category
+  // Billing gate - response cap (CAPTURE-BUT-LOCK). The lead's answers + category
   // scores are ALREADY persisted by the transaction above, so no data is ever lost.
   // Meter this completion EXACTLY ONCE (winning writer only): stamp its 1-based index
   // within the tenant's billing period. A paid re-completion keeps its original index
-  // (never re-metered). If this response is OVER the cap — now, or still over after a
-  // re-completion — STOP here: no nurture (Email/WABA), no webhook/EventLog, no CAPI,
-  // no payment prompt, and the lead sees a neutral "results unavailable — contact
+  // (never re-metered). If this response is OVER the cap - now, or still over after a
+  // re-completion - STOP here: no nurture (Email/WABA), no webhook/EventLog, no CAPI,
+  // no payment prompt, and the lead sees a neutral "results unavailable - contact
   // support" screen (see the runner + result page). Raising the plan later unlocks
   // these leads, because the lock is `periodSeq > CURRENT limit`, compared live.
   let effectiveSeq = submission.periodSeq;
@@ -1356,7 +1395,7 @@ export async function completeSubmission(
     return { ok: true, data: { submissionId, capLocked: true, supportEmail } };
   }
 
-  // Nurture (one-shot Email + WhatsApp) on COMPLETION — fire-and-forget, winning
+  // Nurture (one-shot Email + WhatsApp) on COMPLETION - fire-and-forget, winning
   // writer only (exactly-once), plus the sender's own nurtureSentAt guard. Fires for
   // paid + free; the result token/snapshot are already persisted, so {{resultUrl}}
   // resolves to the person's finished result.
@@ -1366,7 +1405,7 @@ export async function completeSubmission(
   // (incl. the CRM endpoint) is non-blocking and never fails this flow. Run only
   // for the winning writer (exactly-once).
   //
-  // NOTE: result.generated is intentionally NOT emitted — scoring is synchronous,
+  // NOTE: result.generated is intentionally NOT emitted - scoring is synchronous,
   // so it would be a duplicate of assessment.completed (same instant, same data)
   // and create duplicate CRM records. See ACTIVE_EVENT_TYPES in events/types.ts.
   const full = await prisma.submission.findUnique({
@@ -1383,7 +1422,7 @@ export async function completeSubmission(
   // Completion without an in-app payment is ONE event: completed_unpaid. Paid mode
   // fires completed_paid (on payment) + completed_unpaid (30-min sweep); free mode
   // fires completed_unpaid immediately here. (Legacy: this used to emit the separate
-  // assessment.completed for free mode — unified so every "completed, not purchased"
+  // assessment.completed for free mode - unified so every "completed, not purchased"
   // lead lands on the same CRM webhook regardless of paid/free.)
   // Clinic engine: send the computed money figures + the funnel band instead of the
   // (meaningless) generic totals/categories, so the CRM gets the diagnosis + gap.
@@ -1414,7 +1453,7 @@ export async function completeSubmission(
       },
       score: clinicResult ? null : { total: totalScore, max: maxScore, percentage },
       // level = the stable machine constant (CRITICAL/HIGH/MODERATE/BELOW_THRESHOLD),
-      // title = the author's own band word (falls back to the constant if unset) —
+      // title = the author's own band word (falls back to the constant if unset) -
       // this is what lands in contact.assessment_diagnosis, so it must be the same
       // word the result page and Submissions table show, not the raw constant.
       resultBand: clinicResult
@@ -1433,11 +1472,11 @@ export async function completeSubmission(
   // Server-side Meta CAPI (AssessmentCompleted). Runs ONLY for the winning
   // writer (exactly-once); the returned eventId dedups the browser pixel.
   // Inert unless configured; fail-soft context; non-blocking send.
-  // Phase 2: routed (non-ad-entry) assessments don't tell Meta — no CAPI, no pixel
-  // eventId — so Meta's optimization stays tied to the ad-entry assessment only.
+  // Phase 2: routed (non-ad-entry) assessments don't tell Meta - no CAPI, no pixel
+  // eventId - so Meta's optimization stays tied to the ad-entry assessment only.
   //
   // Billing gate: the completion event is withheld from a tenant without
-  // analyticsTracking — in practice a PARKED one, since every paid tier has it.
+  // analyticsTracking - in practice a PARKED one, since every paid tier has it.
   //
   // Enforced by withholding the eventId, which is what the browser needs to fire and
   // dedup. The runner already fires only `if (res.data?.eventId)`, so no eventId means
@@ -1508,7 +1547,7 @@ export async function completeSubmission(
       await prisma.submission.updateMany({ where: { id: submissionId }, data: patch });
     }
   } catch {
-    /* non-critical enrichment — ignore */
+    /* non-critical enrichment - ignore */
   }
 
   const paid = await resolvePaidCheckout({

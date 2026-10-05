@@ -64,17 +64,28 @@ export const EMPTY_AUDIENCE_GATE: AudienceGateInput = {
 /* ---- Qualification gate (Page 1) --------------------------------------- */
 
 /** One selectable answer on a qualification question; `disqualifies` routes the
- *  respondent to the disqualified page (no lead / submission / result created). */
+ *  respondent to the disqualified page (no lead / submission / result created).
+ *
+ *  `points` lets a gate answer carry weight for the people who PASS, so the gate is not
+ *  only a yes/no door: "has budget, barely" and "has budget, comfortably" can both
+ *  qualify and still be worth different amounts. Defaults to 0, which is why adding this
+ *  changes nothing for an existing funnel - a 0-point option contributes 0 to the score
+ *  and 0 to the achievable maximum, so the percentage the result bands match on is
+ *  untouched until an owner sets a number.
+ *
+ *  Negative values are allowed deliberately: a reservation worth recording is sometimes
+ *  easier to express as a penalty than by re-weighting everything else. */
 export const qualOptionSchema = z.object({
   id: z.string().min(1).max(60),
   label: z.string().trim().min(1, "Option label is required.").max(200),
   disqualifies: z.boolean().default(false),
+  points: z.number().int().min(-1000).max(1000).default(0),
 });
 export type QualOptionInput = z.infer<typeof qualOptionSchema>;
 
 /** One Page-1 gating question (shown one at a time).
  *  - "choice": options with qualify/disqualify (auto-advance on pick).
- *  - "text": a free-text input for MANUAL review — never qualifies/disqualifies;
+ *  - "text": a free-text input for MANUAL review - never qualifies/disqualifies;
  *    the answer is stored on the submission (Custom details) for the owner to read. */
 export const qualQuestionSchema = z
   .object({
@@ -99,7 +110,7 @@ export type QualificationInput = z.infer<typeof qualificationSchema>;
 export const EMPTY_QUALIFICATION: QualificationInput = { enabled: false, questions: [] };
 
 /** True when an assessment's qualification gate is actually live (enabled + has at
- *  least one question). Pure — safe on client and server. */
+ *  least one question). Pure - safe on client and server. */
 export function isQualificationActive(q: unknown): boolean {
   const p = qualificationSchema.safeParse(q);
   return p.success && p.data.enabled && p.data.questions.length > 0;
@@ -118,15 +129,15 @@ export function completionEventName(gateActive: boolean): string {
 /**
  * Meta event names used outside the completion path. Named here (not inline at
  * the call sites) because the ad account's audiences are built on these exact
- * strings — renaming one silently stops populating an audience, with no error
+ * strings - renaming one silently stops populating an audience, with no error
  * anywhere.
  *
- * GATE_DISQUALIFIED_EVENT — fired SERVER-side (Conversions API) when the page-1
+ * GATE_DISQUALIFIED_EVENT - fired SERVER-side (Conversions API) when the page-1
  *   gate rejects someone, and by the owner's manual Disqualify button. No browser
  *   pixel: the rejection has no PII to match on, and CAPI needs none (IP, user
  *   agent, _fbp/_fbc and the first-party external_id are match keys), so firing
  *   from the server survives ad blockers and every send is counted.
- * ABANDONED_EVENT — fired by the sweep for a visitor who PASSED the gate and
+ * ABANDONED_EVENT - fired by the sweep for a visitor who PASSED the gate and
  *   then never completed. Server-side only: a browser cannot reliably report
  *   its own departure, so this is decided later by the sweep, not by the page.
  */
@@ -134,7 +145,7 @@ export const GATE_DISQUALIFIED_EVENT = "GateDisqualified";
 export const ABANDONED_EVENT = "AssessmentAbandoned";
 
 /** Content of the disqualified page. `fireDisqualifiedEvent` sends the custom
- *  GateDisqualified event to Meta server-side (for building an exclusion audience) —
+ *  GateDisqualified event to Meta server-side (for building an exclusion audience) -
  *  the only outward signal a rejected visitor leaves. */
 export const disqualifiedContentSchema = z.object({
   heading: z.string().max(200).optional().or(z.literal("")).default(""),
@@ -203,7 +214,7 @@ export const assessmentSchema = z.object({
   // Lead-capture position: false = opt-in first (default); true = after the questions.
   leadCaptureAfter: z.boolean().default(false),
   // Platform signup funnel. Accepted from the builder but only HONOURED on a
-  // platform-owned assessment — the action forces it false otherwise, so a tenant
+  // platform-owned assessment - the action forces it false otherwise, so a tenant
   // cannot turn their funnel into a signup path for the SaaS itself.
   platformSignup: z.boolean().default(false),
   // Extra custom fields on the opt-in form (same shape as pre-results fields).
@@ -223,7 +234,7 @@ export const assessmentSchema = z.object({
   uniqueIdentifier: z.enum(["EMAIL", "MOBILE"]).default("EMAIL"),
   // Training/VSL link shown on the retake-lock screen, and the destination page the
   // respondent lands on. Both are required ONLY when the flow goes to an external
-  // destination (nextStep DESTINATION or PAYMENT) — enforced in superRefine below.
+  // destination (nextStep DESTINATION or PAYMENT) - enforced in superRefine below.
   // For "Show results on assess360" (RESULTS) neither is needed, so both may be blank.
   // The destination origin authorizes the public read endpoint (CORS), so it must be https.
   trainingUrl: z
@@ -341,7 +352,7 @@ export type CategoryInput = z.infer<typeof categorySchema>;
 export const optionSchema = z.object({
   label: z.string().min(1, "Option label is required.").max(160),
   // GENERIC: the score point (e.g. 1..4). CLINIC_AUDIT: the working figure for the
-  // question's role — rupees/counts as-is (90000, 90), rates & uplift as whole-number
+  // question's role - rupees/counts as-is (90000, 90), rates & uplift as whole-number
   // percent (32 = 0.32). Wide bound so it can hold rupee treatment values.
   value: z.coerce.number().int().min(0).max(100_000_000),
   // CLINIC_AUDIT only (ignored by GENERIC): fixed weakest-area line for this answer,
@@ -374,7 +385,7 @@ export const resultBandSchema = z
     level: bandLevelSchema,
     title: z.string().min(1, "Title is required.").max(160),
     description: z.string().max(2000).optional().or(z.literal("")),
-    // Result bands match against the score PERCENTAGE (0–100).
+    // Result bands match against the score PERCENTAGE (0-100).
     minScore: z.coerce.number().min(0).max(100),
     maxScore: z.coerce.number().min(0).max(100),
   })
@@ -388,7 +399,7 @@ export type ResultBandInput = z.infer<typeof resultBandSchema>;
  * Per-category evaluation band. Mirrors the overall result band but for a single
  * category: a LOW/MEDIUM/HIGH/CRITICAL level (stored as the category band label)
  * + an editable suggestion (stored as `meaning`), matched against the category's
- * own score PERCENTAGE (0–100).
+ * own score PERCENTAGE (0-100).
  */
 export const categoryBandSchema = z
   .object({

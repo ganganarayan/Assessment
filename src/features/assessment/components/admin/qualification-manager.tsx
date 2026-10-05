@@ -35,8 +35,8 @@ export function QualificationManager({
     setQ((s) => ({ ...s, questions: [...s.questions, {
       id: uid(), text: "", type: "choice", placeholder: "", required: false,
       options: [
-        { id: uid(), label: "", disqualifies: false },
-        { id: uid(), label: "", disqualifies: false },
+        { id: uid(), label: "", disqualifies: false, points: 0 },
+        { id: uid(), label: "", disqualifies: false, points: 0 },
       ],
     }] }));
   const addTextQuestion = () =>
@@ -50,10 +50,10 @@ export function QualificationManager({
   const patchQuestion = (qi: number, patch: Partial<{ placeholder: string; required: boolean }>) =>
     setQ((s) => ({ ...s, questions: s.questions.map((x, i) => (i === qi ? { ...x, ...patch } : x)) }));
   const addOption = (qi: number) =>
-    setQ((s) => ({ ...s, questions: s.questions.map((x, i) => (i === qi ? { ...x, options: [...x.options, { id: uid(), label: "", disqualifies: false }] } : x)) }));
+    setQ((s) => ({ ...s, questions: s.questions.map((x, i) => (i === qi ? { ...x, options: [...x.options, { id: uid(), label: "", disqualifies: false, points: 0 }] } : x)) }));
   const removeOption = (qi: number, oi: number) =>
     setQ((s) => ({ ...s, questions: s.questions.map((x, i) => (i === qi ? { ...x, options: x.options.filter((_, j) => j !== oi) } : x)) }));
-  const setOption = (qi: number, oi: number, patch: Partial<{ label: string; disqualifies: boolean }>) =>
+  const setOption = (qi: number, oi: number, patch: Partial<{ label: string; disqualifies: boolean; points: number }>) =>
     setQ((s) => ({ ...s, questions: s.questions.map((x, i) => (i === qi ? { ...x, options: x.options.map((o, j) => (j === oi ? { ...o, ...patch } : o)) } : x)) }));
 
   const saveQual = () =>
@@ -113,7 +113,7 @@ export function QualificationManager({
                   Required
                 </label>
                 <p className="text-xs text-[var(--muted-foreground)]">
-                  Free text for your <strong>manual review</strong> — never qualifies/disqualifies. Shows in the
+                  Free text for your <strong>manual review</strong> - never qualifies/disqualifies. Shows in the
                   submission&apos;s Custom details.
                 </p>
               </div>
@@ -127,6 +127,22 @@ export function QualificationManager({
                       placeholder="Answer option"
                       onChange={(e) => setOption(qi, oi, { label: e.target.value })}
                     />
+                    {/* Points count only for respondents who PASS the gate. A
+                        disqualifying option ends the visit with no submission, so its
+                        number is never scored; it is still editable rather than hidden,
+                        because an option can stop disqualifying later and losing the
+                        number on the way through would be its own surprise. */}
+                    <label className="flex items-center gap-1 whitespace-nowrap text-xs">
+                      <span className="text-[var(--muted-foreground)]">Points</span>
+                      <Input
+                        className="w-20"
+                        type="number"
+                        value={String(opt.points ?? 0)}
+                        onChange={(e) =>
+                          setOption(qi, oi, { points: Math.trunc(Number(e.target.value) || 0) })
+                        }
+                      />
+                    </label>
                     <label className="flex items-center gap-1 whitespace-nowrap text-xs">
                       <input
                         type="checkbox"

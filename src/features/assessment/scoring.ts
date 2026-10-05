@@ -1,5 +1,5 @@
 /**
- * Scoring engine — pure, dependency-free so it is trivially testable and
+ * Scoring engine - pure, dependency-free so it is trivially testable and
  * reusable across the public submission flow and any future recalculation jobs.
  *
  * Model:
@@ -44,7 +44,7 @@ export interface ScoreResult {
   categoryScores: CategoryScore[];
   totalScore: number;
   maxScore: number;
-  /** total / max as a 0–100 percentage (0 when max is 0). Banding basis. */
+  /** total / max as a 0-100 percentage (0 when max is 0). Banding basis. */
   percentage: number;
 }
 
@@ -55,6 +55,18 @@ export interface ScoreResult {
 export function computeScores(
   questions: ScoringQuestion[],
   answerValueByQuestionId: Map<string, number>,
+  /**
+   * Score earned outside any category, currently the qualification gate.
+   *
+   * Gate questions belong to no category by design - they run before the assessment and
+   * decide whether there is one - so their points cannot be folded into a category total
+   * without inventing an owner for them. They are added to the TOTAL and to the MAXIMUM
+   * instead, which keeps the percentage honest: a respondent who scored 8 of a possible
+   * 10 at the gate has both numbers counted, exactly as an ordinary question would be.
+   *
+   * Omitted or zero leaves every existing result bit-identical.
+   */
+  extra?: { score: number; max: number },
 ): ScoreResult {
   const byCategory = new Map<string, CategoryScore>();
   let totalScore = 0;
@@ -86,8 +98,11 @@ export function computeScores(
     maxScore: round2(cs.maxScore),
   }));
 
-  const roundedTotal = round2(totalScore);
-  const roundedMax = round2(maxScore);
+  // Applied after the category loop and before the percentage, so uncategorised points
+  // move the ratio the result bands read, rather than sitting beside it as a number
+  // nobody acts on.
+  const roundedTotal = round2(totalScore + (extra?.score ?? 0));
+  const roundedMax = round2(maxScore + (extra?.max ?? 0));
   const percentage =
     roundedMax > 0 ? round2((roundedTotal / roundedMax) * 100) : 0;
 
