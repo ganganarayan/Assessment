@@ -26,5 +26,5 @@ A multi-tenant Assessment SaaS platform for creating, managing and deploying cus
 
 ## Status
 
-Phase 1 — Foundation (multi-tenant skeleton, auth, Tenant/Domain/Theme/User).
+Phase 1 - Foundation (multi-tenant skeleton, auth, Tenant/Domain/Theme/User).
 See [SETUP.md](SETUP.md) for local run and Railway deployment instructions.

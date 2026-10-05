@@ -12,13 +12,13 @@ small connector and place a few placeholder tags; you keep full control of the p
 
 > The Assess360 admin UI (assessment → **Connect your destination page**) generates
 > the exact Part A / Part B snippets below for your assessment, pre-filled with your
-> categories — copy/paste, no editing required.
+> categories, copy/paste, no editing required.
 
 ## 1. Set your Destination page URL
 
 In the assessment settings, set **Destination page URL** to the https URL of the
 page that should show the results (and host your video). That URL's **origin** is
-what authorizes the read endpoint (CORS) — you never configure CORS yourself.
+what authorizes the read endpoint (CORS), you never configure CORS yourself.
 
 ## 2. result_url format
 
@@ -55,7 +55,7 @@ Returns exactly:
 
 - `404` if the token is unknown, `410` if expired.
 - CORS: the response is readable **only** from your Destination page's origin.
-- No auth — security is the unguessable, expiring token.
+- No auth, security is the unguessable, expiring token.
 
 ## 4. Host-page placeholder contract
 
@@ -91,7 +91,7 @@ npx tsx scripts/seed-category-bands.ts <assessment-slug> bands.json
 ```
 
 ```jsonc
-// bands.json — percentages 0–100, ranges must not overlap
+// bands.json, percentages 0, 100, ranges must not overlap
 [
   { "name": "Sleep & Mental Recovery",
     "bands": [
