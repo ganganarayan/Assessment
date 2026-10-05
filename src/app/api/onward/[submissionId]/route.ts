@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { appendVidapulseId, stampVidapulseCtaUrl } from "@/lib/vidapulse";
 import { vidapulseParamForTenant } from "@/lib/events/completion";
+import { isPlatformHost } from "@/lib/seo/urls";
 
 /**
  * Onward redirect for the "Show results on assess360" flow. The result page's
@@ -18,14 +19,44 @@ import { vidapulseParamForTenant } from "@/lib/events/completion";
  */
 export const dynamic = "force-dynamic";
 
-export async function GET(_req: Request, ctx: { params: Promise<{ submissionId: string }> }) {
+/** Append lead details to a destination we own. Returns the url untouched otherwise. */
+function withLeadPrefill(
+  dest: string,
+  requestHost: string,
+  lead: { email: string | null; name: string | null },
+): string {
+  if (!lead.email && !lead.name) return dest;
+  try {
+    const u = new URL(dest);
+    const ours = u.host.toLowerCase() === requestHost.toLowerCase() || isPlatformHost(u.host);
+    if (!ours) return dest;
+    if (lead.email) u.searchParams.set("email", lead.email);
+    if (lead.name) u.searchParams.set("name", lead.name);
+    return u.toString();
+  } catch {
+    // Unparseable url: leave it exactly as the operator saved it.
+    return dest;
+  }
+}
+
+export async function GET(req: Request, ctx: { params: Promise<{ submissionId: string }> }) {
   const { submissionId } = await ctx.params;
+  const requestHost = (() => {
+    try {
+      return new URL(req.url).host;
+    } catch {
+      return "";
+    }
+  })();
 
   const sub = await prisma.submission.findUnique({
     where: { id: submissionId },
     select: {
       resultToken: true,
       customerId: true,
+      leadEmail: true,
+      leadFirstName: true,
+      leadLastName: true,
       assessment: { select: { resultsContinueUrl: true, tenantId: true } },
     },
   });
@@ -72,6 +103,21 @@ export async function GET(_req: Request, ctx: { params: Promise<{ submissionId: 
   // canonical `cid` too: the append above uses the tenant's (renameable) embed param,
   // which VidaPulse's CTA endpoint does not read. No-op for every other destination.
   dest = stampVidapulseCtaUrl(dest, sub.customerId, sub.resultToken) ?? dest;
+
+  // Hand the respondent's own email and name forward, but ONLY to a page we serve.
+  //
+  // This is what lets the result page's button land on /sign-up with the form already
+  // filled, instead of asking someone to retype the address they gave us two screens ago.
+  //
+  // The host check is the point, not a formality. resultsContinueUrl is operator-set and
+  // can name any site, and putting a respondent's email in a query string sends it into
+  // somebody else's access logs, their analytics and their referrer headers. So the
+  // parameters are added only when the destination is the host serving this request or
+  // the platform's own domain, and are silently skipped everywhere else.
+  dest = withLeadPrefill(dest, requestHost, {
+    email: sub.leadEmail,
+    name: [sub.leadFirstName, sub.leadLastName].filter(Boolean).join(" ").trim() || null,
+  });
 
   return NextResponse.redirect(dest, 302);
 }
