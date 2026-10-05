@@ -103,6 +103,7 @@ const DEFAULTS: AssessmentFormValues = {
   slug: "",
   eyebrow: "",
   subheadline: "",
+  qualifiedNote: "",
   description: "",
   buttonColor: "",
   buttonTextColor: "",
@@ -296,6 +297,21 @@ export function AssessmentForm({
               onChange={(e) => set("subheadline", e.target.value)}
               placeholder="Secondary line shown below the headline"
             />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="qualifiedNote">Line above the opt-in form</Label>
+            <Textarea
+              id="qualifiedNote"
+              value={values.qualifiedNote ?? ""}
+              onChange={(e) => set("qualifiedNote", e.target.value)}
+              placeholder="You qualified. 14 days of Signal, worth $79 a month, free and no card."
+            />
+            <p className="text-xs text-[var(--muted-foreground)]">
+              One sentence, shown directly above the opt-in fields. After a qualification gate
+              this is the first thing a qualified person reads, so it is where the offer goes.
+              Blank shows nothing.
+            </p>
           </div>
 
           <div className="flex flex-col gap-2">

@@ -64,6 +64,7 @@ function createData(
     engineConfig: asJson(body.engineConfig),
     eyebrow: body.eyebrow ?? null,
     subheadline: body.subheadline ?? null,
+    qualifiedNote: body.qualifiedNote ?? null,
     buttonColor: body.buttonColor ?? null,
     buttonTextColor: body.buttonTextColor ?? null,
     heatmapCode: body.heatmapCode ?? null,
