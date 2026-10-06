@@ -1,47 +1,37 @@
 import Link from "next/link";
-import { MARKETING, NAV_LINKS } from "@/lib/marketing/content";
+import { MARKETING } from "@/lib/marketing/content";
 import { PAGES } from "@/lib/seo/registry";
+import type { PageKind } from "@/lib/seo/types";
 import { seoPath } from "@/lib/seo/urls";
 
-export function Footer({ anchorBase = "" }: { anchorBase?: string }) {
+/**
+ * The guides, grouped the way the content already classifies itself.
+ *
+ * `kind` is an existing field that drives breadcrumbs and schema, so grouping by it costs
+ * no new metadata and cannot drift from the pages: a new guide lands in the right block by
+ * virtue of what it is. Listing every kind, including ones with no pages yet, means a
+ * future glossary page appears here on its own rather than silently vanishing from the
+ * only navigation that reaches these pages at all.
+ */
+const GUIDE_GROUPS: ReadonlyArray<{ kind: PageKind; label: string }> = [
+  { kind: "pillar", label: "Guides" },
+  { kind: "use-case", label: "By industry" },
+  { kind: "comparison", label: "Comparisons" },
+  { kind: "glossary", label: "Glossary" },
+];
+
+/**
+ * The footer no longer repeats the header. It used to open with the logo and the same
+ * nav row the sticky header already shows on every screen, which is why this component
+ * took an anchor-base prop at all: those were the only links here needing one. Removing
+ * the row removed the prop with it, and everything left points at a real path.
+ */
+export function Footer() {
   const year = new Date().getFullYear();
 
   return (
     <footer>
       <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
-        <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-          <a href={anchorBase ? `${anchorBase}#top` : "#top"} className="flex items-center gap-2 text-lg font-bold tracking-tight">
-            <span
-              aria-hidden="true"
-              className="grid h-7 w-7 place-items-center rounded-md bg-green-600 text-white"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.4" opacity="0.35" />
-                <path d="M12 3a9 9 0 0 1 8.49 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-              </svg>
-            </span>
-            {MARKETING.name}
-          </a>
-
-          <nav className="flex flex-wrap gap-x-8 gap-y-3" aria-label="Footer">
-            {NAV_LINKS.map((l) => (
-              <a
-                key={l.href}
-                href={`${anchorBase}${l.href}`}
-                className="text-sm font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
-              >
-                {l.label}
-              </a>
-            ))}
-            <Link
-              href={MARKETING.signupHref}
-              className="text-sm font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
-            >
-              Start 14-day trial
-            </Link>
-          </nav>
-        </div>
-
         {/*
           Every guide, listed on every page.
 
@@ -57,30 +47,12 @@ export function Footer({ anchorBase = "" }: { anchorBase?: string }) {
           The header carries the knowledge base too, but that row is desktop-only; on a
           phone this footer is the entry point, which is why it holds the full list.
         */}
-        <div className="mt-12 grid gap-8 border-t pt-10 sm:grid-cols-2">
-          <nav aria-label="Guides">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-              Guides
-            </h2>
-            <ul className="mt-4 flex flex-col gap-2.5">
-              {PAGES.map((p) => (
-                <li key={p.slug}>
-                  <Link
-                    href={seoPath(p.slug)}
-                    className="text-sm text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
-                  >
-                    {p.shortName}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-
+        <div className="mt-12 border-t pt-10">
           <nav aria-label="Answers">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
               Answers
             </h2>
-            <p className="mt-4 text-sm leading-relaxed text-[var(--muted-foreground)]">
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--muted-foreground)]">
               Short, direct answers about lead qualification, scoring and assessments - one
               question per page.
             </p>
@@ -91,6 +63,38 @@ export function Footer({ anchorBase = "" }: { anchorBase?: string }) {
               Browse all answers
             </Link>
           </nav>
+
+          {/*
+            Grouped, and a grid rather than a column. As one flat list of 30-odd items this
+            was taller than the page carrying it: on a policy page you scrolled past the whole
+            catalogue to reach the privacy and terms links below, and the names read as
+            scattered because nothing said which were guides, which were industries and which
+            were comparisons. Six columns on a wide screen puts each group in two or three
+            rows; two columns on a phone, for the same reason.
+          */}
+          {GUIDE_GROUPS.map((group) => {
+            const pages = PAGES.filter((p) => p.kind === group.kind);
+            if (pages.length === 0) return null;
+            return (
+              <nav key={group.kind} aria-label={group.label} className="mt-10">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+                  {group.label}
+                </h2>
+                <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-6">
+                  {pages.map((p) => (
+                    <li key={p.slug}>
+                      <Link
+                        href={seoPath(p.slug)}
+                        className="text-sm text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
+                      >
+                        {p.shortName}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            );
+          })}
         </div>
 
         <div className="mt-10 flex flex-col gap-4 border-t pt-6 text-sm text-[var(--muted-foreground)] sm:flex-row sm:items-center sm:justify-between">

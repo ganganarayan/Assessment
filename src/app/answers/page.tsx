@@ -86,7 +86,7 @@ export default async function AnswersIndex() {
           body="Build a scorecard, put it in front of real traffic, and see how many of your enquiries clear your own bar."
         />
       </main>
-      <Footer anchorBase="/" />
+      <Footer />
     </>
   );
 }

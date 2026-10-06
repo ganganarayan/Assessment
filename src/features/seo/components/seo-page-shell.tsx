@@ -92,7 +92,7 @@ export function SeoPageShell({
           Last updated {page.updatedAt}
         </p>
       </main>
-      <Footer anchorBase="/" />
+      <Footer />
     </>
   );
 }
