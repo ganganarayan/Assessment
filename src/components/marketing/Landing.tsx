@@ -34,7 +34,9 @@ const jsonLd = {
         name: t.name,
         price: String(t.amount),
         priceCurrency: "USD",
-        url: MARKETING.domain + "/#pricing",
+        // The standalone /pricing page is the canonical home of this table; the "#pricing"
+        // section below stays, but a pricing question should resolve to the page.
+        url: MARKETING.domain + "/pricing",
         availability: "https://schema.org/InStock",
       })),
     },

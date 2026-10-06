@@ -20,6 +20,7 @@ export type SitemapEntry = {
 const STATIC_PAGES: ReadonlyArray<SitemapEntry> = [
   { path: "/", updated: "2026-10-02", changeFrequency: "weekly", priority: 1 },
   { path: "/sign-up", updated: "2026-10-01", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/pricing", updated: "2026-10-06", changeFrequency: "monthly", priority: 0.8 },
   { path: "/answers", updated: "2026-10-02", changeFrequency: "weekly", priority: 0.6 },
   { path: "/contact", updated: "2026-09-01", changeFrequency: "yearly", priority: 0.4 },
   { path: "/privacy", updated: "2026-09-01", changeFrequency: "yearly", priority: 0.2 },
