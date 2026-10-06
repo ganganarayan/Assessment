@@ -43,6 +43,19 @@ export function entitledPlan(plan: Plan, status: SubscriptionStatus): PlanId | n
   return plan as PlanId;
 }
 
+/**
+ * The plan a manual grant entitles to right now, or null when there is no live grant.
+ *
+ * Pure, and exported so the platform console and verify:billing read the same rule the
+ * resolver does. A date in the past is not a grant; neither is a date with no paid plan
+ * behind it.
+ */
+export function grantedPlan(plan: Plan, planExpiresAt: Date | null, now: Date = new Date()): PlanId | null {
+  if (!planExpiresAt || planExpiresAt.getTime() <= now.getTime()) return null;
+  const id = plan as PlanId;
+  return PLAN_LIMITS[id] ? id : null;
+}
+
 export interface ResolvedPlan {
   /** null = not rated against the catalog at all - the platform, or an internal tenant. */
   plan: PlanId | null;
@@ -122,7 +135,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    select: { plan: true, subscription: true, unlimited: true, trialEndsAt: true },
+    select: { plan: true, subscription: true, unlimited: true, trialEndsAt: true, planExpiresAt: true },
   });
 
   // Unknown tenant → parked. Safest: a gate denies extras, never a respondent already
@@ -153,9 +166,31 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
   const sub = tenant.subscription;
   const effective = sub ? entitledPlan(sub.plan, sub.status) : null;
 
-  // No entitling subscription: the trial decides. Inside it, full Signal - the trial has
-  // to show the mechanism, not a crippled version of it. Outside it, parked.
+  // No entitling subscription: a MANUAL GRANT decides next, then the trial.
+  //
+  // A grant is the owner extending a trial by hand or comping an account: the plan on
+  // the tenant row, valid until `planExpiresAt`. It needs that DATE to exist - `plan`
+  // defaults to GATE on every tenant, so honouring the column alone would entitle every
+  // parked workspace on the install to a paid plan.
+  //
+  // It sits below the subscription on purpose (a paying tenant is entitled by what they
+  // pay for, and a stale date must never downgrade them) and above the trial, so
+  // "give this one ten more days" is a date rather than an edit to the trial.
   if (effective === null) {
+    const granted = grantedPlan(tenant.plan, tenant.planExpiresAt);
+    if (granted) {
+      return {
+        plan: granted,
+        status: sub?.status ?? null,
+        limits: PLAN_LIMITS[granted],
+        isPlatform: false,
+        unlimited: false,
+        trialing: false,
+        trialDaysLeft: 0,
+        parked: false,
+        readResponseLimit: PLAN_LIMITS[granted].responsesPerMonth,
+      };
+    }
     const trialing = tenant.trialEndsAt != null && tenant.trialEndsAt.getTime() > Date.now();
     return {
       plan: trialing ? TRIAL_PLAN : null,

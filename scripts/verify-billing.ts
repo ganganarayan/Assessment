@@ -7,6 +7,8 @@
  *
  * Run: npm run verify:billing
  */
+import { type Plan } from "@prisma/client";
+import { grantedPlan } from "../src/lib/billing/plan-resolve";
 import {
   PLAN_LIMITS,
   PLAN_PRICE_USD,
@@ -130,6 +132,25 @@ check("parked keeps one seat, so the owner can still sign in and pay", PARKED_LI
 // null (unlimited) and any positive number both pass; only a literal 0 fails.
 check("a lapsed trial's leads stay readable (trial allowance is non-zero)",
   PLAN_LIMITS[TRIAL_PLAN].responsesPerMonth !== 0);
+
+console.log("Manual access grant (owner extends a trial or comps an account)");
+// The date is what makes a grant. Every tenant row carries plan GATE by default, so a
+// plan with no date must entitle NOBODY - otherwise adding this column would have
+// handed a paid plan to every parked workspace on the install.
+const DAY = 24 * 60 * 60 * 1000;
+const future = new Date(Date.now() + 10 * DAY);
+const past = new Date(Date.now() - DAY);
+check("no date means no grant, whatever the plan says", grantedPlan("SIGNAL" as Plan, null) === null);
+check("a future date grants that plan", grantedPlan("SIGNAL" as Plan, future) === "SIGNAL");
+check("an expired date grants nothing", grantedPlan("SIGNAL" as Plan, past) === null);
+check("the grant is the plan named, not a fixed tier", grantedPlan("AGENCY" as Plan, future) === "AGENCY");
+// A grant entitles the catalog limits of that plan - the same object a payer gets, so
+// a comped Agency account and a paying one cannot drift apart.
+check(
+  "a granted plan carries that plan's real limits",
+  PLAN_LIMITS[grantedPlan("AGENCY" as Plan, future) as "AGENCY"].responsesPerMonth ===
+    PLAN_LIMITS.AGENCY.responsesPerMonth,
+);
 
 const unusedType: PlanLimits = PLAN_LIMITS.GATE;
 void unusedType;
