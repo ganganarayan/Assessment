@@ -62,6 +62,11 @@ export default async function TermsPage() {
           responses and results are withheld until you choose a plan.
         </li>
         <li>Prices are displayed in USD and are exclusive of applicable taxes (including GST), which are added where required.</li>
+        <li>
+          Payments are non-refundable. Cancelling before the renewal date stops the next charge and
+          you keep access until the period you paid for ends. See the Refund &amp; Cancellation
+          Policy.
+        </li>
         <li>You authorise us and our payment processor to charge your chosen payment method for each billing period.</li>
         <li>Plan limits (such as monthly responses, assessments and seats) apply as described at sign-up and on the pricing page.</li>
       </UL>
