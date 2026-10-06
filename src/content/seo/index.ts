@@ -36,6 +36,23 @@ import { page as leadQualificationQuiz } from "./pages/lead-qualification-quiz";
 import { page as qualifyLeadsBeforeSalesCall } from "./pages/qualify-leads-before-sales-call";
 import { page as metaAdsLeadQualification } from "./pages/meta-ads-lead-qualification";
 
+// Comparison pages (kind: comparison). Each names a real product and carries the
+// date its facts were checked, because another company's product changes without
+// telling us and an undated claim about it is a claim with no shelf life.
+import { page as scoreAppAlt } from "./pages/scoreapp-alternative";
+import { page as typeformAlt } from "./pages/typeform-alternative";
+import { page as outgrowAlt } from "./pages/outgrow-alternative";
+import { page as involveMeAlt } from "./pages/involve-me-alternative";
+import { page as leadQuizzesAlt } from "./pages/leadquizzes-alternative";
+import { page as interactAlt } from "./pages/interact-alternative";
+import { page as jotformAlt } from "./pages/jotform-alternative";
+import { page as googleFormsAlt } from "./pages/google-forms-alternative";
+import { page as filloutAlt } from "./pages/fillout-alternative";
+import { page as surveyMonkeyAlt } from "./pages/surveymonkey-alternative";
+import { page as marquizAlt } from "./pages/marquiz-alternative";
+import { page as riddleAlt } from "./pages/riddle-alternative";
+import { page as paperformAlt } from "./pages/paperform-alternative";
+
 // Industry pages (kind: use-case). One per vertical we actually sell into: the
 // qualifying facts differ by trade, so these are twelve different pages rather than
 // one page with the noun swapped.
@@ -112,4 +129,18 @@ export const PAGE_SOURCES = [
   homeServices,
   courseCreators,
   insuranceBrokers,
+  // Comparison pages
+  scoreAppAlt,
+  typeformAlt,
+  outgrowAlt,
+  involveMeAlt,
+  leadQuizzesAlt,
+  interactAlt,
+  jotformAlt,
+  googleFormsAlt,
+  filloutAlt,
+  surveyMonkeyAlt,
+  marquizAlt,
+  riddleAlt,
+  paperformAlt,
 ];

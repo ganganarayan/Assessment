@@ -2,12 +2,18 @@ import type { Metadata } from "next";
 import { platformPageMetadata } from "@/lib/seo/site";
 import { getLegalConfig } from "@/lib/legal/config";
 import { LegalShell, H2, P, UL } from "@/components/marketing/LegalShell";
+import { PLAN_LABEL, TRIAL_DAYS, TRIAL_PLAN } from "@/lib/billing/plans";
 
 // NOTE: Standard India-focused SaaS refund/cancellation boilerplate. Company specifics come from
 // super-admin Settings → "Legal & company details". Have counsel review before relying on it.
 export const dynamic = "force-dynamic";
 
-const UPDATED = "September 2026";
+const UPDATED = "October 2026";
+
+// Trial facts come from the billing catalog, never retyped. This page previously described a
+// free plan that had already been removed from PLAN_IDS, and the contradiction sat on a public
+// legal page for weeks. Importing keeps the policy honest when the catalog changes.
+const TRIAL_LABEL = PLAN_LABEL[TRIAL_PLAN];
 
 export async function generateMetadata(): Promise<Metadata> {
   // Shared helper so the canonical is never forgotten: this page is served on the
@@ -30,8 +36,12 @@ export default async function RefundPage() {
         {" "}{c.entityName}.
       </P>
 
-      <H2>1. Free plan</H2>
-      <P>The free plan is free and requires no payment, so no refunds apply to it.</P>
+      <H2>1. Free trial</H2>
+      <P>
+        A new workspace starts on a free {TRIAL_DAYS}-day {TRIAL_LABEL} trial. It takes no card and
+        no payment, so no refunds apply to it. When the trial ends, the workspace is paused until you
+        choose a paid plan - see section 3.
+      </P>
 
       <H2>2. Paid subscriptions</H2>
       <UL>
@@ -43,8 +53,13 @@ export default async function RefundPage() {
       <H2>3. Cancellation</H2>
       <P>
         You can cancel at any time from your account. Cancellation stops future renewals; your paid
-        features remain available until the end of the current billing period, after which the account
-        moves to the free plan.
+        features remain available until the end of the current billing period, after which the
+        workspace is paused.
+      </P>
+      <P>
+        Paused means read-only: your assessments stop accepting new responses and results are
+        withheld, while your assessments, responses and settings are kept. Nothing is deleted when a
+        workspace is paused, and choosing a plan again resumes it exactly where it left off.
       </P>
 
       <H2>4. Refunds</H2>
