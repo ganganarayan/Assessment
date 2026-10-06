@@ -1,5 +1,6 @@
 import { getAppSetting } from "@/features/events/data";
 import { actingTenantId } from "@/lib/tenant/acting";
+import { wabaVisible } from "@/lib/nurture/waba-visible";
 import { ThemeSelector } from "@/features/admin/components/theme-selector";
 import { AbandonedSetting } from "@/features/admin/components/abandoned-setting";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
@@ -24,7 +25,8 @@ import {
 } from "@/features/admin/actions/platform-integrations";
 import { PlatformPixelForm } from "@/features/admin/components/platform-pixel-form";
 import { PaymentsMasterSwitch } from "@/features/admin/components/payments-master-switch";
-import { getPlatformPayments } from "@/features/admin/actions/platform-integrations";
+import { PlatformToggle } from "@/features/admin/components/platform-toggle";
+import { getPlatformPayments, getPlatformWaba } from "@/features/admin/actions/platform-integrations";
 import { LegalSettingsForm } from "@/features/admin/components/legal-settings-form";
 import { NurtureConnectionSettings } from "@/features/nurture/components/nurture-connection-settings";
 import { getNurtureSettings } from "@/features/nurture/actions";
@@ -56,13 +58,15 @@ export default async function SettingsPage() {
   const impersonating = actingId !== null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
-  const [integrations, domains, legal, platformPixel, logins, paymentsOn] = await Promise.all([
+  const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn] = await Promise.all([
     impersonating ? getIntegrationSettings() : getPlatformIntegrationSettings(),
     impersonating ? getDomainSettings() : Promise.resolve(null),
     impersonating ? Promise.resolve(null) : getLegalSettings(),
     impersonating ? Promise.resolve(null) : getPlatformSubscriptionPixel(),
     impersonating ? listWorkspaceLogins() : Promise.resolve(null),
     impersonating ? Promise.resolve(true) : getPlatformPayments(),
+    wabaVisible(actingId),
+    impersonating ? Promise.resolve(false) : getPlatformWaba(),
   ]);
 
   return (
@@ -123,6 +127,31 @@ export default async function SettingsPage() {
         </Card>
       ) : null}
 
+      {!impersonating ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>WhatsApp (all tenants)</CardTitle>
+            <CardDescription>
+              The WhatsApp sender is parked while it needs template approval and per-tenant
+              numbers. Hidden, not deleted: every tenant&apos;s saved WhatsApp settings stay
+              exactly where they are, and a hidden sender also stops sending, so nobody is
+              running something they can no longer see. Your own internal tenants keep it either
+              way.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PlatformToggle
+              initial={wabaOn}
+              onLabel="visible to every tenant"
+              offLabel="hidden from tenants"
+              turnOn="Show WhatsApp to tenants"
+              turnOff="Hide WhatsApp from tenants"
+              action="waba"
+            />
+          </CardContent>
+        </Card>
+      ) : null}
+
       {!impersonating && platformPixel ? (
         <Card>
           <CardHeader>
@@ -166,7 +195,7 @@ export default async function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NurtureConnectionSettings initial={nurtureSettings} />
+          <NurtureConnectionSettings initial={nurtureSettings} showWaba={showWaba} />
         </CardContent>
       </Card>
 

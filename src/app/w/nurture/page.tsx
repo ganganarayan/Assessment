@@ -1,6 +1,7 @@
 import { getNurtureSettings, getNurtureLogs } from "@/features/nurture/actions";
 import { NurtureComposer } from "@/features/nurture/components/nurture-composer";
 import { requireWorkspace } from "@/lib/auth/guards";
+import { wabaVisible } from "@/lib/nurture/waba-visible";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,12 @@ export const dynamic = "force-dynamic";
  * sender should be able to use it.
  */
 export default async function WorkspaceNurturePage() {
-  await requireWorkspace();
-  const [settings, logs] = await Promise.all([getNurtureSettings(), getNurtureLogs()]);
+  const { tenantId } = await requireWorkspace();
+  const [settings, logs, showWaba] = await Promise.all([
+    getNurtureSettings(),
+    getNurtureLogs(),
+    wabaVisible(tenantId),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -27,7 +32,7 @@ export default async function WorkspaceNurturePage() {
         </p>
       </div>
 
-      <NurtureComposer initialConfig={settings.config} initialLogs={logs} />
+      <NurtureComposer initialConfig={settings.config} initialLogs={logs} showWaba={showWaba} />
     </div>
   );
 }
