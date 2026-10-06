@@ -120,7 +120,7 @@ export function AnswerPageShell({
           Last updated {answer.updatedAt}
         </p>
       </main>
-      <Footer anchorBase="/" />
+      <Footer />
     </>
   );
 }

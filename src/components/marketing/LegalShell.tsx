@@ -36,7 +36,7 @@ export function LegalShell({
           {children}
         </div>
       </main>
-      <Footer anchorBase="/" />
+      <Footer />
     </>
   );
 }

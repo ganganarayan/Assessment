@@ -118,7 +118,7 @@ export default async function PricingPage() {
 
         <FinalCta />
       </main>
-      <Footer anchorBase="/" />
+      <Footer />
     </>
   );
 }
