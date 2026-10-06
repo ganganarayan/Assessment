@@ -43,11 +43,19 @@ export default async function PlatformPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/platform/stats" className="text-sm underline">
-            Marketing stats →
+          {/* Controls, not footnotes: these were small underlined links in a row of
+              text, which is why the stats page read as not existing. */}
+          <Link
+            href="/platform/stats"
+            className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium hover:bg-[var(--muted)]"
+          >
+            Marketing stats
           </Link>
-          <Link href="/admin" className="text-sm underline">
-            Assessment admin →
+          <Link
+            href="/admin"
+            className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium hover:bg-[var(--muted)]"
+          >
+            Assessment admin
           </Link>
           <SignOutButton />
         </div>

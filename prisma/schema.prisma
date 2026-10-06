@@ -74,6 +74,19 @@ model Tenant {
   plan               Plan    @default(GATE)
   razorpayCustomerId String?
 
+  // MANUAL ACCESS GRANT: `plan` above applies until this moment, then the tenant parks.
+  // Null = no grant at all, which is every existing row and therefore no change in
+  // behaviour. The date is what makes a grant a grant: `plan` defaults to GATE on every
+  // tenant, so treating the column alone as an entitlement would hand a free plan to
+  // every parked workspace on the install.
+  //
+  // This is how a trial gets extended by hand and how an account is comped: set the
+  // plan, set the date. It sits BELOW a paid subscription deliberately - a tenant who
+  // is paying is entitled by what they pay for, and a stale date must never be able to
+  // downgrade them - and ABOVE the trial, so extending someone mid-trial works by
+  // naming a later date rather than by editing the trial.
+  planExpiresAt DateTime?
+
   // INTERNAL tenant: one the platform owner runs themselves rather than sells to.
   // Resolves to unlimited limits and every feature on, exactly like the platform -
   // no plan, no subscription, no metering, no feature gate.

@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Role } from "@prisma/client";
+import { Role, type Plan } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin, isStaff } from "@/lib/auth/guards";
+import { PLAN_IDS } from "@/lib/billing/plans";
+import { formatIST } from "@/lib/date";
 
 /** Tenant/user management is OWNER-only - never a staff member (even EDIT). */
 const OWNER_ONLY = { ok: false as const, error: "Only an owner can manage tenants and users." };
@@ -230,6 +232,76 @@ export async function setTenantPayments(tenantId: string, enabled: boolean): Pro
   return r;
 }
 
+/**
+ * Set a tenant's MANUAL ACCESS GRANT: which plan, and the last day it applies.
+ *
+ * This is how a trial gets extended by hand ("give them ten more days") and how an
+ * account is comped. The DATE is what makes it a grant: `Tenant.plan` defaults to GATE
+ * on every row, so a plan with no date entitles nobody, exactly as before.
+ *
+ * It sits BELOW a paid subscription in resolution, so a tenant who is paying can never
+ * be downgraded by a date left behind here, and above the trial, so a later date
+ * extends access without touching the trial itself.
+ *
+ * `untilDate` is a yyyy-mm-dd day (what an <input type="date"> sends) and is stored as
+ * the END of that day in IST - a person who types the 20th means access through the
+ * 20th, not until midnight as it begins. Empty clears the grant.
+ *
+ * Returns the sentence the console shows, so the confirmation states the OUTCOME rather
+ * than that a write happened.
+ */
+export async function setTenantPlanGrant(
+  tenantId: string,
+  plan: string,
+  untilDate: string | null,
+): Promise<ActionResult<{ summary: string; planExpiresAt: string | null }>> {
+  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  if (!(PLAN_IDS as readonly string[]).includes(plan)) return { ok: false, error: "Unknown plan." };
+  const t = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { id: true, unlimited: true, subscription: { select: { status: true } } },
+  });
+  if (!t) return { ok: false, error: "Tenant not found." };
+
+  let expiresAt: Date | null = null;
+  if (untilDate && untilDate.trim()) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(untilDate.trim());
+    if (!m) return { ok: false, error: "Pick a date." };
+    const [, yyyy, mm, dd] = m;
+    const parsed = new Date(`${yyyy}-${mm}-${dd}T23:59:59.999+05:30`);
+    if (Number.isNaN(parsed.getTime())) return { ok: false, error: "Pick a date." };
+    expiresAt = parsed;
+  }
+
+  const r = await softFail(
+    "setTenantPlanGrant",
+    "Couldn't save that (a temporary database error). Try again.",
+    async () => {
+      await prisma.tenant.update({
+        where: { id: tenantId },
+        data: { plan: plan as Plan, planExpiresAt: expiresAt },
+      });
+    },
+  );
+  if (!r.ok) return r;
+  revalidatePath("/platform");
+
+  // The outcome, in the order the resolver decides it, so the line never claims an
+  // access level the tenant does not actually have.
+  const until = expiresAt ? formatIST(expiresAt).split(",")[0] : null;
+  const summary = t.unlimited
+    ? `Saved. This tenant is Unlimited, so the grant is not what entitles it.`
+    : expiresAt === null
+      ? "Grant cleared. Access now follows the subscription or trial."
+      : expiresAt.getTime() <= Date.now()
+        ? `Saved, but ${until} is in the past, so this grant entitles nothing.`
+        : `${plan} until ${until}.`;
+  return {
+    ok: true,
+    data: { summary, planExpiresAt: expiresAt?.toISOString() ?? null },
+  };
+}
+
 /** Platform-owner (super-admin) tenant + user management. Stage 1: create tenants,
  *  assign existing logins to a tenant as its admin, promote/demote super admins.
  *  Creating the login itself is self-serve (/sign-up), then assigned here. */
@@ -251,6 +323,16 @@ export interface TenantRow {
   unlimited: boolean;
   /** May this tenant collect payments from respondents? Default true. */
   paymentsEnabled: boolean;
+  /** The plan on the row - what a manual grant would entitle to. */
+  plan: string;
+  /** Manual grant expiry (ISO), null = no grant. */
+  planExpiresAt: string | null;
+  /** Trial end (ISO), null = no trial. Shown so one date never hides the other. */
+  trialEndsAt: string | null;
+  /** Live subscription status + period end, which outrank any grant. */
+  subStatus: string | null;
+  subPlan: string | null;
+  subPeriodEnd: string | null;
 }
 
 export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
@@ -264,7 +346,10 @@ export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
       // list never offers an action against a tenant that is supposed to be gone.
       where: { deletedAt: null },
       orderBy: { createdAt: "desc" },
-      include: { _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } } },
+      include: {
+        _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } },
+        subscription: { select: { status: true, plan: true, currentPeriodEnd: true } },
+      },
     });
     return {
       ok: true,
@@ -281,6 +366,12 @@ export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
         deletedAt: t.deletedAt?.toISOString() ?? null,
         unlimited: t.unlimited,
         paymentsEnabled: t.paymentsEnabled,
+        plan: t.plan,
+        planExpiresAt: t.planExpiresAt?.toISOString() ?? null,
+        trialEndsAt: t.trialEndsAt?.toISOString() ?? null,
+        subStatus: t.subscription?.status ?? null,
+        subPlan: t.subscription?.plan ?? null,
+        subPeriodEnd: t.subscription?.currentPeriodEnd?.toISOString() ?? null,
       })),
     };
   } catch (e) {
@@ -300,7 +391,10 @@ export async function listDeletedTenants(): Promise<ActionResult<TenantRow[]>> {
     const rows = await prisma.tenant.findMany({
       where: { deletedAt: { not: null } },
       orderBy: { updatedAt: "desc" },
-      include: { _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } } },
+      include: {
+        _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } },
+        subscription: { select: { status: true, plan: true, currentPeriodEnd: true } },
+      },
     });
     return {
       ok: true,
@@ -317,6 +411,12 @@ export async function listDeletedTenants(): Promise<ActionResult<TenantRow[]>> {
         deletedAt: t.deletedAt?.toISOString() ?? null,
         unlimited: t.unlimited,
         paymentsEnabled: t.paymentsEnabled,
+        plan: t.plan,
+        planExpiresAt: t.planExpiresAt?.toISOString() ?? null,
+        trialEndsAt: t.trialEndsAt?.toISOString() ?? null,
+        subStatus: t.subscription?.status ?? null,
+        subPlan: t.subscription?.plan ?? null,
+        subPeriodEnd: t.subscription?.currentPeriodEnd?.toISOString() ?? null,
       })),
     };
   } catch (e) {

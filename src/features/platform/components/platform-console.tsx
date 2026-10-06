@@ -9,6 +9,7 @@ import {
   deleteTenant,
   setTenantUnlimited,
   setTenantPayments,
+  setTenantPlanGrant,
   restoreTenant,
   purgeTenant,
   listTenants,
@@ -25,6 +26,35 @@ import {
   type PlatformUserRow,
 } from "@/features/platform/actions";
 import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
+import { PLAN_IDS } from "@/lib/billing/plans";
+
+/** A saved-state line for ONE tenant's access grant, shown under that row's date. */
+type GrantMsg = { tone: "ok" | "warn" | "error"; text: string };
+
+/** yyyy-mm-dd for <input type="date">, from an ISO instant. Rendered in IST, because
+ *  the grant is stored as the end of an IST day and a date box that showed the UTC day
+ *  would read one day early all evening. */
+function istDateInputValue(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+  return ist.toISOString().slice(0, 10);
+}
+
+/** "12 Nov 2026" for the read-only lines. */
+function shortIST(iso: string | null): string {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? "-"
+    : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+}
+
+/** Whether a stored grant is still live - the same rule the resolver applies. */
+function grantLive(planExpiresAt: string | null): boolean {
+  return !!planExpiresAt && new Date(planExpiresAt).getTime() > Date.now();
+}
 
 /**
  * Super-admin console: create tenants, assign logins to a tenant (as its admin),
@@ -53,6 +83,7 @@ export function PlatformConsole({
   const [password, setPassword] = useState("");
   const [slug, setSlug] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [grantMsg, setGrantMsg] = useState<Record<string, GrantMsg | null>>({});
   const [pending, start] = useTransition();
 
   const refresh = async () => {
@@ -109,6 +140,30 @@ export function PlatformConsole({
       const r = await setTenantUnlimited(t.id, !t.unlimited);
       if (!r.ok) return setError(r.error);
       await refresh();
+    });
+
+  /**
+   * Save one tenant's access grant and confirm it UNDER that row's date, which is
+   * where the person is looking. Auto-saves on change: picking a date is the whole
+   * intent, so a separate Save button is one click and one chance to forget.
+   *
+   * The confirmation repeats what the server resolved rather than "saved", so a date
+   * in the past or an Unlimited tenant says so instead of looking like it worked.
+   */
+  const saveGrant = (t: TenantRow, plan: string, untilDate: string) =>
+    start(async () => {
+      setError(null);
+      setGrantMsg((m) => ({ ...m, [t.id]: { tone: "ok", text: "Saving…" } }));
+      const r = await setTenantPlanGrant(t.id, plan, untilDate || null);
+      if (!r.ok) {
+        setGrantMsg((m) => ({ ...m, [t.id]: { tone: "error", text: r.error } }));
+        return;
+      }
+      const text = r.data?.summary ?? "Saved.";
+      const tone: GrantMsg["tone"] = /past|Unlimited|cleared/.test(text) ? "warn" : "ok";
+      setGrantMsg((m) => ({ ...m, [t.id]: { tone, text } }));
+      await refresh();
+      window.setTimeout(() => setGrantMsg((m) => ({ ...m, [t.id]: null as unknown as GrantMsg })), 4000);
     });
 
   const togglePayments = (t: TenantRow) =>
@@ -228,13 +283,15 @@ export function PlatformConsole({
                 <th className="px-3 py-1.5 text-center">Assessments</th>
                 <th className="px-3 py-1.5 text-center">Submissions</th>
                 <th className="px-3 py-1.5">Source</th>
+                <th className="px-3 py-1.5">Signed up</th>
+                <th className="px-3 py-1.5">Plan &amp; access</th>
                 <th className="px-3 py-1.5">Status</th>
                 <th className="px-3 py-1.5" />
               </tr>
             </thead>
             <tbody className="divide-y">
               {tenants.length === 0 ? (
-                <tr><td colSpan={8} className="px-3 py-4 text-center text-[var(--muted-foreground)]">No tenants yet.</td></tr>
+                <tr><td colSpan={10} className="px-3 py-4 text-center text-[var(--muted-foreground)]">No tenants yet.</td></tr>
               ) : (
                 tenants.map((t) => (
                   <tr key={t.id}>
@@ -244,6 +301,78 @@ export function PlatformConsole({
                     <td className="px-3 py-2 text-center tabular-nums">{t.assessmentCount}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.submissionCount}</td>
                     <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]">{t.source ?? "-"}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-xs text-[var(--muted-foreground)]">
+                      {shortIST(t.createdAt)}
+                    </td>
+                    {/*
+                      Plan and the date access runs to, editable together and saved the
+                      moment either changes. The confirmation lands directly under the
+                      date, which is where the person is looking when they pick one.
+                    */}
+                    <td className="px-3 py-2 align-top">
+                      {t.id === PLATFORM_TENANT_ID ? (
+                        <span className="text-xs text-[var(--muted-foreground)]">Part of the app</span>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          <div className="flex flex-wrap items-center gap-1">
+                            <select
+                              className="h-8 rounded-md border bg-transparent px-2 text-xs"
+                              value={t.plan}
+                              disabled={pending}
+                              onChange={(e) => saveGrant(t, e.target.value, istDateInputValue(t.planExpiresAt))}
+                              title="The plan a manual grant entitles this tenant to"
+                            >
+                              {PLAN_IDS.map((p) => (
+                                <option key={p} value={p}>{p}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="date"
+                              className="h-8 rounded-md border bg-transparent px-2 text-xs"
+                              value={istDateInputValue(t.planExpiresAt)}
+                              disabled={pending}
+                              onChange={(e) => saveGrant(t, t.plan, e.target.value)}
+                              title="Access runs to the end of this day (IST). Clear it to remove the grant."
+                            />
+                          </div>
+                          {grantMsg[t.id] ? (
+                            <span
+                              className={
+                                grantMsg[t.id]?.tone === "error"
+                                  ? "text-[11px] font-medium text-red-500"
+                                  : grantMsg[t.id]?.tone === "warn"
+                                    ? "text-[11px] font-medium text-yellow-600"
+                                    : "text-[11px] font-medium text-green-600"
+                              }
+                            >
+                              {grantMsg[t.id]?.text}
+                            </span>
+                          ) : null}
+                          {/* What is ACTUALLY entitling this tenant right now, in the
+                              order the resolver decides it, so the date above is never
+                              mistaken for the answer when something outranks it. */}
+                          {t.unlimited ? (
+                            <span className="text-[11px] text-[var(--muted-foreground)]">
+                              Unlimited - the grant is ignored
+                            </span>
+                          ) : t.subStatus === "ACTIVE" || t.subStatus === "PAST_DUE" ? (
+                            <span className="text-[11px] text-[var(--muted-foreground)]">
+                              Paid {t.subPlan ?? ""} to {shortIST(t.subPeriodEnd)} - outranks this grant
+                            </span>
+                          ) : grantLive(t.planExpiresAt) ? (
+                            <span className="text-[11px] text-green-600">
+                              Granted to {shortIST(t.planExpiresAt)}
+                            </span>
+                          ) : t.trialEndsAt && new Date(t.trialEndsAt).getTime() > Date.now() ? (
+                            <span className="text-[11px] text-[var(--muted-foreground)]">
+                              Trial to {shortIST(t.trialEndsAt)}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-yellow-600">Parked</span>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-col gap-0.5">
                         <span>{t.status}</span>
