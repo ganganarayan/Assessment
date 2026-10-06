@@ -15,9 +15,31 @@ export const MARKETING = {
   // app/opengraph-image.tsx) and injected into every route by Next's file convention,
   // so there is no static file to keep in sync - and no path that can 404 the way
   // /og-image.png did for as long as it was referenced here without ever existing.
-  title: "Assess360 - Qualify leads before the sales call",
+  /**
+   * 🔴 THE TITLE NAMES THE CATEGORY, NOT THE PROMISE.
+   *
+   * "Assess360" is a crowded name in search: an IT consultancy, a corporate
+   * change-management product and an Indian assessment company all use it or a near
+   * variant. On the one query where the answer has to be unambiguous - the brand name
+   * itself - a title that says only "qualify leads before the sales call" leaves Google
+   * to decide which Assess360 this is from the body copy.
+   *
+   * So the title binds the two strings that have to travel together, and the PROMISE
+   * stays where it converts: the H1 ("Know which leads are worth a sales call") and the
+   * description below. Both are visible on the result, so nothing is lost.
+   */
+  title: "Assess360 - Lead Qualification Software",
+  /** Leads with the category phrase for the same reason, and still reads like a
+   *  sentence rather than a keyword list. Used for the meta description, the
+   *  SoftwareApplication node and llms.txt, so the three cannot drift. */
   description:
-    "Assess360 scores every prospect against your fit criteria, so your team only talks to the leads that are actually ready to buy.",
+    "Assess360 is lead qualification software: it scores every prospect against your fit criteria, so your team only talks to the leads that are actually ready to buy.",
+  /** A spacing variant real people type and real sources print. Fed to schema.org
+   *  alternateName so the entity absorbs it instead of a competitor doing so. */
+  alternateName: "Assess 360",
+  /** One sentence about the ENTITY (not the product), for the Organization node. */
+  organizationDescription:
+    "Assess360 builds lead qualification software: hosted scorecards that score each enquiry against the criteria a business sets, and report the qualified ones back to the ad platform that produced them.",
 } as const;
 
 export const NAV_LINKS: ReadonlyArray<{ label: string; href: string }> = [
