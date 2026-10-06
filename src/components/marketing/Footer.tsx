@@ -57,12 +57,35 @@ export function Footer({ anchorBase = "" }: { anchorBase?: string }) {
           The header carries the knowledge base too, but that row is desktop-only; on a
           phone this footer is the entry point, which is why it holds the full list.
         */}
-        <div className="mt-12 grid gap-8 border-t pt-10 sm:grid-cols-2">
-          <nav aria-label="Guides">
+        <div className="mt-12 border-t pt-10">
+          <nav aria-label="Answers">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+              Answers
+            </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--muted-foreground)]">
+              Short, direct answers about lead qualification, scoring and assessments - one
+              question per page.
+            </p>
+            <Link
+              href="/answers"
+              className="mt-3 inline-block text-sm font-medium underline underline-offset-4"
+            >
+              Browse all answers
+            </Link>
+          </nav>
+
+          {/*
+            The guides are a GRID, not a column. As a single list of 30-odd items they were
+            taller than the page that carried them: on a policy page you scrolled past every
+            guide to reach the privacy and terms links below. Six columns on a wide screen
+            puts the same list in five or six rows, so the footer ends where the eye expects.
+            Two columns on a phone rather than one, for the same reason.
+          */}
+          <nav aria-label="Guides" className="mt-10">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
               Guides
             </h2>
-            <ul className="mt-4 flex flex-col gap-2.5">
+            <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-6">
               {PAGES.map((p) => (
                 <li key={p.slug}>
                   <Link
@@ -74,22 +97,6 @@ export function Footer({ anchorBase = "" }: { anchorBase?: string }) {
                 </li>
               ))}
             </ul>
-          </nav>
-
-          <nav aria-label="Answers">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-              Answers
-            </h2>
-            <p className="mt-4 text-sm leading-relaxed text-[var(--muted-foreground)]">
-              Short, direct answers about lead qualification, scoring and assessments - one
-              question per page.
-            </p>
-            <Link
-              href="/answers"
-              className="mt-3 inline-block text-sm font-medium underline underline-offset-4"
-            >
-              Browse all answers
-            </Link>
           </nav>
         </div>
 

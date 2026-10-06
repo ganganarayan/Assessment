@@ -2,7 +2,14 @@ import Link from "next/link";
 import { Nav } from "@/components/marketing/Nav";
 import { Footer } from "@/components/marketing/Footer";
 
-/** Frame for the public policy pages - marketing Nav + Footer around a prose column. */
+/**
+ * Frame for the public policy pages - marketing Nav + Footer around a prose column.
+ *
+ * anchorBase="/" is NOT optional here. NAV_LINKS are in-page anchors ("#pricing"), and a
+ * policy page has no such sections: without a base they resolved to /refund#pricing,
+ * /terms#faq and so on, so every link in the header and footer of all five policy pages
+ * went nowhere. They have to point back at the landing page.
+ */
 export function LegalShell({
   title,
   updated,
@@ -14,7 +21,7 @@ export function LegalShell({
 }) {
   return (
     <>
-      <Nav />
+      <Nav anchorBase="/" />
       <main id="main" className="mx-auto max-w-3xl px-5 py-16 sm:px-8">
         <nav className="mb-8 flex flex-wrap gap-x-4 gap-y-2 text-sm">
           <Link href="/terms" className="text-[var(--muted-foreground)] hover:underline">Terms</Link>
@@ -29,7 +36,7 @@ export function LegalShell({
           {children}
         </div>
       </main>
-      <Footer />
+      <Footer anchorBase="/" />
     </>
   );
 }
