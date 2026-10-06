@@ -39,6 +39,23 @@ export function SeoPageShell({
         <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{page.h1}</h1>
         <p className="mt-5 text-lg leading-relaxed text-[var(--foreground)]">{page.lede}</p>
 
+        {/* Named a competitor? Then say when this was checked and that it may have moved
+            since. Directly under the lede, because a reader deciding how much weight to
+            give the comparison should know before reading it, not after. */}
+        {page.factsCheckedOn ? (
+          <p className="mt-5 rounded-md border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm text-[var(--muted-foreground)]">
+            Compared on{" "}
+            {new Date(`${page.factsCheckedOn}T00:00:00Z`).toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+              timeZone: "UTC",
+            })}
+            . Other products change their features and pricing without notice, so treat this as
+            what was true on that date and check their current site before you decide.
+          </p>
+        ) : null}
+
         <OnThisPage
           sections={page.sections}
           extra={answers.length > 0 ? [{ id: "answers", label: "Common questions" }] : []}

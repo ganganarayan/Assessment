@@ -59,4 +59,12 @@ export const TOPICS: ReadonlyArray<Topic> = [
     blurb:
       "Moving the questions a rep would ask in the first five minutes to before the call is ever booked.",
   },
+  {
+    id: "meta-ads",
+    title: "Meta ads",
+    heading: "Meta ads and lead quality, the Assess360 way",
+    pillarSlug: "meta-ads-lead-qualification",
+    blurb:
+      "What the ad platform is actually optimising for, and how reporting qualification back to it changes who the campaign goes looking for.",
+  },
 ];

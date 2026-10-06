@@ -2,12 +2,16 @@ import type { Metadata } from "next";
 import { platformPageMetadata } from "@/lib/seo/site";
 import { getLegalConfig } from "@/lib/legal/config";
 import { LegalShell, H2, P, UL } from "@/components/marketing/LegalShell";
+import { PLAN_LABEL, TRIAL_DAYS, TRIAL_PLAN } from "@/lib/billing/plans";
 
 // NOTE: Standard India-focused SaaS boilerplate. Company specifics come from the
 // super-admin Settings → "Legal & company details". Have counsel review before relying on it.
 export const dynamic = "force-dynamic";
 
-const UPDATED = "September 2026";
+const UPDATED = "October 2026";
+
+// Trial facts read from the billing catalog, never retyped - see the same note in /refund.
+const TRIAL_LABEL = PLAN_LABEL[TRIAL_PLAN];
 
 export async function generateMetadata(): Promise<Metadata> {
   // Shared helper so the canonical is never forgotten: this page is served on the
@@ -48,8 +52,21 @@ export default async function TermsPage() {
 
       <H2>3. Plans, billing &amp; taxes</H2>
       <UL>
-        <li>A free plan is available. Paid plans, where offered, are billed in advance on a recurring basis until cancelled.</li>
+        <li>
+          A free {TRIAL_DAYS}-day {TRIAL_LABEL} trial is available and requires no card. Paid
+          plans are billed in advance on a recurring basis until cancelled.
+        </li>
+        <li>
+          When a trial or a paid period ends without a current plan, the workspace is paused
+          (read-only): your assessments and data are kept, but assessments stop accepting new
+          responses and results are withheld until you choose a plan.
+        </li>
         <li>Prices are displayed in USD and are exclusive of applicable taxes (including GST), which are added where required.</li>
+        <li>
+          Payments are non-refundable. Cancelling before the renewal date stops the next charge and
+          you keep access until the period you paid for ends. See the Refund &amp; Cancellation
+          Policy.
+        </li>
         <li>You authorise us and our payment processor to charge your chosen payment method for each billing period.</li>
         <li>Plan limits (such as monthly responses, assessments and seats) apply as described at sign-up and on the pricing page.</li>
       </UL>

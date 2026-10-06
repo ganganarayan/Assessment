@@ -138,6 +138,17 @@ export const seoPageSchema = z.object({
   topicId: slug.optional(),
   /** Other pages to link to, by slug. Validated to exist. */
   internalLinks: z.array(slug).default([]),
+  /**
+   * The date anything stated here about ANOTHER company's product was checked.
+   *
+   * Comparison pages name competitors, and a competitor's product changes without
+   * telling us. A dated line on the page is the honest version of that: it tells the
+   * reader what the claim is worth and when to go and check for themselves. Structured
+   * rather than written into a paragraph, so every comparison page carries it in the
+   * same place, in the same words, and a stale one can be found by searching a field
+   * instead of reading prose.
+   */
+  factsCheckedOn: isoDate.optional(),
   cta: z.object({ heading: z.string().min(10), body: z.string().min(30) }),
   updatedAt: isoDate,
 });

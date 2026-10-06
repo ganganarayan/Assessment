@@ -22,7 +22,12 @@ export const page: SeoPage = {
   lede:
     "Lead qualification decides which enquiries deserve a sales conversation. Assess360 runs four steps on every enquiry rather than one check at the top of the funnel: Gate stops wrong-fit traffic becoming a lead at all, Score weights the answers of everyone who passes, Review puts the edge cases in front of a human, and Signal tells the ad platform which leads were worth having so the next click is better than the last.",
   updatedAt: "2026-10-02",
-  internalLinks: [],
+  internalLinks: [
+    "meta-ads-lead-qualification",
+    "lead-qualification-for-agencies",
+    "lead-qualification-for-coaches",
+    "lead-qualification-for-saas",
+  ],
   sections: [
     {
       id: "how-it-works",
