@@ -49,14 +49,17 @@ export default async function RefundPage() {
         <li>Paid plans are billed in advance for the chosen billing period (for example monthly).</li>
         <li>Prices are shown in USD and are exclusive of applicable taxes, which are added where required.</li>
         <li>Your subscription renews automatically on the renewal date until you cancel.</li>
-        <li>You are never charged for a period that begins after your cancellation takes effect.</li>
+        <li>
+          After you cancel, you are not charged again once your current billing period ends. You keep
+          using the service until that date.
+        </li>
       </UL>
 
       <H2>3. Cancellation and renewal</H2>
       <P>
         You can cancel at any time from your account. You keep full access to everything you have
-        already paid for until the end of the current billing period - cancelling does not cut your
-        access short, and it does not take effect mid-period.
+        already paid for until the end of the current billing period. Cancelling does not cut your
+        access short.
       </P>
       <P>
         <strong>Cancel before the renewal date and you are not charged again.</strong> There are no
@@ -64,7 +67,8 @@ export default async function RefundPage() {
         how you end your billing with us, and it is why there is nothing to refund afterwards.
       </P>
       <P>
-        At the end of that period the workspace is paused. Paused means read-only: your assessments stop accepting new responses and results are
+        At the end of that period the workspace is paused. Paused means read-only: your assessments
+        stop accepting new responses and results are
         withheld, while your assessments, responses and settings are kept. Nothing is deleted when a
         workspace is paused, and choosing a plan again resumes it exactly where it left off.
       </P>
@@ -88,11 +92,9 @@ export default async function RefundPage() {
 
       <H2>5. Charges made in error</H2>
       <P>
-        A billing mistake is not a refund request, and we do correct it. Tell us if you were charged
-        twice for the same period, charged after your cancellation had already taken effect, or
-        charged through a clear technical fault, and we will reverse the incorrect amount. We also
-        refund where a refund is required by law. Reversals go back to the original payment method
-        through our payment processor and can take several business days to appear.
+        If a genuine mistake on our side caused a charge, you get your money back - that is a
+        correction, not a refund - and it is at our discretion whether a case is genuine, or whether
+        we would rather return a payment and close the account.
       </P>
 
       <H2>6. How to reach us about billing</H2>
