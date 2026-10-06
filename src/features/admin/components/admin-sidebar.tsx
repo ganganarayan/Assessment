@@ -25,7 +25,16 @@ interface AdminSidebarProps {
   tenantName?: string | null;
 }
 const NAV: { section: string | null; items: NavItem[] }[] = [
-  { section: null, items: [{ href: "/platform", label: "Platform (tenants)" }] },
+  {
+    // The SaaS itself: who the customers are, and where the traffic that produced them
+    // came from. Marketing stats used to be reachable only from a small link on the
+    // platform console, which is to say: by knowing it was there.
+    section: null,
+    items: [
+      { href: "/platform", label: "Platform (tenants)" },
+      { href: "/platform/stats", label: "Marketing stats" },
+    ],
+  },
   { section: null, items: [{ href: "/admin", label: "Dashboard" }] },
   {
     section: null,
@@ -72,6 +81,8 @@ export function AdminSidebar({ user, tenantName }: AdminSidebarProps) {
 
   const isActive = (href: string) => {
     if (href === "/admin") return pathname === "/admin";
+    // Exact, so the tenant list does not light up while Marketing stats is open.
+    if (href === "/platform") return pathname === "/platform";
     // The editor + create live under /admin/assessments/* and belong to the builder.
     if (href === BUILDER_HREF) return pathname.startsWith(BUILDER_HREF) || pathname.startsWith("/admin/assessments/");
     // "Assessments" (published list) is the exact path only - not the editor.
