@@ -406,9 +406,144 @@
           "role": "secondary"
         }
       ]
+    },
+    {
+      "topic": "meta-ads",
+      "title": "Meta ads",
+      "pillar": "/meta-ads-lead-qualification",
+      "terms": [
+        {
+          "term": "browser pixel vs conversions api",
+          "url": "/answers/should-lead-events-go-through-the-browser-or-the-server",
+          "role": "primary"
+        },
+        {
+          "term": "conversion event lead quality",
+          "url": "/answers/what-is-a-qualified-only-conversion-event",
+          "role": "secondary"
+        },
+        {
+          "term": "conversions api lead events",
+          "url": "/answers/should-lead-events-go-through-the-browser-or-the-server",
+          "role": "secondary"
+        },
+        {
+          "term": "cost per lead went up after qualification",
+          "url": "/answers/why-does-cost-per-lead-go-up-when-lead-quality-improves",
+          "role": "primary"
+        },
+        {
+          "term": "cost per qualified lead",
+          "url": "/answers/why-does-cost-per-lead-go-up-when-lead-quality-improves",
+          "role": "secondary"
+        },
+        {
+          "term": "disqualified traffic exclusion",
+          "url": "/answers/how-do-i-exclude-unqualified-leads-from-meta-ads",
+          "role": "secondary"
+        },
+        {
+          "term": "event deduplication meta",
+          "url": "/answers/should-lead-events-go-through-the-browser-or-the-server",
+          "role": "secondary"
+        },
+        {
+          "term": "exclude unqualified leads from meta ads",
+          "url": "/answers/how-do-i-exclude-unqualified-leads-from-meta-ads",
+          "role": "primary"
+        },
+        {
+          "term": "facebook ads unqualified leads",
+          "url": "/meta-ads-lead-qualification",
+          "role": "secondary"
+        },
+        {
+          "term": "improve lead quality meta ads",
+          "url": "/meta-ads-lead-qualification",
+          "role": "secondary"
+        },
+        {
+          "term": "lead quality vs cost per lead",
+          "url": "/answers/why-does-cost-per-lead-go-up-when-lead-quality-improves",
+          "role": "secondary"
+        },
+        {
+          "term": "lookalike from qualified leads",
+          "url": "/answers/can-i-retarget-only-the-leads-that-qualified",
+          "role": "secondary"
+        },
+        {
+          "term": "meta ads lead qualification",
+          "url": "/meta-ads-lead-qualification",
+          "role": "primary"
+        },
+        {
+          "term": "meta ads lead quality",
+          "url": "/meta-ads-lead-qualification",
+          "role": "secondary"
+        },
+        {
+          "term": "meta exclusion audience",
+          "url": "/answers/how-do-i-exclude-unqualified-leads-from-meta-ads",
+          "role": "secondary"
+        },
+        {
+          "term": "optimise ads for qualified leads",
+          "url": "/answers/what-is-a-qualified-only-conversion-event",
+          "role": "secondary"
+        },
+        {
+          "term": "qualification lower lead volume",
+          "url": "/answers/why-does-cost-per-lead-go-up-when-lead-quality-improves",
+          "role": "secondary"
+        },
+        {
+          "term": "qualified lead conversion event",
+          "url": "/meta-ads-lead-qualification",
+          "role": "secondary"
+        },
+        {
+          "term": "qualified lead custom audience",
+          "url": "/answers/can-i-retarget-only-the-leads-that-qualified",
+          "role": "secondary"
+        },
+        {
+          "term": "qualified only conversion event",
+          "url": "/answers/what-is-a-qualified-only-conversion-event",
+          "role": "primary"
+        },
+        {
+          "term": "retarget qualified leads",
+          "url": "/answers/can-i-retarget-only-the-leads-that-qualified",
+          "role": "primary"
+        },
+        {
+          "term": "retargeting audience lead quality",
+          "url": "/answers/can-i-retarget-only-the-leads-that-qualified",
+          "role": "secondary"
+        },
+        {
+          "term": "server side conversion tracking",
+          "url": "/answers/should-lead-events-go-through-the-browser-or-the-server",
+          "role": "secondary"
+        },
+        {
+          "term": "stop meta ads bad leads",
+          "url": "/answers/how-do-i-exclude-unqualified-leads-from-meta-ads",
+          "role": "secondary"
+        },
+        {
+          "term": "what counts as a qualified lead for ads",
+          "url": "/answers/what-is-a-qualified-only-conversion-event",
+          "role": "secondary"
+        }
+      ]
     }
   ],
   "index": {
+    "adviser enquiry form": "/lead-qualification-for-financial-advisors",
+    "agency lead qualification": "/lead-qualification-for-agencies",
+    "agency lead scoring": "/lead-qualification-for-agencies",
     "ai generated quiz questions": "/answers/can-ai-write-my-assessment-questions",
     "ai question generation": "/answers/can-ai-write-my-assessment-questions",
     "are quiz funnels still effective": "/answers/do-quiz-funnels-still-work",
@@ -420,20 +555,64 @@
     "assessment vs survey": "/answers/what-is-an-online-assessment",
     "automated lead qualification": "/lead-qualification-software",
     "automated lead scoring": "/lead-scoring",
+    "b2b saas lead qualification": "/lead-qualification-for-saas",
+    "broker enquiry screening": "/lead-qualification-for-insurance-brokers",
+    "browser pixel vs conversions api": "/answers/should-lead-events-go-through-the-browser-or-the-server",
     "can ai write assessment questions": "/answers/can-ai-write-my-assessment-questions",
+    "clinic consultation screening": "/lead-qualification-for-clinics",
+    "clinic lead qualification": "/lead-qualification-for-clinics",
+    "coaching application form": "/lead-qualification-for-coaches",
+    "coaching lead qualification": "/lead-qualification-for-coaches",
+    "consultant enquiry form": "/lead-qualification-for-consultants",
+    "consulting lead qualification": "/lead-qualification-for-consultants",
+    "consulting lead scoring": "/lead-qualification-for-consultants",
+    "contractor lead qualification": "/lead-qualification-for-home-services",
+    "conversion event lead quality": "/answers/what-is-a-qualified-only-conversion-event",
+    "conversions api lead events": "/answers/should-lead-events-go-through-the-browser-or-the-server",
+    "cost per lead went up after qualification": "/answers/why-does-cost-per-lead-go-up-when-lead-quality-improves",
+    "cost per qualified lead": "/answers/why-does-cost-per-lead-go-up-when-lead-quality-improves",
+    "course lead qualification": "/lead-qualification-for-course-creators",
+    "demo request qualification": "/lead-qualification-for-saas",
     "difference between a form and a scorecard": "/answers/what-is-the-difference-between-a-form-and-a-scorecard",
+    "disqualified traffic exclusion": "/answers/how-do-i-exclude-unqualified-leads-from-meta-ads",
     "disqualifying leads politely": "/answers/should-i-let-unqualified-leads-book-a-call",
     "do quiz funnels work": "/answers/do-quiz-funnels-still-work",
+    "education lead scoring": "/lead-qualification-for-course-creators",
+    "event deduplication meta": "/answers/should-lead-events-go-through-the-browser-or-the-server",
+    "exclude unqualified leads from meta ads": "/answers/how-do-i-exclude-unqualified-leads-from-meta-ads",
+    "facebook ads unqualified leads": "/meta-ads-lead-qualification",
     "filter unqualified leads": "/lead-qualification-software",
+    "financial advisor lead qualification": "/lead-qualification-for-financial-advisors",
+    "financial planning lead screening": "/lead-qualification-for-financial-advisors",
+    "healthcare lead qualification": "/lead-qualification-for-clinics",
+    "high ticket coaching qualification": "/lead-qualification-for-coaches",
+    "home improvement lead screening": "/lead-qualification-for-home-services",
     "how do i qualify leads before a sales call": "/answers/how-do-i-qualify-leads-before-a-sales-call",
     "how lead scores are calculated": "/answers/how-does-lead-scoring-work",
     "how long should an assessment be": "/answers/how-long-should-an-assessment-be",
     "how to score leads": "/answers/how-does-lead-scoring-work",
     "ideal quiz length": "/answers/how-long-should-an-assessment-be",
+    "improve lead quality meta ads": "/meta-ads-lead-qualification",
+    "insurance lead qualification": "/lead-qualification-for-insurance-brokers",
+    "insurance lead scoring": "/lead-qualification-for-insurance-brokers",
     "interactive assessment": "/lead-qualification-quiz",
     "interactive assessment software": "/assessment-software",
+    "it services lead qualification": "/lead-qualification-for-it-services",
+    "law firm intake screening": "/lead-qualification-for-law-firms",
     "lead assessment software": "/assessment-software",
     "lead filtering software": "/lead-qualification-software",
+    "lead qualification for agencies": "/lead-qualification-for-agencies",
+    "lead qualification for clinics": "/lead-qualification-for-clinics",
+    "lead qualification for coaches": "/lead-qualification-for-coaches",
+    "lead qualification for consultants": "/lead-qualification-for-consultants",
+    "lead qualification for course creators": "/lead-qualification-for-course-creators",
+    "lead qualification for financial advisors": "/lead-qualification-for-financial-advisors",
+    "lead qualification for home services": "/lead-qualification-for-home-services",
+    "lead qualification for insurance brokers": "/lead-qualification-for-insurance-brokers",
+    "lead qualification for it services": "/lead-qualification-for-it-services",
+    "lead qualification for law firms": "/lead-qualification-for-law-firms",
+    "lead qualification for real estate": "/lead-qualification-for-real-estate",
+    "lead qualification for saas": "/lead-qualification-for-saas",
     "lead qualification platform": "/lead-qualification-software",
     "lead qualification quiz": "/lead-qualification-quiz",
     "lead qualification scorecard": "/scorecard",
@@ -441,25 +620,51 @@
     "lead qualification software definition": "/answers/what-is-lead-qualification-software",
     "lead qualification tool": "/lead-qualification-software",
     "lead qualifying questions": "/answers/what-questions-should-i-ask-to-qualify-a-lead",
+    "lead quality vs cost per lead": "/answers/why-does-cost-per-lead-go-up-when-lead-quality-improves",
     "lead score cutoff": "/answers/what-is-a-good-lead-score-threshold",
     "lead scoring explained": "/answers/how-does-lead-scoring-work",
     "lead scoring software": "/lead-scoring",
     "lead scoring tool": "/lead-scoring",
+    "legal client intake form": "/lead-qualification-for-law-firms",
+    "legal lead qualification": "/lead-qualification-for-law-firms",
+    "lookalike from qualified leads": "/answers/can-i-retarget-only-the-leads-that-qualified",
+    "marketing agency lead qualification": "/lead-qualification-for-agencies",
+    "meta ads lead qualification": "/meta-ads-lead-qualification",
+    "meta ads lead quality": "/meta-ads-lead-qualification",
+    "meta exclusion audience": "/answers/how-do-i-exclude-unqualified-leads-from-meta-ads",
     "online assessment meaning": "/answers/what-is-an-online-assessment",
     "online assessment software": "/assessment-software",
     "online scorecard": "/scorecard",
     "online scorecard vs form": "/answers/what-is-the-difference-between-a-form-and-a-scorecard",
+    "optimise ads for qualified leads": "/answers/what-is-a-qualified-only-conversion-event",
+    "patient enquiry qualification": "/lead-qualification-for-clinics",
     "personalized assessment": "/assessment-software",
     "pre-call qualification": "/qualify-leads-before-sales-call",
     "pre-call screening questions": "/answers/how-do-i-qualify-leads-before-a-sales-call",
+    "property lead qualification": "/lead-qualification-for-real-estate",
     "prospect qualification software": "/answers/what-is-lead-qualification-software",
     "prospect scoring": "/lead-scoring",
+    "qualification lower lead volume": "/answers/why-does-cost-per-lead-go-up-when-lead-quality-improves",
     "qualification scoring": "/lead-scoring",
+    "qualified lead conversion event": "/meta-ads-lead-qualification",
+    "qualified lead custom audience": "/answers/can-i-retarget-only-the-leads-that-qualified",
     "qualified lead threshold": "/answers/what-is-a-good-lead-score-threshold",
+    "qualified only conversion event": "/answers/what-is-a-qualified-only-conversion-event",
+    "qualify agency leads": "/lead-qualification-for-agencies",
+    "qualify coaching leads": "/lead-qualification-for-coaches",
+    "qualify consulting prospects": "/lead-qualification-for-consultants",
+    "qualify course enquiries": "/lead-qualification-for-course-creators",
+    "qualify financial advice enquiries": "/lead-qualification-for-financial-advisors",
+    "qualify home services leads": "/lead-qualification-for-home-services",
+    "qualify insurance leads": "/lead-qualification-for-insurance-brokers",
     "qualify leads automatically": "/answers/how-do-i-qualify-leads-before-a-sales-call",
     "qualify leads before booking": "/qualify-leads-before-sales-call",
     "qualify leads before sales call": "/qualify-leads-before-sales-call",
+    "qualify legal enquiries": "/lead-qualification-for-law-firms",
     "qualify prospects before demo": "/qualify-leads-before-sales-call",
+    "qualify real estate leads": "/lead-qualification-for-real-estate",
+    "qualify saas demo requests": "/lead-qualification-for-saas",
+    "qualify software project enquiries": "/lead-qualification-for-it-services",
     "questions to qualify a lead": "/answers/what-questions-should-i-ask-to-qualify-a-lead",
     "quiz funnel": "/lead-qualification-quiz",
     "quiz funnel meaning": "/answers/what-is-a-quiz-funnel",
@@ -467,16 +672,28 @@
     "quiz funnel software": "/lead-qualification-quiz",
     "quiz marketing funnel": "/answers/what-is-a-quiz-funnel",
     "quiz results page design": "/answers/what-should-a-scorecard-result-page-show",
+    "real estate lead qualification": "/lead-qualification-for-real-estate",
+    "real estate lead screening": "/lead-qualification-for-real-estate",
+    "retarget qualified leads": "/answers/can-i-retarget-only-the-leads-that-qualified",
+    "retargeting audience lead quality": "/answers/can-i-retarget-only-the-leads-that-qualified",
+    "saas lead scoring": "/lead-qualification-for-saas",
     "sales qualification questions": "/answers/what-questions-should-i-ask-to-qualify-a-lead",
     "scorecard assessment definition": "/answers/what-is-an-online-scorecard",
     "scorecard meaning marketing": "/answers/what-is-an-online-scorecard",
     "scorecard result page": "/answers/what-should-a-scorecard-result-page-show",
     "scorecard software": "/scorecard",
+    "server side conversion tracking": "/answers/should-lead-events-go-through-the-browser-or-the-server",
     "should unqualified leads book a call": "/answers/should-i-let-unqualified-leads-book-a-call",
+    "software development lead qualification": "/lead-qualification-for-it-services",
+    "stop meta ads bad leads": "/answers/how-do-i-exclude-unqualified-leads-from-meta-ads",
     "stop unqualified leads from ads": "/answers/why-do-my-ads-produce-unqualified-leads",
+    "technology consulting lead screening": "/lead-qualification-for-it-services",
+    "trade enquiry form": "/lead-qualification-for-home-services",
+    "training enquiry screening": "/lead-qualification-for-course-creators",
     "turning down unqualified leads": "/answers/should-i-let-unqualified-leads-book-a-call",
     "unqualified leads from facebook ads": "/answers/why-do-my-ads-produce-unqualified-leads",
     "use an assessment to qualify leads": "/answers/what-is-an-online-assessment",
+    "what counts as a qualified lead for ads": "/answers/what-is-a-qualified-only-conversion-event",
     "what is a good lead score threshold": "/answers/what-is-a-good-lead-score-threshold",
     "what is a quiz funnel": "/answers/what-is-a-quiz-funnel",
     "what is a scorecard": "/answers/what-is-an-online-scorecard",

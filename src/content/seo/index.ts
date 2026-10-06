@@ -21,12 +21,36 @@ import { answer as qualifyBeforeCall } from "./answers/how-do-i-qualify-leads-be
 import { answer as questionsToQualify } from "./answers/what-questions-should-i-ask-to-qualify-a-lead";
 import { answer as unqualifiedBooking } from "./answers/should-i-let-unqualified-leads-book-a-call";
 
+// Meta ads and lead quality - the cluster written from the pipeline this app runs.
+import { answer as qualifiedOnlyEvent } from "./answers/what-is-a-qualified-only-conversion-event";
+import { answer as excludeUnqualified } from "./answers/how-do-i-exclude-unqualified-leads-from-meta-ads";
+import { answer as retargetQualified } from "./answers/can-i-retarget-only-the-leads-that-qualified";
+import { answer as browserOrServer } from "./answers/should-lead-events-go-through-the-browser-or-the-server";
+import { answer as costPerLeadUp } from "./answers/why-does-cost-per-lead-go-up-when-lead-quality-improves";
+
 import { page as leadQualificationSoftware } from "./pages/lead-qualification-software";
 import { page as assessmentSoftware } from "./pages/assessment-software";
 import { page as leadScoring } from "./pages/lead-scoring";
 import { page as scorecard } from "./pages/scorecard";
 import { page as leadQualificationQuiz } from "./pages/lead-qualification-quiz";
 import { page as qualifyLeadsBeforeSalesCall } from "./pages/qualify-leads-before-sales-call";
+import { page as metaAdsLeadQualification } from "./pages/meta-ads-lead-qualification";
+
+// Industry pages (kind: use-case). One per vertical we actually sell into: the
+// qualifying facts differ by trade, so these are twelve different pages rather than
+// one page with the noun swapped.
+import { page as agencies } from "./pages/lead-qualification-for-agencies";
+import { page as coaches } from "./pages/lead-qualification-for-coaches";
+import { page as consultants } from "./pages/lead-qualification-for-consultants";
+import { page as saas } from "./pages/lead-qualification-for-saas";
+import { page as realEstate } from "./pages/lead-qualification-for-real-estate";
+import { page as clinics } from "./pages/lead-qualification-for-clinics";
+import { page as financialAdvisors } from "./pages/lead-qualification-for-financial-advisors";
+import { page as lawFirms } from "./pages/lead-qualification-for-law-firms";
+import { page as itServices } from "./pages/lead-qualification-for-it-services";
+import { page as homeServices } from "./pages/lead-qualification-for-home-services";
+import { page as courseCreators } from "./pages/lead-qualification-for-course-creators";
+import { page as insuranceBrokers } from "./pages/lead-qualification-for-insurance-brokers";
 
 /**
  * Every piece of public content, enumerated by hand.
@@ -59,6 +83,12 @@ export const ANSWER_SOURCES = [
   qualifyBeforeCall,
   questionsToQualify,
   unqualifiedBooking,
+  // Meta ads
+  qualifiedOnlyEvent,
+  excludeUnqualified,
+  retargetQualified,
+  browserOrServer,
+  costPerLeadUp,
 ];
 
 export const PAGE_SOURCES = [
@@ -68,4 +98,18 @@ export const PAGE_SOURCES = [
   scorecard,
   leadQualificationQuiz,
   qualifyLeadsBeforeSalesCall,
+  metaAdsLeadQualification,
+  // Industry pages
+  agencies,
+  coaches,
+  consultants,
+  saas,
+  realEstate,
+  clinics,
+  financialAdvisors,
+  lawFirms,
+  itServices,
+  homeServices,
+  courseCreators,
+  insuranceBrokers,
 ];
