@@ -1932,6 +1932,16 @@ model AppSetting {
   // (Haiku), so the column being empty is a working configuration, not a broken one.
   aiPlanModels Json?
 
+  // WHATSAPP, parked. Meaningful only on the singleton row. The WABA sender works but
+  // needs real work before it is handed to customers: template approval, per-tenant
+  // numbers and the failure modes that come with both. Hiding it is the honest state,
+  // and hiding it behind a switch rather than deleting the code means turning it back
+  // on is a click rather than a revert.
+  //
+  // Default FALSE: hidden for customers. The owner's own INTERNAL tenants
+  // (Tenant.unlimited) always see it regardless, because they are already using it.
+  wabaEnabledGlobal Boolean @default(false)
+
   // PLATFORM MASTER SWITCH for respondent payments, meaningful ONLY on the singleton
   // row. False = no tenant funnel can take money, whatever its own switch or its
   // assessments say. The owner is not in the business of underwriting how other

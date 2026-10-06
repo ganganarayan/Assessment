@@ -345,3 +345,34 @@ export async function sendWelcomeTest(to: string): Promise<ActionResult> {
   const err = await sendWelcomeTestTo(addr);
   return err ? { ok: false, error: err } : { ok: true };
 }
+
+/** Current state of the WhatsApp park switch (singleton row). */
+export async function getPlatformWaba(): Promise<boolean> {
+  await requireSuperAdmin();
+  const s = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: { wabaEnabledGlobal: true },
+  });
+  return s?.wabaEnabledGlobal === true;
+}
+
+/**
+ * Show or hide WhatsApp for every customer tenant at once.
+ *
+ * Off is the parked state and the default. Nothing is deleted: a tenant's stored
+ * WhatsApp config stays in its row, unread, so switching this back on restores exactly
+ * what was there. The owner's internal tenants see it either way.
+ */
+export async function setPlatformWaba(enabled: boolean): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  await prisma.appSetting.upsert({
+    where: { id: "singleton" },
+    update: { wabaEnabledGlobal: enabled },
+    create: { id: "singleton", wabaEnabledGlobal: enabled },
+  });
+  revalidatePath("/admin/settings");
+  revalidatePath("/admin/nurture");
+  revalidatePath("/w/nurture");
+  return { ok: true };
+}

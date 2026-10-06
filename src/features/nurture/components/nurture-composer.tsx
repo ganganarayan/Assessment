@@ -25,9 +25,13 @@ import {
 export function NurtureComposer({
   initialConfig,
   initialLogs,
+  showWaba = true,
 }: {
   initialConfig: NurtureConfig;
   initialLogs: NurtureLogRow[];
+  /** False while WhatsApp is parked. The stored config is left exactly as it is, so
+   *  nothing is lost and switching it back on restores what was there. */
+  showWaba?: boolean;
 }) {
   const router = useRouter();
   const [cfg, setCfg] = useState<NurtureConfig>(initialConfig);
@@ -107,7 +111,9 @@ export function NurtureComposer({
         <TestSend kind="email" />
       </section>
 
-      {/* WhatsApp - below */}
+      {/* WhatsApp - below. Hidden while the feature is parked; the config it edits is
+          untouched, so nothing a tenant already set is lost. */}
+      {showWaba ? (
       <section className="flex flex-col gap-3 rounded-lg border p-4">
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" checked={cfg.waba.enabled} onChange={(e) => setWaba({ enabled: e.target.checked })} />
@@ -172,6 +178,7 @@ export function NurtureComposer({
         </div>
         <TestSend kind="waba" />
       </section>
+      ) : null}
 
       <div className="flex items-center gap-3">
         <Button onClick={save} disabled={pending}>Save nurture messages</Button>

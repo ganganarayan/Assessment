@@ -1,5 +1,6 @@
 import { getNurtureSettings, getNurtureLogs } from "@/features/nurture/actions";
 import { actingTenantId } from "@/lib/tenant/acting";
+import { wabaVisible } from "@/lib/nurture/waba-visible";
 import { NurtureComposer } from "@/features/nurture/components/nurture-composer";
 import { WelcomeEmailForm } from "@/features/admin/components/welcome-email-form";
 import {
@@ -25,10 +26,11 @@ export const dynamic = "force-dynamic";
  */
 export default async function NurturePage() {
   const actingId = await actingTenantId();
-  const [settings, logs, welcome] = await Promise.all([
+  const [settings, logs, welcome, showWaba] = await Promise.all([
     getNurtureSettings(),
     getNurtureLogs(),
     actingId ? Promise.resolve(EMPTY_WELCOME) : getWelcomeEmail(),
+    wabaVisible(actingId),
   ]);
 
   return (
@@ -43,7 +45,7 @@ export default async function NurturePage() {
         </p>
       </div>
 
-      <NurtureComposer initialConfig={settings.config} initialLogs={logs} />
+      <NurtureComposer initialConfig={settings.config} initialLogs={logs} showWaba={showWaba} />
 
       {/* Platform scope only: this is the product writing to its own new customer, not
           a tenant writing to a respondent. It has no meaning inside a tenant. */}

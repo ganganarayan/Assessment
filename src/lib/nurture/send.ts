@@ -2,6 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/db/prisma";
+import { wabaVisible } from "@/lib/nurture/waba-visible";
 import { env } from "@/lib/env";
 import { resolveSmtpConfig, resolveWabaConfig, resolveNurtureConfig, type SmtpConfig } from "@/lib/settings/config";
 import { fillPlaceholders, toE164Digits, type LeadFields, type NurtureConfig } from "@/features/nurture/config";
@@ -271,8 +272,10 @@ export async function sendNurtureForSubmission(submissionId: string, opts?: { fo
     }
   }
 
-  // WhatsApp
-  if (cfg.waba.enabled) {
+  // WhatsApp. Parked means parked: a tenant whose config still has it switched on from
+  // before must not keep sending while the feature is hidden from them, or they are
+  // operating something they can no longer see or fix.
+  if (cfg.waba.enabled && (await wabaVisible(s.tenantId))) {
     const waba = await resolveWabaConfig(s.tenantId);
     const digits = toE164Digits(s.leadMobile, waba.defaultCountryCode);
     if (!digits) {

@@ -10,13 +10,22 @@ import { updateSmtpSettings, updateWabaSettings, sendSmtpTest, type NurtureSetti
  * (SMTP password, WABA token) are write-only: a stored one shows as "saved", and the
  * field is left blank unless you're changing it.
  */
-export function NurtureConnectionSettings({ initial }: { initial: NurtureSettingsView }) {
+export function NurtureConnectionSettings({
+  initial,
+  showWaba = true,
+}: {
+  initial: NurtureSettingsView;
+  /** False while WhatsApp is parked - saved credentials stay in the row, unread. */
+  showWaba?: boolean;
+}) {
   return (
     <div className="flex flex-col gap-6">
       <SmtpForm initial={initial.smtp} />
-      <div className="border-t pt-6">
-        <WabaForm initial={initial.waba} />
-      </div>
+      {showWaba ? (
+        <div className="border-t pt-6">
+          <WabaForm initial={initial.waba} />
+        </div>
+      ) : null}
     </div>
   );
 }
