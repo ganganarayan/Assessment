@@ -14,35 +14,74 @@ import { Textarea } from "@/components/ui/textarea";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
+/**
+ * A saved-state message with a TONE.
+ *
+ * 🔴 Both outcomes used to render as the same muted-grey span, so "The qualification
+ * gate is available on the Growth plan and up." looked exactly like "Qualification
+ * saved." A refused save read as a successful one, and the owner went looking for the
+ * bug in the funnel.
+ */
+type Msg = { tone: "ok" | "warn" | "error"; text: string };
+
+const MSG_CLASS: Record<Msg["tone"], string> = {
+  ok: "text-sm font-medium text-green-600",
+  warn: "text-sm font-medium text-yellow-600",
+  error: "text-sm font-medium text-red-500",
+};
+
 export function QualificationManager({
   assessmentId,
   initialQualification,
   initialDisqualified,
+  storedUnreadable = false,
 }: {
   assessmentId: string;
   initialQualification: QualificationInput;
   initialDisqualified: DisqualifiedContentInput;
+  /**
+   * The row holds a qualification config this app cannot read (an import, or a shape
+   * from an older version). The editor below is therefore EMPTY while the stored
+   * config is not, the funnel ignores the stored one, and saving would overwrite it.
+   * Silently showing an empty editor is how that becomes "the gate just vanished".
+   */
+  storedUnreadable?: boolean;
 }) {
   const router = useRouter();
   const [q, setQ] = useState<QualificationInput>(initialQualification);
   const [d, setD] = useState<DisqualifiedContentInput>(initialDisqualified);
-  const [qMsg, setQMsg] = useState<string | null>(null);
-  const [dMsg, setDMsg] = useState<string | null>(null);
+  const [qMsg, setQMsg] = useState<Msg | null>(null);
+  const [dMsg, setDMsg] = useState<Msg | null>(null);
   const [pending, start] = useTransition();
 
+  /**
+   * Adding the FIRST gate question turns the gate on.
+   *
+   * 🔴 The failure this prevents: questions written, saved, confirmed - and every
+   * respondent skipping them, because a separate checkbox above the list was never
+   * ticked. Nothing distinguished "saved" from "saved and live", so the funnel looked
+   * broken while the data was exactly as entered. Adding a gate question is the
+   * clearest statement there is that the gate is wanted, so the switch follows the
+   * questions. Turning it OFF stays deliberate, and keeps the questions.
+   */
+  const addedQuestion = (s: QualificationInput, question: QualificationInput["questions"][number]) => ({
+    ...s,
+    enabled: s.questions.length === 0 ? true : s.enabled,
+    questions: [...s.questions, question],
+  });
   // ---- qualification editing helpers ----
   const addQuestion = () =>
-    setQ((s) => ({ ...s, questions: [...s.questions, {
+    setQ((s) => addedQuestion(s, {
       id: uid(), text: "", type: "choice", placeholder: "", required: false,
       options: [
         { id: uid(), label: "", disqualifies: false, points: 0 },
         { id: uid(), label: "", disqualifies: false, points: 0 },
       ],
-    }] }));
+    }));
   const addTextQuestion = () =>
-    setQ((s) => ({ ...s, questions: [...s.questions, {
+    setQ((s) => addedQuestion(s, {
       id: uid(), text: "", type: "text", placeholder: "", required: false, options: [],
-    }] }));
+    }));
   const removeQuestion = (qi: number) =>
     setQ((s) => ({ ...s, questions: s.questions.filter((_, i) => i !== qi) }));
   const setQuestionText = (qi: number, text: string) =>
@@ -56,20 +95,44 @@ export function QualificationManager({
   const setOption = (qi: number, oi: number, patch: Partial<{ label: string; disqualifies: boolean; points: number }>) =>
     setQ((s) => ({ ...s, questions: s.questions.map((x, i) => (i === qi ? { ...x, options: x.options.map((o, j) => (j === oi ? { ...o, ...patch } : o)) } : x)) }));
 
+  /**
+   * The confirmation says what the FUNNEL will do, not that a row was written.
+   * "Qualification saved." was true of a gate that respondents would never see, which
+   * is the one case where the owner needs to be told something.
+   */
   const saveQual = () =>
     start(async () => {
       setQMsg(null);
       const res = await saveQualification(assessmentId, q);
-      setQMsg(res.ok ? "Qualification saved." : res.error);
-      if (res.ok) router.refresh();
+      if (!res.ok) {
+        setQMsg({ tone: "error", text: res.error });
+        return;
+      }
+      const n = res.data?.questionCount ?? q.questions.length;
+      const plural = n === 1 ? "question" : "questions";
+      setQMsg(
+        res.data?.live
+          ? { tone: "ok", text: `Saved and live. Respondents answer ${n} ${plural} before anything else.` }
+          : {
+              tone: "warn",
+              text: n === 0
+                ? "Saved. There are no gate questions, so nothing is asked before the assessment."
+                : `Saved, but the gate is OFF - respondents skip all ${n} ${plural}. Tick "Enable qualification gate" to show them.`,
+            },
+      );
+      router.refresh();
     });
   const saveDisq = () =>
     start(async () => {
       setDMsg(null);
       const res = await saveDisqualifiedContent(assessmentId, d);
-      setDMsg(res.ok ? "Disqualified page saved." : res.error);
+      setDMsg(res.ok ? { tone: "ok", text: "Disqualified page saved." } : { tone: "error", text: res.error });
       if (res.ok) router.refresh();
     });
+
+  // Standing state of the gate, independent of any save: questions that exist but are
+  // switched off are invisible to every respondent, and nothing used to say so.
+  const inert = !q.enabled && q.questions.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -81,8 +144,23 @@ export function QualificationManager({
         <p className="text-xs text-[var(--muted-foreground)]">
           Questions show one at a time and auto-advance. Tick <strong>Disqualifies</strong> on any answer
           that should send the person to the disqualified page instead of the assessment. No lead,
-          submission or result is created for a disqualified person.
+          submission or result is created for a disqualified person. A gate works on its own: an
+          assessment with no scored questions is a perfectly good screening funnel.
         </p>
+        {storedUnreadable ? (
+          <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400">
+            🔴 This assessment has a saved qualification config that could not be read, so the
+            editor below is empty and the funnel is ignoring it. Rebuild the questions here and
+            save to replace it.
+          </p>
+        ) : null}
+        {inert ? (
+          <p className="rounded-md border border-yellow-600/40 bg-yellow-600/10 px-3 py-2 text-xs font-medium text-yellow-700 dark:text-yellow-500">
+            🟡 These {q.questions.length === 1 ? "question is" : "questions are"} saved but the gate is
+            OFF, so respondents never see {q.questions.length === 1 ? "it" : "them"} - the funnel starts at
+            the opt-in. Tick the box above and save to put the gate live.
+          </p>
+        ) : null}
 
         {q.questions.map((question, qi) => (
           <div key={question.id} className="flex flex-col gap-2 rounded-md border border-dashed p-3">
@@ -165,7 +243,7 @@ export function QualificationManager({
           <Button size="sm" variant="outline" onClick={addQuestion}>+ Add question</Button>
           <Button size="sm" variant="outline" onClick={addTextQuestion}>+ Add text question</Button>
           <Button size="sm" onClick={saveQual} disabled={pending}>{pending ? "Saving…" : "Save qualification"}</Button>
-          {qMsg ? <span className="text-sm text-[var(--muted-foreground)]">{qMsg}</span> : null}
+          {qMsg ? <span className={MSG_CLASS[qMsg.tone]}>{qMsg.text}</span> : null}
         </div>
       </div>
 
@@ -202,7 +280,7 @@ export function QualificationManager({
         </label>
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={saveDisq} disabled={pending}>{pending ? "Saving…" : "Save disqualified page"}</Button>
-          {dMsg ? <span className="text-sm text-[var(--muted-foreground)]">{dMsg}</span> : null}
+          {dMsg ? <span className={MSG_CLASS[dMsg.tone]}>{dMsg.text}</span> : null}
         </div>
       </div>
     </div>

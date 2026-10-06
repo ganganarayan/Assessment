@@ -155,8 +155,16 @@ async function readPublishedAssessmentBySlug(slug: string) {
  * needs its own headers and cookies for the pixel, the visitor id and the page-view row,
  * and caching the whole render would break all three. Cache the expensive part that is
  * identical for everyone; keep the per-visitor part per-visitor.
+ *
+ * `fresh` SKIPS THE CACHE ENTIRELY, and the preview link passes it. A tenant who has
+ * just saved something and opens their own funnel to look at it is the one visitor who
+ * must never be served a remembered copy: a cache that is briefly behind is invisible
+ * under ad traffic and indistinguishable from "the feature does not work" when the
+ * person watching is the person who just configured it. One uncached read per preview
+ * is nothing; one tenant concluding the product ignores their settings is not.
  */
-export async function getPublishedAssessmentBySlug(slug: string) {
+export async function getPublishedAssessmentBySlug(slug: string, opts?: { fresh?: boolean }) {
+  if (opts?.fresh) return readPublishedAssessmentBySlug(slug);
   return unstable_cache(
     () => readPublishedAssessmentBySlug(slug),
     ["public-assessment", slug],

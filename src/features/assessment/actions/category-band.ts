@@ -7,6 +7,7 @@ import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/s
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { assertEdit } from "@/lib/tenant/acting";
 import { parseCompactBands } from "@/lib/import/parse-bands-text";
+import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 
 /**
  * Per-category evaluation bands (CategoryResultBand). The chosen LEVEL is stored
@@ -70,7 +71,9 @@ export async function createCategoryBand(
     select: { id: true },
   });
 
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
+  revalidatePath(`/w/assessments/${assessmentId}`);
   return { ok: true, data: { id: created.id } };
 }
 
@@ -118,7 +121,9 @@ export async function importCategoryBandsFromText(
     }
   });
 
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
+  revalidatePath(`/w/assessments/${assessmentId}`);
   return { ok: true, data: { categories: catIds.length, bandsPerCategory: bands.length } };
 }
 
@@ -172,7 +177,11 @@ export async function updateCategoryBand(
   });
 
   const assessmentId = await assessmentIdForCategory(current.categoryId);
-  if (assessmentId) revalidatePath(`/admin/assessments/${assessmentId}`);
+  if (assessmentId) {
+    await invalidatePublicAssessmentById(assessmentId);
+    revalidatePath(`/admin/assessments/${assessmentId}`);
+    revalidatePath(`/w/assessments/${assessmentId}`);
+  }
   return { ok: true };
 }
 
@@ -189,6 +198,8 @@ export async function deleteCategoryBand(id: string): Promise<ActionResult> {
   const denied = await assertEdit();
   if (denied) return denied;
   await prisma.categoryResultBand.delete({ where: { id } });
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
+  revalidatePath(`/w/assessments/${assessmentId}`);
   return { ok: true };
 }

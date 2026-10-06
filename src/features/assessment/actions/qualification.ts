@@ -10,8 +10,9 @@ import {
   type QualificationInput,
   type DisqualifiedContentInput,
 } from "@/features/assessment/schemas";
-import { type ActionResult } from "@/features/assessment/actions/shared";
+import { type ActionResult, type QualificationSaveState } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
+import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 import { assertEdit, resolveActingScope } from "@/lib/tenant/acting";
 import { tenantCan } from "@/lib/billing/entitlements";
 
@@ -19,7 +20,7 @@ import { tenantCan } from "@/lib/billing/entitlements";
 export async function saveQualification(
   assessmentId: string,
   input: QualificationInput,
-): Promise<ActionResult> {
+): Promise<ActionResult<QualificationSaveState>> {
   if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
   const denied = await assertEdit();
   if (denied) return denied;
@@ -40,8 +41,19 @@ export async function saveQualification(
     where: { id: assessmentId },
     data: { qualification: parsed.data as unknown as Prisma.InputJsonValue },
   });
+  // The funnel renders this, so the cached funnel payload has to go. Without it the
+  // gate appeared up to a minute later, which during an onboarding call is simply
+  // "the gate does not work".
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
-  return { ok: true };
+  revalidatePath(`/w/assessments/${assessmentId}`);
+  return {
+    ok: true,
+    data: {
+      live: isQualificationActive(parsed.data),
+      questionCount: parsed.data.questions.length,
+    },
+  };
 }
 
 /** Save the disqualified-page content for an assessment. */
@@ -59,6 +71,8 @@ export async function saveDisqualifiedContent(
     where: { id: assessmentId },
     data: { disqualifiedContent: parsed.data as unknown as Prisma.InputJsonValue },
   });
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
+  revalidatePath(`/w/assessments/${assessmentId}`);
   return { ok: true };
 }

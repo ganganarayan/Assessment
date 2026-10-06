@@ -4,16 +4,28 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope, tenantScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
+import { resolveActingScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { deliverWebhook } from "@/lib/webhooks/dispatch";
 import { generateWebhookSecret } from "@/lib/webhooks/sign";
 import { withDeliveredName } from "@/lib/events/payload";
 import { ACTIVE_EVENT_TYPES, WEBHOOK_NAME_REGEX } from "@/features/events/types";
+import { ownedWhere } from "@/lib/tenant/platform-tenant";
 
-/** True if the webhook is within the caller's scope (their tenant, or any for super-global). */
+/**
+ * True if the webhook is within the caller's scope.
+ *
+ * Scoped by OWNER (both spellings) rather than by `tenantScope`, so the platform's own
+ * webhooks are editable whether they carry the Platform tenant id or the pre-re-home
+ * null. The list shows both; a row that is listed and then refuses every button is the
+ * same defect wearing different clothes. `configTenantOf` still throws for a caller
+ * with no tenant at all, exactly as `tenantScope` did.
+ */
 async function ownsWebhook(id: string, scope: Awaited<ReturnType<typeof resolveActingScope>>): Promise<boolean> {
-  const found = await prisma.webhook.findFirst({ where: { id, ...tenantScope(scope) }, select: { id: true } });
+  const found = await prisma.webhook.findFirst({
+    where: { id, ...ownedWhere(configTenantOf(scope)) },
+    select: { id: true },
+  });
   return !!found;
 }
 
@@ -52,7 +64,7 @@ export async function createWebhook(
   // writing under another makes the duplicate guard silently useless.
   const owner = configTenantOf(scope);
   const existing = await prisma.webhook.findFirst({
-    where: { tenantId: owner, name: n.data, url: u.data },
+    where: { ...ownedWhere(owner), name: n.data, url: u.data },
     select: { id: true },
   });
   if (existing) {
@@ -93,7 +105,7 @@ export async function editWebhook(
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
   const wh = await prisma.webhook.findFirst({
-    where: { id, ...tenantScope(scope) },
+    where: { id, ...ownedWhere(configTenantOf(scope)) },
     select: { firstDeliveredAt: true, name: true, tenantId: true },
   });
   if (!wh) return { ok: false, error: "Webhook not found." };
@@ -109,7 +121,7 @@ export async function editWebhook(
 
   // Block collapsing into an existing exact endpoint (same name + url) in this scope.
   const clash = await prisma.webhook.findFirst({
-    where: { tenantId: wh.tenantId, name: n.data, url: u.data, id: { not: id } },
+    where: { ...ownedWhere(wh.tenantId), name: n.data, url: u.data, id: { not: id } },
     select: { id: true },
   });
   if (clash) return { ok: false, error: "That event name is already sent to this exact URL." };
@@ -193,7 +205,7 @@ export async function retryEvent(eventLogId: string): Promise<ActionResult> {
   if (!scope.isSuper && tenantId !== scope.tenantId) return { ok: false, error: "Event not found." };
 
   const webhooks = await prisma.webhook.findMany({
-    where: { eventType: ev.type, status: "ACTIVE", tenantId },
+    where: { eventType: ev.type, status: "ACTIVE", ...ownedWhere(tenantId) },
   });
   if (webhooks.length === 0) {
     return { ok: false, error: "Retry needs an active webhook for this event." };

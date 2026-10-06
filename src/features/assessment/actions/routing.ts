@@ -12,6 +12,7 @@ import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { assertEdit, resolveActingScope } from "@/lib/tenant/acting";
 import { tenantCan } from "@/lib/billing/entitlements";
 import { buildSpine } from "@/lib/routing/engine";
+import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 
 /**
  * Save the conditional-routing rules for ONE question (the rules of its options).
@@ -133,6 +134,8 @@ export async function setQuestionRoutes(
     ),
   ]);
 
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
+  revalidatePath(`/w/assessments/${assessmentId}`);
   return { ok: true };
 }
