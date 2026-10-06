@@ -8,6 +8,7 @@ import { type ActionResult, type OptionSnapshot } from "@/features/assessment/ac
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { assertEdit } from "@/lib/tenant/acting";
 import { isClinicRole, isClinicUnit } from "@/lib/scoring/clinic-audit";
+import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 
 /** Clinic-audit role: keep only a valid role, else null (GENERIC questions store null). */
 function cleanRole(role: string | undefined): string | null {
@@ -71,7 +72,9 @@ export async function createQuestion(
     },
   });
 
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
+  revalidatePath(`/w/assessments/${assessmentId}`);
   return { ok: true, data: { id: created.id } };
 }
 
@@ -146,7 +149,9 @@ export async function updateQuestion(
   );
   await prisma.$transaction(ops);
 
+  await invalidatePublicAssessmentById(question.category.assessmentId);
   revalidatePath(`/admin/assessments/${question.category.assessmentId}`);
+  revalidatePath(`/w/assessments/${question.category.assessmentId}`);
   return { ok: true };
 }
 
@@ -200,7 +205,9 @@ export async function copyOptionsToAll(
   }
   if (ops.length > 0) await prisma.$transaction(ops);
 
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
+  revalidatePath(`/w/assessments/${assessmentId}`);
   return { ok: true, data: { count: targets.length, prev } };
 }
 
@@ -227,7 +234,9 @@ export async function restoreOptions(
       prisma.option.update({ where: { id: s.id }, data: { label: s.label, value: s.value } }),
     ),
   );
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
+  revalidatePath(`/w/assessments/${assessmentId}`);
   return { ok: true };
 }
 
@@ -244,7 +253,9 @@ export async function deleteQuestion(id: string): Promise<ActionResult> {
   if (denied) return denied;
 
   await prisma.question.delete({ where: { id } });
+  await invalidatePublicAssessmentById(question.category.assessmentId);
   revalidatePath(`/admin/assessments/${question.category.assessmentId}`);
+  revalidatePath(`/w/assessments/${question.category.assessmentId}`);
   return { ok: true };
 }
 
@@ -270,6 +281,8 @@ export async function reorderQuestions(
     ),
   );
 
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
+  revalidatePath(`/w/assessments/${assessmentId}`);
   return { ok: true };
 }

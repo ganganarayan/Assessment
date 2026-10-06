@@ -208,6 +208,9 @@ export default async function WorkspaceEditAssessmentPage({
 
   const qualParsed = qualificationSchema.safeParse(a.qualification);
   const qualification = qualParsed.success ? qualParsed.data : EMPTY_QUALIFICATION;
+  // A stored config that will not parse is dropped by the funnel too, so the editor
+  // says so rather than showing a blank gate that looks like one was never built.
+  const qualUnreadable = a.qualification != null && !qualParsed.success;
   const disqParsed = disqualifiedContentSchema.safeParse(a.disqualifiedContent);
   const disqualified = disqParsed.success ? disqParsed.data : EMPTY_DISQUALIFIED;
 
@@ -227,6 +230,7 @@ export default async function WorkspaceEditAssessmentPage({
           assessmentId={a.id}
           initialQualification={qualification}
           initialDisqualified={disqualified}
+          storedUnreadable={qualUnreadable}
         />
       </section>
 

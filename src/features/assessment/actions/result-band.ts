@@ -8,6 +8,7 @@ import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/s
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { assertEdit } from "@/lib/tenant/acting";
 import { parseCompactBands } from "@/lib/import/parse-bands-text";
+import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 
 export async function createResultBand(
   assessmentId: string,
@@ -45,7 +46,9 @@ export async function createResultBand(
     },
   });
 
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
+  revalidatePath(`/w/assessments/${assessmentId}`);
   return { ok: true, data: { id: created.id } };
 }
 
@@ -83,7 +86,9 @@ export async function importResultBandsFromText(
     });
   });
 
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
+  revalidatePath(`/w/assessments/${assessmentId}`);
   return { ok: true, data: { count: bands.length } };
 }
 
@@ -128,7 +133,9 @@ export async function updateResultBand(
     select: { assessmentId: true },
   });
 
+  await invalidatePublicAssessmentById(band.assessmentId);
   revalidatePath(`/admin/assessments/${band.assessmentId}`);
+  revalidatePath(`/w/assessments/${band.assessmentId}`);
   return { ok: true };
 }
 
@@ -144,6 +151,8 @@ export async function deleteResultBand(id: string): Promise<ActionResult> {
   const denied = await assertEdit();
   if (denied) return denied;
   await prisma.resultBand.delete({ where: { id } });
+  await invalidatePublicAssessmentById(current.assessmentId);
   revalidatePath(`/admin/assessments/${current.assessmentId}`);
+  revalidatePath(`/w/assessments/${current.assessmentId}`);
   return { ok: true };
 }

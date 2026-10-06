@@ -97,7 +97,10 @@ export default async function PublicAssessmentPage({
     return Array.isArray(v) ? v[0] : v;
   });
   const preview = sp.preview === "1"; // admin-only bypass; verified server-side
-  const a = await getPublishedAssessmentBySlug(slug);
+  // A preview is someone checking their own funnel, usually seconds after saving it, so
+  // it reads the live row rather than the cached funnel payload. Ad traffic keeps the
+  // cache.
+  const a = await getPublishedAssessmentBySlug(slug, { fresh: preview });
   if (!a) notFound();
 
   // PARKED → paused page, before any of the work below. Checked here rather than deeper

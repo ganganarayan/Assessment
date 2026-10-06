@@ -6,6 +6,7 @@ import { categorySchema, reorderSchema, type CategoryInput } from "@/features/as
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { assertEdit } from "@/lib/tenant/acting";
+import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 
 export async function createCategory(
   assessmentId: string,
@@ -40,7 +41,9 @@ export async function createCategory(
     },
   });
 
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
+  revalidatePath(`/w/assessments/${assessmentId}`);
   return { ok: true, data: { id: created.id } };
 }
 
@@ -79,7 +82,9 @@ export async function updateCategory(
     select: { assessmentId: true },
   });
 
+  await invalidatePublicAssessmentById(category.assessmentId);
   revalidatePath(`/admin/assessments/${category.assessmentId}`);
+  revalidatePath(`/w/assessments/${category.assessmentId}`);
   return { ok: true };
 }
 
@@ -95,7 +100,9 @@ export async function deleteCategory(id: string): Promise<ActionResult> {
   const denied = await assertEdit();
   if (denied) return denied;
   await prisma.category.delete({ where: { id } });
+  await invalidatePublicAssessmentById(current.assessmentId);
   revalidatePath(`/admin/assessments/${current.assessmentId}`);
+  revalidatePath(`/w/assessments/${current.assessmentId}`);
   return { ok: true };
 }
 
@@ -123,6 +130,8 @@ export async function reorderCategories(
     ),
   );
 
+  await invalidatePublicAssessmentById(assessmentId);
   revalidatePath(`/admin/assessments/${assessmentId}`);
+  revalidatePath(`/w/assessments/${assessmentId}`);
   return { ok: true };
 }

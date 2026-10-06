@@ -7,6 +7,7 @@ import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/a
 import { assertCanCreateAssessment } from "@/lib/billing/gate";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { parseAssessmentText, analyzeBands, type OverallLevel } from "@/lib/import/parse-assessment-text";
+import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 
 /** Slugify a title the same way the rest of the app does (self-provision/platform). */
 function slugify(seed: string): string {
@@ -268,6 +269,8 @@ export async function importBandsForAssessment(input: ImportBandsInput): Promise
     }
   });
 
+  await invalidatePublicAssessmentById(assessment.id);
   revalidatePath(`/admin/assessments/${assessment.id}`);
+  revalidatePath(`/w/assessments/${assessment.id}`);
   return { ok: true };
 }

@@ -19,6 +19,16 @@ import type {
   ImportMode,
   ImportPreviewItem,
 } from "@/features/assessment/transfer/schema";
+import { invalidatePublicAssessment } from "@/features/assessment/data";
+
+/**
+ * Drop the cached funnel payload for every slug an import just overwrote. A "replace"
+ * reuses a live slug, so without this the funnel keeps serving the assessment the
+ * import replaced - including its questions and its gate.
+ */
+function invalidateReplaced(items: ImportItem[]): void {
+  for (const i of items) if (i.replace) invalidatePublicAssessment(i.finalSlug);
+}
 
 type Format = "json" | "csv";
 
@@ -111,6 +121,7 @@ export async function importAssessments(
       user.id,
       configTenantOf(await resolveActingScope()),
     );
+    invalidateReplaced(items);
     revalidatePath("/admin/assessments");
     revalidatePath("/admin/import");
     return { ok: true, data: { count, renamed } };
@@ -221,6 +232,7 @@ export async function importTenantAssessments(
 
   try {
     const { count, renamed } = await performImportAll(items, user.id, tenantId);
+    invalidateReplaced(items);
     revalidatePath("/w/assessments");
     return { ok: true, data: { count, renamed } };
   } catch (e) {

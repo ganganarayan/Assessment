@@ -9,6 +9,7 @@ import {
 } from "@/features/assessment/actions/submission";
 import { recordOptinView, recordGatePass, recordGateDisqualification } from "@/features/assessment/actions/track";
 import { gateFlagKey, readGateRejection, writeGateRejection } from "@/lib/gate-flag";
+import { firstStep, afterGateStep, type EntryInput } from "@/features/assessment/flow/entry";
 import { getResultForPages, type PageResultData } from "@/features/assessment/actions/pages";
 import { type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
@@ -262,17 +263,6 @@ export function AssessmentRunner({
    * assessment, not of where the respondent has got to.
    */
   const gateRan = qual !== null;
-  const [step, setStep] = useState<Step>(qual ? "qualify" : gated ? "gate" : "intro");
-  // Current qualification question index (one at a time, auto-advance).
-  const [qualIndex, setQualIndex] = useState(0);
-  // Answers to qualification TEXT questions (keyed by question id) - manual review.
-  const [qualTextAnswers, setQualTextAnswers] = useState<Record<string, string>>({});
-  // Which option the respondent picked on each gate question, by question id. Only the
-  // IDS travel: the points attached to them are resolved on the server from the stored
-  // gate config, because a score the browser could name is a score the browser could
-  // change. Disqualifying picks never get here - that path ends the visit.
-  const [qualChoices, setQualChoices] = useState<Record<string, string>>({});
-
   /**
    * Does this assessment have any SCORED questions at all?
    *
@@ -291,6 +281,31 @@ export function AssessmentRunner({
     .filter((c) => (c.page ?? 1) === 1 || (c.page ?? 1) === 2)
     .reduce((n, c) => n + c.questions.length, 0);
   const hasScoredQuestions = scoredQuestionCount > 0;
+  /**
+   * The structural facts the entry rules read. Derived once, here, so the first screen
+   * and the post-gate screen cannot disagree about them (scripts/verify-gate.ts pins
+   * the rules themselves).
+   */
+  const entry: EntryInput = {
+    qualificationEnabled: assessment.qualification?.enabled === true,
+    qualificationQuestions: assessment.qualification?.questions.length ?? 0,
+    audienceGate: gated,
+    scoredQuestions: scoredQuestionCount,
+    leadCaptureAfter: assessment.leadCaptureAfter,
+  };
+  // The first screen. The gate decides whether this person is worth a lead row, so
+  // nothing that creates one may precede it.
+  const [step, setStep] = useState<Step>(() => firstStep(entry));
+  // Current qualification question index (one at a time, auto-advance).
+  const [qualIndex, setQualIndex] = useState(0);
+  // Answers to qualification TEXT questions (keyed by question id) - manual review.
+  const [qualTextAnswers, setQualTextAnswers] = useState<Record<string, string>>({});
+  // Which option the respondent picked on each gate question, by question id. Only the
+  // IDS travel: the points attached to them are resolved on the server from the stored
+  // gate config, because a score the browser could name is a score the browser could
+  // change. Disqualifying picks never get here - that path ends the visit.
+  const [qualChoices, setQualChoices] = useState<Record<string, string>>({});
+
   // Audience gate: the current dropdown selection (option key) + the role label the
   // respondent picked (threaded to startSubmission; stored as their audience/role).
   const [gateChoice, setGateChoice] = useState<string>("");
@@ -666,7 +681,11 @@ export function AssessmentRunner({
     if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
     else {
       markGatePassed(); // cleared the whole gate - they are now in the funnel
-      setStep(gated ? "gate" : "intro");
+      // Same exit as the radio path (afterIntroStep), not a hardcoded "intro": a gate
+      // whose LAST question happened to be a text one dropped the respondent on the
+      // title-and-Start screen the radio path skips, and on a gate-only funnel that is
+      // a Start button in front of nothing.
+      setStep(gated ? "gate" : afterIntroStep());
     }
   }
 
@@ -709,8 +728,7 @@ export function AssessmentRunner({
    * IS the opt-in form, so it must still render; only its landing copy is suppressed.
    */
   function afterIntroStep(): Step {
-    if (!gateRan || !assessment.leadCaptureAfter) return "intro";
-    return hasScoredQuestions ? "questions" : "leadForm";
+    return afterGateStep(entry);
   }
 
   function emailPreviousResults() {
