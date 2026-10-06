@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { processDelivery } from "@/lib/webhooks/retry";
 import { EVENT_NAME, type EmitInput } from "@/features/events/types";
 import { buildEnvelope, shapePayload, withDeliveredName } from "@/lib/events/payload";
+import { ownedWhere } from "@/lib/tenant/platform-tenant";
 
 /**
  * Central event service.
@@ -59,8 +60,12 @@ export async function emitEvent(type: EventType, input: EmitInput): Promise<void
   // Wrapped so a delivery-enqueue hiccup can NEVER break the user flow (completion,
   // opt-in). The EventLog above is the source of truth; a lost enqueue is recoverable.
   try {
+    // Matched by OWNER in both spellings (see ownedWhere): a platform event fires to
+    // the platform's webhooks whether they were stamped with the Platform tenant id or
+    // still carry the pre-re-home null. Without that, a webhook created today never
+    // fired for the platform's own submissions, which still carry the null.
     const webhooks = await prisma.webhook.findMany({
-      where: { eventType: type, status: "ACTIVE", tenantId },
+      where: { eventType: type, status: "ACTIVE", ...ownedWhere(tenantId) },
       select: { id: true, name: true, url: true, secret: true },
     });
     if (webhooks.length === 0) return;

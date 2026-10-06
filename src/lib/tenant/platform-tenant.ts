@@ -57,3 +57,29 @@ export function isPlatformScope(tenantId: string | null | undefined): boolean {
 export function isBusinessTenant(tenantId: string | null | undefined): tenantId is string {
   return !isPlatformScope(tenantId);
 }
+
+/**
+ * A where-fragment matching the rows OWNED by `owner`, in both spellings.
+ *
+ * 🔴 THE BUG THIS EXISTS TO KILL. The platform's own rows exist under two owners at
+ * once: `PLATFORM_TENANT_ID` (everything written since the re-home) and `null`
+ * (everything written before it, because the backfill has not run). A screen that
+ * pinned one spelling listed half the data and hid the other half - and when the write
+ * path picked the id while the read path picked the null, the owner created a webhook,
+ * was told it was created, and watched the list stay empty.
+ *
+ * So anything platform-scoped is matched as EITHER spelling until the backfill makes
+ * the columns NOT NULL, at which point this collapses to `{ tenantId: owner }` and the
+ * OR arm goes away with the rest of the transition.
+ *
+ * A BUSINESS tenant is matched by its id alone - the bridge is only ever between the
+ * platform and the legacy null, never across tenants.
+ */
+export type OwnedWhere = { tenantId: string } | { OR: { tenantId: string | null }[] };
+
+export function ownedWhere(owner: string | null | undefined): OwnedWhere {
+  // Written as the business case first because that is the type predicate: it narrows
+  // `owner` to a string, so the bridge below cannot be reached with a real tenant id.
+  if (isBusinessTenant(owner)) return { tenantId: owner };
+  return { OR: [{ tenantId: PLATFORM_TENANT_ID }, { tenantId: null }] };
+}

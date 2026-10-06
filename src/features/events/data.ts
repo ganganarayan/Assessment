@@ -2,20 +2,25 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { EVENT_LABEL } from "@/features/events/types";
 import type { WebhookRow, EventActivityRow } from "@/features/events/types";
+import { ownedWhere } from "@/lib/tenant/platform-tenant";
 
 /** Webhooks split into active/inactive, enriched with delivery count + last fired.
  *  Counts are keyed by the (event name + endpoint URL) combination, NOT by webhook
  *  id: re-pointing a webhook's URL therefore starts a fresh count for the new
  *  endpoint while the previous name+URL keeps its own count in the log history. */
-export async function getWebhooks(tenantId: string | null): Promise<{
+export async function getWebhooks(owner: string | null): Promise<{
   active: WebhookRow[];
   inactive: WebhookRow[];
 }> {
+  // Matched by OWNER, in both spellings - the platform's webhooks exist under the
+  // Platform tenant and, for anything created before the re-home, under null. Pinning
+  // one spelling is what made a just-created webhook invisible on this very screen.
+  const where = ownedWhere(owner);
   const [webhooks, counts] = await Promise.all([
-    prisma.webhook.findMany({ where: { tenantId }, orderBy: { name: "asc" } }),
+    prisma.webhook.findMany({ where, orderBy: { name: "asc" } }),
     prisma.webhookLog.groupBy({
       by: ["eventName", "endpoint"],
-      where: { tenantId },
+      where,
       _count: { _all: true },
       _max: { createdAt: true },
     }),
@@ -53,7 +58,10 @@ export async function listEventActivity(opts: {
   /** Scope to a tenant's events (null = platform/Gita). */
   tenantId: string | null;
 }): Promise<{ rows: EventActivityRow[]; total: number }> {
-  const scopeWhere = { tenantId: opts.tenantId };
+  // Both spellings of the owner, like the webhook list above: the platform's own event
+  // rows carry the Platform tenant id since the re-home and null before it, so pinning
+  // one hides half the history from the only person who can act on it.
+  const scopeWhere = ownedWhere(opts.tenantId);
   const [events, total, allWebhooks] = await Promise.all([
     prisma.eventLog.findMany({
       where: scopeWhere,
@@ -71,7 +79,7 @@ export async function listEventActivity(opts: {
       },
     }),
     prisma.eventLog.count({ where: scopeWhere }),
-    prisma.webhook.findMany({ where: { tenantId: opts.tenantId }, select: { id: true, name: true, eventType: true, status: true } }),
+    prisma.webhook.findMany({ where: ownedWhere(opts.tenantId), select: { id: true, name: true, eventType: true, status: true } }),
   ]);
   // Names/types are decoupled, so join EventLog <-> WebhookLog by event TYPE, not
   // name. Resolve each delivery's type via its webhook (by id, name fallback).
@@ -84,7 +92,7 @@ export async function listEventActivity(opts: {
     .filter((s): s is string => Boolean(s));
   const deliveries = subIds.length
     ? await prisma.webhookLog.findMany({
-        where: { submissionId: { in: subIds }, tenantId: opts.tenantId },
+        where: { submissionId: { in: subIds }, ...ownedWhere(opts.tenantId) },
         orderBy: { createdAt: "desc" },
         select: {
           eventName: true,
