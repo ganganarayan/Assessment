@@ -44,6 +44,12 @@ async function entityNodes(): Promise<Node[]> {
     "@type": "Organization",
     "@id": ORG_ID,
     name: MARKETING.name,
+    // Spacing variant + a sentence saying what this entity IS. Both exist to answer the
+    // question the name alone cannot: WHICH Assess360 is this. Three unrelated entities
+    // use the name or a near variant, so leaving the brand undescribed leaves the
+    // association to be inferred from whichever page a crawler happens to read.
+    alternateName: MARKETING.alternateName,
+    description: MARKETING.organizationDescription,
     legalName: facts.legalName,
     url: absolute("/"),
     address: facts.address,
@@ -56,6 +62,9 @@ async function entityNodes(): Promise<Node[]> {
     "@type": "WebSite",
     "@id": SITE_ID,
     name: MARKETING.name,
+    // Google reads name/alternateName on the WebSite node when it picks the site name
+    // shown above a result, which is the most visible brand signal there is.
+    alternateName: MARKETING.alternateName,
     url: absolute("/"),
     publisher: { "@id": ORG_ID },
     inLanguage: "en",
@@ -65,7 +74,12 @@ async function entityNodes(): Promise<Node[]> {
     "@type": "SoftwareApplication",
     "@id": SOFTWARE_ID,
     name: MARKETING.name,
+    alternateName: MARKETING.alternateName,
     applicationCategory: "BusinessApplication",
+    // The category in the product's own words. applicationCategory is a fixed schema.org
+    // vocabulary ("BusinessApplication" is as specific as it gets); the subcategory is
+    // free text, and it is where "Lead Qualification Software" belongs.
+    applicationSubCategory: "Lead Qualification Software",
     operatingSystem: "Web",
     description: MARKETING.description,
     url: absolute("/"),

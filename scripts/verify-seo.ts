@@ -24,6 +24,7 @@ import { buildKeywordMap } from "../src/lib/seo/keyword-map";
 import { isPlatformHost, PLATFORM_HOST } from "../src/lib/seo/urls";
 import { publicSitemapEntries } from "../src/lib/seo/sitemap-entries";
 import { publicRobotsRules } from "../src/app/robots";
+import { MARKETING } from "../src/lib/marketing/content";
 
 const MAP_PATH = "docs/seo/keyword-map.json";
 
@@ -89,6 +90,30 @@ function main(): void {
         failures.push(`robots: ${r.userAgent} does not disallow ${required}`);
       }
     }
+  }
+
+  /**
+   * The brand has to name its category, on the one query where the answer must be
+   * unambiguous.
+   *
+   * Three unrelated entities use "Assess360" or a near variant in search. The homepage
+   * title and description are the strongest signals that say which one this is, and
+   * both are one careless copy edit away from being a promise with no category in it,
+   * which is how they read before this check existed. Length is checked too: a title
+   * Google truncates cannot do the job it is here to do.
+   */
+  const CATEGORY = "lead qualification software";
+  if (!MARKETING.title.toLowerCase().includes(CATEGORY)) {
+    failures.push(`marketing title does not name the category ("${CATEGORY}"): ${MARKETING.title}`);
+  }
+  if (MARKETING.title.length > 60) {
+    failures.push(`marketing title is ${MARKETING.title.length} chars; Google truncates past ~60`);
+  }
+  if (!MARKETING.description.toLowerCase().includes(CATEGORY)) {
+    failures.push(`marketing description does not name the category ("${CATEGORY}")`);
+  }
+  if (MARKETING.description.length > 165) {
+    failures.push(`marketing description is ${MARKETING.description.length} chars; aim for 165 or fewer`);
   }
 
   mkdirSync(dirname(MAP_PATH), { recursive: true });
