@@ -7,6 +7,7 @@ import { BuilderTabProvider } from "@/features/admin/components/builder-tab-cont
 import { AppBrand } from "@/components/app-brand";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PlatformPixel } from "@/components/platform-pixel";
+import { StartTrialReporter } from "@/features/billing/components/start-trial-reporter";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { supportEmailFor } from "@/lib/billing/gate";
@@ -62,6 +63,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     <BuilderTabProvider>
     <div className="md:flex md:min-h-screen">
       <PlatformPixel pixelId={platformMeta.pixelId} />
+      <StartTrialReporter />
       <aside className="shrink-0 border-b md:sticky md:top-0 md:h-screen md:w-56 md:border-b-0 md:border-r">
         <div className="flex h-full flex-col gap-4 p-4">
           <div className="px-2">

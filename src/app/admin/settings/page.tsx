@@ -24,6 +24,8 @@ import {
   getPlatformSubscriptionPixel,
 } from "@/features/admin/actions/platform-integrations";
 import { PlatformPixelForm } from "@/features/admin/components/platform-pixel-form";
+import { OnboardingVideoForm } from "@/features/admin/components/onboarding-video-form";
+import { resolveOnboardingVideoUrl } from "@/lib/settings/config";
 import { PaymentsMasterSwitch } from "@/features/admin/components/payments-master-switch";
 import { PlatformToggle } from "@/features/admin/components/platform-toggle";
 import { getPlatformPayments, getPlatformWaba } from "@/features/admin/actions/platform-integrations";
@@ -58,7 +60,7 @@ export default async function SettingsPage() {
   const impersonating = actingId !== null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
-  const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn] = await Promise.all([
+  const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn, onboardingVideoUrl] = await Promise.all([
     impersonating ? getIntegrationSettings() : getPlatformIntegrationSettings(),
     impersonating ? getDomainSettings() : Promise.resolve(null),
     impersonating ? Promise.resolve(null) : getLegalSettings(),
@@ -67,6 +69,7 @@ export default async function SettingsPage() {
     impersonating ? Promise.resolve(true) : getPlatformPayments(),
     wabaVisible(actingId),
     impersonating ? Promise.resolve(false) : getPlatformWaba(),
+    impersonating ? Promise.resolve(null) : resolveOnboardingVideoUrl(),
   ]);
 
   return (
@@ -91,7 +94,7 @@ export default async function SettingsPage() {
           <CardDescription>
             {impersonating
               ? "Meta Pixel + Conversions API token and Razorpay keys for the tenant you're currently in. Stored encrypted and scoped to that tenant."
-              : "The platform's own Meta Pixel + Conversions API token and Razorpay keys. Saved here they override the env vars; leave blank to keep the current env values."}
+              : "The platform's Razorpay keys. The platform's Meta pixel is not here - it is the one block below, so it can only ever be entered once."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -100,10 +103,14 @@ export default async function SettingsPage() {
             saveMetaAction={impersonating ? updateMetaSettings : updatePlatformMetaSettings}
             saveRazorpayAction={impersonating ? updateRazorpaySettings : updatePlatformRazorpaySettings}
             saveVidapulseAction={impersonating ? updateVidapulseSettings : updatePlatformVidapulseSettings}
+            // The platform has exactly ONE pixel and it is set in the block below. A
+            // second field here is how the same id came to be entered twice, which made
+            // two senders fire one event name for one person with different event ids.
+            showMeta={impersonating}
             banner={
               impersonating
                 ? "Live for this tenant: its funnel fires this pixel, CAPI sends with this token, and payments run on this Razorpay account. Secrets are encrypted and never shown again."
-                : "Platform keys. Values here take priority over the env vars (which stay as the fallback), so the platform can move off env without a redeploy. Secrets are encrypted and never shown again."
+                : "Platform keys, stored encrypted and never shown again. Environment variables are no longer read for any of this."
             }
           />
         </CardContent>
@@ -164,6 +171,23 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             <PlatformPixelForm initial={platformPixel} />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {!impersonating ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Onboarding video placeholder</CardTitle>
+            <CardDescription>
+              Shown to EVERY tenant on their dashboard while they are in trial, above the
+              written getting-started steps. One video for the whole platform, because it
+              explains Assess360 rather than any one workspace. Leave it blank until you have
+              recorded one - the steps work on their own.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OnboardingVideoForm initial={onboardingVideoUrl} />
           </CardContent>
         </Card>
       ) : null}

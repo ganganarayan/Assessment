@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { env } from "@/lib/env";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -41,7 +40,8 @@ function loadFbevents(): void {
 }
 
 export function PixelTester() {
-  const [pixelId, setPixelId] = useState(env.NEXT_PUBLIC_META_PIXEL_ID ?? "");
+  // Starts blank: the pixel lives in Settings now, not in an environment variable.
+  const [pixelId, setPixelId] = useState("");
   const [eventName, setEventName] = useState("PageView");
   const [log, setLog] = useState<string[]>([]);
   const initedId = useRef<string | null>(null);

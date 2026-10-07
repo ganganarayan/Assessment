@@ -147,6 +147,10 @@ export const ABANDONED_EVENT = "AssessmentAbandoned";
  *  ABANDONED_EVENT: these people never saw the ask, so there is nothing for them to
  *  have refused, and an ad that treats the two alike misreads both. */
 export const GATE_INCOMPLETE_EVENT = "GateIncomplete";
+/** A trial actually started. Fired once per workspace when it is first opened, and by
+ *  the owner's button for a lead they judge to have really begun using it. The step
+ *  above CompleteRegistration on one pixel: lead, trial, revenue. */
+export const START_TRIAL_EVENT = "StartTrial";
 
 /** Content of the disqualified page. `fireDisqualifiedEvent` sends the custom
  *  GateDisqualified event to Meta server-side (for building an exclusion audience) -

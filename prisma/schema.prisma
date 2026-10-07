@@ -39,13 +39,22 @@ model Tenant {
   // Past this, with no active subscription, the tenant is PARKED: read-only, funnel
   // paused, data kept. Never deleted.
   trialEndsAt DateTime?
-  id          String       @id @default(cuid())
+
+  /// When StartTrial was reported to Meta for this workspace. Set once, on the first
+  /// time anyone from the workspace reaches the app after signing up.
+  ///
+  /// Per WORKSPACE, not per user: a second staff member logging in is not a second
+  /// trial. And a stamp rather than "fire on login", because a returning owner opens
+  /// the dashboard every day and none of those are a trial starting.
+  startTrialFiredAt DateTime?
+
+  id        String       @id @default(cuid())
   // Unique subdomain slug, e.g. "acme" -> acme.example.com
-  slug        String       @unique
-  name        String
-  status      TenantStatus @default(ACTIVE)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  slug      String       @unique
+  name      String
+  status    TenantStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   // Soft delete. Deleting a tenant from the platform console sets this instead of
   // removing the row: the tenant disappears from the active list, its logins can no
@@ -1266,6 +1275,11 @@ model Submission {
   // answers, which never auto-qualify. Stamps exist so a reviewed row is visibly
   // different from an untouched one; re-clicking is allowed and re-stamps.
   metaQualifiedAt    DateTime?
+  /// Set when StartTrial was reported for this lead by hand. The owner clicks it when
+  /// someone actually starts using the trial, which is a judgement no funnel event can
+  /// make. Stamped only on a successful send, and checked before sending, so a second
+  /// click reports nothing and the trial audience cannot be inflated by clicking twice.
+  metaStartTrialAt   DateTime?
   metaDisqualifiedAt DateTime?
   // Paid-mode pipeline guards (compare-and-swap so each event fires once):
   completedPaidAt    DateTime? // set when completed_paid fired (payment verified)
@@ -1955,7 +1969,13 @@ model AppSetting {
   // subscription Purchase. Distinct from metaPixelId above (which is the Gita
   // assessment pixel). Only meaningful on the singleton row (platform-owned); the
   // CAPI token is ENCRYPTED at rest. No env fallback - unset = the funnel fires nothing.
-  platformPixelId      String?
+  platformPixelId String?
+
+  /// Onboarding video shown to a tenant on their first screen while they are in trial.
+  /// Platform-wide (set once by the super admin), because it explains Assess360 rather
+  /// than anything about one workspace. Blank = the written steps appear on their own,
+  /// which is the point: the steps are the instruction, the video is the nicety.
+  onboardingVideoUrl   String?
   platformCapiTokenEnc String?
 
   // Per-tenant Razorpay config (all ENCRYPTED except the public key id). null on the

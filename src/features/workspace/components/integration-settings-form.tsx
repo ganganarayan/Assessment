@@ -23,12 +23,21 @@ export function IntegrationSettingsForm({
   saveRazorpayAction,
   saveVidapulseAction,
   banner,
+  showMeta = true,
 }: {
   initial: IntegrationSettingsView;
   saveMetaAction: SaveMeta;
   saveRazorpayAction: SaveRazorpay;
   saveVidapulseAction: SaveVidapulse;
   banner?: string;
+  /**
+   * Whether this scope keeps its Meta pixel here.
+   *
+   * A TENANT does: this is their only pixel. The PLATFORM does not - its pixel
+   * lives in the one block below, and having a second field here is what let the
+   * same pixel be entered twice and fire one event from two senders.
+   */
+  showMeta?: boolean;
 }) {
   const [pixelId, setPixelId] = useState(initial.metaPixelId);
   const [capiToken, setCapiToken] = useState("");
@@ -74,6 +83,7 @@ export function IntegrationSettingsForm({
       </div>
 
       {/* Meta */}
+      {showMeta ? (
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Meta Pixel ID</Label>
@@ -94,6 +104,7 @@ export function IntegrationSettingsForm({
           <Button size="sm" onClick={saveMeta} disabled={pending}>Save Meta settings</Button>
         </div>
       </div>
+      ) : null}
 
       {/* Razorpay */}
       <div className="flex flex-col gap-3 border-t pt-4">
