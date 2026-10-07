@@ -1,0 +1,627 @@
+{
+  "slug": "agency-retainer-fit",
+  "title": "Retainer fit scorecard",
+  "category": "Agencies",
+  "summary": "Screens out one-off projects and no-budget enquiries, then scores retainer fit. Ships without an AI statement, so it works on any plan.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": null,
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 3,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "15 questions, 4 minutes",
+    "subheadline": "Most enquiries are not retainer work. This tells you honestly which kind yours is.",
+    "qualifiedNote": "Worth a conversation. Tell us where to send your scorecard.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": false,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "What do you need?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "Ongoing work, month after month",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g1b",
+              "label": "A project, then maybe ongoing",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g1c",
+              "label": "A one-off project only",
+              "disqualifies": false,
+              "points": 0
+            },
+            {
+              "id": "g1d",
+              "label": "Free advice",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "What do you currently spend on this each month?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "More than we would like",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g2b",
+              "label": "A steady, planned amount",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g2c",
+              "label": "Very little",
+              "disqualifies": false,
+              "points": 1
+            },
+            {
+              "id": "g2d",
+              "label": "Nothing, and nothing is available",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "Have you worked with an agency before?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "Yes, and it went well",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g3b",
+              "label": "Yes, and it did not",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g3c",
+              "label": "No",
+              "disqualifies": false,
+              "points": 1
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Who signs off the work?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "Me",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g4b",
+              "label": "Me, with one other person",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g4c",
+              "label": "A committee",
+              "disqualifies": false,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "When would you want to start?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Within a month",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g5b",
+              "label": "This quarter",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g5c",
+              "label": "No date in mind",
+              "disqualifies": false,
+              "points": 0
+            },
+            {
+              "id": "g5d",
+              "label": "We are only comparing prices",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks for your honesty.",
+      "subtext": "Based on your answers this is not the right fit right now, so we will not take up more of your time.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Commercials",
+        "description": "Whether the numbers make a retainer work for both sides.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How predictable is your revenue month to month?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Completely unpredictable",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "It swings a lot",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Broadly steady",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Steady and forecastable",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Do you know what a customer is worth to you?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "No",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A rough guess",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Approximately",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Precisely, and over their lifetime",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How is marketing budget decided?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Ad hoc, when something is urgent",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Annually, then frozen",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Quarterly",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Against a target, and revisited",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What would a 20 percent improvement be worth to you?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "I could not say",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Something, hard to quantify",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "I could estimate it",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "I know the number",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Readiness",
+        "description": "Whether your side can keep up with an agency working at pace.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "Who would be our day-to-day contact?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Nobody decided yet",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Whoever is free",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "One person, part-time",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "One person, with the authority to decide",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How quickly do approvals come back to you internally?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Weeks, if at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "About a week",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A couple of days",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Same day",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What assets do you already have?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "None",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Old ones nobody likes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A usable set",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A current brand kit and a content library",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Expectations",
+        "description": "Whether what you want and what is possible are the same thing.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "What would success look like in month three?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Results, significantly up",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Early signs of movement",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A working system and clean data",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A system, data, and one proven channel",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How do you want to be kept informed?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Only tell me if something is wrong",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A monthly summary",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A monthly call",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A dashboard I can open any time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "If something is not working, what should happen?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "It should not happen",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Tell me once it is fixed",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Tell me when you spot it",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Tell me, with what you propose instead",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Project work, not a retainer",
+        "description": "Nothing here is wrong, it is simply not retainer-shaped yet. A fixed-scope project would serve you better and cost you less.",
+        "minScore": 0,
+        "maxScore": 39,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Retainer-shaped, not retainer-ready",
+        "description": "The commercials or the internal capacity would make the first three months frustrating for both sides. One area below is the reason.",
+        "minScore": 40,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "A good retainer candidate",
+        "description": "The economics work and your side can keep pace. One area needs setting straight before the first month.",
+        "minScore": 60,
+        "maxScore": 79,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "An ideal retainer client",
+        "description": "Predictable numbers, a single decision-maker and realistic expectations. This is the profile that stays for years.",
+        "minScore": 80,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "title": "Is a retainer right for you?",
+    "slug": "retainer-fit-scorecard"
+  }
+}

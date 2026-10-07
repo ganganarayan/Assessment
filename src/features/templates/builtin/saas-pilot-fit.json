@@ -1,0 +1,627 @@
+{
+  "slug": "saas-pilot-fit",
+  "title": "Pilot fit scorecard",
+  "category": "B2B SaaS",
+  "summary": "Screens out companies a pilot cannot help, then scores the rest on data, process and sponsorship. Ends at a demo request.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "You are writing the pre-call brief a B2B account executive reads before a demo.\n\nWrite 200 to 280 words, addressed to the prospect in second person, in plain commercial English with no jargon and no hype. Name the single constraint their answers point to, say what it is costing them in the terms their own answers used, and reference the category names as evidence.\n\nDo NOT describe the solution, name any product, or recommend a plan. State the problem precisely and leave the remedy for the call.\n\nNever invent facts they did not give you, never quote numbers or scores back at them, and never promise a result.",
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 3,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": false,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "15 questions, 4 minutes",
+    "subheadline": "An honest read on whether your data, your process and your sponsor can carry a pilot this quarter.",
+    "qualifiedNote": "You qualify for a pilot conversation. Where should we send the scorecard?",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "How many people are in the team that would use this?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "Fifty or more",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g1b",
+              "label": "Ten to forty-nine",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g1c",
+              "label": "Three to nine",
+              "disqualifies": false,
+              "points": 1
+            },
+            {
+              "id": "g1d",
+              "label": "Just me",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "Is there a budget line this could come out of?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Yes, approved",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g2b",
+              "label": "Yes, but it needs a case",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g2c",
+              "label": "Not this year",
+              "disqualifies": false,
+              "points": 0
+            },
+            {
+              "id": "g2d",
+              "label": "There is no budget at all",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "Who would own this internally?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "A named person, already identified",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g3b",
+              "label": "A team, no single owner yet",
+              "disqualifies": false,
+              "points": 1
+            },
+            {
+              "id": "g3c",
+              "label": "Nobody, we would need to hire",
+              "disqualifies": false,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "What is driving the timing?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "A deadline we have already committed to",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g4b",
+              "label": "A problem that is getting worse",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g4c",
+              "label": "General improvement",
+              "disqualifies": false,
+              "points": 1
+            },
+            {
+              "id": "g4d",
+              "label": "We are only gathering information",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "Have you evaluated anything like this before?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Yes, and we bought",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g5b",
+              "label": "Yes, and we did not",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g5c",
+              "label": "No, this is the first time",
+              "disqualifies": false,
+              "points": 1
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks for your honesty.",
+      "subtext": "Based on your answers this is not the right fit right now, so we will not take up more of your time.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Data",
+        "description": "Whether the inputs a pilot needs already exist and can be trusted.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "Where does the data this would use live today?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "In people's heads and inboxes",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Spreadsheets, maintained by hand",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A system, partly complete",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A system, complete and current",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How confident are you that it is accurate?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "We know it has gaps",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Mostly accurate",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "We audit it and it holds",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How long would it take to extract it?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "We do not know how",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Weeks, with help",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Days",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Hours, it is already exportable",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Who is allowed to approve sharing it?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Unclear, and it would take months",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Legal, and it would be slow",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Legal, and it is routine",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Already covered by an existing agreement",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Process",
+        "description": "Whether there is a repeatable way of working for a pilot to improve.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How is this work done today?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Differently by every person",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "There is a rough convention",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A documented process, loosely followed",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A documented process, actually followed",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How would you know a pilot had worked?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "We would go on how it felt",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "We would compare anecdotes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "We have a metric in mind",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "We have a metric and its current baseline",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What happened to the last tool you rolled out here?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "It was abandoned",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A few people still use it",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Most people use it",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "It became the default way of working",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Sponsorship",
+        "description": "Whether anyone senior will carry this when it gets inconvenient.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How senior is the person asking for this?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Nobody is asking, it is my idea",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A team lead",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A department head",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "An executive",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How often does that person review it?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "They do not know about it yet",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "If I raise it",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Monthly",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "They have it on a standing agenda",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "If the pilot slipped by a month, what would happen?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "It would quietly die",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "It would be deprioritised",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Someone would ask why",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Someone senior would intervene",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "A pilot would fail here, for now",
+        "description": "The constraint is not the software. One of the three areas below would sink a pilot in week two, and it is cheaper to know that today.",
+        "minScore": 0,
+        "maxScore": 39,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "A pilot is possible, with preparation",
+        "description": "The intent is real. One area needs work before a pilot would produce a result anyone trusts.",
+        "minScore": 40,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "Pilot-ready, with a caveat",
+        "description": "Data, process and sponsorship are mostly in place. The weakest of the three is the one to shore up first.",
+        "minScore": 60,
+        "maxScore": 79,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Strong pilot candidate",
+        "description": "The inputs exist, the process is real and someone senior owns it. This is the profile that converts.",
+        "minScore": 80,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "title": "Would a pilot actually work here?",
+    "slug": "pilot-fit-scorecard"
+  }
+}

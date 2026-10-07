@@ -9,17 +9,25 @@ import {
   duplicateAssessment,
 } from "@/features/assessment/actions/assessment";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { SaveAsTemplateButton } from "@/features/templates/components/save-as-template";
 import { cn } from "@/lib/utils";
 
 /** Publish / preview / duplicate / delete + tenant-scoped Export for the tenant
- *  editor. Export/import stay within this workspace (see /api/w/... + /w/import). */
+ *  editor. Export/import stay within this workspace (see /api/w/... + /w/import).
+ *
+ *  "Save as template" lives here rather than on its own screen: the moment somebody
+ *  wants to reuse a funnel is the moment they are looking at it. It expands in place
+ *  because the destination choice (private or contributed) needs reading, and a choice
+ *  that matters does not belong in a dropdown. */
 export function WorkspaceAssessmentActions({
   id,
   slug,
+  title,
   published,
 }: {
   id: string;
   slug: string;
+  title: string;
   published: boolean;
 }) {
   const router = useRouter();
@@ -79,6 +87,7 @@ export function WorkspaceAssessmentActions({
       <Button size="sm" variant="ghost" onClick={remove} disabled={pending}>
         Delete
       </Button>
+      <SaveAsTemplateButton assessmentId={id} defaultTitle={title} />
     </div>
   );
 }

@@ -1,0 +1,216 @@
+{
+  "slug": "real-estate-buyer-fit",
+  "title": "Buyer qualification",
+  "category": "Real estate",
+  "summary": "Screening only. Five questions separate buyers who can transact this quarter from browsers, before anyone books a viewing.",
+  "shape": "GATE_ONLY",
+  "aiInstructions": null,
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 3,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "5 questions, under a minute",
+    "subheadline": "A few questions so we only show you places you can actually buy.",
+    "qualifiedNote": "You qualify for a viewing. Leave your details and we will call to arrange it.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Begin",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": false,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "When are you looking to buy?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "Within three months",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g1b",
+              "label": "Within six months",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g1c",
+              "label": "Within a year",
+              "disqualifies": false,
+              "points": 1
+            },
+            {
+              "id": "g1d",
+              "label": "No timeframe, just looking",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "How is the purchase being funded?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Cash, available now",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g2b",
+              "label": "Mortgage, already approved in principle",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g2c",
+              "label": "Mortgage, not yet applied for",
+              "disqualifies": false,
+              "points": 1
+            },
+            {
+              "id": "g2d",
+              "label": "I have not worked that out",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "Do you need to sell something first?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "No",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g3b",
+              "label": "Yes, and it is under offer",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g3c",
+              "label": "Yes, and it is on the market",
+              "disqualifies": false,
+              "points": 1
+            },
+            {
+              "id": "g3d",
+              "label": "Yes, and it is not listed yet",
+              "disqualifies": false,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Who else is involved in the decision?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "Just me",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g4b",
+              "label": "Me and a partner, both available",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g4c",
+              "label": "Me and a partner, rarely free together",
+              "disqualifies": false,
+              "points": 1
+            },
+            {
+              "id": "g4d",
+              "label": "Several family members",
+              "disqualifies": false,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "Have you viewed properties in this area before?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Yes, several",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g5b",
+              "label": "Yes, one or two",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g5c",
+              "label": "No, this would be the first",
+              "disqualifies": false,
+              "points": 1
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks for your honesty.",
+      "subtext": "Based on your answers this is not the right fit right now, so we will not take up more of your time.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [],
+    "resultBands": [],
+    "title": "Book a viewing",
+    "slug": "buyer-qualification"
+  }
+}

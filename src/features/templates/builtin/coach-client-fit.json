@@ -1,0 +1,627 @@
+{
+  "slug": "coach-client-fit",
+  "title": "Coaching readiness scorecard",
+  "category": "Coaches",
+  "summary": "Screens out browsers, then scores how ready a prospect actually is to be coached. Built for a paid-ads funnel ending in a discovery call.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "You are writing the personal note a coach reads out at the start of a discovery call.\n\nWrite 200 to 280 words, in second person, warm but direct. Name the ONE pattern their answers point to and the cost of leaving it alone for another six months. Use their own category scores as evidence, by name.\n\nDo NOT give them the fix. Describe the shape of what is in the way clearly enough that they recognise it, then stop. The work of resolving it belongs on the call, not in this message.\n\nNever diagnose, never promise an outcome, never mention scores as numbers.",
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 3,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "3 minutes, 15 questions",
+    "subheadline": "An honest read on whether coaching will work for you right now, and what would have to change first.",
+    "qualifiedNote": "You qualify. Tell us where to send your result.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "What are you trying to change in the next 90 days?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "Grow an existing business or practice",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g1b",
+              "label": "Start something new that I have already planned",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g1c",
+              "label": "Change career or direction",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g1d",
+              "label": "Nothing specific, I am just curious",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "Have you worked with a coach, mentor or consultant before?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Yes, and it worked",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g2b",
+              "label": "Yes, and it did not",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g2c",
+              "label": "No, this would be the first time",
+              "disqualifies": false,
+              "points": 1
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "How much time can you put into this each week?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "Five hours or more",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g3b",
+              "label": "Two to four hours",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g3c",
+              "label": "About an hour",
+              "disqualifies": false,
+              "points": 1
+            },
+            {
+              "id": "g3d",
+              "label": "Honestly, none",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "If the right programme were in front of you today, what would you do?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "Start this month",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g4b",
+              "label": "Start within three months",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g4c",
+              "label": "Keep it in mind for later",
+              "disqualifies": false,
+              "points": 0
+            },
+            {
+              "id": "g4d",
+              "label": "I am not looking to invest at all",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "Who makes that decision?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "I do, on my own",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g5b",
+              "label": "I do, after talking it over with my partner",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g5c",
+              "label": "Someone else does",
+              "disqualifies": false,
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks for your honesty.",
+      "subtext": "Based on your answers this is not the right fit right now, so we will not take up more of your time.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Clarity",
+        "description": "How sharply you can name what you want and what is in the way.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How clearly can you describe the outcome you want in one sentence?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "I cannot, it changes every week",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Roughly, in a paragraph",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Yes, in a sentence, most days",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Yes, exactly, and I can say why it matters",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Do you know which single obstacle is costing you the most right now?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "No idea",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "I have three or four candidates",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "I have a strong suspicion",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Yes, and I can name what it costs me",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How often do you change direction on your main goal?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Every few weeks",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Every quarter or so",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Once or twice a year",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "I have held the same direction for over a year",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "When you imagine this solved, how specific is the picture?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Vague, just a feeling",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A general sense of it",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Fairly detailed",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "I can describe a normal Tuesday in it",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Capacity",
+        "description": "Whether your week, your money and your support can actually carry the change.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How protected is the time you would put into this?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "It is the first thing to go",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "It survives a quiet week",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "It is blocked out and usually holds",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "It is blocked out and nothing moves it",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How does investing in yourself sit with you financially right now?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "It would be a real strain",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "It would be tight but possible",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "It is affordable with planning",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "It is already budgeted",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Who around you supports this change?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Nobody knows about it",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "One person, loosely",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A couple of people who check in",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "People close to me are actively behind it",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Follow-through",
+        "description": "What happens after the session ends and nobody is watching.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "When you last committed to something hard, what happened?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "I stopped in the first fortnight",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "I got halfway",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "I finished it, late",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "I finished it, on time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How do you respond when someone tells you something you did not want to hear?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "I defend first and think later",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "I go quiet and sit with it",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "I ask questions, then decide",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "I act on it quickly if it is right",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What do you already track week to week?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Nothing",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Whatever I remember to",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "One or two numbers",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A short set of numbers, every week",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Not yet, and that is useful to know",
+        "description": "Coaching would mostly be an expensive way to find out what you have just found out for free. The groundwork comes first, and the result below says which part of it.",
+        "minScore": 0,
+        "maxScore": 39,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Ready in parts",
+        "description": "There is a real goal here and the willingness to chase it, but one of the three areas below is carrying the weight of the other two. That is what a first conversation should be about.",
+        "minScore": 40,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "Ready, with one thing to sort out",
+        "description": "You have the clarity and the follow-through this needs. One area is lagging and it is the obvious place to start.",
+        "minScore": 60,
+        "maxScore": 79,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Ready now",
+        "description": "Clear on the outcome, able to make room for it, and you finish what you start. The only question left is who you do it with.",
+        "minScore": 80,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "title": "Are you ready to be coached?",
+    "slug": "coaching-readiness"
+  }
+}

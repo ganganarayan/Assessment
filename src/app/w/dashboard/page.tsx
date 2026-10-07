@@ -4,6 +4,10 @@ import { getDashboardCounts } from "@/features/assessment/data";
 import { tenantOnly } from "@/lib/tenant/scope";
 import { resolveOnboardingVideoUrl, resolveOnboardingSteps } from "@/lib/settings/config";
 import { OnboardingSteps } from "@/features/platform/components/onboarding-steps";
+import { listTemplatesForTenant } from "@/features/templates/data";
+import { TemplateLibrary } from "@/features/templates/components/template-library";
+import { assertCanCreateAssessment } from "@/lib/billing/gate";
+import { currentUserCanEdit } from "@/lib/auth/guards";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -29,16 +33,29 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
  * Whether the panel shows is the OWNER'S switch, not a side effect of billing state:
  * steps authored means shown, all rows cleared means gone, which is exactly what the
  * editor in Settings tells them.
+ *
+ * TEMPLATES sit ABOVE the video and below the counts, open by default. The empty
+ * builder is the thing a new workspace gives up on, so the way out of it has to be on
+ * the screen they land on rather than behind a tab they have no reason to open. It is
+ * collapsible because the second week is not the first one, and whoever has already
+ * built their funnel should be able to put it away.
  */
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceDashboardPage() {
-  const { tenantId } = await requireWorkspace();
-  const [counts, onboardingVideoUrl, onboardingSteps] = await Promise.all([
+  const { tenantId, impersonating } = await requireWorkspace();
+  const [counts, onboardingVideoUrl, onboardingSteps, templates, canEdit, cap] = await Promise.all([
     getDashboardCounts(tenantOnly(tenantId)),
     resolveOnboardingVideoUrl(),
     resolveOnboardingSteps(),
+    listTemplatesForTenant(tenantId),
+    currentUserCanEdit(),
+    impersonating ? Promise.resolve({ ok: true } as const) : assertCanCreateAssessment(tenantId),
   ]);
+
+  const capReason = cap.ok
+    ? null
+    : `You're at your plan's limit of ${cap.limit} assessment${cap.limit === 1 ? "" : "s"}, so importing is paused.`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -63,6 +80,15 @@ export default async function WorkspaceDashboardPage() {
           View submissions
         </Link>
       </div>
+
+      <TemplateLibrary
+        items={templates}
+        canEdit={canEdit}
+        capReason={capReason}
+        collapsible
+        defaultOpen
+        heading="Start from a template"
+      />
 
       <OnboardingSteps videoUrl={onboardingVideoUrl} steps={onboardingSteps} />
     </div>

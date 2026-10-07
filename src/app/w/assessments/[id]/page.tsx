@@ -318,7 +318,7 @@ export default async function WorkspaceEditAssessmentPage({
             <h1 className="text-2xl font-bold tracking-tight">{a.title}</h1>
             <Badge variant={a.status === "PUBLISHED" ? "success" : "muted"}>{a.status}</Badge>
           </div>
-          <WorkspaceAssessmentActions id={a.id} slug={a.slug} published={a.status === "PUBLISHED"} />
+          <WorkspaceAssessmentActions id={a.id} slug={a.slug} title={a.title} published={a.status === "PUBLISHED"} />
         </div>
         <p className="text-xs text-[var(--muted-foreground)]">
           Public URL: <span className="font-mono">/a/{a.slug}</span>
