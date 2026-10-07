@@ -15,7 +15,11 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
  * started paying attention to. A first screen that is empty by definition on day one is
  * the worst place to put someone who is deciding whether this works.
  *
- * So the getting-started panel lives here, above the counts.
+ * The getting-started panel sits at the BOTTOM, under the counts and the two links.
+ * It was above them and that was backwards: an eighteen-step list is taller than the
+ * screen, so the numbers this page exists to show were below the fold on every load,
+ * and the links to act on them were further down still. Reference material belongs
+ * under the thing you came to read, not in front of it.
  *
  * It is NOT gated on the trial. It used to be, and that was wrong: `trialing` is false
  * for an internal/unlimited workspace, for one on a manual grant, for a paying customer
@@ -45,8 +49,6 @@ export default async function WorkspaceDashboardPage() {
         </Link>
       </div>
 
-      <OnboardingSteps videoUrl={onboardingVideoUrl} steps={onboardingSteps} />
-
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Stat label="Assessments" value={counts.assessments} />
         <Stat label="Published" value={counts.published} />
@@ -61,6 +63,8 @@ export default async function WorkspaceDashboardPage() {
           View submissions
         </Link>
       </div>
+
+      <OnboardingSteps videoUrl={onboardingVideoUrl} steps={onboardingSteps} />
     </div>
   );
 }
