@@ -56,6 +56,33 @@ export async function updatePlatformVidapulseSettings(param: string, enabled: bo
   return { ok: true };
 }
 
+/**
+ * Save (or clear) the onboarding video every tenant sees on their dashboard during
+ * trial (singleton row).
+ *
+ * Platform-wide and super-admin only: it explains Assess360 itself, so one video serves
+ * every workspace and no tenant sets their own. Blank clears it, and the written steps
+ * then stand alone - which is why they were written to work without it.
+ *
+ * Must be an EMBED url (the one a player works inside an iframe with), not a watch
+ * page. A YouTube watch link refuses to frame and the tenant sees an empty box where
+ * the introduction should be.
+ */
+export async function updatePlatformOnboardingVideo(url: string): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  const clean = url.trim();
+  if (clean && !/^https:\/\//i.test(clean)) {
+    return { ok: false, error: "Use a full https:// embed URL, or leave it blank." };
+  }
+  const data = { onboardingVideoUrl: clean || null };
+  await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
+  revalidatePath("/admin/settings");
+  // Every tenant dashboard shows it, so they all go stale at once.
+  revalidatePath("/w/dashboard");
+  return { ok: true };
+}
+
 /** Save (or clear) the platform/Gita heatmap-recording snippet (singleton row). */
 export async function updatePlatformHeatmapSettings(code: string): Promise<ActionResult> {
   const denied = editDenied(await requireSuperAdmin());

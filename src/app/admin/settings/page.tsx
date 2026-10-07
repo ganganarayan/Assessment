@@ -24,6 +24,8 @@ import {
   getPlatformSubscriptionPixel,
 } from "@/features/admin/actions/platform-integrations";
 import { PlatformPixelForm } from "@/features/admin/components/platform-pixel-form";
+import { OnboardingVideoForm } from "@/features/admin/components/onboarding-video-form";
+import { resolveOnboardingVideoUrl } from "@/lib/settings/config";
 import { PaymentsMasterSwitch } from "@/features/admin/components/payments-master-switch";
 import { PlatformToggle } from "@/features/admin/components/platform-toggle";
 import { getPlatformPayments, getPlatformWaba } from "@/features/admin/actions/platform-integrations";
@@ -58,7 +60,7 @@ export default async function SettingsPage() {
   const impersonating = actingId !== null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
-  const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn] = await Promise.all([
+  const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn, onboardingVideoUrl] = await Promise.all([
     impersonating ? getIntegrationSettings() : getPlatformIntegrationSettings(),
     impersonating ? getDomainSettings() : Promise.resolve(null),
     impersonating ? Promise.resolve(null) : getLegalSettings(),
@@ -67,6 +69,7 @@ export default async function SettingsPage() {
     impersonating ? Promise.resolve(true) : getPlatformPayments(),
     wabaVisible(actingId),
     impersonating ? Promise.resolve(false) : getPlatformWaba(),
+    impersonating ? Promise.resolve(null) : resolveOnboardingVideoUrl(),
   ]);
 
   return (
@@ -168,6 +171,23 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             <PlatformPixelForm initial={platformPixel} />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {!impersonating ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Onboarding video placeholder</CardTitle>
+            <CardDescription>
+              Shown to EVERY tenant on their dashboard while they are in trial, above the
+              written getting-started steps. One video for the whole platform, because it
+              explains Assess360 rather than any one workspace. Leave it blank until you have
+              recorded one - the steps work on their own.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OnboardingVideoForm initial={onboardingVideoUrl} />
           </CardContent>
         </Card>
       ) : null}
