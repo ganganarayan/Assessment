@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
+import { floorCreatedAt } from "@/lib/stats-floor";
 import { EVENT_LABEL } from "@/features/events/types";
 import type { WebhookRow, EventActivityRow } from "@/features/events/types";
 import { ownedWhere } from "@/lib/tenant/platform-tenant";
@@ -264,6 +265,11 @@ export interface CapiLogRow {
 }
 
 export interface CapiLogQuery {
+  /** Reporting floor (the Data window). Rows before it are never returned. */
+  floor?: Date | null;
+  /** Range start / end, already converted to UTC. Narrows within the floor. */
+  gte?: Date | null;
+  lte?: Date | null;
   /** Page size. */
   take?: number;
   /** Rows to skip - page offset. Pairs with `take` and the matching countCapiLogs(). */
@@ -297,6 +303,10 @@ function capiLogWhere(tenantId: string | null, q: CapiLogQuery) {
     tenantId,
     scope: q.scope ?? ("assessment" as const),
     ...(q.only === "payments" ? { amountPaise: { not: null } } : {}),
+    // Same reporting window as every other number on the page it sits under. A
+    // log that ignores the window shows sends from before the data window while
+    // the counts beside it do not, and the two cannot be reconciled by eye.
+    ...floorCreatedAt(q.floor ?? null, q.gte, q.lte),
   };
 }
 

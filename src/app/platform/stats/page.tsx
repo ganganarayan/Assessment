@@ -5,6 +5,8 @@ import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { formatIST } from "@/lib/date";
 import { getPlatformFunnelStats, getPlatformUtmBreakdown } from "@/features/admin/data/platform-analytics";
 import { listCapiLogs } from "@/features/events/data";
+import { getStatsFloor } from "@/lib/stats-floor";
+import { istDateRangeToUtc } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
@@ -23,13 +25,25 @@ export default async function PlatformStatsPage({
   await requireSuperAdmin();
   const sp = await searchParams;
   const range = { from: sp.from, to: sp.to };
+  // The universal Data window, then the page's own range inside it.
+  const floor = await getStatsFloor(null);
+  const { gte, lte } = istDateRangeToUtc(sp.from, sp.to);
+  // The export must be the window on screen, not all time, or the file and the page
+  // disagree the moment anyone filters.
+  const qs = [sp.from ? `&from=${encodeURIComponent(sp.from)}` : "", sp.to ? `&to=${encodeURIComponent(sp.to)}` : ""].join("");
   const [s, utm, capi] = await Promise.all([
     getPlatformFunnelStats(range),
     getPlatformUtmBreakdown(range),
     // What the SaaS funnel actually sent Meta, with Meta's own answer. These events
     // are the thing an ad account counts as a "registration", so they belong next to
     // the signup number rather than in the respondent-funnel Conversions log.
-    listCapiLogs(null, { take: 50, scope: "platform" }),
+    //
+    // Windowed like everything else on this page: the platform Data window is the
+    // floor, and the From/To above narrows within it. The log used to ignore both,
+    // so it listed sends from before the window while the tiles beside it did not,
+    // and the two could not be reconciled by eye - which is the entire job of
+    // putting a log next to a count.
+    listCapiLogs(null, { take: 200, scope: "platform", floor, gte, lte }),
   ]);
 
   const tiles = [
@@ -101,13 +115,31 @@ export default async function PlatformStatsPage({
       ) : null}
 
       <section className="flex flex-col gap-2">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">Signup + subscription events sent to Meta</h2>
-          <p className="text-sm text-[var(--muted-foreground)]">
-            The SaaS funnel&rsquo;s own Conversions API sends, with Meta&rsquo;s reply. An ad account
-            counts these as registrations - if this is empty while Meta shows some, they came
-            from a different pixel or funnel.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">Signup + subscription events sent to Meta</h2>
+            <p className="text-sm text-[var(--muted-foreground)]">
+              The SaaS funnel&rsquo;s own Conversions API sends, with Meta&rsquo;s reply. An ad account
+              counts these as registrations - if this is empty while Meta shows some, they came
+              from a different pixel or funnel.
+            </p>
+          </div>
+          {/* Reconciling this against Ads Manager is the reason the log exists, and that
+              is spreadsheet work - not scrolling a table that gains a row per signup. */}
+          <div className="flex shrink-0 gap-2 text-sm">
+            <a
+              href={`/api/platform/capi/export?format=csv${qs}`}
+              className="rounded-md border px-3 py-1.5 transition-colors hover:bg-[var(--muted)]"
+            >
+              Export CSV
+            </a>
+            <a
+              href={`/api/platform/capi/export?format=json${qs}`}
+              className="rounded-md border px-3 py-1.5 transition-colors hover:bg-[var(--muted)]"
+            >
+              JSON
+            </a>
+          </div>
         </div>
         {capi.length === 0 ? (
           <p className="text-sm text-[var(--muted-foreground)]">No signup or subscription events sent yet.</p>
