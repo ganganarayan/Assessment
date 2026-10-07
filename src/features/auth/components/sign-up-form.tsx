@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth/auth-client";
 import { signUpSchema } from "@/features/auth/schemas";
-import { trackSaasRegistration } from "@/features/billing/actions/platform-track";
-import { firePlatformBrowserEvent } from "@/lib/meta/platform-pixel-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -56,14 +54,13 @@ export function SignUpForm({ prefill }: { prefill?: { name?: string; email?: str
       return;
     }
 
-    // SaaS funnel: fire CompleteRegistration on the platform pixel (server CAPI +
-    // matching browser event, deduped by eventId). Best-effort - never blocks signup.
-    try {
-      const { eventId, pixelId } = await trackSaasRegistration(parsed.data.email);
-      firePlatformBrowserEvent(pixelId, "CompleteRegistration", {}, eventId);
-    } catch {
-      /* tracking is non-critical */
-    }
+    // Nothing is reported to Meta here, deliberately.
+    //
+    // This used to fire CompleteRegistration - which the funnel opt-in already fires,
+    // for the same person, seconds earlier, on the same pixel, with a different event
+    // id. Meta cannot deduplicate two different events, so every lead was counted
+    // twice. CompleteRegistration now means "opted in" and nothing else; the step
+    // above it is StartTrial, reported once when the workspace is first opened.
 
     router.push("/dashboard");
     router.refresh();

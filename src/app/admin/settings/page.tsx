@@ -91,7 +91,7 @@ export default async function SettingsPage() {
           <CardDescription>
             {impersonating
               ? "Meta Pixel + Conversions API token and Razorpay keys for the tenant you're currently in. Stored encrypted and scoped to that tenant."
-              : "The platform's own Meta Pixel + Conversions API token and Razorpay keys. Saved here they override the env vars; leave blank to keep the current env values."}
+              : "The platform's Razorpay keys. The platform's Meta pixel is not here - it is the one block below, so it can only ever be entered once."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -100,10 +100,14 @@ export default async function SettingsPage() {
             saveMetaAction={impersonating ? updateMetaSettings : updatePlatformMetaSettings}
             saveRazorpayAction={impersonating ? updateRazorpaySettings : updatePlatformRazorpaySettings}
             saveVidapulseAction={impersonating ? updateVidapulseSettings : updatePlatformVidapulseSettings}
+            // The platform has exactly ONE pixel and it is set in the block below. A
+            // second field here is how the same id came to be entered twice, which made
+            // two senders fire one event name for one person with different event ids.
+            showMeta={impersonating}
             banner={
               impersonating
                 ? "Live for this tenant: its funnel fires this pixel, CAPI sends with this token, and payments run on this Razorpay account. Secrets are encrypted and never shown again."
-                : "Platform keys. Values here take priority over the env vars (which stay as the fallback), so the platform can move off env without a redeploy. Secrets are encrypted and never shown again."
+                : "Platform keys, stored encrypted and never shown again. Environment variables are no longer read for any of this."
             }
           />
         </CardContent>

@@ -6,18 +6,30 @@ import { CopyPublicLink } from "@/features/assessment/components/admin/copy-publ
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { tenantOnly } from "@/lib/tenant/scope";
+import { resolvePlan } from "@/lib/billing/entitlements";
+import { resolveOnboardingVideoUrl } from "@/lib/settings/config";
+import { OnboardingSteps } from "@/features/platform/components/onboarding-steps";
 
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceAssessmentsPage() {
   const { tenantId, impersonating } = await requireWorkspace();
-  const [assessments, canEdit] = await Promise.all([listAssessments(tenantOnly(tenantId)), currentUserCanEdit()]);
+  const [assessments, canEdit, resolved, onboardingVideoUrl] = await Promise.all([
+    listAssessments(tenantOnly(tenantId)),
+    currentUserCanEdit(),
+    resolvePlan(tenantId),
+    resolveOnboardingVideoUrl(),
+  ]);
   // At the plan cap, the "New assessment" button points to Billing instead - so the
   // limit is clear before the form, not only at save. Super admins aren't limited.
   const cap = impersonating ? ({ ok: true } as const) : await assertCanCreateAssessment(tenantId);
 
+  // The getting-started panel runs for the length of the trial and then gets out of the
+  // way. It is first on the page because on day one it is the only thing worth reading;
+  // an empty assessments list is not an instruction.
   return (
     <div className="flex flex-col gap-4">
+      {resolved.trialing ? <OnboardingSteps videoUrl={onboardingVideoUrl} /> : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Assessments</h1>

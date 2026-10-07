@@ -95,21 +95,37 @@ export interface MetaConfig {
   datasetId: string | null;
 }
 
-/** Resolve a tenant's Meta config (the platform scope keeps a transitional env fallback). */
+/**
+ * Resolve the ONE Meta pixel for a scope.
+ *
+ * Exactly one pixel exists per scope and it is stored in exactly one place:
+ *   platform -> platformPixelId / platformCapiTokenEnc
+ *   tenant   -> metaPixelId     / metaCapiTokenEnc
+ *
+ * It used to be two at platform scope: the funnel read metaPixelId while the SaaS
+ * signup and subscription read platformPixelId. Putting the same pixel in both - the
+ * only sane thing to do when one pixel is all you have - meant two independent senders
+ * firing CompleteRegistration for the same person with different event ids, which Meta
+ * cannot deduplicate because they are not the same event. One person counted twice,
+ * and a cost per result 40% below the truth.
+ *
+ * NO ENV FALLBACK. Env is for launching the app, not for configuring a funnel: a
+ * fallback means the pixel a funnel fires on depends on which environment it is in,
+ * and a blank setting silently keeps working off a value nobody can see in the UI.
+ * Blank now means silent, which is visible and therefore fixable.
+ */
 export async function resolveMetaConfig(tenantId: string | null): Promise<MetaConfig> {
+  if (isPlatformScope(tenantId)) {
+    const { pixelId, capiToken } = await resolvePlatformMetaConfig();
+    return { pixelId, capiToken, datasetId: pixelId };
+  }
   const s = (await settingRow(tenantId, SEL_META)) as { metaPixelId: string | null; metaCapiTokenEnc: string | null } | null;
-  const isPlatform = isPlatformScope(tenantId);
-  const pixelId = orEnv(s?.metaPixelId?.trim() || null, isPlatform, "NEXT_PUBLIC_META_PIXEL_ID", env.NEXT_PUBLIC_META_PIXEL_ID);
-  // Stored token wins; a corrupt/undecryptable one falls back to env for the platform
-  // (keeps the live funnel firing), or leaves a tenant unconfigured - never throws.
-  const capiToken = orEnv(safeDecrypt(s?.metaCapiTokenEnc), isPlatform, "META_CAPI_ACCESS_TOKEN", env.META_CAPI_ACCESS_TOKEN);
-  // Dataset id: for a tenant the pixel id IS the dataset. The platform may still point
-  // CAPI at a different dataset via env - 🟡 if that var is set to something other than
-  // the pixel id, events change destination the moment the funnel moves to a tenant,
-  // because a tenant has no equivalent override. Check it before re-homing.
-  const datasetId = isPlatform ? env.META_DATASET_ID ?? pixelId : pixelId;
-  if (isPlatform && env.META_DATASET_ID) noteEnvFallback("META_DATASET_ID");
-  return { pixelId, capiToken, datasetId };
+  const pixelId = s?.metaPixelId?.trim() || null;
+  // A corrupt/undecryptable token degrades to "unset" rather than throwing: a bad
+  // secret must never take down a live opt-in.
+  const capiToken = safeDecrypt(s?.metaCapiTokenEnc);
+  // For a tenant the pixel id IS the dataset id.
+  return { pixelId, capiToken, datasetId: pixelId };
 }
 
 export interface PlatformMetaConfig {
@@ -118,10 +134,13 @@ export interface PlatformMetaConfig {
 }
 
 /**
- * The Assess360 SaaS-funnel pixel (landing / signup / subscription) - a SEPARATE
- * Meta pixel from the Gita assessment one resolved by resolveMetaConfig. Read ONLY
- * from the singleton row; NO env fallback (a brand-new pixel), so it stays inert
- * until the super admin sets it in Settings. Never throws.
+ * The platform's ONE pixel: the SaaS funnel (landing / signup / subscription) and
+ * the platform's own assessment funnel both fire on it. Read only from the singleton
+ * row, no env fallback, so blank means the platform fires nothing at all - which is
+ * visible, unlike a hidden environment variable quietly keeping a funnel alive.
+ *
+ * resolveMetaConfig(null) delegates here, so there is one value and no way for the
+ * two to disagree.
  */
 export async function resolvePlatformMetaConfig(): Promise<PlatformMetaConfig> {
   const s = (await settingRow(null, { platformPixelId: true, platformCapiTokenEnc: true })) as {
@@ -262,4 +281,15 @@ export async function resolveRazorpayConfig(tenantId: string | null): Promise<Ra
     keySecret: orEnv(safeDecrypt(s?.razorpayKeySecretEnc), isPlatform, "RAZORPAY_KEY_SECRET", env.RAZORPAY_KEY_SECRET),
     webhookSecret: orEnv(safeDecrypt(s?.razorpayWebhookSecretEnc), isPlatform, "RAZORPAY_WEBHOOK_SECRET", env.RAZORPAY_WEBHOOK_SECRET),
   };
+}
+
+/**
+ * The onboarding video shown to a tenant during trial. Platform-wide: it explains
+ * Assess360 itself, so it lives on the singleton row and every workspace sees the same
+ * one. Null/blank means the written steps appear on their own, which is deliberate - the
+ * steps are the instruction and the video is the nicety.
+ */
+export async function resolveOnboardingVideoUrl(): Promise<string | null> {
+  const s = (await settingRow(null, { onboardingVideoUrl: true })) as { onboardingVideoUrl: string | null } | null;
+  return s?.onboardingVideoUrl?.trim() || null;
 }

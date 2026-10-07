@@ -16,20 +16,31 @@ import { getMetaRequestContext } from "@/lib/meta/request-context";
 
 const SOURCE_URL = `${env.NEXT_PUBLIC_APP_URL}/`;
 
-/** CompleteRegistration - a free sign-up. */
-export async function firePlatformRegistration(input: { email: string | null; eventId?: string }): Promise<string> {
+/**
+ * StartTrial - the workspace is live and someone has reached the app.
+ *
+ * This step used to fire CompleteRegistration, which the funnel opt-in already fires.
+ * One pixel and two senders of one event name, seconds apart for the same person, with
+ * different event ids: Meta cannot deduplicate those because they are not the same
+ * event, so every lead counted twice and cost per result read 40% below the truth.
+ *
+ * CompleteRegistration now means one thing - someone opted in. This is the step above
+ * it, and StartTrial is the standard event for exactly that, so the pixel carries a
+ * real ladder: lead, trial, revenue.
+ */
+export async function fireStartTrial(input: { email: string | null; eventId?: string }): Promise<string> {
   const eventId = input.eventId ?? randomUUID();
   const ctx = await getMetaRequestContext().catch(() => ({}) as Awaited<ReturnType<typeof getMetaRequestContext>>);
   // Awaited, not fire-and-forget: the send has to be recorded before this returns, or
-  // the signup is invisible in the Conversions log exactly as it was before.
+  // the trial start is invisible in the Conversions log.
   await sendAndLogPlatformCapi(
     {
-      eventName: "CompleteRegistration",
+      eventName: "StartTrial",
       eventId,
       eventTimeMs: Date.now(),
-      eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/sign-up`,
+      eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/w`,
       user: { email: input.email ?? null, ...ctx },
-      customData: { content_name: "Assess360 signup" },
+      customData: { content_name: "Assess360 trial" },
     },
     { name: null },
   );

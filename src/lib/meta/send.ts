@@ -61,7 +61,7 @@ export async function testCapi(testEventCode?: string, eventNameInput?: string, 
       ok: false,
       eventName,
       error:
-        "META_CAPI_ACCESS_TOKEN (and a dataset/pixel id) is NOT set on this environment, so the app sends nothing to Meta. Add it in Railway → Variables for THIS service.",
+        "No Meta pixel id + Conversions API token for this scope, so nothing is sent to Meta. Set them in Settings - the platform in super-admin Settings, a tenant in their own. Environment variables are no longer read.",
     };
   }
   // A test code (entered for this send, or the env default) routes the event to
@@ -119,7 +119,7 @@ export async function sendCapiEventVerbose(input: CapiEventInput, tenantId: stri
 }> {
   const cfg = await getConfig(tenantId);
   if (!cfg) {
-    return { ok: false, error: "META_CAPI_ACCESS_TOKEN (and a dataset/pixel id) is NOT set on this environment." };
+    return { ok: false, error: "No Meta pixel id + Conversions API token for this scope. Set them in Settings; environment variables are no longer read." };
   }
   const body = JSON.stringify({ data: [buildCapiEvent(withSourceUrl(input))] }); // real conversion - no test code
   const url = `https://graph.facebook.com/${cfg.version}/${cfg.datasetId}/events?access_token=${encodeURIComponent(cfg.accessToken)}`;
