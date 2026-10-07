@@ -366,7 +366,22 @@ async function fireRegistration(
           submissionId,
           name: [lead.firstName, lead.lastName].filter(Boolean).join(" ") || null,
         },
-      ).catch(() => {});
+      )
+        // Count it like every other funnel event. This was the one send that never
+        // bumped the tally, so the Stats "Fired to Meta" panel - which describes itself
+        // as the Conversions API sends from this funnel - structurally could not show
+        // CompleteRegistration, the event most lead campaigns optimise toward. An owner
+        // reading that panel saw gate and completion events and had no way to tell
+        // whether Meta had been told about the opt-in at all.
+        .then((r) =>
+          bumpFunnelEventCount({
+            assessmentId: assessment.id,
+            tenantId: assessment.tenant?.id ?? null,
+            eventName: "CompleteRegistration",
+            ok: r.ok,
+          }),
+        )
+        .catch(() => {});
     }
   } catch (e) {
     console.error("[start] fireRegistration side-effect failed (lead still captured):", e instanceof Error ? e.message : String(e));
