@@ -13,6 +13,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { isSuperAdmin } from "@/lib/auth/guards";
 import { isResponseLocked, supportEmailFor } from "@/lib/billing/gate";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
+import { parseGateBreakdown, gateTotals } from "@/lib/result/gate";
 import { VslResultPage } from "@/features/assessment/components/public/vsl-result-page";
 import { readResultPage } from "@/features/assessment/result-page/blocks";
 import { resolveVidapulseParam, stampVidapulseCtaUrl } from "@/lib/vidapulse";
@@ -48,6 +49,50 @@ export const metadata: Metadata = {
  *  - Everyone else (the public) NEVER sees results here; results are delivered
  *    only via the destination page (token + connector). This is our decision.
  */
+/**
+ * The qualification gate, question by question.
+ *
+ * Rendered from the breakdown stored on the submission, never from the assessment's
+ * live gate config, so editing the gate cannot reword a result somebody already holds.
+ *
+ * Flat, with no category grouping, because a gate has no categories - and the score per
+ * answer is shown, which is the whole point for a funnel whose only questions ARE the
+ * gate: without it the page had a total and nothing to explain it.
+ */
+function GateBreakdown({ rows }: { rows: ReturnType<typeof parseGateBreakdown> }) {
+  if (rows.length === 0) return null;
+  const totals = gateTotals(rows);
+  return (
+    <Card>
+      <CardHeader className="pb-2 pt-4">
+        <CardTitle className="text-lg">Your answers</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {rows.map((r, i) => (
+          <div
+            key={`${r.q}-${i}`}
+            className="flex flex-col gap-1 border-b border-[var(--border)] pb-2 last:border-0 last:pb-0"
+          >
+            <span className="font-medium">{r.q}</span>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="min-w-0 text-sm text-[var(--muted-foreground)]">{r.a}</span>
+              <span className="shrink-0 tabular-nums text-sm text-[var(--muted-foreground)]">
+                {r.points}/{r.max}
+              </span>
+            </div>
+          </div>
+        ))}
+        <div className="flex items-baseline justify-between gap-3 border-t pt-3 font-medium">
+          <span>Total</span>
+          <span className="tabular-nums">
+            {totals.score}/{totals.max}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 /** One labelled field: label on the left, value to its right on the same line. */
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -109,6 +154,7 @@ export default async function ResultPage({
       leadEmail: true,
       leadMobile: true,
       leadProfession: true,
+      gateBreakdown: true,
       completedAt: true,
       assessment: {
         select: {
@@ -195,6 +241,10 @@ export default async function ResultPage({
   if (!canViewInternally) await markResultViewed(submissionId);
 
   const snap = submission.resultSnapshot as unknown as ResultSnapshot | null;
+
+  // The gate as answered. Empty for an ungated funnel, and for submissions taken
+  // before the breakdown was stored - both of which simply render nothing.
+  const gateRows = parseGateBreakdown(submission.gateBreakdown);
 
   // Categories in the builder's order (displayOrder), not the stored snapshot's
   // scoring-iteration order - so the serial numbers baked into names/questions read
@@ -491,6 +541,7 @@ export default async function ResultPage({
             </CardContent>
           </Card>
 
+          <GateBreakdown rows={gateRows} />
           {orderedCats.length > 0 ? (
             <Card>
               <CardHeader>
@@ -590,6 +641,10 @@ export default async function ResultPage({
               ) : null}
             </CardContent>
           </Card>
+          {/* The gate first: on a gate-only funnel these ARE the questions, and this
+              card is the difference between a page showing a bare total and a page
+              showing what the total was made of. */}
+          <GateBreakdown rows={gateRows} />
           {groups.map((g) => (
             <Card key={g.key}>
               <CardHeader className="pb-2 pt-4">

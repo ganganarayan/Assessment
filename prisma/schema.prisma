@@ -1162,8 +1162,20 @@ model Submission {
   // than one that is slightly stale. Null on every submission created before gate scoring
   // existed, and on any funnel whose gate awards nothing, which is why the scorer treats
   // absent as zero rather than as an error.
-  gateScore       Int?
-  gateMax         Int?
+  gateScore Int?
+  gateMax   Int?
+
+  /// The gate, question by question, resolved AT THE MOMENT IT WAS ANSWERED: question
+  /// text, the option picked, what it scored and what it could have scored.
+  /// Shape: [{ q, a, points, max }].
+  ///
+  /// Stored rather than rebuilt at render, for the same reason gateScore is written at
+  /// start: the gate is a JSON blob the owner can edit at any time, and a result page
+  /// that silently rewords its own questions - or drops one that was deleted - is worse
+  /// than one that is slightly stale. Results already given out must not move.
+  ///
+  /// Null for submissions taken before this existed, and for funnels with no gate.
+  gateBreakdown   Json?
   // Geo (Cloudflare) + device (parsed UA), captured at Start. region/postalCode feed
   // Meta CAPI advanced matching (st/zp); country is the 2-letter ISO code.
   country         String?

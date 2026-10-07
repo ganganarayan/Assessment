@@ -33,6 +33,7 @@ import { generateCustomerId, generateToken } from "@/lib/ids";
 import { env } from "@/lib/env";
 import { randomUUID } from "crypto";
 import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
+import { type GateAnswer } from "@/lib/result/gate";
 import { metaEventOn } from "@/features/assessment/meta-events";
 import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
 import { fbcCreationMs } from "@/lib/meta/capi";
@@ -576,6 +577,12 @@ export async function startSubmission(
   // payload can at worst name an option that does not exist, which is then ignored.
   const gate = qualificationSchema.safeParse(assessment.qualification);
   const cleanChoices: Record<string, string> = {};
+  // The same resolution, kept as a readable row per question so the result page can
+  // show the gate the way an assessment is shown. Built HERE, where the chosen option
+  // is already in hand with its points, rather than re-derived later from the stored
+  // label: the owner can edit the gate at any moment, and a result that reworded itself
+  // afterwards would be a different result.
+  const gateRows: GateAnswer[] = [];
   let gateScore = 0;
   let gateMax = 0;
   if (gate.success && qualChoices && typeof qualChoices === "object") {
@@ -583,12 +590,19 @@ export async function startSubmission(
       if (q.type !== "choice" || q.options.length === 0) continue;
       // The achievable ceiling counts every ASKED question, matching how computeScores
       // treats the assessment: a question nobody could score on still raises the bar.
-      gateMax += q.options.reduce((m, o) => Math.max(m, o.points), 0);
+      const qMax = q.options.reduce((m, o) => Math.max(m, o.points), 0);
+      gateMax += qMax;
       const pickedId = qualChoices[q.id];
       const picked = q.options.find((o) => o.id === pickedId);
       if (!picked) continue;
       gateScore += picked.points;
       cleanChoices[q.id] = picked.label.slice(0, 1000);
+      gateRows.push({
+        q: q.text.slice(0, 1000),
+        a: picked.label.slice(0, 1000),
+        points: picked.points,
+        max: qMax,
+      });
     }
   }
   const storedQual = { ...cleanQual, ...cleanChoices };
@@ -606,6 +620,7 @@ export async function startSubmission(
     // read as a deliberate zero later.
     gateScore: gateMax > 0 ? gateScore : null,
     gateMax: gateMax > 0 ? gateMax : null,
+    gateBreakdown: gateRows.length ? (gateRows as unknown as Prisma.InputJsonValue) : undefined,
     leadFirstName: assessment.collectFirstName ? firstName : null,
     leadLastName: assessment.collectLastName ? lastName : null,
     leadEmail: assessment.collectEmail ? email : null,
