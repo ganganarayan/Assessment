@@ -415,3 +415,38 @@ async function fireGateDisqualified(
     // never surface tracking failures to the visitor
   }
 }
+
+/**
+ * Record that this visitor REACHED the opt-in form.
+ *
+ * This is the fact that separates the two ways of losing someone who passed the gate:
+ * they saw the ask and walked away (AssessmentAbandoned), or they never got that far
+ * (GateIncomplete). One has refused the offer, the other has not heard it, and an ad
+ * written for one is wrong for the other.
+ *
+ * Recorded when the form is SHOWN rather than inferred from the departure beacon,
+ * because a beacon can be lost - JS blocked, the browser killed outright - and a lost
+ * beacon would silently file a refusal as a never-saw-it. This call happens while the
+ * page is alive and healthy, so it is the reliable half.
+ *
+ * Only ever sets the column, never clears it: returning to the form a second time does
+ * not un-see it the first time.
+ *
+ * PUBLIC server action - rate limited, fail-soft, and a no-op for a visitor with no
+ * gate entry (nothing to attach the fact to).
+ */
+export async function recordOptinSeen(slug: string, visitorId: string): Promise<void> {
+  try {
+    const vid = visitorId.trim().slice(0, 64);
+    if (!vid) return;
+    if (!rateLimit("optinseen:global", 5000)) return;
+    if (!rateLimit(`optinseen:vid:${vid}`, 10)) return;
+
+    await prisma.gateEntry.updateMany({
+      where: { visitorId: vid, optinSeenAt: null, assessment: { slug, status: "PUBLISHED" } },
+      data: { optinSeenAt: new Date() },
+    });
+  } catch {
+    // never surface tracking failures to the visitor
+  }
+}

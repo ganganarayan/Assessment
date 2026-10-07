@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { fireAbandonedForEntry } from "@/lib/events/abandoned";
+import { markAbandonDue, sweepGateAbandoned, ABANDON_GRACE_MINUTES } from "@/lib/events/abandoned";
 import { isBotUserAgent } from "@/lib/bots";
 
 /**
@@ -43,28 +43,24 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     const entry = await prisma.gateEntry.findFirst({
       where: { visitorId, assessment: { slug } },
-      select: {
-        id: true,
-        assessmentId: true,
-        visitorId: true,
-        clientIp: true,
-        userAgent: true,
-        fbp: true,
-        fbc: true,
-        country: true,
-        city: true,
-        region: true,
-        postalCode: true,
-        assessment: {
-          select: { slug: true, title: true, fireMetaCapi: true, metaEvents: true, tenantId: true },
-        },
-      },
+      select: { id: true },
     });
     // No gate pass recorded for this visitor: nothing to abandon.
     if (!entry) return NextResponse.json({ ok: true });
 
-    await fireAbandonedForEntry(entry);
-    return NextResponse.json({ ok: true });
+    // Start the clock rather than firing. See markAbandonDue: leaving this page is
+    // not proof of giving up when the form asks for a number people switch apps to
+    // fetch.
+    await markAbandonDue(entry.id);
+
+    // Clear anything whose grace period has already elapsed, piggybacking on this
+    // request so the verdict does not wait for a scheduler. Every departure from
+    // this funnel is a tick, which on a funnel with traffic is more often than any
+    // cron would run. The Railway cron stays as the guarantee for the last visitor
+    // of the night, after whom no further request arrives to do the sweeping.
+    void sweepGateAbandoned().catch(() => {});
+
+    return NextResponse.json({ ok: true, graceMinutes: ABANDON_GRACE_MINUTES });
   } catch {
     // Tracking must never surface an error to a page that is already closing.
     return NextResponse.json({ ok: true });

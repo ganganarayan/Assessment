@@ -106,7 +106,7 @@ export async function getAnalyticsStats(
   // ad-review agent) are recorded but never counted as traffic.
   const humanScope = { ...scope, isBot: false };
 
-  const [totalViews, uniqueVisitors, optins, completed, vslLoads, paidAgg, disqualified, disqualifiedRepeat, qualified, fired] = await Promise.all([
+  const [totalViews, uniqueVisitors, optins, completed, vslLoads, paidAgg, disqualified, disqualifiedRepeat, qualified, reachedOptin, fired] = await Promise.all([
     prisma.pageView.count({ where: humanScope }),
     // distinct visitorId rows; length = unique views (no raw SQL).
     prisma.pageView.findMany({ where: humanScope, select: { visitorId: true }, distinct: ["visitorId"] }),
@@ -136,6 +136,12 @@ export async function getAnalyticsStats(
     // Passed the gate. The mirror of "turned away": everyone who answered page 1 is
     // one or the other, so views - (qualified + disqualified) is the bounce.
     prisma.gateEntry.count({ where: rekeyScope(scope, "passedAt") }),
+    // Of those, how many got as far as the opt-in FORM. The shortfall against
+    // "qualified" is people lost between passing the gate and seeing the ask, and the
+    // shortfall from here to "opted in" is people who saw the ask and refused it.
+    // Those are two different losses with two different fixes, which is why the gate
+    // entry records the moment the form was shown rather than inferring it later.
+    prisma.gateEntry.count({ where: { ...rekeyScope(scope, "passedAt"), optinSeenAt: { not: null } } }),
     // How many events the funnel actually FIRED at Meta (not how many people) -
     // GateDisqualified, QualifiedCompletion / AssessmentCompleted.
     prisma.funnelEventCount.groupBy({
@@ -155,6 +161,11 @@ export async function getAnalyticsStats(
     disqualified,
     disqualifiedRepeat,
     qualified,
+    reachedOptin,
+    // Derived, and clamped: an ungated funnel has no gate entries while still taking
+    // opt-ins, which would otherwise show a negative number of lost people.
+    leftOptin: Math.max(0, reachedOptin - optins),
+    gateIncomplete: Math.max(0, qualified - reachedOptin),
     fired: fired
       .map((f) => ({ eventName: f.eventName, count: f._sum.count ?? 0, failed: f._sum.failed ?? 0 }))
       .sort((a, b) => b.count - a.count) satisfies EventFireCount[],

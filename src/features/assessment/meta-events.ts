@@ -25,6 +25,7 @@ export const META_EVENT_KEYS = [
   "completion",
   "gateDisqualified",
   "abandoned",
+  "gateIncomplete",
 ] as const;
 
 export type MetaEventKey = (typeof META_EVENT_KEYS)[number];
@@ -37,7 +38,19 @@ export const ALL_META_EVENTS: MetaEventFlags = {
   completion: true,
   gateDisqualified: true,
   abandoned: true,
+  gateIncomplete: false,
 };
+
+/**
+ * Events that are OFF until the owner asks for them.
+ *
+ * The rule below - a missing key means on - exists so that funnels saved before an
+ * event existed keep populating the audiences they already feed. For a BRAND NEW event
+ * name that is exactly wrong: no audience can depend on it yet, and defaulting it on
+ * would start sending a new event from every funnel on the platform, including other
+ * tenants' live ones, without anybody choosing it.
+ */
+const DEFAULT_OFF = new Set<MetaEventKey>(["gateIncomplete"]);
 
 /** Labels and the "why you might turn this off" for the builder. */
 export const META_EVENT_META: Record<MetaEventKey, { label: string; event: string; help: string }> = {
@@ -57,9 +70,14 @@ export const META_EVENT_META: Record<MetaEventKey, { label: string; event: strin
     help: "Fires when the page-1 gate rejects someone. Its only purpose is an exclusion audience - turn it off and you lose the ability to stop paying for unfit traffic.",
   },
   abandoned: {
-    label: "Abandoned",
+    label: "Left the opt-in",
     event: "AssessmentAbandoned",
-    help: "Fires from the sweep for someone who passed the gate then never finished. Useful for retargeting; noisy if you do not use it.",
+    help: "Fires ten minutes after someone who passed the gate reached the opt-in form and left without opting in. They saw the ask and refused it, so they are worth showing the ad again.",
+  },
+  gateIncomplete: {
+    label: "Never reached the opt-in",
+    event: "GateIncomplete",
+    help: "Fires ten minutes after someone passed the gate but never got as far as the opt-in form. They never saw the ask, so they are a different audience from the one above. Off until you turn it on.",
   },
 };
 
@@ -73,6 +91,9 @@ export function readMetaEvents(value: unknown): MetaEventFlags {
     // type, stays on - so a partial or hand-edited object can never silently mute an
     // event that is feeding a live audience.
     if (v[k] === false) out[k] = false;
+    // A brand new event stays off until it is explicitly switched on - the
+    // missing-key-means-on rule protects old audiences, not new ones.
+    else if (DEFAULT_OFF.has(k) && v[k] !== true) out[k] = false;
   }
   return out;
 }

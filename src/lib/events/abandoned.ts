@@ -6,7 +6,7 @@ import { normalizeAttribution } from "@/lib/events/payload";
 import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
 import { metaEventOn } from "@/features/assessment/meta-events";
 import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
-import { ABANDONED_EVENT } from "@/features/assessment/schemas";
+import { ABANDONED_EVENT, GATE_INCOMPLETE_EVENT } from "@/features/assessment/schemas";
 import { type EmitInput } from "@/features/events/types";
 
 const DEFAULT_HOURS = 24;
@@ -107,11 +107,21 @@ export async function sweepGateAbandoned(): Promise<{ fired: number; scanned: nu
   const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
 
   const candidates = await prisma.gateEntry.findMany({
-    where: { abandonedFiredAt: null, passedAt: { lt: cutoff } },
+    // Two ways a verdict becomes due:
+    //   abandonDueAt  - the visitor was SEEN leaving the opt-in page, and the grace
+    //                   period since has elapsed.
+    //   passedAt      - no departure was ever seen (beacon lost, JS off, browser
+    //                   killed), so fall back to time since the gate was passed.
+    // The second is what stops a lost beacon meaning a lost signal.
+    where: {
+      abandonedFiredAt: null,
+      OR: [{ abandonDueAt: { lte: new Date() } }, { abandonDueAt: null, passedAt: { lt: cutoff } }],
+    },
     select: {
       id: true,
       assessmentId: true,
       visitorId: true,
+      optinSeenAt: true,
       clientIp: true,
       userAgent: true,
       fbp: true,
@@ -140,6 +150,7 @@ export type AbandonCandidate = {
   id: string;
   assessmentId: string;
   visitorId: string;
+  optinSeenAt: Date | null;
   clientIp: string | null;
   userAgent: string | null;
   fbp: string | null;
@@ -189,13 +200,20 @@ export async function fireAbandonedForEntry(g: AbandonCandidate): Promise<boolea
   if (claim.count === 0) return false; // another run, or the beacon, got there first
 
   if (optedIn > 0) return false;
+
+  // Which loss was this? Reaching the opt-in form and leaving is a refusal of the ask;
+  // never reaching it is not. Separate events because they are separate audiences, and
+  // an ad written for one is wrong for the other.
+  const sawOptin = g.optinSeenAt !== null;
+  const eventName = sawOptin ? ABANDONED_EVENT : GATE_INCOMPLETE_EVENT;
+  const flag = sawOptin ? "abandoned" : "gateIncomplete";
   // The assessment may have been switched to routed (no Meta) after the pass.
-  if (!metaEventOn(g.assessment.fireMetaCapi, g.assessment.metaEvents, "abandoned")) return false;
+  if (!metaEventOn(g.assessment.fireMetaCapi, g.assessment.metaEvents, flag)) return false;
 
   const outcome = await sendAndLogLifecycleCapi(
     {
-      eventName: ABANDONED_EVENT,
-      eventId: `gate-abandoned:${g.id}`, // stable: a retry can never double-count
+      eventName,
+      eventId: `${eventName}:${g.id}`, // stable: a retry can never double-count
       eventTimeMs: Date.now(),
       eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${g.assessment.slug}`,
       user: {
@@ -220,8 +238,31 @@ export async function fireAbandonedForEntry(g: AbandonCandidate): Promise<boolea
   await bumpFunnelEventCount({
     assessmentId: g.assessmentId,
     tenantId: g.assessment.tenantId,
-    eventName: ABANDONED_EVENT,
+    eventName,
     ok: outcome.ok,
   });
   return outcome.ok;
+}
+
+/** How long after someone leaves the opt-in page before the loss is called. */
+export const ABANDON_GRACE_MINUTES = 10;
+
+/**
+ * The visitor just left the opt-in page: start the clock, do not fire yet.
+ *
+ * Firing on departure alone was wrong. `visibilitychange` counts an app switch as a
+ * departure, and this form asks for a WhatsApp number - so the most common reason to
+ * leave it is to go and fetch that number. Those people come back. A grace period
+ * costs ten minutes of signal freshness and buys not telling Meta that a lead who
+ * opted in two minutes later was lost.
+ *
+ * Only ever sets the clock once, and never for a row whose verdict is already decided.
+ * Returning to the form and leaving again does not push the deadline out, because the
+ * first departure is the one that matters.
+ */
+export async function markAbandonDue(gateEntryId: string): Promise<void> {
+  await prisma.gateEntry.updateMany({
+    where: { id: gateEntryId, abandonedFiredAt: null, abandonDueAt: null },
+    data: { abandonDueAt: new Date(Date.now() + ABANDON_GRACE_MINUTES * 60 * 1000) },
+  });
 }

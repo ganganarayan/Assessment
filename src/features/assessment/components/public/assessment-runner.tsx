@@ -7,7 +7,7 @@ import {
   requestPreviousResults,
   saveDraftAnswers,
 } from "@/features/assessment/actions/submission";
-import { recordOptinView, recordGatePass, recordGateDisqualification } from "@/features/assessment/actions/track";
+import { recordOptinView, recordGatePass, recordGateDisqualification, recordOptinSeen } from "@/features/assessment/actions/track";
 import { gateFlagKey, readGateRejection, writeGateRejection } from "@/lib/gate-flag";
 import { firstStep, afterGateStep, type EntryInput } from "@/features/assessment/flow/entry";
 import { getResultForPages, type PageResultData } from "@/features/assessment/actions/pages";
@@ -462,6 +462,20 @@ export function AssessmentRunner({
     if (!vid) return; // no first-party id → nothing Meta could match on later
     void recordGatePass(assessment.slug, vid, attribution).catch(() => {});
   }
+
+  // Reaching the opt-in form is recorded while the page is alive and well, not
+  // inferred from the departure beacon below. A beacon can be lost - JS blocked, the
+  // browser killed - and a lost beacon would file someone who saw the ask and refused
+  // it as someone who never saw it, which is the one distinction these two events
+  // exist to make.
+  const optinSeenRef = useRef(false);
+  useEffect(() => {
+    if (preview || step !== "leadForm" || optinSeenRef.current) return;
+    optinSeenRef.current = true;
+    const vid = getOrCreateExternalId();
+    if (!vid) return;
+    void recordOptinSeen(assessment.slug, vid).catch(() => {});
+  }, [preview, step, assessment.slug]);
 
   // Leaving the opt-in page without opting in → fire AssessmentAbandoned NOW.
   //
