@@ -463,6 +463,53 @@ export function AssessmentRunner({
     void recordGatePass(assessment.slug, vid, attribution).catch(() => {});
   }
 
+  // Leaving the opt-in page without opting in → fire AssessmentAbandoned NOW.
+  //
+  // This is the moment the funnel loses someone it already qualified, and until now
+  // the only trace was a GateEntry row waiting for a nightly sweep. Firing here means
+  // the retargeting audience fills while the ad is still running, not a day later.
+  //
+  // `pagehide` covers the back button, a tab close and a real navigation away.
+  // `visibilitychange` covers switching apps, which on a phone is how most people
+  // leave - and, since this form asks for a WhatsApp number, is also how some people
+  // go and fetch it. That false positive is deliberate and harmless: the event only
+  // ever fires once per visitor (a compare-and-swap on the gate row), and the ad set
+  // excludes CompleteRegistration, so the moment they come back and opt in they drop
+  // out of the retargeting audience on their own. Missing a real abandoner costs more
+  // than briefly including someone who returns.
+  //
+  // sendBeacon, not fetch: the page is being torn down and an ordinary request is
+  // routinely cancelled. Guarded by a ref so several events in one teardown (hidden
+  // then pagehide) send one beacon.
+  const abandonBeaconRef = useRef(false);
+  useEffect(() => {
+    // Only on the opt-in step, only before a submission exists (that IS the opt-in),
+    // and never in the builder preview.
+    if (preview || step !== "leadForm" || submissionId) return;
+
+    const send = () => {
+      if (abandonBeaconRef.current) return;
+      const vid = getOrCreateExternalId();
+      if (!vid) return; // no first-party id → nothing Meta could match on
+      abandonBeaconRef.current = true;
+      try {
+        const body = JSON.stringify({ slug: assessment.slug, visitorId: vid });
+        navigator.sendBeacon?.("/api/track/abandon", body);
+      } catch {
+        /* a closing page is not a place to handle errors */
+      }
+    };
+    const onHide = () => {
+      if (document.visibilityState === "hidden") send();
+    };
+
+    window.addEventListener("pagehide", send);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("pagehide", send);
+      document.removeEventListener("visibilitychange", onHide);
+    };
+  }, [preview, step, submissionId, assessment.slug]);
   // Autosave progress (debounced) so a returning unpaid respondent resumes where
   // they left off. Only while answering, only once they've picked something.
   useEffect(() => {

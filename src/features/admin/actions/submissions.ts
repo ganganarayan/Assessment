@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
 import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
 import { COMPLETION_EVENT_GATED, GATE_DISQUALIFIED_EVENT } from "@/features/assessment/schemas";
-import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
+import { bumpFunnelEventCount, uncountSubmissionFirings } from "@/lib/meta/funnel-count";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /**
@@ -35,6 +35,14 @@ export async function deleteSubmissions(ids: string[]): Promise<ActionResult> {
     scope.isSuper && scope.tenantId === null
       ? { id: { in: clean } }
       : { id: { in: clean }, tenantId: scope.tenantId };
+  // Take these submissions' Meta firings back out of the Stats tally BEFORE the rows
+  // go, because the lookup needs their assessmentId and the CAPI log rows that name
+  // them. Without this a deleted lead stays counted for ever: two deleted test
+  // submissions are why this funnel reported seven QualifiedCompletion events against
+  // five real leads, with nothing to reconcile the difference.
+  const doomed = await prisma.submission.findMany({ where, select: { id: true, assessmentId: true } });
+  await uncountSubmissionFirings(doomed);
+
   await prisma.submission.deleteMany({ where });
 
   revalidatePath("/admin/analytics/contacts");
@@ -91,6 +99,8 @@ export async function sendMetaVerdict(
     select: {
       id: true,
       tenantId: true,
+      metaQualifiedAt: true,
+      metaDisqualifiedAt: true,
       leadFirstName: true,
       leadLastName: true,
       leadEmail: true,
@@ -110,6 +120,17 @@ export async function sendMetaVerdict(
   if (!s) return { ok: false, error: "Not found." };
 
   const qualified = verdict === "QUALIFIED";
+
+  // Already sent this verdict for this submission? Stop here.
+  //
+  // The event id below is stable per (submission, verdict), so Meta collapses a repeat
+  // click into the event it already has - but the tally bumped on every click, so two
+  // clicks sent one event and reported two. The Stats page then overstated what Meta
+  // received, which is the one thing that panel exists to be truthful about. The stamp
+  // is written only after a successful send, so this never swallows the retry of a
+  // send that failed.
+  const alreadySent = qualified ? s.metaQualifiedAt : s.metaDisqualifiedAt;
+  if (alreadySent) return { ok: true };
   const outcome = await sendAndLogLifecycleCapi(
     {
       eventName: qualified ? COMPLETION_EVENT_GATED : GATE_DISQUALIFIED_EVENT,
