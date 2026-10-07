@@ -682,10 +682,20 @@ model Assessment {
   // How questions are paginated for the respondent (one page / per category / one
   // question at a time).
   questionDisplayMode QuestionDisplayMode @default(ALL)
+
+  /// Paginated modes auto-advance when a screen is fully answered, except the LAST
+  /// screen, where a Submit button stays a deliberate tap. That exception is why a
+  /// respondent can answer every question and still never see the opt-in form - they
+  /// are finished, and one unpressed button away from being a lead.
+  ///
+  /// On: answering the last question goes straight on, with no button. Off by default,
+  /// because a deliberate Submit is also the last chance to change an answer, and on a
+  /// screen holding several questions that chance is worth keeping.
+  autoAdvanceLastScreen Boolean  @default(false)
   // Explicit "next step" after the Results page. Source of truth for the flow;
   // paidMode below is kept in sync (PAYMENT => paidMode true) so existing payment,
   // event, and runner logic keeps working unchanged.
-  nextStep            NextStep            @default(DESTINATION)
+  nextStep              NextStep @default(DESTINATION)
 
   // Destination page the respondent lands on after completing (with ?t=<token>).
   // Its ORIGIN (derived on save) is what authorizes the public read endpoint's

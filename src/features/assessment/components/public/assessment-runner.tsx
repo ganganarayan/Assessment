@@ -153,6 +153,7 @@ export interface PublicAssessment {
   /** Anticipation countdown (seconds) after Submit before the destination/VSL loads. */
   vslCountdownSeconds: number;
   questionDisplayMode: "ALL" | "CATEGORY" | "SINGLE";
+  autoAdvanceLastScreen: boolean;
   paymentHeadline: string | null;
   paymentButtonLabel: string | null;
   paymentIntroText: string | null;
@@ -1708,7 +1709,10 @@ export function AssessmentRunner({
       }, 250);
       return;
     }
-    if (isLast) return;
+    // The last screen normally keeps its Submit as a deliberate tap. With the switch
+    // on it behaves like every other screen, because that exception is how someone
+    // answers everything and still never reaches the opt-in form.
+    if (isLast && !assessment.autoAdvanceLastScreen) return;
     const requiredLeft = current
       .flatMap((g) => g.qs)
       .filter((q) => q.required && !next[q.id]).length;
@@ -1716,7 +1720,10 @@ export function AssessmentRunner({
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
     setError(null);
     autoAdvanceRef.current = setTimeout(() => {
-      setScreenIndex((i) => Math.min(i + 1, lastIdx));
+      // On the last screen there is nowhere further to page to, so advancing means
+      // submitting - the same thing the button does, without the tap.
+      if (isLast) submitAnswers();
+      else setScreenIndex((i) => Math.min(i + 1, lastIdx));
     }, 250);
   };
 
