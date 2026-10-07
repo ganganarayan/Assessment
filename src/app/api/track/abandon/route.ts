@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { markAbandonDue, sweepGateAbandoned, ABANDON_GRACE_MINUTES } from "@/lib/events/abandoned";
+import { markAbandonDue, ABANDON_GRACE_MINUTES } from "@/lib/events/abandoned";
+import { scheduleAbandonSweep } from "@/lib/events/abandon-scheduler";
 import { isBotUserAgent } from "@/lib/bots";
 
 /**
@@ -53,12 +54,10 @@ export async function POST(req: Request): Promise<NextResponse> {
     // fetch.
     await markAbandonDue(entry.id);
 
-    // Clear anything whose grace period has already elapsed, piggybacking on this
-    // request so the verdict does not wait for a scheduler. Every departure from
-    // this funnel is a tick, which on a funnel with traffic is more often than any
-    // cron would run. The Railway cron stays as the guarantee for the last visitor
-    // of the night, after whom no further request arrives to do the sweeping.
-    void sweepGateAbandoned().catch(() => {});
+    // Arm the timer that takes the verdict when the grace period is up. No cron, no
+    // separate service: the app is a long-lived process and one timer serves every
+    // pending row. If a deploy kills it, ordinary traffic picks the rows up instead.
+    scheduleAbandonSweep();
 
     return NextResponse.json({ ok: true, graceMinutes: ABANDON_GRACE_MINUTES });
   } catch {

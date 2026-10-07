@@ -10,9 +10,14 @@ Everything below either shipped today or is an agreed decision for the build tha
 - **prod** = assess360.divineleads.guru, branch **main**
 - **staging** = orbitq-assess.applygitawisdom.com, branch **staging**
 - **Separate databases.** A result token that resolves on one 404s on the other. Verified today.
-- Prod last deployed **2e8cb0e**. Staging is ahead by two commits: **897fe73** (switch
-  persistence + autosave badge) and **7968993** (category bands in export/import).
-  **Those two are NOT in prod yet.**
+- As of the end of 2026-10-07, **staging and main hold the same work** and nothing is
+  waiting to be pushed. Main is at **e12b7f5**; prod was serving the merge before it and
+  was still deploying at the time of writing.
+
+> 🟡 **A second Claude session works in this repo.** Two commits late on 2026-10-07
+> (**c254442**, **958ddc5**) came from another chat, and that session also promoted to
+> main. Always `git fetch` and check `origin/main..origin/staging` before assuming a
+> push is yours to make, and read any commit you did not write before building on it.
 
 Workflow is unchanged and non-negotiable: typecheck + `npx eslint .` (NOT `next lint`),
 never a local build, commit and push to staging, verify `GET /api/version` matches the pushed
@@ -98,11 +103,21 @@ The sign-up page now reports **nothing**. That second CompleteRegistration was t
   answer time and rendered flat, no categories. A gate-only funnel finally shows its own result.
   The emailed token link renders it when `Assessment.resultLinkShowsResult` is on, decoupled
   from nextStep.
-- **Abandon timing**: the opt-in page sends a sendBeacon to /api/track/abandon, which only
-  starts a 10-minute clock. Due rows are swept by the next request to that route;
-  `npm run cron:abandoned` is a backstop nobody has scheduled yet.
-- **Workspace Dashboard** at /w/dashboard is now where /w lands, with the onboarding panel
-  (video + owner-authored steps) shown while trialing.
+- **Abandon timing, and NO CRON**: the opt-in page sends a sendBeacon to
+  /api/track/abandon, which only starts a 10-minute clock. The verdict is then taken by
+  lib/events/abandon-scheduler.ts: a single in-process timer armed by the beacon, plus a
+  once-a-minute nudge on ordinary funnel traffic that picks up anything a deploy
+  dropped. **The owner explicitly does not want a cron** - more moving parts and manual
+  work he has to remember. `scripts/sweep-abandoned.ts` and POST /api/cron/sweep-abandoned
+  still exist and still work, but nothing depends on either being scheduled. Do not
+  recommend scheduling one again.
+- **Workspace Dashboard** at /w/dashboard is now where /w lands. The onboarding panel
+  (video + owner-authored steps) sits **below the counts and the action links**, and is
+  **NOT gated on the trial** - `trialing` is false for a paying customer, a manual grant,
+  an internal workspace and a parked one, so gating on it meant the steps reached almost
+  nobody and the owner saw an empty panel in his own workspace. Visibility is now simply
+  whether any steps are authored: write them and it shows, clear every row and it hides.
+  (Both corrections came from the other session, c254442 and 958ddc5.)
 - **Result views** (resultFetchCount) only count non-bot callers now.
   `scripts/reset-result-views.ts` fixes a row that was already inflated.
 - **Transfer fidelity**: export/import now carry per-category bands in JSON (a `bands` array on
@@ -203,9 +218,9 @@ parked rule.
 - `railway run npx tsx scripts/reset-result-views.ts LB636CXGA4B9K4CL` clears 3 views caused by
   diagnostic curls against a write endpoint.
 - Delete NEXT_PUBLIC_META_PIXEL_ID, META_CAPI_ACCESS_TOKEN and META_DATASET_ID from Railway.
-- Schedule `npm run cron:abandoned` (every ~5 min) as the abandon backstop.
+- ~~Schedule a cron~~ - removed by decision; the sweep is in-process now, see above.
 - Paste the getting-started steps into super-admin Settings; the panel is empty until then.
-- Promote staging (897fe73, 7968993) to main.
+- Nothing pending to promote as of end of 2026-10-07; re-check before assuming.
 
 ---
 
