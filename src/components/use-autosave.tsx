@@ -66,7 +66,7 @@ export function useAutosave<E extends HTMLElement = HTMLElement>(opts: {
   const savingRef = useRef(false);
   const queuedRef = useRef(false);
   const timer = useRef<number | undefined>(undefined);
-  const [flash, setFlash] = useState<{ top: number; left: number; text: string; ok: boolean } | null>(
+  const [flash, setFlash] = useState<{ top: number; left: number; beside: boolean; text: string; ok: boolean } | null>(
     null,
   );
 
@@ -79,7 +79,25 @@ export function useAutosave<E extends HTMLElement = HTMLElement>(opts: {
     if (!host) return;
     const a = anchor.getBoundingClientRect();
     const h = host.getBoundingClientRect();
-    setFlash({ top: a.bottom - h.top + 4, left: a.left - h.left, text, ok });
+    // Beside the control, in the left margin - NOT underneath it.
+    //
+    // Underneath is where the help text lives, so the badge landed on top of the
+    // sentence explaining the very setting that had just been saved, and the two
+    // together read as neither. The margin is empty, which is what makes it the right
+    // place for something that appears for two seconds.
+    //
+    // Unless the margin is too narrow to hold it, which happens on a phone and in any
+    // deeply indented block - then it goes back under the control, where at worst it
+    // overlaps text rather than being cut off by the edge of the screen.
+    const gutter = a.left - h.left;
+    const roomForBadge = gutter >= 96;
+    setFlash({
+      top: roomForBadge ? a.top - h.top - 2 : a.bottom - h.top + 4,
+      left: roomForBadge ? gutter - 10 : gutter,
+      beside: roomForBadge,
+      text,
+      ok,
+    });
     window.clearTimeout(timer.current);
     // A success is a glance. An error has to stay long enough to read and act on.
     timer.current = window.setTimeout(() => setFlash(null), ok ? 2500 : 6000);
@@ -149,10 +167,10 @@ export function useAutosave<E extends HTMLElement = HTMLElement>(opts: {
         aria-live="polite"
         className={`pointer-events-none absolute z-20 flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium shadow-sm ${
           flash.ok
-            ? "border-green-600/40 bg-green-600/10 text-green-600"
-            : "border-red-500/40 bg-red-500/10 text-red-500"
+            ? "border-green-700 bg-green-600 text-white"
+            : "border-red-600 bg-red-500 text-white"
         }`}
-        style={{ top: flash.top, left: flash.left }}
+        style={{ top: flash.top, left: flash.left, transform: flash.beside ? "translateX(-100%)" : undefined }}
       >
         {flash.ok ? "✓" : "!"} {flash.text}
       </span>
