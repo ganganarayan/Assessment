@@ -22,6 +22,8 @@ import { tenantAppSettingId } from "@/lib/settings/tenant-row";
 export interface IntegrationSettingsView {
   metaPixelId: string;
   hasCapiToken: boolean;
+  /** "We don't use Meta" - the tenant's opt-out of the publish lock. */
+  metaNotUsed: boolean;
   razorpayKeyId: string;
   hasRazorpaySecret: boolean;
   hasRazorpayWebhookSecret: boolean;
@@ -55,6 +57,7 @@ export async function getIntegrationSettings(): Promise<IntegrationSettingsView>
   return {
     metaPixelId: s?.metaPixelId ?? "",
     hasCapiToken: !!s?.metaCapiTokenEnc,
+    metaNotUsed: s?.metaNotUsed ?? false,
     razorpayKeyId: s?.razorpayKeyId ?? "",
     hasRazorpaySecret: !!s?.razorpayKeySecretEnc,
     hasRazorpayWebhookSecret: !!s?.razorpayWebhookSecretEnc,
@@ -99,6 +102,29 @@ export async function updateMetaSettings(pixelId: string, capiToken: string): Pr
   };
   await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { id: tenantAppSettingId(tenantId), tenantId, ...data } });
   revalidatePath("/w/settings");
+  return { ok: true };
+}
+
+/**
+ * Save the "We don't use Meta" opt-out.
+ *
+ * Its own action, not a third argument to updateMetaSettings, because it answers a
+ * different question. The pixel fields are "here are my credentials"; this is "I am not
+ * going to give you any, and that is deliberate". Bolting it onto the credential save
+ * would mean a tenant who only wanted to tick the box had to press "Save Meta settings",
+ * which reads like saving two empty fields.
+ *
+ * Revalidates the assessments pages too: the publish lock is resolved on the server, so
+ * ticking this has to make the Publish button on an open editor come back to life.
+ */
+export async function updateMetaNotUsed(notUsed: boolean): Promise<ActionResult> {
+  const { user, tenantId } = await requireWorkspace();
+  const denied = editDenied(user);
+  if (denied) return denied;
+  const data = { metaNotUsed: notUsed };
+  await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { id: tenantAppSettingId(tenantId), tenantId, ...data } });
+  revalidatePath("/w/settings");
+  revalidatePath("/w/assessments");
   return { ok: true };
 }
 

@@ -10,6 +10,7 @@ type SaveResult = { ok: boolean; error?: string };
 type SaveMeta = (pixelId: string, capiToken: string) => Promise<SaveResult>;
 type SaveRazorpay = (keyId: string, keySecret: string, webhookSecret: string) => Promise<SaveResult>;
 type SaveVidapulse = (param: string, enabled: boolean) => Promise<SaveResult>;
+type SaveMetaNotUsed = (notUsed: boolean) => Promise<SaveResult>;
 
 /**
  * Shared Meta + Razorpay key editor. The SAVE actions are injected so the same form
@@ -22,6 +23,7 @@ export function IntegrationSettingsForm({
   saveMetaAction,
   saveRazorpayAction,
   saveVidapulseAction,
+  saveMetaNotUsedAction,
   banner,
   showMeta = true,
 }: {
@@ -29,6 +31,9 @@ export function IntegrationSettingsForm({
   saveMetaAction: SaveMeta;
   saveRazorpayAction: SaveRazorpay;
   saveVidapulseAction: SaveVidapulse;
+  /** Supplied by a TENANT scope only. The publish lock is a tenant rule, so the
+   *  platform row has no opt-out to offer and the control is simply absent there. */
+  saveMetaNotUsedAction?: SaveMetaNotUsed;
   banner?: string;
   /**
    * Whether this scope keeps its Meta pixel here.
@@ -41,6 +46,7 @@ export function IntegrationSettingsForm({
 }) {
   const [pixelId, setPixelId] = useState(initial.metaPixelId);
   const [capiToken, setCapiToken] = useState("");
+  const [metaNotUsed, setMetaNotUsed] = useState(initial.metaNotUsed);
   const [keyId, setKeyId] = useState(initial.razorpayKeyId);
   const [keySecret, setKeySecret] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
@@ -103,6 +109,49 @@ export function IntegrationSettingsForm({
         <div>
           <Button size="sm" onClick={saveMeta} disabled={pending}>Save Meta settings</Button>
         </div>
+
+        {/* The publish lock's escape hatch. Saved on change rather than behind the
+            button above: that button means "here are my credentials", and this means
+            "I am not going to give you any". Pressing Save on two empty fields to
+            express that would read like a mistake. */}
+        {saveMetaNotUsedAction ? (
+          <div className="rounded-md border p-3">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={metaNotUsed}
+                disabled={pending}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setMetaNotUsed(next);
+                  start(async () => {
+                    setMsg(null);
+                    const r = await saveMetaNotUsedAction(next);
+                    if (!r.ok) {
+                      setMetaNotUsed(!next);
+                      setMsg(r.error ?? "Something went wrong.");
+                    } else {
+                      setMsg(
+                        next
+                          ? "Saved. You can publish without a pixel."
+                          : "Saved. Publishing now needs a pixel ID and a CAPI token.",
+                      );
+                    }
+                  });
+                }}
+              />
+              <span>
+                <span className="font-medium">We don&apos;t use Meta</span>
+                <span className="block text-[var(--muted-foreground)]">
+                  Leave this unticked and you cannot publish a funnel until both fields above are filled in.
+                  That is on purpose: a published funnel with no pixel collects leads and reports nothing to
+                  your ad account, which looks exactly like a funnel that is not working.
+                </span>
+              </span>
+            </label>
+          </div>
+        ) : null}
       </div>
       ) : null}
 

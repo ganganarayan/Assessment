@@ -28,6 +28,7 @@ import { type BlockType, normalizePages, readPublishedPages } from "@/features/a
 import { Badge } from "@/components/ui/badge";
 import { tenantOnly } from "@/lib/tenant/scope";
 import { readMetaEvents } from "@/features/assessment/meta-events";
+import { metaPublishBlock } from "@/lib/meta/publish-lock";
 
 export const dynamic = "force-dynamic";
 
@@ -36,13 +37,17 @@ export default async function WorkspaceEditAssessmentPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { tenantId } = await requireWorkspace();
+  const { tenantId, impersonating } = await requireWorkspace();
   const { id } = await params;
   const a = await getAssessmentById(id);
   // Ownership gate: the assessment must belong to THIS workspace's tenant.
   if (!a || a.tenantId !== tenantId) notFound();
   if (!(await currentUserCanEdit())) redirect("/w/assessments");
   const promptVersions = (await listPromptVersions(tenantId)).map((v) => ({ id: v.id, label: v.label }));
+  // The Meta publish lock, resolved for the button and the warning. A super admin who
+  // has entered this workspace is exempt, exactly as the action is, so the screen never
+  // shows a rule that would not actually fire.
+  const publishBlock = impersonating ? null : await metaPublishBlock(tenantId);
 
   const initial: AssessmentFormValues = {
     title: a.title,
@@ -318,7 +323,13 @@ export default async function WorkspaceEditAssessmentPage({
             <h1 className="text-2xl font-bold tracking-tight">{a.title}</h1>
             <Badge variant={a.status === "PUBLISHED" ? "success" : "muted"}>{a.status}</Badge>
           </div>
-          <WorkspaceAssessmentActions id={a.id} slug={a.slug} title={a.title} published={a.status === "PUBLISHED"} />
+          <WorkspaceAssessmentActions
+            id={a.id}
+            slug={a.slug}
+            title={a.title}
+            published={a.status === "PUBLISHED"}
+            publishBlock={publishBlock}
+          />
         </div>
         <p className="text-xs text-[var(--muted-foreground)]">
           Public URL: <span className="font-mono">/a/{a.slug}</span>

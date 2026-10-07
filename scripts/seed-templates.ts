@@ -12,9 +12,17 @@
  * Never destructive: it upserts by slug and leaves `published` and `displayOrder` alone
  * on rows that already exist.
  */
-import { seedBuiltinTemplates } from "../src/features/templates/seed";
 
 async function main() {
+  // `--public` routes through Railway's public Postgres proxy, for running this from a
+  // laptop against the deployed database. Opt-in and dynamic, because at BOOT this same
+  // script runs INSIDE Railway, where the internal host is correct and free - importing
+  // the shim unconditionally would send every deploy's seed through billed egress. Both
+  // imports are dynamic and in this order: the shim rewrites DATABASE_URL, and Prisma
+  // reads it when the client is constructed, so it has to run first.
+  if (process.argv.includes("--public")) await import("./public-db-url");
+  const { seedBuiltinTemplates } = await import("../src/features/templates/seed");
+
   const r = await seedBuiltinTemplates();
   console.log(`Templates seeded: ${r.created} created, ${r.updated} updated.`);
   for (const f of r.failed) console.log(`  FAILED  ${f.slug}: ${f.error}`);

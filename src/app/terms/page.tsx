@@ -89,7 +89,24 @@ export default async function TermsPage() {
         needed to host and process Your Content to run the Service.
       </P>
 
-      <H2>6. Third-party services</H2>
+      <H2>6. Templates you contribute</H2>
+      <P>
+        You may save an assessment as a template for your own workspace, or offer it to our shared
+        template library. A template you keep private stays private. A template you contribute is
+        reviewed before anyone else can see it, and by contributing it you grant us a
+        non-exclusive, worldwide, royalty-free licence to publish it in the library, and to let
+        other customers import and adapt it. You confirm that the content is yours to share and
+        that it contains no personal data of your respondents, no client-confidential material and
+        nothing that infringes anyone else&rsquo;s rights. We may edit, decline, unpublish or remove
+        a contributed template at any time. You keep ownership of the underlying work.
+      </P>
+      <P>
+        Rewards for accepted contributions are at the platform&rsquo;s sole discretion. They are
+        granted as an extension of your credit period, never as a payment or refund, and are limited
+        to one accepted contribution per workspace per calendar month.
+      </P>
+
+      <H2>7. Third-party services</H2>
       <P>
         The Service integrates optional third parties you choose to enable - for example a payment
         processor (Razorpay), advertising and analytics tools (Meta), and AI providers (OpenAI,
@@ -97,13 +114,13 @@ export default async function TermsPage() {
         the keys and accounts you connect.
       </P>
 
-      <H2>7. Intellectual property</H2>
+      <H2>8. Intellectual property</H2>
       <P>
         The Service, including its software, design and trademarks, is owned by {c.entityName} and
         its licensors. These Terms grant you no rights in it except the right to use it per your plan.
       </P>
 
-      <H2>8. Disclaimers &amp; limitation of liability</H2>
+      <H2>9. Disclaimers &amp; limitation of liability</H2>
       <P>
         The Service is provided &ldquo;as is&rdquo; without warranties of any kind to the extent
         permitted by law. To the maximum extent permitted by law, our total liability arising out of
@@ -111,26 +128,26 @@ export default async function TermsPage() {
         the event giving rise to the claim. We are not liable for indirect or consequential losses.
       </P>
 
-      <H2>9. Termination</H2>
+      <H2>10. Termination</H2>
       <P>
         You may stop using the Service and cancel at any time. We may suspend or terminate access for
         breach of these Terms or to comply with law. On termination, your right to use the Service
         ends; provisions that by their nature should survive will survive.
       </P>
 
-      <H2>10. Governing law &amp; jurisdiction</H2>
+      <H2>11. Governing law &amp; jurisdiction</H2>
       <P>
         These Terms are governed by the laws of India. The courts at {c.governingLocation} shall have
         exclusive jurisdiction over any dispute, subject to applicable law.
       </P>
 
-      <H2>11. Changes</H2>
+      <H2>12. Changes</H2>
       <P>
         We may update these Terms from time to time. Material changes will be notified through the
         Service or by email. Continued use after changes take effect means you accept them.
       </P>
 
-      <H2>12. Contact</H2>
+      <H2>13. Contact</H2>
       <P>
         {c.entityName}, {c.address}. Questions about these Terms:{" "}
         <a href={`mailto:${email}`}>{email}</a>.

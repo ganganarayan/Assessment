@@ -1980,6 +1980,17 @@ model AppSetting {
   metaPixelId      String?
   metaCapiTokenEnc String?
 
+  /// "We don't use Meta" - the tenant's explicit opt-out of the publish lock.
+  ///
+  /// Publishing needs a pixel AND a CAPI token, or this. A funnel published with
+  /// neither collects leads and reports nothing, which to the person paying for the
+  /// traffic is indistinguishable from a broken product.
+  ///
+  /// It is a flag rather than an inference because "no pixel" has two meanings that
+  /// deserve different outcomes: "we do not advertise on Meta" is fine, and "we have
+  /// not set it up yet" is the mistake. Only the tenant can say which one it is.
+  metaNotUsed Boolean @default(false)
+
   // Platform / app SUBSCRIPTION funnel pixel - a SEPARATE Meta pixel for Assess360's
   // own SaaS funnel: landing PageView, free-signup CompleteRegistration, and the
   // subscription Purchase. Distinct from metaPixelId above (which is the Gita
