@@ -58,8 +58,8 @@ export async function updatePlatformVidapulseSettings(param: string, enabled: bo
 }
 
 /**
- * Save (or clear) the onboarding video every tenant sees on their dashboard during
- * trial (singleton row).
+ * Save (or clear) the onboarding video every tenant sees on their dashboard
+ * (singleton row).
  *
  * Platform-wide and super-admin only: it explains Assess360 itself, so one video serves
  * every workspace and no tenant sets their own. Blank clears it, and the written steps
@@ -85,7 +85,7 @@ export async function updatePlatformOnboardingVideo(url: string): Promise<Action
 }
 
 /**
- * Save the getting-started steps every tenant sees on their dashboard during trial.
+ * Save the getting-started steps every tenant sees on their dashboard.
  *
  * Blank entries are dropped rather than stored: the editor autosaves, so a half-typed
  * row would otherwise be written and shown to a customer mid-sentence. Capped at 20,

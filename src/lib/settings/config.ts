@@ -284,7 +284,7 @@ export async function resolveRazorpayConfig(tenantId: string | null): Promise<Ra
 }
 
 /**
- * The onboarding video shown to a tenant during trial. Platform-wide: it explains
+ * The onboarding video shown on a tenant dashboard. Platform-wide: it explains
  * Assess360 itself, so it lives on the singleton row and every workspace sees the same
  * one. Null/blank means the written steps appear on their own, which is deliberate - the
  * steps are the instruction and the video is the nicety.
@@ -295,7 +295,7 @@ export async function resolveOnboardingVideoUrl(): Promise<string | null> {
 }
 
 /**
- * The getting-started steps shown to every tenant during trial, in order.
+ * The getting-started steps shown on every tenant dashboard, in order.
  *
  * NEVER throws and never returns junk: a malformed value, a non-array, or entries that
  * are not strings all degrade to an empty list, because this renders on the first screen

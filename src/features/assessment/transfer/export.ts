@@ -16,6 +16,7 @@ async function buildAssessmentBody(
       categories: {
         orderBy: { displayOrder: "asc" },
         include: {
+          bands: { orderBy: { displayOrder: "asc" } },
           questions: {
             orderBy: { displayOrder: "asc" },
             include: { options: { orderBy: { displayOrder: "asc" } } },
@@ -110,6 +111,21 @@ async function buildAssessmentBody(
       description: c.description,
       displayOrder: ci,
       page: c.page,
+      // The interpretation text per band. Without this an export scored and explained
+      // nothing, and the gap was invisible until an imported assessment ran.
+      // Omitted when empty, so an assessment with no category bands exports exactly
+      // what it always did.
+      ...(c.bands.length
+        ? {
+            bands: c.bands.map((b, bi) => ({
+              label: b.label,
+              meaning: b.meaning,
+              minScore: b.minScore,
+              maxScore: b.maxScore,
+              displayOrder: bi,
+            })),
+          }
+        : {}),
       questions: c.questions.map((q, qi) => ({
         text: q.text,
         type: "SINGLE_SELECT" as const,

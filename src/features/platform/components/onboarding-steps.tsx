@@ -3,9 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 /**
  * What a new workspace has to do, in the order it has to be done.
  *
- * Shown on the first screen for the length of the trial. The video is optional and the
- * steps are not: a video nobody has recorded yet must never be the only instruction, so
- * the written sequence stands alone and the video sits above it when there is one.
+ * Shown on the first screen of every workspace for as long as the platform owner keeps
+ * steps authored - clearing the list in Settings is what takes it away. The video is
+ * optional and the steps are not: a video nobody has recorded yet must never be the only
+ * instruction, so the written sequence stands alone and the video sits above it when
+ * there is one.
  *
  * Step 1 is the Meta pixel because nothing downstream reports anything without it. A
  * funnel built before the pixel is set collects leads and tells the ad account nothing,
@@ -19,9 +21,7 @@ export function OnboardingSteps({ videoUrl, steps }: { videoUrl: string | null; 
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-lg">Start here</CardTitle>
-        <p className="text-sm text-[var(--muted-foreground)]">
-          What to do first. This panel goes away when your trial ends.
-        </p>
+        <p className="text-sm text-[var(--muted-foreground)]">What to do first, in order.</p>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         {videoUrl ? (

@@ -147,6 +147,23 @@ export function bodiesToCsv(bodies: AssessmentBodyExport[]): string {
           category_page: c.page ?? 1,
         }),
       );
+      // What a score in each range MEANS for this category. Emitted as its own row
+      // type, like the assessment-level bands, because the CSV is one row per thing
+      // and a category can have several. Omitted entirely by older files.
+      (c.bands ?? []).forEach((b, bi) => {
+        rows.push(
+          rowFrom({
+            assessment_slug: a.slug,
+            row_type: "CATEGORY_BAND",
+            category_index: ci,
+            band_index: bi,
+            band_title: b.label,
+            band_description: b.meaning ?? "",
+            band_min: b.minScore,
+            band_max: b.maxScore,
+          }),
+        );
+      });
       c.questions.forEach((q, qi) => {
         rows.push(
           rowFrom({
@@ -231,7 +248,14 @@ interface AccCategory {
   name: string;
   description: string | null;
   page: number;
+  bands: AccCategoryBand[];
   questions: AccQuestion[];
+}
+interface AccCategoryBand {
+  label: string;
+  meaning: string | null;
+  minScore: number;
+  maxScore: number;
 }
 interface AccBand {
   level: AssessmentBodyExport["resultBands"][number]["level"];
@@ -315,7 +339,7 @@ export function csvToDocument(
   };
   const ensureCat = (acc: Acc, ci: number): AccCategory => {
     if (!acc.categories[ci]) {
-      acc.categories[ci] = { name: "", description: null, page: 1, questions: [] };
+      acc.categories[ci] = { name: "", description: null, page: 1, bands: [], questions: [] };
     }
     return acc.categories[ci];
   };
@@ -377,6 +401,15 @@ export function csvToDocument(
       c.description = emptyToNull(cell(row, "category_description"));
       const p = toInt(cell(row, "category_page"));
       c.page = p === 2 ? 2 : 1;
+    } else if (type === "CATEGORY_BAND") {
+      recognized += 1;
+      const c = ensureCat(acc, toInt(cell(row, "category_index")));
+      c.bands[toInt(cell(row, "band_index"))] = {
+        label: cell(row, "band_title"),
+        meaning: emptyToNull(cell(row, "band_description")),
+        minScore: toNum(cell(row, "band_min")),
+        maxScore: toNum(cell(row, "band_max")),
+      };
     } else if (type === "QUESTION") {
       recognized += 1;
       const c = ensureCat(acc, toInt(cell(row, "category_index")));
@@ -440,6 +473,20 @@ export function csvToDocument(
       description: c.description,
       displayOrder: ci,
       ...(c.page === 2 ? { page: 2 } : {}),
+      // Omitted when there are none, like `page` above: a file with no category bands
+      // must round-trip to exactly what it was, or every old export starts differing
+      // from itself for the sake of an empty array.
+      ...(compact(c.bands).length
+        ? {
+            bands: compact(c.bands).map((b, bi) => ({
+              label: b.label,
+              meaning: b.meaning,
+              minScore: b.minScore,
+              maxScore: b.maxScore,
+              displayOrder: bi,
+            })),
+          }
+        : {}),
       questions: compact(c.questions).map((q, qi) => ({
         text: q.text,
         type: "SINGLE_SELECT" as const,

@@ -182,10 +182,10 @@ export default async function SettingsPage() {
           <CardHeader>
             <CardTitle>Onboarding video placeholder</CardTitle>
             <CardDescription>
-              Shown to EVERY tenant on their dashboard while they are in trial, above the
-              written getting-started steps. One video for the whole platform, because it
-              explains Assess360 rather than any one workspace. Leave it blank until you have
-              recorded one - the steps work on their own.
+              Shown to EVERY tenant on their dashboard, above the written getting-started
+              steps. One video for the whole platform, because it explains Assess360 rather
+              than any one workspace. Leave it blank until you have recorded one - the steps
+              work on their own.
             </CardDescription>
           </CardHeader>
           <CardContent>

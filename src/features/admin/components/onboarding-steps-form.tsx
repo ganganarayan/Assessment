@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 /**
- * The getting-started steps every tenant reads on their dashboard during trial.
+ * The getting-started steps every tenant reads on their dashboard.
  *
  * Autosaves like the assessment builder, because this is a list people edit by adding a
  * row, retyping it, and reordering their thinking - a form that only saves on a button

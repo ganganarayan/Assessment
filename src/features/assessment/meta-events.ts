@@ -87,13 +87,19 @@ export function readMetaEvents(value: unknown): MetaEventFlags {
   const v = value as Record<string, unknown>;
   const out = { ...ALL_META_EVENTS };
   for (const k of META_EVENT_KEYS) {
-    // Only an explicit `false` turns one off. A missing key, or a value of some other
-    // type, stays on - so a partial or hand-edited object can never silently mute an
-    // event that is feeding a live audience.
+    // An explicit boolean always wins, either way.
+    //
+    // Reading `true` back used to be impossible for a DEFAULT_OFF event: the result
+    // started from ALL_META_EVENTS, where those keys are false, and nothing ever set
+    // one to true again. So the box could be ticked and saved and still came back
+    // unticked, over and over, with the stored value sitting there saying true.
     if (v[k] === false) out[k] = false;
-    // A brand new event stays off until it is explicitly switched on - the
-    // missing-key-means-on rule protects old audiences, not new ones.
-    else if (DEFAULT_OFF.has(k) && v[k] !== true) out[k] = false;
+    else if (v[k] === true) out[k] = true;
+    // No stored value: an established event stays ON, so a partial or hand-edited
+    // object can never silently mute one that is feeding a live audience. A brand new
+    // event stays OFF, because nothing can depend on it yet and switching it on for
+    // every funnel at once is not ours to do.
+    else if (DEFAULT_OFF.has(k)) out[k] = false;
   }
   return out;
 }
