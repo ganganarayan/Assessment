@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
-import { sweepAbandoned } from "@/lib/events/abandoned";
+import { sweepAbandoned, sweepGateAbandoned } from "@/lib/events/abandoned";
 import { sweepCompletedUnpaid } from "@/lib/events/unpaid";
 
 /**
- * Sweep trigger (HTTP). Protected by CRON_SECRET. Runs BOTH sweeps:
+ * Sweep trigger (HTTP). Protected by CRON_SECRET. Runs the same sweeps as the script:
  *   - abandoned (started, never completed past the delay)
  *   - completed_unpaid (completed, no payment after 30 min)
+ *   - gate abandoned (passed the page-1 gate, never opted in -> Meta
+ *     AssessmentAbandoned / GateIncomplete for retargeting)
+ *
+ * The gate sweep was missing here while the script had it, so scheduling by URL
+ * instead of by Railway Cron silently produced no retargeting events at all - the
+ * endpoint answered ok, the audience stayed empty, and nothing said why. Two
+ * entrypoints to the same job have to do the same job.
  *   POST /api/cron/sweep-abandoned   Authorization: Bearer <CRON_SECRET>
  *
  * Primary scheduling is Railway Cron running `scripts/sweep-abandoned.ts`. Run it
@@ -21,6 +28,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [abandoned, unpaid] = await Promise.all([sweepAbandoned(), sweepCompletedUnpaid()]);
-  return NextResponse.json({ ok: true, abandoned, unpaid });
+  const [abandoned, unpaid, gate] = await Promise.all([
+    sweepAbandoned(),
+    sweepCompletedUnpaid(),
+    sweepGateAbandoned(),
+  ]);
+  return NextResponse.json({ ok: true, abandoned, unpaid, gate });
 }
