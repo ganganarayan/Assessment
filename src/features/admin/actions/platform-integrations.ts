@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin, editDenied } from "@/lib/auth/guards";
 import { env } from "@/lib/env";
@@ -79,6 +80,29 @@ export async function updatePlatformOnboardingVideo(url: string): Promise<Action
   await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
   revalidatePath("/admin/settings");
   // Every tenant dashboard shows it, so they all go stale at once.
+  revalidatePath("/w/dashboard");
+  return { ok: true };
+}
+
+/**
+ * Save the getting-started steps every tenant sees on their dashboard during trial.
+ *
+ * Blank entries are dropped rather than stored: the editor autosaves, so a half-typed
+ * row would otherwise be written and shown to a customer mid-sentence. Capped at 20,
+ * because a getting-started list that long is not one anybody follows.
+ */
+export async function updatePlatformOnboardingSteps(steps: string[]): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  const clean = (steps ?? [])
+    .filter((v) => typeof v === "string")
+    .map((v) => v.trim().slice(0, 500))
+    .filter(Boolean)
+    .slice(0, 20);
+  const data = { onboardingSteps: clean as unknown as Prisma.InputJsonValue };
+  await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
+  revalidatePath("/admin/settings");
+  // Every tenant dashboard shows the same list, so they all go stale together.
   revalidatePath("/w/dashboard");
   return { ok: true };
 }

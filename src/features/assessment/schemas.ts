@@ -278,6 +278,7 @@ export const assessmentSchema = z.object({
   // How the questions are paginated for the respondent.
   questionDisplayMode: z.enum(["ALL", "CATEGORY", "SINGLE"]).default("ALL"),
   autoAdvanceLastScreen: z.boolean().default(false),
+  resultLinkShowsResult: z.boolean().default(false),
   // Scoring/result engine. GENERIC = the built-in category-weight scorer.
   // CLINIC_AUDIT = the data-driven patient-acquisition funnel engine.
   engine: z.enum(["GENERIC", "CLINIC_AUDIT"]).default("GENERIC"),

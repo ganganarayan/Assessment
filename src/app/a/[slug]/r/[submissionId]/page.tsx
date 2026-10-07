@@ -162,6 +162,7 @@ export default async function ResultPage({
           title: true,
           targetUrl: true,
           nextStep: true,
+          resultLinkShowsResult: true,
           resultsContinueUrl: true,
           resultsContinueLabel: true,
           useAiStatement: true,
@@ -599,11 +600,19 @@ export default async function ResultPage({
     );
   }
 
-  // ---- Respondent results IN-PLATFORM (nextStep RESULTS) -------------------
-  // Only when the assessment is set to show results here AND the caller holds the
-  // result token (same capability that gates the VSL link), or is the admin.
+  // ---- Respondent results IN-PLATFORM --------------------------------------
+  // Shown when the caller holds the result token (the same capability that gates the
+  // VSL link), or is the admin, AND the assessment is willing to show a result here.
+  //
+  // Willing means either nextStep RESULTS - the funnel ends on the result - or the
+  // result-link switch, which covers the funnel that ends somewhere else entirely and
+  // has its results emailed afterwards. Those two were one condition, so a funnel
+  // ending at a signup page could never show a respondent a result it had already
+  // scored and stored; the link just landed on "your assessment has been recorded".
+  const resultsViewableHere =
+    submission.assessment.nextStep === "RESULTS" || submission.assessment.resultLinkShowsResult;
   if (
-    submission.assessment.nextStep === "RESULTS" &&
+    resultsViewableHere &&
     submission.status === "COMPLETED" &&
     snap &&
     (canViewInternally || (!!token && token === submission.resultToken))

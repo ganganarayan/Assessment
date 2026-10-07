@@ -293,3 +293,24 @@ export async function resolveOnboardingVideoUrl(): Promise<string | null> {
   const s = (await settingRow(null, { onboardingVideoUrl: true })) as { onboardingVideoUrl: string | null } | null;
   return s?.onboardingVideoUrl?.trim() || null;
 }
+
+/**
+ * The getting-started steps shown to every tenant during trial, in order.
+ *
+ * NEVER throws and never returns junk: a malformed value, a non-array, or entries that
+ * are not strings all degrade to an empty list, because this renders on the first screen
+ * a paying customer ever sees and a crash there is worse than no panel.
+ *
+ * Blank entries are dropped - an empty numbered row reads as a step somebody forgot to
+ * write, which is exactly the impression a getting-started panel must not give.
+ */
+export async function resolveOnboardingSteps(): Promise<string[]> {
+  const row = (await settingRow(null, { onboardingSteps: true })) as { onboardingSteps: unknown } | null;
+  const raw = row?.onboardingSteps;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((v): v is string => typeof v === "string")
+    .map((v) => v.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+}
