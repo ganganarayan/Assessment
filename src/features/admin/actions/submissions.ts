@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
-import { COMPLETION_EVENT_GATED, GATE_DISQUALIFIED_EVENT } from "@/features/assessment/schemas";
+import { COMPLETION_EVENT_GATED, GATE_DISQUALIFIED_EVENT, START_TRIAL_EVENT } from "@/features/assessment/schemas";
 import { bumpFunnelEventCount, uncountSubmissionFirings } from "@/lib/meta/funnel-count";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
@@ -83,7 +83,7 @@ export async function deleteSubmissions(ids: string[]): Promise<ActionResult> {
  */
 export async function sendMetaVerdict(
   submissionId: string,
-  verdict: "QUALIFIED" | "DISQUALIFIED",
+  verdict: "QUALIFIED" | "DISQUALIFIED" | "STARTED_TRIAL",
 ): Promise<ActionResult> {
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
@@ -101,6 +101,7 @@ export async function sendMetaVerdict(
       tenantId: true,
       metaQualifiedAt: true,
       metaDisqualifiedAt: true,
+      metaStartTrialAt: true,
       leadFirstName: true,
       leadLastName: true,
       leadEmail: true,
@@ -120,6 +121,14 @@ export async function sendMetaVerdict(
   if (!s) return { ok: false, error: "Not found." };
 
   const qualified = verdict === "QUALIFIED";
+  // StartTrial, sent by hand for someone who actually went on to use the trial - a
+  // judgement no funnel event can make, which is why it is a button and not automatic.
+  const startedTrial = verdict === "STARTED_TRIAL";
+  const eventName = startedTrial
+    ? START_TRIAL_EVENT
+    : qualified
+      ? COMPLETION_EVENT_GATED
+      : GATE_DISQUALIFIED_EVENT;
 
   // Already sent this verdict for this submission? Stop here.
   //
@@ -129,11 +138,11 @@ export async function sendMetaVerdict(
   // received, which is the one thing that panel exists to be truthful about. The stamp
   // is written only after a successful send, so this never swallows the retry of a
   // send that failed.
-  const alreadySent = qualified ? s.metaQualifiedAt : s.metaDisqualifiedAt;
+  const alreadySent = startedTrial ? s.metaStartTrialAt : qualified ? s.metaQualifiedAt : s.metaDisqualifiedAt;
   if (alreadySent) return { ok: true };
   const outcome = await sendAndLogLifecycleCapi(
     {
-      eventName: qualified ? COMPLETION_EVENT_GATED : GATE_DISQUALIFIED_EVENT,
+      eventName,
       eventId: `meta-review:${verdict.toLowerCase()}:${s.id}`,
       eventTimeMs: Date.now(),
       eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${s.assessment.slug}`,
@@ -166,7 +175,7 @@ export async function sendMetaVerdict(
   await bumpFunnelEventCount({
     assessmentId: s.assessment.id,
     tenantId: s.tenantId,
-    eventName: qualified ? COMPLETION_EVENT_GATED : GATE_DISQUALIFIED_EVENT,
+    eventName,
     ok: outcome.ok,
   });
 
@@ -176,7 +185,11 @@ export async function sendMetaVerdict(
 
   await prisma.submission.update({
     where: { id: s.id },
-    data: qualified ? { metaQualifiedAt: new Date() } : { metaDisqualifiedAt: new Date() },
+    data: startedTrial
+      ? { metaStartTrialAt: new Date() }
+      : qualified
+        ? { metaQualifiedAt: new Date() }
+        : { metaDisqualifiedAt: new Date() },
   });
 
   revalidatePath("/admin/submissions");

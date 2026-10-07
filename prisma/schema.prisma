@@ -1275,6 +1275,11 @@ model Submission {
   // answers, which never auto-qualify. Stamps exist so a reviewed row is visibly
   // different from an untouched one; re-clicking is allowed and re-stamps.
   metaQualifiedAt    DateTime?
+  /// Set when StartTrial was reported for this lead by hand. The owner clicks it when
+  /// someone actually starts using the trial, which is a judgement no funnel event can
+  /// make. Stamped only on a successful send, and checked before sending, so a second
+  /// click reports nothing and the trial audience cannot be inflated by clicking twice.
+  metaStartTrialAt   DateTime?
   metaDisqualifiedAt DateTime?
   // Paid-mode pipeline guards (compare-and-swap so each event fires once):
   completedPaidAt    DateTime? // set when completed_paid fired (payment verified)

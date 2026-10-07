@@ -120,6 +120,7 @@ export default async function SubmissionsPage({
       vslLoads: s.resultFetchCount,
       ctaClickedAt: s.ctaClickedAt?.toISOString() ?? null,
       metaQualifiedAt: s.metaQualifiedAt?.toISOString() ?? null,
+      metaStartTrialAt: s.metaStartTrialAt?.toISOString() ?? null,
       metaDisqualifiedAt: s.metaDisqualifiedAt?.toISOString() ?? null,
       deviceType: s.deviceType,
       browser: s.browser,

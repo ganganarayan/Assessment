@@ -28,16 +28,18 @@ function MetaVerdictCell({
   submissionId,
   qualifiedAt,
   disqualifiedAt,
+  startTrialAt,
 }: {
   submissionId: string;
   qualifiedAt: string | null;
   disqualifiedAt: string | null;
+  startTrialAt: string | null;
 }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<"QUALIFIED" | "DISQUALIFIED" | null>(null);
+  const [busy, setBusy] = useState<"QUALIFIED" | "DISQUALIFIED" | "STARTED_TRIAL" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function fire(verdict: "QUALIFIED" | "DISQUALIFIED") {
+  async function fire(verdict: "QUALIFIED" | "DISQUALIFIED" | "STARTED_TRIAL") {
     setBusy(verdict);
     setError(null);
     const res = await sendMetaVerdict(submissionId, verdict);
@@ -69,9 +71,27 @@ function MetaVerdictCell({
       >
         {busy === "DISQUALIFIED" ? "Sending…" : "Disqualify"}
       </Button>
+      {/* Deliberately a button, not an automatic event: whether someone has really
+          started using the trial is a judgement, and the owner is the only one who can
+          make it. Disabled once sent, so the trial audience cannot be inflated by
+          clicking twice. */}
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-6 w-full px-2 text-[11px]"
+        disabled={busy !== null || !!startTrialAt}
+        onClick={() => fire("STARTED_TRIAL")}
+      >
+        {busy === "STARTED_TRIAL" ? "Sending…" : "Started trial"}
+      </Button>
       {qualifiedAt ? (
         <span className="text-[10px] text-green-600" title={formatIST(qualifiedAt)}>
           ✓ qualified
+        </span>
+      ) : null}
+      {startTrialAt ? (
+        <span className="text-[10px] text-green-600" title={formatIST(startTrialAt)}>
+          ✓ started trial
         </span>
       ) : null}
       {disqualifiedAt ? (
@@ -158,6 +178,7 @@ export interface SubmissionRow {
   ctaClickedAt: string | null;
   /** Manual Meta review stamps - ISO strings, null until the owner fires one. */
   metaQualifiedAt: string | null;
+  metaStartTrialAt: string | null;
   metaDisqualifiedAt: string | null;
   deviceType: string | null;
   browser: string | null;
@@ -686,6 +707,7 @@ export function SubmissionsTable({
                         submissionId={s.id}
                         qualifiedAt={s.metaQualifiedAt}
                         disqualifiedAt={s.metaDisqualifiedAt}
+                        startTrialAt={s.metaStartTrialAt}
                       />
                     </td>
                     {/* Device */}
