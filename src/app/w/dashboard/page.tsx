@@ -2,7 +2,6 @@ import Link from "next/link";
 import { requireWorkspace } from "@/lib/auth/guards";
 import { getDashboardCounts } from "@/features/assessment/data";
 import { tenantOnly } from "@/lib/tenant/scope";
-import { resolvePlan } from "@/lib/billing/entitlements";
 import { resolveOnboardingVideoUrl, resolveOnboardingSteps } from "@/lib/settings/config";
 import { OnboardingSteps } from "@/features/platform/components/onboarding-steps";
 import { buttonVariants } from "@/components/ui/button";
@@ -16,16 +15,23 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
  * started paying attention to. A first screen that is empty by definition on day one is
  * the worst place to put someone who is deciding whether this works.
  *
- * So the getting-started panel lives here, above the counts, for the length of the
- * trial. After that this is a normal dashboard and the panel is gone.
+ * So the getting-started panel lives here, above the counts.
+ *
+ * It is NOT gated on the trial. It used to be, and that was wrong: `trialing` is false
+ * for an internal/unlimited workspace, for one on a manual grant, for a paying customer
+ * and for a parked one - so the steps the owner wrote were invisible to nearly everyone
+ * including the owner testing their own tenant, and looked like a bug in the editor.
+ *
+ * Whether the panel shows is the OWNER'S switch, not a side effect of billing state:
+ * steps authored means shown, all rows cleared means gone, which is exactly what the
+ * editor in Settings tells them.
  */
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceDashboardPage() {
   const { tenantId } = await requireWorkspace();
-  const [counts, resolved, onboardingVideoUrl, onboardingSteps] = await Promise.all([
+  const [counts, onboardingVideoUrl, onboardingSteps] = await Promise.all([
     getDashboardCounts(tenantOnly(tenantId)),
-    resolvePlan(tenantId),
     resolveOnboardingVideoUrl(),
     resolveOnboardingSteps(),
   ]);
@@ -39,9 +45,7 @@ export default async function WorkspaceDashboardPage() {
         </Link>
       </div>
 
-      {resolved.trialing ? (
-        <OnboardingSteps videoUrl={onboardingVideoUrl} steps={onboardingSteps} />
-      ) : null}
+      <OnboardingSteps videoUrl={onboardingVideoUrl} steps={onboardingSteps} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Stat label="Assessments" value={counts.assessments} />
