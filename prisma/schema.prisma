@@ -700,7 +700,19 @@ model Assessment {
   /// On: answering the last question goes straight on, with no button. Off by default,
   /// because a deliberate Submit is also the last chance to change an answer, and on a
   /// screen holding several questions that chance is worth keeping.
-  autoAdvanceLastScreen Boolean  @default(false)
+  autoAdvanceLastScreen Boolean @default(false)
+
+  /// Whether the result TOKEN link renders the result page, whatever the funnel's next
+  /// step is.
+  ///
+  /// These were tangled: a result could only be seen in-platform when nextStep was
+  /// RESULTS, which conflated "where the funnel sends people automatically" with "what a
+  /// link I email later will show". A funnel that ends at a signup page could therefore
+  /// never show a respondent their own result, even though it had been scored and stored.
+  ///
+  /// Off by default. The token is already in the respondent's destination URL, so turning
+  /// this on for a funnel that deliberately withholds results would start handing them out.
+  resultLinkShowsResult Boolean  @default(false)
   // Explicit "next step" after the Results page. Source of truth for the flow;
   // paidMode below is kept in sync (PAYMENT => paidMode true) so existing payment,
   // event, and runner logic keeps working unchanged.
@@ -1975,7 +1987,16 @@ model AppSetting {
   /// Platform-wide (set once by the super admin), because it explains Assess360 rather
   /// than anything about one workspace. Blank = the written steps appear on their own,
   /// which is the point: the steps are the instruction, the video is the nicety.
-  onboardingVideoUrl   String?
+  onboardingVideoUrl String?
+
+  /// The getting-started steps every tenant sees on their dashboard during trial, in
+  /// order. Shape: ["first step", "second step", ...].
+  ///
+  /// Authored by the platform owner rather than hardcoded, because the right first
+  /// steps change as the product does, and a sequence that has drifted out of date
+  /// teaches a new customer the wrong thing on the one day they are paying attention.
+  /// Empty/absent means no panel at all - an empty instruction list is worse than none.
+  onboardingSteps      Json?
   platformCapiTokenEnc String?
 
   // Per-tenant Razorpay config (all ENCRYPTED except the public key id). null on the

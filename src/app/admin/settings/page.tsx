@@ -25,7 +25,8 @@ import {
 } from "@/features/admin/actions/platform-integrations";
 import { PlatformPixelForm } from "@/features/admin/components/platform-pixel-form";
 import { OnboardingVideoForm } from "@/features/admin/components/onboarding-video-form";
-import { resolveOnboardingVideoUrl } from "@/lib/settings/config";
+import { OnboardingStepsForm } from "@/features/admin/components/onboarding-steps-form";
+import { resolveOnboardingVideoUrl, resolveOnboardingSteps } from "@/lib/settings/config";
 import { PaymentsMasterSwitch } from "@/features/admin/components/payments-master-switch";
 import { PlatformToggle } from "@/features/admin/components/platform-toggle";
 import { getPlatformPayments, getPlatformWaba } from "@/features/admin/actions/platform-integrations";
@@ -60,7 +61,7 @@ export default async function SettingsPage() {
   const impersonating = actingId !== null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
-  const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn, onboardingVideoUrl] = await Promise.all([
+  const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn, onboardingVideoUrl, onboardingSteps] = await Promise.all([
     impersonating ? getIntegrationSettings() : getPlatformIntegrationSettings(),
     impersonating ? getDomainSettings() : Promise.resolve(null),
     impersonating ? Promise.resolve(null) : getLegalSettings(),
@@ -70,6 +71,7 @@ export default async function SettingsPage() {
     wabaVisible(actingId),
     impersonating ? Promise.resolve(false) : getPlatformWaba(),
     impersonating ? Promise.resolve(null) : resolveOnboardingVideoUrl(),
+    impersonating ? Promise.resolve([]) : resolveOnboardingSteps(),
   ]);
 
   return (
@@ -90,11 +92,11 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Ads &amp; payments {impersonating ? "(this tenant)" : "(platform)"}</CardTitle>
+          <CardTitle>{impersonating ? "Ads & payments (this tenant)" : "Payments (platform)"}</CardTitle>
           <CardDescription>
             {impersonating
               ? "Meta Pixel + Conversions API token and Razorpay keys for the tenant you're currently in. Stored encrypted and scoped to that tenant."
-              : "The platform's Razorpay keys. The platform's Meta pixel is not here - it is the one block below, so it can only ever be entered once."}
+              : "The platform's Razorpay keys, for subscriptions."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -188,6 +190,15 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             <OnboardingVideoForm initial={onboardingVideoUrl} />
+            <div className="mt-6 border-t pt-5">
+              <p className="text-sm font-medium">Getting-started steps</p>
+              <p className="mb-3 mt-0.5 text-xs text-[var(--muted-foreground)]">
+                Shown numbered under the video on every tenant dashboard, in this order. Write
+                what a new customer should actually do first - the pixel belongs near the top,
+                since nothing reports to their ad account until it is set.
+              </p>
+              <OnboardingStepsForm initial={onboardingSteps} />
+            </div>
           </CardContent>
         </Card>
       ) : null}

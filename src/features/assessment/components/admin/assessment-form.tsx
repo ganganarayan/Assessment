@@ -149,6 +149,7 @@ const DEFAULTS: AssessmentFormValues = {
   vslCountdownSeconds: 10,
   questionDisplayMode: "ALL",
   autoAdvanceLastScreen: false,
+  resultLinkShowsResult: false,
   engine: "GENERIC",
   aiPromptVersionId: "",
   useAiStatement: true,
@@ -976,6 +977,24 @@ export function AssessmentForm({
                 </span>
               </label>
             ) : null}
+            <label className="mt-1 flex items-start gap-2 border-t pt-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={values.resultLinkShowsResult ?? false}
+                onChange={(e) => set("resultLinkShowsResult", e.target.checked)}
+              />
+              <span>
+                <span className="font-medium">The result link shows the result page</span>
+                <span className="block text-xs text-[var(--muted-foreground)]">
+                  For a funnel that ends somewhere else - a signup page, your own site - but
+                  whose results you send out afterwards by email. Without this the link lands
+                  on &ldquo;your assessment has been recorded&rdquo; and the result, already
+                  scored and stored, is never shown. Off by default: the token is in the
+                  respondent&rsquo;s own URL, so only switch it on if they are meant to see it.
+                </span>
+              </span>
+            </label>
           </div>
 
           <div className="flex flex-col gap-3 rounded-lg border p-4">

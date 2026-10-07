@@ -3,7 +3,7 @@ import { requireWorkspace } from "@/lib/auth/guards";
 import { getDashboardCounts } from "@/features/assessment/data";
 import { tenantOnly } from "@/lib/tenant/scope";
 import { resolvePlan } from "@/lib/billing/entitlements";
-import { resolveOnboardingVideoUrl } from "@/lib/settings/config";
+import { resolveOnboardingVideoUrl, resolveOnboardingSteps } from "@/lib/settings/config";
 import { OnboardingSteps } from "@/features/platform/components/onboarding-steps";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,10 +23,11 @@ export const dynamic = "force-dynamic";
 
 export default async function WorkspaceDashboardPage() {
   const { tenantId } = await requireWorkspace();
-  const [counts, resolved, onboardingVideoUrl] = await Promise.all([
+  const [counts, resolved, onboardingVideoUrl, onboardingSteps] = await Promise.all([
     getDashboardCounts(tenantOnly(tenantId)),
     resolvePlan(tenantId),
     resolveOnboardingVideoUrl(),
+    resolveOnboardingSteps(),
   ]);
 
   return (
@@ -38,7 +39,9 @@ export default async function WorkspaceDashboardPage() {
         </Link>
       </div>
 
-      {resolved.trialing ? <OnboardingSteps videoUrl={onboardingVideoUrl} /> : null}
+      {resolved.trialing ? (
+        <OnboardingSteps videoUrl={onboardingVideoUrl} steps={onboardingSteps} />
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Stat label="Assessments" value={counts.assessments} />

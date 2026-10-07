@@ -94,6 +94,7 @@ export default async function WorkspaceEditAssessmentPage({
     vslCountdownSeconds: a.vslCountdownSeconds,
     questionDisplayMode: a.questionDisplayMode,
     autoAdvanceLastScreen: a.autoAdvanceLastScreen,
+    resultLinkShowsResult: a.resultLinkShowsResult,
     engine: a.engine,
     aiPromptVersionId: a.aiPromptVersionId ?? "",
     useAiStatement: a.useAiStatement,
