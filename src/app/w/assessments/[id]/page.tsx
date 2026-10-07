@@ -93,6 +93,7 @@ export default async function WorkspaceEditAssessmentPage({
     tokenTtlSeconds: a.tokenTtlSeconds ?? undefined,
     vslCountdownSeconds: a.vslCountdownSeconds,
     questionDisplayMode: a.questionDisplayMode,
+    autoAdvanceLastScreen: a.autoAdvanceLastScreen,
     engine: a.engine,
     aiPromptVersionId: a.aiPromptVersionId ?? "",
     useAiStatement: a.useAiStatement,

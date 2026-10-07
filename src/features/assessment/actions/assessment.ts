@@ -165,6 +165,7 @@ export async function createAssessment(
       resultsContinueLabel: nullifyEmpty(d.resultsContinueLabel),
       vslCountdownSeconds: d.vslCountdownSeconds,
       questionDisplayMode: d.questionDisplayMode,
+      autoAdvanceLastScreen: d.autoAdvanceLastScreen,
       engine: d.engine,
       aiPromptVersionId: nullifyEmpty(d.aiPromptVersionId),
       useAiStatement: d.useAiStatement,

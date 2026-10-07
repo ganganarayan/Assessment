@@ -148,6 +148,7 @@ const DEFAULTS: AssessmentFormValues = {
   tokenTtlSeconds: undefined,
   vslCountdownSeconds: 10,
   questionDisplayMode: "ALL",
+  autoAdvanceLastScreen: false,
   engine: "GENERIC",
   aiPromptVersionId: "",
   useAiStatement: true,
@@ -956,6 +957,25 @@ export function AssessmentForm({
                 </label>
               ))}
             </div>
+            {values.questionDisplayMode !== "ALL" ? (
+              <label className="mt-1 flex items-start gap-2 border-t pt-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={values.autoAdvanceLastScreen ?? false}
+                  onChange={(e) => set("autoAdvanceLastScreen", e.target.checked)}
+                />
+                <span>
+                  <span className="font-medium">No Submit button on the last question</span>
+                  <span className="block text-xs text-[var(--muted-foreground)]">
+                    Answering the last question goes straight on, the way every other
+                    screen already does. Off means a Submit tap ends the assessment, which
+                    is also the last chance to change an answer - and the reason someone
+                    can answer everything and still never reach the opt-in form.
+                  </span>
+                </span>
+              </label>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-3 rounded-lg border p-4">
