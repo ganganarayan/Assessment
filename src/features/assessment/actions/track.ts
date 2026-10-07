@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { nudgeAbandonSweep } from "@/lib/events/abandon-scheduler";
 import { generateId } from "@/lib/ids";
 import { rateLimit } from "@/lib/rate-limit";
 import { normalizeAttribution } from "@/lib/events/payload";
@@ -39,6 +40,11 @@ export async function recordOptinView(
   attribution?: Record<string, string>,
 ): Promise<void> {
   try {
+    // Every funnel visit is also a chance to clear an abandon verdict that fell due
+    // while nothing was listening - after a deploy, say, which drops pending timers.
+    // Throttled to once a minute inside, so this costs a busy funnel one query a
+    // minute and not one per visit.
+    nudgeAbandonSweep();
     // Global write ceiling - blunts bulk inflation regardless of cookie/IP spoofing.
     if (!rateLimit("pv:global", 5000)) return;
 
