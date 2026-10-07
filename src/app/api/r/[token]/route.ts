@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { isOriginAllowed } from "@/lib/result/cors";
 import { readResult, chooseServedRow } from "@/lib/result/read";
 import { rateLimit } from "@/lib/rate-limit";
+import { isBotUserAgent } from "@/lib/bots";
 import { isResponseLocked } from "@/lib/billing/gate";
 import { loadPurchaseSettings, resolvePurchasePlan } from "@/lib/meta/capi-log";
 
@@ -158,13 +159,30 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
 
   let body = outcome.body;
   if (outcome.status === 200 && served) {
-    // Analytics count the SERVED row (the reading actually rendered).
-    void prisma.submission
-      .updateMany({ where: { id: served.id }, data: { resultFetchCount: { increment: 1 } } })
-      .catch(() => {});
-    void prisma.submission
-      .updateMany({ where: { id: served.id, resultFetchedAt: null }, data: { resultFetchedAt: new Date() } })
-      .catch(() => {});
+    // Analytics count the SERVED row (the reading actually rendered) - but only when a
+    // PERSON is reading it.
+    //
+    // This counted every caller, and the number is presented to the owner as "VSL loads
+    // (result shown)" - a claim about a human looking at a result. Three diagnostic
+    // fetches of one token made that row read 3 while nobody had seen anything, and the
+    // owner had no way to tell a real view from a script.
+    //
+    // It matters most for the very thing this endpoint is for: result links are SHARED,
+    // by email and by chat, and mail providers, link-preview bots and security scanners
+    // fetch shared URLs before any person opens them. Counting those would overstate
+    // every result that was ever sent to anyone.
+    //
+    // The result is still SERVED to everyone - connectors and CRMs read this endpoint
+    // server-side and must keep working. Only the counting is gated, which is exactly
+    // how the page-view stats already treat bots.
+    if (!isBotUserAgent(req.headers.get("user-agent"))) {
+      void prisma.submission
+        .updateMany({ where: { id: served.id }, data: { resultFetchCount: { increment: 1 } } })
+        .catch(() => {});
+      void prisma.submission
+        .updateMany({ where: { id: served.id, resultFetchedAt: null }, data: { resultFetchedAt: new Date() } })
+        .catch(() => {});
+    }
     // Payment pixel is resolved for the SERVED submission so the browser Purchase
     // uses the matching event_id + name (Meta dedups on name+event_id).
     const pf = await purchaseFor(served.id);

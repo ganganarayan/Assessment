@@ -39,6 +39,7 @@
     "verify:clinic-report": "tsx scripts/verify-clinic-report.ts",
     "verify:bots": "tsx scripts/verify-bots.ts",
     "verify:enrichment": "tsx scripts/verify-enrichment.ts",
+    "reset:result-views": "tsx scripts/reset-result-views.ts",
     "verify:billing": "tsx scripts/verify-billing.ts",
     "verify:owner-stamp": "tsx scripts/verify-owner-stamp.ts",
     "verify:seo": "tsx scripts/verify-seo.ts",
