@@ -36,12 +36,29 @@ const questionExport = z.object({
   options: z.array(optionExport).min(2),
 });
 
+/**
+ * A per-category band: what a score in this range MEANS for this category.
+ *
+ * Added late. Until now the format carried the assessment-level result bands but not
+ * these, so every export silently dropped the interpretation text and every import
+ * produced an assessment whose categories scored but explained nothing. Optional, so
+ * files written before this still load.
+ */
+const categoryBandExport = z.object({
+  label: z.string().min(1),
+  meaning: z.string().nullable().optional(),
+  minScore: z.number(),
+  maxScore: z.number(),
+  displayOrder: z.number().int().nonnegative(),
+});
+
 const categoryExport = z.object({
   name: z.string().min(1),
   description: z.string().nullable().optional(),
   displayOrder: z.number().int().nonnegative(),
   // Page 1 = assessment, 2 = queries (added v2; optional keeps old files valid).
   page: z.number().int().min(1).max(2).optional(),
+  bands: z.array(categoryBandExport).optional(),
   questions: z.array(questionExport),
 });
 
@@ -151,6 +168,7 @@ export type OptionExport = z.infer<typeof optionExport>;
 export type QuestionExport = z.infer<typeof questionExport>;
 export type CategoryExport = z.infer<typeof categoryExport>;
 export type ResultBandExport = z.infer<typeof resultBandExport>;
+export type CategoryBandExport = z.infer<typeof categoryBandExport>;
 export type AssessmentBodyExport = z.infer<typeof assessmentBodyExport>;
 export type AssessmentExport = z.infer<typeof assessmentExportSchema>;
 

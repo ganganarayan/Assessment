@@ -126,6 +126,18 @@ function createData(
         description: c.description ?? null,
         displayOrder: ci,
         page: c.page ?? 1,
+        // Absent on files written before the format carried them, which is why this is
+        // optional rather than required: an old export must still import, it just has
+        // no interpretation text to restore.
+        bands: {
+          create: (c.bands ?? []).map((b, bi) => ({
+            label: b.label,
+            meaning: b.meaning ?? null,
+            minScore: b.minScore,
+            maxScore: b.maxScore,
+            displayOrder: bi,
+          })),
+        },
         questions: {
           create: c.questions.map((q, qi) => ({
             text: q.text,
