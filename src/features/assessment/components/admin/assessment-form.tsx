@@ -20,7 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { META_EVENT_KEYS, META_EVENT_META } from "@/features/assessment/meta-events";
+import { META_EVENT_KEYS, META_EVENT_META, ALL_META_EVENTS as DEFAULT_META_EVENTS } from "@/features/assessment/meta-events";
 
 export type AssessmentFormValues = AssessmentInput;
 
@@ -161,7 +161,7 @@ const DEFAULTS: AssessmentFormValues = {
   paymentIntroText: "",
   audienceGate: EMPTY_AUDIENCE_GATE,
   fireMetaCapi: true,
-  metaEvents: { registration: true, completion: true, gateDisqualified: true, abandoned: true },
+  metaEvents: { registration: true, completion: true, gateDisqualified: true, abandoned: true, gateIncomplete: false },
 };
 
 export function AssessmentForm({
@@ -586,7 +586,7 @@ export function AssessmentForm({
                       <input
                         type="checkbox"
                         className="mt-1"
-                        checked={values.metaEvents?.[k] ?? true}
+                        checked={values.metaEvents?.[k] ?? DEFAULT_META_EVENTS[k]}
                         onChange={(e) =>
                           set("metaEvents", {
                             ...(values.metaEvents ?? {
@@ -594,6 +594,8 @@ export function AssessmentForm({
                               completion: true,
                               gateDisqualified: true,
                               abandoned: true,
+                              // New events stay off until asked for - see DEFAULT_OFF.
+                              gateIncomplete: false,
                             }),
                             [k]: e.target.checked,
                           })

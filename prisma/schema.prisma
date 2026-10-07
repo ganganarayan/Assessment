@@ -127,21 +127,21 @@ model Tenant {
   acqUtmTerm             String?
   acqUtmContent          String?
 
-  users          User[]
-  domains        Domain[]
-  theme          Theme?
-  assessments    Assessment[]
-  submissions    Submission[]
-  apiTokens      ApiToken[]
-  webhooks       Webhook[]
-  webhookLogs    WebhookLog[]
-  payments       Payment[]
-  capiLogs       CapiLog[]
-  setting        AppSetting?
-  promptVersions AiPromptVersion[]
-  subscription   Subscription?
-  usageCounters  UsageCounter[]
-  nurtureLogs    NurtureLog[]
+  users           User[]
+  domains         Domain[]
+  theme           Theme?
+  assessments     Assessment[]
+  submissions     Submission[]
+  apiTokens       ApiToken[]
+  webhooks        Webhook[]
+  webhookLogs     WebhookLog[]
+  payments        Payment[]
+  capiLogs        CapiLog[]
+  setting         AppSetting?
+  promptVersions  AiPromptVersion[]
+  subscription    Subscription?
+  usageCounters   UsageCounter[]
+  nurtureLogs     NurtureLog[]
   paymentHandoffs PaymentHandoff[]
 
   @@index([status])
@@ -778,7 +778,7 @@ model Assessment {
   // form. Deliberately a single free-text line rather than a structured block: this copy
   // is an offer, offers change weekly, and anything with more fields than that becomes a
   // thing to maintain instead of a thing to rewrite. Null/blank = nothing rendered.
-  qualifiedNote String?
+  qualifiedNote       String?
   // Content shown to a disqualified visitor (heading/subtext/body/button + the
   // fire-"Disqualified"-event toggle). Nothing about the visitor is stored.
   disqualifiedContent Json?
@@ -1164,20 +1164,32 @@ model Submission {
   // absent as zero rather than as an error.
   gateScore Int?
   gateMax   Int?
+
+  /// The gate, question by question, resolved AT THE MOMENT IT WAS ANSWERED: question
+  /// text, the option picked, what it scored and what it could have scored.
+  /// Shape: [{ q, a, points, max }].
+  ///
+  /// Stored rather than rebuilt at render, for the same reason gateScore is written at
+  /// start: the gate is a JSON blob the owner can edit at any time, and a result page
+  /// that silently rewords its own questions - or drops one that was deleted - is worse
+  /// than one that is slightly stale. Results already given out must not move.
+  ///
+  /// Null for submissions taken before this existed, and for funnels with no gate.
+  gateBreakdown   Json?
   // Geo (Cloudflare) + device (parsed UA), captured at Start. region/postalCode feed
   // Meta CAPI advanced matching (st/zp); country is the 2-letter ISO code.
-  country              String?
-  city                 String?
-  region               String?
-  postalCode           String?
-  timezone             String?
-  deviceType           String?
-  browser              String?
-  os                   String?
+  country         String?
+  city            String?
+  region          String?
+  postalCode      String?
+  timezone        String?
+  deviceType      String?
+  browser         String?
+  os              String?
   // Unix MILLISECONDS (matches Meta's fbc format fb.1.<ms>.<fbclid> exactly, so no
   // unit conversion anywhere). Double, because a ms epoch overflows Int4 - the value
   // is always an integer and is exact in a double well beyond any realistic date.
-  fbclidTimestamp      Float?
+  fbclidTimestamp Float?
 
   // Normalized retake/dedup key (lowercased email or digits-only mobile),
   // captured at start per the assessment's uniqueIdentifier. Indexed for the
@@ -1331,8 +1343,21 @@ model GateEntry {
   attribution Json?
 
   passedAt         DateTime  @default(now())
-  /// Compare-and-swap guard: set when AssessmentAbandoned fired, so it fires once.
+  /// Compare-and-swap guard: set when the abandon verdict was decided, so it fires once.
   abandonedFiredAt DateTime?
+
+  /// When this visitor first REACHED the opt-in form. It is what separates the two
+  /// ways of losing someone who passed the gate: set means they saw the form and left
+  /// it (AssessmentAbandoned), null means they never got that far (GateIncomplete).
+  /// Those are different audiences - one has seen the ask and refused it, the other
+  /// never saw it - and an ad that treats them alike wastes money on one of them.
+  optinSeenAt DateTime?
+
+  /// When the abandon verdict becomes due. Set the moment the visitor leaves the
+  /// opt-in page, ten minutes out, so someone who switches apps to fetch their
+  /// WhatsApp number and comes back is never counted as lost. Null = no departure
+  /// seen yet; the time-since-pass fallback still catches them.
+  abandonDueAt DateTime?
 
   // Owning tenant (denormalized from the assessment; null = platform/Gita). Scalar
   // only - no FK - matching PageView / GateDisqualification. Added so "Qualified"
@@ -1343,6 +1368,7 @@ model GateEntry {
   // rather than queueing a second abandonment event for the same person.
   @@unique([assessmentId, visitorId])
   @@index([abandonedFiredAt, passedAt]) // the sweep's scan
+  @@index([abandonedFiredAt, abandonDueAt]) // the due-abandon scan
   @@index([assessmentId, passedAt]) // the Stats "Qualified" count
   @@index([tenantId, passedAt])
   @@map("gate_entry")
@@ -1736,16 +1762,13 @@ enum PaymentHandoffStatus {
 
 /**
  * EXTERNAL-GATEWAY return ticket.
- *
  * A tenant using their own payment link (not Razorpay keys) configures ONE success
  * URL on their gateway, the same string for every respondent, so the return cannot
  * carry a per-person token. This row is the per-person half: created the moment we
  * send someone to the payment link, matched on the way back by a nonce held in an
  * httpOnly SameSite=Lax cookie on our own host.
- *
  * Single use is a property of THIS ROW, not of the URL: the second arrival with the
  * same nonce finds CONSUMED and unlocks nothing.
- *
  * 🔴 What this proves is that a browser came back from the gateway, NOT that money
  * moved. It cannot see a failed or refunded payment, and someone who abandons on the
  * payment page and navigates to the return URL in the same browser inside the window
@@ -1757,14 +1780,20 @@ model PaymentHandoff {
   tenantId     String
   tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   submissionId String
-  /** The cookie value. Unguessable and unique, so a lookup needs the cookie. */
+  /**
+   * The cookie value. Unguessable and unique, so a lookup needs the cookie.
+   */
   nonce        String               @unique
   status       PaymentHandoffStatus @default(PENDING)
-  /** Lowercased email, for the fallback when the cookie is lost (the payment page
-   *  opened in a different browser - routine from the Instagram in-app browser). */
+  /**
+   * Lowercased email, for the fallback when the cookie is lost (the payment page
+   * opened in a different browser - routine from the Instagram in-app browser).
+   */
   email        String?
-  /** Whatever the gateway appended on return, when it appends anything. Recorded for
-   *  reconciliation; never trusted as proof of payment. */
+  /**
+   * Whatever the gateway appended on return, when it appends anything. Recorded for
+   * reconciliation; never trusted as proof of payment.
+   */
   reference    String?
   createdAt    DateTime             @default(now())
   expiresAt    DateTime

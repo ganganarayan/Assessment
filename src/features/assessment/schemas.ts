@@ -143,6 +143,10 @@ export function completionEventName(gateActive: boolean): string {
  */
 export const GATE_DISQUALIFIED_EVENT = "GateDisqualified";
 export const ABANDONED_EVENT = "AssessmentAbandoned";
+/** Passed the gate but never reached the opt-in form. A different audience from
+ *  ABANDONED_EVENT: these people never saw the ask, so there is nothing for them to
+ *  have refused, and an ad that treats the two alike misreads both. */
+export const GATE_INCOMPLETE_EVENT = "GateIncomplete";
 
 /** Content of the disqualified page. `fireDisqualifiedEvent` sends the custom
  *  GateDisqualified event to Meta server-side (for building an exclusion audience) -
@@ -312,8 +316,13 @@ export const assessmentSchema = z.object({
       completion: z.boolean().default(true),
       gateDisqualified: z.boolean().default(true),
       abandoned: z.boolean().default(true),
+      // Defaults OFF, unlike the four above: they are long-lived events whose
+      // audiences already exist, so a client that omits them must not mute them.
+      // This one is new, nothing can depend on it yet, and defaulting it on would
+      // start a brand new event firing from every funnel on the platform.
+      gateIncomplete: z.boolean().default(false),
     })
-    .default({ registration: true, completion: true, gateDisqualified: true, abandoned: true }),
+    .default({ registration: true, completion: true, gateDisqualified: true, abandoned: true, gateIncomplete: false }),
 }).superRefine((d, ctx) => {
   if (d.nextStep === "PAYMENT" && !d.paymentAmount && !d.paymentUrl) {
     ctx.addIssue({

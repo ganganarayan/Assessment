@@ -70,6 +70,10 @@ export default async function WorkspaceStatsPage({
           ? `+${s.disqualifiedRepeat.toLocaleString()} revisit${s.disqualifiedRepeat === 1 ? "" : "s"} by someone already rejected`
           : undefined,
     },
+    // The two ways a qualified visitor is lost, kept apart because they are different
+    // problems: one never saw the ask, the other saw it and said no.
+    { label: "Never reached opt-in", value: s.gateIncomplete, hint: "Passed the gate, left before the form." },
+    { label: "Left the opt-in", value: s.leftOptin, hint: "Saw the form, did not opt in." },
     { label: "Opted in", value: s.optins },
     { label: "Completed assessment", value: s.completed },
     { label: "VSL loads (result shown)", value: s.vslLoads },
@@ -117,27 +121,30 @@ export default async function WorkspaceStatsPage({
 
       <DateRangeFilter basePath="/w/stats" from={sp.from} to={sp.to} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Dense on purpose: the funnel is read as a whole or not at all, so every number
+          has to be on one screen - five across on a laptop, two on a phone - rather than
+          four rows of tall cards that hide the bottom of the funnel below the fold. */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {items.map((it) => (
-          <Card key={it.label}>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-[var(--muted-foreground)]">
+          <Card key={it.label} className="gap-0 py-3">
+            <CardHeader className="px-3 pb-1">
+              <CardTitle className="text-xs font-medium leading-tight text-[var(--muted-foreground)]">
                 {it.label}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-4xl font-bold tabular-nums">{it.value.toLocaleString()}</p>
-              {it.hint ? <p className="text-sm text-[var(--muted-foreground)]">{it.hint}</p> : null}
+            <CardContent className="px-3">
+              <p className="text-2xl font-bold tabular-nums">{it.value.toLocaleString()}</p>
+              {it.hint ? <p className="text-[11px] leading-snug text-[var(--muted-foreground)]">{it.hint}</p> : null}
             </CardContent>
           </Card>
         ))}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-[var(--muted-foreground)]">Paid</CardTitle>
+        <Card className="gap-0 py-3">
+          <CardHeader className="px-3 pb-1">
+            <CardTitle className="text-xs font-medium leading-tight text-[var(--muted-foreground)]">Paid</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold tabular-nums text-green-600">{s.paidCount.toLocaleString()}</p>
-            <p className="text-sm text-[var(--muted-foreground)]">₹{s.paidAmount.toLocaleString()} total</p>
+          <CardContent className="px-3">
+            <p className="text-2xl font-bold tabular-nums text-green-600">{s.paidCount.toLocaleString()}</p>
+            <p className="text-[11px] leading-snug text-[var(--muted-foreground)]">₹{s.paidAmount.toLocaleString()} total</p>
           </CardContent>
         </Card>
       </div>
