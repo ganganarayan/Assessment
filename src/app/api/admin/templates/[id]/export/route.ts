@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isSuperAdmin } from "@/lib/auth/guards";
 import { EXPORT_SCHEMA_VERSION } from "@/features/assessment/transfer/schema";
+import { tidyGateDefaults } from "@/features/templates/schema";
 
 /**
  * Download one template, for REVIEW.
@@ -47,7 +48,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         // drift into a file that will not load.
         schemaVersion: EXPORT_SCHEMA_VERSION,
         exportedAt: new Date().toISOString(),
-        assessments: [t.body],
+        assessments: [tidyGateDefaults(t.body)],
       }
     : {
         slug: t.slug,
@@ -56,7 +57,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         summary: t.summary,
         shape: t.shape,
         aiInstructions: t.aiInstructions,
-        body: t.body,
+        body: tidyGateDefaults(t.body),
       };
 
   const stem = `template-${t.slug}${asAssessment ? "-assessment" : ""}`.replace(/[^a-z0-9-]/gi, "-");

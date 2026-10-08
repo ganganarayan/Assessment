@@ -16,6 +16,7 @@
  *   npx tsx scripts/verify-templates.ts
  */
 import { templateDocSchema, TEMPLATE_CATEGORIES } from "../src/features/templates/schema";
+import { qualificationSchema } from "../src/features/assessment/schemas";
 import { BUILTIN_TEMPLATE_DOCS } from "../src/features/templates/builtin";
 
 let failures = 0;
@@ -150,6 +151,36 @@ if (docs.some((d) => d.aiInstructions)) ok("coverage: with an AI statement");
 else fail("coverage", "no built-in template carries AI instructions");
 if (docs.some((d) => !d.aiInstructions)) ok("coverage: without an AI statement");
 else fail("coverage", "every built-in template needs AI, so none works without a provider");
+
+// Omitting `disqualifies` is only safe because the gate schema defaults it to false
+// and every consumer parses the stored blob through that schema. Prove it here rather
+// than trust it: if that default were ever dropped, 92 answers across six templates
+// would silently stop rejecting anybody, and the funnels would look like they worked.
+{
+  const withGate = docs.filter(
+    (d) => ((d.body.qualification as { questions?: unknown[] } | null)?.questions?.length ?? 0) > 0,
+  );
+  let checked = 0;
+  let bad = 0;
+  for (const d of withGate) {
+    const parsed = qualificationSchema.safeParse(d.body.qualification);
+    if (!parsed.success) {
+      fail(`${d.slug} gate`, "the gate does not parse through qualificationSchema");
+      bad += 1;
+      continue;
+    }
+    for (const q of parsed.data.questions) {
+      for (const o of q.options) {
+        checked += 1;
+        if (typeof o.disqualifies !== "boolean") {
+          fail(`${d.slug} gate`, `option "${o.id}" read back disqualifies=${String(o.disqualifies)}, not a boolean`);
+          bad += 1;
+        }
+      }
+    }
+  }
+  if (bad === 0) ok(`omitted defaults: ${checked} gate options all read back a real boolean`);
+}
 
 console.log(
   failures === 0

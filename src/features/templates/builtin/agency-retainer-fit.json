@@ -44,19 +44,16 @@
             {
               "id": "g1a",
               "label": "Ongoing work, month after month",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g1b",
               "label": "A project, then maybe ongoing",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g1c",
               "label": "A one-off project only",
-              "disqualifies": false,
               "points": 0
             },
             {
@@ -77,19 +74,16 @@
             {
               "id": "g2a",
               "label": "More than we would like",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g2b",
               "label": "A steady, planned amount",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g2c",
               "label": "Very little",
-              "disqualifies": false,
               "points": 1
             },
             {
@@ -110,19 +104,16 @@
             {
               "id": "g3a",
               "label": "Yes, and it went well",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g3b",
               "label": "Yes, and it did not",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g3c",
               "label": "No",
-              "disqualifies": false,
               "points": 1
             }
           ]
@@ -137,19 +128,16 @@
             {
               "id": "g4a",
               "label": "Me",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g4b",
               "label": "Me, with one other person",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g4c",
               "label": "A committee",
-              "disqualifies": false,
               "points": 0
             }
           ]
@@ -164,19 +152,16 @@
             {
               "id": "g5a",
               "label": "Within a month",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g5b",
               "label": "This quarter",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g5c",
               "label": "No date in mind",
-              "disqualifies": false,
               "points": 0
             },
             {

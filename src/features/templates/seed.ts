@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
-import { templateDocSchema } from "@/features/templates/schema";
+import { templateDocSchema, tidyGateDefaults } from "@/features/templates/schema";
 import { BUILTIN_TEMPLATE_DOCS } from "@/features/templates/builtin";
 import { type ReseedResult } from "@/features/templates/types";
 
@@ -69,7 +69,7 @@ export async function seedBuiltinTemplates(): Promise<ReseedResult> {
         category: doc.category,
         summary: doc.summary ?? null,
         shape: doc.shape,
-        body: doc.body as object,
+        body: tidyGateDefaults(doc.body) as object,
         aiInstructions: doc.aiInstructions ?? null,
         builtin: true,
         // A built-in belongs to the platform, never to a workspace, and is never
@@ -129,7 +129,7 @@ export async function reseedOneBuiltin(slug: string): Promise<{ ok: true } | { o
       category: doc.category,
       summary: doc.summary ?? null,
       shape: doc.shape,
-      body: doc.body as object,
+      body: tidyGateDefaults(doc.body) as object,
       aiInstructions: doc.aiInstructions ?? null,
       builtin: true,
       ownerTenantId: null,

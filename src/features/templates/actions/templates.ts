@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin, isStaff } from "@/lib/auth/guards";
 import { istMonthStart } from "@/lib/date";
 import { seedBuiltinTemplates, reseedOneBuiltin } from "@/features/templates/seed";
-import { templateDocSchema } from "@/features/templates/schema";
+import { templateDocSchema, tidyGateDefaults } from "@/features/templates/schema";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import {
   type ContributionRewardView,
@@ -233,7 +233,9 @@ export async function getTemplateDocument(id: string): Promise<ActionResult<Temp
     summary: t.summary,
     shape: t.shape,
     aiInstructions: t.aiInstructions,
-    body: t.body,
+    // Without this the gate is four lines of `"disqualifies": false` for every one
+    // line that does something, which buries the answer that actually rejects people.
+    body: tidyGateDefaults(t.body),
   };
   return {
     ok: true,
@@ -305,7 +307,9 @@ export async function updateTemplateDocument(id: string, json: string): Promise<
       category: doc.category,
       summary: doc.summary ?? null,
       shape: doc.shape,
-      body: doc.body as object,
+      // Tidied on the way in as well as out, so a document pasted back with the
+      // defaults spelled out does not re-bloat the stored blob.
+      body: tidyGateDefaults(doc.body) as object,
       aiInstructions: doc.aiInstructions ?? null,
       // Only ever set, never cleared here: clearing it is what Revert is for, and it
       // has to restore the content in the same breath.

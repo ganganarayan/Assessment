@@ -44,19 +44,16 @@
             {
               "id": "g1a",
               "label": "Grow an existing business or practice",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g1b",
               "label": "Start something new that I have already planned",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g1c",
               "label": "Change career or direction",
-              "disqualifies": false,
               "points": 2
             },
             {
@@ -77,19 +74,16 @@
             {
               "id": "g2a",
               "label": "Yes, and it worked",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g2b",
               "label": "Yes, and it did not",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g2c",
               "label": "No, this would be the first time",
-              "disqualifies": false,
               "points": 1
             }
           ]
@@ -104,19 +98,16 @@
             {
               "id": "g3a",
               "label": "Five hours or more",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g3b",
               "label": "Two to four hours",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g3c",
               "label": "About an hour",
-              "disqualifies": false,
               "points": 1
             },
             {
@@ -137,19 +128,16 @@
             {
               "id": "g4a",
               "label": "Start this month",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g4b",
               "label": "Start within three months",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g4c",
               "label": "Keep it in mind for later",
-              "disqualifies": false,
               "points": 0
             },
             {
@@ -170,19 +158,16 @@
             {
               "id": "g5a",
               "label": "I do, on my own",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g5b",
               "label": "I do, after talking it over with my partner",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g5c",
               "label": "Someone else does",
-              "disqualifies": false,
               "points": 0
             }
           ]
