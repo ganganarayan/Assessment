@@ -1,0 +1,470 @@
+{
+  "slug": "consultant-engagement-fit",
+  "title": "Engagement readiness scorecard",
+  "category": "Consultants",
+  "summary": "Ungated, so every visitor gets a score. Measures whether an organisation can act on advice before you are asked to give any.",
+  "shape": "UNGATED_ASSESSMENT",
+  "aiInstructions": null,
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 3,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": false,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "10 questions, 3 minutes",
+    "subheadline": "The best diagnosis is wasted on an organisation that cannot move. Find out which kind yours is.",
+    "qualifiedNote": null,
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": false,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": null,
+    "disqualifiedContent": {
+      "heading": "Thanks for your honesty.",
+      "subtext": "Based on your answers this is not the right fit right now, so we will not take up more of your time.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Decisions",
+        "description": "How quickly a recommendation becomes a decision.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How long does a significant decision take here?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Months, often never",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Six to twelve weeks",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Two to six weeks",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Under two weeks",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Who can approve a change that crosses two departments?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Nobody, it stalls",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A committee",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Two heads, together",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "One named executive",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What happened to the last external report commissioned here?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Nothing, it was filed",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Parts were discussed",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Most was accepted",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "It was implemented",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How are decisions recorded?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "They are not",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "In someone's notes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "In meeting minutes",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "In a decision log people actually read",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Evidence",
+        "description": "Whether the organisation can see what is actually happening.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How do you know how the business is performing this month?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "We find out at year end",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A monthly report, late",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A monthly report, on time",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Numbers available on demand",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How much do people trust those numbers?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "They argue about them",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "They use them cautiously",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "They are generally trusted",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "They are the basis of every discussion",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "When something goes wrong, how do you find out why?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "We assign blame",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "We discuss it informally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "We review it",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "We review it and change the process",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Capacity",
+        "description": "Whether anyone has room to do the work the advice implies.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "Who would run the changes day to day?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Nobody has time",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Someone, on top of their job",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Someone, with their load reduced",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A dedicated person or team",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How many change initiatives are already running?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "More than anyone can count",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Five or more",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Two or three",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "One, or none",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What normally stops a good initiative here?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Interest fades",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A reorganisation",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Competing priorities",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Nothing, we finish what we start",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Advice would be wasted here today",
+        "description": "The constraint is not knowledge. Until decisions, evidence or capacity improve, any recommendation will be accepted and then quietly ignored.",
+        "minScore": 0,
+        "maxScore": 39,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Able to act, slowly",
+        "description": "Change happens, but it takes longer than it should and loses momentum. One of the three areas is where it stalls.",
+        "minScore": 40,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "Able to act",
+        "description": "Decisions get made, evidence is trusted and someone has room to do the work. The weakest area is the one to protect.",
+        "minScore": 60,
+        "maxScore": 79,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Built to act",
+        "description": "Fast decisions, numbers people believe, and capacity set aside. An engagement here will show results inside a quarter.",
+        "minScore": 80,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "title": "Can your organisation act on advice?",
+    "slug": "engagement-readiness"
+  }
+}

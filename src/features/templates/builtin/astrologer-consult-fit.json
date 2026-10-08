@@ -1,0 +1,210 @@
+{
+  "slug": "astrologer-consult-fit",
+  "title": "Consultation screening",
+  "category": "Astrologers",
+  "summary": "Screening only. Five questions decide who gets a consultation slot and who does not, with no scored assessment and no AI statement.",
+  "shape": "GATE_ONLY",
+  "aiInstructions": null,
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 3,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "5 quick questions",
+    "subheadline": "A few questions so the time we spend together is actually useful.",
+    "qualifiedNote": "You are a good fit. Leave your details and we will send your slot.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Begin",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": false,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "What brings you here?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "A decision I have to make soon",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g1b",
+              "label": "A difficult period I want to understand",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g1c",
+              "label": "Curiosity about my chart",
+              "disqualifies": false,
+              "points": 1
+            },
+            {
+              "id": "g1d",
+              "label": "I want to test whether this is real",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "Do you know your birth time?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Yes, to the minute",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g2b",
+              "label": "Yes, to within an hour",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g2c",
+              "label": "Only the date",
+              "disqualifies": false,
+              "points": 0
+            },
+            {
+              "id": "g2d",
+              "label": "No, and I cannot find out",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "Have you consulted an astrologer before?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "Yes, regularly",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g3b",
+              "label": "Once or twice",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g3c",
+              "label": "Never",
+              "disqualifies": false,
+              "points": 2
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "What would you do with what you learn?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "Act on it",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g4b",
+              "label": "Think it over carefully",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g4c",
+              "label": "Compare it against other readings",
+              "disqualifies": false,
+              "points": 0
+            },
+            {
+              "id": "g4d",
+              "label": "Probably nothing",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "When would you want to speak?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "This week",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g5b",
+              "label": "This month",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g5c",
+              "label": "Sometime later",
+              "disqualifies": false,
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks for your honesty.",
+      "subtext": "Based on your answers this is not the right fit right now, so we will not take up more of your time.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [],
+    "resultBands": [],
+    "title": "Book a consultation",
+    "slug": "consultation-screening"
+  }
+}

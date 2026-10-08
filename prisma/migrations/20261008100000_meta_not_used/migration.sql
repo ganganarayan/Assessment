@@ -1,0 +1,12 @@
+-- The "I don't use Meta" override, and with it the publish lock.
+--
+-- A tenant who publishes a funnel with no pixel and no CAPI token collects leads and
+-- tells their ad account nothing. That silence is indistinguishable from a funnel that
+-- is not working: they spend, Ads Manager reports no results, and the conclusion they
+-- reach is that the product does not work.
+--
+-- So publishing requires either a pixel AND a token, or this flag - an explicit "we are
+-- not running Meta ads", which is a real and legitimate answer. Default false, because
+-- the honest default is "we have not decided yet", and that is exactly the state the
+-- lock is there to interrupt.
+ALTER TABLE "app_setting" ADD COLUMN "metaNotUsed" BOOLEAN NOT NULL DEFAULT false;

@@ -41,6 +41,7 @@ const NAV: { section: string | null; items: NavItem[] }[] = [
     items: [
       { href: "/admin/assessment-builder", label: "Assessment Builder" },
       { href: "/admin/assessments", label: "Assessments" },
+      { href: "/admin/templates", label: "Templates" },
       { href: "/admin/submissions", label: "Submissions" },
       { href: "/admin/audiences", label: "Audiences" },
     ],

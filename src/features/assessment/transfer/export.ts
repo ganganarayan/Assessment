@@ -6,8 +6,13 @@ import { bodiesToJson, bodiesToCsv } from "./format";
 /**
  * Build the portable body for one assessment (ids/tenant/submissions stripped;
  * displayOrder renumbered). Returns null if it doesn't exist.
+ *
+ * Exported because "Save as template" needs exactly this: the one place that knows how
+ * to turn a live assessment into the portable shape. A second mapping would drift, and
+ * a template built from a drifted mapping arrives in the next workspace missing fields
+ * nobody can name.
  */
-async function buildAssessmentBody(
+export async function buildAssessmentBody(
   id: string,
 ): Promise<AssessmentBodyExport | null> {
   const a = await prisma.assessment.findUnique({

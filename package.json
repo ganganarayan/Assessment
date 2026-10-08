@@ -54,6 +54,9 @@
     "verify:optin-meta": "tsx scripts/verify-optin-vs-meta.ts",
     "verify:funnel-count": "tsx scripts/verify-funnel-count.ts",
     "seed:category-bands": "tsx scripts/seed-category-bands.ts",
+    "seed:templates": "tsx --conditions=react-server scripts/seed-templates.ts",
+    "verify:templates": "tsx scripts/verify-templates.ts",
+    "templates:unpublish": "tsx --conditions=react-server scripts/unpublish-templates.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

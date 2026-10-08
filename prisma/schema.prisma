@@ -152,6 +152,10 @@ model Tenant {
   usageCounters   UsageCounter[]
   nurtureLogs     NurtureLog[]
   paymentHandoffs PaymentHandoff[]
+  /// Templates PRIVATE to this workspace (saved from the builder, never contributed).
+  ownedTemplates      Template[] @relation("TemplateOwner")
+  /// Templates this workspace sent to the master library.
+  contributedTemplates Template[] @relation("TemplateContributor")
 
   @@index([status])
   @@index([deletedAt])
@@ -432,6 +436,23 @@ model User {
   // TRUE after a super admin sets the password - the user is forced to change it on
   // next login before reaching the app; cleared once they set their own.
   mustChangePassword Boolean          @default(false)
+  /// When this login last signed in. Stamped by the session-create hook in auth.ts,
+  /// which is the one event that means "a human got in" - updatedAt does not, because
+  /// any profile write moves it.
+  ///
+  /// A column and not a query over `session`, because sessions expire and are pruned:
+  /// reading the newest session row would turn a tenant who logged in two months ago
+  /// into one who has never logged in, which is the opposite of what this is for.
+  /// Null = no sign-in since the column was added.
+  lastLoginAt        DateTime?
+  /// How many times this login has signed in. Incremented by the same session-create
+  /// hook that stamps lastLoginAt.
+  ///
+  /// A FLOOR, not a lifetime total: it was backfilled from surviving session rows, and
+  /// expired sessions had already been pruned. Beside the date it answers the question
+  /// a date alone cannot - whether somebody looked once and left, or comes back daily
+  /// and still has not shipped anything.
+  loginCount         Int              @default(0)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
@@ -1976,6 +1997,17 @@ model AppSetting {
   metaPixelId      String?
   metaCapiTokenEnc String?
 
+  /// "We don't use Meta" - the tenant's explicit opt-out of the publish lock.
+  ///
+  /// Publishing needs a pixel AND a CAPI token, or this. A funnel published with
+  /// neither collects leads and reports nothing, which to the person paying for the
+  /// traffic is indistinguishable from a broken product.
+  ///
+  /// It is a flag rather than an inference because "no pixel" has two meanings that
+  /// deserve different outcomes: "we do not advertise on Meta" is fine, and "we have
+  /// not set it up yet" is the mistake. Only the tenant can say which one it is.
+  metaNotUsed Boolean @default(false)
+
   // Platform / app SUBSCRIPTION funnel pixel - a SEPARATE Meta pixel for Assess360's
   // own SaaS funnel: landing PageView, free-signup CompleteRegistration, and the
   // subscription Purchase. Distinct from metaPixelId above (which is the Gita
@@ -2275,4 +2307,98 @@ model CtaClick {
   @@index([createdAt])
   @@index([notifyStatus, notifyNextAttemptAt])
   @@map("cta_click")
+}
+
+/// The shape of the funnel a template builds, named for what it is FOR rather than
+/// for which columns it happens to set. A tenant picking from a list needs to know
+/// "screens people" vs "screens then scores" vs "scores everyone" before they read a
+/// single question.
+enum TemplateShape {
+  /// Qualification gate only: it decides who is worth talking to and stops there.
+  GATE_ONLY
+  /// Gate first, then the scored assessment for whoever passes.
+  GATED_ASSESSMENT
+  /// No gate - everyone who arrives takes the scored assessment.
+  UNGATED_ASSESSMENT
+}
+
+/// Review state of a CONTRIBUTED template. Rows the platform authored are APPROVED
+/// from birth; a tenant's contribution arrives PENDING and is only ever visible to
+/// other tenants once the owner publishes it.
+enum TemplateReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A starting point a tenant can import into their workspace as a real assessment.
+///
+/// 🟡 A template is NOT an Assessment, deliberately. Flagging an assessment as
+/// "template" was the obvious shortcut and it leaks everywhere: into the assessments
+/// list, Stats, Submissions, the dashboard counts and the sitemap - and worst of all
+/// it stays publicly reachable at /a/[slug], where a template can collect real
+/// submissions from real people. A separate table cannot do any of that.
+///
+/// The funnel itself lives in `body`, in the SAME portable shape the export/import
+/// format already uses (AssessmentBodyExport). That is the whole reason this is cheap:
+/// every field, gate, result page and band that a transfer carries, a template carries,
+/// and import is the code that already existed.
+model Template {
+  id    String @id @default(cuid())
+  /// Library slug - identifies the template, NOT the assessment it creates. The
+  /// imported copy gets its own globally unique assessment slug at import time.
+  slug  String @unique
+  title String
+  /// Audience bucket shown as a heading in the list, e.g. "Coaches", "Clinics".
+  /// A plain string, not an enum: a new audience must not need a migration.
+  category String
+  /// One or two lines: who it is for and what it decides. Shown in the list.
+  summary  String?
+  shape    TemplateShape @default(GATED_ASSESSMENT)
+
+  /// The portable assessment body (AssessmentBodyExport). Validated on import by the
+  /// same zod schema the uploaded-file importer uses, so a malformed template fails
+  /// loudly at import rather than producing a half-built assessment.
+  body Json
+
+  /// The result-statement instructions this template suggests. On import these become
+  /// an AiPromptVersion OWNED BY THE IMPORTING TENANT and are selected on the new
+  /// assessment, so the tenant never copies and pastes a prompt. Null = no prompt,
+  /// which is how the "without the AI statement" templates ship.
+  aiInstructions String? @db.Text
+
+  /// Visible to tenants. Off = authored but not on the shelf yet, which is also where
+  /// a contribution sits until the owner approves it.
+  published    Boolean @default(false)
+  displayOrder Int     @default(0)
+
+  /// Seeded from a JSON file in the repo (prisma/templates). Re-seeding upserts these
+  /// by slug and NEVER overwrites `published` or `displayOrder` - the owner's shelf
+  /// decisions outlive a deploy, the content is versioned in git.
+  builtin Boolean @default(false)
+
+  /// PRIVATE template: non-null = this row belongs to one workspace and only that
+  /// workspace ever sees it. Null = it is in (or awaiting) the master library.
+  /// Cascades: a deleted tenant's private templates are theirs, not the platform's.
+  ownerTenantId String?
+  ownerTenant   Tenant? @relation("TemplateOwner", fields: [ownerTenantId], references: [id], onDelete: Cascade)
+
+  /// CONTRIBUTION provenance: who sent it in, kept even after the tenant is gone
+  /// (SetNull), because the library row stays and the credit for it should too.
+  contributorTenantId String?
+  contributorTenant   Tenant?              @relation("TemplateContributor", fields: [contributorTenantId], references: [id], onDelete: SetNull)
+  contributorName     String?
+  submittedAt         DateTime?
+  reviewStatus        TemplateReviewStatus @default(APPROVED)
+  reviewedAt          DateTime?
+  /// Why it was rejected, shown back to the contributor.
+  reviewNote          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published, category, displayOrder])
+  @@index([ownerTenantId])
+  @@index([reviewStatus])
+  @@map("template")
 }

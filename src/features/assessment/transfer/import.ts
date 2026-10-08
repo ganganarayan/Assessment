@@ -35,7 +35,16 @@ export async function generateCopySlug(
 const asJson = (v: unknown): Prisma.InputJsonValue | typeof Prisma.DbNull =>
   v === null || v === undefined ? Prisma.DbNull : (v as Prisma.InputJsonValue);
 
-function createData(
+/**
+ * Build the Prisma create for one portable body. Exported because the Template Library
+ * creates an assessment from the SAME shape, and a second copy of this 150-field
+ * mapping would be a field-drop waiting to happen - that is exactly how the old,
+ * narrower export silently lost thirty-four settings.
+ *
+ * Callers may override what they need on the returned object (the template importer
+ * forces `fireMetaCapi` off, for instance); everything else is carried faithfully.
+ */
+export function assessmentCreateData(
   body: AssessmentBodyExport,
   finalSlug: string,
   userId: string | null,
@@ -233,7 +242,7 @@ export async function performImportAll(
           }
         }
 
-        await tx.assessment.create({ data: createData(item.body, slug, userId, tenantId) });
+        await tx.assessment.create({ data: assessmentCreateData(item.body, slug, userId, tenantId) });
       }
       return { count: items.length, renamed };
     },

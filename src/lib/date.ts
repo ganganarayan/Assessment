@@ -55,3 +55,17 @@ export function istDayStart(at: Date = new Date()): Date {
   const dayMs = 24 * 60 * 60 * 1000;
   return new Date(Math.floor(shifted / dayMs) * dayMs - IST_OFFSET_MS);
 }
+
+/**
+ * IST midnight on the FIRST of the month `at` falls in, as a UTC instant.
+ *
+ * "One per calendar month" has to mean the month the owner is looking at, not a
+ * rolling thirty days: a contributor whose template was accepted on the 31st is
+ * eligible again on the 1st, and a cap measured in days would tell them otherwise.
+ */
+export function istMonthStart(at: Date = new Date()): Date {
+  const shifted = new Date(at.getTime() + IST_OFFSET_MS);
+  const y = shifted.getUTCFullYear();
+  const m = shifted.getUTCMonth();
+  return new Date(Date.UTC(y, m, 1) - IST_OFFSET_MS);
+}

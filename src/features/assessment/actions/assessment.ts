@@ -9,6 +9,7 @@ import { resolveActingScope, tenantScope, scopeEditDenied, configTenantOf } from
 import { assertCanCreateAssessment } from "@/lib/billing/gate";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { PARKED_MESSAGE } from "@/lib/billing/plans";
+import { metaPublishBlock } from "@/lib/meta/publish-lock";
 import { getAssessmentById } from "@/features/assessment/data";
 import { assessmentSchema, type AssessmentInput, type AudienceGateInput } from "@/features/assessment/schemas";
 import { originOf } from "@/lib/result/cors";
@@ -337,6 +338,16 @@ export async function setAssessmentStatus(
   // is designed to avoid. Super admins are exempt: they are not rated against a plan.
   if (publish && !scope.isSuper && (await resolvePlan(scope.tenantId)).parked) {
     return { ok: false, error: PARKED_MESSAGE };
+  }
+  // The Meta publish lock: a pixel id AND a CAPI token, or an explicit "we don't use
+  // Meta". Enforced HERE and not only in the button, because a disabled button is a
+  // hint, not a guard - this action is reachable from anywhere a session is.
+  //
+  // Same shape as the parked rule above: publish only, and super admins exempt
+  // (they are not rated against a tenant's configuration).
+  if (publish && !scope.isSuper && scope.tenantId) {
+    const blocked = await metaPublishBlock(scope.tenantId);
+    if (blocked) return { ok: false, error: blocked };
   }
   await prisma.assessment.update({
     where: { id },

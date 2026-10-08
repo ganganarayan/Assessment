@@ -8,6 +8,7 @@ import { DomainSettings } from "@/features/workspace/components/domain-settings"
 import {
   getIntegrationSettings,
   updateMetaSettings,
+  updateMetaNotUsed,
   updateRazorpaySettings,
   updateHeatmapSettings,
   updateVidapulseSettings,
@@ -105,6 +106,10 @@ export default async function SettingsPage() {
             saveMetaAction={impersonating ? updateMetaSettings : updatePlatformMetaSettings}
             saveRazorpayAction={impersonating ? updateRazorpaySettings : updatePlatformRazorpaySettings}
             saveVidapulseAction={impersonating ? updateVidapulseSettings : updatePlatformVidapulseSettings}
+            // The publish lock is a TENANT rule and super admins are exempt from it, so
+            // the opt-out is offered only while a workspace is entered - and even then it
+            // is that workspace's setting, not the platform's.
+            saveMetaNotUsedAction={impersonating ? updateMetaNotUsed : undefined}
             // The platform has exactly ONE pixel and it is set in the block below. A
             // second field here is how the same id came to be entered twice, which made
             // two senders fire one event name for one person with different event ids.

@@ -25,3 +25,7 @@ if (publicUrl && /\.railway\.internal[:/]/.test(current)) {
     "Using DATABASE_PUBLIC_URL - the internal host only resolves inside Railway.",
   );
 }
+
+// Marks this as an ES module so it can be `await import()`ed as well as imported for
+// its side effect. No behaviour of its own; the swap above is the whole file.
+export {};

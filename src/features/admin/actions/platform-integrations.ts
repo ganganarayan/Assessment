@@ -32,6 +32,10 @@ export async function getPlatformIntegrationSettings(): Promise<IntegrationSetti
   return {
     metaPixelId: s?.metaPixelId ?? "",
     hasCapiToken: !!s?.metaCapiTokenEnc,
+    // The publish lock is a TENANT rule: super admins are exempt from it, exactly as
+    // they are from the parked rule, so the platform row never needs the opt-out and
+    // this is false rather than read from the singleton.
+    metaNotUsed: false,
     razorpayKeyId: s?.razorpayKeyId ?? "",
     hasRazorpaySecret: !!s?.razorpayKeySecretEnc,
     hasRazorpayWebhookSecret: !!s?.razorpayWebhookSecretEnc,

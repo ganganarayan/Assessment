@@ -1,0 +1,470 @@
+{
+  "slug": "healer-readiness",
+  "title": "Inner readiness check",
+  "category": "Healers",
+  "summary": "An ungated, gentle self-assessment for healing and wellbeing practices. Everyone who arrives gets a scored, personal reflection.",
+  "shape": "UNGATED_ASSESSMENT",
+  "aiInstructions": "You are writing a short, calm reflection for someone who has just completed a wellbeing self-assessment with a healing practitioner.\n\nWrite 200 to 280 words in second person. Be gentle and plain. Reflect back what their answers suggest about where their energy is going and what has been carrying the strain, using the category names as evidence.\n\nWithhold the practice itself. Name what wants attention; do not teach the technique that would address it. That belongs in a session.\n\nNever give medical advice, never name a condition, never suggest stopping any treatment, and never mention numbers or scores. If anything in the answers suggests crisis or self-harm, say plainly that speaking to a doctor or a helpline comes first.",
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 3,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": false,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "10 questions, about 3 minutes",
+    "subheadline": "A quiet look at what has been carrying the strain, and what has been waiting its turn.",
+    "qualifiedNote": null,
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": null,
+    "disqualifiedContent": {
+      "heading": "Thanks for your honesty.",
+      "subtext": "Based on your answers this is not the right fit right now, so we will not take up more of your time.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Rest",
+        "description": "How much genuine recovery your body is getting, not how much time you spend still.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How do you usually feel in the first hour after waking?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Heavier than when I went to bed",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Slow, it takes a while",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Mostly fine",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Rested and ready",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How often does your mind keep working after you lie down?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Almost every night",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Most nights",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Some nights",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Rarely",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "When did you last have a day with nothing required of you?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "I cannot remember",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Months ago",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "In the last few weeks",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "In the last week",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How does your body tell you it has had enough?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "It does not, until something breaks",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Pain or illness, after the fact",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Tension I notice late",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Early signs I listen to",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Boundaries",
+        "description": "Where your energy leaves without your agreement.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How often do you say yes when you meant no?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Most times I am asked",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Often",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Occasionally",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Rarely, I can say no cleanly",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Who takes the most from you without putting anything back?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Several people, and I cannot see a way out",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "One person, and it is constant",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "One person, now and then",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Nobody comes to mind",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How comfortable are you asking for help?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "I do not ask",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Only when desperate",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "If I know the person well",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Comfortably, when I need it",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Attention",
+        "description": "Whether you are living in the day in front of you.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "Where does your mind sit most of the day?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "In what went wrong before",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "In what might go wrong next",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "It moves around",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Mostly in what I am doing",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How often do you do something purely because it restores you?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Never",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A few times a year",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Most weeks",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most days",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "When something good happens, how long do you stay with it?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "I move straight past it",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A moment",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A little while",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "I let it land properly",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Running on reserves",
+        "description": "Almost everything here points the same way: you are spending more than you are taking in, and have been for a while. The reflection below says where the leak is.",
+        "minScore": 0,
+        "maxScore": 39,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Holding, at a cost",
+        "description": "You are managing, and the managing is the problem. One of the three areas is paying for the other two.",
+        "minScore": 40,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "Steady, with one gap",
+        "description": "Most of what sustains you is in place. One area is thinner than the rest and it shows.",
+        "minScore": 60,
+        "maxScore": 79,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Well resourced",
+        "description": "Rest, boundaries and attention are all doing their work. This is a good place to build from rather than recover from.",
+        "minScore": 80,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "title": "Where is your energy actually going?",
+    "slug": "inner-readiness-check"
+  }
+}

@@ -113,9 +113,16 @@ export async function listPromptVersions(tenantId: string | null): Promise<Promp
  * them, so numbering from 3 would look like two versions had been deleted - theirs
  * start at 1. Existing rows always win (max + 1), so no tenant's numbering shifts.
  */
-export async function nextVersionNumber(tenantId: string | null): Promise<number> {
+/** `client` lets a caller inside a transaction read the max through the SAME
+ *  transaction, so two concurrent imports cannot both pick the same number and trip
+ *  the (tenantId, number) unique index. The settings read stays on the base client:
+ *  it is config, not part of the write. */
+export async function nextVersionNumber(
+  tenantId: string | null,
+  client: Pick<typeof prisma, "aiPromptVersion"> = prisma,
+): Promise<number> {
   const [max, allowBuiltins] = await Promise.all([
-    prisma.aiPromptVersion.aggregate({ where: { tenantId }, _max: { number: true } }),
+    client.aiPromptVersion.aggregate({ where: { tenantId }, _max: { number: true } }),
     builtInPromptsAllowed(tenantId),
   ]);
   const floor = allowBuiltins ? 2 : 0;

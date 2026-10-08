@@ -1,0 +1,627 @@
+{
+  "slug": "clinic-treatment-fit",
+  "title": "Treatment suitability check",
+  "category": "Clinics",
+  "summary": "Screens out enquiries a clinic cannot treat, then scores suitability and commitment. Written to keep clinical claims out of the funnel.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "You are writing the note a clinic coordinator reads before calling an enquiry back.\n\nWrite 200 to 280 words, addressed to the person in second person, calm and factual. Reflect what their answers say about their expectations, their preparation and their circumstances, using the category names as evidence.\n\nABSOLUTE LIMITS. Never diagnose. Never name a condition. Never state or imply that any treatment is suitable, unsuitable, safe or effective for them. Never give a timeline, a price or an outcome. Never advise them to start, stop or change any medication or treatment.\n\nWhat you MAY do is describe what a consultation will need to establish, and what they can usefully prepare. End by saying that only a qualified clinician who has examined them can answer the clinical questions.",
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 3,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "15 questions, 4 minutes",
+    "subheadline": "A structured check before your consultation, so the appointment is spent on you rather than on paperwork.",
+    "qualifiedNote": "Thank you. Leave your details and a coordinator will call you.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "How old are you?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "Under 18",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g1b",
+              "label": "18 to 34",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g1c",
+              "label": "35 to 54",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g1d",
+              "label": "55 or over",
+              "disqualifies": false,
+              "points": 2
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "Are you currently under the care of a doctor for this concern?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Yes, and they know I am exploring this",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g2b",
+              "label": "Yes, but they do not know yet",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g2c",
+              "label": "No",
+              "disqualifies": false,
+              "points": 1
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "How far are you from the clinic?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "Within an hour",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g3b",
+              "label": "One to three hours",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g3c",
+              "label": "I would need to travel and stay",
+              "disqualifies": false,
+              "points": 1
+            },
+            {
+              "id": "g3d",
+              "label": "I am in another country and cannot travel",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Have you had a consultation about this before?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "Yes, within the last year",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g4b",
+              "label": "Yes, longer ago",
+              "disqualifies": false,
+              "points": 2
+            },
+            {
+              "id": "g4c",
+              "label": "No, this would be the first",
+              "disqualifies": false,
+              "points": 2
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "What would you like to happen next?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Book a consultation",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g5b",
+              "label": "Speak to someone first",
+              "disqualifies": false,
+              "points": 3
+            },
+            {
+              "id": "g5c",
+              "label": "Read more and decide later",
+              "disqualifies": false,
+              "points": 1
+            },
+            {
+              "id": "g5d",
+              "label": "Nothing, I am researching for someone else",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks for your honesty.",
+      "subtext": "Based on your answers this is not the right fit right now, so we will not take up more of your time.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Expectations",
+        "description": "How closely what you are hoping for matches what a consultation can address.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How would you describe what you want to change?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "I am not sure yet",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A general dissatisfaction",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "One specific thing",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "One specific thing, and why it matters to me",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Where did your expectations come from?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Social media",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Friends or family",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Articles and clinic websites",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A previous conversation with a clinician",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How do you feel about being told this may not be right for you?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "I would look elsewhere",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "I would be disappointed",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "I would want the reason",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "I would rather know than not",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How soon do you expect to see a difference?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Immediately",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Within weeks",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Within months",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "However long it takes to do properly",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Preparation",
+        "description": "What you have ready for the consultation.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "Do you have your medical history to hand?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "No",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Some of it",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Most of it",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Yes, including current medication",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Have you listed the questions you want answered?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "No",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A couple in my head",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A short list",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A written list",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Have you discussed this with anyone close to you?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Nobody knows",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "One person",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A few people",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Yes, and someone would come with me",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Circumstances",
+        "description": "Whether your situation can support the appointments involved.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This is the weakest part of the picture. Fix it before anything else here will pay off.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, but it is costing you. A focused month here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Protect it and lean on it while you repair the rest.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How easily can you take time off for appointments?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Very difficult",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "With notice, occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "With notice, reliably",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Easily",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Who could support you afterwards if needed?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Nobody",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Someone, at a distance",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Someone nearby",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Someone at home",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How are you planning to pay for this?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "I have not thought about it",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "I would need to arrange something",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "I have a plan",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "It is already set aside or insured",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Worth a conversation before anything else",
+        "description": "Your answers suggest several things are still unsettled. A call costs nothing and will tell you more than more reading will.",
+        "minScore": 0,
+        "maxScore": 39,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Some preparation would help",
+        "description": "You know roughly what you want. Settling the area below before your consultation will make the appointment far more useful.",
+        "minScore": 40,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "Well prepared",
+        "description": "Your expectations and your circumstances line up. One area is worth tidying before you come in.",
+        "minScore": 60,
+        "maxScore": 79,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Ready for a consultation",
+        "description": "Clear about what you want, prepared, and able to attend. A coordinator can book you in.",
+        "minScore": 80,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "title": "Is this treatment right for you?",
+    "slug": "treatment-suitability"
+  }
+}

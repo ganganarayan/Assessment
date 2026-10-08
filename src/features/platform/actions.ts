@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Role, type Plan } from "@prisma/client";
+import { Role, Prisma, type Plan } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin, isStaff } from "@/lib/auth/guards";
 import { PLAN_IDS } from "@/lib/billing/plans";
@@ -333,7 +333,71 @@ export interface TenantRow {
   subStatus: string | null;
   subPlan: string | null;
   subPeriodEnd: string | null;
+  /** The most recent sign-in by anyone in this workspace (ISO), null = nobody has
+   *  signed in since the column was added. The single most useful fact about a trial:
+   *  a tenant who never came back is a different problem from one who logs in daily
+   *  and still has not published. */
+  lastLoginAt: string | null;
+  /** Total sign-ins across this workspace's logins. A floor, not a lifetime total -
+   *  it was backfilled from surviving sessions, and expired ones were already gone. */
+  loginCount: number;
 }
+
+/**
+ * The ONE mapper for a tenant row.
+ *
+ * It exists because there were two, byte-identical, in listTenants and
+ * listDeletedTenants - so every new column had to be added twice, and the first time
+ * one was added to only one of them the deleted list would quietly render it blank.
+ * That is the same trap the assessment builder hit with its three save paths.
+ */
+type TenantWithCounts = Prisma.TenantGetPayload<{
+  include: {
+    _count: { select: { users: true; assessments: true; submissions: true } };
+    subscription: { select: { status: true; plan: true; currentPeriodEnd: true } };
+    users: { select: { lastLoginAt: true; loginCount: true } };
+  };
+}>;
+
+function toTenantRow(t: TenantWithCounts): TenantRow {
+  // The newest sign-in across the workspace's logins. Computed here rather than with a
+  // second query per tenant: the users are already loaded for it.
+  const lastLogin = t.users.reduce<Date | null>(
+    (acc, u) => (u.lastLoginAt && (!acc || u.lastLoginAt > acc) ? u.lastLoginAt : acc),
+    null,
+  );
+  return {
+    id: t.id,
+    slug: t.slug,
+    name: t.name,
+    status: t.status,
+    adminCount: t._count.users,
+    assessmentCount: t._count.assessments,
+    submissionCount: t._count.submissions,
+    createdAt: t.createdAt.toISOString(),
+    source: [t.acqUtmSource, t.acqUtmCampaign].filter((v) => v && v.trim()).join(" · ") || null,
+    deletedAt: t.deletedAt?.toISOString() ?? null,
+    unlimited: t.unlimited,
+    paymentsEnabled: t.paymentsEnabled,
+    plan: t.plan,
+    planExpiresAt: t.planExpiresAt?.toISOString() ?? null,
+    trialEndsAt: t.trialEndsAt?.toISOString() ?? null,
+    subStatus: t.subscription?.status ?? null,
+    subPlan: t.subscription?.plan ?? null,
+    subPeriodEnd: t.subscription?.currentPeriodEnd?.toISOString() ?? null,
+    lastLoginAt: lastLogin?.toISOString() ?? null,
+    loginCount: t.users.reduce((n, u) => n + u.loginCount, 0),
+  };
+}
+
+/** What both tenant lists load. Shared so the two can never select different columns. */
+const TENANT_INCLUDE = {
+  _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } },
+  subscription: { select: { status: true, plan: true, currentPeriodEnd: true } },
+  // Only the one field the row needs. A deleted login's last sign-in is not this
+  // workspace's activity any more, so they are excluded exactly as the count is.
+  users: { where: { deletedAt: null }, select: { lastLoginAt: true, loginCount: true } },
+} as const;
 
 export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
   await requireSuperAdmin();
@@ -346,34 +410,9 @@ export async function listTenants(): Promise<ActionResult<TenantRow[]>> {
       // list never offers an action against a tenant that is supposed to be gone.
       where: { deletedAt: null },
       orderBy: { createdAt: "desc" },
-      include: {
-        _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } },
-        subscription: { select: { status: true, plan: true, currentPeriodEnd: true } },
-      },
+      include: TENANT_INCLUDE,
     });
-    return {
-      ok: true,
-      data: rows.map((t) => ({
-        id: t.id,
-        slug: t.slug,
-        name: t.name,
-        status: t.status,
-        adminCount: t._count.users,
-        assessmentCount: t._count.assessments,
-        submissionCount: t._count.submissions,
-        createdAt: t.createdAt.toISOString(),
-        source: [t.acqUtmSource, t.acqUtmCampaign].filter((v) => v && v.trim()).join(" · ") || null,
-        deletedAt: t.deletedAt?.toISOString() ?? null,
-        unlimited: t.unlimited,
-        paymentsEnabled: t.paymentsEnabled,
-        plan: t.plan,
-        planExpiresAt: t.planExpiresAt?.toISOString() ?? null,
-        trialEndsAt: t.trialEndsAt?.toISOString() ?? null,
-        subStatus: t.subscription?.status ?? null,
-        subPlan: t.subscription?.plan ?? null,
-        subPeriodEnd: t.subscription?.currentPeriodEnd?.toISOString() ?? null,
-      })),
-    };
+    return { ok: true, data: rows.map(toTenantRow) };
   } catch (e) {
     console.error("[platform] listTenants failed:", e instanceof Error ? e.message : String(e));
     return { ok: false, error: "Couldn't load tenants (a temporary database error). Reload to retry." };
@@ -391,34 +430,9 @@ export async function listDeletedTenants(): Promise<ActionResult<TenantRow[]>> {
     const rows = await prisma.tenant.findMany({
       where: { deletedAt: { not: null } },
       orderBy: { updatedAt: "desc" },
-      include: {
-        _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } },
-        subscription: { select: { status: true, plan: true, currentPeriodEnd: true } },
-      },
+      include: TENANT_INCLUDE,
     });
-    return {
-      ok: true,
-      data: rows.map((t) => ({
-        id: t.id,
-        slug: t.slug,
-        name: t.name,
-        status: t.status,
-        adminCount: t._count.users,
-        assessmentCount: t._count.assessments,
-        submissionCount: t._count.submissions,
-        createdAt: t.createdAt.toISOString(),
-        source: [t.acqUtmSource, t.acqUtmCampaign].filter((v) => v && v.trim()).join(" · ") || null,
-        deletedAt: t.deletedAt?.toISOString() ?? null,
-        unlimited: t.unlimited,
-        paymentsEnabled: t.paymentsEnabled,
-        plan: t.plan,
-        planExpiresAt: t.planExpiresAt?.toISOString() ?? null,
-        trialEndsAt: t.trialEndsAt?.toISOString() ?? null,
-        subStatus: t.subscription?.status ?? null,
-        subPlan: t.subscription?.plan ?? null,
-        subPeriodEnd: t.subscription?.currentPeriodEnd?.toISOString() ?? null,
-      })),
-    };
+    return { ok: true, data: rows.map(toTenantRow) };
   } catch (e) {
     console.error("[platform] listDeletedTenants failed:", e instanceof Error ? e.message : String(e));
     return { ok: false, error: "Couldn't load deleted tenants (a temporary database error). Reload to retry." };

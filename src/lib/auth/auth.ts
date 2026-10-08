@@ -243,6 +243,31 @@ export const auth = betterAuth({
     },
   },
   databaseHooks: {
+    session: {
+      create: {
+        /**
+         * Stamp the user's last sign-in.
+         *
+         * Session creation is THE event that means a human got in - it fires on every
+         * sign-in and nowhere else. `user.updatedAt` cannot stand in for it, because any
+         * write to the row moves it, and `session.createdAt` cannot either, because
+         * sessions expire and get pruned.
+         *
+         * Wrapped and swallowed on purpose: this is a reporting field, and nothing about
+         * it is worth failing a login over.
+         */
+        after: async (session) => {
+          try {
+            await prisma.user.update({
+              where: { id: session.userId },
+              data: { lastLoginAt: new Date(), loginCount: { increment: 1 } },
+            });
+          } catch (e) {
+            console.error("[auth] lastLoginAt stamp failed:", e instanceof Error ? e.message : String(e));
+          }
+        },
+      },
+    },
     user: {
       create: {
         // Self-serve provisioning: every new signup (except the platform owner) gets
