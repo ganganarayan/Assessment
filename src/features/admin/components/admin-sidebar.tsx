@@ -38,9 +38,14 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    // Dashboard is not something a tenant BUILDS - it is where they land and read
+    // what the building produced. Filed under Build it read as a step of the work.
+    title: "Overview",
+    items: [{ href: "/admin", label: "Dashboard", exact: true }],
+  },
+  {
     title: "Build",
     items: [
-      { href: "/admin", label: "Dashboard", exact: true },
       { href: "/admin/assessment-builder", label: "Assessment Builder" },
       { href: "/admin/assessments", label: "Assessments", exact: true },
       { href: "/admin/templates", label: "Templates" },

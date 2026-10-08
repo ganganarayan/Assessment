@@ -21,9 +21,14 @@ function isAssessmentEditor(pathname: string) {
  */
 const SECTIONS: NavSection[] = [
   {
+    // Dashboard is where a tenant LANDS, not something they build. Under Build it
+    // read as the first step of the work rather than the view of its results.
+    title: "Overview",
+    items: [{ href: "/w/dashboard", label: "Dashboard" }],
+  },
+  {
     title: "Build",
     items: [
-      { href: "/w/dashboard", label: "Dashboard" },
       { href: "/w/assessments", label: "Assessments" },
       { href: "/w/templates", label: "Templates" },
       { href: "/w/import", label: "Import" },

@@ -40,13 +40,13 @@ export function useBuilderTab(): BuilderTabState | null {
  * costs nothing but a rebuild.
  */
 export const BUILDER_TABS = [
-  { key: "basics", label: "1. Basics" },
-  { key: "audience", label: "2. Who it's for" },
+  { key: "basics", label: "1. Hero section" },
+  { key: "audience", label: "2. Audience / profession" },
   { key: "gate", label: "3. Qualification gate" },
-  { key: "exit", label: "4. If they don't qualify" },
-  { key: "questions", label: "5. How questions run" },
-  { key: "categories", label: "6. Categories & questions" },
-  { key: "optin", label: "7. Opt-in form" },
+  { key: "exit", label: "4. Exit page (disqualified)" },
+  { key: "questions", label: "5. How questions are shown" },
+  { key: "categories", label: "6. Questions and categories" },
+  { key: "optin", label: "7. Lead form" },
   { key: "scoring", label: "8. Scoring & bands" },
   { key: "after", label: "9. After results" },
   { key: "tracking", label: "10. Tracking & rules" },
@@ -62,13 +62,13 @@ export const BUILDER_TABS = [
  * when the page does is worse than no heading: it teaches you to stop reading it.
  */
 export const STEP_HEADINGS: Record<string, { title: string; blurb: string }> = {
-  basics: { title: "Basics", blurb: "What it is called, its link, and the words on the first screen." },
-  audience: { title: "Who it's for", blurb: "An optional first question that sorts people before anything else." },
+  basics: { title: "Hero section", blurb: "The words on the first screen, plus the name and the link." },
+  audience: { title: "Audience / profession", blurb: "An optional first question that sorts people before anything else. Off means Profession sits on the lead form instead." },
   gate: { title: "Qualification gate", blurb: "Screen people out before the assessment. Optional - skip it and everyone goes through." },
-  exit: { title: "If they don't qualify", blurb: "What someone the gate turns away actually sees." },
-  questions: { title: "How questions run", blurb: "How answering works, and how the scoring engine reads it." },
-  categories: { title: "Categories & questions", blurb: "The questions themselves, grouped into the categories that get scored." },
-  optin: { title: "Opt-in form", blurb: "What you ask for, and the words around the ask." },
+  exit: { title: "Exit page (disqualified)", blurb: "What someone the gate turns away actually sees. They never become a lead." },
+  questions: { title: "How questions are shown", blurb: "How answering works, and how the scoring engine reads it." },
+  categories: { title: "Questions and categories", blurb: "The questions themselves, grouped into the categories that get scored." },
+  optin: { title: "Lead form", blurb: "What you ask for, and the words around the ask." },
   scoring: { title: "Scoring & bands", blurb: "What each score MEANS - overall and per category - and the AI write-up." },
   after: { title: "After results", blurb: "Where someone goes once they have their result." },
   tracking: { title: "Tracking & rules", blurb: "Meta events, colours, retakes - the settings nobody changes twice." },

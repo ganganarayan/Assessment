@@ -11,7 +11,7 @@ export default function ImportAssessmentPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-bold tracking-tight">Import assessment</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Two ways in: a JSON/CSV export (authoritative round-trip), or plain text / Markdown you write
+          Two ways in: a JSON or CSV file taken out of another tool, or plain text / Markdown you write
           yourself. Both are validated and previewed before anything is written.
         </p>
       </div>
@@ -19,7 +19,10 @@ export default function ImportAssessmentPage() {
       <TextImport />
 
       <div className="border-t pt-6">
-        <h2 className="mb-3 text-lg font-semibold">From a JSON / CSV export</h2>
+        <h2 className="mb-3 text-lg font-semibold">From a JSON or CSV file</h2>
+        <p className="mb-3 text-xs text-[var(--muted-foreground)]">
+          Moving to Assess360 from another tool? Take the file out of that tool and load it here.
+        </p>
         <ImportWizard />
       </div>
     </div>

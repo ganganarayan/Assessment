@@ -21,6 +21,11 @@
    * every date input at once; styling them one at a time never would. */
   color-scheme: light;
   --radius: 0.625rem;
+  /* The edge of anything you can type into. Light theme: a slate that is clearly
+   * darker than the page without shouting. */
+  --field-border: #94a3b8;
+  --field-border-hover: #64748b;
+  --field-bg: #ffffff;
   --background: #ffffff;
   --foreground: #0f172a;
   --primary: #0f172a;
@@ -34,6 +39,11 @@
  * script). "System" resolves to .dark via the init script using the OS pref. */
 .dark {
   color-scheme: dark;
+  /* Dark theme: a light slate edge over a panel lifted off the page. Both are needed -
+   * a border alone on an identical background still disappears. */
+  --field-border: #64748b;
+  --field-border-hover: #94a3b8;
+  --field-bg: #1e293b;
   --background: #0f172a;
   --foreground: #f8fafc;
   --primary: #4f46e5;
@@ -52,11 +62,12 @@
  * against the page rather than against a surface of their own - readable by luck. These
  * two rules make the contrast explicit rather than inherited. */
 select {
-  background-color: var(--background);
   color: var(--foreground);
 }
+/* The dropdown LIST, which is drawn by the browser rather than by the page. It takes
+ * the field surface too, so an open menu matches the box it came out of. */
 select option {
-  background-color: var(--background);
+  background-color: var(--field-bg);
   color: var(--foreground);
 }
 
@@ -110,8 +121,15 @@ input[type="date"],
 input:not([type]),
 textarea,
 select {
-  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+  /* A dedicated token, not a tint of --primary. The first attempt used primary at 45%
+   * alpha, which on the dark theme is indigo-on-navy: present in the markup, invisible
+   * on the screen, and the complaint it was meant to answer came straight back. This
+   * is a flat, deliberately brighter edge that reads as a field across the room. */
+  border-color: var(--field-border);
   border-width: 1px;
+  /* A well, not a patch of page. The background doing nothing was half the reason the
+   * borders had to carry it alone. */
+  background-color: var(--field-bg);
 }
 
 input[type="text"]:hover,
@@ -125,7 +143,7 @@ input[type="date"]:hover,
 input:not([type]):hover,
 textarea:hover,
 select:hover {
-  border-color: color-mix(in srgb, var(--primary) 70%, transparent);
+  border-color: var(--field-border-hover);
 }
 
 /* Editing. Amber is the project's "needs attention" colour, and an unsaved edit is
