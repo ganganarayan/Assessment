@@ -2372,10 +2372,18 @@ model Template {
   published    Boolean @default(false)
   displayOrder Int     @default(0)
 
-  /// Seeded from a JSON file in the repo (prisma/templates). Re-seeding upserts these
-  /// by slug and NEVER overwrites `published` or `displayOrder` - the owner's shelf
-  /// decisions outlive a deploy, the content is versioned in git.
+  /// Seeded from a JSON file in the repo (src/features/templates/builtin). Re-seeding
+  /// upserts these by slug and NEVER overwrites `published` or `displayOrder` - the
+  /// owner's shelf decisions outlive a deploy, the content is versioned in git.
   builtin Boolean @default(false)
+
+  /// This row's CONTENT was edited in the app, so the seeder leaves it alone.
+  ///
+  /// Without it, editing a built-in in the Template editor would save, work, and then
+  /// silently revert on the next deploy when the seeder re-read the repo file. The row
+  /// stays a built-in - same badge, same slug - it is just no longer downstream of the
+  /// file. "Revert to the repo version" clears this and re-seeds that one row.
+  seedLocked Boolean @default(false)
 
   /// PRIVATE template: non-null = this row belongs to one workspace and only that
   /// workspace ever sees it. Null = it is in (or awaiting) the master library.

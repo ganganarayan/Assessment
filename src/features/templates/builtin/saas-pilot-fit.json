@@ -44,19 +44,16 @@
             {
               "id": "g1a",
               "label": "Fifty or more",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g1b",
               "label": "Ten to forty-nine",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g1c",
               "label": "Three to nine",
-              "disqualifies": false,
               "points": 1
             },
             {
@@ -77,19 +74,16 @@
             {
               "id": "g2a",
               "label": "Yes, approved",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g2b",
               "label": "Yes, but it needs a case",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g2c",
               "label": "Not this year",
-              "disqualifies": false,
               "points": 0
             },
             {
@@ -110,19 +104,16 @@
             {
               "id": "g3a",
               "label": "A named person, already identified",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g3b",
               "label": "A team, no single owner yet",
-              "disqualifies": false,
               "points": 1
             },
             {
               "id": "g3c",
               "label": "Nobody, we would need to hire",
-              "disqualifies": false,
               "points": 0
             }
           ]
@@ -137,19 +128,16 @@
             {
               "id": "g4a",
               "label": "A deadline we have already committed to",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g4b",
               "label": "A problem that is getting worse",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g4c",
               "label": "General improvement",
-              "disqualifies": false,
               "points": 1
             },
             {
@@ -170,19 +158,16 @@
             {
               "id": "g5a",
               "label": "Yes, and we bought",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g5b",
               "label": "Yes, and we did not",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g5c",
               "label": "No, this is the first time",
-              "disqualifies": false,
               "points": 1
             }
           ]

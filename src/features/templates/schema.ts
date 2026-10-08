@@ -72,3 +72,36 @@ export function categoryRank(category: string): number {
   const i = (TEMPLATE_CATEGORIES as readonly string[]).indexOf(category);
   return i === -1 ? TEMPLATE_CATEGORIES.length : i;
 }
+
+/**
+ * Strip `"disqualifies": false` from gate options.
+ *
+ * The builder shows a TICK, and the tick writes a plain boolean - there is no third
+ * state, and none is planned. So in a document, `"disqualifies": false` is the verbose
+ * way of writing "unticked", and it is on roughly four lines out of every five in the
+ * gate. That bulk hides the one line that is actually doing something, and it invites
+ * the reasonable-but-wrong conclusion that the builder is missing a control the format
+ * supports.
+ *
+ * Lossless, and that is checkable rather than hoped for: `qualOptionSchema` declares
+ * `disqualifies: z.boolean().default(false)`, and EVERY consumer of the stored blob
+ * parses it through `qualificationSchema` first - the public funnel (app/a/[slug]),
+ * both builders, and the scorer in actions/submission.ts. An absent key comes back as
+ * false in all four.
+ *
+ * `points` is deliberately left alone, including `0`. It is a number an owner tunes,
+ * and a scale with its zeroes removed reads as though some answers are unscored.
+ *
+ * Pure and non-mutating: the caller's object is never touched.
+ */
+export function tidyGateDefaults<T>(body: T): T {
+  const clone = JSON.parse(JSON.stringify(body)) as {
+    qualification?: { questions?: Array<{ options?: Array<Record<string, unknown>> }> } | null;
+  };
+  for (const q of clone.qualification?.questions ?? []) {
+    for (const o of q.options ?? []) {
+      if (o.disqualifies === false) delete o.disqualifies;
+    }
+  }
+  return clone as T;
+}

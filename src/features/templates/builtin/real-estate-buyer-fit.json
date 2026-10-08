@@ -44,19 +44,16 @@
             {
               "id": "g1a",
               "label": "Within three months",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g1b",
               "label": "Within six months",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g1c",
               "label": "Within a year",
-              "disqualifies": false,
               "points": 1
             },
             {
@@ -77,19 +74,16 @@
             {
               "id": "g2a",
               "label": "Cash, available now",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g2b",
               "label": "Mortgage, already approved in principle",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g2c",
               "label": "Mortgage, not yet applied for",
-              "disqualifies": false,
               "points": 1
             },
             {
@@ -110,25 +104,21 @@
             {
               "id": "g3a",
               "label": "No",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g3b",
               "label": "Yes, and it is under offer",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g3c",
               "label": "Yes, and it is on the market",
-              "disqualifies": false,
               "points": 1
             },
             {
               "id": "g3d",
               "label": "Yes, and it is not listed yet",
-              "disqualifies": false,
               "points": 0
             }
           ]
@@ -143,25 +133,21 @@
             {
               "id": "g4a",
               "label": "Just me",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g4b",
               "label": "Me and a partner, both available",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g4c",
               "label": "Me and a partner, rarely free together",
-              "disqualifies": false,
               "points": 1
             },
             {
               "id": "g4d",
               "label": "Several family members",
-              "disqualifies": false,
               "points": 0
             }
           ]
@@ -176,19 +162,16 @@
             {
               "id": "g5a",
               "label": "Yes, several",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g5b",
               "label": "Yes, one or two",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g5c",
               "label": "No, this would be the first",
-              "disqualifies": false,
               "points": 1
             }
           ]

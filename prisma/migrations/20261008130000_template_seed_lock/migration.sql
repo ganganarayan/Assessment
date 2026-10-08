@@ -1,0 +1,16 @@
+-- Let a built-in template be edited in the app without a deploy throwing the edit away.
+--
+-- 🔴 The trap this closes: the seeder re-reads the repo's JSON files on every boot and
+-- overwrites title, category, summary, shape, body and prompt. So an owner who edited a
+-- built-in in the console would see it save, work, and then silently revert on the next
+-- deploy - with nothing anywhere to explain why. An editor nobody can trust is worse
+-- than no editor.
+--
+-- Editing a built-in's content in the app now sets this, and a locked row is skipped by
+-- the seeder's content update. The row stays a built-in (it keeps its badge and its
+-- slug); it is simply no longer downstream of the file. "Revert to the repo version"
+-- clears the lock and re-seeds that one row, which is the way back.
+--
+-- `published` and `displayOrder` are unaffected either way: the seeder never touched
+-- those, locked or not.
+ALTER TABLE "template" ADD COLUMN "seedLocked" BOOLEAN NOT NULL DEFAULT false;

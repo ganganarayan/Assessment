@@ -50,19 +50,16 @@
             {
               "id": "g1b",
               "label": "18 to 34",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g1c",
               "label": "35 to 54",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g1d",
               "label": "55 or over",
-              "disqualifies": false,
               "points": 2
             }
           ]
@@ -77,19 +74,16 @@
             {
               "id": "g2a",
               "label": "Yes, and they know I am exploring this",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g2b",
               "label": "Yes, but they do not know yet",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g2c",
               "label": "No",
-              "disqualifies": false,
               "points": 1
             }
           ]
@@ -104,19 +98,16 @@
             {
               "id": "g3a",
               "label": "Within an hour",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g3b",
               "label": "One to three hours",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g3c",
               "label": "I would need to travel and stay",
-              "disqualifies": false,
               "points": 1
             },
             {
@@ -137,19 +128,16 @@
             {
               "id": "g4a",
               "label": "Yes, within the last year",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g4b",
               "label": "Yes, longer ago",
-              "disqualifies": false,
               "points": 2
             },
             {
               "id": "g4c",
               "label": "No, this would be the first",
-              "disqualifies": false,
               "points": 2
             }
           ]
@@ -164,19 +152,16 @@
             {
               "id": "g5a",
               "label": "Book a consultation",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g5b",
               "label": "Speak to someone first",
-              "disqualifies": false,
               "points": 3
             },
             {
               "id": "g5c",
               "label": "Read more and decide later",
-              "disqualifies": false,
               "points": 1
             },
             {
