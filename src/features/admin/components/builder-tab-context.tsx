@@ -42,17 +42,40 @@ export function useBuilderTab(): BuilderTabState | null {
 export const BUILDER_TABS = [
   { key: "basics", label: "1. Basics" },
   { key: "audience", label: "2. Who it's for" },
-  { key: "questions", label: "3. Questions" },
-  { key: "optin", label: "4. Opt-in form" },
-  { key: "scoring", label: "5. Scoring & bands" },
-  { key: "after", label: "6. After results" },
-  { key: "tracking", label: "7. Tracking & rules" },
+  { key: "gate", label: "3. Qualification gate" },
+  { key: "exit", label: "4. If they don't qualify" },
+  { key: "questions", label: "5. How questions run" },
+  { key: "categories", label: "6. Categories & questions" },
+  { key: "optin", label: "7. Opt-in form" },
+  { key: "scoring", label: "8. Scoring & bands" },
+  { key: "after", label: "9. After results" },
+  { key: "tracking", label: "10. Tracking & rules" },
   { key: "results", label: "Results page" },
-  { key: "resultPage", label: "VSL Result Page" },
+  { key: "resultPage", label: "VSL result page" },
 ] as const;
 
-/** The steps the "Save & next" button walks through. The last two are separate
- *  builders with their own publish buttons, so the walk stops before them. */
+/**
+ * What each step IS, for the heading on it.
+ *
+ * Every step used to be titled "Settings - core details and lead capture", which was
+ * true of the first one and a lie on the other six. A heading that does not change
+ * when the page does is worse than no heading: it teaches you to stop reading it.
+ */
+export const STEP_HEADINGS: Record<string, { title: string; blurb: string }> = {
+  basics: { title: "Basics", blurb: "What it is called, its link, and the words on the first screen." },
+  audience: { title: "Who it's for", blurb: "An optional first question that sorts people before anything else." },
+  gate: { title: "Qualification gate", blurb: "Screen people out before the assessment. Optional - skip it and everyone goes through." },
+  exit: { title: "If they don't qualify", blurb: "What someone the gate turns away actually sees." },
+  questions: { title: "How questions run", blurb: "How answering works, and how the scoring engine reads it." },
+  categories: { title: "Categories & questions", blurb: "The questions themselves, grouped into the categories that get scored." },
+  optin: { title: "Opt-in form", blurb: "What you ask for, and the words around the ask." },
+  scoring: { title: "Scoring & bands", blurb: "What each score MEANS - overall and per category - and the AI write-up." },
+  after: { title: "After results", blurb: "Where someone goes once they have their result." },
+  tracking: { title: "Tracking & rules", blurb: "Meta events, colours, retakes - the settings nobody changes twice." },
+};
+
+/** The steps the Back / Save & next buttons walk through. The last two are separate
+ *  builders with their own draft and Publish button, so the walk stops before them. */
 export const STEP_KEYS = BUILDER_TABS.map((t) => t.key).filter(
   (k) => k !== "results" && k !== "resultPage",
 ) as readonly string[];
@@ -63,9 +86,18 @@ export function nextStepKey(key: string): string | null {
   return i >= 0 && i < STEP_KEYS.length - 1 ? (STEP_KEYS[i + 1] ?? null) : null;
 }
 
-/** The label for a step key, for the "Save & next: <label>" button. */
+/** The step before `key`, or null at the start. Back exists because a walk you can
+ *  only go forward through is a trap: the moment you realise the last step was wrong,
+ *  your only way back is the rail you were not looking at. */
+export function prevStepKey(key: string): string | null {
+  const i = STEP_KEYS.indexOf(key);
+  return i > 0 ? (STEP_KEYS[i - 1] ?? null) : null;
+}
+
+/** The label for a step key, without its number - for a sentence on a button. */
 export function stepLabel(key: string): string {
-  return BUILDER_TABS.find((t) => t.key === key)?.label ?? key;
+  const raw = BUILDER_TABS.find((t) => t.key === key)?.label ?? key;
+  return raw.replace(/^\d+\.\s*/, "");
 }
 
 /**
@@ -100,4 +132,51 @@ export function BuilderStepReset({ assessmentId }: { assessmentId: string }) {
     setActive?.("basics");
   }, [assessmentId, setActive]);
   return null;
+}
+
+/**
+ * Back / Next for the steps whose content is a manager rather than form fields.
+ *
+ * Those managers save themselves as you go - each row, each band, each question has
+ * its own action - so there is nothing here to press Save on, and a Save button that
+ * saved nothing would be the most misleading control on the page. This navigates and
+ * says so.
+ *
+ * It renders BELOW the manager, because a Back/Next row above the thing you came to
+ * edit is a row you press by accident.
+ */
+export function BuilderStepNav({ step }: { step: string }) {
+  const ctx = useBuilderTab();
+  const prev = prevStepKey(step);
+  const next = nextStepKey(step);
+  const go = (k: string | null) => {
+    if (!k) return;
+    ctx?.setActive(k);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+      {prev ? (
+        <button
+          type="button"
+          onClick={() => go(prev)}
+          className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-[var(--muted)]"
+        >
+          ← Back
+        </button>
+      ) : null}
+      {next ? (
+        <button
+          type="button"
+          onClick={() => go(next)}
+          className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+        >
+          Next: {stepLabel(next)} →
+        </button>
+      ) : null}
+      <span className="text-xs text-[var(--muted-foreground)]">
+        Changes on this step save as you make them.
+      </span>
+    </div>
+  );
 }

@@ -14,7 +14,11 @@ import { CategoryBandsManager } from "@/features/assessment/components/admin/cat
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { PagesBuilder } from "@/features/assessment/components/admin/pages-builder";
 import { ResultPageBuilder } from "@/features/assessment/components/admin/result-page-builder";
-import { BuilderStep, BuilderStepReset } from "@/features/admin/components/builder-tab-context";
+import {
+  BuilderStep,
+  BuilderStepReset,
+  BuilderStepNav,
+} from "@/features/admin/components/builder-tab-context";
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
 import { readResultPage } from "@/features/assessment/result-page/blocks";
 import { buildSpine } from "@/lib/routing/engine";
@@ -241,20 +245,44 @@ export default async function EditAssessmentPage({
     <>
       <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} canPlatformSignup={canPlatformSignup} />
 
-      <BuilderStep step="audience">
+      <BuilderStep step="gate">
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Qualification gate (Page 1)</h2>
+        <h2 className="text-lg font-semibold">Qualification gate</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
-          Screen respondents <strong>before</strong> the assessment. A disqualifying answer sends them to a
-          separate page and creates <strong>no lead, submission or result</strong> - only an optional
-          &quot;Disqualified&quot; Meta pixel event so you can exclude them from ads.
+          Asked <strong>before</strong> the assessment, to decide who is worth going further with. An
+          answer you mark as disqualifying ends it there: <strong>no lead, no submission, no result</strong>,
+          only an optional Meta event so you can stop paying to reach people like them.
+        </p>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Entirely optional. Leave it switched off and everyone goes straight into the assessment.
         </p>
         <QualificationManager
           assessmentId={a.id}
           initialQualification={qualification}
           initialDisqualified={disqualified}
           storedUnreadable={qualUnreadable}
+          section="gate"
         />
+        <BuilderStepNav step="gate" />
+      </section>
+      </BuilderStep>
+
+      <BuilderStep step="exit">
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">If they don&apos;t qualify</h2>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          The page someone sees when the gate turns them away. They are not a lead and nothing about
+          them is stored, so this is the last thing they ever see from this funnel - which makes it
+          worth writing. A polite dead end keeps the door open; a blank page reads as a broken site.
+        </p>
+        <QualificationManager
+          assessmentId={a.id}
+          initialQualification={qualification}
+          initialDisqualified={disqualified}
+          storedUnreadable={qualUnreadable}
+          section="exit"
+        />
+        <BuilderStepNav step="exit" />
       </section>
       </BuilderStep>
 
@@ -268,10 +296,11 @@ export default async function EditAssessmentPage({
       </section>
       </BuilderStep>
 
-      <BuilderStep step="questions">
+      <BuilderStep step="categories">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Categories &amp; Questions</h2>
         <CategoriesManager assessmentId={a.id} categories={categories} engine={a.engine} routing={routingContext} />
+        <BuilderStepNav step="categories" />
       </section>
       </BuilderStep>
 
