@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -8,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { useBuilderTab, BUILDER_TABS } from "@/features/admin/components/builder-tab-context";
 import { AppBrand } from "@/components/app-brand";
+import { NavShell, type NavItem, type NavSection } from "@/components/nav-shell";
 
 const BUILDER_HREF = "/admin/assessment-builder";
 /** True on an assessment editor page (/admin/assessments/<id>, not the list/new). */
@@ -15,56 +15,64 @@ function isAssessmentEditor(pathname: string) {
   return /^\/admin\/assessments\/[^/]+$/.test(pathname) && !pathname.endsWith("/new");
 }
 
-interface NavItem {
-  href: string;
-  label: string;
-}
 interface AdminSidebarProps {
   user: { name: string; email: string };
   /** The tenant a super admin has entered, shown under the wordmark. Null = platform. */
   tenantName?: string | null;
 }
-const NAV: { section: string | null; items: NavItem[] }[] = [
+
+/**
+ * The owner's rail, in named sections.
+ *
+ * It was five unlabelled runs of links with two headings among them - which is a list
+ * rather than a menu, and the builder's twelve steps hang off one of those links. Named
+ * and folded, the thing you want is never more than one click from the top of the
+ * column.
+ */
+const SECTIONS: NavSection[] = [
   {
-    // The SaaS itself: who the customers are, and where the traffic that produced them
-    // came from. Marketing stats used to be reachable only from a small link on the
-    // platform console, which is to say: by knowing it was there.
-    section: null,
+    title: "Platform",
     items: [
-      { href: "/platform", label: "Platform (tenants)" },
+      { href: "/platform", label: "Tenants", exact: true },
       { href: "/platform/stats", label: "Marketing stats" },
     ],
   },
-  { section: null, items: [{ href: "/admin", label: "Dashboard" }] },
   {
-    section: null,
+    title: "Build",
     items: [
+      { href: "/admin", label: "Dashboard", exact: true },
       { href: "/admin/assessment-builder", label: "Assessment Builder" },
-      { href: "/admin/assessments", label: "Assessments" },
+      { href: "/admin/assessments", label: "Assessments", exact: true },
       { href: "/admin/templates", label: "Templates" },
+      { href: "/admin/import", label: "Import" },
+    ],
+  },
+  {
+    title: "Leads",
+    items: [
       { href: "/admin/submissions", label: "Submissions" },
       { href: "/admin/audiences", label: "Audiences" },
     ],
   },
   {
-    section: "Analytics",
+    title: "Analytics",
     items: [
       { href: "/admin/analytics/stats", label: "Stats" },
       { href: "/admin/data-window", label: "Data window" },
     ],
   },
   {
-    section: "Automation",
+    title: "Automation",
     items: [
       { href: "/admin/nurture", label: "Nurture" },
-      { href: "/admin/webhooks", label: "Webhooks" },
+      { href: "/admin/webhooks", label: "Webhooks", exact: true },
       { href: "/admin/webhook-logs", label: "Webhook Logs" },
       { href: "/admin/pixel-test", label: "Pixel Tester" },
       { href: "/admin/api-tokens", label: "API Tokens" },
     ],
   },
   {
-    section: null,
+    title: "Account",
     items: [
       { href: "/admin/ai", label: "AI" },
       { href: "/admin/operations", label: "Operations" },
@@ -80,15 +88,13 @@ export function AdminSidebar({ user, tenantName }: AdminSidebarProps) {
   const tab = useBuilderTab();
   const editing = isAssessmentEditor(pathname);
 
-  const isActive = (href: string) => {
-    if (href === "/admin") return pathname === "/admin";
-    // Exact, so the tenant list does not light up while Marketing stats is open.
-    if (href === "/platform") return pathname === "/platform";
-    // The editor + create live under /admin/assessments/* and belong to the builder.
-    if (href === BUILDER_HREF) return pathname.startsWith(BUILDER_HREF) || pathname.startsWith("/admin/assessments/");
-    // "Assessments" (published list) is the exact path only - not the editor.
-    if (href === "/admin/assessments") return pathname === "/admin/assessments";
-    return pathname.startsWith(href);
+  const isActive = (it: NavItem) => {
+    // The editor and /new live under /admin/assessments/* and belong to the builder,
+    // so the builder link owns them and the list link is its exact path only.
+    if (it.href === BUILDER_HREF) {
+      return pathname.startsWith(BUILDER_HREF) || pathname.startsWith("/admin/assessments/");
+    }
+    return it.exact ? pathname === it.href : pathname.startsWith(it.href);
   };
 
   return (
@@ -110,62 +116,43 @@ export function AdminSidebar({ user, tenantName }: AdminSidebarProps) {
           <div className="hidden px-2 md:block">
             <AppBrand href="/admin" subtitle={tenantName ?? null} />
           </div>
-          <nav className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto text-sm">
-            {NAV.map((group, i) => (
-              <div key={i} className="flex flex-col gap-1">
-                {group.section ? (
-                  <p className="px-2 pt-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-                    {group.section}
-                  </p>
-                ) : null}
-                {group.items.map((it) => (
-                  <div key={it.href} className="flex flex-col">
-                    <Link
-                      href={it.href}
-                      onClick={() => setOpen(false)}
-                      className={cn(
-                        "rounded-md px-2 py-1.5 hover:bg-[var(--muted)]",
-                        isActive(it.href) && "bg-[var(--muted)] font-medium",
-                      )}
-                    >
-                      {it.label}
-                    </Link>
-                    {/* While editing an assessment, the builder's tabs live here as
-                        a branch under "Assessment Builder" (no wasted in-page rail). */}
-                    {it.href === BUILDER_HREF && editing ? (
-                      <div className="mt-1 ml-3 flex flex-col gap-1 border-l pl-2">
-                        {BUILDER_TABS.map((t) => (
-                          <button
-                            key={t.key}
-                            type="button"
-                            onClick={() => {
-                              tab?.setActive(t.key);
-                              setOpen(false);
-                            }}
-                            className={cn(
-                              "rounded-md px-2 py-1 text-left text-sm hover:bg-[var(--muted)]",
-                              (tab?.active ?? "assessment") === t.key && "bg-[var(--muted)] font-medium",
-                            )}
-                          >
-                            {t.label}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <NavShell
+              sections={SECTIONS}
+              isActive={isActive}
+              storageKey="admin"
+              renderUnder={(it) =>
+                // While editing an assessment, the builder's steps live here as a
+                // branch under Assessment Builder.
+                it.href === BUILDER_HREF && editing ? (
+                  <div className="mt-1 ml-3 flex flex-col gap-1 border-l pl-2">
+                    {BUILDER_TABS.map((t) => (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => {
+                          tab?.setActive(t.key);
+                          setOpen(false);
+                        }}
+                        className={cn(
+                          "rounded-md px-2 py-1 text-left text-sm hover:bg-[var(--muted)]",
+                          (tab?.active ?? "basics") === t.key && "bg-[var(--muted)] font-medium",
+                        )}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ))}
-          </nav>
+                ) : null
+              }
+            />
+          </div>
           <div className="border-t pt-3">
             <div className="mb-3 px-2">
               <p className="truncate text-sm font-medium" title={user.name}>
                 {user.name}
               </p>
-              <p
-                className="truncate text-xs text-[var(--muted-foreground)]"
-                title={user.email}
-              >
+              <p className="truncate text-xs text-[var(--muted-foreground)]" title={user.email}>
                 {user.email}
               </p>
             </div>

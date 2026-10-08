@@ -50,8 +50,8 @@ export const BUILDER_TABS = [
   { key: "scoring", label: "8. Scoring & bands" },
   { key: "after", label: "9. After results" },
   { key: "tracking", label: "10. Tracking & rules" },
-  { key: "results", label: "Results page" },
-  { key: "resultPage", label: "VSL result page" },
+  { key: "results", label: "11. Results page" },
+  { key: "resultPage", label: "12. VSL result page" },
 ] as const;
 
 /**

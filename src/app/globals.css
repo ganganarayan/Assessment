@@ -78,3 +78,96 @@ textarea:-webkit-autofill {
   -webkit-box-shadow: 0 0 0px 1000px var(--background) inset;
   transition: background-color 9999s ease-in-out 0s;
 }
+
+/* ---------------------------------------------------------------------------
+ * Make an editable field look editable.
+ *
+ * The inputs here were a border the same colour as every other border on the page,
+ * on a background the same colour as the page. On a dark theme that is very nearly
+ * invisible: the owner could not tell which parts of the builder he was allowed to
+ * type into, and neither can a customer.
+ *
+ * Three states, and they are the whole point:
+ *   resting  - a standing accent border, so it reads as a field before you touch it
+ *   editing  - amber, because something is being changed and not yet saved
+ *   left     - back to the accent, which in this app means saved: every editor here
+ *              autosaves on blur, so leaving a field IS the save
+ *
+ * Done globally with element selectors rather than on the shared Input component,
+ * because a good half of these fields are raw <input>/<select>/<textarea> written
+ * inline in a manager - styling only the component would have fixed the tidy half and
+ * left the messy half exactly as it was.
+ * --------------------------------------------------------------------------- */
+
+input[type="text"],
+input[type="email"],
+input[type="url"],
+input[type="tel"],
+input[type="number"],
+input[type="password"],
+input[type="search"],
+input[type="date"],
+input:not([type]),
+textarea,
+select {
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+  border-width: 1px;
+}
+
+input[type="text"]:hover,
+input[type="email"]:hover,
+input[type="url"]:hover,
+input[type="tel"]:hover,
+input[type="number"]:hover,
+input[type="password"]:hover,
+input[type="search"]:hover,
+input[type="date"]:hover,
+input:not([type]):hover,
+textarea:hover,
+select:hover {
+  border-color: color-mix(in srgb, var(--primary) 70%, transparent);
+}
+
+/* Editing. Amber is the project's "needs attention" colour, and an unsaved edit is
+ * exactly that - it goes back to the resting accent the moment the field is left,
+ * which is the moment it is written. */
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #f59e0b;
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #f59e0b 25%, transparent);
+}
+
+/* Checkboxes and radios are not text fields and look wrong with a text field's
+ * border, but they do need to look pressable. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: #16a34a;
+  cursor: pointer;
+  width: 1rem;
+  height: 1rem;
+}
+
+/* The asterisk beside the label of the field being edited.
+ *
+ * It marks "this one, right now, and it is not written yet". It disappears on blur,
+ * which is when autosave fires - so "gone" genuinely means saved rather than meaning
+ * the marker gave up.
+ *
+ * Keyed on the wrapper that nearly every field here already uses (a flex column
+ * holding a label and its input), because CSS cannot look backwards from an input to
+ * its label. A field not in that shape simply does not get the marker; it never gets
+ * a WRONG one. */
+div:focus-within > label::after,
+div:focus-within > .field-label::after {
+  content: " *";
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+/* A label wrapping its own control - a checkbox row - must not sprout an asterisk
+ * just because the box inside it has focus. */
+label:focus-within::after {
+  content: none;
+}

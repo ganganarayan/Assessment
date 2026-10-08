@@ -3,6 +3,7 @@ import { resolveActingTenant } from "@/lib/tenant/acting";
 import { prisma } from "@/lib/db/prisma";
 import { AdminSidebar } from "@/features/admin/components/admin-sidebar";
 import { ImpersonationBanner } from "@/features/admin/components/impersonation-banner";
+import { AppFooter } from "@/components/app-footer";
 import { BuilderTabProvider } from "@/features/admin/components/builder-tab-context";
 
 export default async function AdminLayout({
@@ -25,6 +26,7 @@ export default async function AdminLayout({
         <main className="min-w-0 flex-1">
           {tenantName ? <ImpersonationBanner tenantName={tenantName} /> : null}
           <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">{children}</div>
+          <AppFooter />
         </main>
       </div>
     </BuilderTabProvider>

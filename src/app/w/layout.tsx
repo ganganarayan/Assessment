@@ -5,6 +5,7 @@ import { ImpersonationBanner } from "@/features/admin/components/impersonation-b
 import { WorkspaceNav } from "@/features/workspace/components/workspace-nav";
 import { BuilderTabProvider } from "@/features/admin/components/builder-tab-context";
 import { AppBrand } from "@/components/app-brand";
+import { AppFooter } from "@/components/app-footer";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PlatformPixel } from "@/components/platform-pixel";
 import { StartTrialReporter } from "@/features/billing/components/start-trial-reporter";
@@ -129,6 +130,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         <div className="mx-auto max-w-5xl px-4 pb-8 pt-4 md:px-8">
           {locked ? <WorkspaceLocked supportEmail={supportEmail} reason={lockReason} /> : children}
         </div>
+        <AppFooter />
       </main>
     </div>
     </BuilderTabProvider>
