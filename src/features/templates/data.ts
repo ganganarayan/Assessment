@@ -186,6 +186,30 @@ export async function listAllTemplates(): Promise<TemplateListItem[]> {
   return [...pending, ...rest.sort(byCategoryThenOrder)];
 }
 
+/**
+ * The library as the PLATFORM OWNER sees it on their own dashboard: every template,
+ * published or not, all importable.
+ *
+ * Deliberately different from what a tenant gets, and the difference is the point. A
+ * tenant sees what is on the shelf; the owner has to see what is NOT on it yet, because
+ * an unpublished template is precisely the one still waiting to be read. A list that
+ * hid them would hide the entire review queue from the screen the owner lands on.
+ *
+ * `importable` is true for everything except a declined contribution, so the owner can
+ * run one to review it - which is the only honest way to judge a funnel - without that
+ * loosening anything for anyone else: the import action grants it only to a super admin.
+ */
+export async function listTemplatesForOwner(ownerTenantId: string): Promise<TemplateListItem[]> {
+  const rows = (await prisma.template.findMany({ select: LIST_SELECT })) as RawRow[];
+  const items = rows
+    .map((r) => toItem(r, ownerTenantId))
+    .map((i) => ({ ...i, importable: i.reviewStatus !== "REJECTED" }));
+  const pending = items.filter((i) => i.reviewStatus === "PENDING");
+  const rest = items.filter((i) => i.reviewStatus !== "PENDING");
+  pending.sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
+  return [...pending, ...rest.sort(byCategoryThenOrder)];
+}
+
 /** Group a list for rendering, in the order the categories are authored in. */
 export function groupByCategory(items: TemplateListItem[]): Array<{ category: string; items: TemplateListItem[] }> {
   const out: Array<{ category: string; items: TemplateListItem[] }> = [];
