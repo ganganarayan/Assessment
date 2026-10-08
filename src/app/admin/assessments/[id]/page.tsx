@@ -4,7 +4,7 @@ import { currentUserCanEdit } from "@/lib/auth/guards";
 import { getAssessmentById, listAssessments } from "@/features/assessment/data";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { resolveActingScope, actingConfigTenantId } from "@/lib/tenant/acting";
-import { isPlatformScope } from "@/lib/tenant/platform-tenant";
+import { isPlatformScope, PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
 import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
 import { CategoriesManager } from "@/features/assessment/components/admin/categories-manager";
@@ -14,7 +14,13 @@ import { CategoryBandsManager } from "@/features/assessment/components/admin/cat
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
 import { PagesBuilder } from "@/features/assessment/components/admin/pages-builder";
 import { ResultPageBuilder } from "@/features/assessment/components/admin/result-page-builder";
-import { BuilderTabPanels } from "@/features/assessment/components/admin/builder-tab-panels";
+import {
+  BuilderStep,
+  BuilderStepReset,
+  BuilderStepNav,
+} from "@/features/admin/components/builder-tab-context";
+import { StartFromTemplate } from "@/features/templates/components/start-from-template";
+import { listTemplatesForTenant } from "@/features/templates/data";
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
 import { readResultPage } from "@/features/assessment/result-page/blocks";
 import { buildSpine } from "@/lib/routing/engine";
@@ -237,25 +243,73 @@ export default async function EditAssessmentPage({
   const signupScope = await resolveActingScope();
   const canPlatformSignup = signupScope.isSuper && isPlatformScope(signupScope.tenantId);
 
+  /**
+   * Step 1 offers a template only while there is nothing to lose. "Empty" is no
+   * categories, no result bands and no gate questions - the three things a template
+   * would have to overwrite.
+   */
+  // The owner's own scope reads the same shelf a tenant would.
+  const TEMPLATE_SCOPE_ID = a.tenantId ?? PLATFORM_TENANT_ID;
+  const gateQ = (a.qualification as { questions?: unknown[] } | null)?.questions;
+  const hasContent =
+    a.categories.length > 0 || a.resultBands.length > 0 || (Array.isArray(gateQ) && gateQ.length > 0);
+  const startTemplates = hasContent ? [] : await listTemplatesForTenant(TEMPLATE_SCOPE_ID);
+
   const assessmentTab = (
     <>
+      <BuilderStep step="template">
+        <StartFromTemplate
+          assessmentId={a.id}
+          templates={startTemplates}
+          hasContent={hasContent}
+          templatesHref="/admin/templates"
+        />
+      </BuilderStep>
+
       <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} canPlatformSignup={canPlatformSignup} />
 
+      <BuilderStep step="gate">
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Qualification gate (Page 1)</h2>
+        <h2 className="text-lg font-semibold">Qualification gate</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
-          Screen respondents <strong>before</strong> the assessment. A disqualifying answer sends them to a
-          separate page and creates <strong>no lead, submission or result</strong> - only an optional
-          &quot;Disqualified&quot; Meta pixel event so you can exclude them from ads.
+          Asked <strong>before</strong> the assessment, to decide who is worth going further with. An
+          answer you mark as disqualifying ends it there: <strong>no lead, no submission, no result</strong>,
+          only an optional Meta event so you can stop paying to reach people like them.
+        </p>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Entirely optional. Leave it switched off and everyone goes straight into the assessment.
         </p>
         <QualificationManager
           assessmentId={a.id}
           initialQualification={qualification}
           initialDisqualified={disqualified}
           storedUnreadable={qualUnreadable}
+          section="gate"
         />
+        <BuilderStepNav step="gate" />
       </section>
+      </BuilderStep>
 
+      <BuilderStep step="exit">
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">If they don&apos;t qualify</h2>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          The page someone sees when the gate turns them away. They are not a lead and nothing about
+          them is stored, so this is the last thing they ever see from this funnel - which makes it
+          worth writing. A polite dead end keeps the door open; a blank page reads as a broken site.
+        </p>
+        <QualificationManager
+          assessmentId={a.id}
+          initialQualification={qualification}
+          initialDisqualified={disqualified}
+          storedUnreadable={qualUnreadable}
+          section="exit"
+        />
+        <BuilderStepNav step="exit" />
+      </section>
+      </BuilderStep>
+
+      <BuilderStep step="after">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Connect your destination page</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
@@ -263,12 +317,17 @@ export default async function EditAssessmentPage({
         </p>
         <ConnectDestination targetUrl={a.targetUrl} endpointBase={env.NEXT_PUBLIC_APP_URL} bandWords={bandWords} />
       </section>
+      </BuilderStep>
 
+      <BuilderStep step="categories">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Categories &amp; Questions</h2>
         <CategoriesManager assessmentId={a.id} categories={categories} engine={a.engine} routing={routingContext} />
+        <BuilderStepNav step="categories" />
       </section>
+      </BuilderStep>
 
+      <BuilderStep step="scoring">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Result Bands</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
@@ -278,7 +337,9 @@ export default async function EditAssessmentPage({
         </p>
         <ResultBandsManager assessmentId={a.id} bands={bands} />
       </section>
+      </BuilderStep>
 
+      <BuilderStep step="scoring">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Category Evaluation Bands</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
@@ -289,6 +350,7 @@ export default async function EditAssessmentPage({
         </p>
         <CategoryBandsManager assessmentId={a.id} categories={categoryOptions} bands={categoryBands} />
       </section>
+      </BuilderStep>
 
       <p className="text-xs text-[var(--muted-foreground)]">
         Data maintenance for existing contacts (band recompute, answer recovery, AI re-run) and the CRM
@@ -357,13 +419,17 @@ export default async function EditAssessmentPage({
         </p>
       </div>
 
-      <BuilderTabPanels
-        tabs={[
-          { key: "assessment", content: assessmentTab },
-          { key: "results", content: resultsTab },
-          { key: "resultPage", content: resultPageTab },
-        ]}
-      />
+      {/* The builder's steps. The settings form hides its own blocks per step (they
+          share one state object, so a hidden step still saves), and the big managers
+          below are wrapped individually. The two page builders keep their own steps at
+          the end because each has its own draft and Publish button. */}
+      <BuilderStepReset assessmentId={a.id} />
+
+      <div className="flex min-w-0 flex-col gap-8">
+        {assessmentTab}
+        <BuilderStep step="results">{resultsTab}</BuilderStep>
+        <BuilderStep step="resultPage">{resultPageTab}</BuilderStep>
+      </div>
     </div>
   );
 }

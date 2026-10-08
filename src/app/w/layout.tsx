@@ -5,6 +5,7 @@ import { ImpersonationBanner } from "@/features/admin/components/impersonation-b
 import { WorkspaceNav } from "@/features/workspace/components/workspace-nav";
 import { BuilderTabProvider } from "@/features/admin/components/builder-tab-context";
 import { AppBrand } from "@/components/app-brand";
+import { AppFooter } from "@/components/app-footer";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PlatformPixel } from "@/components/platform-pixel";
 import { StartTrialReporter } from "@/features/billing/components/start-trial-reporter";
@@ -13,6 +14,8 @@ import { resolvePlan } from "@/lib/billing/entitlements";
 import { supportEmailFor } from "@/lib/billing/gate";
 import { BillingBanner } from "@/features/billing/components/billing-banner";
 import { WorkspaceLocked } from "@/features/billing/components/workspace-locked";
+import { TrialWelcomeModal } from "@/features/billing/components/trial-welcome-modal";
+import { SupportStrip } from "@/features/billing/components/support-strip";
 import { headers } from "next/headers";
 
 /**
@@ -22,11 +25,15 @@ import { headers } from "next/headers";
  * unscoped page can leak another tenant's data.
  */
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  const { tenantId, impersonating } = await requireWorkspace();
-  const [tenant, platformMeta, resolved] = await Promise.all([
-    prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
+  const { user, tenantId, impersonating } = await requireWorkspace();
+  const [tenant, platformMeta, resolved, me] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, trialEndsAt: true } }),
     resolvePlatformMetaConfig(),
     resolvePlan(tenantId),
+    // How many times this login has signed in, for the welcome dialog's "first five".
+    // Read here rather than carried on the session: a session copy would be stale for
+    // the whole of the visit it was created in, which is the one visit that matters.
+    prisma.user.findUnique({ where: { id: user.id }, select: { loginCount: true } }),
   ]);
 
   // Hide what this plan cannot reach. The ROUTES are guarded independently - a hidden
@@ -53,6 +60,31 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   const exemptWhileParked = path.startsWith("/w/billing");
   const locked = resolved.parked && !impersonating && !exemptWhileParked;
   const supportEmail = locked ? await supportEmailFor(tenantId) : null;
+
+  /**
+   * The welcome dialog, and the strip under it.
+   *
+   * Trial holders only, and never while a super admin is operating the workspace: an
+   * owner who has entered a customer's tenant to fix something is not the person that
+   * offer is for, and a blocking dialog in front of support work is just an obstacle.
+   *
+   * Five logins, from the column stamped at sign-in. A brand new signup is on 1.
+   */
+  /**
+   * Why the workspace is locked, when it is.
+   *
+   * `status` is the SUBSCRIPTION's status, so null means there never was one - and a
+   * tenant that is parked without ever having subscribed got here by running out of
+   * trial. A tenant whose subscription lapsed has a status and a different problem,
+   * and telling them their trial expired would be wrong twice over.
+   */
+  const trialEnded = !!tenant?.trialEndsAt && tenant.trialEndsAt.getTime() <= Date.now();
+  const lockReason: "trial-expired" | "parked" =
+    resolved.status === null && trialEnded ? "trial-expired" : "parked";
+
+  const onTrial = resolved.trialing && !impersonating;
+  const loginCount = me?.loginCount ?? 1;
+  const showWelcome = onTrial && loginCount <= 5;
 
   return (
     // The provider is what lets the sidebar switch the builder panels: the nav holds the
@@ -83,12 +115,22 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
             tenant, "who am I acting as" has to be read before "what state is it in",
             or the paused notice looks like the owner's own account. */}
         <BillingBanner resolved={resolved} />
+        {/* The standing offer. Below the billing strip because "what state is my
+            account in" has to be read before "who to call about it". */}
+        {onTrial ? <SupportStrip /> : null}
+        {/* Rendered last in the tree but painted over everything: it is fixed and
+            z-100, so it covers the nav and the content alike. Nothing behind it is
+            clickable while it is up, which is the point of it. */}
+        {showWelcome ? (
+          <TrialWelcomeModal loginCount={loginCount} trialDaysLeft={resolved.trialDaysLeft} />
+        ) : null}
         <div className="flex justify-end px-4 pt-4 md:px-8">
           <ThemeToggle />
         </div>
         <div className="mx-auto max-w-5xl px-4 pb-8 pt-4 md:px-8">
-          {locked ? <WorkspaceLocked supportEmail={supportEmail} /> : children}
+          {locked ? <WorkspaceLocked supportEmail={supportEmail} reason={lockReason} /> : children}
         </div>
+        <AppFooter />
       </main>
     </div>
     </BuilderTabProvider>

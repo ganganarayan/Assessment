@@ -18,7 +18,6 @@ import {
   approveTemplate,
   rejectTemplate,
   deleteTemplate,
-  reseedBuiltinTemplates,
   getTemplateDocument,
   updateTemplateDocument,
   revertTemplateToRepo,
@@ -206,50 +205,19 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
             <div>
               <CardTitle className="text-lg">The library ({shelf.length})</CardTitle>
               <p className="text-sm text-[var(--muted-foreground)]">
-                Tick Published to put one on every tenant&apos;s dashboard. Order sorts within a category.
-                Download any of them to read the questions without importing.
+                Tick Published to put one on every tenant&apos;s dashboard. Order sorts within a
+                category, lowest first. Download any of them to read the questions without importing.
               </p>
             </div>
-            {canEdit ? (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busy !== null}
-                onClick={() => {
-                  setMsg(null);
-                  setBusy("reseed");
-                  start(async () => {
-                    const r = await reseedBuiltinTemplates();
-                    setBusy(null);
-                    if (!r.ok) setMsg({ tone: "bad", text: r.error });
-                    else if (r.data) {
-                      const failed = r.data.failed.length
-                        ? ` ${r.data.failed.length} failed: ${r.data.failed.map((f) => `${f.slug} (${f.error})`).join(", ")}`
-                        : "";
-                      // `kept` is reported, not hidden. "Nothing changed" and "I left
-                      // your edits alone on purpose" are the same number otherwise, and
-                      // only one of them is what the owner meant to happen.
-                      const kept = r.data.kept
-                        ? ` ${r.data.kept} left alone (edited here).`
-                        : "";
-                      setMsg({
-                        tone: r.data.failed.length ? "bad" : "ok",
-                        text: `Built-ins re-seeded: ${r.data.created} new, ${r.data.updated} updated.${kept}${failed}`,
-                      });
-                      router.refresh();
-                    }
-                  });
-                }}
-              >
-                {busy === "reseed" ? "Re-seeding..." : "Re-seed built-ins"}
-              </Button>
-            ) : null}
+            {/* The Re-seed button is gone. Built-ins re-seed themselves on every
+                deploy, so it duplicated something that already happens and invited a
+                press whose only visible effect was a counter. */}
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {shelf.length === 0 ? (
             <p className="text-sm text-[var(--muted-foreground)]">
-              Nothing in the library yet. Press Re-seed built-ins to load the ones shipped with the app.
+              Nothing in the library yet. The built-ins load themselves on the next deploy.
             </p>
           ) : null}
           {shelf.map((t) => (
@@ -259,14 +227,20 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
                     reading down the left edge should be reading the order - it sat on
                     the right, past the title and the summary, where the one thing it
                     controls was the hardest thing to scan. */}
+                {/* Shown 1-based. The column is a sort key and starts at 0, which is
+                    right for the machine and wrong on screen: a list that opens with
+                    "0" reads as a bug every time. Converted at this one boundary rather
+                    than migrated, so the sort itself is untouched. */}
                 {canEdit ? (
                   <Input
                     type="number"
+                    min={1}
                     className="h-9 w-16 shrink-0 text-center"
-                    defaultValue={t.displayOrder}
+                    defaultValue={t.displayOrder + 1}
                     disabled={busy !== null}
                     onBlur={(e) => {
-                      const n = Number(e.target.value);
+                      const shown = Math.max(1, Math.round(Number(e.target.value) || 1));
+                      const n = shown - 1;
                       if (n !== t.displayOrder) run(t.id, () => setTemplateOrder(t.id, n));
                     }}
                     aria-label={`Display order for ${t.title}`}

@@ -8,6 +8,10 @@ import { resolvePlan } from "@/lib/billing/entitlements";
 import { PARKED_MESSAGE } from "@/lib/billing/plans";
 import { buildAssessmentBody } from "@/features/assessment/transfer/export";
 import { importTemplateForTenant } from "@/features/templates/import";
+import { assessmentCreateData } from "@/features/assessment/transfer/import";
+import { parseTemplateBody } from "@/features/templates/schema";
+import { nextVersionNumber } from "@/lib/ai/versions";
+import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { type SaveAsTemplateResult } from "@/features/templates/types";
 import { type TemplateImportResult } from "@/features/templates/import";
@@ -226,4 +230,124 @@ export async function deleteMyTemplate(id: string): Promise<ActionResult> {
   revalidatePath("/admin");
   revalidatePath("/admin/templates");
   return { ok: true };
+}
+
+/**
+ * Fill an EMPTY assessment from a template, in place.
+ *
+ * This is what "start from a template" has to mean inside a builder. The other
+ * reading - import creates a separate draft - is what the Templates page already does,
+ * and doing it from step 1 of an assessment you are editing would leave you with two
+ * assessments and the wrong one open.
+ *
+ * 🔴 EMPTY ONLY, and that is the safety rather than a limitation. Filling an
+ * assessment that already has questions means deleting them, and a template chosen by
+ * mistake would take somebody's afternoon with it. An assessment with content is sent
+ * to the Templates page instead, where importing makes a new draft and destroys
+ * nothing. There is no confirm dialog here because there is nothing to confirm.
+ *
+ * The title and slug are KEPT. They are the two things somebody types before they get
+ * here, the slug may already be linked from somewhere, and a template's own title is
+ * a description of the template rather than a name for their funnel.
+ */
+export async function applyTemplateToAssessment(
+  assessmentId: string,
+  templateId: string,
+): Promise<ActionResult<{ promptVersionLabel: string | null }>> {
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
+  if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
+  const tenantId = configTenantOf(scope);
+
+  const target = await prisma.assessment.findFirst({
+    where: { id: assessmentId, ...(scope.isSuper && !scope.tenantId ? {} : { tenantId }) },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      qualification: true,
+      _count: { select: { categories: true, resultBands: true } },
+    },
+  });
+  if (!target) return { ok: false, error: "Not found." };
+
+  const gate = target.qualification as { questions?: unknown[] } | null;
+  const hasContent =
+    target._count.categories > 0 ||
+    target._count.resultBands > 0 ||
+    (Array.isArray(gate?.questions) && gate.questions.length > 0);
+  if (hasContent) {
+    return {
+      ok: false,
+      error:
+        "This assessment already has questions, so a template can't be laid over it. Import the template from the Templates page instead - that makes a new draft and leaves this one alone.",
+    };
+  }
+
+  const t = await prisma.template.findFirst({
+    where: {
+      id: templateId,
+      ...(scope.isSuper
+        ? {}
+        : {
+            OR: [
+              { ownerTenantId: null, published: true, reviewStatus: "APPROVED" },
+              { ownerTenantId: tenantId },
+            ],
+          }),
+    },
+    select: { id: true, title: true, body: true, aiInstructions: true },
+  });
+  if (!t) return { ok: false, error: "That template isn't available." };
+
+  const parsed = parseTemplateBody(t.body);
+  if (!parsed.success) {
+    return { ok: false, error: "This template is stored in a shape the builder can't read. Please tell us." };
+  }
+
+  // Reuse the ONE create mapping, then drop what belongs to the row rather than to
+  // the template: its identity, its owner, and the name its owner gave it.
+  const data = assessmentCreateData(parsed.data, target.slug, null, null);
+  delete (data as { slug?: unknown }).slug;
+  delete (data as { title?: unknown }).title;
+  delete (data as { tenant?: unknown }).tenant;
+  delete (data as { createdBy?: unknown }).createdBy;
+  data.fireMetaCapi = false;
+  data.platformSignup = false;
+  data.status = "DRAFT";
+  data.publishedAt = null;
+
+  const instructions = t.aiInstructions?.trim() || "";
+
+  const out = await prisma.$transaction(
+    async (tx) => {
+      let promptVersionLabel: string | null = null;
+      let promptVersionId: string | null = null;
+      if (instructions) {
+        const number = await nextVersionNumber(tenantId, tx);
+        const label = `V${number} - ${t.title}`.slice(0, 120);
+        const row = await tx.aiPromptVersion.create({
+          data: { tenantId, number, label, instructions },
+          select: { id: true },
+        });
+        promptVersionId = row.id;
+        promptVersionLabel = label;
+      }
+      await tx.assessment.update({
+        where: { id: assessmentId },
+        data: {
+          ...data,
+          ...(promptVersionId ? { aiPromptVersionId: promptVersionId } : { useAiStatement: false }),
+        },
+      });
+      return { promptVersionLabel };
+    },
+    { timeout: 60_000, maxWait: 15_000 },
+  );
+
+  await invalidatePublicAssessmentById(assessmentId);
+  revalidatePath("/admin/assessments");
+  revalidatePath("/w/assessments");
+  return { ok: true, data: out };
 }

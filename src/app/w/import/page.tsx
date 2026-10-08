@@ -51,7 +51,7 @@ export default async function WorkspaceImportPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-bold tracking-tight">Import assessment</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Plain text / Markdown you write yourself, or a JSON/CSV export. Both are validated and previewed
+          Plain text / Markdown you write yourself, or a JSON or CSV file taken out of another tool. Both are validated and previewed
           before anything is written - into this workspace.
         </p>
       </div>
@@ -63,7 +63,10 @@ export default async function WorkspaceImportPage() {
           one from plain text is the product itself and stays on every tier. Export is
           never gated - a customer's own data must always come out. */}
       <div className="border-t pt-6">
-        <h2 className="mb-3 text-lg font-semibold">From a JSON / CSV export</h2>
+        <h2 className="mb-3 text-lg font-semibold">From a JSON or CSV file</h2>
+        <p className="mb-3 text-xs text-[var(--muted-foreground)]">
+          Moving to Assess360 from another tool? Take the file out of that tool and load it here.
+        </p>
         {canBulkImport ? (
           <ImportWizard doneHref="/w/assessments" />
         ) : (

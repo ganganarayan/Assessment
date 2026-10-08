@@ -102,17 +102,13 @@ export default async function HomePage() {
             Go to dashboard
           </Link>
         ) : (
-          <>
-            <Link href="/sign-in" className={buttonVariants()}>
-              Sign In
-            </Link>
-            <Link
-              href="/sign-up"
-              className={buttonVariants({ variant: "outline" })}
-            >
-              Sign Up
-            </Link>
-          </>
+          // Sign in only. This is a TENANT's host, and a tenant's domain is their
+          // shop front rather than a place to sell the product from - the platform
+          // owner takes the signups. The button is the visible half; the endpoint
+          // refuses it too, which is the half that matters.
+          <Link href="/sign-in" className={buttonVariants()}>
+            Sign In
+          </Link>
         )}
       </div>
 

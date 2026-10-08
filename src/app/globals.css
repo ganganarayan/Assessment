@@ -21,6 +21,11 @@
    * every date input at once; styling them one at a time never would. */
   color-scheme: light;
   --radius: 0.625rem;
+  /* The edge of anything you can type into. Light theme: a slate that is clearly
+   * darker than the page without shouting. */
+  --field-border: #94a3b8;
+  --field-border-hover: #64748b;
+  --field-bg: #ffffff;
   --background: #ffffff;
   --foreground: #0f172a;
   --primary: #0f172a;
@@ -34,6 +39,11 @@
  * script). "System" resolves to .dark via the init script using the OS pref. */
 .dark {
   color-scheme: dark;
+  /* Dark theme: a light slate edge over a panel lifted off the page. Both are needed -
+   * a border alone on an identical background still disappears. */
+  --field-border: #64748b;
+  --field-border-hover: #94a3b8;
+  --field-bg: #1e293b;
   --background: #0f172a;
   --foreground: #f8fafc;
   --primary: #4f46e5;
@@ -52,11 +62,12 @@
  * against the page rather than against a surface of their own - readable by luck. These
  * two rules make the contrast explicit rather than inherited. */
 select {
-  background-color: var(--background);
   color: var(--foreground);
 }
+/* The dropdown LIST, which is drawn by the browser rather than by the page. It takes
+ * the field surface too, so an open menu matches the box it came out of. */
 select option {
-  background-color: var(--background);
+  background-color: var(--field-bg);
   color: var(--foreground);
 }
 
@@ -77,4 +88,104 @@ textarea:-webkit-autofill {
   caret-color: var(--foreground);
   -webkit-box-shadow: 0 0 0px 1000px var(--background) inset;
   transition: background-color 9999s ease-in-out 0s;
+}
+
+/* ---------------------------------------------------------------------------
+ * Make an editable field look editable.
+ *
+ * The inputs here were a border the same colour as every other border on the page,
+ * on a background the same colour as the page. On a dark theme that is very nearly
+ * invisible: the owner could not tell which parts of the builder he was allowed to
+ * type into, and neither can a customer.
+ *
+ * Three states, and they are the whole point:
+ *   resting  - a standing accent border, so it reads as a field before you touch it
+ *   editing  - amber, because something is being changed and not yet saved
+ *   left     - back to the accent, which in this app means saved: every editor here
+ *              autosaves on blur, so leaving a field IS the save
+ *
+ * Done globally with element selectors rather than on the shared Input component,
+ * because a good half of these fields are raw <input>/<select>/<textarea> written
+ * inline in a manager - styling only the component would have fixed the tidy half and
+ * left the messy half exactly as it was.
+ * --------------------------------------------------------------------------- */
+
+input[type="text"],
+input[type="email"],
+input[type="url"],
+input[type="tel"],
+input[type="number"],
+input[type="password"],
+input[type="search"],
+input[type="date"],
+input:not([type]),
+textarea,
+select {
+  /* A dedicated token, not a tint of --primary. The first attempt used primary at 45%
+   * alpha, which on the dark theme is indigo-on-navy: present in the markup, invisible
+   * on the screen, and the complaint it was meant to answer came straight back. This
+   * is a flat, deliberately brighter edge that reads as a field across the room. */
+  border-color: var(--field-border);
+  border-width: 1px;
+  /* A well, not a patch of page. The background doing nothing was half the reason the
+   * borders had to carry it alone. */
+  background-color: var(--field-bg);
+}
+
+input[type="text"]:hover,
+input[type="email"]:hover,
+input[type="url"]:hover,
+input[type="tel"]:hover,
+input[type="number"]:hover,
+input[type="password"]:hover,
+input[type="search"]:hover,
+input[type="date"]:hover,
+input:not([type]):hover,
+textarea:hover,
+select:hover {
+  border-color: var(--field-border-hover);
+}
+
+/* Editing. Amber is the project's "needs attention" colour, and an unsaved edit is
+ * exactly that - it goes back to the resting accent the moment the field is left,
+ * which is the moment it is written. */
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #f59e0b;
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #f59e0b 25%, transparent);
+}
+
+/* Checkboxes and radios are not text fields and look wrong with a text field's
+ * border, but they do need to look pressable. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: #16a34a;
+  cursor: pointer;
+  width: 1rem;
+  height: 1rem;
+}
+
+/* The asterisk beside the label of the field being edited.
+ *
+ * It marks "this one, right now, and it is not written yet". It disappears on blur,
+ * which is when autosave fires - so "gone" genuinely means saved rather than meaning
+ * the marker gave up.
+ *
+ * Keyed on the wrapper that nearly every field here already uses (a flex column
+ * holding a label and its input), because CSS cannot look backwards from an input to
+ * its label. A field not in that shape simply does not get the marker; it never gets
+ * a WRONG one. */
+div:focus-within > label::after,
+div:focus-within > .field-label::after {
+  content: " *";
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+/* A label wrapping its own control - a checkbox row - must not sprout an asterisk
+ * just because the box inside it has focus. */
+label:focus-within::after {
+  content: none;
 }

@@ -35,6 +35,7 @@ export function QualificationManager({
   initialQualification,
   initialDisqualified,
   storedUnreadable = false,
+  section = "both",
 }: {
   assessmentId: string;
   initialQualification: QualificationInput;
@@ -46,6 +47,13 @@ export function QualificationManager({
    * Silently showing an empty editor is how that becomes "the gate just vanished".
    */
   storedUnreadable?: boolean;
+  /**
+   * Which half to render. The gate and the page shown to someone it turns away are
+   * two different jobs - one decides who gets in, the other is the last thing a
+   * rejected person ever sees - and they are now two steps of the builder. "both"
+   * keeps any caller that has not been split.
+   */
+  section?: "gate" | "exit" | "both";
 }) {
   const router = useRouter();
   const [q, setQ] = useState<QualificationInput>(initialQualification);
@@ -126,7 +134,7 @@ export function QualificationManager({
     start(async () => {
       setDMsg(null);
       const res = await saveDisqualifiedContent(assessmentId, d);
-      setDMsg(res.ok ? { tone: "ok", text: "Disqualified page saved." } : { tone: "error", text: res.error });
+      setDMsg(res.ok ? { tone: "ok", text: "Saved." } : { tone: "error", text: res.error });
       if (res.ok) router.refresh();
     });
 
@@ -134,8 +142,12 @@ export function QualificationManager({
   // switched off are invisible to every respondent, and nothing used to say so.
   const inert = !q.enabled && q.questions.length > 0;
 
+  const showGate = section !== "exit";
+  const showExit = section !== "gate";
+
   return (
     <div className="flex flex-col gap-6">
+      {showGate ? (
       <div className="flex flex-col gap-3 rounded-lg border p-4">
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" checked={q.enabled} onChange={(e) => setQ((s) => ({ ...s, enabled: e.target.checked }))} />
@@ -246,11 +258,19 @@ export function QualificationManager({
           {qMsg ? <span className={MSG_CLASS[qMsg.tone]}>{qMsg.text}</span> : null}
         </div>
       </div>
+      ) : null}
 
+      {showExit ? (
       <div className="flex flex-col gap-3 rounded-lg border p-4">
-        <p className="text-sm font-medium">Disqualified page</p>
+        {/* "Disqualified page" said what the system calls it, not what it is. The
+            person reading this screen needs to know it is the LAST thing a rejected
+            visitor sees, and that nothing about them is kept - that is what decides
+            how it should be written. */}
+        <p className="text-sm font-medium">The page they see when they don&apos;t qualify</p>
         <p className="text-xs text-[var(--muted-foreground)]">
-          Shown to a disqualified person. Nothing about them is stored.
+          Shown instead of the assessment. They never become a lead and nothing about them is stored,
+          so this is your last word to them - worth being gracious about, and worth a link somewhere
+          useful if you have one.
         </p>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Heading</Label>
@@ -279,10 +299,11 @@ export function QualificationManager({
           Fire a custom <span className="font-mono">Disqualified</span> Meta pixel event (to build an exclusion audience)
         </label>
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={saveDisq} disabled={pending}>{pending ? "Saving…" : "Save disqualified page"}</Button>
+          <Button size="sm" onClick={saveDisq} disabled={pending}>{pending ? "Saving…" : "Save this page"}</Button>
           {dMsg ? <span className={MSG_CLASS[dMsg.tone]}>{dMsg.text}</span> : null}
         </div>
       </div>
+      ) : null}
     </div>
   );
 }

@@ -1,5 +1,10 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import {
+  PLATFORM_SUPPORT_EMAIL,
+  PLATFORM_SUPPORT_WHATSAPP,
+  PLATFORM_SUPPORT_WHATSAPP_LINK,
+} from "@/lib/platform-support";
 
 /**
  * The paused workspace.
@@ -21,7 +26,17 @@ import { buttonVariants } from "@/components/ui/button";
  * than hidden on purpose: "your data is still here" is more persuasive when they can
  * see it than when they are told it.
  */
-export function WorkspaceLocked({ supportEmail }: { supportEmail?: string | null }) {
+export function WorkspaceLocked({
+  supportEmail,
+  reason = "parked",
+}: {
+  supportEmail?: string | null;
+  /** Why it is locked. A lapsed subscription and an expired trial are different
+   *  conversations: one is "your payment stopped", the other is "your free run is
+   *  over, here is what it costs". Saying "paused" to both told neither. */
+  reason?: "trial-expired" | "parked";
+}) {
+  const trialExpired = reason === "trial-expired";
   return (
     <div className="relative min-h-[70vh]">
       {/* The decorative "workspace behind glass". Pure presentation: the real pages
@@ -41,10 +56,13 @@ export function WorkspaceLocked({ supportEmail }: { supportEmail?: string | null
 
       <div className="absolute inset-0 flex items-start justify-center p-4 pt-10">
         <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--background)] p-6 shadow-lg">
-          <h1 className="text-xl font-bold tracking-tight">This workspace is paused</h1>
+          <h1 className="text-xl font-bold tracking-tight">
+            {trialExpired ? "Trial expired" : "This workspace is paused"}
+          </h1>
           <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-            Your trial has ended. Nothing has been deleted: every assessment, lead and setting
-            is exactly where you left it, and picking a plan brings all of it straight back.
+            {trialExpired
+              ? "Your 14-day trial has ended. Nothing has been deleted: every assessment, lead and setting is exactly where you left it, and picking a plan brings all of it straight back."
+              : "Your plan has lapsed. Nothing has been deleted: every assessment, lead and setting is exactly where you left it, and picking a plan brings all of it straight back."}
           </p>
           <p className="mt-3 text-sm text-[var(--muted-foreground)]">
             While it is paused, your funnels stop accepting new responses and the workspace is
@@ -63,9 +81,22 @@ export function WorkspaceLocked({ supportEmail }: { supportEmail?: string | null
             </a>
           </div>
 
+          {/* The platform's own contacts, not the tenant's. Somebody locked out needs to
+              reach US, and the tenant's support address is the one THEIR respondents
+              write to - handing it over here would be pointing them at themselves. */}
+          <p className="mt-4 text-center text-xs text-[var(--muted-foreground)]">
+            Or talk to us first:{" "}
+            <a href={`mailto:${PLATFORM_SUPPORT_EMAIL}`} className="underline">
+              {PLATFORM_SUPPORT_EMAIL}
+            </a>{" "}
+            · WhatsApp{" "}
+            <a href={PLATFORM_SUPPORT_WHATSAPP_LINK} target="_blank" rel="noreferrer" className="underline">
+              {PLATFORM_SUPPORT_WHATSAPP}
+            </a>
+          </p>
           {supportEmail ? (
-            <p className="mt-4 text-center text-xs text-[var(--muted-foreground)]">
-              Questions?{" "}
+            <p className="mt-1 text-center text-xs text-[var(--muted-foreground)]">
+              Your own support address stays{" "}
               <a href={`mailto:${supportEmail}`} className="underline">
                 {supportEmail}
               </a>

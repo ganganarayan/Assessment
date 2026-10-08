@@ -21,7 +21,13 @@ import { ResultBandsManager } from "@/features/assessment/components/admin/resul
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
 import { PagesBuilder } from "@/features/assessment/components/admin/pages-builder";
 import { ResultPageBuilder } from "@/features/assessment/components/admin/result-page-builder";
-import { BuilderTabPanels } from "@/features/assessment/components/admin/builder-tab-panels";
+import {
+  BuilderStep,
+  BuilderStepReset,
+  BuilderStepNav,
+} from "@/features/admin/components/builder-tab-context";
+import { StartFromTemplate } from "@/features/templates/components/start-from-template";
+import { listTemplatesForTenant } from "@/features/templates/data";
 import { readResultPage } from "@/features/assessment/result-page/blocks";
 import { WorkspaceAssessmentActions } from "@/features/workspace/components/workspace-assessment-actions";
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
@@ -221,26 +227,72 @@ export default async function WorkspaceEditAssessmentPage({
   const disqParsed = disqualifiedContentSchema.safeParse(a.disqualifiedContent);
   const disqualified = disqParsed.success ? disqParsed.data : EMPTY_DISQUALIFIED;
 
+  /**
+   * Step 1 offers a template only while there is nothing to lose. "Empty" is no
+   * categories, no result bands and no gate questions - the three things a template
+   * would have to overwrite.
+   */
+  const TEMPLATE_SCOPE_ID = tenantId;
+  const gateQ = (a.qualification as { questions?: unknown[] } | null)?.questions;
+  const hasContent =
+    a.categories.length > 0 || a.resultBands.length > 0 || (Array.isArray(gateQ) && gateQ.length > 0);
+  const startTemplates = hasContent ? [] : await listTemplatesForTenant(TEMPLATE_SCOPE_ID);
+
   const assessmentTab = (
     <>
+      <BuilderStep step="template">
+        <StartFromTemplate
+          assessmentId={a.id}
+          templates={startTemplates}
+          hasContent={hasContent}
+          templatesHref="/w/templates"
+        />
+      </BuilderStep>
+
       <AssessmentForm mode="edit" id={a.id} initial={initial} basePath="/w/assessments" promptVersions={promptVersions} assessmentOptions={routeTargets} />
 
+      <BuilderStep step="gate">
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Qualification gate (Page 1)</h2>
+        <h2 className="text-lg font-semibold">Qualification gate</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
-          Screen respondents <strong>before</strong> the assessment. A disqualifying answer sends them to a
-          separate page and creates <strong>no lead, submission or result</strong> - only an optional
-          &quot;Disqualified&quot; Meta pixel event so you can exclude them from ads. Add text questions for
-          info you&apos;ll review manually.
+          Asked <strong>before</strong> the assessment, to decide who is worth going further with. An
+          answer you mark as disqualifying ends it there: <strong>no lead, no submission, no result</strong>,
+          only an optional Meta event so you can stop paying to reach people like them.
+        </p>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Entirely optional. Leave it switched off and everyone goes straight into the assessment.
         </p>
         <QualificationManager
           assessmentId={a.id}
           initialQualification={qualification}
           initialDisqualified={disqualified}
           storedUnreadable={qualUnreadable}
+          section="gate"
         />
+        <BuilderStepNav step="gate" />
       </section>
+      </BuilderStep>
 
+      <BuilderStep step="exit">
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">If they don&apos;t qualify</h2>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          The page someone sees when the gate turns them away. They are not a lead and nothing about
+          them is stored, so this is the last thing they ever see from this funnel - which makes it
+          worth writing. A polite dead end keeps the door open; a blank page reads as a broken site.
+        </p>
+        <QualificationManager
+          assessmentId={a.id}
+          initialQualification={qualification}
+          initialDisqualified={disqualified}
+          storedUnreadable={qualUnreadable}
+          section="exit"
+        />
+        <BuilderStepNav step="exit" />
+      </section>
+      </BuilderStep>
+
+      <BuilderStep step="after">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Connect your destination page</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
@@ -248,12 +300,17 @@ export default async function WorkspaceEditAssessmentPage({
         </p>
         <ConnectDestination targetUrl={a.targetUrl} endpointBase={env.NEXT_PUBLIC_APP_URL} bandWords={bandWords} />
       </section>
+      </BuilderStep>
 
+      <BuilderStep step="categories">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Categories &amp; Questions</h2>
         <CategoriesManager assessmentId={a.id} categories={categories} engine={a.engine} routing={routingContext} />
+        <BuilderStepNav step="categories" />
       </section>
+      </BuilderStep>
 
+      <BuilderStep step="scoring">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Result Bands</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
@@ -263,7 +320,9 @@ export default async function WorkspaceEditAssessmentPage({
         </p>
         <ResultBandsManager assessmentId={a.id} bands={bands} />
       </section>
+      </BuilderStep>
 
+      <BuilderStep step="scoring">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Category Evaluation Bands</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
@@ -273,6 +332,7 @@ export default async function WorkspaceEditAssessmentPage({
         </p>
         <CategoryBandsManager assessmentId={a.id} categories={categoryOptions} bands={categoryBands} />
       </section>
+      </BuilderStep>
     </>
   );
 
@@ -336,13 +396,17 @@ export default async function WorkspaceEditAssessmentPage({
         </p>
       </div>
 
-      <BuilderTabPanels
-        tabs={[
-          { key: "assessment", content: assessmentTab },
-          { key: "results", content: resultsTab },
-          { key: "resultPage", content: resultPageTab },
-        ]}
-      />
+      {/* The builder's steps. The settings form hides its own blocks per step (they
+          share one state object, so a hidden step still saves), and the big managers
+          below are wrapped individually. The two page builders keep their own steps at
+          the end because each has its own draft and Publish button. */}
+      <BuilderStepReset assessmentId={a.id} />
+
+      <div className="flex min-w-0 flex-col gap-8">
+        {assessmentTab}
+        <BuilderStep step="results">{resultsTab}</BuilderStep>
+        <BuilderStep step="resultPage">{resultPageTab}</BuilderStep>
+      </div>
     </div>
   );
 }
