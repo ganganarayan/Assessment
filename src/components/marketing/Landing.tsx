@@ -1,6 +1,8 @@
 import { MARKETING, TIERS, FAQS } from "@/lib/marketing/content";
 import { Nav } from "./Nav";
 import { Hero } from "./Hero";
+import { Metering } from "./Metering";
+import { WhyThisExists } from "./WhyThisExists";
 import { Problem } from "./Problem";
 import { HowItWorks } from "./HowItWorks";
 import { Capabilities } from "./Capabilities";
@@ -73,9 +75,14 @@ export function Landing({
       <Nav />
       <main id="main">
         <Hero video={videos?.hero ?? null} />
+        {/* Immediately below the hero, before anything explains itself. It is the only
+            claim on the page that can be checked against an invoice, so it is worth more
+            to a sceptical reader than the next three sections combined. */}
+        <Metering />
         <Problem />
         <HowItWorks />
         <Capabilities videos={videos?.tiles} />
+        <WhyThisExists />
         <UseCases />
         <Pricing />
         <Faq />

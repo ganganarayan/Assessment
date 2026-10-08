@@ -348,3 +348,138 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
     a: "Only qualified responses count - disqualified visitors are never metered. You'll get a heads-up as you approach the limit. Past it, answers are still captured and nothing is lost, but new results are held until you upgrade, so no lead disappears while you decide.",
   },
 ];
+
+// ===========================================================================
+//  Gate -> Score -> Signal: the mechanism, and the spine of the home page.
+// ===========================================================================
+
+/**
+ * The category is NEGATIVE lead generation. Every other tool in this market is paid to
+ * deliver more leads; this one is paid to deliver fewer. The mechanism is three steps,
+ * and the THIRD is the only one a competitor cannot also claim: a gate is buyable, a
+ * weighted score is buyable, teaching the ad platform to stop finding the wrong people
+ * is not. So the page leads with the mechanism and lists features underneath it.
+ *
+ * Previous hero, kept because it is the line the old ads and the old OG card still use:
+ *   eyebrow  "Lead qualification, not just capture, not just assess"
+ *   headline "Know which leads are worth a sales call - before you make one."
+ */
+export const HERO = {
+  eyebrow: "Negative lead generation",
+  headline: "The wrong leads never become leads. And your ads learn to stop finding them.",
+  sub: "A gate runs before the opt-in, so wrong-fit traffic never becomes a lead record. Everyone who passes is scored against criteria you weight. Then only the qualified ones are reported back to Meta, so your campaigns optimise toward buyers instead of form-fillers.",
+  primaryCta: "Get your scorecard built free in 24 hours",
+  secondaryCta: "Start 14-day trial",
+} as const;
+
+/** The done-for-you offer. One place, because it appears on most public surfaces. */
+export const DFY = {
+  href: "/build",
+  heading: "We will build your first scorecard for you, free, in 24 hours",
+  body: "Tell us what you sell and who wastes your time. We write the gate, the questions, the weights and the result bands, wire the Meta events, and hand you a live link. You do not touch the builder unless you want to.",
+  cta: "Get your scorecard built free in 24 hours",
+} as const;
+
+/**
+ * The metering argument, promoted out of the pricing table.
+ *
+ * It belongs high on the page because it is the only claim here that is structural
+ * rather than promotional: it is checkable against an invoice, and it describes an
+ * incentive, not a feature. PRICING_HEADLINE is reused verbatim so the sentence cannot
+ * drift between the two places it now appears.
+ */
+export const METERING = {
+  heading: PRICING_HEADLINE,
+  body: "Every other assessment tool meters raw submissions. Read that as an incentive and it says something uncomfortable: the more unqualified people get through your funnel, the more your vendor gets paid. They are not villains for it, it is just what the meter rewards.",
+  body2: "Here a visitor who fails your gate stores no lead, no submission and no result, so there is nothing to meter and nothing to charge for. We make more money only when you capture more leads worth having. That is the whole business model, and it is the one claim on this page you can verify from your own invoice.",
+} as const;
+
+export type Pillar = {
+  key: "gate" | "score" | "signal";
+  step: string;
+  name: string;
+  tagline: string;
+  body: string;
+  /**
+   * Capability titles, in render order.
+   *
+   * Membership lives HERE as a list of titles rather than as a field on each of the 19
+   * capabilities, for one reason: nothing in CAPABILITIES has to be edited to group it,
+   * so the re-grouping cannot quietly drop a card. Anything a pillar does not claim
+   * renders in the supporting row instead of vanishing (see supportingCapabilities).
+   */
+  titles: ReadonlyArray<string>;
+};
+
+export const PILLARS: ReadonlyArray<Pillar> = [
+  {
+    key: "gate",
+    step: "01",
+    name: "Gate",
+    tagline: "Nothing wrong-fit becomes a lead",
+    body: "The screen runs BEFORE the opt-in, not after it. A visitor who fails never reaches the form, so there is no lead record, no stored result and nothing to clean out of your CRM later.",
+    titles: [
+      "Pre-assessment qualification gate",
+      "Repeat & back-button protection",
+      "Manual-review screening questions",
+      "Conditional logic & branching",
+    ],
+  },
+  {
+    key: "score",
+    step: "02",
+    name: "Score",
+    tagline: "The rest get ranked, and told the truth",
+    body: "Everyone who passes the gate is scored against the criteria you weight, and gets a result that names where they actually stand and what to do next. Ranking your pipeline and being useful to the respondent are the same act.",
+    titles: [
+      "Weighted scoring engine",
+      "Result interpretation & bands",
+      "Dynamic result pages",
+      "AI question generation",
+      "AI-written result reports",
+      "Branded PDF reports",
+    ],
+  },
+  {
+    key: "signal",
+    step: "03",
+    name: "Signal",
+    tagline: "Your ads learn who to stop finding",
+    body: "The step nobody else has. Qualified completions report back as their own conversion event and the disqualified build an exclusion audience, so the algorithm stops buying the traffic that was never going to close. A gate saves your calendar; this saves your ad budget.",
+    titles: [
+      "Meta Pixel + Conversions API",
+      "Audience exclusion + retargeting on autopilot",
+      "Qualified-only optimization signal",
+      "Auto-exclude the unqualified",
+      "First-party match keys",
+    ],
+  },
+];
+
+/**
+ * Everything no pillar claimed, in the order it appears in CAPABILITIES.
+ *
+ * Derived rather than listed, so a capability added to CAPABILITIES and forgotten here
+ * still renders. The failure mode of a hand-kept second list is a feature that silently
+ * leaves the site, and nobody notices because nothing errors.
+ */
+export const supportingCapabilities = (): ReadonlyArray<Capability> => {
+  const claimed = new Set(PILLARS.flatMap((p) => p.titles));
+  return CAPABILITIES.filter((c) => !claimed.has(c.title));
+};
+
+/** Look up the capabilities of one pillar, in the pillar's own order. */
+export const pillarCapabilities = (p: Pillar): ReadonlyArray<Capability> =>
+  p.titles
+    .map((t) => CAPABILITIES.find((c) => c.title === t))
+    .filter((c): c is Capability => c !== undefined);
+
+/**
+ * Why this exists. No founder name and no photo on purpose: the credential is the fact,
+ * and a face invites the reader to assess the person instead of the argument.
+ */
+export const WHY_EXISTS = {
+  heading: "Why this exists",
+  body: "This was not designed in a workshop. It was built by an operator who subscribed to ScoreApp, Typeform, Outgrow, LeadQuizzes and Interact, ran real paid traffic through them, and kept hitting the same wall: every one of them was excellent at collecting answers and indifferent to whether the person answering was worth a call.",
+  body2: "So the gate was built, because the opt-in was happening before anyone knew who it was. Then the exclusion event, because the ad account kept buying more of the same wrong people. Then the qualified-only optimisation signal, because Meta was being taught to find form-fillers. Every capability on this page started as a specific wall, in a specific funnel, that cost real money.",
+} as const;
