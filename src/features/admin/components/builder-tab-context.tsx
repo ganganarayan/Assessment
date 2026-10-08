@@ -16,7 +16,7 @@ interface BuilderTabState {
 const Ctx = createContext<BuilderTabState | null>(null);
 
 export function BuilderTabProvider({ children }: { children: ReactNode }) {
-  const [active, setActive] = useState("basics");
+  const [active, setActive] = useState("template");
   return <Ctx.Provider value={{ active, setActive }}>{children}</Ctx.Provider>;
 }
 
@@ -40,18 +40,19 @@ export function useBuilderTab(): BuilderTabState | null {
  * costs nothing but a rebuild.
  */
 export const BUILDER_TABS = [
-  { key: "basics", label: "1. Hero section" },
-  { key: "audience", label: "2. Audience / profession" },
-  { key: "gate", label: "3. Qualification gate" },
-  { key: "exit", label: "4. Exit page (disqualified)" },
-  { key: "questions", label: "5. How questions are shown" },
-  { key: "categories", label: "6. Questions and categories" },
-  { key: "optin", label: "7. Lead form" },
-  { key: "scoring", label: "8. Scoring & bands" },
-  { key: "after", label: "9. After results" },
-  { key: "tracking", label: "10. Tracking & rules" },
-  { key: "results", label: "11. Results page" },
-  { key: "resultPage", label: "12. VSL result page" },
+  { key: "template", label: "1. Start from a template" },
+  { key: "basics", label: "2. Hero section" },
+  { key: "audience", label: "3. Audience / profession" },
+  { key: "gate", label: "4. Qualification gate" },
+  { key: "exit", label: "5. Exit page (disqualified)" },
+  { key: "questions", label: "6. How questions are shown" },
+  { key: "categories", label: "7. Questions and categories" },
+  { key: "optin", label: "8. Lead form" },
+  { key: "scoring", label: "9. Scoring & bands" },
+  { key: "after", label: "10. After results" },
+  { key: "tracking", label: "11. Tracking & rules" },
+  { key: "results", label: "12. Results page" },
+  { key: "resultPage", label: "13. VSL result page" },
 ] as const;
 
 /**
@@ -62,6 +63,10 @@ export const BUILDER_TABS = [
  * when the page does is worse than no heading: it teaches you to stop reading it.
  */
 export const STEP_HEADINGS: Record<string, { title: string; blurb: string }> = {
+  template: {
+    title: "Start from a template",
+    blurb: "A working funnel to edit, instead of a blank page. Skip it if you would rather write your own.",
+  },
   basics: { title: "Hero section", blurb: "The words on the first screen, plus the name and the link." },
   audience: { title: "Audience / profession", blurb: "An optional first question that sorts people before anything else. Off means Profession sits on the lead form instead." },
   gate: { title: "Qualification gate", blurb: "Screen people out before the assessment. Optional - skip it and everyone goes through." },
@@ -112,7 +117,7 @@ export function stepLabel(key: string): string {
  */
 export function BuilderStep({ step, children }: { step: string; children: ReactNode }) {
   const ctx = useBuilderTab();
-  const active = ctx?.active ?? "basics";
+  const active = ctx?.active ?? "template";
   if (active !== step) return null;
   return <>{children}</>;
 }
@@ -129,7 +134,7 @@ export function BuilderStepReset({ assessmentId }: { assessmentId: string }) {
   const ctx = useBuilderTab();
   const setActive = ctx?.setActive;
   useEffect(() => {
-    setActive?.("basics");
+    setActive?.("template");
   }, [assessmentId, setActive]);
   return null;
 }

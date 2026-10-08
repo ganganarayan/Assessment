@@ -4,7 +4,7 @@ import { currentUserCanEdit } from "@/lib/auth/guards";
 import { getAssessmentById, listAssessments } from "@/features/assessment/data";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { resolveActingScope, actingConfigTenantId } from "@/lib/tenant/acting";
-import { isPlatformScope } from "@/lib/tenant/platform-tenant";
+import { isPlatformScope, PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
 import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
 import { CategoriesManager } from "@/features/assessment/components/admin/categories-manager";
@@ -19,6 +19,8 @@ import {
   BuilderStepReset,
   BuilderStepNav,
 } from "@/features/admin/components/builder-tab-context";
+import { StartFromTemplate } from "@/features/templates/components/start-from-template";
+import { listTemplatesForTenant } from "@/features/templates/data";
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
 import { readResultPage } from "@/features/assessment/result-page/blocks";
 import { buildSpine } from "@/lib/routing/engine";
@@ -241,8 +243,29 @@ export default async function EditAssessmentPage({
   const signupScope = await resolveActingScope();
   const canPlatformSignup = signupScope.isSuper && isPlatformScope(signupScope.tenantId);
 
+  /**
+   * Step 1 offers a template only while there is nothing to lose. "Empty" is no
+   * categories, no result bands and no gate questions - the three things a template
+   * would have to overwrite.
+   */
+  // The owner's own scope reads the same shelf a tenant would.
+  const TEMPLATE_SCOPE_ID = a.tenantId ?? PLATFORM_TENANT_ID;
+  const gateQ = (a.qualification as { questions?: unknown[] } | null)?.questions;
+  const hasContent =
+    a.categories.length > 0 || a.resultBands.length > 0 || (Array.isArray(gateQ) && gateQ.length > 0);
+  const startTemplates = hasContent ? [] : await listTemplatesForTenant(TEMPLATE_SCOPE_ID);
+
   const assessmentTab = (
     <>
+      <BuilderStep step="template">
+        <StartFromTemplate
+          assessmentId={a.id}
+          templates={startTemplates}
+          hasContent={hasContent}
+          templatesHref="/admin/templates"
+        />
+      </BuilderStep>
+
       <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} canPlatformSignup={canPlatformSignup} />
 
       <BuilderStep step="gate">

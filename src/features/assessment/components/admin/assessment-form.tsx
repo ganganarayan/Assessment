@@ -46,7 +46,7 @@ export type AssessmentFormValues = AssessmentInput;
  * field being typed in.
  */
 /** Steps a funnel can do entirely without. */
-const SKIPPABLE_STEPS = new Set(["audience", "gate", "exit"]);
+const SKIPPABLE_STEPS = new Set(["template", "audience", "gate", "exit"]);
 
 /** The steps this form has fields on. The rest are page-level managers. */
 const FORM_FIELD_STEPS = new Set([
@@ -65,7 +65,7 @@ function FormStep({ step, children }: { step: string; children: ReactNode }) {
   const whole = useContext(ShowWholeFormCtx);
   const ctx = useBuilderTab();
   if (whole) return <>{children}</>;
-  return (ctx?.active ?? "basics") === step ? <>{children}</> : null;
+  return (ctx?.active ?? "template") === step ? <>{children}</> : null;
 }
 
 const LEAD_FIELDS = [
@@ -242,7 +242,7 @@ export function AssessmentForm({
   const tab = useBuilderTab();
   // On create there are no steps to walk - the whole form shows at once, because a
   // multi-step wizard that has not created a row yet has nothing to save between steps.
-  const step = mode === "create" ? null : (tab?.active ?? "basics");
+  const step = mode === "create" ? null : (tab?.active ?? "template");
   const next = step ? nextStepKey(step) : null;
   const prev = step ? prevStepKey(step) : null;
   const heading = step ? STEP_HEADINGS[step] : null;

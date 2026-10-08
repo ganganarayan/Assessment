@@ -26,6 +26,8 @@ import {
   BuilderStepReset,
   BuilderStepNav,
 } from "@/features/admin/components/builder-tab-context";
+import { StartFromTemplate } from "@/features/templates/components/start-from-template";
+import { listTemplatesForTenant } from "@/features/templates/data";
 import { readResultPage } from "@/features/assessment/result-page/blocks";
 import { WorkspaceAssessmentActions } from "@/features/workspace/components/workspace-assessment-actions";
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
@@ -225,8 +227,28 @@ export default async function WorkspaceEditAssessmentPage({
   const disqParsed = disqualifiedContentSchema.safeParse(a.disqualifiedContent);
   const disqualified = disqParsed.success ? disqParsed.data : EMPTY_DISQUALIFIED;
 
+  /**
+   * Step 1 offers a template only while there is nothing to lose. "Empty" is no
+   * categories, no result bands and no gate questions - the three things a template
+   * would have to overwrite.
+   */
+  const TEMPLATE_SCOPE_ID = tenantId;
+  const gateQ = (a.qualification as { questions?: unknown[] } | null)?.questions;
+  const hasContent =
+    a.categories.length > 0 || a.resultBands.length > 0 || (Array.isArray(gateQ) && gateQ.length > 0);
+  const startTemplates = hasContent ? [] : await listTemplatesForTenant(TEMPLATE_SCOPE_ID);
+
   const assessmentTab = (
     <>
+      <BuilderStep step="template">
+        <StartFromTemplate
+          assessmentId={a.id}
+          templates={startTemplates}
+          hasContent={hasContent}
+          templatesHref="/w/templates"
+        />
+      </BuilderStep>
+
       <AssessmentForm mode="edit" id={a.id} initial={initial} basePath="/w/assessments" promptVersions={promptVersions} assessmentOptions={routeTargets} />
 
       <BuilderStep step="gate">
