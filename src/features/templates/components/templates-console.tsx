@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,6 +54,44 @@ function aMonthFromNow(): string {
 }
 
 type Reward = ContributionRewardView & { capExceeded: boolean; templateTitle: string };
+
+/**
+ * Download a template to read it.
+ *
+ * Before this, the only way to see a template's questions was to IMPORT it - which
+ * creates a real assessment inside a workspace and spends one of that plan's slots. A
+ * side effect that large has no business attaching to the act of checking whether the
+ * content is any good, and it meant reviewing a contribution cost something.
+ *
+ * Two formats because there are two ways to review. The document is what the repo
+ * holds, so what is read is exactly what ships. The assessment file loads in the
+ * ordinary Import screen, so a reviewer can WALK the funnel instead of reading JSON.
+ */
+function DownloadTemplate({ id }: { id: string }) {
+  return (
+    <details className="relative">
+      <summary
+        className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "cursor-pointer list-none")}
+        title="Read this template without importing it"
+      >
+        Download
+      </summary>
+      <div className="absolute right-0 z-10 mt-1 flex w-56 flex-col rounded-md border bg-[var(--background)] p-1 text-sm shadow">
+        <a href={`/api/admin/templates/${id}/export`} className="rounded px-2 py-1.5 hover:bg-[var(--muted)]">
+          Template file
+          <span className="block text-[11px] text-[var(--muted-foreground)]">Exactly what the repo holds</span>
+        </a>
+        <a
+          href={`/api/admin/templates/${id}/export?format=assessment`}
+          className="rounded px-2 py-1.5 hover:bg-[var(--muted)]"
+        >
+          As an import file
+          <span className="block text-[11px] text-[var(--muted-foreground)]">Load it on Import and walk it</span>
+        </a>
+      </div>
+    </details>
+  );
+}
 
 export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]; canEdit: boolean }) {
   const router = useRouter();
@@ -132,8 +171,12 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
                     {t.submittedAt ? ` on ${new Date(t.submittedAt).toLocaleDateString("en-GB")}` : ""}
                   </p>
                 </div>
-                {canEdit ? (
-                  <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
+                  {/* Available to staff as well as the owner: reading a template is a
+                      read, and the actions beside it are already owner-gated. */}
+                  <DownloadTemplate id={t.id} />
+                  {canEdit ? (
+                  <>
                     <Button size="sm" onClick={() => doApprove(t, false)} disabled={busy !== null}>
                       Approve
                     </Button>
@@ -143,8 +186,9 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
                     <Button size="sm" variant="ghost" onClick={() => doReject(t)} disabled={busy !== null}>
                       Decline
                     </Button>
-                  </div>
-                ) : null}
+                  </>
+                  ) : null}
+                </div>
               </div>
             ))}
           </CardContent>
@@ -158,6 +202,7 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
               <CardTitle className="text-lg">The library ({shelf.length})</CardTitle>
               <p className="text-sm text-[var(--muted-foreground)]">
                 Tick Published to put one on every tenant&apos;s dashboard. Order sorts within a category.
+                Download any of them to read the questions without importing.
               </p>
             </div>
             {canEdit ? (
@@ -237,6 +282,7 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
                       }}
                       aria-label="Display order"
                     />
+                    <DownloadTemplate id={t.id} />
                     <Button size="sm" variant="ghost" onClick={() => setEditing(editing === t.id ? null : t.id)}>
                       {editing === t.id ? "Close" : "Edit"}
                     </Button>

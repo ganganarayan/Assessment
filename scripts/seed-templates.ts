@@ -35,3 +35,7 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
+// A module, not a global script: both of these declare `main`, and without an
+// export tsc treats them as one shared global scope and calls it a duplicate.
+export {};
