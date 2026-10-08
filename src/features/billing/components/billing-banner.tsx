@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ResolvedPlan } from "@/lib/billing/entitlements";
+import { TRIAL_DAYS, PLAN_LABEL, TRIAL_PLAN } from "@/lib/billing/plans";
 
 /**
  * The workspace-wide billing state strip: trial countdown, parked notice, or a
@@ -21,6 +22,12 @@ interface Notice {
   headline: string;
   detail: string;
   cta: string;
+  /** Where the primary button goes. Defaults to the billing page. */
+  href?: string;
+  /** An optional second, quieter link. The trial needs one: "what you get" and "help
+   *  me use it" are different asks, and collapsing them into one button means whichever
+   *  the tenant needed, they got the other. */
+  secondary?: { label: string; href: string };
 }
 
 /**
@@ -48,15 +55,27 @@ function billingNotice(resolved: ResolvedPlan): Notice | null {
   if (resolved.trialing) {
     const d = resolved.trialDaysLeft;
     const days = `${d} day${d === 1 ? "" : "s"}`;
+    // Which day of the window they are on. A bare "11 days left" is a number people
+    // learn to ignore; "Day 3 of 14" is a position in something that is visibly
+    // running out, and it is the same fact.
+    const day = Math.min(TRIAL_DAYS, Math.max(1, TRIAL_DAYS - d + 1));
     return {
       // Under four days the countdown stops being informational and becomes something
       // to act on, so it changes colour rather than relying on the tenant reading a
       // number they have already learned to ignore.
       tone: d <= 3 ? "warn" : "neutral",
-      headline: `Trial - ${days} left`,
+      headline: `Day ${day} of ${TRIAL_DAYS} - ${PLAN_LABEL[TRIAL_PLAN]} trial, ${days} left`,
+      // What they have, what to DO with it, and who will help - in that order.
+      //
+      // The old copy explained what happens when the trial ENDS, which is accurate and
+      // useless on day three: it gives somebody who has not built anything yet nothing
+      // to do today. A trial is lost in the first week, not the last, and the thing
+      // that converts a workspace is one real qualified lead - so the banner names that
+      // as the target and names the deadline it has to happen inside.
       detail:
-        "Full Signal features, no card. When the trial ends the workspace pauses rather than dropping a tier: nothing is deleted and nothing silently stops working.",
-      cta: "Choose a plan",
+        `Every ${PLAN_LABEL[TRIAL_PLAN]} feature is switched on, no card needed. Speed wins: aim to land your first qualified, paying client before day ${TRIAL_DAYS} - that is what this window is for, and the workspaces that get there are the ones that publish a funnel in week one. Check Billing for everything included, and ask support to set it up with you.`,
+      cta: "See what's included",
+      secondary: { label: "Get setup help", href: "/contact" },
     };
   }
 
@@ -89,12 +108,22 @@ export function BillingBanner({ resolved }: { resolved: ResolvedPlan }) {
         <strong>{notice.headline}</strong>{" "}
         <span className="text-[var(--muted-foreground)]">{notice.detail}</span>
       </span>
-      <Link
-        href="/w/billing"
-        className="shrink-0 rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-1 text-xs font-medium hover:bg-[var(--muted)]"
-      >
-        {notice.cta}
-      </Link>
+      <span className="flex shrink-0 items-center gap-2">
+        {notice.secondary ? (
+          <Link
+            href={notice.secondary.href}
+            className="text-xs font-medium underline underline-offset-2 hover:no-underline"
+          >
+            {notice.secondary.label}
+          </Link>
+        ) : null}
+        <Link
+          href={notice.href ?? "/w/billing"}
+          className="rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-1 text-xs font-medium hover:bg-[var(--muted)]"
+        >
+          {notice.cta}
+        </Link>
+      </span>
     </div>
   );
 }

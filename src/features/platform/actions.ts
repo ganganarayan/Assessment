@@ -338,6 +338,9 @@ export interface TenantRow {
    *  a tenant who never came back is a different problem from one who logs in daily
    *  and still has not published. */
   lastLoginAt: string | null;
+  /** Total sign-ins across this workspace's logins. A floor, not a lifetime total -
+   *  it was backfilled from surviving sessions, and expired ones were already gone. */
+  loginCount: number;
 }
 
 /**
@@ -352,7 +355,7 @@ type TenantWithCounts = Prisma.TenantGetPayload<{
   include: {
     _count: { select: { users: true; assessments: true; submissions: true } };
     subscription: { select: { status: true; plan: true; currentPeriodEnd: true } };
-    users: { select: { lastLoginAt: true } };
+    users: { select: { lastLoginAt: true; loginCount: true } };
   };
 }>;
 
@@ -383,6 +386,7 @@ function toTenantRow(t: TenantWithCounts): TenantRow {
     subPlan: t.subscription?.plan ?? null,
     subPeriodEnd: t.subscription?.currentPeriodEnd?.toISOString() ?? null,
     lastLoginAt: lastLogin?.toISOString() ?? null,
+    loginCount: t.users.reduce((n, u) => n + u.loginCount, 0),
   };
 }
 
@@ -392,7 +396,7 @@ const TENANT_INCLUDE = {
   subscription: { select: { status: true, plan: true, currentPeriodEnd: true } },
   // Only the one field the row needs. A deleted login's last sign-in is not this
   // workspace's activity any more, so they are excluded exactly as the count is.
-  users: { where: { deletedAt: null }, select: { lastLoginAt: true } },
+  users: { where: { deletedAt: null }, select: { lastLoginAt: true, loginCount: true } },
 } as const;
 
 export async function listTenants(): Promise<ActionResult<TenantRow[]>> {

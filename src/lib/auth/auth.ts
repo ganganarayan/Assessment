@@ -260,7 +260,7 @@ export const auth = betterAuth({
           try {
             await prisma.user.update({
               where: { id: session.userId },
-              data: { lastLoginAt: new Date() },
+              data: { lastLoginAt: new Date(), loginCount: { increment: 1 } },
             });
           } catch (e) {
             console.error("[auth] lastLoginAt stamp failed:", e instanceof Error ? e.message : String(e));

@@ -8,6 +8,8 @@ import { listTemplatesForTenant } from "@/features/templates/data";
 import { TemplateLibrary } from "@/features/templates/components/template-library";
 import { assertCanCreateAssessment } from "@/lib/billing/gate";
 import { currentUserCanEdit } from "@/lib/auth/guards";
+import { resolvePlan } from "@/lib/billing/entitlements";
+import { TrialFocus } from "@/features/billing/components/trial-focus";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -39,18 +41,25 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
  * the screen they land on rather than behind a tab they have no reason to open. It is
  * collapsible because the second week is not the first one, and whoever has already
  * built their funnel should be able to put it away.
+ *
+ * The TRIAL panel sits at the very top, above the counts, and only during a trial. The
+ * thin strip in the layout says the same thing on every other screen; this is the
+ * version with room to say what the fourteen days are for. It is first because on day
+ * one the counts are all zero, and a screen that opens with three zeroes tells a new
+ * customer nothing except that they have not started.
  */
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceDashboardPage() {
   const { tenantId, impersonating } = await requireWorkspace();
-  const [counts, onboardingVideoUrl, onboardingSteps, templates, canEdit, cap] = await Promise.all([
+  const [counts, onboardingVideoUrl, onboardingSteps, templates, canEdit, cap, resolved] = await Promise.all([
     getDashboardCounts(tenantOnly(tenantId)),
     resolveOnboardingVideoUrl(),
     resolveOnboardingSteps(),
     listTemplatesForTenant(tenantId),
     currentUserCanEdit(),
     impersonating ? Promise.resolve({ ok: true } as const) : assertCanCreateAssessment(tenantId),
+    resolvePlan(tenantId),
   ]);
 
   const capReason = cap.ok
@@ -65,6 +74,8 @@ export default async function WorkspaceDashboardPage() {
           New assessment
         </Link>
       </div>
+
+      <TrialFocus resolved={resolved} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Stat label="Assessments" value={counts.assessments} />

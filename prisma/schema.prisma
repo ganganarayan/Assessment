@@ -445,6 +445,14 @@ model User {
   /// into one who has never logged in, which is the opposite of what this is for.
   /// Null = no sign-in since the column was added.
   lastLoginAt        DateTime?
+  /// How many times this login has signed in. Incremented by the same session-create
+  /// hook that stamps lastLoginAt.
+  ///
+  /// A FLOOR, not a lifetime total: it was backfilled from surviving session rows, and
+  /// expired sessions had already been pruned. Beside the date it answers the question
+  /// a date alone cannot - whether somebody looked once and left, or comes back daily
+  /// and still has not shipped anything.
+  loginCount         Int              @default(0)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 

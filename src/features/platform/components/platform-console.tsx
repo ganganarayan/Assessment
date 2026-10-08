@@ -72,16 +72,39 @@ function stampIST(iso: string | null): { date: string; time: string } | null {
   };
 }
 
-/** A date over its time, or a dash. Used by Signed up and Last login. */
-function Stamp({ iso, empty = "-" }: { iso: string | null; empty?: string }) {
+/**
+ * A date over its time, with an optional third line. Used by Signed up and Last login.
+ *
+ * The sign-in COUNT goes on that third line rather than in a column of its own: the
+ * tenant table is already wide, and a bare number in its own column is a statistic,
+ * while the same number under a date is a fact about that date - "last seen then, and
+ * that was their second visit ever".
+ */
+function Stamp({ iso, empty = "-", note }: { iso: string | null; empty?: string; note?: string | null }) {
   const v = stampIST(iso);
-  if (!v) return <span className="text-[var(--muted-foreground)]">{empty}</span>;
+  if (!v) {
+    return (
+      <span className="flex flex-col leading-tight">
+        <span className="text-[var(--muted-foreground)]">{empty}</span>
+        {note ? <span className="text-[11px] text-[var(--muted-foreground)]">{note}</span> : null}
+      </span>
+    );
+  }
   return (
     <span className="flex flex-col leading-tight">
       <span className="whitespace-nowrap">{v.date}</span>
       <span className="text-[11px] tabular-nums text-[var(--muted-foreground)]">{v.time}</span>
+      {note ? <span className="text-[11px] tabular-nums text-[var(--muted-foreground)]">{note}</span> : null}
     </span>
   );
+}
+
+/** "1 sign-in" / "7 sign-ins", or nothing at all when there is no record to describe.
+ *  Zero prints nothing rather than "0 sign-ins": the count is a floor backfilled from
+ *  surviving sessions, so zero means "nothing recorded", and stating it as a number
+ *  would read as a measurement nobody took. */
+function signInNote(n: number): string | null {
+  return n > 0 ? `${n} sign-in${n === 1 ? "" : "s"}` : null;
 }
 
 /** Whether a stored grant is still live - the same rule the resolver applies. */
@@ -344,7 +367,7 @@ export function PlatformConsole({
                         backfill from - calling that "never" would be a claim the data does
                         not support. */}
                     <td className="px-3 py-2 whitespace-nowrap text-xs text-[var(--muted-foreground)]">
-                      <Stamp iso={t.lastLoginAt} empty="Not since 8 Oct" />
+                      <Stamp iso={t.lastLoginAt} empty="Not since 8 Oct" note={signInNote(t.loginCount)} />
                     </td>
                     {/*
                       THE PLAN IS STATED FIRST, AND IT IS THE RESOLVED ONE.
