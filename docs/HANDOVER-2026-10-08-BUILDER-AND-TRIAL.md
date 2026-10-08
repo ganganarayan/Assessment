@@ -102,10 +102,16 @@ An **unknown** host still allows signup: localhost, previews and the Railway hos
 are hosts the Domain table has never heard of, and refusing there would lock signup out
 of every environment that is not production.
 
-🟡 **Never verified against a real tenant host.** The only tenant custom domain points
-at prod, and faking a Host header does not work (`effectiveHost` needs the proxy
-secret). Load assess.applygitawisdom.com now that this is live: Sign In alone, and
-/sign-up should bounce to /sign-in.
+🟢 **Verified on prod against the real tenant host**, 2026-10-08 after 921d3c2:
+
+```
+assess.applygitawisdom.com/sign-up            307 -> /sign-in
+POST .../api/auth/sign-up/email (valid body)  403
+assess360.divineleads.guru/sign-up            200
+```
+
+The middle one is the test that counts - a payload that would otherwise have created an
+account, refused at the endpoint rather than at the button.
 
 ### UI conventions now in force
 
