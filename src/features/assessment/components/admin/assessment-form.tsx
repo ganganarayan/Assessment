@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { createContext, useCallback, useContext, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   createAssessment,
@@ -21,8 +21,31 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { META_EVENT_KEYS, META_EVENT_META, ALL_META_EVENTS as DEFAULT_META_EVENTS } from "@/features/assessment/meta-events";
+import { useBuilderTab, nextStepKey, stepLabel, STEP_KEYS } from "@/features/admin/components/builder-tab-context";
 
 export type AssessmentFormValues = AssessmentInput;
+
+/**
+ * Show a block only on its step - unless the whole form is meant to be visible.
+ *
+ * The exception is CREATE. A seven-step walk is for an assessment that exists, because
+ * each step saves and moves on; before the row exists there is nothing to save between
+ * steps, so the create form shows everything at once and keeps its single Create button.
+ * Without this, a new assessment would offer the title and the slug and hide every other
+ * field behind steps that could not be reached.
+ *
+ * Defined at module scope on purpose: a component declared inside a render is a new
+ * type on every keystroke, which remounts its children and takes the cursor out of the
+ * field being typed in.
+ */
+const ShowWholeFormCtx = createContext(false);
+
+function FormStep({ step, children }: { step: string; children: ReactNode }) {
+  const whole = useContext(ShowWholeFormCtx);
+  const ctx = useBuilderTab();
+  if (whole) return <>{children}</>;
+  return (ctx?.active ?? "basics") === step ? <>{children}</> : null;
+}
 
 const LEAD_FIELDS = [
   { collect: "collectFirstName", required: "firstNameRequired", label: "First name", labelKey: "firstNameLabel" },
@@ -195,6 +218,11 @@ export function AssessmentForm({
   const [values, setValues] = useState<AssessmentFormValues>(
     initial ?? DEFAULTS,
   );
+  const tab = useBuilderTab();
+  // On create there are no steps to walk - the whole form shows at once, because a
+  // seven-step wizard that has not created a row yet has nothing to save between steps.
+  const step = mode === "create" ? null : (tab?.active ?? "basics");
+  const next = step ? nextStepKey(step) : null;
   const [autoSlug, setAutoSlug] = useState(mode === "create");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -261,8 +289,18 @@ export function AssessmentForm({
     save: autosaveSave,
   });
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  /**
+   * Save, and optionally move to the next step.
+   *
+   * `advance` is the whole difference between the two buttons. Both save exactly the
+   * same payload - every field of every step, because they all live in one state
+   * object - so moving on can never mean saving less than staying put.
+   *
+   * It does NOT advance when the save failed. Carrying somebody to the next step while
+   * the error explaining what went wrong scrolls away behind them is how an unsaved
+   * change becomes a lost one.
+   */
+  function submit(advance: boolean) {
     setError(null);
     start(async () => {
       const payload = buildPayload();
@@ -277,13 +315,31 @@ export function AssessmentForm({
       autosave.markSaved(payload);
       if (mode === "create" && res.data) {
         router.push(`${basePath}/${res.data.id}`);
-      } else {
-        router.refresh();
+        return;
       }
+      if (advance && next) {
+        tab?.setActive(next);
+        // Back to the top: the next step starts at its own first field, not halfway
+        // down it where the last one ended.
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      router.refresh();
     });
   }
 
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    submit(true);
+  }
+
+  // The last two steps are separate builders with their own save and publish buttons.
+  // Without this the settings Card still rendered there - a titled, empty box with a
+  // "Save & next" button under it, which is worse than useless: it looks like the
+  // settings for the page you are actually editing.
+  if (step && !STEP_KEYS.includes(step)) return null;
+
   return (
+    <ShowWholeFormCtx.Provider value={mode === "create"}>
     <Card>
       <CardHeader>
         <CardTitle>{mode === "create" ? "New assessment" : "Settings"}</CardTitle>
@@ -292,6 +348,7 @@ export function AssessmentForm({
       <form onSubmit={onSubmit} {...autosave.bind} className="relative">
         {autosave.flash}
         <CardContent className="flex flex-col gap-4">
+          <FormStep step="basics">
           <div className="flex flex-col gap-2">
             <Label htmlFor="eyebrow">Eyebrow</Label>
             <Input
@@ -301,7 +358,9 @@ export function AssessmentForm({
               placeholder="Small kicker shown above the headline"
             />
           </div>
+          </FormStep>
 
+          <FormStep step="basics">
           <div className="flex flex-col gap-2">
             <Label htmlFor="title">Headline (title)</Label>
             <Input
@@ -315,7 +374,9 @@ export function AssessmentForm({
               required
             />
           </div>
+          </FormStep>
 
+          <FormStep step="basics">
           <div className="flex flex-col gap-2">
             <Label htmlFor="subheadline">Sub-headline</Label>
             <Input
@@ -325,7 +386,9 @@ export function AssessmentForm({
               placeholder="Secondary line shown below the headline"
             />
           </div>
+          </FormStep>
 
+          <FormStep step="basics">
           <div className="flex flex-col gap-2">
             <Label htmlFor="qualifiedNote">Line above the opt-in form</Label>
             <Textarea
@@ -340,7 +403,9 @@ export function AssessmentForm({
               Blank shows nothing.
             </p>
           </div>
+          </FormStep>
 
+          <FormStep step="basics">
           <div className="flex flex-col gap-2">
             <Label htmlFor="slug">Slug (public URL: /a/&lt;slug&gt;)</Label>
             <Input
@@ -353,7 +418,9 @@ export function AssessmentForm({
               required
             />
           </div>
+          </FormStep>
 
+          <FormStep step="basics">
           <div className="flex flex-col gap-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -362,7 +429,9 @@ export function AssessmentForm({
               onChange={(e) => set("description", e.target.value)}
             />
           </div>
+          </FormStep>
 
+          <FormStep step="basics">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="cover">Cover image URL</Label>
@@ -389,7 +458,9 @@ export function AssessmentForm({
               />
             </div>
           </div>
+          </FormStep>
 
+          <FormStep step="basics">
           <div className="flex flex-col gap-2">
             <Label htmlFor="thanks">Thank-you message</Label>
             <Textarea
@@ -398,7 +469,9 @@ export function AssessmentForm({
               onChange={(e) => set("thankYouMessage", e.target.value)}
             />
           </div>
+          </FormStep>
 
+          <FormStep step="optin">
           <div className="flex flex-col gap-3 rounded-lg border p-4">
             <p className="text-sm font-medium">Lead capture</p>
             <div className="flex flex-col gap-2">
@@ -433,7 +506,9 @@ export function AssessmentForm({
               ))}
             </div>
           </div>
+          </FormStep>
 
+          <FormStep step="audience">
           <div className="flex flex-col gap-4 rounded-lg border p-4">
             <p className="text-sm font-medium">Audience selection (first screen)</p>
             <p className="text-xs text-[var(--muted-foreground)]">
@@ -559,6 +634,11 @@ export function AssessmentForm({
               </p>
             ) : null}
 
+          </div>
+          </FormStep>
+          <FormStep step="tracking">
+          <div className="flex flex-col gap-4 rounded-lg border p-4">
+            <p className="text-sm font-medium">Meta tracking</p>
             <label className="flex items-start gap-2 border-t pt-3 text-sm">
               <input
                 type="checkbox"
@@ -617,7 +697,9 @@ export function AssessmentForm({
               </div>
             ) : null}
           </div>
+          </FormStep>
 
+          <FormStep step="optin">
           <div className="flex flex-col gap-4 rounded-lg border p-4">
             <p className="text-sm font-medium">Opt-in screen copy</p>
 
@@ -737,7 +819,9 @@ export function AssessmentForm({
               ) : null}
             </div>
           </div>
+          </FormStep>
 
+          <FormStep step="tracking">
           <div className="flex flex-col gap-4 rounded-lg border p-4">
             <p className="text-sm font-medium">Button colours</p>
             <p className="text-xs text-[var(--muted-foreground)]">
@@ -760,7 +844,9 @@ export function AssessmentForm({
               </div>
             </div>
           </div>
+          </FormStep>
 
+          <FormStep step="tracking">
           <div className="flex flex-col gap-3 rounded-lg border p-4">
             <p className="text-sm font-medium">Heatmap / session recording</p>
             <p className="text-xs text-[var(--muted-foreground)]">
@@ -778,7 +864,9 @@ export function AssessmentForm({
               onChange={(e) => set("heatmapCode", e.target.value)}
             />
           </div>
+          </FormStep>
 
+          <FormStep step="optin">
           <div className="flex flex-col gap-4 rounded-lg border p-4">
             <p className="text-sm font-medium">Pre-results details page</p>
             <p className="text-xs text-[var(--muted-foreground)]">
@@ -798,7 +886,9 @@ export function AssessmentForm({
 
             <CustomFieldsEditor fields={values.preResultFields} onChange={(next) => set("preResultFields", next)} />
           </div>
+          </FormStep>
 
+          <FormStep step="optin">
           <div className="flex flex-col gap-4 rounded-lg border p-4">
             <p className="text-sm font-medium">Extra opt-in fields</p>
             <p className="text-xs text-[var(--muted-foreground)]">
@@ -807,7 +897,9 @@ export function AssessmentForm({
             </p>
             <CustomFieldsEditor fields={values.optinFields} onChange={(next) => set("optinFields", next)} />
           </div>
+          </FormStep>
 
+          <FormStep step="tracking">
           <div className="flex flex-col gap-3 rounded-lg border p-4">
             <p className="text-sm font-medium">Retake policy</p>
             <p className="text-xs text-[var(--muted-foreground)]">
@@ -878,7 +970,9 @@ export function AssessmentForm({
             ) : null}
 
           </div>
+          </FormStep>
 
+          <FormStep step="scoring">
           <div className="flex flex-col gap-2 rounded-lg border p-4">
             <p className="text-sm font-medium">AI result instructions</p>
             <label className="flex items-center gap-2 text-sm">
@@ -906,7 +1000,9 @@ export function AssessmentForm({
               ))}
             </select>
           </div>
+          </FormStep>
 
+          <FormStep step="questions">
           <div className="flex flex-col gap-3 rounded-lg border p-4">
             <p className="text-sm font-medium">Scoring engine</p>
             <p className="text-xs text-[var(--muted-foreground)]">
@@ -934,7 +1030,9 @@ export function AssessmentForm({
               ))}
             </div>
           </div>
+          </FormStep>
 
+          <FormStep step="questions">
           <div className="flex flex-col gap-3 rounded-lg border p-4">
             <p className="text-sm font-medium">How questions are shown</p>
             <div className="flex flex-col gap-2 text-sm">
@@ -996,7 +1094,9 @@ export function AssessmentForm({
               </span>
             </label>
           </div>
+          </FormStep>
 
+          <FormStep step="after">
           <div className="flex flex-col gap-3 rounded-lg border p-4">
             <p className="text-sm font-medium">Next step after results</p>
             <p className="text-xs text-[var(--muted-foreground)]">
@@ -1169,6 +1269,7 @@ export function AssessmentForm({
               </div>
             ) : null}
           </div>
+          </FormStep>
 
           {/* Destination + Training/VSL: only relevant when the flow lands on an
               external page. Hidden (and not required) for "Show results on assess360". */}
@@ -1253,13 +1354,36 @@ export function AssessmentForm({
             </p>
           ) : null}
 
-          <div>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Saving…" : mode === "create" ? "Create assessment" : "Save settings"}
-            </Button>
+          {/* Save, and Save & next. Both send the same whole-form payload; the second
+              also moves on. "Save & next" is primary because working forward through
+              the steps is what the split is for, and the plain Save is there for the
+              person who came back to change one thing and is leaving again. */}
+          <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+            {mode === "create" ? (
+              <Button type="submit" disabled={pending}>
+                {pending ? "Saving…" : "Create assessment"}
+              </Button>
+            ) : (
+              <>
+                {next ? (
+                  <Button type="submit" disabled={pending}>
+                    {pending ? "Saving…" : `Save & next: ${stepLabel(next).replace(/^\d+\.\s*/, "")}`}
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant={next ? "outline" : "default"}
+                  disabled={pending}
+                  onClick={() => submit(false)}
+                >
+                  {pending ? "Saving…" : "Save"}
+                </Button>
+              </>
+            )}
           </div>
         </CardContent>
       </form>
     </Card>
+    </ShowWholeFormCtx.Provider>
   );
 }

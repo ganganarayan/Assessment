@@ -21,7 +21,7 @@ import { ResultBandsManager } from "@/features/assessment/components/admin/resul
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
 import { PagesBuilder } from "@/features/assessment/components/admin/pages-builder";
 import { ResultPageBuilder } from "@/features/assessment/components/admin/result-page-builder";
-import { BuilderTabPanels } from "@/features/assessment/components/admin/builder-tab-panels";
+import { BuilderStep, BuilderStepReset } from "@/features/admin/components/builder-tab-context";
 import { readResultPage } from "@/features/assessment/result-page/blocks";
 import { WorkspaceAssessmentActions } from "@/features/workspace/components/workspace-assessment-actions";
 import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
@@ -225,6 +225,7 @@ export default async function WorkspaceEditAssessmentPage({
     <>
       <AssessmentForm mode="edit" id={a.id} initial={initial} basePath="/w/assessments" promptVersions={promptVersions} assessmentOptions={routeTargets} />
 
+      <BuilderStep step="audience">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Qualification gate (Page 1)</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
@@ -240,7 +241,9 @@ export default async function WorkspaceEditAssessmentPage({
           storedUnreadable={qualUnreadable}
         />
       </section>
+      </BuilderStep>
 
+      <BuilderStep step="after">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Connect your destination page</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
@@ -248,12 +251,16 @@ export default async function WorkspaceEditAssessmentPage({
         </p>
         <ConnectDestination targetUrl={a.targetUrl} endpointBase={env.NEXT_PUBLIC_APP_URL} bandWords={bandWords} />
       </section>
+      </BuilderStep>
 
+      <BuilderStep step="questions">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Categories &amp; Questions</h2>
         <CategoriesManager assessmentId={a.id} categories={categories} engine={a.engine} routing={routingContext} />
       </section>
+      </BuilderStep>
 
+      <BuilderStep step="scoring">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Result Bands</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
@@ -263,7 +270,9 @@ export default async function WorkspaceEditAssessmentPage({
         </p>
         <ResultBandsManager assessmentId={a.id} bands={bands} />
       </section>
+      </BuilderStep>
 
+      <BuilderStep step="scoring">
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Category Evaluation Bands</h2>
         <p className="text-xs text-[var(--muted-foreground)]">
@@ -273,6 +282,7 @@ export default async function WorkspaceEditAssessmentPage({
         </p>
         <CategoryBandsManager assessmentId={a.id} categories={categoryOptions} bands={categoryBands} />
       </section>
+      </BuilderStep>
     </>
   );
 
@@ -336,13 +346,17 @@ export default async function WorkspaceEditAssessmentPage({
         </p>
       </div>
 
-      <BuilderTabPanels
-        tabs={[
-          { key: "assessment", content: assessmentTab },
-          { key: "results", content: resultsTab },
-          { key: "resultPage", content: resultPageTab },
-        ]}
-      />
+      {/* The builder's steps. The settings form hides its own blocks per step (they
+          share one state object, so a hidden step still saves), and the big managers
+          below are wrapped individually. The two page builders keep their own steps at
+          the end because each has its own draft and Publish button. */}
+      <BuilderStepReset assessmentId={a.id} />
+
+      <div className="flex min-w-0 flex-col gap-8">
+        {assessmentTab}
+        <BuilderStep step="results">{resultsTab}</BuilderStep>
+        <BuilderStep step="resultPage">{resultPageTab}</BuilderStep>
+      </div>
     </div>
   );
 }

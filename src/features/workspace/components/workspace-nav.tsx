@@ -88,11 +88,10 @@ export function WorkspaceNav({ hidden = [] }: { hidden?: string[] }) {
               >
                 {it.label}
               </Link>
-              {/* While editing an assessment, the builder's panels are switched from
+              {/* While editing an assessment, the builder's STEPS are switched from
                   here, as a branch under Assessments - the same place /admin puts them.
-                  Without this branch the workspace rendered all three panels but showed
-                  only the first: BuilderTabPanels falls back to tabs[0] when no tab is
-                  active, so Results and VSL Result Page existed and were unreachable. */}
+                  This branch is the only way to reach them: without it the workspace
+                  showed the first step and the rest existed but were unreachable. */}
               {it.href === BUILDER_HREF && editing ? (
                 <div className="mt-1 ml-3 flex flex-col gap-1 border-l pl-2">
                   {BUILDER_TABS.map((t) => (
