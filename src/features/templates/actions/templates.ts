@@ -4,9 +4,14 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin, isStaff } from "@/lib/auth/guards";
 import { istMonthStart } from "@/lib/date";
-import { seedBuiltinTemplates } from "@/features/templates/seed";
+import { seedBuiltinTemplates, reseedOneBuiltin } from "@/features/templates/seed";
+import { templateDocSchema } from "@/features/templates/schema";
 import { type ActionResult } from "@/features/assessment/actions/shared";
-import { type ContributionRewardView, type ReseedResult } from "@/features/templates/types";
+import {
+  type ContributionRewardView,
+  type ReseedResult,
+  type TemplateDocumentView,
+} from "@/features/templates/types";
 
 /**
  * Super-admin actions for the Template Library.
@@ -196,6 +201,132 @@ export async function deleteTemplate(id: string): Promise<ActionResult> {
     };
   }
   await prisma.template.delete({ where: { id } });
+  bump();
+  return { ok: true };
+}
+
+/**
+ * Load one template as editable text, for the Template editor.
+ *
+ * Fetched on demand rather than shipped with the list: eight bodies is a few hundred
+ * kilobytes of JSON that nobody is reading until they open one, and putting it in the
+ * page payload would make the Templates screen slower for everybody to serve a panel
+ * most visits never open.
+ */
+export async function getTemplateDocument(id: string): Promise<ActionResult<TemplateDocumentView>> {
+  await requireSuperAdmin();
+  const t = await prisma.template.findUnique({
+    where: { id },
+    select: {
+      id: true, slug: true, title: true, category: true, summary: true,
+      shape: true, body: true, aiInstructions: true, builtin: true, seedLocked: true,
+    },
+  });
+  if (!t) return { ok: false, error: "Not found." };
+
+  // The same shape the repo files use and the Download button hands out, so what is
+  // edited here is what the seeder would load - one format, not a third one.
+  const doc = {
+    slug: t.slug,
+    title: t.title,
+    category: t.category,
+    summary: t.summary,
+    shape: t.shape,
+    aiInstructions: t.aiInstructions,
+    body: t.body,
+  };
+  return {
+    ok: true,
+    data: {
+      id: t.id,
+      slug: t.slug,
+      json: JSON.stringify(doc, null, 2),
+      builtin: t.builtin,
+      seedLocked: t.seedLocked,
+    },
+  };
+}
+
+/**
+ * Save an edited template document.
+ *
+ * Validated by the SAME zod schema the seeder and the contribution path use, so a
+ * template edited here cannot end up in a shape the importer would choke on. A parse
+ * error names the field, because "invalid JSON" in a 900-line document is not a
+ * message anybody can act on.
+ *
+ * 🔴 Editing a BUILT-IN sets seedLocked. Without that the save would work, the screen
+ * would show the new content, and the next deploy would silently put the repo's version
+ * back - the single worst failure an editor can have, because it looks like the edit
+ * never happened. The row keeps its built-in badge and its slug; it is just no longer
+ * downstream of the file, and the console says so with a way back.
+ *
+ * The slug is NOT editable. Renaming a built-in would leave the repo file pointing at
+ * nothing, so the next seed would create a SECOND row from it and the owner would have
+ * two of everything.
+ */
+export async function updateTemplateDocument(id: string, json: string): Promise<ActionResult<{ seedLocked: boolean }>> {
+  const denied = await requireOwner();
+  if (denied) return denied;
+
+  const existing = await prisma.template.findUnique({
+    where: { id },
+    select: { slug: true, builtin: true },
+  });
+  if (!existing) return { ok: false, error: "Not found." };
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch (e) {
+    return { ok: false, error: `That is not valid JSON: ${e instanceof Error ? e.message : "parse failed"}` };
+  }
+
+  const parsed = templateDocSchema.safeParse(raw);
+  if (!parsed.success) {
+    const i = parsed.error.issues[0];
+    const where = i?.path?.length ? ` at ${i.path.join(".")}` : "";
+    return { ok: false, error: `${i?.message ?? "Invalid template"}${where}` };
+  }
+  const doc = parsed.data;
+
+  if (doc.slug !== existing.slug) {
+    return {
+      ok: false,
+      error: `The slug can't be changed here (it is "${existing.slug}"). Renaming a built-in would leave its repo file pointing at nothing, and the next deploy would create a second copy.`,
+    };
+  }
+
+  const seedLocked = existing.builtin;
+  await prisma.template.update({
+    where: { id },
+    data: {
+      title: doc.title,
+      category: doc.category,
+      summary: doc.summary ?? null,
+      shape: doc.shape,
+      body: doc.body as object,
+      aiInstructions: doc.aiInstructions ?? null,
+      // Only ever set, never cleared here: clearing it is what Revert is for, and it
+      // has to restore the content in the same breath.
+      ...(seedLocked ? { seedLocked: true } : {}),
+    },
+  });
+  bump();
+  return { ok: true, data: { seedLocked } };
+}
+
+/** Put a built-in back to the repo's version and re-attach it to the file. */
+export async function revertTemplateToRepo(id: string): Promise<ActionResult> {
+  const denied = await requireOwner();
+  if (denied) return denied;
+  const t = await prisma.template.findUnique({ where: { id }, select: { slug: true, builtin: true } });
+  if (!t) return { ok: false, error: "Not found." };
+  if (!t.builtin) {
+    return { ok: false, error: "This one did not come from the repo, so there is no shipped version to go back to." };
+  }
+  const r = await reseedOneBuiltin(t.slug);
+  if (!r.ok) return r;
   bump();
   return { ok: true };
 }

@@ -14,6 +14,12 @@
 }
 
 :root {
+  /* Tell the browser which palette its OWN widgets should use. Without this, every
+   * native control - a <select>'s dropdown list, a date picker, a scrollbar - renders
+   * in light mode on top of a dark page, which is how the category dropdown came to be
+   * near-white text on a near-white list. Setting it here fixes all 41 selects and
+   * every date input at once; styling them one at a time never would. */
+  color-scheme: light;
   --radius: 0.625rem;
   --background: #ffffff;
   --foreground: #0f172a;
@@ -27,6 +33,7 @@
 /* Dark theme is class-based (toggled on <html> by the theme switcher / init
  * script). "System" resolves to .dark via the init script using the OS pref. */
 .dark {
+  color-scheme: dark;
   --background: #0f172a;
   --foreground: #f8fafc;
   --primary: #4f46e5;
@@ -38,6 +45,19 @@
 
 * {
   border-color: var(--border);
+}
+
+/* Belt and braces for the dropdown list. color-scheme above is what actually fixes it,
+ * but a <select> styled with bg-transparent leaves some browsers rendering its options
+ * against the page rather than against a surface of their own - readable by luck. These
+ * two rules make the contrast explicit rather than inherited. */
+select {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+select option {
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 body {

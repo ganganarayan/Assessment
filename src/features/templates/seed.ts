@@ -36,11 +36,15 @@ import { type ReseedResult } from "@/features/templates/types";
  * published row stays published. There is no value of this function's input that
  * flips the flag either way - only the console can.
  *
+ * A row whose content was edited in the app carries `seedLocked` and is SKIPPED here,
+ * reported as "kept". That is what makes the Template editor trustworthy: without it an
+ * edit would save, work, and silently revert on the next deploy.
+ *
  * Idempotent, keyed on slug, and per-row fail-soft: one malformed file reports itself
  * and the other seven still land.
  */
 export async function seedBuiltinTemplates(): Promise<ReseedResult> {
-  const out: ReseedResult = { created: 0, updated: 0, failed: [] };
+  const out: ReseedResult = { created: 0, updated: 0, kept: 0, failed: [] };
 
   for (const raw of BUILTIN_TEMPLATE_DOCS) {
     const parsed = templateDocSchema.safeParse(raw);
@@ -58,7 +62,7 @@ export async function seedBuiltinTemplates(): Promise<ReseedResult> {
     try {
       const existing = await prisma.template.findUnique({
         where: { slug: doc.slug },
-        select: { id: true },
+        select: { id: true, seedLocked: true },
       });
       const content = {
         title: doc.title,
@@ -75,8 +79,15 @@ export async function seedBuiltinTemplates(): Promise<ReseedResult> {
         reviewStatus: "APPROVED" as const,
       };
       if (existing) {
-        await prisma.template.update({ where: { slug: doc.slug }, data: content });
-        out.updated += 1;
+        // Edited in the app: the row is no longer downstream of the file, so the file
+        // does not get to overwrite it. Skipping is the whole point of the lock - an
+        // editor whose edits vanish on the next deploy is worse than no editor.
+        if (existing.seedLocked) {
+          out.kept += 1;
+        } else {
+          await prisma.template.update({ where: { slug: doc.slug }, data: content });
+          out.updated += 1;
+        }
       } else {
         await prisma.template.create({
           // No `published` key: the column default (false) applies, so a freshly seeded
@@ -90,4 +101,41 @@ export async function seedBuiltinTemplates(): Promise<ReseedResult> {
     }
   }
   return out;
+}
+
+/**
+ * Put ONE built-in back to exactly what the repo says, and re-attach it to the file.
+ *
+ * The way out of the lock. An owner who edits a built-in and then wants the shipped
+ * version back should not have to wait for a deploy or ask for one - and clearing the
+ * lock without also restoring the content would leave an edited row claiming to be the
+ * built-in, which is the worst of both.
+ *
+ * `published` and `displayOrder` are untouched, exactly as everywhere else: reverting
+ * CONTENT must never take a template off the shelf as a side effect.
+ */
+export async function reseedOneBuiltin(slug: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const raw = BUILTIN_TEMPLATE_DOCS.find((d) => (d as { slug?: string })?.slug === slug);
+  if (!raw) return { ok: false, error: "There is no built-in file with that slug to revert to." };
+  const parsed = templateDocSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "The built-in file is invalid." };
+  }
+  const doc = parsed.data;
+  await prisma.template.update({
+    where: { slug },
+    data: {
+      title: doc.title,
+      category: doc.category,
+      summary: doc.summary ?? null,
+      shape: doc.shape,
+      body: doc.body as object,
+      aiInstructions: doc.aiInstructions ?? null,
+      builtin: true,
+      ownerTenantId: null,
+      reviewStatus: "APPROVED",
+      seedLocked: false,
+    },
+  });
+  return { ok: true };
 }

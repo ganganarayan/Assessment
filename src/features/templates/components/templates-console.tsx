@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PLAN_IDS } from "@/lib/billing/plans";
 import { setTenantPlanGrant } from "@/features/platform/actions";
@@ -18,10 +19,13 @@ import {
   rejectTemplate,
   deleteTemplate,
   reseedBuiltinTemplates,
+  getTemplateDocument,
+  updateTemplateDocument,
+  revertTemplateToRepo,
 } from "@/features/templates/actions/templates";
 import { SHAPE_LABELS, TEMPLATE_CATEGORIES } from "@/features/templates/schema";
 import { type TemplateListItem } from "@/features/templates/data";
-import { type ContributionRewardView } from "@/features/templates/types";
+import { type ContributionRewardView, type TemplateDocumentView } from "@/features/templates/types";
 
 /**
  * The platform owner's Template Library console.
@@ -221,9 +225,15 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
                       const failed = r.data.failed.length
                         ? ` ${r.data.failed.length} failed: ${r.data.failed.map((f) => `${f.slug} (${f.error})`).join(", ")}`
                         : "";
+                      // `kept` is reported, not hidden. "Nothing changed" and "I left
+                      // your edits alone on purpose" are the same number otherwise, and
+                      // only one of them is what the owner meant to happen.
+                      const kept = r.data.kept
+                        ? ` ${r.data.kept} left alone (edited here).`
+                        : "";
                       setMsg({
                         tone: r.data.failed.length ? "bad" : "ok",
-                        text: `Built-ins re-seeded: ${r.data.created} new, ${r.data.updated} updated.${failed}`,
+                        text: `Built-ins re-seeded: ${r.data.created} new, ${r.data.updated} updated.${kept}${failed}`,
                       });
                       router.refresh();
                     }
@@ -244,7 +254,25 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
           {shelf.map((t) => (
             <div key={t.id} className="rounded-lg border p-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
+                {/* The order number leads the row. It is what the list is SORTED by, so
+                    reading down the left edge should be reading the order - it sat on
+                    the right, past the title and the summary, where the one thing it
+                    controls was the hardest thing to scan. */}
+                {canEdit ? (
+                  <Input
+                    type="number"
+                    className="h-9 w-16 shrink-0 text-center"
+                    defaultValue={t.displayOrder}
+                    disabled={busy !== null}
+                    onBlur={(e) => {
+                      const n = Number(e.target.value);
+                      if (n !== t.displayOrder) run(t.id, () => setTemplateOrder(t.id, n));
+                    }}
+                    aria-label={`Display order for ${t.title}`}
+                    title="Sort order within the category. Lower sorts first."
+                  />
+                ) : null}
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium">{t.title}</p>
                     {t.builtin ? <Badge variant="muted">Built-in</Badge> : null}
@@ -271,17 +299,6 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
                       />
                       Published
                     </label>
-                    <Input
-                      type="number"
-                      className="h-9 w-20"
-                      defaultValue={t.displayOrder}
-                      disabled={busy !== null}
-                      onBlur={(e) => {
-                        const n = Number(e.target.value);
-                        if (n !== t.displayOrder) run(t.id, () => setTemplateOrder(t.id, n));
-                      }}
-                      aria-label="Display order"
-                    />
                     <DownloadTemplate id={t.id} />
                     <Button size="sm" variant="ghost" onClick={() => setEditing(editing === t.id ? null : t.id)}>
                       {editing === t.id ? "Close" : "Edit"}
@@ -304,11 +321,14 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
               </div>
 
               {editing === t.id && canEdit ? (
-                <MetaEditor
-                  item={t}
-                  busy={busy !== null}
-                  onSave={(v) => run(t.id, () => updateTemplateMeta(t.id, v), "Saved.")}
-                />
+                <>
+                  <MetaEditor
+                    item={t}
+                    busy={busy !== null}
+                    onSave={(v) => run(t.id, () => updateTemplateMeta(t.id, v), "Saved.")}
+                  />
+                  <TemplateEditor id={t.id} title={t.title} onChanged={() => router.refresh()} />
+                </>
               ) : null}
             </div>
           ))}
@@ -449,5 +469,161 @@ function RewardPanel({ reward, onClose }: { reward: Reward; onClose: () => void 
         {done ? <p className="w-full text-sm text-green-700">{done}</p> : null}
       </CardContent>
     </Card>
+  );
+}
+
+
+/**
+ * The Template editor: the whole template as JSON, editable in place.
+ *
+ * It edits the SAME document the repo files hold and the Download button hands out, so
+ * what is edited here is exactly what the seeder would load - one format, not a third
+ * one invented for a textarea.
+ *
+ * Validation runs the same zod schema the seeder and the contribution path use, and a
+ * failure names the field. "Invalid JSON" in a nine-hundred-line document is not a
+ * message anybody can act on; "Required at body.categories.0.questions.3.options" is.
+ *
+ * Loaded on demand. Eight bodies is a few hundred kilobytes that nobody is reading
+ * until they open one, and shipping all of it with the list would make the screen
+ * slower to serve for every visit that never opens a single panel.
+ */
+function TemplateEditor({ id, title, onChanged }: { id: string; title: string; onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [json, setJson] = useState("");
+  const [loaded, setLoaded] = useState<TemplateDocumentView | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
+  const [, start] = useTransition();
+
+  const dirty = loaded !== null && json !== loaded.json;
+
+  function load() {
+    setBusy(true);
+    setMsg(null);
+    start(async () => {
+      const r = await getTemplateDocument(id);
+      setBusy(false);
+      if (!r.ok || !r.data) {
+        setMsg({ tone: "bad", text: r.ok ? "Couldn't load it." : r.error });
+        return;
+      }
+      setLoaded(r.data);
+      setJson(r.data.json);
+      setOpen(true);
+    });
+  }
+
+  /** Parse only, so a mistake is caught before it is saved rather than by saving. */
+  function check() {
+    try {
+      const parsed: unknown = JSON.parse(json);
+      setJson(JSON.stringify(parsed, null, 2));
+      setMsg({ tone: "ok", text: "Valid JSON, and tidied. Save to check it against the template rules." });
+    } catch (e) {
+      setMsg({ tone: "bad", text: `Not valid JSON: ${e instanceof Error ? e.message : "parse failed"}` });
+    }
+  }
+
+  function save() {
+    setBusy(true);
+    setMsg(null);
+    start(async () => {
+      const r = await updateTemplateDocument(id, json);
+      setBusy(false);
+      if (!r.ok) {
+        setMsg({ tone: "bad", text: r.error });
+        return;
+      }
+      setLoaded((p) => (p ? { ...p, json, seedLocked: p.seedLocked || !!r.data?.seedLocked } : p));
+      setMsg({
+        tone: "ok",
+        text: r.data?.seedLocked
+          ? "Saved. This one is now edited here, so deploys will leave it alone - use Revert to go back to the shipped version."
+          : "Saved.",
+      });
+      onChanged();
+    });
+  }
+
+  function revert() {
+    if (!confirm(`Put "${title}" back to the version shipped in the code? Your edits here are lost.`)) return;
+    setBusy(true);
+    setMsg(null);
+    start(async () => {
+      const r = await revertTemplateToRepo(id);
+      setBusy(false);
+      if (!r.ok) {
+        setMsg({ tone: "bad", text: r.error });
+        return;
+      }
+      const fresh = await getTemplateDocument(id);
+      if (fresh.ok && fresh.data) {
+        setLoaded(fresh.data);
+        setJson(fresh.data.json);
+      }
+      setMsg({ tone: "ok", text: "Back to the shipped version, and following the code again." });
+      onChanged();
+    });
+  }
+
+  if (!open) {
+    return (
+      <div className="mt-3 border-t pt-3">
+        <Button size="sm" variant="outline" onClick={load} disabled={busy}>
+          {busy ? "Opening..." : "Template editor"}
+        </Button>
+        <span className="ml-2 text-xs text-[var(--muted-foreground)]">
+          View and edit the whole template here. Nobody sees a change until it is published.
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 flex flex-col gap-2 border-t pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label className="text-xs">Template editor - {loaded?.slug}</Label>
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+          Close editor
+        </Button>
+      </div>
+
+      {loaded?.builtin ? (
+        <p className="text-[11px] text-[var(--muted-foreground)]">
+          {loaded.seedLocked
+            ? "Edited here, so deploys no longer overwrite it. Revert puts back the version shipped in the code."
+            : "Shipped in the code. The moment you save an edit, this row stops following the code so a deploy cannot undo you."}
+        </p>
+      ) : null}
+
+      <Textarea
+        rows={22}
+        value={json}
+        onChange={(e) => setJson(e.target.value)}
+        spellCheck={false}
+        className="font-mono text-xs"
+        aria-label="Template JSON"
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" onClick={save} disabled={busy || !dirty}>
+          {busy ? "Saving..." : dirty ? "Save template" : "Saved"}
+        </Button>
+        <Button size="sm" variant="outline" onClick={check} disabled={busy}>
+          Check &amp; tidy
+        </Button>
+        {loaded?.builtin ? (
+          <Button size="sm" variant="ghost" onClick={revert} disabled={busy}>
+            Revert to shipped version
+          </Button>
+        ) : null}
+        {dirty ? <span className="text-[11px] text-amber-600">Unsaved changes</span> : null}
+      </div>
+
+      {msg ? (
+        <p className={msg.tone === "ok" ? "text-xs text-green-700" : "text-xs text-amber-700"}>{msg.text}</p>
+      ) : null}
+    </div>
   );
 }

@@ -30,5 +30,20 @@ export interface SaveAsTemplateResult {
 export interface ReseedResult {
   created: number;
   updated: number;
+  /** Rows skipped because they were edited in the app (seedLocked). Reported rather
+   *  than hidden: "nothing changed" and "I deliberately left yours alone" look
+   *  identical in a count, and only one of them is what the owner meant. */
+  kept: number;
   failed: Array<{ slug: string; error: string }>;
+}
+
+/** What the Template editor loads: the document as text, plus what the row is. */
+export interface TemplateDocumentView {
+  id: string;
+  slug: string;
+  /** The template document, pretty-printed - what the editor shows and parses back. */
+  json: string;
+  builtin: boolean;
+  /** Edited here, so the repo file no longer overwrites it. */
+  seedLocked: boolean;
 }
