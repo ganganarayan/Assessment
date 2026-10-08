@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
+import { getCurrentTenant } from "@/lib/tenant/context";
 import { prisma } from "@/lib/db/prisma";
 import { SignUpForm } from "@/features/auth/components/sign-up-form";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
@@ -45,6 +46,12 @@ export default async function SignUpPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // A tenant's own domain does not sell the product. Someone who lands here from an
+  // old search result is sent to sign in, which is the only thing this host is for -
+  // a 404 would read as a broken site, and the form would be a promise we refuse to
+  // keep at the endpoint anyway.
+  if (await getCurrentTenant()) redirect("/sign-in");
+
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const email = one(sp.email).trim().toLowerCase();

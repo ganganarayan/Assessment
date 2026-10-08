@@ -19,7 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export function SignInForm() {
+export function SignInForm({ allowSignUp = true }: { allowSignUp?: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -103,12 +103,17 @@ export function SignInForm() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Signing in…" : "Sign in"}
           </Button>
-          <p className="text-sm text-[var(--muted-foreground)]">
-            No account?{" "}
-            <Link href="/sign-up" className="underline">
-              Sign up
-            </Link>
-          </p>
+          {/* Not on a tenant's own domain: accounts are created on the Assess360
+              site, and an invitation to sign up here is an invitation to a page that
+              redirects and an endpoint that refuses. */}
+          {allowSignUp ? (
+            <p className="text-sm text-[var(--muted-foreground)]">
+              No account?{" "}
+              <Link href="/sign-up" className="underline">
+                Sign up
+              </Link>
+            </p>
+          ) : null}
         </CardFooter>
       </form>
     </Card>
