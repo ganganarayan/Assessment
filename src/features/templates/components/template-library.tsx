@@ -36,6 +36,17 @@ interface Props {
    *  itself instead of failing at the click. */
   capReason?: string | null;
   canEdit: boolean;
+  /**
+   * Show each row's published state, and where it goes.
+   *
+   * Only the platform owner's view passes this. A tenant is shown the shelf and the
+   * shelf is all published by definition, so a badge saying so on every row would be
+   * noise; the owner is shown the shelf AND what is still behind the counter, and for
+   * him the difference between the two is the most important thing on the screen.
+   */
+  showPublishState?: boolean;
+  /** Where "manage these" goes. Omitted = no link. */
+  manageHref?: string | null;
 }
 
 export function TemplateLibrary({
@@ -46,6 +57,8 @@ export function TemplateLibrary({
   blurb = "Start from a working funnel and edit it. Importing makes a private draft in this workspace - nothing goes live until you publish it.",
   capReason = null,
   canEdit,
+  showPublishState = false,
+  manageHref = null,
 }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const router = useRouter();
@@ -104,11 +117,18 @@ export function TemplateLibrary({
             <CardTitle className="text-lg">{heading}</CardTitle>
             <p className="mt-1 text-sm text-[var(--muted-foreground)]">{blurb}</p>
           </div>
-          {collapsible ? (
-            <Button size="sm" variant="ghost" onClick={() => setOpen((o) => !o)}>
-              {open ? "Hide" : `Show ${items.length}`}
-            </Button>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {manageHref ? (
+              <a href={manageHref} className="text-sm font-medium underline underline-offset-2 hover:no-underline">
+                Manage
+              </a>
+            ) : null}
+            {collapsible ? (
+              <Button size="sm" variant="ghost" onClick={() => setOpen((o) => !o)}>
+                {open ? "Hide" : `Show ${items.length}`}
+              </Button>
+            ) : null}
+          </div>
         </div>
       </CardHeader>
 
@@ -141,6 +161,13 @@ export function TemplateLibrary({
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium">{t.title}</p>
                         {t.mine ? <Badge variant="muted">Yours</Badge> : null}
+                        {showPublishState ? (
+                          t.published ? (
+                            <Badge variant="success">On the shelf</Badge>
+                          ) : (
+                            <Badge variant="outline">Not published - nobody can see it</Badge>
+                          )
+                        ) : null}
                         {t.reviewStatus === "PENDING" ? <Badge variant="outline">Awaiting review</Badge> : null}
                         {t.reviewStatus === "REJECTED" ? <Badge variant="outline">Not accepted</Badge> : null}
                       </div>

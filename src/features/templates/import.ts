@@ -43,15 +43,25 @@ export async function importTemplateForTenant(args: {
   userId: string | null;
   /** Visibility rule the caller already enforced; passed so this never has to guess. */
   allowPrivateOf?: string | null;
+  /**
+   * Lift the published/approved requirement. Set ONLY for the platform owner, and set
+   * for one reason: reviewing. An unpublished built-in and a pending contribution are
+   * exactly the rows nobody has checked yet, so the person whose job is to check them
+   * is the one person who has to be able to run one. Everyone else is bound by the
+   * visibility rule above, which is what keeps unreviewed content off customer funnels.
+   */
+  allowUnpublished?: boolean;
 }): Promise<{ ok: true; data: TemplateImportResult } | { ok: false; error: string }> {
   const t = await prisma.template.findFirst({
-    where: {
-      id: args.templateId,
-      OR: [
-        { ownerTenantId: null, published: true, reviewStatus: "APPROVED" },
-        ...(args.allowPrivateOf ? [{ ownerTenantId: args.allowPrivateOf }] : []),
-      ],
-    },
+    where: args.allowUnpublished
+      ? { id: args.templateId }
+      : {
+          id: args.templateId,
+          OR: [
+            { ownerTenantId: null, published: true, reviewStatus: "APPROVED" },
+            ...(args.allowPrivateOf ? [{ ownerTenantId: args.allowPrivateOf }] : []),
+          ],
+        },
     select: { id: true, title: true, slug: true, body: true, aiInstructions: true },
   });
   if (!t) return { ok: false, error: "That template isn't available." };

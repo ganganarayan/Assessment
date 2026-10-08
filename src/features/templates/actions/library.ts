@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireWorkspace, editDenied } from "@/lib/auth/guards";
+import { resolveActingScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
 import { assertCanCreateAssessment } from "@/lib/billing/gate";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { PARKED_MESSAGE } from "@/lib/billing/plans";
@@ -13,27 +13,37 @@ import { type SaveAsTemplateResult } from "@/features/templates/types";
 import { type TemplateImportResult } from "@/features/templates/import";
 
 /**
- * The tenant half of the Template Library: importing one, and saving one back.
+ * Importing a template, and saving one back.
  *
- * Both run as the WORKSPACE, never globally. A super admin who has entered a workspace
- * acts as that workspace here, which is the point of entering it.
+ * These resolve the ACTING SCOPE rather than demanding a tenant workspace, so one
+ * implementation serves all three callers: a tenant admin in /w, a super admin who has
+ * entered a workspace, and the platform owner on /admin with no workspace entered. The
+ * first version called requireWorkspace(), which REDIRECTS a non-impersonating super
+ * admin to /platform - so the moment the library appeared on the owner's own dashboard,
+ * every Import button there would have bounced him out of the page he was standing on.
+ *
+ * configTenantOf() is what makes that safe: it returns a non-nullable owner id, the
+ * Platform tenant for the owner's own scope, so an imported assessment is always
+ * stamped with somebody rather than written unowned.
  */
 
 /**
- * Import a template into this workspace as a new DRAFT assessment.
+ * Import a template into the acting scope as a new DRAFT assessment.
  *
- * The plan cap applies. An imported assessment is an assessment: it serves a funnel,
- * takes submissions and costs the same to run, so letting the library route around
- * `maxAssessments` would turn the cap into a suggestion. A super admin who has entered
- * a workspace is not rated against the plan, exactly as the Assessments screen already
- * treats them.
+ * The plan cap applies to TENANTS. An imported assessment is an assessment: it serves a
+ * funnel, takes submissions and costs the same to run, so letting the library route
+ * around `maxAssessments` would turn the cap into a suggestion. A super admin is not
+ * rated against a plan at all - on the platform scope or inside a workspace - exactly
+ * as the Assessments screen already treats them.
  */
 export async function importTemplate(templateId: string): Promise<ActionResult<TemplateImportResult>> {
-  const { user, tenantId, impersonating } = await requireWorkspace();
-  const denied = editDenied(user);
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
   if (denied) return denied;
+  if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
+  const tenantId = configTenantOf(scope);
 
-  if (!impersonating) {
+  if (!scope.isSuper) {
     const plan = await resolvePlan(tenantId);
     if (plan.parked) return { ok: false, error: PARKED_MESSAGE };
     const cap = await assertCanCreateAssessment(tenantId);
@@ -48,13 +58,18 @@ export async function importTemplate(templateId: string): Promise<ActionResult<T
   const r = await importTemplateForTenant({
     templateId,
     tenantId,
-    userId: user.id,
+    userId: scope.user.id,
     allowPrivateOf: tenantId,
+    // Only the owner may run an unreviewed template, and only because reviewing it is
+    // the job. A tenant importing is still bound by published + approved.
+    allowUnpublished: scope.isSuper,
   });
   if (!r.ok) return r;
 
   revalidatePath("/w/assessments");
   revalidatePath("/w/dashboard");
+  revalidatePath("/admin");
+  revalidatePath("/admin/assessments");
   return { ok: true, data: r.data };
 }
 
@@ -108,9 +123,11 @@ export async function saveAsTemplate(
     aiInstructions: string;
   },
 ): Promise<ActionResult<SaveAsTemplateResult>> {
-  const { user, tenantId } = await requireWorkspace();
-  const denied = editDenied(user);
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
   if (denied) return denied;
+  if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
+  const tenantId = configTenantOf(scope);
 
   const owned = await prisma.assessment.findFirst({
     where: { id: assessmentId, tenantId },
@@ -176,6 +193,7 @@ export async function saveAsTemplate(
 
   revalidatePath("/w/templates");
   revalidatePath("/w/dashboard");
+  revalidatePath("/admin");
   revalidatePath("/admin/templates");
   return { ok: true, data: { templateId: row.id, pending: contribute } };
 }
@@ -183,9 +201,11 @@ export async function saveAsTemplate(
 /** Delete one of this workspace's OWN private templates, or withdraw a contribution
  *  that has not been reviewed yet. Never anything else. */
 export async function deleteMyTemplate(id: string): Promise<ActionResult> {
-  const { user, tenantId } = await requireWorkspace();
-  const denied = editDenied(user);
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
   if (denied) return denied;
+  if (!scope.isSuper && !scope.tenantId) return { ok: false, error: "No workspace." };
+  const tenantId = configTenantOf(scope);
   const row = await prisma.template.findFirst({
     where: {
       id,
@@ -203,6 +223,7 @@ export async function deleteMyTemplate(id: string): Promise<ActionResult> {
   await prisma.template.delete({ where: { id: row.id } });
   revalidatePath("/w/templates");
   revalidatePath("/w/dashboard");
+  revalidatePath("/admin");
   revalidatePath("/admin/templates");
   return { ok: true };
 }
