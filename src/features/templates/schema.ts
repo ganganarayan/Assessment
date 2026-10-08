@@ -40,6 +40,13 @@ export const TEMPLATE_CATEGORIES = [
   "Consultants",
   "Clinics",
   "Real estate",
+  // The second wave of built-ins, one audience each. Appended rather than sorted in:
+  // categoryRank keeps this authored order on the shelf, so inserting a name in the
+  // middle would silently re-order a library the owner has already arranged.
+  "Overseas education",
+  "Interior design",
+  "Franchise",
+  "Solar and EV",
 ] as const;
 
 export const templateDocSchema = z.object({

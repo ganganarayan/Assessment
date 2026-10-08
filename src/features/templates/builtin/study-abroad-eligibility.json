@@ -1,0 +1,720 @@
+{
+  "slug": "study-abroad-eligibility",
+  "title": "Study abroad eligibility screener",
+  "category": "Overseas education",
+  "summary": "Screens out the walk-ins with no funding, no test score and a three-year timeline, then scores the rest on how close they are to an actual application.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "You are writing the note a study abroad counsellor reads before the first call.\n\nWrite 200 to 280 words, second person, warm and plain. Name the ONE thing standing between them and an application, using their own dimension scores as evidence by name. Say what it costs them to leave it another intake.\n\nDo NOT tell them how to fix it, and never name a university, a country quota, a visa outcome or a scholarship they would get. Describe the shape of the blocker clearly enough that they recognise it, then stop. The fix belongs on the call.\n\nNever promise admission, never predict a visa decision, never mention scores as numbers.",
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 4,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "4 minutes, 12 questions",
+    "subheadline": "An honest read on how close you are to submitting an application, and which one thing is holding it up.",
+    "qualifiedNote": "You qualify. Tell us where to send your result.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "Which intake are you targeting?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "The next 6 months",
+              "points": 3
+            },
+            {
+              "id": "g1b",
+              "label": "6 to 12 months away",
+              "points": 2
+            },
+            {
+              "id": "g1c",
+              "label": "12 to 18 months away",
+              "points": 1
+            },
+            {
+              "id": "g1d",
+              "label": "More than 18 months away",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g1e",
+              "label": "Just exploring for now",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "How will the course be funded?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Family savings",
+              "points": 3
+            },
+            {
+              "id": "g2b",
+              "label": "Education loan, already discussed with a bank",
+              "points": 2
+            },
+            {
+              "id": "g2c",
+              "label": "Education loan, not yet explored",
+              "points": 1
+            },
+            {
+              "id": "g2d",
+              "label": "Scholarship only",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g2e",
+              "label": "Not worked out yet",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "What is your highest completed qualification?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "Bachelor's, completed",
+              "points": 5
+            },
+            {
+              "id": "g3b",
+              "label": "Bachelor's, final year",
+              "points": 4
+            },
+            {
+              "id": "g3c",
+              "label": "Master's",
+              "points": 3
+            },
+            {
+              "id": "g3d",
+              "label": "Class 12",
+              "points": 2
+            },
+            {
+              "id": "g3e",
+              "label": "Diploma only",
+              "points": 1
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Have you taken IELTS, TOEFL, PTE, GRE or GMAT?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "Yes, scores in hand",
+              "points": 3
+            },
+            {
+              "id": "g4b",
+              "label": "Booked, date fixed",
+              "points": 2
+            },
+            {
+              "id": "g4c",
+              "label": "Planning to, not booked yet",
+              "points": 1
+            },
+            {
+              "id": "g4d",
+              "label": "No, and not planning to",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "What total budget have you set aside per year, for tuition and living?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Above $42,000 (above ₹35 lakh)",
+              "points": 3
+            },
+            {
+              "id": "g5b",
+              "label": "$24,000 to $42,000 (₹20 to 35 lakh)",
+              "points": 2
+            },
+            {
+              "id": "g5c",
+              "label": "$12,000 to $24,000 (₹10 to 20 lakh)",
+              "points": 1
+            },
+            {
+              "id": "g5d",
+              "label": "Under $12,000 (under ₹10 lakh)",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g5e",
+              "label": "I have not calculated it",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g6",
+          "text": "Have you been refused a visa for any country before?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g6a",
+              "label": "No",
+              "points": 3
+            },
+            {
+              "id": "g6b",
+              "label": "Yes, once",
+              "points": 2
+            },
+            {
+              "id": "g6c",
+              "label": "Yes, more than once",
+              "points": 1
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks for your honesty.",
+      "subtext": "On your answers this is not the right moment for an application, so we will not take up more of your time. When your intake, funding or test score moves, come back and run this again.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Academic readiness",
+        "description": "What your record looks like to an admissions officer today.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "What is your academic percentage or CGPA band?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Below 55 percent, or under 6.0 CGPA",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "55 to 65 percent, 6.0 to 7.0",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "65 to 75 percent, 7.0 to 8.0",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Above 75 percent, above 8.0",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How long since your last qualification?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "More than 5 years",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "3 to 5 years",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "1 to 3 years",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Less than a year, or still studying",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Any backlogs or failed subjects on record?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "More than 5",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "3 to 5",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "1 or 2",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "None",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How closely does your past study match the course you want?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Completely different field",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Loosely related",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Closely related",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Direct continuation of it",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Financial readiness",
+        "description": "Whether the money is real, documented and available on the timeline.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How much of the required funds can you show proof of today?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "None of it yet",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Less than half",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Most of it",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "All of it, documented",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Where is the education loan?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not applied, and not sure we will",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Planning to apply",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Applied, awaiting sanction",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Sanctioned, or not needed at all",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Who is sponsoring, and how stable is that income?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "No sponsor identified yet",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A relative, income varies",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A parent in business, income varies",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A parent or sponsor in stable salaried income",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Have you costed living, insurance and travel on top of tuition?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "I have only looked at tuition",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Roughly, from a blog or a video",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Yes, from a university page",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Yes, in a spreadsheet, per city",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Decision readiness",
+        "description": "How much is still undecided, and how much paperwork already exists.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How fixed is your country shortlist?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Wide open",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Three or four countries",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Down to two",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "One country, decided",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How fixed is your course shortlist?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Wide open",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A broad field, no courses",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A few named courses",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Specific courses at specific universities",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Is your family aligned on you going abroad?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "No, it is a real disagreement",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "They are uneasy about it",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Supportive but worried about cost",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Fully aligned and involved",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Which documents do you already have?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "None of them",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Passport only",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Passport and transcripts",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Passport, transcripts, SOP and LORs underway",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "HIGH",
+        "title": "Application ready",
+        "description": "Academics, funding and decisions are all in place. You could start an application this month, and the only question left is which shortlist to submit to. Next step: a document review call.",
+        "minScore": 70,
+        "maxScore": 100,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "One or two gaps to close",
+        "description": "This is a real application with one blocker in front of it, and the dimension scores below say which. It is usually funding documentation or a test date. Next step: a planning call about that one thing, not a general counselling session.",
+        "minScore": 40,
+        "maxScore": 69,
+        "displayOrder": 1
+      },
+      {
+        "level": "LOW",
+        "title": "Too early, and that is worth knowing now",
+        "description": "Timeline, funding or test readiness is not there yet, and applying now would spend money on an application that gets refused. Next step: the timeline plan below, and come back when the blocker has moved.",
+        "minScore": 0,
+        "maxScore": 39,
+        "displayOrder": 2
+      }
+    ],
+    "title": "Are you ready to apply?",
+    "slug": "study-abroad-eligibility"
+  }
+}

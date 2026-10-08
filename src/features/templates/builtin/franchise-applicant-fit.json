@@ -1,0 +1,725 @@
+{
+  "slug": "franchise-applicant-fit",
+  "title": "Franchise applicant screener",
+  "category": "Franchise",
+  "summary": "High ticket, and most applicants have neither the capital nor any intention to operate. The gate removes both, then scores the rest on capital, capability and territory.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "You are writing the note a franchise director reads before the discovery call.\n\nWrite 200 to 280 words, second person, direct and respectful. Name the ONE dimension that is short, using their scores by name as evidence, and say what it would take for that to stop being the blocker.\n\nDo NOT promise award of a territory, do NOT project revenue, profit, payback or break even, and do NOT state what they will earn. Describe the gap, then stop.\n\nNever mention scores as numbers.",
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 4,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "4 minutes, 12 questions",
+    "subheadline": "A straight read on whether your capital, your experience and your territory line up with what this franchise needs.",
+    "qualifiedNote": "You qualify. Tell us where to send your result.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "What liquid capital can you deploy in the next 90 days?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "Above $120,000 (above ₹1 crore)",
+              "points": 4
+            },
+            {
+              "id": "g1b",
+              "label": "$60,000 to $120,000 (₹50 lakh to 1 crore)",
+              "points": 3
+            },
+            {
+              "id": "g1c",
+              "label": "$30,000 to $60,000 (₹25 to 50 lakh)",
+              "points": 2
+            },
+            {
+              "id": "g1d",
+              "label": "$12,000 to $30,000 (₹10 to 25 lakh)",
+              "points": 1
+            },
+            {
+              "id": "g1e",
+              "label": "Under $12,000 (under ₹10 lakh)",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "Is that capital available now, or still to be arranged?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Available now",
+              "points": 4
+            },
+            {
+              "id": "g2b",
+              "label": "Loan sanctioned",
+              "points": 3
+            },
+            {
+              "id": "g2c",
+              "label": "Loan applied, not sanctioned",
+              "points": 2
+            },
+            {
+              "id": "g2d",
+              "label": "Selling an asset to fund it",
+              "points": 1
+            },
+            {
+              "id": "g2e",
+              "label": "I need to raise it",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "Which territory are you applying for?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "A territory shown as open on your list",
+              "points": 3
+            },
+            {
+              "id": "g3b",
+              "label": "A city you do not cover yet",
+              "points": 2
+            },
+            {
+              "id": "g3c",
+              "label": "I am flexible on territory",
+              "points": 1
+            },
+            {
+              "id": "g3d",
+              "label": "A territory already allotted to someone",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Who will run the outlet day to day?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "Me, full time",
+              "points": 4
+            },
+            {
+              "id": "g4b",
+              "label": "Me, part time alongside another business",
+              "points": 3
+            },
+            {
+              "id": "g4c",
+              "label": "A hired manager",
+              "points": 2
+            },
+            {
+              "id": "g4d",
+              "label": "A family member",
+              "points": 1
+            },
+            {
+              "id": "g4e",
+              "label": "Not decided yet",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "Have you run a business before?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Yes, I am running one now",
+              "points": 3
+            },
+            {
+              "id": "g5b",
+              "label": "Yes, previously",
+              "points": 2
+            },
+            {
+              "id": "g5c",
+              "label": "No, this would be my first",
+              "points": 1
+            },
+            {
+              "id": "g5d",
+              "label": "No, I am an investor only",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g6",
+          "text": "When do you want to open?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g6a",
+              "label": "Within 3 months",
+              "points": 3
+            },
+            {
+              "id": "g6b",
+              "label": "In 3 to 6 months",
+              "points": 2
+            },
+            {
+              "id": "g6c",
+              "label": "In 6 to 12 months",
+              "points": 1
+            },
+            {
+              "id": "g6d",
+              "label": "Beyond 12 months",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g6e",
+              "label": "Just researching",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thank you for applying.",
+      "subtext": "On your answers this is not a fit at the moment, so we will not take it further. Nothing about this is final: when your capital, your timeline or your operating plan changes, apply again.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Financial capacity",
+        "description": "Whether the money covers setup and the months after it.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How does your capital compare to the total investment required?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Well below it",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Just short",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Covers it",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Covers it with room",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What working capital do you hold beyond the setup cost?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "None, setup takes all of it",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "One to two months",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Three to six months",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "More than six months",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What is your overall net worth band?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Under $60,000 (under ₹50 lakh)",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "$60,000 to $120,000 (₹50 lakh to 1 crore)",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "$120,000 to $360,000 (₹1 to 3 crore)",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Above $360,000 (above ₹3 crore)",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What existing debt are you servicing?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Heavy, most of my income",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Moderate",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Light",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "None",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Operating capability",
+        "description": "Whether you can actually run it once the ribbon is cut.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How many years of business or management experience do you have?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "None",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "1 to 3 years",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "3 to 7 years",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "More than 7 years",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Any experience in this specific sector?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "None at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "As a customer only",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Worked in it",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Ran something in it",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How many hours a week will you personally give it?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Under 10",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "10 to 25",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "25 to 45",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "More than 45",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What does your team look like today?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Nothing, hiring from scratch",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "One or two people identified",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A partial team ready",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A team already running something similar",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Location and commitment",
+        "description": "Territory, and whether you will run it their way.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "Where is the property?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not started looking",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Browsing listings",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Shortlisted two or three",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Secured, or under negotiation",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How well do you know the territory you have chosen?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not at all, it looked good on paper",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Visited a few times",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "I know it well",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "I live and work there",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How clear are you on the franchise fee and royalty model?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "I have not seen the numbers",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Seen them, not modelled them",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Modelled them roughly",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Modelled them month by month",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Would you follow the franchisor's SOPs without modification?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "No, I would run it my way",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Mostly, with local changes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Yes, with a few questions",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Yes, that is the point of a franchise",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "HIGH",
+        "title": "Qualified applicant",
+        "description": "Capital, capability and territory line up with what this franchise needs. Next step: a discovery call with the franchise director.",
+        "minScore": 70,
+        "maxScore": 100,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Conditional",
+        "description": "One dimension is short, and the scores below say which. It is usually property or working capital rather than intent. Next step: one call to resolve that single item before anything else is discussed.",
+        "minScore": 40,
+        "maxScore": 69,
+        "displayOrder": 1
+      },
+      {
+        "level": "LOW",
+        "title": "Not eligible right now",
+        "description": "On capital, experience or timing this is not a fit today, and taking it further would waste your money as well as our time. Next step: the brochure below, and an open invitation to reapply once the capital is in place.",
+        "minScore": 0,
+        "maxScore": 39,
+        "displayOrder": 2
+      }
+    ],
+    "title": "Are you a fit to run this franchise?",
+    "slug": "franchise-applicant-fit"
+  }
+}

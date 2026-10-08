@@ -1,0 +1,501 @@
+{
+  "slug": "solar-rooftop-fit",
+  "title": "Rooftop solar suitability check",
+  "category": "Solar and EV",
+  "summary": "Most solar enquiries are structurally impossible: tenants, shaded roofs, tiny bills. The gate does nearly all the work and a short score sorts the survivors by system size.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": null,
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 2,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "2 minutes, 6 questions",
+    "subheadline": "Six questions that say whether a rooftop system is worth surveying, before anyone drives out to look at it.",
+    "qualifiedNote": "You qualify. Tell us where to send your result.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": false,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "Do you own the property?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "Yes, I own it",
+              "points": 3
+            },
+            {
+              "id": "g1b",
+              "label": "A commercial property I own",
+              "points": 2
+            },
+            {
+              "id": "g1c",
+              "label": "It is a housing society",
+              "points": 1
+            },
+            {
+              "id": "g1d",
+              "label": "No, I rent",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g1e",
+              "label": "A commercial property I lease",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "What is your average monthly electricity bill?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Above $180 (above ₹15,000)",
+              "points": 4
+            },
+            {
+              "id": "g2b",
+              "label": "$70 to $180 (₹6,000 to 15,000)",
+              "points": 3
+            },
+            {
+              "id": "g2c",
+              "label": "$35 to $70 (₹3,000 to 6,000)",
+              "points": 2
+            },
+            {
+              "id": "g2d",
+              "label": "$18 to $35 (₹1,500 to 3,000)",
+              "points": 1
+            },
+            {
+              "id": "g2e",
+              "label": "Under $18 (under ₹1,500)",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "How much unshaded roof area is available?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "Above 1,000 sq ft",
+              "points": 3
+            },
+            {
+              "id": "g3b",
+              "label": "500 to 1,000 sq ft",
+              "points": 2
+            },
+            {
+              "id": "g3c",
+              "label": "200 to 500 sq ft",
+              "points": 1
+            },
+            {
+              "id": "g3d",
+              "label": "Under 200 sq ft",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g3e",
+              "label": "I am not sure",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Is the roof shaded by buildings or trees for most of the day?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "No, it is open all day",
+              "points": 2
+            },
+            {
+              "id": "g4b",
+              "label": "Partly shaded",
+              "points": 1
+            },
+            {
+              "id": "g4c",
+              "label": "Mostly shaded",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "Is the property inside our service area?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Yes, I have checked the pincode list",
+              "points": 2
+            },
+            {
+              "id": "g5b",
+              "label": "I am not sure, but it is nearby",
+              "points": 1
+            },
+            {
+              "id": "g5c",
+              "label": "No, it is outside the area",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g6",
+          "text": "When would you want installation?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g6a",
+              "label": "Within a month",
+              "points": 4
+            },
+            {
+              "id": "g6b",
+              "label": "In 1 to 3 months",
+              "points": 3
+            },
+            {
+              "id": "g6c",
+              "label": "In 3 to 6 months",
+              "points": 2
+            },
+            {
+              "id": "g6d",
+              "label": "Later than that",
+              "points": 1
+            },
+            {
+              "id": "g6e",
+              "label": "Just checking costs",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks, that saves us both a trip.",
+      "subtext": "On your answers a rooftop system here would not pay for itself, so we will not send anyone out. If you move, buy the property, or your bill rises, run this again.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "System size and value",
+        "description": "What the bill and the roof say about the system this needs.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "Which band is your monthly bill in?",
+            "type": "SINGLE_SELECT",
+            "weight": 20.0,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "$18 to $35 (₹1,500 to 3,000)",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "$35 to $70 (₹3,000 to 6,000)",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "$70 to $180 (₹6,000 to 15,000)",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Above $180 (above ₹15,000)",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What is the roof made of?",
+            "type": "SINGLE_SELECT",
+            "weight": 20.0,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Tiled",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Metal sheet",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "RCC with obstructions",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Open RCC",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Is the connection single phase or three phase?",
+            "type": "SINGLE_SELECT",
+            "weight": 20.0,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "I do not know",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Single phase",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Three phase",
+                "value": 3,
+                "displayOrder": 2
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Decision readiness",
+        "description": "Whether the decision can be made, and how it gets paid for.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "Would you want the subsidy and net metering paperwork handled for you?",
+            "type": "SINGLE_SELECT",
+            "weight": 13.3333,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "No, I will do it myself",
+                "value": 1,
+                "displayOrder": 0
+              },
+              {
+                "label": "I have not thought about it",
+                "value": 2,
+                "displayOrder": 1
+              },
+              {
+                "label": "Yes, that is part of why I am asking",
+                "value": 3,
+                "displayOrder": 2
+              }
+            ]
+          },
+          {
+            "text": "How would you pay for it?",
+            "type": "SINGLE_SELECT",
+            "weight": 13.3333,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Only if the subsidy covers most of it",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A loan or EMI",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Part outright, part finance",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Outright",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Who decides?",
+            "type": "SINGLE_SELECT",
+            "weight": 13.3333,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "The society committee",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Me and the committee together",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Me and my family",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Me",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "HIGH",
+        "title": "Worth booking a site survey",
+        "description": "Ownership, bill size, roof and timing all work. A surveyor visiting this address is time well spent. Next step: book the survey below.",
+        "minScore": 70,
+        "maxScore": 100,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Viable, needs sizing",
+        "description": "This will work, but the system size and the payment route need settling before anyone measures a roof. Next step: a short sizing call.",
+        "minScore": 40,
+        "maxScore": 69,
+        "displayOrder": 1
+      },
+      {
+        "level": "LOW",
+        "title": "Marginal",
+        "description": "A system here would be small, and the payback would stretch further than most people expect. Not a no, but not a survey either. Next step: the savings calculator below, which will tell you more than a site visit would.",
+        "minScore": 0,
+        "maxScore": 39,
+        "displayOrder": 2
+      }
+    ],
+    "title": "Is your roof worth a survey?",
+    "slug": "solar-rooftop-fit"
+  }
+}
