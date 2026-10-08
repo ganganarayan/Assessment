@@ -24,6 +24,7 @@ import {
   revertTemplateToRepo,
 } from "@/features/templates/actions/templates";
 import { SHAPE_LABELS, TEMPLATE_CATEGORIES } from "@/features/templates/schema";
+import { repairJson, locateJsonError } from "@/features/templates/json-repair";
 import { type TemplateListItem } from "@/features/templates/data";
 import { type ContributionRewardView, type TemplateDocumentView } from "@/features/templates/types";
 
@@ -495,6 +496,8 @@ function TemplateEditor({ id, title, onChanged }: { id: string; title: string; o
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [, start] = useTransition();
+  /** A repair waiting to be accepted. Never applied without this being shown first. */
+  const [offer, setOffer] = useState<{ text: string; fixes: string[] } | null>(null);
 
   const dirty = loaded !== null && json !== loaded.json;
 
@@ -514,28 +517,63 @@ function TemplateEditor({ id, title, onChanged }: { id: string; title: string; o
     });
   }
 
+  /**
+   * Describe a parse failure in terms somebody can act on, and offer the repair when
+   * there is one. "Unexpected token } at position 8231" names neither the line nor the
+   * mistake; this names both, and then says what it would change.
+   */
+  function reportBroken(e: unknown) {
+    const message = e instanceof Error ? e.message : "parse failed";
+    const loc = locateJsonError(json, message);
+    const where = loc ? ` Line ${loc.line}: ${loc.lineText.trim().slice(0, 80)}` : "";
+
+    const repaired = repairJson(json);
+    if (repaired.parses && repaired.fixes.length > 0) {
+      setOffer({ text: repaired.text, fixes: repaired.fixes });
+      setMsg({ tone: "bad", text: `That won't parse.${where}` });
+      return;
+    }
+    setOffer(null);
+    setMsg({
+      tone: "bad",
+      text: `That won't parse, and I can't work out the fix safely.${where} ${message}`,
+    });
+  }
+
   /** Parse only, so a mistake is caught before it is saved rather than by saving. */
   function check() {
+    setOffer(null);
     try {
       const parsed: unknown = JSON.parse(json);
       setJson(JSON.stringify(parsed, null, 2));
       setMsg({ tone: "ok", text: "Valid JSON, and tidied. Save to check it against the template rules." });
     } catch (e) {
-      setMsg({ tone: "bad", text: `Not valid JSON: ${e instanceof Error ? e.message : "parse failed"}` });
+      reportBroken(e);
     }
   }
 
-  function save() {
+  function save(text: string = json) {
+    // Parse HERE first, so a syntax slip becomes an offer to fix it rather than a
+    // server round trip that comes back with a rejection and no way forward.
+    try {
+      JSON.parse(text);
+    } catch (e) {
+      setBusy(false);
+      reportBroken(e);
+      return;
+    }
+    setOffer(null);
     setBusy(true);
     setMsg(null);
     start(async () => {
-      const r = await updateTemplateDocument(id, json);
+      const r = await updateTemplateDocument(id, text);
       setBusy(false);
       if (!r.ok) {
         setMsg({ tone: "bad", text: r.error });
         return;
       }
-      setLoaded((p) => (p ? { ...p, json, seedLocked: p.seedLocked || !!r.data?.seedLocked } : p));
+      setJson(text);
+      setLoaded((p) => (p ? { ...p, json: text, seedLocked: p.seedLocked || !!r.data?.seedLocked } : p));
       setMsg({
         tone: "ok",
         text: r.data?.seedLocked
@@ -606,8 +644,53 @@ function TemplateEditor({ id, title, onChanged }: { id: string; title: string; o
         aria-label="Template JSON"
       />
 
+      {/* The repair is OFFERED, never applied on its own. Silently rewriting somebody's
+          content is a worse failure than refusing to save it, because the rewrite is
+          the one they will not notice. So: say exactly what would change, and wait. */}
+      {offer ? (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+          <p className="font-medium">I can fix this. Here is exactly what would change:</p>
+          <ul className="mt-1 list-disc pl-5">
+            {offer.fixes.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+          <p className="mt-1 text-[var(--muted-foreground)]">
+            Nothing inside your questions or answers is touched - only the punctuation holding the
+            document together.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              onClick={() => {
+                setJson(offer.text);
+                save(offer.text);
+              }}
+              disabled={busy}
+            >
+              Fix it and save
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setJson(offer.text);
+                setOffer(null);
+                setMsg({ tone: "ok", text: "Fixed in the editor. Read it over, then save." });
+              }}
+              disabled={busy}
+            >
+              Fix it, let me look first
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setOffer(null)} disabled={busy}>
+              Leave it, I&apos;ll fix it
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={save} disabled={busy || !dirty}>
+        <Button size="sm" onClick={() => save()} disabled={busy || !dirty}>
           {busy ? "Saving..." : dirty ? "Save template" : "Saved"}
         </Button>
         <Button size="sm" variant="outline" onClick={check} disabled={busy}>
