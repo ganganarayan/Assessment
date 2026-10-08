@@ -436,6 +436,15 @@ model User {
   // TRUE after a super admin sets the password - the user is forced to change it on
   // next login before reaching the app; cleared once they set their own.
   mustChangePassword Boolean          @default(false)
+  /// When this login last signed in. Stamped by the session-create hook in auth.ts,
+  /// which is the one event that means "a human got in" - updatedAt does not, because
+  /// any profile write moves it.
+  ///
+  /// A column and not a query over `session`, because sessions expire and are pruned:
+  /// reading the newest session row would turn a tenant who logged in two months ago
+  /// into one who has never logged in, which is the opposite of what this is for.
+  /// Null = no sign-in since the column was added.
+  lastLoginAt        DateTime?
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 

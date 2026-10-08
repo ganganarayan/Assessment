@@ -27,6 +27,7 @@ import {
 } from "@/features/platform/actions";
 import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { PLAN_IDS } from "@/lib/billing/plans";
+import { effectiveAccess } from "@/features/platform/effective-plan";
 
 /** A saved-state line for ONE tenant's access grant, shown under that row's date. */
 type GrantMsg = { tone: "ok" | "warn" | "error"; text: string };
@@ -42,13 +43,45 @@ function istDateInputValue(iso: string | null): string {
   return ist.toISOString().slice(0, 10);
 }
 
-/** "12 Nov 2026" for the read-only lines. */
+/** "12 Nov 2026" for the one-line "runs to <date>" notes, where a time means nothing. */
 function shortIST(iso: string | null): string {
   if (!iso) return "-";
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? "-"
     : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+}
+
+/**
+ * "12 Nov 2026" over "14:32" for the two columns where the time is the point.
+ *
+ * Signed up and Last login are read together to answer one question - did they come
+ * back, and how long after - and a date alone cannot answer it for anyone who signed up
+ * and logged in the same day, which is almost everyone.
+ *
+ * Returned as two parts so the cell can print the time quietly under the date rather
+ * than widening the column with a single long string.
+ */
+function stampIST(iso: string | null): { date: string; time: string } | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return {
+    date: d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }),
+    time: d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" }),
+  };
+}
+
+/** A date over its time, or a dash. Used by Signed up and Last login. */
+function Stamp({ iso, empty = "-" }: { iso: string | null; empty?: string }) {
+  const v = stampIST(iso);
+  if (!v) return <span className="text-[var(--muted-foreground)]">{empty}</span>;
+  return (
+    <span className="flex flex-col leading-tight">
+      <span className="whitespace-nowrap">{v.date}</span>
+      <span className="text-[11px] tabular-nums text-[var(--muted-foreground)]">{v.time}</span>
+    </span>
+  );
 }
 
 /** Whether a stored grant is still live - the same rule the resolver applies. */
@@ -284,6 +317,7 @@ export function PlatformConsole({
                 <th className="px-3 py-1.5 text-center">Submissions</th>
                 <th className="px-3 py-1.5">Source</th>
                 <th className="px-3 py-1.5">Signed up</th>
+                <th className="px-3 py-1.5">Last login</th>
                 <th className="px-3 py-1.5">Plan &amp; access</th>
                 <th className="px-3 py-1.5">Status</th>
                 <th className="px-3 py-1.5" />
@@ -302,75 +336,40 @@ export function PlatformConsole({
                     <td className="px-3 py-2 text-center tabular-nums">{t.submissionCount}</td>
                     <td className="px-3 py-2 text-xs text-[var(--muted-foreground)]">{t.source ?? "-"}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-xs text-[var(--muted-foreground)]">
-                      {shortIST(t.createdAt)}
+                      <Stamp iso={t.createdAt} />
+                    </td>
+                    {/* "Never" and "not since we started recording" are different facts
+                        and the column says which: a tenant created before the lastLoginAt
+                        column existed, whose sessions had already expired, has no stamp to
+                        backfill from - calling that "never" would be a claim the data does
+                        not support. */}
+                    <td className="px-3 py-2 whitespace-nowrap text-xs text-[var(--muted-foreground)]">
+                      <Stamp iso={t.lastLoginAt} empty="Not since 8 Oct" />
                     </td>
                     {/*
-                      Plan and the date access runs to, editable together and saved the
-                      moment either changes. The confirmation lands directly under the
-                      date, which is where the person is looking when they pick one.
+                      THE PLAN IS STATED FIRST, AND IT IS THE RESOLVED ONE.
+
+                      This cell used to lead with the grant dropdown, which is bound to
+                      `Tenant.plan` - a column that defaults to GATE on every row and is
+                      never written by signup. So every self-serve tenant on a 14-day
+                      SIGNAL trial was displayed as GATE, with the truth ("Trial to 21
+                      Oct") in small grey type underneath. The entitlement was always
+                      right; the column said otherwise and was believed.
+
+                      Now: what they have, then why, then the controls that change it -
+                      and the answer comes from effectiveAccess(), which runs the same
+                      precedence as the resolver rather than a second copy of it in JSX.
                     */}
                     <td className="px-3 py-2 align-top">
                       {t.id === PLATFORM_TENANT_ID ? (
                         <span className="text-xs text-[var(--muted-foreground)]">Part of the app</span>
                       ) : (
-                        <div className="flex flex-col gap-1">
-                          <div className="flex flex-wrap items-center gap-1">
-                            <select
-                              className="h-8 rounded-md border bg-transparent px-2 text-xs"
-                              value={t.plan}
-                              disabled={pending}
-                              onChange={(e) => saveGrant(t, e.target.value, istDateInputValue(t.planExpiresAt))}
-                              title="The plan a manual grant entitles this tenant to"
-                            >
-                              {PLAN_IDS.map((p) => (
-                                <option key={p} value={p}>{p}</option>
-                              ))}
-                            </select>
-                            <input
-                              type="date"
-                              className="h-8 rounded-md border bg-transparent px-2 text-xs"
-                              value={istDateInputValue(t.planExpiresAt)}
-                              disabled={pending}
-                              onChange={(e) => saveGrant(t, t.plan, e.target.value)}
-                              title="Access runs to the end of this day (IST). Clear it to remove the grant."
-                            />
-                          </div>
-                          {grantMsg[t.id] ? (
-                            <span
-                              className={
-                                grantMsg[t.id]?.tone === "error"
-                                  ? "text-[11px] font-medium text-red-500"
-                                  : grantMsg[t.id]?.tone === "warn"
-                                    ? "text-[11px] font-medium text-yellow-600"
-                                    : "text-[11px] font-medium text-green-600"
-                              }
-                            >
-                              {grantMsg[t.id]?.text}
-                            </span>
-                          ) : null}
-                          {/* What is ACTUALLY entitling this tenant right now, in the
-                              order the resolver decides it, so the date above is never
-                              mistaken for the answer when something outranks it. */}
-                          {t.unlimited ? (
-                            <span className="text-[11px] text-[var(--muted-foreground)]">
-                              Unlimited - the grant is ignored
-                            </span>
-                          ) : t.subStatus === "ACTIVE" || t.subStatus === "PAST_DUE" ? (
-                            <span className="text-[11px] text-[var(--muted-foreground)]">
-                              Paid {t.subPlan ?? ""} to {shortIST(t.subPeriodEnd)} - outranks this grant
-                            </span>
-                          ) : grantLive(t.planExpiresAt) ? (
-                            <span className="text-[11px] text-green-600">
-                              Granted to {shortIST(t.planExpiresAt)}
-                            </span>
-                          ) : t.trialEndsAt && new Date(t.trialEndsAt).getTime() > Date.now() ? (
-                            <span className="text-[11px] text-[var(--muted-foreground)]">
-                              Trial to {shortIST(t.trialEndsAt)}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-yellow-600">Parked</span>
-                          )}
-                        </div>
+                        <PlanAndAccess
+                          t={t}
+                          pending={pending}
+                          grantMsg={grantMsg[t.id] ?? null}
+                          onSaveGrant={saveGrant}
+                        />
                       )}
                     </td>
                     <td className="px-3 py-2">
@@ -600,6 +599,96 @@ export function PlatformConsole({
             </table>
           </div>
         </section>
+      ) : null}
+    </div>
+  );
+}
+
+
+/**
+ * The "Plan & access" cell: what this tenant HAS, then why, then the grant controls.
+ *
+ * Its own component rather than inline JSX because the cell now has a derived value
+ * (the resolved access) and three conditional notes, and an IIFE inside a table row is
+ * where that becomes unreadable.
+ */
+function PlanAndAccess({
+  t,
+  pending,
+  grantMsg,
+  onSaveGrant,
+}: {
+  t: TenantRow;
+  pending: boolean;
+  grantMsg: { tone: string; text: string } | null;
+  onSaveGrant: (t: TenantRow, plan: string, untilDate: string) => void;
+}) {
+  const acc = effectiveAccess(t);
+  const liveGrant = grantLive(t.planExpiresAt);
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-baseline gap-1.5">
+        <span className={acc.source === "parked" ? "text-sm font-semibold text-yellow-600" : "text-sm font-semibold"}>
+          {acc.planLabel}
+        </span>
+        <span className="text-[11px] text-[var(--muted-foreground)]">
+          {acc.detail}
+          {acc.until ? ` to ${shortIST(acc.until)}` : ""}
+        </span>
+      </div>
+
+      {/* The manual grant, now plainly labelled as the thing it is. Unlabelled, it read
+          as "this tenant's plan", which is exactly how a trialling SIGNAL workspace came
+          to look like a GATE one. */}
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="text-[11px] text-[var(--muted-foreground)]">Grant:</span>
+        <select
+          className="h-8 rounded-md border bg-transparent px-2 text-xs"
+          value={t.plan}
+          disabled={pending}
+          onChange={(e) => onSaveGrant(t, e.target.value, istDateInputValue(t.planExpiresAt))}
+          title="A manual grant: this plan, until the date beside it. Without a date it entitles nothing."
+        >
+          {PLAN_IDS.map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+        <input
+          type="date"
+          className="h-8 rounded-md border bg-transparent px-2 text-xs"
+          value={istDateInputValue(t.planExpiresAt)}
+          disabled={pending}
+          onChange={(e) => onSaveGrant(t, t.plan, e.target.value)}
+          title="Access runs to the end of this day (IST). Clear it to remove the grant."
+        />
+      </div>
+
+      {/* Why the controls above are doing nothing, when they are doing nothing. Without
+          this the owner sets a grant, watches nothing change, and the screen offers no
+          reason at all. */}
+      {acc.source !== "grant" && liveGrant ? (
+        <span className="text-[11px] text-[var(--muted-foreground)]">
+          {acc.source === "unlimited" ? "Unlimited - the grant is ignored" : "The paid subscription outranks this grant"}
+        </span>
+      ) : null}
+      {acc.source === "trial" && !liveGrant ? (
+        <span className="text-[11px] text-[var(--muted-foreground)]">
+          No grant set - the trial is what entitles them
+        </span>
+      ) : null}
+
+      {grantMsg ? (
+        <span
+          className={
+            grantMsg.tone === "error"
+              ? "text-[11px] font-medium text-red-500"
+              : grantMsg.tone === "warn"
+                ? "text-[11px] font-medium text-yellow-600"
+                : "text-[11px] font-medium text-green-600"
+          }
+        >
+          {grantMsg.text}
+        </span>
       ) : null}
     </div>
   );
