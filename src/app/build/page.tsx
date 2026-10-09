@@ -4,9 +4,8 @@ import { getCurrentTenant } from "@/lib/tenant/context";
 import { Nav } from "@/components/marketing/Nav";
 import { Footer } from "@/components/marketing/Footer";
 import { BuildForm } from "@/components/marketing/BuildForm";
-import { DFY } from "@/lib/marketing/content";
+import { DFY, OFFER } from "@/lib/marketing/content";
 import { platformPageMetadata } from "@/lib/seo/site";
-import { resolveDfyScarcity } from "@/lib/settings/config";
 
 /**
  * The done-for-you intake, and the destination of the home page's primary call to action.
@@ -19,16 +18,15 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   return platformPageMetadata({
-    title: "Get your scorecard built free in 24 hours",
+    title: "Get my scorecard built free",
     description:
-      "Tell us what you sell and who wastes your time. We write the gate, the questions, the weights and the result bands, wire the Meta events, and hand you a live link within 24 hours.",
+      "Tell us what you sell and who wastes your time. We build the scorecard, then take it live with you on one 30-minute call: pixel, Conversions API, audiences, custom domain, test events.",
     path: "/build",
   });
 }
 
 export default async function BuildPage() {
   if (await getCurrentTenant()) notFound();
-  const scarcity = await resolveDfyScarcity();
 
   return (
     <>
@@ -36,20 +34,13 @@ export default async function BuildPage() {
       <main id="main">
         <section className="border-b">
           <div className="mx-auto max-w-2xl px-5 py-16 sm:px-8 sm:py-20">
-            {/* Only rendered when an operator is actually maintaining the number. An
-                unset counter prints nothing, rather than going stale in front of buyers. */}
-            {scarcity ? (
-              <p className="mb-5 inline-flex items-center rounded-full border border-green-600/40 bg-green-600/10 px-3 py-1 text-sm font-medium text-green-700 dark:text-green-500">
-                {scarcity.remaining} of {scarcity.total} free builds remaining
-              </p>
-            ) : null}
-
             <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
               {DFY.heading}
             </h1>
             <p className="mt-5 text-lg leading-relaxed text-[var(--muted-foreground)]">
               {DFY.body}
             </p>
+            <p className="mt-4 font-medium">{OFFER.ctaSubline}</p>
 
             <ol className="mt-8 flex flex-col gap-3 text-[var(--muted-foreground)]">
               <li>
@@ -57,12 +48,15 @@ export default async function BuildPage() {
                 takes about four minutes.
               </li>
               <li>
-                <strong className="text-[var(--foreground)]">2.</strong> We write the gate, the
-                questions, the weights and the result bands from your answers.
+                <strong className="text-[var(--foreground)]">2. We build it.</strong> The gate,
+                the questions, the weights and the result bands, written from your answers and
+                delivered as a draft into your dashboard before the call.
               </li>
               <li>
-                <strong className="text-[var(--foreground)]">3.</strong> You get a live link
-                within 24 hours, and we walk you through what it screens out and why.
+                <strong className="text-[var(--foreground)]">3. 30 minutes, live.</strong> We
+                connect your Meta pixel and the Conversions API, build the exclusion and
+                retargeting audiences, point your custom domain at it, fire test events and
+                confirm they arrive, and take it live.
               </li>
             </ol>
 

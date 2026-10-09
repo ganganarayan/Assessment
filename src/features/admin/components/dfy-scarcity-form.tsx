@@ -5,6 +5,7 @@ import { updateDfyScarcity } from "@/features/admin/actions/platform-integration
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { OFFER, OFFER_SLOTS } from "@/lib/marketing/content";
 
 /**
  * The done-for-you scarcity counter.
@@ -56,14 +57,16 @@ export function DfyScarcityForm({
       </div>
 
       <p className="text-sm text-[var(--muted-foreground)]">
-        {shown === null || shown === 0 ? (
+        {shown === 0 ? (
           <>
-            Nothing is shown to visitors. That is the right state unless you are actually
-            decrementing this after each build.
+            The offer bar is hidden. At zero slots it disappears rather than announcing a
+            closed offer above a button that asks you to take it.
           </>
         ) : (
           <>
-            Visitors see: <strong className="text-[var(--foreground)]">{shown} of {total} free builds remaining</strong>
+            The bar reads:{" "}
+            <strong className="text-[var(--foreground)]">{OFFER.bar(shown ?? OFFER_SLOTS)}</strong>
+            {shown === null ? " (blank means a full allowance, not silence)" : ""}
           </>
         )}
       </p>

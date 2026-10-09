@@ -328,6 +328,13 @@ export const OVERAGE_NOTE = "Overage: $15 per extra 500 qualified responses.";
 
 export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
   {
+    // Replaces the speed question. "How fast is it" invites a promise that depends on
+    // things we do not control - their pixel access, their answers, a weekend. What
+    // happens on the call is entirely within our control, so it can be stated exactly.
+    q: "What happens on the 30-minute call?",
+    a: "We connect your Meta pixel and the Conversions API, build the exclusion and retargeting audiences, point your custom domain at it, fire test events and confirm they arrive, and take the scorecard live. The draft is already in your dashboard before the call starts, so the half hour is spent wiring it up rather than writing questions.",
+  },
+  {
     q: "How is a scorecard different from a form?",
     a: "A form collects answers. A scorecard evaluates them - weighting each response against your fit criteria and returning a score, a result, and a next step. You learn who someone is, not just how to reach them.",
   },
@@ -364,20 +371,50 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
  *   eyebrow  "Lead qualification, not just capture, not just assess"
  *   headline "Know which leads are worth a sales call - before you make one."
  */
+// ===========================================================================
+//  The done-for-you offer. ONE source for the wording and the slot count.
+// ===========================================================================
+
+/**
+ * How many free builds the offer covers.
+ *
+ * 🔴 Exported and referenced everywhere the number appears, never typed into copy. It
+ * shows up in the announcement bar, the call-to-action sub-line and the admin default,
+ * and a figure repeated in three places is a figure that will eventually disagree with
+ * itself in front of a buyer.
+ */
+export const OFFER_SLOTS = 20;
+
+/**
+ * The offer, in the exact words it is allowed to use.
+ *
+ * There is no delivery-time promise anywhere in here, on purpose. "Built in 24 hours"
+ * was a clock that started the moment somebody submitted a form, ran whether or not we
+ * had their pixel, and could be missed by a weekend. "One 30-minute call" is a thing
+ * that either happens or does not, and the customer is in the room when it does.
+ */
+export const OFFER = {
+  /** The sticky bar above the nav. {slots} is filled from the live remaining count. */
+  bar: (slots: number) =>
+    `First ${OFFER_SLOTS}: we build your qualifying scorecard free and take it live on one 30-minute call. ${slots} slots left.`,
+  /** The sub-line under EVERY primary call to action. Same words in every placement. */
+  ctaSubline: `One 30-minute call. We build it, wire it to your ads, and it goes live before you hang up. ${OFFER_SLOTS} slots.`,
+} as const;
+
 export const HERO = {
   eyebrow: "Negative lead generation",
   headline: "The wrong leads never become leads. And your ads learn to stop finding them.",
   sub: "A gate runs before the opt-in, so wrong-fit traffic never becomes a lead record. Everyone who passes is scored against criteria you weight. Then only the qualified ones are reported back to Meta, so your campaigns optimise toward buyers instead of form-fillers.",
-  primaryCta: "Get your scorecard built free in 24 hours",
+  primaryCta: "Get my scorecard built free",
   secondaryCta: "Start 14-day trial",
 } as const;
 
 /** The done-for-you offer. One place, because it appears on most public surfaces. */
 export const DFY = {
   href: "/build",
-  heading: "We will build your first scorecard for you, free, in 24 hours",
-  body: "Tell us what you sell and who wastes your time. We write the gate, the questions, the weights and the result bands, wire the Meta events, and hand you a live link. You do not touch the builder unless you want to.",
-  cta: "Get your scorecard built free in 24 hours",
+  heading: "We build your first scorecard with you, free, on one 30-minute call",
+  body: "Tell us what you sell and who wastes your time. We write the gate, the questions, the weights and the result bands, and bring the draft to a 30-minute call where we wire it to your ads and put it live. You do not touch the builder unless you want to.",
+  cta: "Get my scorecard built free",
 } as const;
 
 /**

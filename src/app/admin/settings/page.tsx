@@ -211,10 +211,11 @@ export default async function SettingsPage() {
             <div className="mt-6 border-t pt-5">
               <p className="text-sm font-medium">Free builds remaining</p>
               <p className="mb-3 mt-0.5 text-xs text-[var(--muted-foreground)]">
-                Printed on the home page and the /build form as &quot;X of 20 free builds
-                remaining&quot;. Two real numbers you edit after each build, never a timer -
-                a counter that refills overnight is noticed once and discredits the rest of
-                the page with it. Leave Remaining blank and nothing is shown anywhere.
+                Fills the slot count in the sticky offer bar above the nav, on every public
+                page. Two real numbers you edit after each build, never a timer - a counter
+                that refills overnight is noticed once and discredits the rest of the page
+                with it. Blank means a FULL allowance, so the bar launches without you
+                seeding it; set it to zero to take the offer down.
               </p>
               <DfyScarcityForm
                 initialTotal={dfyScarcity?.total ?? 20}

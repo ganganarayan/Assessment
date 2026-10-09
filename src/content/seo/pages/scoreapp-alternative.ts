@@ -129,7 +129,7 @@ export const page: SeoPage = {
     },
     {
       q: "Can I move my ScoreApp quiz across?",
-      a: "The questions, yes, by pasting them into the plain-text importer. The gate is new, because ScoreApp has nowhere to put one. Send us your live link and we will rebuild the whole thing with a gate in front of it, free, within 24 hours.",
+      a: "The questions, yes, by pasting them into the plain-text importer. The gate is new, because ScoreApp has nowhere to put one. Send us your live link and we will rebuild the whole thing with a gate in front of it, free, then take it live with you on one 30-minute call.",
     },
     {
       q: "Does the gate hurt conversion rate?",

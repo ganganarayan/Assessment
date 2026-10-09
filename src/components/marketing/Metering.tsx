@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { METERING, DFY } from "@/lib/marketing/content";
+import { METERING, DFY, OFFER } from "@/lib/marketing/content";
 import { Emphasised, Tick } from "./Emphasised";
 
 /**
@@ -16,7 +16,7 @@ import { Emphasised, Tick } from "./Emphasised";
  * line, so a reader who skims still arrives at the conclusion instead of seeing a block
  * of text that looks like the small print.
  */
-export function Metering({ scarcity }: { scarcity?: { remaining: number; total: number } | null }) {
+export function Metering() {
   return (
     <section className="border-b bg-[var(--muted)]">
       <div className="mx-auto max-w-3xl px-5 py-16 sm:px-8 sm:py-20">
@@ -42,12 +42,9 @@ export function Metering({ scarcity }: { scarcity?: { remaining: number; total: 
           <Link href={DFY.href} className={buttonVariants({ size: "lg" })}>
             {DFY.cta}
           </Link>
-          {/* Shown only while somebody is maintaining it. See resolveDfyScarcity. */}
-          {scarcity ? (
-            <p className="text-sm font-medium text-green-700 dark:text-green-500">
-              {scarcity.remaining} of {scarcity.total} free builds remaining
-            </p>
-          ) : null}
+          {/* The slot COUNT lives in the offer bar; this is the standing sub-line, in
+              the same words it carries everywhere else. */}
+          <p className="text-sm font-medium">{OFFER.ctaSubline}</p>
         </div>
       </div>
     </section>

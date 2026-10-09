@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MARKETING, DFY } from "@/lib/marketing/content";
+import { MARKETING, DFY, OFFER } from "@/lib/marketing/content";
 import type { SeoPage } from "@/lib/seo/types";
 
 /**
@@ -133,8 +133,8 @@ export function MigrationBlock({ competitor }: { competitor: string }) {
         </li>
         <li>
           <strong className="text-[var(--foreground)]">Or we do the whole thing, free.</strong>{" "}
-          Send us your live {competitor} link and we rebuild it with a gate in front of it,
-          within 24 hours, before you have paid for anything.
+          Send us your live {competitor} link, we rebuild it with a gate in front of it, and we
+          take it live together on one 30-minute call. Before you have paid for anything.
         </li>
       </ul>
       <div className="mt-6">
@@ -144,6 +144,7 @@ export function MigrationBlock({ competitor }: { competitor: string }) {
         >
           {DFY.cta}
         </Link>
+        <p className="mt-3 text-sm font-medium">{OFFER.ctaSubline}</p>
       </div>
     </section>
   );

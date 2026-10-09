@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { submitDfyRequest } from "@/features/marketing/actions/dfy";
 import { EMPTY_DFY, type DfyInput } from "@/features/marketing/dfy-schema";
 import { PLATFORM_SUPPORT_WHATSAPP_LINK } from "@/lib/platform-support";
+import { DFY, OFFER } from "@/lib/marketing/content";
 
 /**
  * The done-for-you intake.
@@ -33,11 +34,11 @@ export function BuildForm() {
   if (done) {
     return (
       <div className="rounded-2xl border bg-[var(--muted)] p-8 text-center">
-        <h2 className="text-2xl font-bold tracking-tight">The 24-hour clock starts now</h2>
+        <h2 className="text-2xl font-bold tracking-tight">We will be in touch to book your call</h2>
         <p className="mx-auto mt-4 max-w-xl leading-relaxed text-[var(--muted-foreground)]">
-          We have your details and a confirmation is on its way to your inbox. You will get a
-          live scorecard link, the gate questions we wrote, the scoring weights and the result
-          bands.
+          We have your details and a confirmation is on its way to your inbox. We will write the
+          gate, the questions, the weights and the result bands, and bring the draft to a
+          30-minute call where it goes live.
         </p>
         <p className="mx-auto mt-4 max-w-xl leading-relaxed text-[var(--muted-foreground)]">
           If you have a Meta pixel ID, or anything written down about who you do <em>not</em>{" "}
@@ -199,10 +200,11 @@ export function BuildForm() {
       ) : null}
 
       <Button type="submit" size="lg" disabled={pending}>
-        {pending ? "Sending..." : "Get your scorecard built free in 24 hours"}
+        {pending ? "Sending..." : DFY.cta}
       </Button>
+      <p className="text-center text-sm font-medium">{OFFER.ctaSubline}</p>
       <p className="text-center text-sm text-[var(--muted-foreground)]">
-        No card, no trial required. We build it, you decide afterwards.
+        No card, no trial required.
       </p>
     </form>
   );

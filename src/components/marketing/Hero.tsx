@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { MARKETING, TRIAL_NOTE, HERO, DFY } from "@/lib/marketing/content";
+import { MARKETING, TRIAL_NOTE, HERO, DFY, OFFER } from "@/lib/marketing/content";
 import { VideoEmbed } from "./VideoEmbed";
 
 // The hero now carries the MECHANISM rather than the benefit. "Know which leads are
@@ -48,7 +48,10 @@ export function Hero({ video }: { video?: string | null }) {
           {/* Was "No credit card. 25 responses a month on the free plan." - copy that
               outlived the plan it described. There is no free tier; TRIAL_NOTE is the one
               sentence the pricing section also renders, so the claim cannot drift again. */}
-          <p className="mt-5 text-sm text-[var(--muted-foreground)]">{TRIAL_NOTE}</p>
+          {/* The offer sub-line sits with the primary action; the trial note belongs to
+              the secondary one. Same words in every placement, from OFFER.ctaSubline. */}
+          <p className="mt-5 text-sm font-medium">{OFFER.ctaSubline}</p>
+          <p className="mt-2 text-sm text-[var(--muted-foreground)]">{TRIAL_NOTE}</p>
         </div>
 
         <div className="rounded-2xl border bg-[var(--muted)] p-3 shadow-xl shadow-black/5">

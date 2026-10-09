@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DFY } from "@/lib/marketing/content";
+import { DFY, OFFER } from "@/lib/marketing/content";
 
 /**
  * The done-for-you offer, on the industry pages.
@@ -16,9 +16,10 @@ export function DfyOffer({ audience }: { audience?: string }) {
       <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{DFY.heading}</h2>
       <p className="mt-3 leading-relaxed text-[var(--muted-foreground)]">
         {audience ? `Tell us what you sell and who wastes your time, ` : `Tell us what you sell, `}
-        and we write the gate, the questions, the weights and the result bands, wire the Meta
-        events and hand you a live link. You do not touch the builder unless you want to.
+        and we write the gate, the questions, the weights and the result bands. Then we take it
+        live with you on one 30-minute call. You do not touch the builder unless you want to.
       </p>
+      <p className="mt-3 font-medium">{OFFER.ctaSubline}</p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Link
           href={DFY.href}

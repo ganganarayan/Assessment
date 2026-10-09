@@ -2,6 +2,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { MARKETING, NAV_LINKS } from "@/lib/marketing/content";
+import { OfferBar } from "./OfferBar";
 
 /**
  * `anchorBase` exists because this nav is rendered on pages that are not the landing
@@ -11,6 +12,9 @@ import { MARKETING, NAV_LINKS } from "@/lib/marketing/content";
 export function Nav({ anchorBase = "" }: { anchorBase?: string }) {
   return (
     <header className="sticky top-0 z-40 border-b bg-[var(--background)]">
+      {/* Inside the sticky header, above the nav row, so it travels with it rather than
+          scrolling away - and so a new public page cannot ship without the offer on it. */}
+      <OfferBar />
       <nav
         className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8"
         aria-label="Primary"

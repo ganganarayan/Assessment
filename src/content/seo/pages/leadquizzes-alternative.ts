@@ -133,7 +133,7 @@ export const page: SeoPage = {
     },
     {
       q: "Can I keep my existing quiz questions?",
-      a: "Yes. Paste them into the plain-text importer. The gate and the weights are the parts you will be writing new, and we will write them for you free within 24 hours if you send us the live link.",
+      a: "Yes. Paste them into the plain-text importer. The gate and the weights are the parts you will be writing new, and we will write them for you free if you send us the live link, then take the whole thing live on one 30-minute call.",
     },
   ],
   cta: {

@@ -10,7 +10,6 @@ import { PlatformPixel } from "@/components/platform-pixel";
 import { LandingTracker } from "@/features/billing/components/landing-tracker";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { getLandingVideos } from "@/features/platform/landing-videos";
-import { resolveDfyScarcity } from "@/lib/settings/config";
 import { MARKETING } from "@/lib/marketing/content";
 import { OG_IMAGE } from "@/lib/seo/site";
 
@@ -56,16 +55,15 @@ export default async function HomePage() {
   // Platform → marketing landing. The SaaS pixel fires PageView here (separate from
   // the Gita assessment pixel).
   if (!tenant) {
-    const [{ pixelId }, videos, scarcity] = await Promise.all([
+    const [{ pixelId }, videos] = await Promise.all([
       resolvePlatformMetaConfig(),
       getLandingVideos(),
-      resolveDfyScarcity(),
     ]);
     return (
       <>
         <PlatformPixel pixelId={pixelId} />
         <LandingTracker />
-        <Landing videos={videos} scarcity={scarcity} />
+        <Landing videos={videos} />
       </>
     );
   }

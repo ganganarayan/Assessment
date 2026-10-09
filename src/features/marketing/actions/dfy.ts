@@ -16,7 +16,7 @@ import { dfySchema, type DfyInput } from "@/features/marketing/dfy-schema";
  *
  * Order of operations is the whole design: STORE, then notify. The owner's alert goes
  * out on the platform's own mail path, which is best-effort by nature - and an applicant
- * who filled in ten fields because the home page promised a finished funnel in 24 hours
+ * who filled in ten fields because the home page promised a scorecard built for them
  * must not evaporate because a mail host timed out. A failed notification leaves
  * notifiedAt null, which is a findable row rather than a silent loss.
  *
@@ -99,7 +99,7 @@ export async function submitDfyRequest(input: DfyInput): Promise<ActionResult> {
   await sendEmail(
     null,
     v.email,
-    `We have your details - your scorecard is being built`,
+    `We have your details - let us book your 30-minute call`,
     confirmationHtml(v.business),
   ).catch(() => "failed");
 
@@ -129,9 +129,13 @@ function confirmationHtml(business: string): string {
   return `
 <div style="font:16px/1.6 -apple-system,Segoe UI,Roboto,sans-serif;color:#111">
   <p>Thanks - we have the details for <strong>${escapeHtml(business)}</strong>.</p>
-  <p><strong>The 24-hour clock starts now.</strong> You will get a live scorecard link, the gate
-  questions we wrote, the scoring weights and the result bands.</p>
-  <p>Two things that speed it up, if you have them:</p>
+  <p><strong>Next: we book your 30-minute call.</strong> Before it starts, the draft scorecard is
+  already in your dashboard - the gate, the questions, the weights and the result bands, written
+  from your answers.</p>
+  <p>On the call we connect your Meta pixel and the Conversions API, build the exclusion and
+  retargeting audiences, point your custom domain at it, fire test events to confirm they arrive,
+  and take it live. You are in the room while it happens.</p>
+  <p>Two things that make the call shorter, if you have them:</p>
   <ul>
     <li>Your Meta pixel ID, if you are running ads already.</li>
     <li>Anything written down about who you do <em>not</em> want - a disqualification list, a

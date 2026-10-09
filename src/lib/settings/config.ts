@@ -5,6 +5,7 @@
 // included. The guard only ever prevented CLIENT bundling, which the prisma/env/
 // crypto imports below already make impossible in a browser build.
 import { prisma } from "@/lib/db/prisma";
+import { OFFER_SLOTS } from "@/lib/marketing/content";
 import { env } from "@/lib/env";
 import { decryptWithSecret } from "@/lib/crypto";
 import { isPlatformScope } from "@/lib/tenant/platform-tenant";
@@ -309,6 +310,26 @@ export async function resolveDfyWabaTemplate(): Promise<{ template: string; lang
   const template = s?.dfyWabaTemplate?.trim();
   if (!template) return null;
   return { template, lang: s?.dfyWabaLang?.trim() || "en" };
+}
+
+/**
+ * Slots left for the announcement bar, or null when the offer should not be advertised.
+ *
+ * Differs from resolveDfyScarcity in one deliberate way: an UNSET count means the full
+ * allowance rather than "say nothing". Before a single build has been done, "20 slots
+ * left" is simply true, and making the operator seed a number before the bar appears
+ * would mean the offer silently fails to launch.
+ *
+ * Zero still returns null. A bar reading "0 slots left" above a button that asks for one
+ * is worse than no bar.
+ */
+export async function resolveOfferSlotsLeft(): Promise<number | null> {
+  const s = (await settingRow(null, { dfyBuildsTotal: true, dfyBuildsRemaining: true })) as
+    | { dfyBuildsTotal: number; dfyBuildsRemaining: number | null }
+    | null;
+  const total = s?.dfyBuildsTotal ?? OFFER_SLOTS;
+  const left = s?.dfyBuildsRemaining ?? total;
+  return left > 0 ? Math.min(left, total) : null;
 }
 
 /**

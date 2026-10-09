@@ -132,7 +132,7 @@ export const page: SeoPage = {
     },
     {
       q: "Can I move my Google Form across?",
-      a: "Yes, in minutes. Paste the questions into the plain-text importer. The gate and the weights are the new parts, and we will write them for you free within 24 hours if you send us the link.",
+      a: "Yes, in minutes. Paste the questions into the plain-text importer. The gate and the weights are the new parts, and we will write them for you free if you send us the link, then take it live with you on one 30-minute call.",
     },
   ],
   cta: {
