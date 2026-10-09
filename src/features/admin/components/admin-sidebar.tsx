@@ -35,6 +35,9 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: "/platform", label: "Tenants", exact: true },
       { href: "/platform/stats", label: "Marketing stats" },
+      // The done-for-you queue. Under Platform rather than Leads: these are applicants
+      // to the offer, not respondents to anybody's funnel.
+      { href: "/admin/build-requests", label: "Build requests" },
     ],
   },
   {
