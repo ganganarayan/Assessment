@@ -1,10 +1,10 @@
 {
-  "slug": "legal-intake-triage",
-  "title": "Case intake triage",
-  "category": "Law firms",
-  "summary": "Establishes whether the firm can take the matter. It gives no advice, assesses no merits and predicts no outcome. Routes urgent deadlines straight to contact.",
+  "slug": "cohort-readiness",
+  "title": "Cohort readiness check",
+  "category": "Course creators",
+  "summary": "Screens out the serial non-finishers and the people with no hours, then scores the rest on capacity and motivation. Protecting completion rates is what protects testimonials.",
   "shape": "GATED_ASSESSMENT",
-  "aiInstructions": "You are writing the note a solicitor reads before an intake call. The reader is the prospective client.\n\nWrite 200 to 280 words, second person, measured and plain. Describe only what their answers say about whether this FIRM can take the matter: practice area, jurisdiction, documentation, and how ready they are to engage. Use the dimension names as evidence.\n\nBINDING CONSTRAINTS. Never give legal advice. Never assess the merits or strength of the matter. Never predict or imply an outcome, a settlement figure, damages or a likelihood of success. Never state whether they have a claim. Never name a limitation period as applying to them. Never suggest what they should do next in the dispute itself.\n\nClose by saying plainly that this is about whether the firm can act, that it is not legal advice, and that limitation periods vary by matter so they should take independent advice promptly regardless of what this says.",
+  "aiInstructions": "You are writing the note a course creator reads before a cohort starts, addressed to the applicant.\n\nWrite 200 to 280 words, second person, warm and honest. Name the ONE thing most likely to stop them finishing, using the dimension names as evidence. Be kind about it and do not soften it into nothing.\n\nDo NOT promise an outcome, an income, a job or a result from the programme. Do NOT tell them how to fix the blocker. Describe it clearly enough that they recognise it, then stop.\n\nNever mention scores as numbers.",
   "body": {
     "description": null,
     "coverImageUrl": null,
@@ -22,8 +22,8 @@
     "professionRequired": false,
     "engine": "GENERIC",
     "engineConfig": null,
-    "eyebrow": "16 questions, 4 minutes",
-    "subheadline": "This establishes whether this firm can take your matter. It is not legal advice and it does not assess your case.",
+    "eyebrow": "15 questions, 4 minutes",
+    "subheadline": "An honest read on whether this cohort will work for you right now, and what would have to change if not.",
     "qualifiedNote": "You qualify. Tell us where to send your result.",
     "leadCaptureAfter": true,
     "startButtonLabel": "Start",
@@ -36,24 +36,29 @@
       "questions": [
         {
           "id": "g1",
-          "text": "What type of matter is this?",
+          "text": "How many hours a week can you give this?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g1a",
-              "label": "A practice area shown on your list",
-              "points": 2
+              "label": "More than 8",
+              "points": 3
             },
             {
               "id": "g1b",
-              "label": "I am not certain which area it falls under",
-              "points": 1
+              "label": "4 to 8",
+              "points": 2
             },
             {
               "id": "g1c",
-              "label": "Something else entirely",
+              "label": "2 to 4",
+              "points": 1
+            },
+            {
+              "id": "g1d",
+              "label": "Under 2",
               "disqualifies": true,
               "points": 0
             }
@@ -61,24 +66,29 @@
         },
         {
           "id": "g2",
-          "text": "Where did the matter arise?",
+          "text": "Can you attend live sessions at the scheduled times?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g2a",
-              "label": "Inside the area this firm practises in",
-              "points": 2
+              "label": "Yes, all of them",
+              "points": 3
             },
             {
               "id": "g2b",
-              "label": "A neighbouring jurisdiction",
-              "points": 1
+              "label": "Most of them",
+              "points": 2
             },
             {
               "id": "g2c",
-              "label": "Outside this firm's jurisdiction",
+              "label": "A few of them",
+              "points": 1
+            },
+            {
+              "id": "g2d",
+              "label": "No, recordings only",
               "disqualifies": true,
               "points": 0
             }
@@ -86,63 +96,59 @@
         },
         {
           "id": "g3",
-          "text": "When did the events take place?",
+          "text": "What investment range have you set aside for this?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g3a",
-              "label": "It is ongoing",
-              "points": 5
-            },
-            {
-              "id": "g3b",
-              "label": "Within the last 3 months",
-              "points": 4
-            },
-            {
-              "id": "g3c",
-              "label": "3 to 12 months ago",
+              "label": "Comfortably above the programme price",
               "points": 3
             },
             {
-              "id": "g3d",
-              "label": "1 to 3 years ago",
+              "id": "g3b",
+              "label": "About the programme price",
               "points": 2
             },
             {
-              "id": "g3e",
-              "label": "More than 3 years ago",
+              "id": "g3c",
+              "label": "Slightly below it, but I can stretch",
               "points": 1
+            },
+            {
+              "id": "g3d",
+              "label": "Well below the programme price",
+              "disqualifies": true,
+              "points": 0
             }
           ]
         },
         {
           "id": "g4",
-          "text": "Is anyone already representing you in this matter?",
+          "text": "Where are you starting from?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g4a",
-              "label": "No",
+              "label": "Experienced, and I want structure",
               "points": 3
             },
             {
               "id": "g4b",
-              "label": "Yes, and I want to change",
+              "label": "Some experience",
               "points": 2
             },
             {
               "id": "g4c",
-              "label": "Yes, and I want a second opinion",
+              "label": "Complete beginner",
               "points": 1
             },
             {
               "id": "g4d",
-              "label": "Yes, and I am happy with them",
+              "label": "Expert, I am looking for peers",
               "disqualifies": true,
               "points": 0
             }
@@ -150,78 +156,39 @@
         },
         {
           "id": "g5",
-          "text": "Are there court dates or deadlines already fixed?",
+          "text": "Have you bought a course like this before?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g5a",
-              "label": "Yes, within 2 weeks",
-              "points": 5
+              "label": "Yes, and I completed it",
+              "points": 3
             },
             {
               "id": "g5b",
-              "label": "Yes, within 2 months",
-              "points": 4
+              "label": "No, this is my first",
+              "points": 2
             },
             {
               "id": "g5c",
-              "label": "Yes, later than that",
-              "points": 3
+              "label": "Yes, and I did not finish it",
+              "points": 1
             },
             {
               "id": "g5d",
-              "label": "No",
-              "points": 2
-            },
-            {
-              "id": "g5e",
-              "label": "I do not know",
-              "points": 1
-            }
-          ]
-        },
-        {
-          "id": "g6",
-          "text": "What budget range have you considered for legal fees?",
-          "type": "choice",
-          "placeholder": "",
-          "required": true,
-          "options": [
-            {
-              "id": "g6a",
-              "label": "Above $6,000 (above ₹5 lakh)",
-              "points": 4
-            },
-            {
-              "id": "g6b",
-              "label": "$1,200 to $6,000 (₹1 to 5 lakh)",
-              "points": 3
-            },
-            {
-              "id": "g6c",
-              "label": "$300 to $1,200 (₹25,000 to 1 lakh)",
-              "points": 2
-            },
-            {
-              "id": "g6d",
-              "label": "Under $300 (under ₹25,000)",
+              "label": "Several, and I finished none of them",
               "disqualifies": true,
               "points": 0
-            },
-            {
-              "id": "g6e",
-              "label": "I need to understand costs first",
-              "points": 1
             }
           ]
         }
       ]
     },
     "disqualifiedContent": {
-      "heading": "Thank you, and please read this.",
-      "subtext": "On your answers this firm cannot act in this matter, so we will not take it further. This is not legal advice and it is not an assessment of your case. Limitation periods vary by matter and some are short, so please consult another solicitor promptly rather than waiting.",
+      "heading": "Thanks for answering honestly.",
+      "subtext": "On your answers this cohort would not work for you right now, so we are not going to sell you a seat in it. That is not a judgement: hours, live attendance and finishing history are simply the things that decide this. Come back for a later cohort.",
       "bodyHtml": "",
       "buttonLabel": "",
       "buttonUrl": "",
@@ -234,8 +201,8 @@
     "uniqueIdentifier": "EMAIL",
     "categories": [
       {
-        "name": "Matter fit",
-        "description": "Whether this is the kind of matter the firm acts on.",
+        "name": "Capacity",
+        "description": "Whether the hours and the support to use them actually exist.",
         "displayOrder": 0,
         "page": 1,
         "bands": [
@@ -263,116 +230,116 @@
         ],
         "questions": [
           {
-            "text": "How well does it fit the sub type within that practice area?",
+            "text": "How do your available hours compare to what the programme asks?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "I am not sure it does",
+                "label": "Well short",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Loosely",
+                "label": "Just short",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Closely",
+                "label": "About right",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Exactly",
+                "label": "More than enough",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Who is the opposing party?",
+            "text": "Does your household or workplace support the time commitment?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "A government body",
+                "label": "No, it will be a fight",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A large company",
+                "label": "They do not know yet",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "A small company",
+                "label": "Broadly supportive",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "An individual",
+                "label": "Fully, and they have planned around it",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "What is the value at stake?",
+            "text": "What else is competing for your time in this window?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "Under $1,200 (under ₹1 lakh)",
+                "label": "A house move, a newborn or a new job",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "$1,200 to $12,000 (₹1 to 10 lakh)",
+                "label": "A heavy work period",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "$12,000 to $60,000 (₹10 to 50 lakh)",
+                "label": "The usual load",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Above $60,000 (above ₹50 lakh)",
+                "label": "Unusually little",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "What documentation do you have in hand?",
+            "text": "Do you have the tools or software the programme needs?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 3,
             "options": [
               {
-                "label": "None",
+                "label": "None of them",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A few papers",
+                "label": "Some of them",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Most of it",
+                "label": "Most of them",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Complete, and organised",
+                "label": "All of them, already in use",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -381,8 +348,8 @@
         ]
       },
       {
-        "name": "Client readiness",
-        "description": "Whether the matter can actually be run with you.",
+        "name": "Motivation quality",
+        "description": "Whether there is a real reason, or only an intention.",
         "displayOrder": 1,
         "page": 1,
         "bands": [
@@ -410,116 +377,116 @@
         ],
         "questions": [
           {
-            "text": "Have there been prior proceedings on this same matter?",
+            "text": "How specific is the outcome you want?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "Several, with different lawyers",
+                "label": "I want to generally improve",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "One, which ended badly",
+                "label": "A vague direction",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "One, concluded",
+                "label": "A clear goal, no number",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "None",
+                "label": "A specific outcome I could describe to a stranger",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "What timeline are you expecting?",
+            "text": "Is there a deadline driving this?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "Resolved in weeks",
+                "label": "None",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A few months",
+                "label": "Self imposed, soft",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Under a year",
+                "label": "Self imposed, firm",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "However long it properly takes",
+                "label": "A real external deadline",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How available are you for hearings and gathering documents?",
+            "text": "What have you already tried on your own?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "Rarely available",
+                "label": "Nothing yet",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Occasionally",
+                "label": "Read and watched a lot",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Usually",
+                "label": "Tried, and stalled",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Fully available",
+                "label": "Tried, got partway, and know where it broke",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Who decides on instructions?",
+            "text": "What does it cost you to leave this unsolved for another year?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 3,
             "options": [
               {
-                "label": "A board or committee",
+                "label": "Not much, it would be nice to have",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Several family members",
+                "label": "Some frustration",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Me and one other",
+                "label": "Real money or real opportunities",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Me",
+                "label": "It is the main thing holding everything else back",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -528,8 +495,8 @@
         ]
       },
       {
-        "name": "Engagement fit",
-        "description": "How you would want to be engaged, and on what terms.",
+        "name": "Fit with the format",
+        "description": "Whether a group programme suits how you learn.",
         "displayOrder": 2,
         "page": 1,
         "bands": [
@@ -557,58 +524,58 @@
         ],
         "questions": [
           {
-            "text": "What outcome would you prefer to work towards?",
+            "text": "How do you feel about learning in a group rather than one to one?",
             "type": "SINGLE_SELECT",
             "weight": 12.5,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "I have not thought about it",
+                "label": "I would much rather have one to one",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Undecided between settling and litigating",
+                "label": "Nervous about it",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Litigate",
+                "label": "Happy either way",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Settle if the terms are right",
+                "label": "The group is part of why I want this",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How comfortable are you with a retainer based engagement?",
+            "text": "Would you share unfinished work for feedback?",
             "type": "SINGLE_SELECT",
             "weight": 12.5,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "Not comfortable at all",
+                "label": "No",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "I would need it explained",
+                "label": "Only privately, to the teacher",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Comfortable in principle",
+                "label": "Yes, reluctantly",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "That is what I expect",
+                "label": "Yes, that is how I improve fastest",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -620,30 +587,30 @@
     "resultBands": [
       {
         "level": "LOW",
-        "title": "Outside what this firm does",
-        "description": "On what you have described this is not a matter this firm would act on. That is a statement about this firm, and not about your matter, which may well be strong. Next step: the bar association directory below. Take independent advice promptly: limitation periods vary by matter and some are short.",
+        "title": "Not this programme",
+        "description": "On hours, format or reason this would most likely end unfinished, and that costs you more than the fee. Next step: the lower commitment resource below. Protecting who is in the room is what keeps the programme worth joining.",
         "minScore": 0,
         "maxScore": 39,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
-        "title": "Needs scoping first",
-        "description": "This may be something the firm can act on, but one thing has to be established before anyone can say so: usually documentation or who gives instructions. Next step: a short intake call. No opinion on the matter will be given on it.",
+        "title": "Right person, wrong month",
+        "description": "This is clearly for you, and the window you are about to walk into is not. Starting now is how a good fit turns into an unfinished course. Next step: the next cohort date below, plus the prep material.",
         "minScore": 40,
         "maxScore": 69,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
-        "title": "We can take the call",
-        "description": "On what you have described, this sits inside the firm's practice area and jurisdiction, the documentation is there, and the engagement would be workable. Next step: a paid consultation. This says the firm can act. It says nothing about your case.",
+        "title": "Ready for this cohort",
+        "description": "The hours, the reason and the format all line up, and nothing obvious stands between you and finishing. Next step: enrol, or a short fit call if the programme is high ticket.",
         "minScore": 70,
         "maxScore": 100,
         "displayOrder": 2
       }
     ],
-    "title": "Can we take your matter?",
-    "slug": "case-intake-triage"
+    "title": "Are you ready for this cohort?",
+    "slug": "cohort-readiness-check"
   }
 }

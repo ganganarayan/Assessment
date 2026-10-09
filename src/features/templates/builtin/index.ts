@@ -28,6 +28,10 @@ import adviserSuitabilityFit from "./adviser-suitability-fit.json";
 import legalIntakeTriage from "./legal-intake-triage.json";
 import itProjectFit from "./it-project-fit.json";
 import homeServicesJobFit from "./home-services-job-fit.json";
+import cohortReadiness from "./cohort-readiness.json";
+import insuranceEligibilityFit from "./insurance-eligibility-fit.json";
+import webinarAttendeeFit from "./webinar-attendee-fit.json";
+import candidateRoleFit from "./candidate-role-fit.json";
 
 export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   coachClientFit,
@@ -46,4 +50,8 @@ export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   legalIntakeTriage,
   itProjectFit,
   homeServicesJobFit,
+  cohortReadiness,
+  insuranceEligibilityFit,
+  webinarAttendeeFit,
+  candidateRoleFit,
 ];

@@ -1,10 +1,10 @@
 {
-  "slug": "legal-intake-triage",
-  "title": "Case intake triage",
-  "category": "Law firms",
-  "summary": "Establishes whether the firm can take the matter. It gives no advice, assesses no merits and predicts no outcome. Routes urgent deadlines straight to contact.",
+  "slug": "candidate-role-fit",
+  "title": "Candidate role fit screener",
+  "category": "Recruiters",
+  "summary": "Screens on availability, compensation and must-have skills only. Nothing about age, family, health or background, which are both unlawful to screen on and useless as predictors.",
   "shape": "GATED_ASSESSMENT",
-  "aiInstructions": "You are writing the note a solicitor reads before an intake call. The reader is the prospective client.\n\nWrite 200 to 280 words, second person, measured and plain. Describe only what their answers say about whether this FIRM can take the matter: practice area, jurisdiction, documentation, and how ready they are to engage. Use the dimension names as evidence.\n\nBINDING CONSTRAINTS. Never give legal advice. Never assess the merits or strength of the matter. Never predict or imply an outcome, a settlement figure, damages or a likelihood of success. Never state whether they have a claim. Never name a limitation period as applying to them. Never suggest what they should do next in the dispute itself.\n\nClose by saying plainly that this is about whether the firm can act, that it is not legal advice, and that limitation periods vary by matter so they should take independent advice promptly regardless of what this says.",
+  "aiInstructions": "You are writing the note a recruiter reads before a screening call, about this candidate.\n\nWrite 200 to 280 words, second person, respectful and specific. Describe what their answers say about fit for THIS role: depth in the core skill, the level they are operating at, and what they appear to want next. Use the dimension names as evidence.\n\nBINDING CONSTRAINTS. Say nothing about age, family, marital status, health, religion, caste, gender or anything not job related, even if it could be inferred. Never promise an interview, an offer or a salary. Never evaluate them as a person, only against the requirements of this role.\n\nIf the fit is poor, say so plainly and without implying anything is wrong with them. Never mention scores as numbers.",
   "body": {
     "description": null,
     "coverImageUrl": null,
@@ -22,8 +22,8 @@
     "professionRequired": false,
     "engine": "GENERIC",
     "engineConfig": null,
-    "eyebrow": "16 questions, 4 minutes",
-    "subheadline": "This establishes whether this firm can take your matter. It is not legal advice and it does not assess your case.",
+    "eyebrow": "18 questions, 4 minutes",
+    "subheadline": "A few job related questions so we only take up your time if this role actually matches what you are looking for.",
     "qualifiedNote": "You qualify. Tell us where to send your result.",
     "leadCaptureAfter": true,
     "startButtonLabel": "Start",
@@ -36,24 +36,34 @@
       "questions": [
         {
           "id": "g1",
-          "text": "What type of matter is this?",
+          "text": "What is your notice period?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g1a",
-              "label": "A practice area shown on your list",
-              "points": 2
+              "label": "Immediate",
+              "points": 4
             },
             {
               "id": "g1b",
-              "label": "I am not certain which area it falls under",
-              "points": 1
+              "label": "15 days",
+              "points": 3
             },
             {
               "id": "g1c",
-              "label": "Something else entirely",
+              "label": "30 days",
+              "points": 2
+            },
+            {
+              "id": "g1d",
+              "label": "60 days",
+              "points": 1
+            },
+            {
+              "id": "g1e",
+              "label": "90 days or more",
               "disqualifies": true,
               "points": 0
             }
@@ -61,24 +71,29 @@
         },
         {
           "id": "g2",
-          "text": "Where did the matter arise?",
+          "text": "What compensation are you expecting?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g2a",
-              "label": "Inside the area this firm practises in",
-              "points": 2
+              "label": "Within the range for this role",
+              "points": 3
             },
             {
               "id": "g2b",
-              "label": "A neighbouring jurisdiction",
-              "points": 1
+              "label": "At the top of the range",
+              "points": 2
             },
             {
               "id": "g2c",
-              "label": "Outside this firm's jurisdiction",
+              "label": "Below the range for this role",
+              "points": 1
+            },
+            {
+              "id": "g2d",
+              "label": "Above the ceiling for this role",
               "disqualifies": true,
               "points": 0
             }
@@ -86,63 +101,54 @@
         },
         {
           "id": "g3",
-          "text": "When did the events take place?",
+          "text": "Can you work on the basis this role requires, on site, hybrid or remote?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g3a",
-              "label": "It is ongoing",
-              "points": 5
-            },
-            {
-              "id": "g3b",
-              "label": "Within the last 3 months",
-              "points": 4
-            },
-            {
-              "id": "g3c",
-              "label": "3 to 12 months ago",
-              "points": 3
-            },
-            {
-              "id": "g3d",
-              "label": "1 to 3 years ago",
+              "label": "Yes",
               "points": 2
             },
             {
-              "id": "g3e",
-              "label": "More than 3 years ago",
+              "id": "g3b",
+              "label": "Only with relocation support",
               "points": 1
+            },
+            {
+              "id": "g3c",
+              "label": "No",
+              "disqualifies": true,
+              "points": 0
             }
           ]
         },
         {
           "id": "g4",
-          "text": "Is anyone already representing you in this matter?",
+          "text": "Do you have the must-have skill or certification for this role?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g4a",
-              "label": "No",
+              "label": "Yes, with several years of it",
               "points": 3
             },
             {
               "id": "g4b",
-              "label": "Yes, and I want to change",
+              "label": "Yes, under a year of it",
               "points": 2
             },
             {
               "id": "g4c",
-              "label": "Yes, and I want a second opinion",
+              "label": "No, but I am learning it",
               "points": 1
             },
             {
               "id": "g4d",
-              "label": "Yes, and I am happy with them",
+              "label": "No",
               "disqualifies": true,
               "points": 0
             }
@@ -150,69 +156,44 @@
         },
         {
           "id": "g5",
-          "text": "Are there court dates or deadlines already fixed?",
+          "text": "Are you legally able to work in this country without sponsorship?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g5a",
-              "label": "Yes, within 2 weeks",
-              "points": 5
+              "label": "Yes",
+              "points": 1
             },
             {
               "id": "g5b",
-              "label": "Yes, within 2 months",
-              "points": 4
-            },
-            {
-              "id": "g5c",
-              "label": "Yes, later than that",
-              "points": 3
-            },
-            {
-              "id": "g5d",
               "label": "No",
-              "points": 2
-            },
-            {
-              "id": "g5e",
-              "label": "I do not know",
-              "points": 1
+              "disqualifies": true,
+              "points": 0
             }
           ]
         },
         {
           "id": "g6",
-          "text": "What budget range have you considered for legal fees?",
+          "text": "Are you interviewing elsewhere at the moment?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g6a",
-              "label": "Above $6,000 (above ₹5 lakh)",
-              "points": 4
-            },
-            {
-              "id": "g6b",
-              "label": "$1,200 to $6,000 (₹1 to 5 lakh)",
+              "label": "No",
               "points": 3
             },
             {
-              "id": "g6c",
-              "label": "$300 to $1,200 (₹25,000 to 1 lakh)",
+              "id": "g6b",
+              "label": "One or two processes",
               "points": 2
             },
             {
-              "id": "g6d",
-              "label": "Under $300 (under ₹25,000)",
-              "disqualifies": true,
-              "points": 0
-            },
-            {
-              "id": "g6e",
-              "label": "I need to understand costs first",
+              "id": "g6c",
+              "label": "Several, and I am at offer stage",
               "points": 1
             }
           ]
@@ -220,8 +201,8 @@
       ]
     },
     "disqualifiedContent": {
-      "heading": "Thank you, and please read this.",
-      "subtext": "On your answers this firm cannot act in this matter, so we will not take it further. This is not legal advice and it is not an assessment of your case. Limitation periods vary by matter and some are short, so please consult another solicitor promptly rather than waiting.",
+      "heading": "Thank you for your time.",
+      "subtext": "On notice period, compensation, location or the must-have skill this particular role is not a match, so we will not take it further. This is about the role's requirements and nothing else. Other openings may suit you better.",
       "bodyHtml": "",
       "buttonLabel": "",
       "buttonUrl": "",
@@ -234,8 +215,8 @@
     "uniqueIdentifier": "EMAIL",
     "categories": [
       {
-        "name": "Matter fit",
-        "description": "Whether this is the kind of matter the firm acts on.",
+        "name": "Skill depth",
+        "description": "How deep the core skill goes, and at what scale.",
         "displayOrder": 0,
         "page": 1,
         "bands": [
@@ -263,96 +244,96 @@
         ],
         "questions": [
           {
-            "text": "How well does it fit the sub type within that practice area?",
+            "text": "How many years in the core skill for this role?",
             "type": "SINGLE_SELECT",
-            "weight": 10.0,
+            "weight": 8.0,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "I am not sure it does",
+                "label": "Under 1",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Loosely",
+                "label": "1 to 3",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Closely",
+                "label": "3 to 6",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Exactly",
+                "label": "More than 6",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Who is the opposing party?",
+            "text": "What is the largest scale you have handled in it?",
             "type": "SINGLE_SELECT",
-            "weight": 10.0,
+            "weight": 8.0,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "A government body",
+                "label": "Personal or training projects",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A large company",
+                "label": "A small team or product",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "A small company",
+                "label": "A department or a mature product",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "An individual",
+                "label": "Organisation wide",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "What is the value at stake?",
+            "text": "How current is your hands-on tooling?",
             "type": "SINGLE_SELECT",
-            "weight": 10.0,
+            "weight": 8.0,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "Under $1,200 (under ₹1 lakh)",
+                "label": "Several years out of date",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "$1,200 to $12,000 (₹1 to 10 lakh)",
+                "label": "A little behind",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "$12,000 to $60,000 (₹10 to 50 lakh)",
+                "label": "Current",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Above $60,000 (above ₹50 lakh)",
+                "label": "Current, and I evaluate new tools",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "What documentation do you have in hand?",
+            "text": "Do you have domain experience in this industry?",
             "type": "SINGLE_SELECT",
-            "weight": 10.0,
+            "weight": 8.0,
             "required": true,
             "displayOrder": 3,
             "options": [
@@ -362,17 +343,46 @@
                 "displayOrder": 0
               },
               {
-                "label": "A few papers",
+                "label": "Adjacent",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Most of it",
+                "label": "Some direct",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Complete, and organised",
+                "label": "Several years direct",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How do you keep the skill sharp?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.0,
+            "required": true,
+            "displayOrder": 4,
+            "options": [
+              {
+                "label": "I do not actively",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "On the job only",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Reading and courses",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "I teach or write about it",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -381,8 +391,8 @@
         ]
       },
       {
-        "name": "Client readiness",
-        "description": "Whether the matter can actually be run with you.",
+        "name": "Role fit",
+        "description": "Whether the level and the shape of the job match.",
         "displayOrder": 1,
         "page": 1,
         "bands": [
@@ -410,116 +420,116 @@
         ],
         "questions": [
           {
-            "text": "Have there been prior proceedings on this same matter?",
+            "text": "What team size have you managed, if any?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "Several, with different lawyers",
+                "label": "None, and I do not want to",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "One, which ended badly",
+                "label": "None, but I want to",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "One, concluded",
+                "label": "Up to five",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "None",
+                "label": "More than five",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "What timeline are you expecting?",
+            "text": "Who have you reported to in recent roles?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "Resolved in weeks",
+                "label": "A team lead",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A few months",
+                "label": "A manager",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Under a year",
+                "label": "A head of function",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "However long it properly takes",
+                "label": "The founder or an executive",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How available are you for hearings and gathering documents?",
+            "text": "How much autonomy have you worked with?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "Rarely available",
+                "label": "Closely directed",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Occasionally",
+                "label": "Clear tasks, own method",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Usually",
+                "label": "Own goals, reviewed",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Fully available",
+                "label": "Set the goals myself",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Who decides on instructions?",
+            "text": "How closely does your recent work match this role's description?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 3,
             "options": [
               {
-                "label": "A board or committee",
+                "label": "Loosely",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Several family members",
+                "label": "Partly",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Me and one other",
+                "label": "Closely",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Me",
+                "label": "Almost exactly",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -528,8 +538,8 @@
         ]
       },
       {
-        "name": "Engagement fit",
-        "description": "How you would want to be engaged, and on what terms.",
+        "name": "Intent",
+        "description": "What they want next, and whether this role is it.",
         "displayOrder": 2,
         "page": 1,
         "bands": [
@@ -557,58 +567,87 @@
         ],
         "questions": [
           {
-            "text": "What outcome would you prefer to work towards?",
+            "text": "What is driving the move?",
             "type": "SINGLE_SELECT",
-            "weight": 12.5,
+            "weight": 8.3333,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "I have not thought about it",
+                "label": "Nothing specific, I am looking around",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Undecided between settling and litigating",
+                "label": "Compensation",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Litigate",
+                "label": "A better manager or culture",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Settle if the terms are right",
+                "label": "Work I cannot get where I am",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How comfortable are you with a retainer based engagement?",
+            "text": "What do you want from your next role?",
             "type": "SINGLE_SELECT",
-            "weight": 12.5,
+            "weight": 8.3333,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "Not comfortable at all",
+                "label": "More or less what I have now",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "I would need it explained",
+                "label": "More money",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Comfortable in principle",
+                "label": "More scope",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "That is what I expect",
+                "label": "A specific kind of work I can name",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How do you feel about this role's known trade-offs?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.3333,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "They are a problem",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "I would need to think about them",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "I can live with them",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "They suit me",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -620,30 +659,30 @@
     "resultBands": [
       {
         "level": "LOW",
-        "title": "Outside what this firm does",
-        "description": "On what you have described this is not a matter this firm would act on. That is a statement about this firm, and not about your matter, which may well be strong. Next step: the bar association directory below. Take independent advice promptly: limitation periods vary by matter and some are short.",
+        "title": "Not this role",
+        "description": "This particular role is not the right match for what you have done and what you are looking for. That is about the role, not about you. Next step: we will keep your profile for other openings if you would like us to, and you can say so below.",
         "minScore": 0,
         "maxScore": 39,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
-        "title": "Needs scoping first",
-        "description": "This may be something the firm can act on, but one thing has to be established before anyone can say so: usually documentation or who gives instructions. Next step: a short intake call. No opinion on the matter will be given on it.",
+        "title": "Worth a look",
+        "description": "There is a real match here with one thing to check, usually level or how closely the recent work lines up. Next step: a recruiter will review and come back to you either way.",
         "minScore": 40,
         "maxScore": 69,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
-        "title": "We can take the call",
-        "description": "On what you have described, this sits inside the firm's practice area and jurisdiction, the documentation is there, and the engagement would be workable. Next step: a paid consultation. This says the firm can act. It says nothing about your case.",
+        "title": "Shortlist",
+        "description": "Depth, level and what you are looking for all match this role closely. Next step: book a screening call directly below.",
         "minScore": 70,
         "maxScore": 100,
         "displayOrder": 2
       }
     ],
-    "title": "Can we take your matter?",
-    "slug": "case-intake-triage"
+    "title": "Are you a fit for this role?",
+    "slug": "role-fit-screener"
   }
 }

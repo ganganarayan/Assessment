@@ -1,8 +1,8 @@
 {
-  "slug": "home-services-job-fit",
-  "title": "Service area job qualifier",
-  "category": "Home services",
-  "summary": "Volume business, thin margins, and a scored assessment would only add friction. The gate is the whole product: no technician is ever dispatched outside the area or to a tenant with no authority.",
+  "slug": "insurance-eligibility-fit",
+  "title": "Policy eligibility check",
+  "category": "Insurance brokers",
+  "summary": "Says only whether a broker conversation is worth having. No underwriting, no premium, no recommendation, and no medical questions beyond a broad declaration.",
   "shape": "GATE_ONLY",
   "aiInstructions": null,
   "body": {
@@ -23,7 +23,7 @@
     "engine": "GENERIC",
     "engineConfig": null,
     "eyebrow": "6 quick questions",
-    "subheadline": "Six questions so we only send someone out when we can actually do the job.",
+    "subheadline": "Six questions that say whether we can help. Eligibility and pricing are decided by the insurer, not here.",
     "qualifiedNote": "You qualify. Tell us where to send your result.",
     "leadCaptureAfter": true,
     "startButtonLabel": "Start",
@@ -36,24 +36,24 @@
       "questions": [
         {
           "id": "g1",
-          "text": "What is your pincode?",
+          "text": "What cover are you looking for?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g1a",
-              "label": "Inside the service area list",
+              "label": "A type of cover shown on the list",
               "points": 2
             },
             {
               "id": "g1b",
-              "label": "On the edge of it",
+              "label": "More than one of those",
               "points": 1
             },
             {
               "id": "g1c",
-              "label": "Outside the service area",
+              "label": "A type of cover not on the list",
               "disqualifies": true,
               "points": 0
             }
@@ -61,49 +61,68 @@
         },
         {
           "id": "g2",
-          "text": "What do you need done?",
+          "text": "Who is the cover for?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g2a",
-              "label": "More than one of those services",
-              "points": 2
+              "label": "A business or its employees",
+              "points": 5
             },
             {
               "id": "g2b",
-              "label": "A service shown on the list",
-              "points": 1
+              "label": "Family including children",
+              "points": 4
             },
             {
               "id": "g2c",
-              "label": "Something else entirely",
-              "disqualifies": true,
-              "points": 0
+              "label": "Myself and my spouse",
+              "points": 3
+            },
+            {
+              "id": "g2d",
+              "label": "Myself",
+              "points": 2
+            },
+            {
+              "id": "g2e",
+              "label": "Parents",
+              "points": 1
             }
           ]
         },
         {
           "id": "g3",
-          "text": "Is the property owned or rented?",
+          "text": "What is the age of the eldest person to be covered?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g3a",
-              "label": "Owned",
-              "points": 2
+              "label": "Under 35",
+              "points": 4
             },
             {
               "id": "g3b",
-              "label": "Rented, and I have the owner's approval",
-              "points": 1
+              "label": "35 to 45",
+              "points": 3
             },
             {
               "id": "g3c",
-              "label": "Rented, no approval yet",
+              "label": "45 to 55",
+              "points": 2
+            },
+            {
+              "id": "g3d",
+              "label": "55 to 65",
+              "points": 1
+            },
+            {
+              "id": "g3e",
+              "label": "Above the insurer's maximum entry age",
               "disqualifies": true,
               "points": 0
             }
@@ -111,29 +130,29 @@
         },
         {
           "id": "g4",
-          "text": "How soon do you need this?",
+          "text": "Do you already hold cover of this type?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g4a",
-              "label": "Today or tomorrow",
+              "label": "No",
               "points": 3
             },
             {
               "id": "g4b",
-              "label": "This week",
+              "label": "Yes, and I am looking to add to it",
               "points": 2
             },
             {
               "id": "g4c",
-              "label": "Within a month",
+              "label": "Yes, and I am looking to replace it",
               "points": 1
             },
             {
               "id": "g4d",
-              "label": "Just getting an estimate for later",
+              "label": "Yes, and I am happy with it",
               "disqualifies": true,
               "points": 0
             }
@@ -141,59 +160,53 @@
         },
         {
           "id": "g5",
-          "text": "What is the scale of the job?",
+          "text": "Has an application for this type of cover ever been declined or loaded?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g5a",
-              "label": "Commercial premises",
-              "points": 4
-            },
-            {
-              "id": "g5b",
-              "label": "A full home",
+              "label": "No",
               "points": 3
             },
             {
-              "id": "g5c",
-              "label": "One room or one area",
+              "id": "g5b",
+              "label": "I am not sure",
               "points": 2
             },
             {
-              "id": "g5d",
-              "label": "A single unit or appliance",
+              "id": "g5c",
+              "label": "Yes",
               "points": 1
-            },
-            {
-              "id": "g5e",
-              "label": "Smaller than a single unit",
-              "disqualifies": true,
-              "points": 0
             }
           ]
         },
         {
           "id": "g6",
-          "text": "Have you already had a quote from someone else?",
+          "text": "When do you need the cover in force?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g6a",
-              "label": "No",
-              "points": 2
+              "label": "Immediately",
+              "points": 3
             },
             {
               "id": "g6b",
-              "label": "Yes, and I want a second opinion on the work",
-              "points": 1
+              "label": "Within a month",
+              "points": 2
             },
             {
               "id": "g6c",
-              "label": "Yes, and I am comparing prices",
+              "label": "In 1 to 3 months",
+              "points": 1
+            },
+            {
+              "id": "g6d",
+              "label": "I am just comparing",
               "disqualifies": true,
               "points": 0
             }
@@ -202,8 +215,8 @@
       ]
     },
     "disqualifiedContent": {
-      "heading": "Thanks, that saves us both a wasted visit.",
-      "subtext": "On your answers this is not a job we can take: it is outside our service area, outside what we do, or it needs the owner's approval first. Nothing is stored. If that changes, come back and run this again.",
+      "heading": "Thank you, and please read this.",
+      "subtext": "On your answers we are not able to help with this enquiry, so we will not take up more of your time. This is not an underwriting decision and it is not a quote: eligibility and pricing are determined by the insurer, not by this form. Another broker may well be able to place it.",
       "bodyHtml": "",
       "buttonLabel": "",
       "buttonUrl": "",
@@ -216,7 +229,7 @@
     "uniqueIdentifier": "EMAIL",
     "categories": [],
     "resultBands": [],
-    "title": "Can we take this job?",
-    "slug": "service-area-job-check"
+    "title": "Is a broker conversation worth having?",
+    "slug": "cover-eligibility-check"
   }
 }

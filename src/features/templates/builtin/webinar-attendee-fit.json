@@ -1,14 +1,14 @@
 {
-  "slug": "legal-intake-triage",
-  "title": "Case intake triage",
-  "category": "Law firms",
-  "summary": "Establishes whether the firm can take the matter. It gives no advice, assesses no merits and predicts no outcome. Routes urgent deadlines straight to contact.",
+  "slug": "webinar-attendee-fit",
+  "title": "Webinar attendee qualifier",
+  "category": "Webinars",
+  "summary": "Registration volume is a vanity number. This decides who gets the link, so the room is full of people who could act on what they hear.",
   "shape": "GATED_ASSESSMENT",
-  "aiInstructions": "You are writing the note a solicitor reads before an intake call. The reader is the prospective client.\n\nWrite 200 to 280 words, second person, measured and plain. Describe only what their answers say about whether this FIRM can take the matter: practice area, jurisdiction, documentation, and how ready they are to engage. Use the dimension names as evidence.\n\nBINDING CONSTRAINTS. Never give legal advice. Never assess the merits or strength of the matter. Never predict or imply an outcome, a settlement figure, damages or a likelihood of success. Never state whether they have a claim. Never name a limitation period as applying to them. Never suggest what they should do next in the dispute itself.\n\nClose by saying plainly that this is about whether the firm can act, that it is not legal advice, and that limitation periods vary by matter so they should take independent advice promptly regardless of what this says.",
+  "aiInstructions": "You are writing the note a host reads before a live session, about this registrant.\n\nWrite 200 to 280 words, second person, brisk and useful. Name what this person most needs from the session, using the dimension names as evidence, and what they should come ready to ask.\n\nDo NOT promise an outcome from attending and do NOT pitch anything. Describe what they should get out of it, then stop.\n\nNever mention scores as numbers.",
   "body": {
     "description": null,
     "coverImageUrl": null,
-    "estimatedMinutes": 4,
+    "estimatedMinutes": 3,
     "thankYouMessage": null,
     "collectFirstName": true,
     "firstNameRequired": true,
@@ -22,8 +22,8 @@
     "professionRequired": false,
     "engine": "GENERIC",
     "engineConfig": null,
-    "eyebrow": "16 questions, 4 minutes",
-    "subheadline": "This establishes whether this firm can take your matter. It is not legal advice and it does not assess your case.",
+    "eyebrow": "15 questions, 3 minutes",
+    "subheadline": "A few questions so we can tell who should be in the room live and who is better served by the recording.",
     "qualifiedNote": "You qualify. Tell us where to send your result.",
     "leadCaptureAfter": true,
     "startButtonLabel": "Start",
@@ -36,24 +36,29 @@
       "questions": [
         {
           "id": "g1",
-          "text": "What type of matter is this?",
+          "text": "Which best describes your situation right now?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g1a",
-              "label": "A practice area shown on your list",
-              "points": 2
+              "label": "I have this problem and I am working on it",
+              "points": 3
             },
             {
               "id": "g1b",
-              "label": "I am not certain which area it falls under",
-              "points": 1
+              "label": "I have this problem and have not started",
+              "points": 2
             },
             {
               "id": "g1c",
-              "label": "Something else entirely",
+              "label": "I expect to have it soon",
+              "points": 1
+            },
+            {
+              "id": "g1d",
+              "label": "It does not apply to me, I am just curious",
               "disqualifies": true,
               "points": 0
             }
@@ -61,24 +66,29 @@
         },
         {
           "id": "g2",
-          "text": "Where did the matter arise?",
+          "text": "Do you have budget authority for solutions in this area?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g2a",
-              "label": "Inside the area this firm practises in",
-              "points": 2
+              "label": "Yes",
+              "points": 3
             },
             {
               "id": "g2b",
-              "label": "A neighbouring jurisdiction",
-              "points": 1
+              "label": "I influence the decision",
+              "points": 2
             },
             {
               "id": "g2c",
-              "label": "Outside this firm's jurisdiction",
+              "label": "Not applicable to my role",
+              "points": 1
+            },
+            {
+              "id": "g2d",
+              "label": "No, I am researching out of interest",
               "disqualifies": true,
               "points": 0
             }
@@ -86,63 +96,54 @@
         },
         {
           "id": "g3",
-          "text": "When did the events take place?",
+          "text": "How urgent is this problem?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g3a",
-              "label": "It is ongoing",
-              "points": 5
-            },
-            {
-              "id": "g3b",
-              "label": "Within the last 3 months",
-              "points": 4
-            },
-            {
-              "id": "g3c",
-              "label": "3 to 12 months ago",
+              "label": "I am actively solving it now",
               "points": 3
             },
             {
-              "id": "g3d",
-              "label": "1 to 3 years ago",
+              "id": "g3b",
+              "label": "I plan to within 3 months",
               "points": 2
             },
             {
-              "id": "g3e",
-              "label": "More than 3 years ago",
+              "id": "g3c",
+              "label": "Sometime this year",
               "points": 1
+            },
+            {
+              "id": "g3d",
+              "label": "Not urgent",
+              "disqualifies": true,
+              "points": 0
             }
           ]
         },
         {
           "id": "g4",
-          "text": "Is anyone already representing you in this matter?",
+          "text": "Can you attend live?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g4a",
-              "label": "No",
-              "points": 3
-            },
-            {
-              "id": "g4b",
-              "label": "Yes, and I want to change",
+              "label": "Yes",
               "points": 2
             },
             {
-              "id": "g4c",
-              "label": "Yes, and I want a second opinion",
+              "id": "g4b",
+              "label": "Probably, depending on the day",
               "points": 1
             },
             {
-              "id": "g4d",
-              "label": "Yes, and I am happy with them",
+              "id": "g4c",
+              "label": "No, I only want the recording",
               "disqualifies": true,
               "points": 0
             }
@@ -150,69 +151,24 @@
         },
         {
           "id": "g5",
-          "text": "Are there court dates or deadlines already fixed?",
+          "text": "Have you attended one of our sessions before?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g5a",
-              "label": "Yes, within 2 weeks",
-              "points": 5
+              "label": "No, this is my first",
+              "points": 3
             },
             {
               "id": "g5b",
-              "label": "Yes, within 2 months",
-              "points": 4
+              "label": "Yes, once",
+              "points": 2
             },
             {
               "id": "g5c",
-              "label": "Yes, later than that",
-              "points": 3
-            },
-            {
-              "id": "g5d",
-              "label": "No",
-              "points": 2
-            },
-            {
-              "id": "g5e",
-              "label": "I do not know",
-              "points": 1
-            }
-          ]
-        },
-        {
-          "id": "g6",
-          "text": "What budget range have you considered for legal fees?",
-          "type": "choice",
-          "placeholder": "",
-          "required": true,
-          "options": [
-            {
-              "id": "g6a",
-              "label": "Above $6,000 (above ₹5 lakh)",
-              "points": 4
-            },
-            {
-              "id": "g6b",
-              "label": "$1,200 to $6,000 (₹1 to 5 lakh)",
-              "points": 3
-            },
-            {
-              "id": "g6c",
-              "label": "$300 to $1,200 (₹25,000 to 1 lakh)",
-              "points": 2
-            },
-            {
-              "id": "g6d",
-              "label": "Under $300 (under ₹25,000)",
-              "disqualifies": true,
-              "points": 0
-            },
-            {
-              "id": "g6e",
-              "label": "I need to understand costs first",
+              "label": "Yes, several times",
               "points": 1
             }
           ]
@@ -220,8 +176,8 @@
       ]
     },
     "disqualifiedContent": {
-      "heading": "Thank you, and please read this.",
-      "subtext": "On your answers this firm cannot act in this matter, so we will not take it further. This is not legal advice and it is not an assessment of your case. Limitation periods vary by matter and some are short, so please consult another solicitor promptly rather than waiting.",
+      "heading": "Thanks for checking.",
+      "subtext": "This session is built for people actively dealing with this problem, and on your answers it would not be a good use of your time. Nothing is stored. The recording goes out publicly afterwards if you want to catch it then.",
       "bodyHtml": "",
       "buttonLabel": "",
       "buttonUrl": "",
@@ -234,8 +190,8 @@
     "uniqueIdentifier": "EMAIL",
     "categories": [
       {
-        "name": "Matter fit",
-        "description": "Whether this is the kind of matter the firm acts on.",
+        "name": "Problem fit",
+        "description": "How acute and how specific the problem actually is.",
         "displayOrder": 0,
         "page": 1,
         "bands": [
@@ -263,116 +219,116 @@
         ],
         "questions": [
           {
-            "text": "How well does it fit the sub type within that practice area?",
+            "text": "How long has this been a problem?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "I am not sure it does",
+                "label": "It is not yet",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Loosely",
+                "label": "A few weeks",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Closely",
+                "label": "Several months",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Exactly",
+                "label": "More than a year",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Who is the opposing party?",
+            "text": "How specifically can you describe it?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "A government body",
+                "label": "Only in general terms",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A large company",
+                "label": "Roughly",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "A small company",
+                "label": "Clearly",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "An individual",
+                "label": "With numbers",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "What is the value at stake?",
+            "text": "What has it already cost you?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "Under $1,200 (under ₹1 lakh)",
+                "label": "Nothing measurable",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "$1,200 to $12,000 (₹1 to 10 lakh)",
+                "label": "Some time",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "$12,000 to $60,000 (₹10 to 50 lakh)",
+                "label": "Real time and money",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Above $60,000 (above ₹50 lakh)",
+                "label": "Enough that somebody above me has noticed",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "What documentation do you have in hand?",
+            "text": "Have you tried to fix it already?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 3,
             "options": [
               {
-                "label": "None",
+                "label": "No",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A few papers",
+                "label": "Read about it",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Most of it",
+                "label": "Tried one thing",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Complete, and organised",
+                "label": "Tried several, none stuck",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -381,8 +337,8 @@
         ]
       },
       {
-        "name": "Client readiness",
-        "description": "Whether the matter can actually be run with you.",
+        "name": "Authority and budget",
+        "description": "Whether anything could actually happen afterwards.",
         "displayOrder": 1,
         "page": 1,
         "bands": [
@@ -410,116 +366,87 @@
         ],
         "questions": [
           {
-            "text": "Have there been prior proceedings on this same matter?",
+            "text": "What is your role in the decision?",
             "type": "SINGLE_SELECT",
-            "weight": 8.75,
+            "weight": 11.6667,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "Several, with different lawyers",
+                "label": "No part in it",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "One, which ended badly",
+                "label": "I gather information",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "One, concluded",
+                "label": "I recommend",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "None",
+                "label": "I decide",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "What timeline are you expecting?",
+            "text": "Is there budget for this?",
             "type": "SINGLE_SELECT",
-            "weight": 8.75,
+            "weight": 11.6667,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "Resolved in weeks",
+                "label": "None",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A few months",
+                "label": "Not yet, it would need a case",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Under a year",
+                "label": "Likely next cycle",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "However long it properly takes",
+                "label": "Allocated now",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How available are you for hearings and gathering documents?",
+            "text": "What is your timeline to act?",
             "type": "SINGLE_SELECT",
-            "weight": 8.75,
+            "weight": 11.6667,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "Rarely available",
+                "label": "No timeline",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Occasionally",
+                "label": "This year",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Usually",
+                "label": "This quarter",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Fully available",
-                "value": 3,
-                "displayOrder": 3
-              }
-            ]
-          },
-          {
-            "text": "Who decides on instructions?",
-            "type": "SINGLE_SELECT",
-            "weight": 8.75,
-            "required": true,
-            "displayOrder": 3,
-            "options": [
-              {
-                "label": "A board or committee",
-                "value": 0,
-                "displayOrder": 0
-              },
-              {
-                "label": "Several family members",
-                "value": 1,
-                "displayOrder": 1
-              },
-              {
-                "label": "Me and one other",
-                "value": 2,
-                "displayOrder": 2
-              },
-              {
-                "label": "Me",
+                "label": "This month",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -528,8 +455,8 @@
         ]
       },
       {
-        "name": "Engagement fit",
-        "description": "How you would want to be engaged, and on what terms.",
+        "name": "Engagement intent",
+        "description": "What they want from the session and what they would do with it.",
         "displayOrder": 2,
         "page": 1,
         "bands": [
@@ -557,58 +484,87 @@
         ],
         "questions": [
           {
-            "text": "What outcome would you prefer to work towards?",
+            "text": "What do you want from this session?",
             "type": "SINGLE_SELECT",
-            "weight": 12.5,
+            "weight": 8.3333,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "I have not thought about it",
+                "label": "A general overview",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Undecided between settling and litigating",
+                "label": "Ideas to consider",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Litigate",
+                "label": "A method I can copy",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Settle if the terms are right",
+                "label": "An answer to one specific question",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How comfortable are you with a retainer based engagement?",
+            "text": "What would you do with the answer?",
             "type": "SINGLE_SELECT",
-            "weight": 12.5,
+            "weight": 8.3333,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "Not comfortable at all",
+                "label": "Nothing immediate",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "I would need it explained",
+                "label": "File it for later",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Comfortable in principle",
+                "label": "Share it internally",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "That is what I expect",
+                "label": "Act on it that week",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Will you bring a question?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.3333,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "No",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Maybe",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Probably",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Yes, I have one already",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -620,30 +576,30 @@
     "resultBands": [
       {
         "level": "LOW",
-        "title": "Outside what this firm does",
-        "description": "On what you have described this is not a matter this firm would act on. That is a statement about this firm, and not about your matter, which may well be strong. Next step: the bar association directory below. Take independent advice promptly: limitation periods vary by matter and some are short.",
+        "title": "The recording will serve you better",
+        "description": "On urgency or timing a live hour is more than this is worth to you right now. Next step: the recording below, and we will send the follow up material when it is ready.",
         "minScore": 0,
         "maxScore": 39,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
-        "title": "Needs scoping first",
-        "description": "This may be something the firm can act on, but one thing has to be established before anyone can say so: usually documentation or who gives instructions. Next step: a short intake call. No opinion on the matter will be given on it.",
+        "title": "You are in",
+        "description": "A real reason to attend, and the decision may sit partly elsewhere. Come with your question written down. Next step: your link and the standard reminders are below.",
         "minScore": 40,
         "maxScore": 69,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
-        "title": "We can take the call",
-        "description": "On what you have described, this sits inside the firm's practice area and jurisdiction, the documentation is there, and the engagement would be workable. Next step: a paid consultation. This says the firm can act. It says nothing about your case.",
+        "title": "Priority seat",
+        "description": "You have the problem, the authority and the urgency, so the session is worth your hour and your question is worth answering live. Next step: your link is below, and we will send a personal reminder.",
         "minScore": 70,
         "maxScore": 100,
         "displayOrder": 2
       }
     ],
-    "title": "Can we take your matter?",
-    "slug": "case-intake-triage"
+    "title": "Claim your seat",
+    "slug": "webinar-seat-check"
   }
 }
