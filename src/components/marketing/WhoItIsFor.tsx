@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AUDIENCES } from "@/lib/marketing/content";
 import { TEMPLATE_CATEGORIES } from "@/features/templates/schema";
 import { DFY } from "@/lib/marketing/content";
+import { INDUSTRY_PAGES } from "@/lib/marketing/industries";
 
 /**
  * The twenty audiences, under "why this exists".
@@ -26,7 +27,34 @@ export function WhoItIsFor() {
           {AUDIENCES.lead}
         </p>
 
-        <ul className="mt-8 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {/*
+          The two audiences with a page of their own, above the list and visibly
+          heavier than it.
+
+          They are the two we point ads and email at, so they are the two a
+          visitor should be able to click. Rendering them inside the grid as two
+          more names among twenty would make the page true and useless: the whole
+          point of writing those pages was that these readers get the industry's
+          own words rather than the generic ones.
+        */}
+        <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+          {INDUSTRY_PAGES.map((p) => (
+            <li key={p.path}>
+              <Link
+                href={p.path}
+                className="flex h-full flex-col rounded-lg border-2 border-green-600/40 bg-green-600/5 px-5 py-4 transition-colors hover:border-green-600"
+              >
+                <span className="font-bold text-green-700 dark:text-green-400">{p.shortName}</span>
+                <span className="mt-1 text-sm text-[var(--muted-foreground)]">{p.cardLine}</span>
+                <span className="mt-3 text-sm font-medium underline underline-offset-4">
+                  Read the page for this industry
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+
+        <ul className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {TEMPLATE_CATEGORIES.map((c) => (
             <li
               key={c}

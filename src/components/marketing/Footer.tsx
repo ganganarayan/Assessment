@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MARKETING } from "@/lib/marketing/content";
+import { BY_INDUSTRY_LEAD_SLUGS, INDUSTRY_PAGES } from "@/lib/marketing/industries";
 import { PAGES } from "@/lib/seo/registry";
 import type { PageKind } from "@/lib/seo/types";
 import { seoPath } from "@/lib/seo/urls";
@@ -19,6 +20,33 @@ const GUIDE_GROUPS: ReadonlyArray<{ kind: PageKind; label: string }> = [
   { kind: "comparison", label: "Comparisons" },
   { kind: "glossary", label: "Glossary" },
 ];
+
+type FooterLink = { href: string; label: string; featured: boolean };
+
+/**
+ * The By industry column, ordered on purpose rather than by when each page was written.
+ *
+ * The two pages with their own industry write-up come first and render emphasised,
+ * then the industries that matter commercially, then everything else in registry
+ * order. That tail is DERIVED rather than listed, so a new industry page appears
+ * here the moment it ships: a hand-kept second list fails by silently dropping a
+ * page out of the only navigation that reaches it, and nothing errors when it does.
+ */
+function byIndustryLinks(): FooterLink[] {
+  const keywordPages = PAGES.filter((p) => p.kind === "use-case");
+  const rank = (slug: string) => {
+    const i = BY_INDUSTRY_LEAD_SLUGS.indexOf(slug);
+    return i === -1 ? BY_INDUSTRY_LEAD_SLUGS.length : i;
+  };
+
+  return [
+    ...INDUSTRY_PAGES.map((p) => ({ href: p.path, label: p.shortName, featured: true })),
+    ...keywordPages
+      .map((p, i) => ({ page: p, order: rank(p.slug), i }))
+      .sort((a, b) => a.order - b.order || a.i - b.i)
+      .map(({ page }) => ({ href: seoPath(page.slug), label: page.shortName, featured: false })),
+  ];
+}
 
 /**
  * The footer no longer repeats the header. It used to open with the logo and the same
@@ -73,21 +101,32 @@ export function Footer() {
             rows; two columns on a phone, for the same reason.
           */}
           {GUIDE_GROUPS.map((group) => {
-            const pages = PAGES.filter((p) => p.kind === group.kind);
-            if (pages.length === 0) return null;
+            const links: FooterLink[] =
+              group.kind === "use-case"
+                ? byIndustryLinks()
+                : PAGES.filter((p) => p.kind === group.kind).map((p) => ({
+                    href: seoPath(p.slug),
+                    label: p.shortName,
+                    featured: false,
+                  }));
+            if (links.length === 0) return null;
             return (
               <nav key={group.kind} aria-label={group.label} className="mt-10">
                 <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
                   {group.label}
                 </h2>
                 <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-6">
-                  {pages.map((p) => (
-                    <li key={p.slug}>
+                  {links.map((l) => (
+                    <li key={l.href}>
                       <Link
-                        href={seoPath(p.slug)}
-                        className="text-sm text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
+                        href={l.href}
+                        className={
+                          l.featured
+                            ? "text-sm font-semibold text-green-700 transition-colors hover:text-green-600 dark:text-green-400"
+                            : "text-sm text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
+                        }
                       >
-                        {p.shortName}
+                        {l.label}
                       </Link>
                     </li>
                   ))}
