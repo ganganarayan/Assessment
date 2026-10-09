@@ -129,6 +129,22 @@ export async function updateDfyScarcity(total: number, remaining: number | null)
   return { ok: true };
 }
 
+/**
+ * Save (or clear) the approved WhatsApp template fired by the /build intake. Blank
+ * clears it, which stops the send entirely rather than leaving it failing quietly.
+ */
+export async function updateDfyWabaTemplate(template: string, lang: string): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  const data = {
+    dfyWabaTemplate: template.trim().slice(0, 200) || null,
+    dfyWabaLang: lang.trim().slice(0, 20) || null,
+  };
+  await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
+  revalidatePath("/admin/settings");
+  return { ok: true };
+}
+
 /** Save (or clear) the platform/Gita heatmap-recording snippet (singleton row). */
 export async function updatePlatformHeatmapSettings(code: string): Promise<ActionResult> {
   const denied = editDenied(await requireSuperAdmin());

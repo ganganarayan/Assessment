@@ -2032,6 +2032,19 @@ model AppSetting {
   dfyBuildsTotal     Int  @default(20)
   dfyBuildsRemaining Int?
 
+  /// The approved Meta template fired when somebody submits the /build intake.
+  ///
+  /// Blank = no WhatsApp is sent, and that is the shipping default. A template has to be
+  /// submitted and approved inside Meta Business Manager before it can be used at all,
+  /// which is an account action nobody can perform from this app - so the send stays
+  /// dormant until a real approved name is pasted here, rather than failing on every
+  /// submission and filling the log with rejections nobody can fix from inside the app.
+  ///
+  /// The body takes ONE variable, the business name: a template's variable count is fixed
+  /// at approval time, and a mismatch is rejected by the API rather than degraded.
+  dfyWabaTemplate String?
+  dfyWabaLang     String?
+
   onboardingVideoUrl String?
 
   /// The getting-started steps every tenant sees on their dashboard during trial, in

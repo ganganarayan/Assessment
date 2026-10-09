@@ -3,8 +3,10 @@
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 import { rateLimit } from "@/lib/rate-limit";
-import { sendEmail } from "@/lib/nurture/send";
+import { sendEmail, sendWaba } from "@/lib/nurture/send";
 import { PLATFORM_SUPPORT_EMAIL } from "@/lib/platform-support";
+import { resolveDfyWabaTemplate } from "@/lib/settings/config";
+import { toE164Digits } from "@/features/nurture/config";
 import { MARKETING } from "@/lib/marketing/content";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { dfySchema, type DfyInput } from "@/features/marketing/dfy-schema";
@@ -100,6 +102,21 @@ export async function submitDfyRequest(input: DfyInput): Promise<ActionResult> {
     `We have your details - your scorecard is being built`,
     confirmationHtml(v.business),
   ).catch(() => "failed");
+
+  // And on WhatsApp, IF an approved template has been configured. Silent otherwise:
+  // a Meta template must be approved in Business Manager before it can be sent, so
+  // firing blindly would reject on every submission and there would be nothing anyone
+  // could do about it from inside this app.
+  const waTemplate = await resolveDfyWabaTemplate().catch(() => null);
+  if (waTemplate) {
+    const digits = toE164Digits(v.whatsapp, "91");
+    if (digits) {
+      const waErr = await sendWaba(null, digits, waTemplate.template, waTemplate.lang, [v.business]).catch(
+        (e: unknown) => (e instanceof Error ? e.message : String(e)),
+      );
+      if (waErr) console.error("[dfy] WhatsApp confirmation failed:", waErr);
+    }
+  }
 
   return { ok: true };
 }

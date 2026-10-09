@@ -295,6 +295,23 @@ export async function resolveOnboardingVideoUrl(): Promise<string | null> {
 }
 
 /**
+ * The approved WhatsApp template for the /build confirmation, or null.
+ *
+ * Null means send nothing, which is the state this ships in and the correct one: a Meta
+ * template has to be approved in Business Manager before it can be used, and firing at
+ * an unapproved name would produce a rejection on every single submission that nobody
+ * could fix from inside this app.
+ */
+export async function resolveDfyWabaTemplate(): Promise<{ template: string; lang: string } | null> {
+  const s = (await settingRow(null, { dfyWabaTemplate: true, dfyWabaLang: true })) as
+    | { dfyWabaTemplate: string | null; dfyWabaLang: string | null }
+    | null;
+  const template = s?.dfyWabaTemplate?.trim();
+  if (!template) return null;
+  return { template, lang: s?.dfyWabaLang?.trim() || "en" };
+}
+
+/**
  * The done-for-you scarcity counter, or null when there is nothing honest to show.
  *
  * Returns null unless an operator has actually set a remaining count, so an unmaintained
