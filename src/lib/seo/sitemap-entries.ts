@@ -1,4 +1,5 @@
 import { ANSWERS, PAGES } from "./registry";
+import { publishedCaseStudies } from "@/content/case-studies";
 import { answerPath, seoPath } from "./urls";
 
 export type SitemapEntry = {
@@ -55,6 +56,25 @@ export function publicSitemapEntries(): SitemapEntry[] {
       updated: a.updatedAt,
       changeFrequency: "monthly" as const,
       priority: 0.5,
+    })),
+    // Case studies, DERIVED from what is actually published. The index itself is only
+    // listed once there is something on it, because the page 404s until then and a
+    // sitemap advertising a 404 is a crawl budget spent on nothing.
+    ...(publishedCaseStudies().length > 0
+      ? [
+          {
+            path: "/case-studies",
+            updated: publishedCaseStudies()[0]!.updatedAt,
+            changeFrequency: "monthly" as const,
+            priority: 0.7,
+          },
+        ]
+      : []),
+    ...publishedCaseStudies().map((c) => ({
+      path: `/case-studies/${c.slug}`,
+      updated: c.updatedAt,
+      changeFrequency: "yearly" as const,
+      priority: 0.7,
     })),
   ];
 }
