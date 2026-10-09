@@ -113,8 +113,17 @@ export type IndustryLeakSpec = {
   outcomeUnitPlural: string;
   beforeHeading: string;
   afterHeading: string;
-  /** Every assumption the model makes, printed under the result. */
+  /**
+   * The short, visible note under the result.
+   *
+   * Carries NO figures, deliberately. Every number in it would have to be kept
+   * in step with four inputs the visitor is changing as they read, and a
+   * paragraph quoting a stale total next to a live one is worse than no
+   * paragraph. It says where the numbers came from; the numbers say the rest.
+   */
   assumptions: string;
+  /** The why behind the reclaim share. Lives inside the folded arithmetic. */
+  reclaimNote: string;
   caughtHeading: string;
   caught: ReadonlyArray<{ title: string; body: string }>;
 };
@@ -229,7 +238,9 @@ const STUDY_ABROAD: IndustrySpec = {
     beforeHeading: "Today, with no gate",
     afterHeading: "After the gate and the signal",
     assumptions:
-      "Two assumptions, both stated so you can argue with them. Your close rate on a qualified student is taken from your own two numbers, enrolments divided by qualified enquiries, not from an industry figure. And the model reclaims 40 percent of the wasted spend, not all of it: an exclusion audience never catches everyone and a qualified-only conversion event spends a fortnight learning. Extra students are bought at what a qualified enquiry costs you today, which is your whole ad spend divided by the qualified enquiries it produced, not at the cheaper blended rate.",
+      "Two things decide these figures, and both are yours. Your close rate is not an industry average, it is worked out from what you entered above: your enrolments against your own qualified enquiries. And only part of the wasted budget is counted as recoverable, never all of it. Change any number above and everything here moves with it.",
+    reclaimNote:
+      "Only 40 percent of the wasted spend is counted as recoverable. An exclusion audience never catches everyone, and a qualified-only conversion event spends a fortnight learning before it changes who your ads reach. Extra students are priced at what a qualified enquiry costs you today, your whole ad spend divided by the qualified enquiries it produced, not at the cheaper blended rate.",
     caughtHeading: "What a gate would have caught",
     caught: [
       {
@@ -392,7 +403,9 @@ const CLINICS: IndustrySpec = {
     beforeHeading: "Today, with no gate",
     afterHeading: "After the gate and the signal",
     assumptions:
-      "Two assumptions, both stated so you can argue with them. Your close rate on a qualified patient is taken from your own two numbers, treatments divided by qualified enquiries, not from an industry figure. And the model reclaims 40 percent of the wasted spend, not all of it: an exclusion audience never catches everyone and a qualified-only conversion event spends a fortnight learning. Extra patients are bought at what a qualified enquiry costs you today, which is your whole ad spend divided by the qualified enquiries it produced, not at the cheaper blended rate.",
+      "Two things decide these figures, and both are yours. Your close rate is not an industry average, it is worked out from what you entered above: your completed treatments against your own qualified enquiries. And only part of the wasted budget is counted as recoverable, never all of it. Change any number above and everything here moves with it.",
+    reclaimNote:
+      "Only 40 percent of the wasted spend is counted as recoverable. An exclusion audience never catches everyone, and a qualified-only conversion event spends a fortnight learning before it changes who your ads reach. Extra patients are priced at what a qualified enquiry costs you today, your whole ad spend divided by the qualified enquiries it produced, not at the cheaper blended rate.",
     caughtHeading: "What a gate would have caught",
     caught: [
       {

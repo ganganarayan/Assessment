@@ -203,7 +203,12 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
           {inWords(r.wastedSpend * 12) ? `. ${inWords(r.wastedSpend * 12)}` : ""}
         </p>
 
-        <div className="mt-6 grid gap-6 sm:grid-cols-3">
+        {/* Two tiles, both losses. An earlier version put today's revenue here
+            as a third, marked neither loss nor gain, which is not a thing a
+            figure in this row can be: a reader scanning three rupee amounts in
+            identical type reads all three as the damage. The baseline belongs
+            in the working below, where it is context rather than a headline. */}
+        <div className="mt-6 grid gap-6 sm:grid-cols-2">
           <Stat
             label={`Wrong-fit ${plural(spec.unit)} a month`}
             value={`${num(r.wrongFit)} of ${num(r.count)}`}
@@ -215,12 +220,6 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
             value={rupees(r.costPerSale)}
             tone="loss"
             sub="Inflated by everyone who could never buy"
-          />
-          <Stat
-            label="Revenue you earn today"
-            value={rupees(r.revenueToday)}
-            tone="neutral"
-            sub="Not a loss. This is your baseline"
           />
         </div>
 
@@ -243,6 +242,11 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
             <Line>
               {num(r.sales)} ÷ {num(r.qualified)} qualified = <Em>{pct(r.closeRate)}</Em> close
               rate on a qualified {spec.unit}, which is your number, not ours
+            </Line>
+            <Line>
+              {num(r.sales)} {pluralOutcome(spec, r.sales)} × {rupees(r.perSale)} ={" "}
+              <Em>{rupees(r.revenueToday)}</Em> a month, the baseline everything above is
+              measured against
             </Line>
           </Detail>
         </Working>
@@ -325,6 +329,7 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
                     {r.extraSales.toFixed(1)} more {spec.outcomeUnitPlural}
                   </Em>
                 </Line>
+                <Line>{spec.reclaimNote}</Line>
               </Detail>
             </Working>
           </>
@@ -439,29 +444,29 @@ function Em({ children }: { children: React.ReactNode }) {
 /**
  * A figure, and what KIND of figure it is.
  *
- * The tone word is not decoration. Three rupee amounts sitting in a row with
- * nothing but their labels is genuinely ambiguous: revenue you already earn
- * reads as part of the loss, and a cost that falls reads as a cost. Each one
- * now says loss, gain or neither before the reader has to work it out.
+ * The tone word is not decoration. Rupee amounts sitting in a row in identical
+ * type are genuinely ambiguous, and a cost that falls reads as a cost unless
+ * something says otherwise.
+ *
+ * Loss or gain, and nothing else. There was briefly a third tone for figures
+ * that were neither, which is not a state a number in this row can be in: if it
+ * is neither money lost nor money gained it is context, and context belongs in
+ * the working rather than in a headline tile.
  */
 function Stat({
   label,
   value,
   sub,
-  tone = "neutral",
+  tone,
 }: {
   label: string;
   value: string;
   sub?: string;
-  tone?: "loss" | "gain" | "neutral";
+  tone: "loss" | "gain";
 }) {
-  const toneLabel = tone === "loss" ? "Loss" : tone === "gain" ? "Gain" : "Neither";
+  const toneLabel = tone === "loss" ? "Loss" : "Gain";
   const toneClass =
-    tone === "loss"
-      ? "text-amber-700 dark:text-amber-400"
-      : tone === "gain"
-        ? "text-green-700 dark:text-green-400"
-        : "text-[var(--muted-foreground)]";
+    tone === "loss" ? "text-amber-700 dark:text-amber-400" : "text-green-700 dark:text-green-400";
 
   return (
     <div>
