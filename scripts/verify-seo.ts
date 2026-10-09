@@ -109,6 +109,39 @@ function main(): void {
   if (MARKETING.title.length > 60) {
     failures.push(`marketing title is ${MARKETING.title.length} chars; Google truncates past ~60`);
   }
+  // Every page needs its OWN meta description and title.
+  //
+  // A shared description is not a cosmetic problem: it is the line Google prints under
+  // the result, so two pages carrying the same one are competing for the same click with
+  // identical copy, and the crawler has been given a reason to treat one of them as a
+  // duplicate of the other. It happens by copy-paste and nothing errors when it does,
+  // which is exactly why it needs a check rather than a convention.
+  for (const [field, label] of [
+    ["description", "meta description"],
+    ["title", "title tag"],
+  ] as const) {
+    const seen = new Map<string, string[]>();
+    for (const p of PAGES) {
+      const key = p[field].trim().toLowerCase();
+      seen.set(key, [...(seen.get(key) ?? []), p.slug]);
+    }
+    for (const [, slugs] of seen) {
+      if (slugs.length > 1) failures.push(`${slugs.length} pages share one ${label}: ${slugs.join(", ")}`);
+    }
+  }
+
+  // Answers share a template by nature, so only their QUESTION has to be distinct.
+  {
+    const seen = new Map<string, string[]>();
+    for (const a of ANSWERS) {
+      const key = a.question.trim().toLowerCase();
+      seen.set(key, [...(seen.get(key) ?? []), a.slug]);
+    }
+    for (const [, slugs] of seen) {
+      if (slugs.length > 1) failures.push(`${slugs.length} answers share one question: ${slugs.join(", ")}`);
+    }
+  }
+
   if (!MARKETING.description.toLowerCase().includes(CATEGORY)) {
     failures.push(`marketing description does not name the category ("${CATEGORY}")`);
   }
