@@ -44,17 +44,17 @@
             {
               "id": "g1a",
               "label": "I have this problem and I am working on it",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "I have this problem and have not started",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "I expect to have it soon",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1d",
@@ -74,17 +74,17 @@
             {
               "id": "g2a",
               "label": "Yes",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "I influence the decision",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "Not applicable to my role",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g2d",
@@ -104,17 +104,17 @@
             {
               "id": "g3a",
               "label": "I am actively solving it now",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "I plan to within 3 months",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "Sometime this year",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3d",
@@ -134,12 +134,12 @@
             {
               "id": "g4a",
               "label": "Yes",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "Probably, depending on the day",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4c",
@@ -159,17 +159,17 @@
             {
               "id": "g5a",
               "label": "No, this is my first",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "Yes, once",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5c",
               "label": "Yes, several times",
-              "points": 1
+              "points": 0
             }
           ]
         }
@@ -579,24 +579,32 @@
         "title": "The recording will serve you better",
         "description": "On urgency or timing a live hour is more than this is worth to you right now. Next step: the recording below, and we will send the follow up material when it is ready.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "You are in",
         "description": "A real reason to attend, and the decision may sit partly elsewhere. Come with your question written down. Next step: your link and the standard reminders are below.",
-        "minScore": 40,
-        "maxScore": 69,
+        "minScore": 41,
+        "maxScore": 59,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
         "title": "Priority seat",
         "description": "You have the problem, the authority and the urgency, so the session is worth your hour and your question is worth answering live. Next step: your link is below, and we will send a personal reminder.",
-        "minScore": 70,
-        "maxScore": 100,
+        "minScore": 60,
+        "maxScore": 75,
         "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Priority seat, flag to sales",
+        "description": "Acute problem, budget authority, and acting this month. Worth a personal reminder before the session and a named follow-up after it. Next step: send the link, then tell whoever owns the follow-up that they are coming.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
       }
     ],
     "title": "Claim your seat",

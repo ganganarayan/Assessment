@@ -44,12 +44,12 @@
             {
               "id": "g1a",
               "label": "A type of cover shown on the list",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "More than one of those",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1c",
@@ -69,27 +69,27 @@
             {
               "id": "g2a",
               "label": "A business or its employees",
-              "points": 5
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "Family including children",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "Myself and my spouse",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2d",
               "label": "Myself",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2e",
               "label": "Parents",
-              "points": 1
+              "points": 0
             }
           ]
         },
@@ -103,22 +103,22 @@
             {
               "id": "g3a",
               "label": "Under 35",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "35 to 45",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "45 to 55",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3d",
               "label": "55 to 65",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3e",
@@ -138,17 +138,17 @@
             {
               "id": "g4a",
               "label": "No",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "Yes, and I am looking to add to it",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4c",
               "label": "Yes, and I am looking to replace it",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4d",
@@ -168,17 +168,17 @@
             {
               "id": "g5a",
               "label": "No",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "I am not sure",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5c",
               "label": "Yes",
-              "points": 1
+              "points": 0
             }
           ]
         },
@@ -192,17 +192,17 @@
             {
               "id": "g6a",
               "label": "Immediately",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g6b",
               "label": "Within a month",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g6c",
               "label": "In 1 to 3 months",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g6d",

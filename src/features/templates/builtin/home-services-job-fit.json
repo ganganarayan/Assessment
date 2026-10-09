@@ -44,12 +44,12 @@
             {
               "id": "g1a",
               "label": "Inside the service area list",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "On the edge of it",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1c",
@@ -69,12 +69,12 @@
             {
               "id": "g2a",
               "label": "More than one of those services",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "A service shown on the list",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g2c",
@@ -94,12 +94,12 @@
             {
               "id": "g3a",
               "label": "Owned",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "Rented, and I have the owner's approval",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3c",
@@ -119,17 +119,17 @@
             {
               "id": "g4a",
               "label": "Today or tomorrow",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "This week",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4c",
               "label": "Within a month",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4d",
@@ -149,22 +149,22 @@
             {
               "id": "g5a",
               "label": "Commercial premises",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "A full home",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5c",
               "label": "One room or one area",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5d",
               "label": "A single unit or appliance",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g5e",
@@ -184,12 +184,12 @@
             {
               "id": "g6a",
               "label": "No",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g6b",
               "label": "Yes, and I want a second opinion on the work",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g6c",

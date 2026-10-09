@@ -95,7 +95,12 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
     body: "Every respondent gets a personalized, hosted result: their score, their strengths, and a clear next step.",
   },
   {
+    // 🔴 NOT BUILT. The card claimed a feature that does not exist: the text importer
+    // parses a list you paste, it calls no model. Flagged rather than deleted, because
+    // the build is scheduled - but an unbuilt feature advertised flat is the one thing
+    // on this page a competitor could screenshot.
     title: "AI question generation",
+    soon: true,
     body: "Generate a first draft of your questions and answer options with AI, then edit - a full scorecard in minutes.",
   },
   {
@@ -332,7 +337,7 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
     // things we do not control - their pixel access, their answers, a weekend. What
     // happens on the call is entirely within our control, so it can be stated exactly.
     q: "What happens on the 30-minute call?",
-    a: "We connect your Meta pixel and the Conversions API, build the exclusion and retargeting audiences, point your custom domain at it, fire test events and confirm they arrive, and take the scorecard live. The draft is already in your dashboard before the call starts, so the half hour is spent wiring it up rather than writing questions.",
+    a: "First you send us a short brief, so we arrive already knowing your offer and who wastes your time. On the call we set your workspace up, lay the scorecard in, tweak the gate with you, connect your Meta pixel and the Conversions API, and build the exclusion and retargeting audiences in your ad account. You are in the room while it happens.",
   },
   {
     q: "How is a scorecard different from a form?",

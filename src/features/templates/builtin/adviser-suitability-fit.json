@@ -44,17 +44,17 @@
             {
               "id": "g1a",
               "label": "Ongoing financial planning",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "A one time plan review",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "Help executing specific transactions",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1d",
@@ -80,22 +80,22 @@
             {
               "id": "g2a",
               "label": "Above $1,200,000 (above ₹10 crore)",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "$240,000 to $1,200,000 (₹2 to 10 crore)",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "$60,000 to $240,000 (₹50 lakh to 2 crore)",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2d",
               "label": "$12,000 to $60,000 (₹10 to 50 lakh)",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g2e",
@@ -115,17 +115,17 @@
             {
               "id": "g3a",
               "label": "No",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "Yes, and I am looking to switch",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "Yes, and I want a second opinion",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3d",
@@ -145,12 +145,12 @@
             {
               "id": "g4a",
               "label": "A fee for the advice itself",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "I am not sure yet",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4c",
@@ -170,22 +170,22 @@
             {
               "id": "g5a",
               "label": "Retirement planning",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "10 years or more",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5c",
               "label": "5 to 10 years",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5d",
               "label": "2 to 5 years",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g5e",
@@ -205,22 +205,22 @@
             {
               "id": "g6a",
               "label": "Just me",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g6b",
               "label": "Me and my spouse",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g6c",
               "label": "A family trust or HUF",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g6d",
               "label": "A business partner",
-              "points": 1
+              "points": 0
             }
           ]
         }
@@ -688,24 +688,32 @@
         "title": "Not the right fit, and that is an honest answer",
         "description": "What you are looking for and what this firm does are different things, and a meeting would mostly establish that slowly. For a fee based practice this is a feature rather than a failure. Next step: the educational resources below.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "A fit, with the scope to define",
         "description": "There is a real basis for working together, and one thing to agree first: usually how involved you want to be, or what the engagement actually covers. Next step: a shorter scoping conversation before anything is planned.",
-        "minScore": 40,
-        "maxScore": 69,
+        "minScore": 41,
+        "maxScore": 59,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
         "title": "A strong fit for an advisory relationship",
         "description": "Your situation has enough moving parts to be worth planning properly, and how you want to work matches how this firm works. Next step: a structured discovery meeting. This is a statement about fit, not advice.",
-        "minScore": 70,
-        "maxScore": 100,
+        "minScore": 60,
+        "maxScore": 75,
         "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Priority discovery meeting",
+        "description": "Complex enough to need real planning, organised enough to start, and they want the kind of relationship this firm offers. Next step: a structured discovery meeting, booked soon. This describes fit for a conversation and is not financial advice.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
       }
     ],
     "title": "Would we work well together?",

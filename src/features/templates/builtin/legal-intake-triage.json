@@ -44,12 +44,12 @@
             {
               "id": "g1a",
               "label": "A practice area shown on your list",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "I am not certain which area it falls under",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1c",
@@ -69,12 +69,12 @@
             {
               "id": "g2a",
               "label": "Inside the area this firm practises in",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "A neighbouring jurisdiction",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g2c",
@@ -94,27 +94,27 @@
             {
               "id": "g3a",
               "label": "It is ongoing",
-              "points": 5
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "Within the last 3 months",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "3 to 12 months ago",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3d",
               "label": "1 to 3 years ago",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3e",
               "label": "More than 3 years ago",
-              "points": 1
+              "points": 0
             }
           ]
         },
@@ -128,17 +128,17 @@
             {
               "id": "g4a",
               "label": "No",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "Yes, and I want to change",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4c",
               "label": "Yes, and I want a second opinion",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4d",
@@ -158,27 +158,27 @@
             {
               "id": "g5a",
               "label": "Yes, within 2 weeks",
-              "points": 5
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "Yes, within 2 months",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g5c",
               "label": "Yes, later than that",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5d",
               "label": "No",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5e",
               "label": "I do not know",
-              "points": 1
+              "points": 0
             }
           ]
         },
@@ -192,17 +192,17 @@
             {
               "id": "g6a",
               "label": "Above $6,000 (above ₹5 lakh)",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g6b",
               "label": "$1,200 to $6,000 (₹1 to 5 lakh)",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g6c",
               "label": "$300 to $1,200 (₹25,000 to 1 lakh)",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g6d",
@@ -213,7 +213,7 @@
             {
               "id": "g6e",
               "label": "I need to understand costs first",
-              "points": 1
+              "points": 0
             }
           ]
         }
@@ -623,24 +623,32 @@
         "title": "Outside what this firm does",
         "description": "On what you have described this is not a matter this firm would act on. That is a statement about this firm, and not about your matter, which may well be strong. Next step: the bar association directory below. Take independent advice promptly: limitation periods vary by matter and some are short.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "Needs scoping first",
         "description": "This may be something the firm can act on, but one thing has to be established before anyone can say so: usually documentation or who gives instructions. Next step: a short intake call. No opinion on the matter will be given on it.",
-        "minScore": 40,
-        "maxScore": 69,
+        "minScore": 41,
+        "maxScore": 59,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
         "title": "We can take the call",
         "description": "On what you have described, this sits inside the firm's practice area and jurisdiction, the documentation is there, and the engagement would be workable. Next step: a paid consultation. This says the firm can act. It says nothing about your case.",
-        "minScore": 70,
-        "maxScore": 100,
+        "minScore": 60,
+        "maxScore": 75,
         "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Contact today",
+        "description": "Inside the practice area and the jurisdiction, documented, resourced, and time-sensitive. Next step: call them today rather than adding them to a list. This says the firm can act. It says nothing about the merits of the matter, and it is not legal advice.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
       }
     ],
     "title": "Can we take your matter?",

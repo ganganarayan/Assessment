@@ -44,22 +44,22 @@
             {
               "id": "g1a",
               "label": "Above $120,000 (above ₹1 crore)",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "$47,000 to $120,000 (₹40 lakh to 1 crore)",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "$12,000 to $47,000 (₹10 to 40 lakh)",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1d",
               "label": "$2,400 to $12,000 (₹2 to 10 lakh)",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1e",
@@ -85,17 +85,17 @@
             {
               "id": "g2a",
               "label": "Approved",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "In approval",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "It gets approved once we pick a vendor",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g2d",
@@ -115,22 +115,22 @@
             {
               "id": "g3a",
               "label": "Immediately",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "Within a month",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "In 1 to 3 months",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3d",
               "label": "In 3 to 6 months",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3e",
@@ -150,17 +150,17 @@
             {
               "id": "g4a",
               "label": "Yes",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "I recommend, someone else approves",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4c",
               "label": "I am gathering information for someone else",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4d",
@@ -180,17 +180,17 @@
             {
               "id": "g5a",
               "label": "Fixed scope project",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "Ongoing retainer",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5c",
               "label": "Dedicated team or staff augmentation",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g5d",
@@ -216,22 +216,22 @@
             {
               "id": "g6a",
               "label": "Only you",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g6b",
               "label": "Two or three",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g6c",
               "label": "Four to six",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g6d",
               "label": "A formal RFP with many",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g6e",
@@ -705,24 +705,32 @@
         "title": "Not a fit right now",
         "description": "On budget, definition or decision process this is not ready, and these are the enquiries that quietly consume a solution architect for weeks. Next step: the pricing guide below, and come back when the scope is written down.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "Needs discovery first",
         "description": "There is a real project here and it is not yet defined enough for anyone to quote honestly. A free proposal at this stage would be a guess with a number on it. Next step: a paid discovery sprint.",
-        "minScore": 40,
-        "maxScore": 69,
+        "minScore": 41,
+        "maxScore": 59,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
         "title": "A qualified opportunity",
         "description": "Budget, timeline, decision maker and requirements all point the same way, and this is defined enough to solution against. Next step: a call with a technical lead.",
-        "minScore": 70,
-        "maxScore": 100,
+        "minScore": 60,
+        "maxScore": 75,
         "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Solution call this week",
+        "description": "Budget approved, timeline fixed, decision-maker on the form, requirements written down, and few other vendors in the room. Next step: a technical lead on a call this week, before somebody else gets there.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
       }
     ],
     "title": "Is your project ready to quote?",

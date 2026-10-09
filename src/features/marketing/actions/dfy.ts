@@ -129,12 +129,11 @@ function confirmationHtml(business: string): string {
   return `
 <div style="font:16px/1.6 -apple-system,Segoe UI,Roboto,sans-serif;color:#111">
   <p>Thanks - we have the details for <strong>${escapeHtml(business)}</strong>.</p>
-  <p><strong>Next: we book your 30-minute call.</strong> Before it starts, the draft scorecard is
-  already in your dashboard - the gate, the questions, the weights and the result bands, written
-  from your answers.</p>
-  <p>On the call we connect your Meta pixel and the Conversions API, build the exclusion and
-  retargeting audiences, point your custom domain at it, fire test events to confirm they arrive,
-  and take it live. You are in the room while it happens.</p>
+  <p><strong>Next: we book your 30-minute call.</strong> Before it, we will send you a short brief
+  to fill in, so we arrive already knowing your offer and who has been wasting your time.</p>
+  <p>On the call we set your workspace up, lay the scorecard in and tweak the gate with you,
+  connect your Meta pixel and the Conversions API, and build the exclusion and retargeting
+  audiences in your ad account. You are in the room while it happens.</p>
   <p>Two things that make the call shorter, if you have them:</p>
   <ul>
     <li>Your Meta pixel ID, if you are running ads already.</li>

@@ -44,17 +44,17 @@
             {
               "id": "g1a",
               "label": "Yes, I own it",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "A commercial property I own",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "It is a housing society",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1d",
@@ -80,22 +80,22 @@
             {
               "id": "g2a",
               "label": "Above $180 (above ₹15,000)",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "$70 to $180 (₹6,000 to 15,000)",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "$35 to $70 (₹3,000 to 6,000)",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2d",
               "label": "$18 to $35 (₹1,500 to 3,000)",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g2e",
@@ -115,17 +115,17 @@
             {
               "id": "g3a",
               "label": "Above 1,000 sq ft",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "500 to 1,000 sq ft",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "200 to 500 sq ft",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3d",
@@ -151,12 +151,12 @@
             {
               "id": "g4a",
               "label": "No, it is open all day",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "Partly shaded",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4c",
@@ -176,12 +176,12 @@
             {
               "id": "g5a",
               "label": "Yes, I have checked the pincode list",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "I am not sure, but it is nearby",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g5c",
@@ -201,22 +201,22 @@
             {
               "id": "g6a",
               "label": "Within a month",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g6b",
               "label": "In 1 to 3 months",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g6c",
               "label": "In 3 to 6 months",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g6d",
               "label": "Later than that",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g6e",
@@ -347,9 +347,14 @@
                 "displayOrder": 1
               },
               {
+                "label": "Single phase, upgradeable",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
                 "label": "Three phase",
                 "value": 3,
-                "displayOrder": 2
+                "displayOrder": 3
               }
             ]
           }
@@ -402,9 +407,14 @@
                 "displayOrder": 1
               },
               {
+                "label": "Probably, if it is straightforward",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
                 "label": "Yes, that is part of why I am asking",
                 "value": 3,
-                "displayOrder": 2
+                "displayOrder": 3
               }
             ]
           },
@@ -475,24 +485,32 @@
         "title": "Marginal",
         "description": "A system here would be small, and the payback would stretch further than most people expect. Not a no, but not a survey either. Next step: the savings calculator below, which will tell you more than a site visit would.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "Viable, needs sizing",
         "description": "This will work, but the system size and the payment route need settling before anyone measures a roof. Next step: a short sizing call.",
-        "minScore": 40,
-        "maxScore": 69,
+        "minScore": 41,
+        "maxScore": 59,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
         "title": "Worth booking a site survey",
         "description": "Ownership, bill size, roof and timing all work. A surveyor visiting this address is time well spent. Next step: book the survey below.",
-        "minScore": 70,
-        "maxScore": 100,
+        "minScore": 60,
+        "maxScore": 75,
         "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Send a surveyor this week",
+        "description": "Ownership, bill size, roof and timeline all point the same way, and the bill is large enough that the system pays back fast. Next step: book the survey while they are still on the page.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
       }
     ],
     "title": "Is your roof worth a survey?",

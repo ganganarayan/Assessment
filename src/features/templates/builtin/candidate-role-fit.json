@@ -44,22 +44,22 @@
             {
               "id": "g1a",
               "label": "Immediate",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "15 days",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "30 days",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1d",
               "label": "60 days",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1e",
@@ -79,17 +79,17 @@
             {
               "id": "g2a",
               "label": "Within the range for this role",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "At the top of the range",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "Below the range for this role",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g2d",
@@ -109,12 +109,12 @@
             {
               "id": "g3a",
               "label": "Yes",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "Only with relocation support",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3c",
@@ -134,17 +134,17 @@
             {
               "id": "g4a",
               "label": "Yes, with several years of it",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "Yes, under a year of it",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4c",
               "label": "No, but I am learning it",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4d",
@@ -164,7 +164,7 @@
             {
               "id": "g5a",
               "label": "Yes",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g5b",
@@ -184,17 +184,17 @@
             {
               "id": "g6a",
               "label": "No",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g6b",
               "label": "One or two processes",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g6c",
               "label": "Several, and I am at offer stage",
-              "points": 1
+              "points": 0
             }
           ]
         }
@@ -662,24 +662,32 @@
         "title": "Not this role",
         "description": "This particular role is not the right match for what you have done and what you are looking for. That is about the role, not about you. Next step: we will keep your profile for other openings if you would like us to, and you can say so below.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "Worth a look",
         "description": "There is a real match here with one thing to check, usually level or how closely the recent work lines up. Next step: a recruiter will review and come back to you either way.",
-        "minScore": 40,
-        "maxScore": 69,
+        "minScore": 41,
+        "maxScore": 59,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
         "title": "Shortlist",
         "description": "Depth, level and what you are looking for all match this role closely. Next step: book a screening call directly below.",
-        "minScore": 70,
-        "maxScore": 100,
+        "minScore": 60,
+        "maxScore": 75,
         "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Interview immediately",
+        "description": "Depth, level and motivation all match the role closely, and they are available. Candidates like this are in other processes within the week. Next step: a screening call booked on the spot.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
       }
     ],
     "title": "Are you a fit for this role?",

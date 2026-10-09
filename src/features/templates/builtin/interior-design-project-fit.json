@@ -44,17 +44,17 @@
             {
               "id": "g1a",
               "label": "Possession taken",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "Possession within 3 months",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "Possession in 3 to 9 months",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1d",
@@ -80,27 +80,27 @@
             {
               "id": "g2a",
               "label": "Above 4,000 sq ft",
-              "points": 5
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "2,000 to 4,000 sq ft",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "1,200 to 2,000 sq ft",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2d",
               "label": "600 to 1,200 sq ft",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2e",
               "label": "Under 600 sq ft",
-              "points": 1
+              "points": 0
             }
           ]
         },
@@ -114,22 +114,22 @@
             {
               "id": "g3a",
               "label": "Above $60,000 (above ₹50 lakh)",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "$30,000 to $60,000 (₹25 to 50 lakh)",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "$14,000 to $30,000 (₹12 to 25 lakh)",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3d",
               "label": "$6,000 to $14,000 (₹5 to 12 lakh)",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3e",
@@ -155,22 +155,22 @@
             {
               "id": "g4a",
               "label": "Me alone",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "My partner and I, both aligned",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4c",
               "label": "My partner and I, not yet aligned",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4d",
               "label": "A family member who is not on this form",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4e",
@@ -190,22 +190,22 @@
             {
               "id": "g5a",
               "label": "Immediately",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "Within a month",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5c",
               "label": "In 1 to 3 months",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5d",
               "label": "In 3 to 6 months",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g5e",
@@ -225,17 +225,17 @@
             {
               "id": "g6a",
               "label": "Full turnkey interiors",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g6b",
               "label": "Design only, I will execute",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g6c",
               "label": "Specific rooms only",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g6d",
@@ -715,24 +715,32 @@
         "title": "Not yet",
         "description": "The timeline or the budget does not support the work you are describing, and starting now means a design that gets value engineered down to nothing. Next step: the budget guide below, and a note in the diary for your possession month.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "Shape the brief first",
         "description": "This is a genuine project with an unformed brief, or a household not yet aligned on the number. A site visit now would be a conversation you have to repeat. Next step: a 30 minute brief building call.",
-        "minScore": 40,
-        "maxScore": 69,
+        "minScore": 41,
+        "maxScore": 59,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
         "title": "Ready to design",
         "description": "Possession, budget and decision maker are all in place, and the brief is real enough to quote against. Next step: a paid design consultation or a site visit.",
-        "minScore": 70,
-        "maxScore": 100,
+        "minScore": 60,
+        "maxScore": 75,
         "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Send a designer out",
+        "description": "Possession, budget, brief and decision-maker all line up, and they are ready to pay for design rather than collect another quote. Next step: the site visit, booked on this call.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
       }
     ],
     "title": "Is your project ready to design?",

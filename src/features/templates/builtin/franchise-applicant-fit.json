@@ -44,22 +44,22 @@
             {
               "id": "g1a",
               "label": "Above $120,000 (above ₹1 crore)",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "$60,000 to $120,000 (₹50 lakh to 1 crore)",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "$30,000 to $60,000 (₹25 to 50 lakh)",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1d",
               "label": "$12,000 to $30,000 (₹10 to 25 lakh)",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1e",
@@ -79,22 +79,22 @@
             {
               "id": "g2a",
               "label": "Available now",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "Loan sanctioned",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "Loan applied, not sanctioned",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2d",
               "label": "Selling an asset to fund it",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g2e",
@@ -114,17 +114,17 @@
             {
               "id": "g3a",
               "label": "A territory shown as open on your list",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "I am flexible on territory",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "A city you do not cover yet",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3d",
@@ -144,22 +144,22 @@
             {
               "id": "g4a",
               "label": "Me, full time",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "Me, part time alongside another business",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4c",
               "label": "A hired manager",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4d",
               "label": "A family member",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4e",
@@ -179,17 +179,17 @@
             {
               "id": "g5a",
               "label": "Yes, I am running one now",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "Yes, previously",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5c",
               "label": "No, this would be my first",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g5d",
@@ -209,17 +209,17 @@
             {
               "id": "g6a",
               "label": "Within 3 months",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g6b",
               "label": "In 3 to 6 months",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g6c",
               "label": "In 6 to 12 months",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g6d",
@@ -699,24 +699,32 @@
         "title": "Not eligible right now",
         "description": "On capital, experience or timing this is not a fit today, and taking it further would waste your money as well as our time. Next step: the brochure below, and an open invitation to reapply once the capital is in place.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "Conditional",
         "description": "One dimension is short, and the scores below say which. It is usually property or working capital rather than intent. Next step: one call to resolve that single item before anything else is discussed.",
-        "minScore": 40,
-        "maxScore": 69,
+        "minScore": 41,
+        "maxScore": 59,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
         "title": "Qualified applicant",
         "description": "Capital, capability and territory line up with what this franchise needs. Next step: a discovery call with the franchise director.",
-        "minScore": 70,
-        "maxScore": 100,
+        "minScore": 60,
+        "maxScore": 75,
         "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Fast-track this application",
+        "description": "Capital is liquid and available now, the operating experience is real, and the territory is open. This is the applicant the whole screen exists to find. Next step: the franchise director, this week.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
       }
     ],
     "title": "Are you a fit to run this franchise?",

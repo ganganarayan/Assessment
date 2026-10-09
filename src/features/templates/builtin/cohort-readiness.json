@@ -44,17 +44,17 @@
             {
               "id": "g1a",
               "label": "More than 8",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "4 to 8",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "2 to 4",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1d",
@@ -74,17 +74,17 @@
             {
               "id": "g2a",
               "label": "Yes, all of them",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "Most of them",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "A few of them",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g2d",
@@ -104,17 +104,17 @@
             {
               "id": "g3a",
               "label": "Comfortably above the programme price",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "About the programme price",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "Slightly below it, but I can stretch",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3d",
@@ -134,17 +134,17 @@
             {
               "id": "g4a",
               "label": "Experienced, and I want structure",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "Some experience",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4c",
               "label": "Complete beginner",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4d",
@@ -164,17 +164,17 @@
             {
               "id": "g5a",
               "label": "Yes, and I completed it",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "No, this is my first",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5c",
               "label": "Yes, and I did not finish it",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g5d",
@@ -590,24 +590,32 @@
         "title": "Not this programme",
         "description": "On hours, format or reason this would most likely end unfinished, and that costs you more than the fee. Next step: the lower commitment resource below. Protecting who is in the room is what keeps the programme worth joining.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "Right person, wrong month",
         "description": "This is clearly for you, and the window you are about to walk into is not. Starting now is how a good fit turns into an unfinished course. Next step: the next cohort date below, plus the prep material.",
-        "minScore": 40,
-        "maxScore": 69,
+        "minScore": 41,
+        "maxScore": 59,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
         "title": "Ready for this cohort",
         "description": "The hours, the reason and the format all line up, and nothing obvious stands between you and finishing. Next step: enrol, or a short fit call if the programme is high ticket.",
-        "minScore": 70,
-        "maxScore": 100,
+        "minScore": 60,
+        "maxScore": 75,
         "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Enrol them now",
+        "description": "The hours exist, the reason is specific and deadline-driven, and the format suits how they learn. This is the person who finishes and then gives you the testimonial. Next step: enrol, or one short call if the programme is high ticket.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
       }
     ],
     "title": "Are you ready for this cohort?",

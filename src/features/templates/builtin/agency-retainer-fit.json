@@ -44,12 +44,12 @@
             {
               "id": "g1a",
               "label": "Ongoing work, month after month",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "A project, then maybe ongoing",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1c",
@@ -74,17 +74,17 @@
             {
               "id": "g2a",
               "label": "More than we would like",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "A steady, planned amount",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "Very little",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g2d",
@@ -104,17 +104,17 @@
             {
               "id": "g3a",
               "label": "Yes, and it went well",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "Yes, and it did not",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "No",
-              "points": 1
+              "points": 0
             }
           ]
         },
@@ -128,12 +128,12 @@
             {
               "id": "g4a",
               "label": "Me",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "Me, with one other person",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4c",
@@ -152,12 +152,12 @@
             {
               "id": "g5a",
               "label": "Within a month",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "This quarter",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5c",
@@ -578,14 +578,14 @@
         "title": "Project work, not a retainer",
         "description": "Nothing here is wrong, it is simply not retainer-shaped yet. A fixed-scope project would serve you better and cost you less.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "Retainer-shaped, not retainer-ready",
         "description": "The commercials or the internal capacity would make the first three months frustrating for both sides. One area below is the reason.",
-        "minScore": 40,
+        "minScore": 41,
         "maxScore": 59,
         "displayOrder": 1
       },
@@ -594,14 +594,14 @@
         "title": "A good retainer candidate",
         "description": "The economics work and your side can keep pace. One area needs setting straight before the first month.",
         "minScore": 60,
-        "maxScore": 79,
+        "maxScore": 75,
         "displayOrder": 2
       },
       {
         "level": "CRITICAL",
         "title": "An ideal retainer client",
         "description": "Predictable numbers, a single decision-maker and realistic expectations. This is the profile that stays for years.",
-        "minScore": 80,
+        "minScore": 76,
         "maxScore": 100,
         "displayOrder": 3
       }

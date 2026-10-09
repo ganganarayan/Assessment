@@ -44,17 +44,17 @@
             {
               "id": "g1a",
               "label": "The next 6 months",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "6 to 12 months away",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "12 to 18 months away",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1d",
@@ -80,17 +80,17 @@
             {
               "id": "g2a",
               "label": "Family savings",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "Education loan, already discussed with a bank",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "Education loan, not yet explored",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g2d",
@@ -116,27 +116,27 @@
             {
               "id": "g3a",
               "label": "Master's",
-              "points": 5
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "Bachelor's, completed",
-              "points": 4
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "Bachelor's, final year",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3d",
               "label": "Class 12",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3e",
               "label": "Diploma only",
-              "points": 1
+              "points": 0
             }
           ]
         },
@@ -150,17 +150,17 @@
             {
               "id": "g4a",
               "label": "Yes, scores in hand",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "Booked, date fixed",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4c",
               "label": "Planning to, not booked yet",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4d",
@@ -180,17 +180,17 @@
             {
               "id": "g5a",
               "label": "Above $42,000 (above ₹35 lakh)",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "$24,000 to $42,000 (₹20 to 35 lakh)",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5c",
               "label": "$12,000 to $24,000 (₹10 to 20 lakh)",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g5d",
@@ -216,17 +216,17 @@
             {
               "id": "g6a",
               "label": "No",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g6b",
               "label": "Yes, once",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g6c",
               "label": "Yes, more than once",
-              "points": 1
+              "points": 0
             }
           ]
         }
@@ -694,24 +694,32 @@
         "title": "Too early, and that is worth knowing now",
         "description": "Timeline, funding or test readiness is not there yet, and applying now would spend money on an application that gets refused. Next step: the timeline plan below, and come back when the blocker has moved.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "One or two gaps to close",
         "description": "This is a real application with one blocker in front of it, and the dimension scores below say which. It is usually funding documentation or a test date. Next step: a planning call about that one thing, not a general counselling session.",
-        "minScore": 40,
-        "maxScore": 69,
+        "minScore": 41,
+        "maxScore": 59,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
         "title": "Application ready",
         "description": "Academics, funding and decisions are all in place. You could start an application this month, and the only question left is which shortlist to submit to. Next step: a document review call.",
-        "minScore": 70,
-        "maxScore": 100,
+        "minScore": 60,
+        "maxScore": 75,
         "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Apply this intake, and start now",
+        "description": "Academics, funding, tests and documents are all in place at once, which is rare. The only thing that can cost them a place now is waiting for the next intake. Next step: book the document review this week, not next month.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
       }
     ],
     "title": "Are you ready to apply?",

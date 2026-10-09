@@ -44,17 +44,17 @@
             {
               "id": "g1a",
               "label": "Grow an existing business or practice",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "Start something new that I have already planned",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "Change career or direction",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1d",
@@ -74,17 +74,17 @@
             {
               "id": "g2a",
               "label": "Yes, and it worked",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "Yes, and it did not",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "No, this would be the first time",
-              "points": 1
+              "points": 0
             }
           ]
         },
@@ -98,17 +98,17 @@
             {
               "id": "g3a",
               "label": "Five hours or more",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "Two to four hours",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "About an hour",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3d",
@@ -128,12 +128,12 @@
             {
               "id": "g4a",
               "label": "Start this month",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "Start within three months",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4c",
@@ -158,12 +158,12 @@
             {
               "id": "g5a",
               "label": "I do, on my own",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "I do, after talking it over with my partner",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5c",
@@ -578,14 +578,14 @@
         "title": "Not yet, and that is useful to know",
         "description": "Coaching would mostly be an expensive way to find out what you have just found out for free. The groundwork comes first, and the result below says which part of it.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "Ready in parts",
         "description": "There is a real goal here and the willingness to chase it, but one of the three areas below is carrying the weight of the other two. That is what a first conversation should be about.",
-        "minScore": 40,
+        "minScore": 41,
         "maxScore": 59,
         "displayOrder": 1
       },
@@ -594,14 +594,14 @@
         "title": "Ready, with one thing to sort out",
         "description": "You have the clarity and the follow-through this needs. One area is lagging and it is the obvious place to start.",
         "minScore": 60,
-        "maxScore": 79,
+        "maxScore": 75,
         "displayOrder": 2
       },
       {
         "level": "CRITICAL",
         "title": "Ready now",
         "description": "Clear on the outcome, able to make room for it, and you finish what you start. The only question left is who you do it with.",
-        "minScore": 80,
+        "minScore": 76,
         "maxScore": 100,
         "displayOrder": 3
       }

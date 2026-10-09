@@ -48,15 +48,15 @@ export default async function BuildPage() {
                 takes about four minutes.
               </li>
               <li>
-                <strong className="text-[var(--foreground)]">2. We build it.</strong> The gate,
-                the questions, the weights and the result bands, written from your answers and
-                delivered as a draft into your dashboard before the call.
+                <strong className="text-[var(--foreground)]">2. You send us a brief.</strong> A
+                short form before the call, so we arrive already knowing your offer, your price
+                and who has been wasting your time.
               </li>
               <li>
                 <strong className="text-[var(--foreground)]">3. 30 minutes, live.</strong> We
-                connect your Meta pixel and the Conversions API, build the exclusion and
-                retargeting audiences, point your custom domain at it, fire test events and
-                confirm they arrive, and take it live.
+                set your workspace up, lay the scorecard in and tweak the gate with you, connect
+                your Meta pixel and the Conversions API, and build the exclusion and retargeting
+                audiences in your ad account.
               </li>
             </ol>
 

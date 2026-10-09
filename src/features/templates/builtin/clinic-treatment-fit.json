@@ -50,17 +50,17 @@
             {
               "id": "g1b",
               "label": "18 to 34",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "35 to 54",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1d",
               "label": "55 or over",
-              "points": 2
+              "points": 0
             }
           ]
         },
@@ -74,17 +74,17 @@
             {
               "id": "g2a",
               "label": "Yes, and they know I am exploring this",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "Yes, but they do not know yet",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "No",
-              "points": 1
+              "points": 0
             }
           ]
         },
@@ -98,17 +98,17 @@
             {
               "id": "g3a",
               "label": "Within an hour",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "One to three hours",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "I would need to travel and stay",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3d",
@@ -128,17 +128,17 @@
             {
               "id": "g4a",
               "label": "Yes, within the last year",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "Yes, longer ago",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4c",
               "label": "No, this would be the first",
-              "points": 2
+              "points": 0
             }
           ]
         },
@@ -152,17 +152,17 @@
             {
               "id": "g5a",
               "label": "Book a consultation",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "Speak to someone first",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5c",
               "label": "Read more and decide later",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g5d",
@@ -578,14 +578,14 @@
         "title": "Worth a conversation before anything else",
         "description": "Your answers suggest several things are still unsettled. A call costs nothing and will tell you more than more reading will.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "Some preparation would help",
         "description": "You know roughly what you want. Settling the area below before your consultation will make the appointment far more useful.",
-        "minScore": 40,
+        "minScore": 41,
         "maxScore": 59,
         "displayOrder": 1
       },
@@ -594,14 +594,14 @@
         "title": "Well prepared",
         "description": "Your expectations and your circumstances line up. One area is worth tidying before you come in.",
         "minScore": 60,
-        "maxScore": 79,
+        "maxScore": 75,
         "displayOrder": 2
       },
       {
         "level": "CRITICAL",
         "title": "Ready for a consultation",
         "description": "Clear about what you want, prepared, and able to attend. A coordinator can book you in.",
-        "minScore": 80,
+        "minScore": 76,
         "maxScore": 100,
         "displayOrder": 3
       }

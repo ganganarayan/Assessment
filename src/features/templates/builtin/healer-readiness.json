@@ -436,14 +436,14 @@
         "title": "Running on reserves",
         "description": "Almost everything here points the same way: you are spending more than you are taking in, and have been for a while. The reflection below says where the leak is.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "Holding, at a cost",
         "description": "You are managing, and the managing is the problem. One of the three areas is paying for the other two.",
-        "minScore": 40,
+        "minScore": 41,
         "maxScore": 59,
         "displayOrder": 1
       },
@@ -452,14 +452,14 @@
         "title": "Steady, with one gap",
         "description": "Most of what sustains you is in place. One area is thinner than the rest and it shows.",
         "minScore": 60,
-        "maxScore": 79,
+        "maxScore": 75,
         "displayOrder": 2
       },
       {
         "level": "CRITICAL",
         "title": "Well resourced",
         "description": "Rest, boundaries and attention are all doing their work. This is a good place to build from rather than recover from.",
-        "minScore": 80,
+        "minScore": 76,
         "maxScore": 100,
         "displayOrder": 3
       }
