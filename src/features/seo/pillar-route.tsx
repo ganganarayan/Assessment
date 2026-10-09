@@ -27,6 +27,10 @@ export async function pillarMetadata(slug: string): Promise<Metadata> {
     title: page.title,
     description: page.description,
     path: `/${page.slug}`,
+    // Its own share card: the page's own H1, and an accent and label per kind, so a
+    // guide, an industry page and a comparison are distinguishable in a feed before the
+    // title has been read. All 32 get one from this single line.
+    ogSlug: page.slug,
   });
 }
 
