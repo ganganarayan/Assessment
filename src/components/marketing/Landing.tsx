@@ -75,14 +75,17 @@ export function Landing({
       <Nav />
       <main id="main">
         <Hero video={videos?.hero ?? null} />
-        {/* Immediately below the hero, before anything explains itself. It is the only
-            claim on the page that can be checked against an invoice, so it is worth more
-            to a sceptical reader than the next three sections combined. */}
+        {/* Directly under the hero: who built this and why, in seven lines somebody can
+            skim. It answers "why should I believe any of this" before the page starts
+            making claims, and it is the one section a competitor cannot answer by
+            shipping a feature. */}
+        <WhyThisExists />
+        {/* Then the only claim on the page that can be checked against an invoice, which
+            is worth more to a sceptical reader than the next three sections combined. */}
         <Metering />
         <Problem />
         <HowItWorks />
         <Capabilities videos={videos?.tiles} />
-        <WhyThisExists />
         <UseCases />
         <Pricing />
         <Faq />

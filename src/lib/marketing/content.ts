@@ -477,9 +477,47 @@ export const pillarCapabilities = (p: Pillar): ReadonlyArray<Capability> =>
 /**
  * Why this exists. No founder name and no photo on purpose: the credential is the fact,
  * and a face invites the reader to assess the person instead of the argument.
+ *
+ * Bullets rather than prose, and short ones. This sits directly under the hero now,
+ * where a reader is still deciding whether to keep reading - two dense paragraphs at
+ * that position get skipped, and a skipped section is the same as an absent one. Each
+ * line carries ONE fact, with the load-bearing words marked so the section survives
+ * being skimmed rather than read.
+ *
+ * `strong` is matched against the line and rendered bold. Plain strings, not markup, so
+ * the copy stays editable by someone who does not write HTML.
  */
 export const WHY_EXISTS = {
   heading: "Why this exists",
-  body: "This was not designed in a workshop. It was built by an operator who subscribed to ScoreApp, Typeform, Outgrow, LeadQuizzes and Interact, ran real paid traffic through them, and kept hitting the same wall: every one of them was excellent at collecting answers and indifferent to whether the person answering was worth a call.",
-  body2: "So the gate was built, because the opt-in was happening before anyone knew who it was. Then the exclusion event, because the ad account kept buying more of the same wrong people. Then the qualified-only optimisation signal, because Meta was being taught to find form-fillers. Every capability on this page started as a specific wall, in a specific funnel, that cost real money.",
+  lead: "Not designed in a workshop. Built by an operator, out of what kept going wrong.",
+  points: [
+    {
+      text: "I paid for ScoreApp, Typeform, Outgrow, LeadQuizzes and Interact.",
+      strong: ["paid for"],
+    },
+    {
+      text: "I ran real money through all of them. Cold Meta traffic, not a demo.",
+      strong: ["real money"],
+    },
+    {
+      text: "Every one collected answers brilliantly. None of them asked whether the person was worth a call.",
+      strong: ["worth a call"],
+    },
+    {
+      text: "So the gate was built. The opt-in was happening before anyone knew who it was.",
+      strong: ["the gate"],
+    },
+    {
+      text: "Then the exclusion event. The ad account kept buying more of the same wrong people.",
+      strong: ["the exclusion event"],
+    },
+    {
+      text: "Then the qualified-only signal. Meta was being taught to find form-fillers.",
+      strong: ["the qualified-only signal"],
+    },
+    {
+      text: "Every feature here started as a wall, in a real funnel, that cost real money.",
+      strong: ["cost real money"],
+    },
+  ],
 } as const;
