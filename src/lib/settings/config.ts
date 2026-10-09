@@ -117,11 +117,53 @@ export interface MetaConfig {
  * and a blank setting silently keeps working off a value nobody can see in the UI.
  * Blank now means silent, which is visible and therefore fixable.
  */
-export async function resolveMetaConfig(tenantId: string | null): Promise<MetaConfig> {
+export async function resolveMetaConfig(
+  tenantId: string | null,
+  /**
+   * The assessment's own ad account, when it names one. Null or omitted means the
+   * tenant's default, which is what every existing assessment carries.
+   */
+  adAccountId?: string | null,
+): Promise<MetaConfig> {
   if (isPlatformScope(tenantId)) {
     const { pixelId, capiToken } = await resolvePlatformMetaConfig();
     return { pixelId, capiToken, datasetId: pixelId };
   }
+
+  // 🔴 ONE ACCESSOR, and it is the only place the AdAccount table and the legacy
+  // AppSetting columns are allowed to meet.
+  //
+  // This is the hot path: every pixel render and every CAPI send. Two sources of truth
+  // that disagree fail SILENTLY here - events go to the wrong pixel and nothing errors,
+  // so the first symptom is an ad account reporting numbers that make no sense weeks
+  // later. The order below is the whole safety: the named account, else the tenant's
+  // default, else the old columns, and the columns are read ONLY when the tenant has no
+  // ad account rows at all.
+  if (tenantId) {
+    const row = adAccountId
+      ? await prisma.adAccount.findFirst({
+          where: { id: adAccountId, tenantId },
+          select: { pixelId: true, capiTokenEnc: true },
+        })
+      : await prisma.adAccount.findFirst({
+          where: { tenantId, isDefault: true },
+          select: { pixelId: true, capiTokenEnc: true },
+        });
+
+    if (row) {
+      const pixelId = row.pixelId?.trim() || null;
+      return { pixelId, capiToken: safeDecrypt(row.capiTokenEnc), datasetId: pixelId };
+    }
+
+    // An assessment naming an account that no longer resolves must NOT fall through to
+    // the tenant's default. Silently reporting a funnel to a different pixel is the
+    // exact failure this model exists to prevent, so it reports nowhere and the gap is
+    // visible instead.
+    if (adAccountId) return { pixelId: null, capiToken: null, datasetId: null };
+  }
+
+  // Legacy path, for tenants whose settings predate the backfill. Removed once nothing
+  // is left reading it.
   const s = (await settingRow(tenantId, SEL_META)) as { metaPixelId: string | null; metaCapiTokenEnc: string | null } | null;
   const pixelId = s?.metaPixelId?.trim() || null;
   // A corrupt/undecryptable token degrades to "unset" rather than throwing: a bad
