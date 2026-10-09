@@ -156,6 +156,7 @@ model Tenant {
   ownedTemplates       Template[]        @relation("TemplateOwner")
   /// Templates this workspace sent to the master library.
   contributedTemplates Template[]        @relation("TemplateContributor")
+  adAccounts           AdAccount[]
 
   @@index([status])
   @@index([deletedAt])
@@ -614,6 +615,11 @@ enum NextStep {
 // ---------------------------------------------------------------------------
 
 model Assessment {
+  /// Which ad account this funnel reports to. NULL means the tenant's default, which is
+  /// why no backfill is needed: every existing assessment keeps working untouched.
+  adAccountId String?
+  adAccount   AdAccount? @relation(fields: [adAccountId], references: [id], onDelete: Restrict)
+
   // Platform signup funnel: after the lead form and the completion event, send the
   // person to /sign-up prefilled with their email instead of a result page. Only
   // honoured on a PLATFORM-owned assessment - a tenant must never be able to mint
@@ -2435,6 +2441,49 @@ model Template {
   @@index([ownerTenantId])
   @@index([reviewStatus])
   @@map("template")
+}
+
+// ---------------------------------------------------------------------------
+// AdAccount - one Meta configuration a tenant can run funnels against.
+//
+// The pricing page has metered "ad accounts" (1 / 2 / 10 / 25) since launch while the
+// product had no such concept: a tenant had exactly ONE Meta config, living as columns
+// on its AppSetting row. This is that concept, and it is the first thing that has to
+// exist before the published claim is true.
+//
+// 🔴 The platform's own pixel is NOT represented here. It lives in platformPixelId /
+// platformCapiTokenEnc on the singleton and is read by a different path
+// (resolvePlatformMetaConfig). Folding it in would give the SaaS funnel and a customer's
+// funnel one shared table and two meanings for "default".
+// ---------------------------------------------------------------------------
+
+model AdAccount {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// What the tenant calls it, e.g. "Acme - AU". Theirs to name; never shown publicly.
+  label String
+
+  /// For a tenant the pixel id IS the dataset id, which is why there is no separate
+  /// column. resolveMetaConfig has always returned it as both.
+  pixelId      String?
+  /// Encrypted at rest, like every other secret in this schema.
+  capiTokenEnc String?
+
+  /// The one used when an assessment names no ad account. Exactly one per tenant is
+  /// enforced by a PARTIAL UNIQUE INDEX in the migration - Prisma cannot express
+  /// "unique where isDefault", and without it two defaults make the resolver pick
+  /// arbitrarily between two live pixels.
+  isDefault Boolean @default(false)
+
+  assessments Assessment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("ad_account")
 }
 
 // ---------------------------------------------------------------------------
