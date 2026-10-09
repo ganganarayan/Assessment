@@ -42,31 +42,79 @@ export const INDUSTRY_EYEBROW = HERO.eyebrow;
 // ---------------------------------------------------------------------------
 
 /**
- * The leak calculator's four inputs and their starting values.
+ * How many of every hundred enquiries can never buy, as a band.
+ *
+ * A band rather than a free number, for the same reason the cosmetic page uses
+ * one: nobody knows their wrong-fit percentage, everybody knows whether it is
+ * most of them or about half. The band prefills a number input the visitor can
+ * then override, so the honest answer and the exact answer both have a path.
+ */
+export const WRONG_FIT_BANDS = [
+  { id: "most", label: "Most of them", pct: 75 },
+  { id: "two-thirds", label: "About two in three", pct: 65 },
+  { id: "half", label: "About half", pct: 50 },
+  { id: "third", label: "About one in three", pct: 33 },
+] as const;
+
+export type WrongFitBandId = (typeof WRONG_FIT_BANDS)[number]["id"];
+
+/**
+ * 🔴 THE ONE MODELLED ASSUMPTION ON THESE PAGES, AND IT IS DELIBERATELY LOW.
+ *
+ * Of the ad spend currently buying traffic that can never buy, the model
+ * reclaims this share and no more. An exclusion audience never catches
+ * everyone, a qualified-only conversion event spends a fortnight learning, and
+ * some of that budget was always going to be wasted. Claiming all of it would
+ * make the number bigger and the page worthless in front of somebody who runs
+ * ad accounts for a living.
+ *
+ * Named, exported, and printed in the footnote under the result, so a reader
+ * can disagree with it explicitly rather than suspect it quietly.
+ */
+export const RECLAIM_SHARE = 0.4;
+
+/**
+ * The leak calculator: before the gate, and after it.
+ *
+ * It measures MONEY, not minutes. An earlier version costed the staff hours
+ * spent disqualifying, which is true, small, and recognised by nobody: an owner
+ * reads "39 hours a month" and feels nothing, because those people are salaried
+ * and were going to be at work anyway. What hurts is the ad spend that bought
+ * people who could never buy, and the enrolments that budget could have bought
+ * instead. So the two sides are today's leak and what the same budget does once
+ * the wrong-fit traffic stops being bought.
  *
  * Defaults are a plausible mid-size business in that industry, not a flattering
- * one. The visitor changes all four, and every figure on screen is derived from
- * what they typed with the arithmetic printed underneath, so there is no number
- * on these pages that a reader cannot check.
+ * one. Every figure on screen is derived from what the visitor typed, with the
+ * arithmetic printed underneath.
  */
 export type IndustryLeakSpec = {
   heading: string;
   lead: string;
-  /** Label and default for each input. Defaults are numbers, not strings. */
   enquiriesLabel: string;
   enquiriesDefault: number;
+  /** Their real monthly outcome count, so the close rate is theirs, not ours. */
+  outcomesLabel: string;
+  outcomesDefault: number;
+  valueLabel: string;
+  valueHint: string;
+  valueDefault: number;
+  spendLabel: string;
+  spendHint: string;
+  spendDefault: number;
+  wrongFitLegend: string;
   wrongFitLabel: string;
   wrongFitHint: string;
-  wrongFitDefault: number;
-  minutesLabel: string;
-  minutesDefault: number;
-  rateLabel: string;
-  rateHint: string;
-  rateDefault: number;
+  wrongFitDefaultBand: WrongFitBandId;
   /** The noun for one enquiry, singular, used inside the working. */
   unit: string;
-  /** What the arithmetic deliberately leaves out. Printed under the result. */
-  floorNote: string;
+  /** The noun for one sale, singular and plural, used inside the working. */
+  outcomeUnit: string;
+  outcomeUnitPlural: string;
+  beforeHeading: string;
+  afterHeading: string;
+  /** Every assumption the model makes, printed under the result. */
+  assumptions: string;
   caughtHeading: string;
   caught: ReadonlyArray<{ title: string; body: string }>;
 };
@@ -159,21 +207,29 @@ const STUDY_ABROAD: IndustrySpec = {
   },
   leak: {
     heading: "The gap between the enquiry and the application",
-    lead: "In an intake season you are not short of enquiries. You are short of counsellor hours, and the week goes on disqualifying. Put the week on a figure.",
+    lead: "You are not short of enquiries in an intake season. You are paying for students who were never going to apply, in ad spend first and counsellor hours second. Here is that budget, and here is what it buys once it stops.",
     enquiriesLabel: "Student enquiries a month",
     enquiriesDefault: 180,
-    wrongFitLabel: "Of those, what percent turn out wrong fit?",
+    outcomesLabel: "Enrolments a month today",
+    outcomesDefault: 10,
+    valueLabel: "What one enrolment is worth to you, in rupees",
+    valueHint: "Commission plus your own service fee, for one student who actually goes.",
+    valueDefault: 120000,
+    spendLabel: "What you spend on ads a month, in rupees",
+    spendHint: "Meta and Google together, the figure your card is charged.",
+    spendDefault: 150000,
+    wrongFitLegend: "Of those enquiries, how many can never enrol?",
+    wrongFitLabel: "Of every 100 enquiries, how many can never enrol?",
     wrongFitHint:
-      "No proof of funds, wrong intake, wrong country, scores nowhere near the bar, or a student whose parent has not agreed to any of it.",
-    wrongFitDefault: 65,
-    minutesLabel: "Minutes a counsellor spends before that is clear",
-    minutesDefault: 20,
-    rateLabel: "What an hour of counsellor time costs you, in rupees",
-    rateHint: "Monthly salary divided by about 170 working hours, if you have never worked it out.",
-    rateDefault: 500,
+      "No proof of funds, wrong intake, wrong country, scores nowhere near the bar, or a student whose parent has not agreed to any of it. Pick the honest band, then change the number if you know it.",
+    wrongFitDefaultBand: "two-thirds",
     unit: "enquiry",
-    floorNote:
-      "That counts the counselling minutes and nothing else. Not the seminar seats filled by students who were never going to apply, not the documents chased, not the follow-up calls, and not the commission that went to whichever consultancy answered a ready student first. The real figure is higher. This one is the floor, so nobody can argue you up from it.",
+    outcomeUnit: "enrolment",
+    outcomeUnitPlural: "enrolments",
+    beforeHeading: "Today, with no gate",
+    afterHeading: "After the gate and the signal",
+    assumptions:
+      "Two assumptions, both stated so you can argue with them. Your close rate on a qualified student is taken from your own two numbers, enrolments divided by qualified enquiries, not from an industry figure. And the model reclaims 40 percent of the wasted spend, not all of it: an exclusion audience never catches everyone and a qualified-only conversion event spends a fortnight learning. Extra students are bought at what a qualified enquiry costs you today, which is your whole ad spend divided by the qualified enquiries it produced, not at the cheaper blended rate.",
     caughtHeading: "What a gate would have caught",
     caught: [
       {
@@ -314,21 +370,29 @@ const CLINICS: IndustrySpec = {
   },
   leak: {
     heading: "The gap between the enquiry and the chair",
-    lead: "A price-shopper and a patient cost the same per click. They do not cost the same to find out about, and the finding out is your coordinator's morning.",
+    lead: "A price-shopper and a patient cost the same per click. One of them can never book. Here is what that costs you in ad spend every month, and what the same budget buys once it stops being spent on them.",
     enquiriesLabel: "Patient enquiries a month",
     enquiriesDefault: 150,
-    wrongFitLabel: "Of those, what percent turn out wrong fit?",
+    outcomesLabel: "Completed treatments a month today",
+    outcomesDefault: 12,
+    valueLabel: "What one completed treatment is worth to you, in rupees",
+    valueHint: "The average, across whatever mix of treatments you actually do.",
+    valueDefault: 60000,
+    spendLabel: "What you spend on ads a month, in rupees",
+    spendHint: "Meta and Google together, the figure your card is charged.",
+    spendDefault: 125000,
+    wrongFitLegend: "Of those enquiries, how many can never book?",
+    wrongFitLabel: "Of every 100 enquiries, how many can never book?",
     wrongFitHint:
-      "Only asking the price, nowhere near the budget, wrong city, not deciding this year, or a treatment you do not perform.",
-    wrongFitDefault: 60,
-    minutesLabel: "Minutes your front desk or coordinator spends before that is clear",
-    minutesDefault: 15,
-    rateLabel: "What an hour of that person's time costs you, in rupees",
-    rateHint: "Monthly salary divided by about 170 working hours, if you have never worked it out.",
-    rateDefault: 400,
+      "Only asking the price, nowhere near the budget, wrong city, not deciding this year, or a treatment you do not perform. Pick the honest band, then change the number if you know it.",
+    wrongFitDefaultBand: "two-thirds",
     unit: "enquiry",
-    floorNote:
-      "That counts the minutes on the enquiry and nothing else. Not the consultation slot held and not kept, not the discount offered to rescue a conversation that was never going to convert, and not the treatment value that went to whichever clinic answered a ready patient first. The real figure is higher. This one is the floor, so nobody can argue you up from it.",
+    outcomeUnit: "treatment",
+    outcomeUnitPlural: "treatments",
+    beforeHeading: "Today, with no gate",
+    afterHeading: "After the gate and the signal",
+    assumptions:
+      "Two assumptions, both stated so you can argue with them. Your close rate on a qualified patient is taken from your own two numbers, treatments divided by qualified enquiries, not from an industry figure. And the model reclaims 40 percent of the wasted spend, not all of it: an exclusion audience never catches everyone and a qualified-only conversion event spends a fortnight learning. Extra patients are bought at what a qualified enquiry costs you today, which is your whole ad spend divided by the qualified enquiries it produced, not at the cheaper blended rate.",
     caughtHeading: "What a gate would have caught",
     caught: [
       {
