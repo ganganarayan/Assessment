@@ -390,8 +390,18 @@ export const DFY = {
  */
 export const METERING = {
   heading: PRICING_HEADLINE,
-  body: "Every other assessment tool meters raw submissions. Read that as an incentive and it says something uncomfortable: the more unqualified people get through your funnel, the more your vendor gets paid. They are not villains for it, it is just what the meter rewards.",
-  body2: "Here a visitor who fails your gate stores no lead, no submission and no result, so there is nothing to meter and nothing to charge for. We make more money only when you capture more leads worth having. That is the whole business model, and it is the one claim on this page you can verify from your own invoice.",
+  lead: "Not a discount. A different business model, and you can check it on your invoice.",
+  points: [
+    { text: "Every other assessment tool meters raw submissions.", strong: ["raw submissions"] },
+    {
+      text: "Read that as an incentive. They earn more when more unqualified people get through.",
+      strong: ["earn more when more unqualified people get through"],
+    },
+    { text: "Here, a visitor who fails your gate stores nothing. No lead, no submission, no result.", strong: ["stores nothing"] },
+    { text: "Nothing stored means nothing to meter, and nothing to bill you for.", strong: ["nothing to bill you for"] },
+    { text: "We earn more only when you capture leads worth having.", strong: ["only when you capture leads worth having"] },
+    { text: "It is the one claim on this page you can verify from your own invoice.", strong: ["verify from your own invoice"] },
+  ],
 } as const;
 
 export type Pillar = {
@@ -520,4 +530,22 @@ export const WHY_EXISTS = {
       strong: ["cost real money"],
     },
   ],
+} as const;
+
+
+/**
+ * Who it is for.
+ *
+ * The audiences are NOT listed here. They are read from TEMPLATE_CATEGORIES, the same
+ * list the template library is organised by, so this section can never advertise an
+ * audience the product has nothing for - and a new vertical appears on the home page
+ * the moment its scorecard is added, with nobody having to remember.
+ *
+ * verify:templates asserts every category has at least one built-in behind it, which is
+ * what makes the sentence below true rather than merely plausible.
+ */
+export const AUDIENCES = {
+  heading: "Who it is for",
+  lead: "Anyone who buys traffic and pays for it twice: once for the click, and again in the hour someone spends on a call that was never going to close.",
+  note: "Every audience below has a ready-made scorecard in the library, with the gate questions already written. Start from one and change the wording, or write your own from scratch.",
 } as const;
