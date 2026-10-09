@@ -151,8 +151,15 @@ export async function pillarGraph(page: SeoPage, answers: ReadonlyArray<Answer>)
     { name: "Home", url: absolute("/") },
     { name: page.shortName, url },
   ]));
-  if (answers.length > 0) {
-    nodes.push(faqNode(url, answers.map((a) => ({ q: a.question, a: a.short }))));
+  // The page's own questions and the cluster's, in ONE FAQPage node. Two nodes on one
+  // URL is two competing answers to "what is this page's FAQ", and the page-level ones
+  // go first because they are the ones written for this URL specifically.
+  const qa = [
+    ...(page.faqs ?? []).map((f) => ({ q: f.q, a: f.a })),
+    ...answers.map((a) => ({ q: a.question, a: a.short })),
+  ];
+  if (qa.length > 0) {
+    nodes.push(faqNode(url, qa));
   }
 
   return graph(nodes);

@@ -16,7 +16,7 @@ export const page: SeoPage = {
     "How Assess360 differs from Outgrow: one qualification funnel done thoroughly, with a gate before the opt-in and qualified-only reporting.",
   h1: "Assess360 as an Outgrow alternative",
   shortName: "vs Outgrow",
-  factsCheckedOn: "2026-10-06",
+  factsCheckedOn: "2026-10-09",
   lede:
     "Outgrow is an interactive content platform: calculators, quizzes, assessments, polls, recommendations. Assess360 does one of those things and takes it further, because qualification is not a content format, it is a decision about who gets a sales conversation.",
   updatedAt: "2026-10-06",
@@ -56,6 +56,69 @@ export const page: SeoPage = {
         "There is no contradiction in using both. A calculator on a blog post and a qualification funnel behind an ad are different jobs with different success measures.",
       ],
       bullets: [],
+    },
+  ],
+  comparison: {
+    competitor: "Outgrow",
+    source: "published plan pages as summarised by third-party pricing trackers, October 2026",
+    rows: [
+    {
+      label: "Gate runs before the opt-in",
+      us: "Yes, before the opt-in. A failed gate stores no lead, no submission and no result.",
+      them: "No pre-opt-in gate. Content is interactive, then the form arrives.",
+    },
+    {
+      label: "Are disqualified visitors metered?",
+      us: "Never. Only qualified responses count against the plan.",
+      them: "Leads count against the plan.",
+    },
+    {
+      label: "Weighted category scoring",
+      us: "Yes. Weighted categories, a weighted total, and named result bands.",
+      them: "Yes, and a wide range of calculator and quiz formats besides.",
+      themWins: true,
+    },
+    {
+      label: "Qualified-only conversion event",
+      us: "Yes. Qualified completions fire their own conversion event.",
+      them: "No distinct qualified-only conversion event.",
+    },
+    {
+      label: "Server-side exclusion audience",
+      us: "Yes. Server-side exclusion audience via the Conversions API.",
+      them: "No server-side exclusion audience.",
+    },
+    {
+      label: "First-party match keys",
+      us: "Yes, on every Pixel and CAPI event.",
+      them: "Standard pixel integrations.",
+    },
+    {
+      label: "Custom domain",
+      us: "Yes, from $79/mo.",
+      them: "Available on higher plans.",
+    },
+    {
+      label: "Entry price",
+      us: "$39/mo, or $32 billed annually.",
+      them: "From about $22/mo on the entry freelancer plan, with capability rising steeply through the tiers.",
+    },
+    ],
+  },
+  betterWhen:
+    "Outgrow does far more content formats than we do: calculators, recommendations, polls, chatbots, giveaways. If your problem is that you need interactive content of several kinds across a marketing site, it is a stronger choice and a much broader product. Choose it when breadth is the requirement and when every lead the content produces is one you actually want.",
+  faqs: [
+    {
+      q: "Outgrow has calculators and we use those. Does Assess360?",
+      a: "No. We do one format, a gated scorecard, and nothing else. If calculators and recommendation quizzes are part of your marketing then Outgrow covers ground we deliberately do not.",
+    },
+    {
+      q: "Why would I use a narrower tool?",
+      a: "Because the narrow thing is the thing that costs you money. A calculator that produces a hundred leads you cannot sell to is a successful calculator and an expensive month. If that is not your problem, the breadth is worth more than the gate.",
+    },
+    {
+      q: "Can I run both?",
+      a: "Yes, and several people do. Outgrow for the top-of-funnel content, this for the one funnel that feeds the sales calendar and the ad account.",
     },
   ],
   cta: {

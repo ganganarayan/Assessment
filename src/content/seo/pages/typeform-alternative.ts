@@ -16,7 +16,7 @@ export const page: SeoPage = {
     "How Assess360 differs from Typeform: answers are scored against your criteria and wrong-fit respondents stop before the opt-in.",
   h1: "Assess360 as a Typeform alternative",
   shortName: "vs Typeform",
-  factsCheckedOn: "2026-10-06",
+  factsCheckedOn: "2026-10-09",
   lede:
     "Typeform is one of the best-made form builders there is, and a form's job is to collect answers and hand them over. The problem it leaves you is the one that costs money: somebody still has to read every submission and decide who is worth an hour.",
   updatedAt: "2026-10-06",
@@ -57,6 +57,69 @@ export const page: SeoPage = {
         "If you are not sorting people into better and worse fits, scoring adds nothing, and a well-designed form is the simpler choice. Assess360 earns its place when the volume of enquiries exceeds the hours available to read them.",
       ],
       bullets: [],
+    },
+  ],
+  comparison: {
+    competitor: "Typeform",
+    source: "published plan pages as summarised by third-party pricing trackers, October 2026",
+    rows: [
+    {
+      label: "Gate runs before the opt-in",
+      us: "Yes, before the opt-in. A failed gate stores no lead, no submission and no result.",
+      them: "No. Logic can hide questions, but the respondent is already in the form.",
+    },
+    {
+      label: "Are disqualified visitors metered?",
+      us: "Never. Only qualified responses count against the plan.",
+      them: "Every response counts against the plan.",
+    },
+    {
+      label: "Weighted category scoring",
+      us: "Yes. Weighted categories, a weighted total, and named result bands.",
+      them: "Basic scoring with logic jumps. No weighted categories or result bands.",
+    },
+    {
+      label: "Qualified-only conversion event",
+      us: "Yes. Qualified completions fire their own conversion event.",
+      them: "No. All submissions report as one event.",
+    },
+    {
+      label: "Server-side exclusion audience",
+      us: "Yes. Server-side exclusion audience via the Conversions API.",
+      them: "No server-side exclusion audience.",
+    },
+    {
+      label: "First-party match keys",
+      us: "Yes, on every Pixel and CAPI event.",
+      them: "Standard pixel integrations.",
+    },
+    {
+      label: "Custom domain",
+      us: "Yes, from $79/mo.",
+      them: "Custom subdomain from the Plus plan.",
+    },
+    {
+      label: "Entry price",
+      us: "$39/mo, or $32 billed annually.",
+      them: "$39/mo Basic, $79/mo Plus. Often the better value if you only need forms.",
+      themWins: true,
+    },
+    ],
+  },
+  betterWhen:
+    "Typeform is the best-looking form builder there is, and it is not close. If what you need is a beautiful survey, a research questionnaire, an application form or anything where every respondent is welcome, use Typeform and enjoy it. Its logic, its integrations and its polish are all ahead of ours. It becomes the wrong tool only at the point where you need some respondents to be turned away before they become a lead.",
+  faqs: [
+    {
+      q: "Can Typeform disqualify people?",
+      a: "It can end a form early and send someone to a different ending, which looks similar and is not the same thing. The respondent has usually already given you their email by then, so the lead exists, it is in your CRM, and it counts against your plan. The gate here runs before the opt-in, so there is nothing to clean up.",
+    },
+    {
+      q: "Is this a Typeform replacement for my whole account?",
+      a: "Probably not, and we would not suggest it. Most people who switch keep Typeform for surveys and feedback and move only the lead-generating funnel across. The two jobs are genuinely different and one tool being better at one of them is not an argument about the other.",
+    },
+    {
+      q: "What about the look of it?",
+      a: "Typeform wins on polish and we are not going to pretend otherwise. Our result pages are built around saying something useful to the respondent rather than around the animation between questions.",
     },
   ],
   cta: {

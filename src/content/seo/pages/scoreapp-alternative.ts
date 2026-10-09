@@ -16,7 +16,7 @@ export const page: SeoPage = {
     "How Assess360 differs from ScoreApp: a gate that runs before the opt-in, weighted scoring, and a qualified-only event sent back to your ads.",
   h1: "Assess360 as a ScoreApp alternative",
   shortName: "vs ScoreApp",
-  factsCheckedOn: "2026-10-06",
+  factsCheckedOn: "2026-10-09",
   lede:
     "ScoreApp is a scorecard builder aimed at lead generation: ask questions, give a score, collect the lead. Assess360 is built for the step after that, where some of those leads should never have become leads at all, and where the ad platform needs to be told which ones were worth having.",
   updatedAt: "2026-10-06",
@@ -57,6 +57,69 @@ export const page: SeoPage = {
         "Assess360 is opinionated: it exists to reduce the number of leads you receive and raise what each one is worth. If you are not running paid traffic, not short of sales hours, and genuinely want every enquiry, that opinion works against you.",
       ],
       bullets: [],
+    },
+  ],
+  comparison: {
+    competitor: "ScoreApp",
+    source: "published plan pages as summarised by third-party pricing trackers, October 2026",
+    rows: [
+    {
+      label: "Gate runs before the opt-in",
+      us: "Yes, before the opt-in. A failed gate stores no lead, no submission and no result.",
+      them: "No. Everyone who starts reaches the form; filtering happens to the lead after it exists.",
+    },
+    {
+      label: "Are disqualified visitors metered?",
+      us: "Never. Only qualified responses count against the plan.",
+      them: "Every response counts against the plan, qualified or not.",
+    },
+    {
+      label: "Weighted category scoring",
+      us: "Yes. Weighted categories, a weighted total, and named result bands.",
+      them: "Yes. Weighted categories and result pages, and it does them well.",
+      themWins: true,
+    },
+    {
+      label: "Qualified-only conversion event",
+      us: "Yes. Qualified completions fire their own conversion event.",
+      them: "No distinct qualified-completion event. A completion is a completion.",
+    },
+    {
+      label: "Server-side exclusion audience",
+      us: "Yes. Server-side exclusion audience via the Conversions API.",
+      them: "No server-side exclusion audience.",
+    },
+    {
+      label: "First-party match keys",
+      us: "Yes, on every Pixel and CAPI event.",
+      them: "Standard pixel integrations.",
+    },
+    {
+      label: "Custom domain",
+      us: "Yes, from $79/mo.",
+      them: "Yes, on its higher plans.",
+    },
+    {
+      label: "Entry price",
+      us: "$39/mo, or $32 billed annually.",
+      them: "$39/mo Starter, with 100 responses and 3 scorecards.",
+    },
+    ],
+  },
+  betterWhen:
+    "ScoreApp is the closest thing to a peer on this list, and if what you need is a polished scorecard with good result pages and no interest in what your ad account learns from it, it is a mature product that will not let you down. It has been doing this longer. Choose it when the quiz is the deliverable rather than the filter, when nobody is buying cold traffic, and when a lead costs you an email rather than an hour.",
+  faqs: [
+    {
+      q: "Is Assess360 just a cheaper ScoreApp?",
+      a: "No, and the price being similar is a coincidence rather than a positioning. ScoreApp is built to produce a scorecard; this is built to produce fewer leads. The gate before the opt-in and the qualified-only event are the difference, and neither of them is a feature ScoreApp is missing so much as a thing it is not trying to do.",
+    },
+    {
+      q: "Can I move my ScoreApp quiz across?",
+      a: "The questions, yes, by pasting them into the plain-text importer. The gate is new, because ScoreApp has nowhere to put one. Send us your live link and we will rebuild the whole thing with a gate in front of it, free, within 24 hours.",
+    },
+    {
+      q: "Does the gate hurt conversion rate?",
+      a: "It lowers it, on purpose, and that is the whole point. Fewer people reach the form; the ones who do are worth a call. If you judge the change on form fills it will look like a loss, and if you judge it on calls that closed it usually does not.",
     },
   ],
   cta: {
