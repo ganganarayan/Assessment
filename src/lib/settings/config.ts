@@ -295,6 +295,25 @@ export async function resolveOnboardingVideoUrl(): Promise<string | null> {
 }
 
 /**
+ * The done-for-you scarcity counter, or null when there is nothing honest to show.
+ *
+ * Returns null unless an operator has actually set a remaining count, so an unmaintained
+ * counter disappears from the public pages instead of standing there going stale. Also
+ * null once it hits zero: "0 of 20 remaining" is a closed door with a call-to-action
+ * underneath it, which reads worse than saying nothing.
+ */
+export async function resolveDfyScarcity(): Promise<{ remaining: number; total: number } | null> {
+  const s = (await settingRow(null, { dfyBuildsTotal: true, dfyBuildsRemaining: true })) as
+    | { dfyBuildsTotal: number; dfyBuildsRemaining: number | null }
+    | null;
+  const remaining = s?.dfyBuildsRemaining ?? null;
+  if (remaining === null || remaining <= 0) return null;
+  const total = s?.dfyBuildsTotal ?? 20;
+  // A remaining count above the total is an editing slip, not a claim worth printing.
+  return { remaining: Math.min(remaining, total), total };
+}
+
+/**
  * The getting-started steps shown on every tenant dashboard, in order.
  *
  * NEVER throws and never returns junk: a malformed value, a non-array, or entries that

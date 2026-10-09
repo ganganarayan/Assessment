@@ -6,6 +6,7 @@ import { Footer } from "@/components/marketing/Footer";
 import { BuildForm } from "@/components/marketing/BuildForm";
 import { DFY } from "@/lib/marketing/content";
 import { platformPageMetadata } from "@/lib/seo/site";
+import { resolveDfyScarcity } from "@/lib/settings/config";
 
 /**
  * The done-for-you intake, and the destination of the home page's primary call to action.
@@ -27,6 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function BuildPage() {
   if (await getCurrentTenant()) notFound();
+  const scarcity = await resolveDfyScarcity();
 
   return (
     <>
@@ -34,6 +36,14 @@ export default async function BuildPage() {
       <main id="main">
         <section className="border-b">
           <div className="mx-auto max-w-2xl px-5 py-16 sm:px-8 sm:py-20">
+            {/* Only rendered when an operator is actually maintaining the number. An
+                unset counter prints nothing, rather than going stale in front of buyers. */}
+            {scarcity ? (
+              <p className="mb-5 inline-flex items-center rounded-full border border-green-600/40 bg-green-600/10 px-3 py-1 text-sm font-medium text-green-700 dark:text-green-500">
+                {scarcity.remaining} of {scarcity.total} free builds remaining
+              </p>
+            ) : null}
+
             <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
               {DFY.heading}
             </h1>

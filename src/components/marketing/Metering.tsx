@@ -16,7 +16,7 @@ import { Emphasised, Tick } from "./Emphasised";
  * line, so a reader who skims still arrives at the conclusion instead of seeing a block
  * of text that looks like the small print.
  */
-export function Metering() {
+export function Metering({ scarcity }: { scarcity?: { remaining: number; total: number } | null }) {
   return (
     <section className="border-b bg-[var(--muted)]">
       <div className="mx-auto max-w-3xl px-5 py-16 sm:px-8 sm:py-20">
@@ -38,10 +38,16 @@ export function Metering() {
           ))}
         </ul>
 
-        <div className="mt-9">
+        <div className="mt-9 flex flex-col items-start gap-3">
           <Link href={DFY.href} className={buttonVariants({ size: "lg" })}>
             {DFY.cta}
           </Link>
+          {/* Shown only while somebody is maintaining it. See resolveDfyScarcity. */}
+          {scarcity ? (
+            <p className="text-sm font-medium text-green-700 dark:text-green-500">
+              {scarcity.remaining} of {scarcity.total} free builds remaining
+            </p>
+          ) : null}
         </div>
       </div>
     </section>

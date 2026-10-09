@@ -64,8 +64,10 @@ const jsonLd = {
 
 export function Landing({
   videos,
+  scarcity,
 }: {
   videos?: { hero: string | null; tiles: Record<string, string> };
+  scarcity?: { remaining: number; total: number } | null;
 }) {
   return (
     <>
@@ -87,7 +89,7 @@ export function Landing({
         <WhoItIsFor />
         {/* Then the only claim on the page that can be checked against an invoice, which
             is worth more to a sceptical reader than the next three sections combined. */}
-        <Metering />
+        <Metering scarcity={scarcity} />
         <Problem />
         <HowItWorks />
         <Capabilities videos={videos?.tiles} />

@@ -2019,6 +2019,19 @@ model AppSetting {
   /// Platform-wide (set once by the super admin), because it explains Assess360 rather
   /// than anything about one workspace. Blank = the written steps appear on their own,
   /// which is the point: the steps are the instruction, the video is the nicety.
+  /// The done-for-you scarcity counter, shown on /build and the home page.
+  ///
+  /// Two REAL numbers a human edits, never a timer that resets itself. The whole point
+  /// of the claim is that it is checkable: "7 of 20 free builds remaining" is worth
+  /// something only while somebody is actually decrementing it, and a counter that
+  /// refills overnight is the kind of thing a buyer notices once and never forgets.
+  ///
+  /// `dfyBuildsRemaining` null = show NOTHING. An unset counter claims nothing at all,
+  /// which is the correct default: a number nobody is maintaining should disappear
+  /// rather than quietly go stale in front of buyers.
+  dfyBuildsTotal     Int  @default(20)
+  dfyBuildsRemaining Int?
+
   onboardingVideoUrl String?
 
   /// The getting-started steps every tenant sees on their dashboard during trial, in

@@ -111,6 +111,24 @@ export async function updatePlatformOnboardingSteps(steps: string[]): Promise<Ac
   return { ok: true };
 }
 
+/**
+ * Save the done-for-you scarcity counter. `remaining` null clears it, which hides the
+ * counter everywhere rather than printing a zero.
+ */
+export async function updateDfyScarcity(total: number, remaining: number | null): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  const t = Math.max(1, Math.min(Math.round(Number(total) || 20), 1000));
+  const r = remaining === null ? null : Math.max(0, Math.min(Math.round(Number(remaining) || 0), t));
+  const data = { dfyBuildsTotal: t, dfyBuildsRemaining: r };
+  await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
+  revalidatePath("/admin/settings");
+  // The counter is printed on the public pages, which are cached independently.
+  revalidatePath("/build");
+  revalidatePath("/");
+  return { ok: true };
+}
+
 /** Save (or clear) the platform/Gita heatmap-recording snippet (singleton row). */
 export async function updatePlatformHeatmapSettings(code: string): Promise<ActionResult> {
   const denied = editDenied(await requireSuperAdmin());
