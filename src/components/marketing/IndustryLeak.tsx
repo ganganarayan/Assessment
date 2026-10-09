@@ -182,16 +182,21 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
 
       {/* ---- Before ---------------------------------------------------- */}
       <div className="rounded-xl border-2 border-amber-500/50 bg-amber-500/5 p-6 sm:p-8">
-        <p className="text-sm font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
-          {spec.beforeHeading}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Chip tone="loss">Loss</Chip>
+          <p className="text-sm font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+            {spec.beforeHeading}
+          </p>
+        </div>
 
         <p className="mt-5 text-sm text-[var(--muted-foreground)]">
           Ad spend buying {plural(spec.unit)} that can never become a {spec.outcomeUnit}
         </p>
         <p className="mt-2 text-3xl font-bold text-amber-600 sm:text-4xl dark:text-amber-400">
           {rupees(r.wastedSpend)}{" "}
-          <span className="text-base font-medium text-[var(--muted-foreground)]">a month</span>
+          <span className="text-base font-medium text-[var(--muted-foreground)]">
+            a month, lost
+          </span>
         </p>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
           {rupees(r.wastedSpend * 12)} a year
@@ -202,9 +207,21 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
           <Stat
             label={`Wrong-fit ${plural(spec.unit)} a month`}
             value={`${num(r.wrongFit)} of ${num(r.count)}`}
+            tone="loss"
+            sub="Paid for, and they reach your team anyway"
           />
-          <Stat label={`Cost per ${spec.outcomeUnit}`} value={rupees(r.costPerSale)} />
-          <Stat label="Revenue a month" value={rupees(r.revenueToday)} />
+          <Stat
+            label={`What each ${spec.outcomeUnit} costs you today`}
+            value={rupees(r.costPerSale)}
+            tone="loss"
+            sub="Inflated by everyone who could never buy"
+          />
+          <Stat
+            label="Revenue you earn today"
+            value={rupees(r.revenueToday)}
+            tone="neutral"
+            sub="Not a loss. This is your baseline"
+          />
         </div>
 
         <Working>
@@ -216,25 +233,29 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
           </Line>
           <Line>
             {rupees(r.adSpend)} ad spend × {num(r.pct)}% ={" "}
-            <Em>{rupees(r.wastedSpend)}</Em> buying people who can never buy
+            <Em>{rupees(r.wastedSpend)} lost a month</Em>
           </Line>
-          <Line>
-            {rupees(r.adSpend)} ÷ {num(r.sales)} {pluralOutcome(spec, r.sales)} ={" "}
-            <Em>{rupees(r.costPerSale)}</Em> per {spec.outcomeUnit} today
-          </Line>
-          <Line>
-            {num(r.sales)} ÷ {num(r.qualified)} qualified ={" "}
-            <Em>{pct(r.closeRate)}</Em> close rate on a qualified {spec.unit}, which is your
-            number, not ours
-          </Line>
+          <Detail>
+            <Line>
+              {rupees(r.adSpend)} ÷ {num(r.sales)} {pluralOutcome(spec, r.sales)} ={" "}
+              <Em>{rupees(r.costPerSale)}</Em> per {spec.outcomeUnit} today
+            </Line>
+            <Line>
+              {num(r.sales)} ÷ {num(r.qualified)} qualified = <Em>{pct(r.closeRate)}</Em> close
+              rate on a qualified {spec.unit}, which is your number, not ours
+            </Line>
+          </Detail>
         </Working>
       </div>
 
       {/* ---- After ----------------------------------------------------- */}
       <div className="rounded-xl border-2 border-green-600/40 bg-green-600/5 p-6 sm:p-8">
-        <p className="text-sm font-semibold uppercase tracking-wide text-green-600">
-          {spec.afterHeading}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Chip tone="gain">Gain</Chip>
+          <p className="text-sm font-semibold uppercase tracking-wide text-green-600">
+            {spec.afterHeading}
+          </p>
+        </div>
 
         {nothingToCatch ? (
           <p className="mt-5 leading-relaxed">
@@ -249,7 +270,9 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
             </p>
             <p className="mt-2 text-3xl font-bold text-green-600 sm:text-4xl">
               {rupees(r.extraRevenue)}{" "}
-              <span className="text-base font-medium text-[var(--muted-foreground)]">a month</span>
+              <span className="text-base font-medium text-[var(--muted-foreground)]">
+                a month, gained
+              </span>
             </p>
             <p className="mt-1 text-sm text-[var(--muted-foreground)]">
               {rupees(r.extraRevenue * 12)} a year
@@ -260,40 +283,49 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
               <Stat
                 label={`Wrong-fit ${plural(spec.unit)} reaching your team`}
                 value="0"
-                sub="They never become a lead"
+                tone="gain"
+                sub={`${num(r.wrongFit)} a month never become a lead`}
               />
               <Stat
                 label={`Extra ${spec.outcomeUnitPlural} a month`}
                 value={r.extraSales.toFixed(1)}
+                tone="gain"
+                sub="From the same budget, nothing added"
               />
               <Stat
-                label={`Cost per ${spec.outcomeUnit}`}
+                label={`What each ${spec.outcomeUnit} costs you`}
                 value={rupees(r.costPerSaleAfter)}
+                tone="gain"
                 sub={`Down from ${rupees(r.costPerSale)}`}
               />
             </div>
 
             <Working tone="green">
               <Line>
-                {rupees(r.wastedSpend)} wasted × {Math.round(RECLAIM_SHARE * 100)}% reclaimed ={" "}
+                {rupees(r.wastedSpend)} lost × {Math.round(RECLAIM_SHARE * 100)}% reclaimed ={" "}
                 <Em>{rupees(r.reclaimed)}</Em> a month redirected
               </Line>
               <Line>
-                {rupees(r.adSpend)} ÷ {num(r.qualified)} qualified ={" "}
-                <Em>{rupees(r.costPerQualified)}</Em>, what a qualified {spec.unit} costs you
-                today
+                {r.extraSales.toFixed(1)} more {spec.outcomeUnitPlural} × {rupees(r.perSale)} ={" "}
+                <Em>{rupees(r.extraRevenue)} gained a month</Em>
               </Line>
-              <Line>
-                {rupees(r.reclaimed)} ÷ {rupees(r.costPerQualified)} ={" "}
-                <Em>{r.extraQualified.toFixed(1)} more qualified {plural(spec.unit)}</Em> a month
-              </Line>
-              <Line>
-                {r.extraQualified.toFixed(1)} × {pct(r.closeRate)} close rate ={" "}
-                <Em>
-                  {r.extraSales.toFixed(1)} more {spec.outcomeUnitPlural}
-                </Em>{" "}
-                × {rupees(r.perSale)} = <Em>{rupees(r.extraRevenue)}</Em> a month
-              </Line>
+              <Detail>
+                <Line>
+                  {rupees(r.adSpend)} ÷ {num(r.qualified)} qualified ={" "}
+                  <Em>{rupees(r.costPerQualified)}</Em>, what a qualified {spec.unit} costs you
+                  today
+                </Line>
+                <Line>
+                  {rupees(r.reclaimed)} ÷ {rupees(r.costPerQualified)} ={" "}
+                  <Em>
+                    {r.extraQualified.toFixed(1)} more qualified {plural(spec.unit)}
+                  </Em>{" "}
+                  a month, × {pct(r.closeRate)} close rate ={" "}
+                  <Em>
+                    {r.extraSales.toFixed(1)} more {spec.outcomeUnitPlural}
+                  </Em>
+                </Line>
+              </Detail>
             </Working>
           </>
         )}
@@ -360,14 +392,81 @@ function Line({ children }: { children: React.ReactNode }) {
   return <p className="leading-relaxed">{children}</p>;
 }
 
+/**
+ * The derivation steps, folded away.
+ *
+ * These lines are how the model gets from one visible figure to the next: the
+ * unit price of a qualified enquiry, the division back out into a count. They
+ * are methodology, and on the face of the page they read as notes to ourselves
+ * rather than as anything a consultancy owner came here for.
+ *
+ * Folded, not deleted. The page's own rule is that no number appears without
+ * its arithmetic, so hiding the working would be worse than showing too much
+ * of it. A reader who wants to audit the chain opens one summary and gets every
+ * step; everybody else reads two lines and moves on.
+ */
+function Detail({ children }: { children: React.ReactNode }) {
+  return (
+    <details className="group mt-1">
+      <summary className="cursor-pointer list-none text-sm font-medium underline underline-offset-4 decoration-dotted">
+        <span className="group-open:hidden">Check the arithmetic</span>
+        <span className="hidden group-open:inline">Hide the arithmetic</span>
+      </summary>
+      <div className="mt-2 flex flex-col gap-1.5">{children}</div>
+    </details>
+  );
+}
+
+/** Says in a word whether the figures below it are money going out or coming in. */
+function Chip({ children, tone }: { children: React.ReactNode; tone: "loss" | "gain" }) {
+  return (
+    <span
+      className={
+        tone === "loss"
+          ? "rounded-full bg-amber-500/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400"
+          : "rounded-full bg-green-600/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-green-700 dark:text-green-400"
+      }
+    >
+      {children}
+    </span>
+  );
+}
+
 function Em({ children }: { children: React.ReactNode }) {
   return <strong className="font-semibold text-[var(--foreground)]">{children}</strong>;
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+/**
+ * A figure, and what KIND of figure it is.
+ *
+ * The tone word is not decoration. Three rupee amounts sitting in a row with
+ * nothing but their labels is genuinely ambiguous: revenue you already earn
+ * reads as part of the loss, and a cost that falls reads as a cost. Each one
+ * now says loss, gain or neither before the reader has to work it out.
+ */
+function Stat({
+  label,
+  value,
+  sub,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "loss" | "gain" | "neutral";
+}) {
+  const toneLabel = tone === "loss" ? "Loss" : tone === "gain" ? "Gain" : "Neither";
+  const toneClass =
+    tone === "loss"
+      ? "text-amber-700 dark:text-amber-400"
+      : tone === "gain"
+        ? "text-green-700 dark:text-green-400"
+        : "text-[var(--muted-foreground)]";
+
   return (
     <div>
-      <p className="text-2xl font-bold sm:text-3xl">{value}</p>
+      <p className={`text-xs font-bold uppercase tracking-wide ${toneClass}`}>{toneLabel}</p>
+      <p className="mt-1 text-2xl font-bold sm:text-3xl">{value}</p>
       <p className="mt-1 text-sm text-[var(--muted-foreground)]">{label}</p>
       {sub ? <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">{sub}</p> : null}
     </div>
