@@ -34,6 +34,8 @@ import { PaymentsMasterSwitch } from "@/features/admin/components/payments-maste
 import { PlatformToggle } from "@/features/admin/components/platform-toggle";
 import { getPlatformPayments, getPlatformWaba } from "@/features/admin/actions/platform-integrations";
 import { LegalSettingsForm } from "@/features/admin/components/legal-settings-form";
+import { SupportSettingsForm } from "@/features/support/components/support-settings-form";
+import { getSupportSettings } from "@/features/support/actions/settings";
 import { NurtureConnectionSettings } from "@/features/nurture/components/nurture-connection-settings";
 import { getNurtureSettings } from "@/features/nurture/actions";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
@@ -78,6 +80,10 @@ export default async function SettingsPage() {
     impersonating ? Promise.resolve(null) : resolveDfyScarcity(),
     impersonating ? Promise.resolve(null) : resolveDfyWabaTemplate(),
   ]);
+
+  // Platform-wide, so it is not read at all while operating a tenant's workspace: how
+  // Assess360 handles its own support queue is not a per-tenant setting.
+  const supportSettings = impersonating ? null : await getSupportSettings();
 
   return (
     <div className="flex flex-col gap-6">
@@ -236,6 +242,24 @@ export default async function SettingsPage() {
                 initialLang={dfyWaba?.lang ?? "en"}
               />
             </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {!impersonating && supportSettings ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Support &amp; onboarding requests</CardTitle>
+            <CardDescription>
+              Where each queue goes. In-app badges your rail in red and you answer in the thread;
+              email forwards it to the support inbox and the conversation genuinely moves there, so
+              the tenant is told to watch their inbox rather than a page nobody will update; off
+              withdraws the form while leaving open threads readable on both sides. WhatsApp is not
+              sent from here at all: a reply posts to your CRM webhook and your CRM sends it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SupportSettingsForm initial={supportSettings} />
           </CardContent>
         </Card>
       ) : null}

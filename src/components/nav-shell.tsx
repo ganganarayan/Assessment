@@ -31,6 +31,15 @@ export interface NavItem {
   label: string;
   /** Match this exact path only - for a parent that has children. */
   exact?: boolean;
+  /**
+   * A count that needs attention, drawn in RED beside the label. Zero and undefined
+   * both render nothing, deliberately: a badge reading 0 is a badge that trains
+   * everybody to stop seeing badges.
+   *
+   * It is a number rather than a boolean because the only things that use it are
+   * queues, and "three people are waiting" is a different decision from "somebody is".
+   */
+  badge?: number;
 }
 
 export interface NavSection {
@@ -82,9 +91,16 @@ export function NavShell({
     });
   }
 
+  // A folded column still has to say that something is waiting, or hiding the menu
+  // hides the queue - and the menu is folded by the people who fold it permanently.
+  const totalBadges = sections.reduce(
+    (sum, s) => sum + s.items.reduce((n, i) => n + (i.badge ?? 0), 0),
+    0,
+  );
+
   if (folded) {
     return (
-      <div className="flex items-start justify-center p-2">
+      <div className="flex items-start justify-center gap-1 p-2">
         <button
           type="button"
           onClick={toggleFold}
@@ -94,6 +110,14 @@ export function NavShell({
         >
           »
         </button>
+        {totalBadges > 0 ? (
+          <span
+            title={`${totalBadges} waiting`}
+            className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+          >
+            {totalBadges > 99 ? "99+" : totalBadges}
+          </span>
+        ) : null}
       </div>
     );
   }
@@ -142,11 +166,16 @@ export function NavShell({
                     <Link
                       href={item.href}
                       className={cn(
-                        "rounded-md px-2 py-1.5 hover:bg-[var(--muted)]",
+                        "flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--muted)]",
                         isActive(item) && "bg-[var(--muted)] font-medium",
                       )}
                     >
-                      {item.label}
+                      <span>{item.label}</span>
+                      {item.badge && item.badge > 0 ? (
+                        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+                          {item.badge > 99 ? "99+" : item.badge}
+                        </span>
+                      ) : null}
                     </Link>
                     {renderUnder?.(item)}
                   </div>

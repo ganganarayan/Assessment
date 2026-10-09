@@ -17,6 +17,9 @@ import { WorkspaceLocked } from "@/features/billing/components/workspace-locked"
 import { TrialWelcomeModal } from "@/features/billing/components/trial-welcome-modal";
 import { SupportStrip } from "@/features/billing/components/support-strip";
 import { headers } from "next/headers";
+import { isStaff } from "@/lib/auth/guards";
+import { resolveSupportRouting } from "@/lib/support/config";
+import { tenantUnreadCounts } from "@/features/support/data";
 
 /**
  * The tenant workspace shell. requireWorkspace resolves a CONCRETE acting tenant
@@ -42,6 +45,29 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   const hiddenNav = impersonating || resolved.limits.features.apiAccess ? [] : ["/w/api"];
 
   /**
+   * The Support section, and the red count on it.
+   *
+   * 🔴 Owner only, matching the actions: read-only staff enforcement is not wired
+   * across the app yet, and these threads carry the owner's replies about billing and
+   * configuration. A hidden link is presentation and the actions refuse independently.
+   *
+   * A queue switched OFF keeps its link for a tenant who already has a thread open.
+   * Hiding it would leave a conversation they were told to watch with no way back to
+   * it, which is worse than an extra menu item.
+   */
+  const staff = isStaff(user);
+  const routing = await resolveSupportRouting();
+  const unread = staff ? { SUPPORT: 0, ONBOARDING: 0 } : await tenantUnreadCounts(tenantId);
+  const hasOpen = { SUPPORT: unread.SUPPORT > 0, ONBOARDING: unread.ONBOARDING > 0 };
+  if (staff) {
+    hiddenNav.push("/w/support", "/w/onboarding");
+  } else {
+    if (routing.support === "OFF" && !hasOpen.SUPPORT) hiddenNav.push("/w/support");
+    if (routing.onboarding === "OFF" && !hasOpen.ONBOARDING) hiddenNav.push("/w/onboarding");
+  }
+  const supportBadges = { "/w/support": unread.SUPPORT, "/w/onboarding": unread.ONBOARDING };
+
+  /**
    * PARKED = locked, not read-only.
    *
    * The original design kept a parked workspace fully readable. The owner's decision
@@ -57,7 +83,15 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
    * operating it, not using it.
    */
   const path = (await headers()).get("x-pathname") ?? "";
-  const exemptWhileParked = path.startsWith("/w/billing");
+  /**
+   * Billing ends the lock, so it is exempt. SUPPORT is exempt for the same reason read
+   * the other way round: a parked account is exactly the account most likely to need
+   * help, and locking the only way they have of asking leaves a customer with a dead
+   * screen and a reason to leave rather than to pay. The data export is already theirs
+   * by the same argument.
+   */
+  const exemptWhileParked =
+    path.startsWith("/w/billing") || path.startsWith("/w/support") || path.startsWith("/w/onboarding");
   const locked = resolved.parked && !impersonating && !exemptWhileParked;
   const supportEmail = locked ? await supportEmailFor(tenantId) : null;
 
@@ -102,7 +136,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
             <AppBrand href="/w" subtitle={tenant?.name ?? "Workspace"} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <WorkspaceNav hidden={hiddenNav} />
+            <WorkspaceNav hidden={hiddenNav} badges={supportBadges} />
           </div>
           <div className="mt-auto">
             <SignOutButton />
