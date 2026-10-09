@@ -74,7 +74,7 @@ export const page: SeoPage = {
   ],
   comparison: {
     competitor: "Jotform",
-    source: "published plan pages as summarised by third-party pricing trackers, October 2026",
+    source: "read from their own pricing page on 9 October 2026. Several vendors price by region, so the figure you are shown may differ",
     rows: [
     {
       label: "Gate runs before the opt-in",
@@ -114,7 +114,7 @@ export const page: SeoPage = {
     {
       label: "Entry price",
       us: "$39/mo, or $32 billed annually.",
-      them: "$39/mo Bronze, with 25 forms and 1,000 submissions. Far more form for the money.",
+      them: "$39/mo Bronze, or $408 a year, with 1,000 submissions. The same money as us and far more form for it.",
       themWins: true,
     },
     ],

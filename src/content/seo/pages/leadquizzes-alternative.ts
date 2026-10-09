@@ -61,7 +61,7 @@ export const page: SeoPage = {
     {
       id: "when-cheap-gets-expensive",
       heading: "When the cheaper tool becomes the expensive one",
-      answer: "At thirteen dollars a month the subscription is not the cost. The calls are.",
+      answer: "The subscription was never the cost. The calls are.",
       paragraphs: [
         "Take three hundred quiz completions in a month and suppose sixty of them are genuinely worth speaking to. The subscription difference between the two tools is a rounding error against the two hundred and forty conversations that either waste somebody's time or get screened out by hand, which is also somebody's time.",
         "That is the whole argument, and it only works one way: if nobody is calling those leads, the cheaper tool wins and we would rather you kept it.",
@@ -75,7 +75,7 @@ export const page: SeoPage = {
   ],
   comparison: {
     competitor: "LeadQuizzes",
-    source: "published plan pages as summarised by third-party pricing trackers, October 2026",
+    source: "read from their own pricing page on 9 October 2026. Several vendors price by region, so the figure you are shown may differ",
     rows: [
     {
       label: "Gate runs before the opt-in",
@@ -85,7 +85,8 @@ export const page: SeoPage = {
     {
       label: "Are disqualified visitors metered?",
       us: "Never. Only qualified responses count against the plan.",
-      them: "Responses count against the plan on every tier.",
+      them: "Every response is metered - but 2,500 of them on the entry plan, far more raw volume per pound than ours.",
+      themWins: true,
     },
     {
       label: "Weighted category scoring",
@@ -115,17 +116,16 @@ export const page: SeoPage = {
     {
       label: "Entry price",
       us: "$39/mo, or $32 billed annually.",
-      them: "From about $13/mo, which is the cheapest entry point on this list.",
-      themWins: true,
+      them: "Standard $49/mo, or $37 billed annually. No longer the cheapest entry point.",
     },
     ],
   },
   betterWhen:
-    "LeadQuizzes is cheap, quick to learn and built for exactly what its name says: more leads from a quiz. If you are early, your problem is volume rather than quality, and an unqualified lead costs you nothing but an email send, it will do the job for a fraction of what anything else here costs. Its entry price genuinely undercuts us.",
+    "LeadQuizzes is quick to learn and built for exactly what its name says: more leads from a quiz. Its entry plan carries 2,500 responses where ours carries 150, so if your problem is volume rather than quality, and an unqualified lead costs you nothing but an email send, you get far more throughput for the money. It is no longer the cheapest on this list, but it is still the one that will not argue with you about collecting everybody.",
   faqs: [
     {
       q: "If LeadQuizzes is cheaper, why switch?",
-      a: "Only when the arithmetic flips. At $13 a month and leads that cost you nothing to ignore, it wins. The moment you are paying for traffic and a wrong-fit lead costs an hour of somebody's time, the cheaper tool is the more expensive one, and the gap is not close.",
+      a: "Only when the arithmetic flips. While leads cost you nothing to ignore, more of them for less is simply the better deal and we would say so. The moment you are paying for traffic and a wrong-fit lead costs an hour of somebody's time, volume stops being the thing worth buying.",
     },
     {
       q: "Does Assess360 generate quizzes with AI like LeadQuizzes does?",

@@ -75,7 +75,7 @@ export const page: SeoPage = {
   ],
   comparison: {
     competitor: "ScoreApp",
-    source: "published plan pages as summarised by third-party pricing trackers, October 2026",
+    source: "read from their own pricing page on 9 October 2026. Several vendors price by region, so the figure you are shown may differ",
     rows: [
     {
       label: "Gate runs before the opt-in",
@@ -116,7 +116,7 @@ export const page: SeoPage = {
     {
       label: "Entry price",
       us: "$39/mo, or $32 billed annually.",
-      them: "$39/mo Starter, with 100 responses and 3 scorecards.",
+      them: "$39/mo Starter, or $30 billed annually, with 100 responses and 3 scorecards.",
     },
     ],
   },

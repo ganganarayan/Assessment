@@ -65,7 +65,7 @@ export const page: SeoPage = {
   ],
   comparison: {
     competitor: "Riddle",
-    source: "published plan pages as summarised by third-party pricing trackers, October 2026",
+    source: "read from their own pricing page on 9 October 2026. Several vendors price by region, so the figure you are shown may differ",
     rows: [
     {
       label: "Gate runs before the opt-in",
@@ -106,12 +106,12 @@ export const page: SeoPage = {
     {
       label: "Entry price",
       us: "$39/mo, or $32 billed annually.",
-      them: "From about $59/mo Essential, with unlimited submissions.",
+      them: "Priced by region. Their page quotes Pro at ₹10,000/mo in India, roughly $118. No Essential tier any more.",
     },
     ],
   },
   betterWhen:
-    "Riddle is built for publishers and media teams, and its unmetered model is genuinely better than ours for high volume: unlimited submissions on every paid plan, plus GDPR-focused hosting options and a wide spread of content formats. If you are running quizzes at media scale where every entrant is an audience member rather than a sales lead, pay the higher monthly fee and stop counting.",
+    "Riddle is built for publishers and media teams, and its unmetered model is genuinely better than ours for high volume: unlimited submissions on every paid plan, plus GDPR-focused hosting options and a wide spread of content formats. It costs several times what we do, which for a media team running quizzes at scale is the right trade - every entrant is an audience member, and you stop counting.",
   faqs: [
     {
       q: "Riddle has unlimited responses. Isn't that strictly better?",

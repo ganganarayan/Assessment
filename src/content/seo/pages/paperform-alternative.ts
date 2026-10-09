@@ -64,7 +64,7 @@ export const page: SeoPage = {
   ],
   comparison: {
     competitor: "Paperform",
-    source: "published plan pages as summarised by third-party pricing trackers, October 2026",
+    source: "read from their own pricing page on 9 October 2026. Several vendors price by region, so the figure you are shown may differ",
     rows: [
     {
       label: "Gate runs before the opt-in",
@@ -74,7 +74,8 @@ export const page: SeoPage = {
     {
       label: "Are disqualified visitors metered?",
       us: "Never. Only qualified responses count against the plan.",
-      them: "Submissions count against the plan.",
+      them: "Not metered at all - their paid plans carry unlimited submissions.",
+      themWins: true,
     },
     {
       label: "Weighted category scoring",
@@ -104,13 +105,12 @@ export const page: SeoPage = {
     {
       label: "Entry price",
       us: "$39/mo, or $32 billed annually.",
-      them: "Around $24 to $29/mo on Essentials, per user, with 100 submissions.",
-      themWins: true,
+      them: "Pro $59/mo, or $49 billed annually. Dearer than us to start.",
     },
     ],
   },
   betterWhen:
-    "Paperform is the nicest writing experience in form building: a form is a document you type, and for bookings, orders and payment flows that is a genuinely lovely way to work. If your need is an elegant form that takes money or books time, it is a better tool than this one and cheaper at the entry tier. It is simply not trying to decide who deserves a sales conversation.",
+    "Paperform is the nicest writing experience in form building: a form is a document you type, and for bookings, orders and payment flows that is a genuinely lovely way to work. It costs more than us to start and does not meter submissions at all, so for anything high-volume where every respondent is welcome it is the better buy. It is simply not trying to decide who deserves a sales conversation.",
   faqs: [
     {
       q: "Paperform does calculations. Isn't that scoring?",

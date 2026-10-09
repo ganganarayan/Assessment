@@ -64,7 +64,7 @@ export const page: SeoPage = {
   ],
   comparison: {
     competitor: "Fillout",
-    source: "published plan pages as summarised by third-party pricing trackers, October 2026",
+    source: "read from their own pricing page on 9 October 2026. Several vendors price by region, so the figure you are shown may differ",
     rows: [
     {
       label: "Gate runs before the opt-in",
@@ -104,7 +104,7 @@ export const page: SeoPage = {
     {
       label: "Entry price",
       us: "$39/mo, or $32 billed annually.",
-      them: "Free for 1,000 responses a month, then $15/mo Starter. Hard to beat on price.",
+      them: "Free for 1,000 responses a month, then $15/mo Starter for 2,000. Hard to beat on price.",
       themWins: true,
     },
     ],

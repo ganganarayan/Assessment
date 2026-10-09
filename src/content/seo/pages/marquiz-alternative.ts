@@ -64,7 +64,7 @@ export const page: SeoPage = {
   ],
   comparison: {
     competitor: "Marquiz",
-    source: "published plan pages as summarised by third-party pricing trackers, October 2026",
+    source: "read from their own pricing page on 9 October 2026. Several vendors price by region, so the figure you are shown may differ",
     rows: [
     {
       label: "Gate runs before the opt-in",
@@ -104,7 +104,7 @@ export const page: SeoPage = {
     {
       label: "Entry price",
       us: "$39/mo, or $32 billed annually.",
-      them: "Free for 10 leads a month, $19/mo Start, Plus from $39/mo in lead blocks.",
+      them: "Free for 10 leads a month, $19/mo Start for 30, Plus from $39/mo in lead blocks.",
       themWins: true,
     },
     ],

@@ -74,7 +74,7 @@ export const page: SeoPage = {
   ],
   comparison: {
     competitor: "involve.me",
-    source: "published plan pages as summarised by third-party pricing trackers, October 2026",
+    source: "read from their own pricing page on 9 October 2026. Several vendors price by region, so the figure you are shown may differ",
     rows: [
     {
       label: "Gate runs before the opt-in",
@@ -115,7 +115,7 @@ export const page: SeoPage = {
     {
       label: "Entry price",
       us: "$39/mo, or $32 billed annually.",
-      them: "From about $29/mo on Start billed monthly, or $19/mo annually.",
+      them: "Start $49/mo monthly, or $29 billed annually, on their own page.",
     },
     ],
   },
@@ -128,7 +128,7 @@ export const page: SeoPage = {
     },
     {
       q: "Is this cheaper?",
-      a: "At the entry tier, no: involve.me starts lower. The comparison that matters is cost per qualified lead rather than cost per month, and that only favours us if you are buying traffic.",
+      a: "Month to month, no: their entry plan is $49 against our $39. Billed annually they come in a little under us. Either way the comparison that matters is cost per qualified lead rather than cost per month, and that only favours us if you are buying traffic.",
     },
     {
       q: "Can we keep our involve.me funnels and add this?",
