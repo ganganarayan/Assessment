@@ -24,6 +24,10 @@ import studyAbroadEligibility from "./study-abroad-eligibility.json";
 import interiorDesignProjectFit from "./interior-design-project-fit.json";
 import franchiseApplicantFit from "./franchise-applicant-fit.json";
 import solarRooftopFit from "./solar-rooftop-fit.json";
+import adviserSuitabilityFit from "./adviser-suitability-fit.json";
+import legalIntakeTriage from "./legal-intake-triage.json";
+import itProjectFit from "./it-project-fit.json";
+import homeServicesJobFit from "./home-services-job-fit.json";
 
 export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   coachClientFit,
@@ -38,4 +42,8 @@ export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   interiorDesignProjectFit,
   franchiseApplicantFit,
   solarRooftopFit,
+  adviserSuitabilityFit,
+  legalIntakeTriage,
+  itProjectFit,
+  homeServicesJobFit,
 ];

@@ -1,10 +1,10 @@
 {
-  "slug": "study-abroad-eligibility",
-  "title": "Study abroad eligibility screener",
-  "category": "Overseas education",
-  "summary": "Screens out the walk-ins with no funding, no test score and a three-year timeline, then scores the rest on how close they are to an actual application.",
+  "slug": "it-project-fit",
+  "title": "Project fit screener",
+  "category": "IT services",
+  "summary": "Stops the free proposal for a project with no budget, no date and four other vendors on it. Scores the rest on how defined the project actually is.",
   "shape": "GATED_ASSESSMENT",
-  "aiInstructions": "You are writing the note a study abroad counsellor reads before the first call.\n\nWrite 200 to 280 words, second person, warm and plain. Name the ONE thing standing between them and an application, using their own dimension scores as evidence by name. Say what it costs them to leave it another intake.\n\nDo NOT tell them how to fix it, and never name a university, a country quota, a visa outcome or a scholarship they would get. Describe the shape of the blocker clearly enough that they recognise it, then stop. The fix belongs on the call.\n\nNever promise admission, never predict a visa decision, never mention scores as numbers.",
+  "aiInstructions": "You are writing the note a delivery lead reads before a solution call.\n\nWrite 200 to 280 words, second person, direct and technically literate. Name the ONE thing that would turn this project into a rewrite halfway through, using the dimension names as evidence. Say what it costs to start without it.\n\nDo NOT quote a price, do NOT estimate hours, team size or a delivery date, and do NOT propose an architecture or a stack. Describe the gap, then stop. The solution belongs on the call.\n\nNever promise a delivery timeline, never mention scores as numbers.",
   "body": {
     "description": null,
     "coverImageUrl": null,
@@ -23,7 +23,7 @@
     "engine": "GENERIC",
     "engineConfig": null,
     "eyebrow": "18 questions, 4 minutes",
-    "subheadline": "An honest read on how close you are to submitting an application, and which one thing is holding it up.",
+    "subheadline": "A straight read on whether your project is defined enough to be quoted, and what is missing if it is not.",
     "qualifiedNote": "You qualify. Tell us where to send your result.",
     "leadCaptureAfter": true,
     "startButtonLabel": "Start",
@@ -36,35 +36,40 @@
       "questions": [
         {
           "id": "g1",
-          "text": "Which intake are you targeting?",
+          "text": "What is the budget range for this project?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g1a",
-              "label": "The next 6 months",
-              "points": 3
+              "label": "Above $120,000 (above ₹1 crore)",
+              "points": 4
             },
             {
               "id": "g1b",
-              "label": "6 to 12 months away",
-              "points": 2
+              "label": "$47,000 to $120,000 (₹40 lakh to 1 crore)",
+              "points": 3
             },
             {
               "id": "g1c",
-              "label": "12 to 18 months away",
-              "points": 1
+              "label": "$12,000 to $47,000 (₹10 to 40 lakh)",
+              "points": 2
             },
             {
               "id": "g1d",
-              "label": "More than 18 months away",
+              "label": "$2,400 to $12,000 (₹2 to 10 lakh)",
+              "points": 1
+            },
+            {
+              "id": "g1e",
+              "label": "Under $2,400 (under ₹2 lakh)",
               "disqualifies": true,
               "points": 0
             },
             {
-              "id": "g1e",
-              "label": "Just exploring for now",
+              "id": "g1f",
+              "label": "Not determined",
               "disqualifies": true,
               "points": 0
             }
@@ -72,35 +77,29 @@
         },
         {
           "id": "g2",
-          "text": "How will the course be funded?",
+          "text": "Is that budget approved, or still being sought?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g2a",
-              "label": "Family savings",
+              "label": "Approved",
               "points": 3
             },
             {
               "id": "g2b",
-              "label": "Education loan, already discussed with a bank",
+              "label": "In approval",
               "points": 2
             },
             {
               "id": "g2c",
-              "label": "Education loan, not yet explored",
+              "label": "It gets approved once we pick a vendor",
               "points": 1
             },
             {
               "id": "g2d",
-              "label": "Scholarship only",
-              "disqualifies": true,
-              "points": 0
-            },
-            {
-              "id": "g2e",
-              "label": "Not worked out yet",
+              "label": "No budget yet, we are exploring",
               "disqualifies": true,
               "points": 0
             }
@@ -108,63 +107,64 @@
         },
         {
           "id": "g3",
-          "text": "What is your highest completed qualification?",
+          "text": "What is the timeline to start?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g3a",
-              "label": "Master's",
-              "points": 5
-            },
-            {
-              "id": "g3b",
-              "label": "Bachelor's, completed",
+              "label": "Immediately",
               "points": 4
             },
             {
-              "id": "g3c",
-              "label": "Bachelor's, final year",
+              "id": "g3b",
+              "label": "Within a month",
               "points": 3
             },
             {
-              "id": "g3d",
-              "label": "Class 12",
+              "id": "g3c",
+              "label": "In 1 to 3 months",
               "points": 2
             },
             {
-              "id": "g3e",
-              "label": "Diploma only",
+              "id": "g3d",
+              "label": "In 3 to 6 months",
               "points": 1
+            },
+            {
+              "id": "g3e",
+              "label": "No date",
+              "disqualifies": true,
+              "points": 0
             }
           ]
         },
         {
           "id": "g4",
-          "text": "Have you taken IELTS, TOEFL, PTE, GRE or GMAT?",
+          "text": "Are you the decision maker for this?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g4a",
-              "label": "Yes, scores in hand",
+              "label": "Yes",
               "points": 3
             },
             {
               "id": "g4b",
-              "label": "Booked, date fixed",
+              "label": "I recommend, someone else approves",
               "points": 2
             },
             {
               "id": "g4c",
-              "label": "Planning to, not booked yet",
+              "label": "I am gathering information for someone else",
               "points": 1
             },
             {
               "id": "g4d",
-              "label": "No, and not planning to",
+              "label": "Not sure",
               "disqualifies": true,
               "points": 0
             }
@@ -172,35 +172,35 @@
         },
         {
           "id": "g5",
-          "text": "What total budget have you set aside per year, for tuition and living?",
+          "text": "What kind of engagement are you looking for?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g5a",
-              "label": "Above $42,000 (above ₹35 lakh)",
+              "label": "Fixed scope project",
               "points": 3
             },
             {
               "id": "g5b",
-              "label": "$24,000 to $42,000 (₹20 to 35 lakh)",
+              "label": "Ongoing retainer",
               "points": 2
             },
             {
               "id": "g5c",
-              "label": "$12,000 to $24,000 (₹10 to 20 lakh)",
+              "label": "Dedicated team or staff augmentation",
               "points": 1
             },
             {
               "id": "g5d",
-              "label": "Under $12,000 (under ₹10 lakh)",
+              "label": "A one off fix",
               "disqualifies": true,
               "points": 0
             },
             {
               "id": "g5e",
-              "label": "I have not calculated it",
+              "label": "A free assessment or audit only",
               "disqualifies": true,
               "points": 0
             }
@@ -208,33 +208,44 @@
         },
         {
           "id": "g6",
-          "text": "Have you been refused a visa for any country before?",
+          "text": "How many vendors are you evaluating?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g6a",
-              "label": "No",
-              "points": 3
+              "label": "Only you",
+              "points": 4
             },
             {
               "id": "g6b",
-              "label": "Yes, once",
-              "points": 2
+              "label": "Two or three",
+              "points": 3
             },
             {
               "id": "g6c",
-              "label": "Yes, more than once",
+              "label": "Four to six",
+              "points": 2
+            },
+            {
+              "id": "g6d",
+              "label": "A formal RFP with many",
               "points": 1
+            },
+            {
+              "id": "g6e",
+              "label": "Just collecting quotes",
+              "disqualifies": true,
+              "points": 0
             }
           ]
         }
       ]
     },
     "disqualifiedContent": {
-      "heading": "Thanks for your honesty.",
-      "subtext": "On your answers this is not the right moment for an application, so we will not take up more of your time. When your intake, funding or test score moves, come back and run this again.",
+      "heading": "Thanks for being straightforward.",
+      "subtext": "On your answers this is not something we can quote for at the moment, so we will not take up more of your time. When the budget, the date or the scope firms up, run this again.",
       "bodyHtml": "",
       "buttonLabel": "",
       "buttonUrl": "",
@@ -247,8 +258,8 @@
     "uniqueIdentifier": "EMAIL",
     "categories": [
       {
-        "name": "Academic readiness",
-        "description": "What your record looks like to an admissions officer today.",
+        "name": "Project definition",
+        "description": "How much of this is decided, and how much is still an idea.",
         "displayOrder": 0,
         "page": 1,
         "bands": [
@@ -276,116 +287,116 @@
         ],
         "questions": [
           {
-            "text": "What is your academic percentage or CGPA band?",
+            "text": "What state are the requirements in?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "Below 55 percent, or under 6.0 CGPA",
+                "label": "An idea, described verbally",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "55 to 65 percent, 6.0 to 7.0",
+                "label": "A rough brief",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "65 to 75 percent, 7.0 to 8.0",
+                "label": "A detailed brief",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Above 75 percent, above 8.0",
+                "label": "A documented specification",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How long since your last qualification?",
+            "text": "What is the existing system?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "More than 5 years",
+                "label": "Legacy we cannot change, you integrate into it",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "3 to 5 years",
+                "label": "A rebuild of something live",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "1 to 3 years",
+                "label": "Greenfield with integrations",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Less than a year, or still studying",
+                "label": "Greenfield",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Any backlogs or failed subjects on record?",
+            "text": "Who decides the stack?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "More than 5",
+                "label": "Fixed by us, no discussion",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "3 to 5",
+                "label": "Fixed by us, open to argument",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "1 or 2",
+                "label": "Open",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "None",
+                "label": "We want your recommendation",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How closely does your past study match the course you want?",
+            "text": "Any compliance or security requirements?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 3,
             "options": [
               {
-                "label": "Completely different field",
+                "label": "Yes, and they are not documented",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Loosely related",
+                "label": "Yes, documented, strict",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Closely related",
+                "label": "Some, standard",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Direct continuation of it",
+                "label": "None beyond the usual",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -394,8 +405,8 @@
         ]
       },
       {
-        "name": "Financial readiness",
-        "description": "Whether the money is real, documented and available on the timeline.",
+        "name": "Organisational readiness",
+        "description": "Whether your side can keep up with delivery.",
         "displayOrder": 1,
         "page": 1,
         "bands": [
@@ -423,116 +434,116 @@
         ],
         "questions": [
           {
-            "text": "How much of the required funds can you show proof of today?",
+            "text": "Is there a technical counterpart on your side?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "None of it yet",
+                "label": "Nobody technical at all",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Less than half",
+                "label": "Someone part time",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Most of it",
+                "label": "A technical lead",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "All of it, documented",
+                "label": "A technical lead and a product owner",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Where is the education loan?",
+            "text": "How has outsourcing development gone before?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "Not applied, and not sure we will",
+                "label": "Badly, we are nervous",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Planning to apply",
+                "label": "Never done it",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Applied, awaiting sanction",
+                "label": "Mixed",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Sanctioned, or not needed at all",
+                "label": "Well, and we know how to run it",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Who is sponsoring, and how stable is that income?",
+            "text": "How many people approve this decision?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "No sponsor identified yet",
+                "label": "More than five",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A relative, income varies",
+                "label": "Three to five",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "A parent in business, income varies",
+                "label": "Two",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "A parent or sponsor in stable salaried income",
+                "label": "One",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Have you costed living, insurance and travel on top of tuition?",
+            "text": "When will the decision be made?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 3,
             "options": [
               {
-                "label": "I have only looked at tuition",
+                "label": "No date set",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Roughly, from a blog or a video",
+                "label": "Within three months",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Yes, from a university page",
+                "label": "Within a month",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Yes, in a spreadsheet, per city",
+                "label": "This month",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -541,8 +552,8 @@
         ]
       },
       {
-        "name": "Decision readiness",
-        "description": "How much is still undecided, and how much paperwork already exists.",
+        "name": "Commercial fit",
+        "description": "Whether the money and the scope describe the same project.",
         "displayOrder": 2,
         "page": 1,
         "bands": [
@@ -570,116 +581,116 @@
         ],
         "questions": [
           {
-            "text": "How fixed is your country shortlist?",
+            "text": "How well does the budget match the scope you have described?",
             "type": "SINGLE_SELECT",
             "weight": 6.25,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "Wide open",
+                "label": "The gap is large",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Three or four countries",
+                "label": "There is a real gap",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Down to two",
+                "label": "About right",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "One country, decided",
+                "label": "Comfortable, with contingency",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How fixed is your course shortlist?",
+            "text": "What payment terms do you expect?",
             "type": "SINGLE_SELECT",
             "weight": 6.25,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "Wide open",
+                "label": "On delivery, in full",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A broad field, no courses",
+                "label": "Mostly on delivery",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "A few named courses",
+                "label": "Milestone based",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Specific courses at specific universities",
+                "label": "Monthly",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Is your family aligned on you going abroad?",
+            "text": "How do you want to contract?",
             "type": "SINGLE_SELECT",
             "weight": 6.25,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "No, it is a real disagreement",
+                "label": "We want a free pilot first",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "They are uneasy about it",
+                "label": "A paid pilot first",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Supportive but worried about cost",
+                "label": "An MSA after a discovery",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Fully aligned and involved",
+                "label": "Ready to sign an MSA",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Which documents do you already have?",
+            "text": "What do you expect after launch?",
             "type": "SINGLE_SELECT",
             "weight": 6.25,
             "required": true,
             "displayOrder": 3,
             "options": [
               {
-                "label": "None of them",
+                "label": "Indefinite free support",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Passport only",
+                "label": "A long free warranty",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Passport and transcripts",
+                "label": "A warranty then a support contract",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Passport, transcripts, SOP and LORs underway",
+                "label": "A support contract from day one",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -691,30 +702,30 @@
     "resultBands": [
       {
         "level": "LOW",
-        "title": "Too early, and that is worth knowing now",
-        "description": "Timeline, funding or test readiness is not there yet, and applying now would spend money on an application that gets refused. Next step: the timeline plan below, and come back when the blocker has moved.",
+        "title": "Not a fit right now",
+        "description": "On budget, definition or decision process this is not ready, and these are the enquiries that quietly consume a solution architect for weeks. Next step: the pricing guide below, and come back when the scope is written down.",
         "minScore": 0,
         "maxScore": 39,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
-        "title": "One or two gaps to close",
-        "description": "This is a real application with one blocker in front of it, and the dimension scores below say which. It is usually funding documentation or a test date. Next step: a planning call about that one thing, not a general counselling session.",
+        "title": "Needs discovery first",
+        "description": "There is a real project here and it is not yet defined enough for anyone to quote honestly. A free proposal at this stage would be a guess with a number on it. Next step: a paid discovery sprint.",
         "minScore": 40,
         "maxScore": 69,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
-        "title": "Application ready",
-        "description": "Academics, funding and decisions are all in place. You could start an application this month, and the only question left is which shortlist to submit to. Next step: a document review call.",
+        "title": "A qualified opportunity",
+        "description": "Budget, timeline, decision maker and requirements all point the same way, and this is defined enough to solution against. Next step: a call with a technical lead.",
         "minScore": 70,
         "maxScore": 100,
         "displayOrder": 2
       }
     ],
-    "title": "Are you ready to apply?",
-    "slug": "study-abroad-readiness"
+    "title": "Is your project ready to quote?",
+    "slug": "project-fit-screener"
   }
 }

@@ -22,7 +22,7 @@
     "professionRequired": false,
     "engine": "GENERIC",
     "engineConfig": null,
-    "eyebrow": "4 minutes, 12 questions",
+    "eyebrow": "18 questions, 4 minutes",
     "subheadline": "A straight read on whether your capital, your experience and your territory line up with what this franchise needs.",
     "qualifiedNote": "You qualify. Tell us where to send your result.",
     "leadCaptureAfter": true,
@@ -118,12 +118,12 @@
             },
             {
               "id": "g3b",
-              "label": "A city you do not cover yet",
+              "label": "I am flexible on territory",
               "points": 2
             },
             {
               "id": "g3c",
-              "label": "I am flexible on territory",
+              "label": "A city you do not cover yet",
               "points": 1
             },
             {
@@ -695,11 +695,11 @@
     ],
     "resultBands": [
       {
-        "level": "HIGH",
-        "title": "Qualified applicant",
-        "description": "Capital, capability and territory line up with what this franchise needs. Next step: a discovery call with the franchise director.",
-        "minScore": 70,
-        "maxScore": 100,
+        "level": "LOW",
+        "title": "Not eligible right now",
+        "description": "On capital, experience or timing this is not a fit today, and taking it further would waste your money as well as our time. Next step: the brochure below, and an open invitation to reapply once the capital is in place.",
+        "minScore": 0,
+        "maxScore": 39,
         "displayOrder": 0
       },
       {
@@ -711,15 +711,15 @@
         "displayOrder": 1
       },
       {
-        "level": "LOW",
-        "title": "Not eligible right now",
-        "description": "On capital, experience or timing this is not a fit today, and taking it further would waste your money as well as our time. Next step: the brochure below, and an open invitation to reapply once the capital is in place.",
-        "minScore": 0,
-        "maxScore": 39,
+        "level": "HIGH",
+        "title": "Qualified applicant",
+        "description": "Capital, capability and territory line up with what this franchise needs. Next step: a discovery call with the franchise director.",
+        "minScore": 70,
+        "maxScore": 100,
         "displayOrder": 2
       }
     ],
     "title": "Are you a fit to run this franchise?",
-    "slug": "franchise-applicant-fit"
+    "slug": "franchise-application"
   }
 }

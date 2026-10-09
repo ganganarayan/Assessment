@@ -1,10 +1,10 @@
 {
-  "slug": "study-abroad-eligibility",
-  "title": "Study abroad eligibility screener",
-  "category": "Overseas education",
-  "summary": "Screens out the walk-ins with no funding, no test score and a three-year timeline, then scores the rest on how close they are to an actual application.",
+  "slug": "adviser-suitability-fit",
+  "title": "Advice suitability check",
+  "category": "Financial advisers",
+  "summary": "Establishes fit for an advisory relationship, and nothing else. No product, no projection, no return. Screens out tip-seekers and one-off transactions before a meeting is booked.",
   "shape": "GATED_ASSESSMENT",
-  "aiInstructions": "You are writing the note a study abroad counsellor reads before the first call.\n\nWrite 200 to 280 words, second person, warm and plain. Name the ONE thing standing between them and an application, using their own dimension scores as evidence by name. Say what it costs them to leave it another intake.\n\nDo NOT tell them how to fix it, and never name a university, a country quota, a visa outcome or a scholarship they would get. Describe the shape of the blocker clearly enough that they recognise it, then stop. The fix belongs on the call.\n\nNever promise admission, never predict a visa decision, never mention scores as numbers.",
+  "aiInstructions": "You are writing the note a financial adviser reads before a first meeting. The reader is the prospective client.\n\nWrite 200 to 280 words, second person, calm and plain. Describe what their answers say about the SHAPE of an advisory relationship that would suit them: how complex their situation is, how ready they are to work with someone, and what the two of you would need to agree early. Use the dimension names as evidence.\n\nBINDING CONSTRAINTS. Never recommend a product, a fund, an asset class, an allocation or a transaction. Never project, estimate or imply a return, a growth rate or an outcome. Never say they will be better off. Never comment on whether their current adviser is good or bad. Never use the words guarantee, assured or risk-free. Say nothing that could be read as personal financial advice.\n\nThis establishes fit for a conversation. It is not advice, and the note should read as though a compliance officer will see it, because one might.",
   "body": {
     "description": null,
     "coverImageUrl": null,
@@ -23,7 +23,7 @@
     "engine": "GENERIC",
     "engineConfig": null,
     "eyebrow": "18 questions, 4 minutes",
-    "subheadline": "An honest read on how close you are to submitting an application, and which one thing is holding it up.",
+    "subheadline": "A fit check for an advisory relationship. It does not recommend anything, and it cannot: that is what the conversation is for.",
     "qualifiedNote": "You qualify. Tell us where to send your result.",
     "leadCaptureAfter": true,
     "startButtonLabel": "Start",
@@ -36,35 +36,35 @@
       "questions": [
         {
           "id": "g1",
-          "text": "Which intake are you targeting?",
+          "text": "What are you looking for?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g1a",
-              "label": "The next 6 months",
+              "label": "Ongoing financial planning",
               "points": 3
             },
             {
               "id": "g1b",
-              "label": "6 to 12 months away",
+              "label": "A one time plan review",
               "points": 2
             },
             {
               "id": "g1c",
-              "label": "12 to 18 months away",
+              "label": "Help executing specific transactions",
               "points": 1
             },
             {
               "id": "g1d",
-              "label": "More than 18 months away",
+              "label": "Tax filing only",
               "disqualifies": true,
               "points": 0
             },
             {
               "id": "g1e",
-              "label": "Just exploring for now",
+              "label": "Stock tips or recommendations",
               "disqualifies": true,
               "points": 0
             }
@@ -72,35 +72,34 @@
         },
         {
           "id": "g2",
-          "text": "How will the course be funded?",
+          "text": "Roughly what investable assets do you hold, excluding the home you live in?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g2a",
-              "label": "Family savings",
-              "points": 3
+              "label": "Above $1,200,000 (above ₹10 crore)",
+              "points": 4
             },
             {
               "id": "g2b",
-              "label": "Education loan, already discussed with a bank",
-              "points": 2
+              "label": "$240,000 to $1,200,000 (₹2 to 10 crore)",
+              "points": 3
             },
             {
               "id": "g2c",
-              "label": "Education loan, not yet explored",
-              "points": 1
+              "label": "$60,000 to $240,000 (₹50 lakh to 2 crore)",
+              "points": 2
             },
             {
               "id": "g2d",
-              "label": "Scholarship only",
-              "disqualifies": true,
-              "points": 0
+              "label": "$12,000 to $60,000 (₹10 to 50 lakh)",
+              "points": 1
             },
             {
               "id": "g2e",
-              "label": "Not worked out yet",
+              "label": "Under $12,000 (under ₹10 lakh)",
               "disqualifies": true,
               "points": 0
             }
@@ -108,63 +107,54 @@
         },
         {
           "id": "g3",
-          "text": "What is your highest completed qualification?",
+          "text": "Do you currently work with an adviser?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g3a",
-              "label": "Master's",
-              "points": 5
-            },
-            {
-              "id": "g3b",
-              "label": "Bachelor's, completed",
-              "points": 4
-            },
-            {
-              "id": "g3c",
-              "label": "Bachelor's, final year",
+              "label": "No",
               "points": 3
             },
             {
-              "id": "g3d",
-              "label": "Class 12",
+              "id": "g3b",
+              "label": "Yes, and I am looking to switch",
               "points": 2
             },
             {
-              "id": "g3e",
-              "label": "Diploma only",
+              "id": "g3c",
+              "label": "Yes, and I want a second opinion",
               "points": 1
+            },
+            {
+              "id": "g3d",
+              "label": "Yes, and I am happy with them",
+              "disqualifies": true,
+              "points": 0
             }
           ]
         },
         {
           "id": "g4",
-          "text": "Have you taken IELTS, TOEFL, PTE, GRE or GMAT?",
+          "text": "How would you prefer to pay for advice?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g4a",
-              "label": "Yes, scores in hand",
-              "points": 3
-            },
-            {
-              "id": "g4b",
-              "label": "Booked, date fixed",
+              "label": "A fee for the advice itself",
               "points": 2
             },
             {
-              "id": "g4c",
-              "label": "Planning to, not booked yet",
+              "id": "g4b",
+              "label": "I am not sure yet",
               "points": 1
             },
             {
-              "id": "g4d",
-              "label": "No, and not planning to",
+              "id": "g4c",
+              "label": "Commission built into the products",
               "disqualifies": true,
               "points": 0
             }
@@ -172,35 +162,34 @@
         },
         {
           "id": "g5",
-          "text": "What total budget have you set aside per year, for tuition and living?",
+          "text": "What is your planning horizon?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g5a",
-              "label": "Above $42,000 (above ₹35 lakh)",
-              "points": 3
+              "label": "Retirement planning",
+              "points": 4
             },
             {
               "id": "g5b",
-              "label": "$24,000 to $42,000 (₹20 to 35 lakh)",
-              "points": 2
+              "label": "10 years or more",
+              "points": 3
             },
             {
               "id": "g5c",
-              "label": "$12,000 to $24,000 (₹10 to 20 lakh)",
-              "points": 1
+              "label": "5 to 10 years",
+              "points": 2
             },
             {
               "id": "g5d",
-              "label": "Under $12,000 (under ₹10 lakh)",
-              "disqualifies": true,
-              "points": 0
+              "label": "2 to 5 years",
+              "points": 1
             },
             {
               "id": "g5e",
-              "label": "I have not calculated it",
+              "label": "Under 2 years",
               "disqualifies": true,
               "points": 0
             }
@@ -208,24 +197,29 @@
         },
         {
           "id": "g6",
-          "text": "Have you been refused a visa for any country before?",
+          "text": "Who else is part of this decision?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g6a",
-              "label": "No",
-              "points": 3
+              "label": "Just me",
+              "points": 4
             },
             {
               "id": "g6b",
-              "label": "Yes, once",
-              "points": 2
+              "label": "Me and my spouse",
+              "points": 3
             },
             {
               "id": "g6c",
-              "label": "Yes, more than once",
+              "label": "A family trust or HUF",
+              "points": 2
+            },
+            {
+              "id": "g6d",
+              "label": "A business partner",
               "points": 1
             }
           ]
@@ -233,8 +227,8 @@
       ]
     },
     "disqualifiedContent": {
-      "heading": "Thanks for your honesty.",
-      "subtext": "On your answers this is not the right moment for an application, so we will not take up more of your time. When your intake, funding or test score moves, come back and run this again.",
+      "heading": "Thank you for your time.",
+      "subtext": "On your answers this is not the right fit, so we will not book a meeting. This is a statement about fit only and is not financial advice. Nothing here recommends or discourages any product or course of action.",
       "bodyHtml": "",
       "buttonLabel": "",
       "buttonUrl": "",
@@ -247,8 +241,8 @@
     "uniqueIdentifier": "EMAIL",
     "categories": [
       {
-        "name": "Academic readiness",
-        "description": "What your record looks like to an admissions officer today.",
+        "name": "Complexity of need",
+        "description": "How many moving parts there are to plan around.",
         "displayOrder": 0,
         "page": 1,
         "bands": [
@@ -276,116 +270,116 @@
         ],
         "questions": [
           {
-            "text": "What is your academic percentage or CGPA band?",
+            "text": "How many separate goals are you planning for?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "Below 55 percent, or under 6.0 CGPA",
+                "label": "One",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "55 to 65 percent, 6.0 to 7.0",
+                "label": "Two or three",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "65 to 75 percent, 7.0 to 8.0",
+                "label": "Four or five",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Above 75 percent, above 8.0",
+                "label": "More than five",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How long since your last qualification?",
+            "text": "Where does your income come from?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "More than 5 years",
+                "label": "Salary only",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "3 to 5 years",
+                "label": "Salary and some rental or interest",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "1 to 3 years",
+                "label": "Business income",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Less than a year, or still studying",
+                "label": "Several sources including capital gains",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Any backlogs or failed subjects on record?",
+            "text": "Any cross border elements?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "More than 5",
+                "label": "None",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "3 to 5",
+                "label": "I have lived abroad previously",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "1 or 2",
+                "label": "Some foreign assets or income",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "None",
+                "label": "NRI status, or assets in more than one country",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How closely does your past study match the course you want?",
+            "text": "Is business ownership or an ESOP in the picture?",
             "type": "SINGLE_SELECT",
             "weight": 8.75,
             "required": true,
             "displayOrder": 3,
             "options": [
               {
-                "label": "Completely different field",
+                "label": "Neither",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Loosely related",
+                "label": "A small holding",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Closely related",
+                "label": "ESOPs that matter to the plan",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Direct continuation of it",
+                "label": "I own a business",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -394,8 +388,8 @@
         ]
       },
       {
-        "name": "Financial readiness",
-        "description": "Whether the money is real, documented and available on the timeline.",
+        "name": "Advisory readiness",
+        "description": "How ready you are to actually work with someone on this.",
         "displayOrder": 1,
         "page": 1,
         "bands": [
@@ -423,116 +417,116 @@
         ],
         "questions": [
           {
-            "text": "How much of the required funds can you show proof of today?",
+            "text": "What documentation could you put in front of an adviser?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "None of it yet",
+                "label": "Almost nothing organised",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Less than half",
+                "label": "Some statements",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Most of it",
+                "label": "Most statements and policies",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "All of it, documented",
+                "label": "Statements, policies and returns, organised",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Where is the education loan?",
+            "text": "What has your experience of advice been?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "Not applied, and not sure we will",
+                "label": "Bad, and it put me off",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Planning to apply",
+                "label": "None at all",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Applied, awaiting sanction",
+                "label": "Mixed",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Sanctioned, or not needed at all",
+                "label": "Good, and I want that again",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Who is sponsoring, and how stable is that income?",
+            "text": "How involved do you want to be?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "No sponsor identified yet",
+                "label": "I want to drive every decision myself",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A relative, income varies",
+                "label": "I want to approve each step",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "A parent in business, income varies",
+                "label": "Collaborative",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "A parent or sponsor in stable salaried income",
+                "label": "Largely hands off, with reviews",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Have you costed living, insurance and travel on top of tuition?",
+            "text": "How comfortable are you discussing your full financial position?",
             "type": "SINGLE_SELECT",
             "weight": 10.0,
             "required": true,
             "displayOrder": 3,
             "options": [
               {
-                "label": "I have only looked at tuition",
+                "label": "Not at all",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Roughly, from a blog or a video",
+                "label": "Only in broad terms",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Yes, from a university page",
+                "label": "Mostly comfortable",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Yes, in a spreadsheet, per city",
+                "label": "Completely, that is the point",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -541,8 +535,8 @@
         ]
       },
       {
-        "name": "Decision readiness",
-        "description": "How much is still undecided, and how much paperwork already exists.",
+        "name": "Relationship fit",
+        "description": "Whether how you want to work matches how this firm works.",
         "displayOrder": 2,
         "page": 1,
         "bands": [
@@ -570,116 +564,116 @@
         ],
         "questions": [
           {
-            "text": "How fixed is your country shortlist?",
+            "text": "How would you react to a plan that recommends doing LESS, not more?",
             "type": "SINGLE_SELECT",
             "weight": 6.25,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "Wide open",
+                "label": "I would feel short changed",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Three or four countries",
+                "label": "I would want it justified at length",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Down to two",
+                "label": "I would want the reasoning",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "One country, decided",
+                "label": "That would increase my confidence",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How fixed is your course shortlist?",
+            "text": "How often would you want contact?",
             "type": "SINGLE_SELECT",
             "weight": 6.25,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "Wide open",
+                "label": "Weekly",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A broad field, no courses",
+                "label": "Monthly",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "A few named courses",
+                "label": "Quarterly",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Specific courses at specific universities",
+                "label": "Twice a year, plus when something changes",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Is your family aligned on you going abroad?",
+            "text": "How clear are you on how fee based advice works?",
             "type": "SINGLE_SELECT",
             "weight": 6.25,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "No, it is a real disagreement",
+                "label": "Not clear at all",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "They are uneasy about it",
+                "label": "I have read about it",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Supportive but worried about cost",
+                "label": "Reasonably clear",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Fully aligned and involved",
+                "label": "Clear, and it is what I want",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Which documents do you already have?",
+            "text": "When would you want to start?",
             "type": "SINGLE_SELECT",
             "weight": 6.25,
             "required": true,
             "displayOrder": 3,
             "options": [
               {
-                "label": "None of them",
+                "label": "No particular time",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Passport only",
+                "label": "Within six months",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Passport and transcripts",
+                "label": "Within a month or two",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Passport, transcripts, SOP and LORs underway",
+                "label": "As soon as possible",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -691,30 +685,30 @@
     "resultBands": [
       {
         "level": "LOW",
-        "title": "Too early, and that is worth knowing now",
-        "description": "Timeline, funding or test readiness is not there yet, and applying now would spend money on an application that gets refused. Next step: the timeline plan below, and come back when the blocker has moved.",
+        "title": "Not the right fit, and that is an honest answer",
+        "description": "What you are looking for and what this firm does are different things, and a meeting would mostly establish that slowly. For a fee based practice this is a feature rather than a failure. Next step: the educational resources below.",
         "minScore": 0,
         "maxScore": 39,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
-        "title": "One or two gaps to close",
-        "description": "This is a real application with one blocker in front of it, and the dimension scores below say which. It is usually funding documentation or a test date. Next step: a planning call about that one thing, not a general counselling session.",
+        "title": "A fit, with the scope to define",
+        "description": "There is a real basis for working together, and one thing to agree first: usually how involved you want to be, or what the engagement actually covers. Next step: a shorter scoping conversation before anything is planned.",
         "minScore": 40,
         "maxScore": 69,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
-        "title": "Application ready",
-        "description": "Academics, funding and decisions are all in place. You could start an application this month, and the only question left is which shortlist to submit to. Next step: a document review call.",
+        "title": "A strong fit for an advisory relationship",
+        "description": "Your situation has enough moving parts to be worth planning properly, and how you want to work matches how this firm works. Next step: a structured discovery meeting. This is a statement about fit, not advice.",
         "minScore": 70,
         "maxScore": 100,
         "displayOrder": 2
       }
     ],
-    "title": "Are you ready to apply?",
-    "slug": "study-abroad-readiness"
+    "title": "Would we work well together?",
+    "slug": "advice-suitability"
   }
 }

@@ -22,7 +22,7 @@
     "professionRequired": false,
     "engine": "GENERIC",
     "engineConfig": null,
-    "eyebrow": "2 minutes, 6 questions",
+    "eyebrow": "12 questions, 2 minutes",
     "subheadline": "Six questions that say whether a rooftop system is worth surveying, before anyone drives out to look at it.",
     "qualifiedNote": "You qualify. Tell us where to send your result.",
     "leadCaptureAfter": true,
@@ -393,12 +393,12 @@
             "options": [
               {
                 "label": "No, I will do it myself",
-                "value": 1,
+                "value": 0,
                 "displayOrder": 0
               },
               {
                 "label": "I have not thought about it",
-                "value": 2,
+                "value": 1,
                 "displayOrder": 1
               },
               {
@@ -471,11 +471,11 @@
     ],
     "resultBands": [
       {
-        "level": "HIGH",
-        "title": "Worth booking a site survey",
-        "description": "Ownership, bill size, roof and timing all work. A surveyor visiting this address is time well spent. Next step: book the survey below.",
-        "minScore": 70,
-        "maxScore": 100,
+        "level": "LOW",
+        "title": "Marginal",
+        "description": "A system here would be small, and the payback would stretch further than most people expect. Not a no, but not a survey either. Next step: the savings calculator below, which will tell you more than a site visit would.",
+        "minScore": 0,
+        "maxScore": 39,
         "displayOrder": 0
       },
       {
@@ -487,15 +487,15 @@
         "displayOrder": 1
       },
       {
-        "level": "LOW",
-        "title": "Marginal",
-        "description": "A system here would be small, and the payback would stretch further than most people expect. Not a no, but not a survey either. Next step: the savings calculator below, which will tell you more than a site visit would.",
-        "minScore": 0,
-        "maxScore": 39,
+        "level": "HIGH",
+        "title": "Worth booking a site survey",
+        "description": "Ownership, bill size, roof and timing all work. A surveyor visiting this address is time well spent. Next step: book the survey below.",
+        "minScore": 70,
+        "maxScore": 100,
         "displayOrder": 2
       }
     ],
     "title": "Is your roof worth a survey?",
-    "slug": "solar-rooftop-fit"
+    "slug": "rooftop-solar-check"
   }
 }

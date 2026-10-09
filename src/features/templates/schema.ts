@@ -47,6 +47,10 @@ export const TEMPLATE_CATEGORIES = [
   "Interior design",
   "Franchise",
   "Solar and EV",
+  "Financial advisers",
+  "Law firms",
+  "IT services",
+  "Home services",
 ] as const;
 
 export const templateDocSchema = z.object({

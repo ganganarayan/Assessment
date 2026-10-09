@@ -1,10 +1,10 @@
 {
-  "slug": "study-abroad-eligibility",
-  "title": "Study abroad eligibility screener",
-  "category": "Overseas education",
-  "summary": "Screens out the walk-ins with no funding, no test score and a three-year timeline, then scores the rest on how close they are to an actual application.",
+  "slug": "legal-intake-triage",
+  "title": "Case intake triage",
+  "category": "Law firms",
+  "summary": "Establishes whether the firm can take the matter. It gives no advice, assesses no merits and predicts no outcome. Routes urgent deadlines straight to contact.",
   "shape": "GATED_ASSESSMENT",
-  "aiInstructions": "You are writing the note a study abroad counsellor reads before the first call.\n\nWrite 200 to 280 words, second person, warm and plain. Name the ONE thing standing between them and an application, using their own dimension scores as evidence by name. Say what it costs them to leave it another intake.\n\nDo NOT tell them how to fix it, and never name a university, a country quota, a visa outcome or a scholarship they would get. Describe the shape of the blocker clearly enough that they recognise it, then stop. The fix belongs on the call.\n\nNever promise admission, never predict a visa decision, never mention scores as numbers.",
+  "aiInstructions": "You are writing the note a solicitor reads before an intake call. The reader is the prospective client.\n\nWrite 200 to 280 words, second person, measured and plain. Describe only what their answers say about whether this FIRM can take the matter: practice area, jurisdiction, documentation, and how ready they are to engage. Use the dimension names as evidence.\n\nBINDING CONSTRAINTS. Never give legal advice. Never assess the merits or strength of the matter. Never predict or imply an outcome, a settlement figure, damages or a likelihood of success. Never state whether they have a claim. Never name a limitation period as applying to them. Never suggest what they should do next in the dispute itself.\n\nClose by saying plainly that this is about whether the firm can act, that it is not legal advice, and that limitation periods vary by matter so they should take independent advice promptly regardless of what this says.",
   "body": {
     "description": null,
     "coverImageUrl": null,
@@ -22,8 +22,8 @@
     "professionRequired": false,
     "engine": "GENERIC",
     "engineConfig": null,
-    "eyebrow": "18 questions, 4 minutes",
-    "subheadline": "An honest read on how close you are to submitting an application, and which one thing is holding it up.",
+    "eyebrow": "16 questions, 4 minutes",
+    "subheadline": "This establishes whether this firm can take your matter. It is not legal advice and it does not assess your case.",
     "qualifiedNote": "You qualify. Tell us where to send your result.",
     "leadCaptureAfter": true,
     "startButtonLabel": "Start",
@@ -36,35 +36,24 @@
       "questions": [
         {
           "id": "g1",
-          "text": "Which intake are you targeting?",
+          "text": "What type of matter is this?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g1a",
-              "label": "The next 6 months",
-              "points": 3
-            },
-            {
-              "id": "g1b",
-              "label": "6 to 12 months away",
+              "label": "A practice area shown on your list",
               "points": 2
             },
             {
-              "id": "g1c",
-              "label": "12 to 18 months away",
+              "id": "g1b",
+              "label": "I am not certain which area it falls under",
               "points": 1
             },
             {
-              "id": "g1d",
-              "label": "More than 18 months away",
-              "disqualifies": true,
-              "points": 0
-            },
-            {
-              "id": "g1e",
-              "label": "Just exploring for now",
+              "id": "g1c",
+              "label": "Something else entirely",
               "disqualifies": true,
               "points": 0
             }
@@ -72,35 +61,24 @@
         },
         {
           "id": "g2",
-          "text": "How will the course be funded?",
+          "text": "Where did the matter arise?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g2a",
-              "label": "Family savings",
-              "points": 3
-            },
-            {
-              "id": "g2b",
-              "label": "Education loan, already discussed with a bank",
+              "label": "Inside the area this firm practises in",
               "points": 2
             },
             {
-              "id": "g2c",
-              "label": "Education loan, not yet explored",
+              "id": "g2b",
+              "label": "A neighbouring jurisdiction",
               "points": 1
             },
             {
-              "id": "g2d",
-              "label": "Scholarship only",
-              "disqualifies": true,
-              "points": 0
-            },
-            {
-              "id": "g2e",
-              "label": "Not worked out yet",
+              "id": "g2c",
+              "label": "Outside this firm's jurisdiction",
               "disqualifies": true,
               "points": 0
             }
@@ -108,63 +86,63 @@
         },
         {
           "id": "g3",
-          "text": "What is your highest completed qualification?",
+          "text": "When did the events take place?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g3a",
-              "label": "Master's",
+              "label": "Within the last 3 months",
               "points": 5
             },
             {
               "id": "g3b",
-              "label": "Bachelor's, completed",
+              "label": "3 to 12 months ago",
               "points": 4
             },
             {
               "id": "g3c",
-              "label": "Bachelor's, final year",
+              "label": "1 to 3 years ago",
               "points": 3
             },
             {
               "id": "g3d",
-              "label": "Class 12",
+              "label": "More than 3 years ago",
               "points": 2
             },
             {
               "id": "g3e",
-              "label": "Diploma only",
+              "label": "It is ongoing",
               "points": 1
             }
           ]
         },
         {
           "id": "g4",
-          "text": "Have you taken IELTS, TOEFL, PTE, GRE or GMAT?",
+          "text": "Is anyone already representing you in this matter?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g4a",
-              "label": "Yes, scores in hand",
+              "label": "No",
               "points": 3
             },
             {
               "id": "g4b",
-              "label": "Booked, date fixed",
+              "label": "Yes, and I want to change",
               "points": 2
             },
             {
               "id": "g4c",
-              "label": "Planning to, not booked yet",
+              "label": "Yes, and I want a second opinion",
               "points": 1
             },
             {
               "id": "g4d",
-              "label": "No, and not planning to",
+              "label": "Yes, and I am happy with them",
               "disqualifies": true,
               "points": 0
             }
@@ -172,60 +150,69 @@
         },
         {
           "id": "g5",
-          "text": "What total budget have you set aside per year, for tuition and living?",
+          "text": "Are there court dates or deadlines already fixed?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g5a",
-              "label": "Above $42,000 (above ₹35 lakh)",
-              "points": 3
+              "label": "Yes, within 2 weeks",
+              "points": 5
             },
             {
               "id": "g5b",
-              "label": "$24,000 to $42,000 (₹20 to 35 lakh)",
-              "points": 2
+              "label": "Yes, within 2 months",
+              "points": 4
             },
             {
               "id": "g5c",
-              "label": "$12,000 to $24,000 (₹10 to 20 lakh)",
-              "points": 1
+              "label": "Yes, later than that",
+              "points": 3
             },
             {
               "id": "g5d",
-              "label": "Under $12,000 (under ₹10 lakh)",
-              "disqualifies": true,
-              "points": 0
+              "label": "No",
+              "points": 2
             },
             {
               "id": "g5e",
-              "label": "I have not calculated it",
-              "disqualifies": true,
-              "points": 0
+              "label": "I do not know",
+              "points": 1
             }
           ]
         },
         {
           "id": "g6",
-          "text": "Have you been refused a visa for any country before?",
+          "text": "What budget range have you considered for legal fees?",
           "type": "choice",
           "placeholder": "",
           "required": true,
           "options": [
             {
               "id": "g6a",
-              "label": "No",
-              "points": 3
+              "label": "Above $6,000 (above ₹5 lakh)",
+              "points": 4
             },
             {
               "id": "g6b",
-              "label": "Yes, once",
-              "points": 2
+              "label": "$1,200 to $6,000 (₹1 to 5 lakh)",
+              "points": 3
             },
             {
               "id": "g6c",
-              "label": "Yes, more than once",
+              "label": "$300 to $1,200 (₹25,000 to 1 lakh)",
+              "points": 2
+            },
+            {
+              "id": "g6d",
+              "label": "Under $300 (under ₹25,000)",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g6e",
+              "label": "I need to understand costs first",
               "points": 1
             }
           ]
@@ -233,8 +220,8 @@
       ]
     },
     "disqualifiedContent": {
-      "heading": "Thanks for your honesty.",
-      "subtext": "On your answers this is not the right moment for an application, so we will not take up more of your time. When your intake, funding or test score moves, come back and run this again.",
+      "heading": "Thank you, and please read this.",
+      "subtext": "On your answers this firm cannot act in this matter, so we will not take it further. This is not legal advice and it is not an assessment of your case. Limitation periods vary by matter and some are short, so please consult another solicitor promptly rather than waiting.",
       "bodyHtml": "",
       "buttonLabel": "",
       "buttonUrl": "",
@@ -247,8 +234,8 @@
     "uniqueIdentifier": "EMAIL",
     "categories": [
       {
-        "name": "Academic readiness",
-        "description": "What your record looks like to an admissions officer today.",
+        "name": "Matter fit",
+        "description": "Whether this is the kind of matter the firm acts on.",
         "displayOrder": 0,
         "page": 1,
         "bands": [
@@ -276,116 +263,116 @@
         ],
         "questions": [
           {
-            "text": "What is your academic percentage or CGPA band?",
+            "text": "How well does it fit the sub type within that practice area?",
             "type": "SINGLE_SELECT",
-            "weight": 8.75,
+            "weight": 10.0,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "Below 55 percent, or under 6.0 CGPA",
+                "label": "I am not sure it does",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "55 to 65 percent, 6.0 to 7.0",
+                "label": "Loosely",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "65 to 75 percent, 7.0 to 8.0",
+                "label": "Closely",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Above 75 percent, above 8.0",
+                "label": "Exactly",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How long since your last qualification?",
+            "text": "Who is the opposing party?",
             "type": "SINGLE_SELECT",
-            "weight": 8.75,
+            "weight": 10.0,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "More than 5 years",
+                "label": "A government body",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "3 to 5 years",
+                "label": "A large company",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "1 to 3 years",
+                "label": "A small company",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Less than a year, or still studying",
+                "label": "An individual",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Any backlogs or failed subjects on record?",
+            "text": "What is the value at stake?",
             "type": "SINGLE_SELECT",
-            "weight": 8.75,
+            "weight": 10.0,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "More than 5",
+                "label": "Under $1,200 (under ₹1 lakh)",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "3 to 5",
+                "label": "$1,200 to $12,000 (₹1 to 10 lakh)",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "1 or 2",
+                "label": "$12,000 to $60,000 (₹10 to 50 lakh)",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "None",
+                "label": "Above $60,000 (above ₹50 lakh)",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How closely does your past study match the course you want?",
+            "text": "What documentation do you have in hand?",
             "type": "SINGLE_SELECT",
-            "weight": 8.75,
+            "weight": 10.0,
             "required": true,
             "displayOrder": 3,
             "options": [
               {
-                "label": "Completely different field",
+                "label": "None",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Loosely related",
+                "label": "A few papers",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Closely related",
+                "label": "Most of it",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Direct continuation of it",
+                "label": "Complete, and organised",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -394,8 +381,8 @@
         ]
       },
       {
-        "name": "Financial readiness",
-        "description": "Whether the money is real, documented and available on the timeline.",
+        "name": "Client readiness",
+        "description": "Whether the matter can actually be run with you.",
         "displayOrder": 1,
         "page": 1,
         "bands": [
@@ -423,116 +410,116 @@
         ],
         "questions": [
           {
-            "text": "How much of the required funds can you show proof of today?",
+            "text": "Have there been prior proceedings on this same matter?",
             "type": "SINGLE_SELECT",
-            "weight": 10.0,
+            "weight": 8.75,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "None of it yet",
+                "label": "Several, with different lawyers",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Less than half",
+                "label": "One, which ended badly",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Most of it",
+                "label": "One, concluded",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "All of it, documented",
+                "label": "None",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Where is the education loan?",
+            "text": "What timeline are you expecting?",
             "type": "SINGLE_SELECT",
-            "weight": 10.0,
+            "weight": 8.75,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "Not applied, and not sure we will",
+                "label": "Resolved in weeks",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Planning to apply",
+                "label": "A few months",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Applied, awaiting sanction",
+                "label": "Under a year",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Sanctioned, or not needed at all",
+                "label": "However long it properly takes",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Who is sponsoring, and how stable is that income?",
+            "text": "How available are you for hearings and gathering documents?",
             "type": "SINGLE_SELECT",
-            "weight": 10.0,
+            "weight": 8.75,
             "required": true,
             "displayOrder": 2,
             "options": [
               {
-                "label": "No sponsor identified yet",
+                "label": "Rarely available",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A relative, income varies",
+                "label": "Occasionally",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "A parent in business, income varies",
+                "label": "Usually",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "A parent or sponsor in stable salaried income",
+                "label": "Fully available",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "Have you costed living, insurance and travel on top of tuition?",
+            "text": "Who decides on instructions?",
             "type": "SINGLE_SELECT",
-            "weight": 10.0,
+            "weight": 8.75,
             "required": true,
             "displayOrder": 3,
             "options": [
               {
-                "label": "I have only looked at tuition",
+                "label": "A board or committee",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Roughly, from a blog or a video",
+                "label": "Several family members",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Yes, from a university page",
+                "label": "Me and one other",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Yes, in a spreadsheet, per city",
+                "label": "Me",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -541,8 +528,8 @@
         ]
       },
       {
-        "name": "Decision readiness",
-        "description": "How much is still undecided, and how much paperwork already exists.",
+        "name": "Engagement fit",
+        "description": "How you would want to be engaged, and on what terms.",
         "displayOrder": 2,
         "page": 1,
         "bands": [
@@ -570,116 +557,58 @@
         ],
         "questions": [
           {
-            "text": "How fixed is your country shortlist?",
+            "text": "What outcome would you prefer to work towards?",
             "type": "SINGLE_SELECT",
-            "weight": 6.25,
+            "weight": 12.5,
             "required": true,
             "displayOrder": 0,
             "options": [
               {
-                "label": "Wide open",
+                "label": "I have not thought about it",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "Three or four countries",
+                "label": "Undecided between settling and litigating",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "Down to two",
+                "label": "Litigate",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "One country, decided",
+                "label": "Settle if the terms are right",
                 "value": 3,
                 "displayOrder": 3
               }
             ]
           },
           {
-            "text": "How fixed is your course shortlist?",
+            "text": "How comfortable are you with a retainer based engagement?",
             "type": "SINGLE_SELECT",
-            "weight": 6.25,
+            "weight": 12.5,
             "required": true,
             "displayOrder": 1,
             "options": [
               {
-                "label": "Wide open",
+                "label": "Not comfortable at all",
                 "value": 0,
                 "displayOrder": 0
               },
               {
-                "label": "A broad field, no courses",
+                "label": "I would need it explained",
                 "value": 1,
                 "displayOrder": 1
               },
               {
-                "label": "A few named courses",
+                "label": "Comfortable in principle",
                 "value": 2,
                 "displayOrder": 2
               },
               {
-                "label": "Specific courses at specific universities",
-                "value": 3,
-                "displayOrder": 3
-              }
-            ]
-          },
-          {
-            "text": "Is your family aligned on you going abroad?",
-            "type": "SINGLE_SELECT",
-            "weight": 6.25,
-            "required": true,
-            "displayOrder": 2,
-            "options": [
-              {
-                "label": "No, it is a real disagreement",
-                "value": 0,
-                "displayOrder": 0
-              },
-              {
-                "label": "They are uneasy about it",
-                "value": 1,
-                "displayOrder": 1
-              },
-              {
-                "label": "Supportive but worried about cost",
-                "value": 2,
-                "displayOrder": 2
-              },
-              {
-                "label": "Fully aligned and involved",
-                "value": 3,
-                "displayOrder": 3
-              }
-            ]
-          },
-          {
-            "text": "Which documents do you already have?",
-            "type": "SINGLE_SELECT",
-            "weight": 6.25,
-            "required": true,
-            "displayOrder": 3,
-            "options": [
-              {
-                "label": "None of them",
-                "value": 0,
-                "displayOrder": 0
-              },
-              {
-                "label": "Passport only",
-                "value": 1,
-                "displayOrder": 1
-              },
-              {
-                "label": "Passport and transcripts",
-                "value": 2,
-                "displayOrder": 2
-              },
-              {
-                "label": "Passport, transcripts, SOP and LORs underway",
+                "label": "That is what I expect",
                 "value": 3,
                 "displayOrder": 3
               }
@@ -691,30 +620,30 @@
     "resultBands": [
       {
         "level": "LOW",
-        "title": "Too early, and that is worth knowing now",
-        "description": "Timeline, funding or test readiness is not there yet, and applying now would spend money on an application that gets refused. Next step: the timeline plan below, and come back when the blocker has moved.",
+        "title": "Outside what this firm does",
+        "description": "On what you have described this is not a matter this firm would act on. That is a statement about this firm, and not about your matter, which may well be strong. Next step: the bar association directory below. Take independent advice promptly: limitation periods vary by matter and some are short.",
         "minScore": 0,
         "maxScore": 39,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
-        "title": "One or two gaps to close",
-        "description": "This is a real application with one blocker in front of it, and the dimension scores below say which. It is usually funding documentation or a test date. Next step: a planning call about that one thing, not a general counselling session.",
+        "title": "Needs scoping first",
+        "description": "This may be something the firm can act on, but one thing has to be established before anyone can say so: usually documentation or who gives instructions. Next step: a short intake call. No opinion on the matter will be given on it.",
         "minScore": 40,
         "maxScore": 69,
         "displayOrder": 1
       },
       {
         "level": "HIGH",
-        "title": "Application ready",
-        "description": "Academics, funding and decisions are all in place. You could start an application this month, and the only question left is which shortlist to submit to. Next step: a document review call.",
+        "title": "We can take the call",
+        "description": "On what you have described, this sits inside the firm's practice area and jurisdiction, the documentation is there, and the engagement would be workable. Next step: a paid consultation. This says the firm can act. It says nothing about your case.",
         "minScore": 70,
         "maxScore": 100,
         "displayOrder": 2
       }
     ],
-    "title": "Are you ready to apply?",
-    "slug": "study-abroad-readiness"
+    "title": "Can we take your matter?",
+    "slug": "case-intake-triage"
   }
 }

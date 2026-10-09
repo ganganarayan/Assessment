@@ -22,7 +22,7 @@
     "professionRequired": false,
     "engine": "GENERIC",
     "engineConfig": null,
-    "eyebrow": "4 minutes, 12 questions",
+    "eyebrow": "18 questions, 4 minutes",
     "subheadline": "A straight read on whether your project is ready for a designer, and what to settle before the first meeting.",
     "qualifiedNote": "You qualify. Tell us where to send your result.",
     "leadCaptureAfter": true,
@@ -711,11 +711,11 @@
     ],
     "resultBands": [
       {
-        "level": "HIGH",
-        "title": "Ready to design",
-        "description": "Possession, budget and decision maker are all in place, and the brief is real enough to quote against. Next step: a paid design consultation or a site visit.",
-        "minScore": 70,
-        "maxScore": 100,
+        "level": "LOW",
+        "title": "Not yet",
+        "description": "The timeline or the budget does not support the work you are describing, and starting now means a design that gets value engineered down to nothing. Next step: the budget guide below, and a note in the diary for your possession month.",
+        "minScore": 0,
+        "maxScore": 39,
         "displayOrder": 0
       },
       {
@@ -727,15 +727,15 @@
         "displayOrder": 1
       },
       {
-        "level": "LOW",
-        "title": "Not yet",
-        "description": "The timeline or the budget does not support the work you are describing, and starting now means a design that gets value engineered down to nothing. Next step: the budget guide below, and a note in the diary for your possession month.",
-        "minScore": 0,
-        "maxScore": 39,
+        "level": "HIGH",
+        "title": "Ready to design",
+        "description": "Possession, budget and decision maker are all in place, and the brief is real enough to quote against. Next step: a paid design consultation or a site visit.",
+        "minScore": 70,
+        "maxScore": 100,
         "displayOrder": 2
       }
     ],
     "title": "Is your project ready to design?",
-    "slug": "interior-design-project-fit"
+    "slug": "interior-project-fit"
   }
 }
