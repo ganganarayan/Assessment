@@ -44,17 +44,17 @@
             {
               "id": "g1a",
               "label": "A decision I have to make soon",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "A difficult period I want to understand",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "Curiosity about my chart",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1d",
@@ -74,12 +74,12 @@
             {
               "id": "g2a",
               "label": "Yes, to the minute",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "Yes, to within an hour",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2c",
@@ -104,17 +104,17 @@
             {
               "id": "g3a",
               "label": "Yes, regularly",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "Once or twice",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "Never",
-              "points": 2
+              "points": 0
             }
           ]
         },
@@ -128,12 +128,12 @@
             {
               "id": "g4a",
               "label": "Act on it",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "Think it over carefully",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g4c",
@@ -158,12 +158,12 @@
             {
               "id": "g5a",
               "label": "This week",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "This month",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5c",

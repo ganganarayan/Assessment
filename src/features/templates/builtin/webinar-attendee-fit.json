@@ -1,0 +1,613 @@
+{
+  "slug": "webinar-attendee-fit",
+  "title": "Webinar attendee qualifier",
+  "category": "Webinars",
+  "summary": "Registration volume is a vanity number. This decides who gets the link, so the room is full of people who could act on what they hear.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "You are writing the note a host reads before a live session, about this registrant.\n\nWrite 200 to 280 words, second person, brisk and useful. Name what this person most needs from the session, using the dimension names as evidence, and what they should come ready to ask.\n\nDo NOT promise an outcome from attending and do NOT pitch anything. Describe what they should get out of it, then stop.\n\nNever mention scores as numbers.",
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 3,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "15 questions, 3 minutes",
+    "subheadline": "A few questions so we can tell who should be in the room live and who is better served by the recording.",
+    "qualifiedNote": "You qualify. Tell us where to send your result.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "Which best describes your situation right now?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "I have this problem and I am working on it",
+              "points": 0
+            },
+            {
+              "id": "g1b",
+              "label": "I have this problem and have not started",
+              "points": 0
+            },
+            {
+              "id": "g1c",
+              "label": "I expect to have it soon",
+              "points": 0
+            },
+            {
+              "id": "g1d",
+              "label": "It does not apply to me, I am just curious",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "Do you have budget authority for solutions in this area?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Yes",
+              "points": 0
+            },
+            {
+              "id": "g2b",
+              "label": "I influence the decision",
+              "points": 0
+            },
+            {
+              "id": "g2c",
+              "label": "Not applicable to my role",
+              "points": 0
+            },
+            {
+              "id": "g2d",
+              "label": "No, I am researching out of interest",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "How urgent is this problem?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "I am actively solving it now",
+              "points": 0
+            },
+            {
+              "id": "g3b",
+              "label": "I plan to within 3 months",
+              "points": 0
+            },
+            {
+              "id": "g3c",
+              "label": "Sometime this year",
+              "points": 0
+            },
+            {
+              "id": "g3d",
+              "label": "Not urgent",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Can you attend live?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "Yes",
+              "points": 0
+            },
+            {
+              "id": "g4b",
+              "label": "Probably, depending on the day",
+              "points": 0
+            },
+            {
+              "id": "g4c",
+              "label": "No, I only want the recording",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "Have you attended one of our sessions before?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "No, this is my first",
+              "points": 0
+            },
+            {
+              "id": "g5b",
+              "label": "Yes, once",
+              "points": 0
+            },
+            {
+              "id": "g5c",
+              "label": "Yes, several times",
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks for checking.",
+      "subtext": "This session is built for people actively dealing with this problem, and on your answers it would not be a good use of your time. Nothing is stored. The recording goes out publicly afterwards if you want to catch it then.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Problem fit",
+        "description": "How acute and how specific the problem actually is.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How long has this been a problem?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "It is not yet",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A few weeks",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Several months",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "More than a year",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How specifically can you describe it?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Only in general terms",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Roughly",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Clearly",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "With numbers",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What has it already cost you?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Nothing measurable",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Some time",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Real time and money",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Enough that somebody above me has noticed",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Have you tried to fix it already?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "No",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Read about it",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Tried one thing",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Tried several, none stuck",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Authority and budget",
+        "description": "Whether anything could actually happen afterwards.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "What is your role in the decision?",
+            "type": "SINGLE_SELECT",
+            "weight": 11.6667,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "No part in it",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "I gather information",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "I recommend",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "I decide",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Is there budget for this?",
+            "type": "SINGLE_SELECT",
+            "weight": 11.6667,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "None",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Not yet, it would need a case",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Likely next cycle",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Allocated now",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What is your timeline to act?",
+            "type": "SINGLE_SELECT",
+            "weight": 11.6667,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "No timeline",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "This year",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "This quarter",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This month",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Engagement intent",
+        "description": "What they want from the session and what they would do with it.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "What do you want from this session?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.3333,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "A general overview",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Ideas to consider",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A method I can copy",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "An answer to one specific question",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What would you do with the answer?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.3333,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Nothing immediate",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "File it for later",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Share it internally",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Act on it that week",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Will you bring a question?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.3333,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "No",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Maybe",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Probably",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Yes, I have one already",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "The recording will serve you better",
+        "description": "On urgency or timing a live hour is more than this is worth to you right now. Next step: the recording below, and we will send the follow up material when it is ready.",
+        "minScore": 0,
+        "maxScore": 40,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "You are in",
+        "description": "A real reason to attend, and the decision may sit partly elsewhere. Come with your question written down. Next step: your link and the standard reminders are below.",
+        "minScore": 41,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "Priority seat",
+        "description": "You have the problem, the authority and the urgency, so the session is worth your hour and your question is worth answering live. Next step: your link is below, and we will send a personal reminder.",
+        "minScore": 60,
+        "maxScore": 75,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Priority seat, flag to sales",
+        "description": "Acute problem, budget authority, and acting this month. Worth a personal reminder before the session and a named follow-up after it. Next step: send the link, then tell whoever owns the follow-up that they are coming.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "title": "Claim your seat",
+    "slug": "webinar-seat-check"
+  }
+}

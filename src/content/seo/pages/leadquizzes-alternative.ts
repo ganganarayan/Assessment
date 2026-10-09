@@ -16,7 +16,7 @@ export const page: SeoPage = {
     "How Assess360 differs from LeadQuizzes: the quiz filters wrong-fit traffic before the opt-in instead of maximising capture rate.",
   h1: "Assess360 as a LeadQuizzes alternative",
   shortName: "vs LeadQuizzes",
-  factsCheckedOn: "2026-10-06",
+  factsCheckedOn: "2026-10-09",
   lede:
     "Quiz funnels are built to raise conversion rate: more people finish, more people opt in, the list grows. That works until the list is the problem, which is the moment a quiz needs to start turning people away instead of converting them.",
   updatedAt: "2026-10-06",
@@ -57,6 +57,83 @@ export const page: SeoPage = {
         "If you can follow up with everyone and want to, maximising capture is the correct strategy and filtering is premature. The switch is worth making when the calendar, not the list, becomes the bottleneck.",
       ],
       bullets: [],
+    },
+    {
+      id: "when-cheap-gets-expensive",
+      heading: "When the cheaper tool becomes the expensive one",
+      answer: "The subscription was never the cost. The calls are.",
+      paragraphs: [
+        "Take three hundred quiz completions in a month and suppose sixty of them are genuinely worth speaking to. The subscription difference between the two tools is a rounding error against the two hundred and forty conversations that either waste somebody's time or get screened out by hand, which is also somebody's time.",
+        "That is the whole argument, and it only works one way: if nobody is calling those leads, the cheaper tool wins and we would rather you kept it.",
+      ],
+      bullets: [
+        "Disqualified visitors leave no lead record, so nothing reaches your CRM to be cleaned out later",
+        "A qualified-only conversion event, so the algorithm optimises toward people who passed rather than people who typed fast",
+        "An exclusion audience that grows by itself, so you stop paying to reach the people you just turned away",
+      ],
+    },
+  ],
+  comparison: {
+    competitor: "LeadQuizzes",
+    source: "read from their own pricing page on 9 October 2026. Several vendors price by region, so the figure you are shown may differ",
+    rows: [
+    {
+      label: "Gate runs before the opt-in",
+      us: "Yes, before the opt-in. A failed gate stores no lead, no submission and no result.",
+      them: "No pre-opt-in gate. The quiz captures, then you sort the leads afterwards.",
+    },
+    {
+      label: "Are disqualified visitors metered?",
+      us: "Never. Only qualified responses count against the plan.",
+      them: "Every response is metered - but 2,500 of them on the entry plan, far more raw volume per pound than ours.",
+      themWins: true,
+    },
+    {
+      label: "Weighted category scoring",
+      us: "Yes. Weighted categories, a weighted total, and named result bands.",
+      them: "Scored quizzes and outcomes. No weighted categories with their own bands.",
+    },
+    {
+      label: "Qualified-only conversion event",
+      us: "Yes. Qualified completions fire their own conversion event.",
+      them: "No qualified-only conversion event.",
+    },
+    {
+      label: "Server-side exclusion audience",
+      us: "Yes. Server-side exclusion audience via the Conversions API.",
+      them: "No server-side exclusion audience.",
+    },
+    {
+      label: "First-party match keys",
+      us: "Yes, on every Pixel and CAPI event.",
+      them: "Standard pixel integrations.",
+    },
+    {
+      label: "Custom domain",
+      us: "Yes, from $79/mo.",
+      them: "Custom domain hosting on the top plan.",
+    },
+    {
+      label: "Entry price",
+      us: "$39/mo, or $32 billed annually.",
+      them: "Standard $49/mo, or $37 billed annually. No longer the cheapest entry point.",
+    },
+    ],
+  },
+  betterWhen:
+    "LeadQuizzes is quick to learn and built for exactly what its name says: more leads from a quiz. Its entry plan carries 2,500 responses where ours carries 150, so if your problem is volume rather than quality, and an unqualified lead costs you nothing but an email send, you get far more throughput for the money. It is no longer the cheapest on this list, but it is still the one that will not argue with you about collecting everybody.",
+  faqs: [
+    {
+      q: "If LeadQuizzes is cheaper, why switch?",
+      a: "Only when the arithmetic flips. While leads cost you nothing to ignore, more of them for less is simply the better deal and we would say so. The moment you are paying for traffic and a wrong-fit lead costs an hour of somebody's time, volume stops being the thing worth buying.",
+    },
+    {
+      q: "Does Assess360 generate quizzes with AI like LeadQuizzes does?",
+      a: "Yes, for drafting questions, and we would rather you edited them afterwards. A generated quiz is a fast first draft, not a qualification mechanism: what decides who gets disqualified has to come from you, because only you know who has been wasting your time.",
+    },
+    {
+      q: "Can I keep my existing quiz questions?",
+      a: "Yes. Paste them into the plain-text importer. The gate and the weights are the parts you will be writing new, and we will write them for you free if you send us the live link, then take the whole thing live on one 30-minute call.",
     },
   ],
   cta: {

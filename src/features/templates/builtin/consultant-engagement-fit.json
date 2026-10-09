@@ -436,14 +436,14 @@
         "title": "Advice would be wasted here today",
         "description": "The constraint is not knowledge. Until decisions, evidence or capacity improve, any recommendation will be accepted and then quietly ignored.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "Able to act, slowly",
         "description": "Change happens, but it takes longer than it should and loses momentum. One of the three areas is where it stalls.",
-        "minScore": 40,
+        "minScore": 41,
         "maxScore": 59,
         "displayOrder": 1
       },
@@ -452,14 +452,14 @@
         "title": "Able to act",
         "description": "Decisions get made, evidence is trusted and someone has room to do the work. The weakest area is the one to protect.",
         "minScore": 60,
-        "maxScore": 79,
+        "maxScore": 75,
         "displayOrder": 2
       },
       {
         "level": "CRITICAL",
         "title": "Built to act",
         "description": "Fast decisions, numbers people believe, and capacity set aside. An engagement here will show results inside a quarter.",
-        "minScore": 80,
+        "minScore": 76,
         "maxScore": 100,
         "displayOrder": 3
       }

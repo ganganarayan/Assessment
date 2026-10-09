@@ -44,17 +44,17 @@
             {
               "id": "g1a",
               "label": "Fifty or more",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "Ten to forty-nine",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "Three to nine",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1d",
@@ -74,12 +74,12 @@
             {
               "id": "g2a",
               "label": "Yes, approved",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "Yes, but it needs a case",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g2c",
@@ -104,12 +104,12 @@
             {
               "id": "g3a",
               "label": "A named person, already identified",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "A team, no single owner yet",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3c",
@@ -128,17 +128,17 @@
             {
               "id": "g4a",
               "label": "A deadline we have already committed to",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "A problem that is getting worse",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4c",
               "label": "General improvement",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4d",
@@ -158,17 +158,17 @@
             {
               "id": "g5a",
               "label": "Yes, and we bought",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "Yes, and we did not",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5c",
               "label": "No, this is the first time",
-              "points": 1
+              "points": 0
             }
           ]
         }
@@ -578,14 +578,14 @@
         "title": "A pilot would fail here, for now",
         "description": "The constraint is not the software. One of the three areas below would sink a pilot in week two, and it is cheaper to know that today.",
         "minScore": 0,
-        "maxScore": 39,
+        "maxScore": 40,
         "displayOrder": 0
       },
       {
         "level": "MEDIUM",
         "title": "A pilot is possible, with preparation",
         "description": "The intent is real. One area needs work before a pilot would produce a result anyone trusts.",
-        "minScore": 40,
+        "minScore": 41,
         "maxScore": 59,
         "displayOrder": 1
       },
@@ -594,14 +594,14 @@
         "title": "Pilot-ready, with a caveat",
         "description": "Data, process and sponsorship are mostly in place. The weakest of the three is the one to shore up first.",
         "minScore": 60,
-        "maxScore": 79,
+        "maxScore": 75,
         "displayOrder": 2
       },
       {
         "level": "CRITICAL",
         "title": "Strong pilot candidate",
         "description": "The inputs exist, the process is real and someone senior owns it. This is the profile that converts.",
-        "minScore": 80,
+        "minScore": 76,
         "maxScore": 100,
         "displayOrder": 3
       }

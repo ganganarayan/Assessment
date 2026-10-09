@@ -182,6 +182,20 @@ else fail("coverage", "every built-in template needs AI, so none works without a
   if (bad === 0) ok(`omitted defaults: ${checked} gate options all read back a real boolean`);
 }
 
+// The home page lists TEMPLATE_CATEGORIES as "who it is for" and says each audience has
+// a ready-made scorecard behind it. That sentence is only true while every category
+// actually has one, and the failure is silent: the page would simply advertise an
+// audience the library cannot serve, with nothing erroring anywhere.
+{
+  const have = new Set(docs.map((d) => d.category));
+  const empty = TEMPLATE_CATEGORIES.filter((c) => !have.has(c));
+  if (empty.length === 0) {
+    ok(`audiences: all ${TEMPLATE_CATEGORIES.length} categories have a built-in behind them`);
+  } else {
+    fail("audiences", `the home page lists these with no template behind them: ${empty.join(", ")}`);
+  }
+}
+
 console.log(
   failures === 0
     ? `\nAll ${docs.length} built-in templates are valid.`

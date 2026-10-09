@@ -60,9 +60,21 @@ export function platformPageMetadata(input: {
   title: string;
   description: string;
   path: string;
+  /**
+   * A content slug, when this page has a card of its own.
+   *
+   * Passed to the generator as `?slug=`, never as a title: the endpoint looks the words
+   * up from the registry, so the only cards that can exist are the ones for pages that
+   * do. See app/og-image/route.tsx - a title parameter would let anyone render an image
+   * on our domain saying anything, and an unfurl carries the domain, not the author.
+   */
+  ogSlug?: string;
 }): Metadata {
   const url = platformUrl(input.path);
   const composed = `${input.title} · ${MARKETING.name}`;
+  const image = input.ogSlug
+    ? { ...OG_IMAGE, url: `${OG_IMAGE.url}?slug=${encodeURIComponent(input.ogSlug)}`, alt: input.title }
+    : OG_IMAGE;
   return {
     title: input.title,
     description: input.description,
@@ -73,13 +85,13 @@ export function platformPageMetadata(input: {
       title: composed,
       description: input.description,
       url,
-      images: [OG_IMAGE],
+      images: [image],
     },
     twitter: {
       card: "summary_large_image",
       title: composed,
       description: input.description,
-      images: [OG_IMAGE.url],
+      images: [image.url],
     },
   };
 }

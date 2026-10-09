@@ -1,0 +1,739 @@
+{
+  "slug": "it-project-fit",
+  "title": "Project fit screener",
+  "category": "IT services",
+  "summary": "Stops the free proposal for a project with no budget, no date and four other vendors on it. Scores the rest on how defined the project actually is.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "You are writing the note a delivery lead reads before a solution call.\n\nWrite 200 to 280 words, second person, direct and technically literate. Name the ONE thing that would turn this project into a rewrite halfway through, using the dimension names as evidence. Say what it costs to start without it.\n\nDo NOT quote a price, do NOT estimate hours, team size or a delivery date, and do NOT propose an architecture or a stack. Describe the gap, then stop. The solution belongs on the call.\n\nNever promise a delivery timeline, never mention scores as numbers.",
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 4,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "18 questions, 4 minutes",
+    "subheadline": "A straight read on whether your project is defined enough to be quoted, and what is missing if it is not.",
+    "qualifiedNote": "You qualify. Tell us where to send your result.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "What is the budget range for this project?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "Above $120,000 (above ₹1 crore)",
+              "points": 0
+            },
+            {
+              "id": "g1b",
+              "label": "$47,000 to $120,000 (₹40 lakh to 1 crore)",
+              "points": 0
+            },
+            {
+              "id": "g1c",
+              "label": "$12,000 to $47,000 (₹10 to 40 lakh)",
+              "points": 0
+            },
+            {
+              "id": "g1d",
+              "label": "$2,400 to $12,000 (₹2 to 10 lakh)",
+              "points": 0
+            },
+            {
+              "id": "g1e",
+              "label": "Under $2,400 (under ₹2 lakh)",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g1f",
+              "label": "Not determined",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "Is that budget approved, or still being sought?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Approved",
+              "points": 0
+            },
+            {
+              "id": "g2b",
+              "label": "In approval",
+              "points": 0
+            },
+            {
+              "id": "g2c",
+              "label": "It gets approved once we pick a vendor",
+              "points": 0
+            },
+            {
+              "id": "g2d",
+              "label": "No budget yet, we are exploring",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "What is the timeline to start?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "Immediately",
+              "points": 0
+            },
+            {
+              "id": "g3b",
+              "label": "Within a month",
+              "points": 0
+            },
+            {
+              "id": "g3c",
+              "label": "In 1 to 3 months",
+              "points": 0
+            },
+            {
+              "id": "g3d",
+              "label": "In 3 to 6 months",
+              "points": 0
+            },
+            {
+              "id": "g3e",
+              "label": "No date",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Are you the decision maker for this?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "Yes",
+              "points": 0
+            },
+            {
+              "id": "g4b",
+              "label": "I recommend, someone else approves",
+              "points": 0
+            },
+            {
+              "id": "g4c",
+              "label": "I am gathering information for someone else",
+              "points": 0
+            },
+            {
+              "id": "g4d",
+              "label": "Not sure",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "What kind of engagement are you looking for?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Fixed scope project",
+              "points": 0
+            },
+            {
+              "id": "g5b",
+              "label": "Ongoing retainer",
+              "points": 0
+            },
+            {
+              "id": "g5c",
+              "label": "Dedicated team or staff augmentation",
+              "points": 0
+            },
+            {
+              "id": "g5d",
+              "label": "A one off fix",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g5e",
+              "label": "A free assessment or audit only",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g6",
+          "text": "How many vendors are you evaluating?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g6a",
+              "label": "Only you",
+              "points": 0
+            },
+            {
+              "id": "g6b",
+              "label": "Two or three",
+              "points": 0
+            },
+            {
+              "id": "g6c",
+              "label": "Four to six",
+              "points": 0
+            },
+            {
+              "id": "g6d",
+              "label": "A formal RFP with many",
+              "points": 0
+            },
+            {
+              "id": "g6e",
+              "label": "Just collecting quotes",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks for being straightforward.",
+      "subtext": "On your answers this is not something we can quote for at the moment, so we will not take up more of your time. When the budget, the date or the scope firms up, run this again.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Project definition",
+        "description": "How much of this is decided, and how much is still an idea.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "What state are the requirements in?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "An idea, described verbally",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A rough brief",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A detailed brief",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A documented specification",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What is the existing system?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Legacy we cannot change, you integrate into it",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A rebuild of something live",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Greenfield with integrations",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Greenfield",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Who decides the stack?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Fixed by us, no discussion",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Fixed by us, open to argument",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Open",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "We want your recommendation",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Any compliance or security requirements?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Yes, and they are not documented",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Yes, documented, strict",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Some, standard",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "None beyond the usual",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Organisational readiness",
+        "description": "Whether your side can keep up with delivery.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "Is there a technical counterpart on your side?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Nobody technical at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Someone part time",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A technical lead",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A technical lead and a product owner",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How has outsourcing development gone before?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Badly, we are nervous",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Never done it",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Mixed",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Well, and we know how to run it",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How many people approve this decision?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "More than five",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Three to five",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Two",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "One",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "When will the decision be made?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "No date set",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Within three months",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Within a month",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This month",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Commercial fit",
+        "description": "Whether the money and the scope describe the same project.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How well does the budget match the scope you have described?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "The gap is large",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "There is a real gap",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "About right",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Comfortable, with contingency",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What payment terms do you expect?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "On delivery, in full",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Mostly on delivery",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Milestone based",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Monthly",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How do you want to contract?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "We want a free pilot first",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A paid pilot first",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "An MSA after a discovery",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Ready to sign an MSA",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What do you expect after launch?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Indefinite free support",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A long free warranty",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A warranty then a support contract",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A support contract from day one",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Not a fit right now",
+        "description": "On budget, definition or decision process this is not ready, and these are the enquiries that quietly consume a solution architect for weeks. Next step: the pricing guide below, and come back when the scope is written down.",
+        "minScore": 0,
+        "maxScore": 40,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Needs discovery first",
+        "description": "There is a real project here and it is not yet defined enough for anyone to quote honestly. A free proposal at this stage would be a guess with a number on it. Next step: a paid discovery sprint.",
+        "minScore": 41,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "A qualified opportunity",
+        "description": "Budget, timeline, decision maker and requirements all point the same way, and this is defined enough to solution against. Next step: a call with a technical lead.",
+        "minScore": 60,
+        "maxScore": 75,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Solution call this week",
+        "description": "Budget approved, timeline fixed, decision-maker on the form, requirements written down, and few other vendors in the room. Next step: a technical lead on a call this week, before somebody else gets there.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "title": "Is your project ready to quote?",
+    "slug": "project-fit-screener"
+  }
+}

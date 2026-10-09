@@ -224,32 +224,30 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
             <div key={t.id} className="rounded-lg border p-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 {/* The order number leads the row. It is what the list is SORTED by, so
-                    reading down the left edge should be reading the order - it sat on
-                    the right, past the title and the summary, where the one thing it
-                    controls was the hardest thing to scan. */}
-                {/* Shown 1-based. The column is a sort key and starts at 0, which is
-                    right for the machine and wrong on screen: a list that opens with
-                    "0" reads as a bug every time. Converted at this one boundary rather
-                    than migrated, so the sort itself is untouched. */}
-                {canEdit ? (
-                  <Input
-                    type="number"
-                    min={1}
-                    className="h-9 w-16 shrink-0 text-center"
-                    defaultValue={t.displayOrder + 1}
-                    disabled={busy !== null}
-                    onBlur={(e) => {
-                      const shown = Math.max(1, Math.round(Number(e.target.value) || 1));
-                      const n = shown - 1;
-                      if (n !== t.displayOrder) run(t.id, () => setTemplateOrder(t.id, n));
-                    }}
-                    aria-label={`Display order for ${t.title}`}
-                    title="Sort order within the category. Lower sorts first."
-                  />
-                ) : null}
+                    reading down the left edge should be reading the order. */}
+                {/* Shown 1-based: the column is a sort key and starts at 0, which is right
+                    for the machine and wrong on screen. Converted at this one boundary,
+                    the stored sort is untouched.
+
+                    READ-ONLY here. It was a number input with spinners, which put an
+                    editable control in the first position of every row for the one thing
+                    nobody opens this page to change - and a stray scroll over it re-sorted
+                    the shelf. Re-ordering moved behind Edit; the list only states it. */}
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border text-sm text-[var(--muted-foreground)]"
+                  title="Sort order within the audience. Lower sorts first."
+                >
+                  {t.displayOrder + 1}
+                </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium">{t.title}</p>
+                    {/* The audience, back where it can be read. It was the first word of
+                        the grey micro-line under the summary, sharing a row with the slug
+                        and the question counts - present, but not visible. It is what the
+                        library is organised by and what a tenant picks on, so it belongs
+                        beside the title, the same badge the builder already shows. */}
+                    <Badge variant="outline">{t.category}</Badge>
                     {t.builtin ? <Badge variant="muted">Built-in</Badge> : null}
                     {t.mine === false && t.contributorName ? (
                       <Badge variant="outline">From {t.contributorName}</Badge>
@@ -259,7 +257,7 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
                   </div>
                   <p className="text-sm text-[var(--muted-foreground)]">{t.summary ?? "No summary."}</p>
                   <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                    {t.category} · {SHAPE_LABELS[t.shape]} · {t.gateQuestions} gate · {t.questions} scored
+                    {SHAPE_LABELS[t.shape]} · {t.gateQuestions} gate · {t.questions} scored
                     {t.hasAiPrompt ? " · AI instructions" : " · no AI"} · {t.slug}
                   </p>
                 </div>
@@ -297,6 +295,28 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
 
               {editing === t.id && canEdit ? (
                 <>
+                  {/* Re-ordering lives here now rather than in the row. Same action, same
+                      1-based conversion; it just no longer sits in front of someone who
+                      opened the page to tick Published. */}
+                  <div className="mt-3 flex items-center gap-2 border-t pt-3">
+                    <label className="text-xs text-[var(--muted-foreground)]" htmlFor={`order-${t.id}`}>
+                      Order within {t.category}
+                    </label>
+                    <Input
+                      id={`order-${t.id}`}
+                      type="number"
+                      min={1}
+                      className="h-9 w-20 text-center"
+                      defaultValue={t.displayOrder + 1}
+                      disabled={busy !== null}
+                      onBlur={(e) => {
+                        const shown = Math.max(1, Math.round(Number(e.target.value) || 1));
+                        const n = shown - 1;
+                        if (n !== t.displayOrder) run(t.id, () => setTemplateOrder(t.id, n));
+                      }}
+                      aria-label={`Display order for ${t.title}`}
+                    />
+                  </div>
                   <MetaEditor
                     item={t}
                     busy={busy !== null}

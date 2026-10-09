@@ -136,26 +136,26 @@ model Tenant {
   acqUtmTerm             String?
   acqUtmContent          String?
 
-  users           User[]
-  domains         Domain[]
-  theme           Theme?
-  assessments     Assessment[]
-  submissions     Submission[]
-  apiTokens       ApiToken[]
-  webhooks        Webhook[]
-  webhookLogs     WebhookLog[]
-  payments        Payment[]
-  capiLogs        CapiLog[]
-  setting         AppSetting?
-  promptVersions  AiPromptVersion[]
-  subscription    Subscription?
-  usageCounters   UsageCounter[]
-  nurtureLogs     NurtureLog[]
-  paymentHandoffs PaymentHandoff[]
+  users                User[]
+  domains              Domain[]
+  theme                Theme?
+  assessments          Assessment[]
+  submissions          Submission[]
+  apiTokens            ApiToken[]
+  webhooks             Webhook[]
+  webhookLogs          WebhookLog[]
+  payments             Payment[]
+  capiLogs             CapiLog[]
+  setting              AppSetting?
+  promptVersions       AiPromptVersion[]
+  subscription         Subscription?
+  usageCounters        UsageCounter[]
+  nurtureLogs          NurtureLog[]
+  paymentHandoffs      PaymentHandoff[]
   /// Templates PRIVATE to this workspace (saved from the builder, never contributed).
-  ownedTemplates      Template[] @relation("TemplateOwner")
+  ownedTemplates       Template[]        @relation("TemplateOwner")
   /// Templates this workspace sent to the master library.
-  contributedTemplates Template[] @relation("TemplateContributor")
+  contributedTemplates Template[]        @relation("TemplateContributor")
 
   @@index([status])
   @@index([deletedAt])
@@ -2019,6 +2019,32 @@ model AppSetting {
   /// Platform-wide (set once by the super admin), because it explains Assess360 rather
   /// than anything about one workspace. Blank = the written steps appear on their own,
   /// which is the point: the steps are the instruction, the video is the nicety.
+  /// The done-for-you scarcity counter, shown on /build and the home page.
+  ///
+  /// Two REAL numbers a human edits, never a timer that resets itself. The whole point
+  /// of the claim is that it is checkable: "7 of 20 free builds remaining" is worth
+  /// something only while somebody is actually decrementing it, and a counter that
+  /// refills overnight is the kind of thing a buyer notices once and never forgets.
+  ///
+  /// `dfyBuildsRemaining` null = show NOTHING. An unset counter claims nothing at all,
+  /// which is the correct default: a number nobody is maintaining should disappear
+  /// rather than quietly go stale in front of buyers.
+  dfyBuildsTotal     Int  @default(20)
+  dfyBuildsRemaining Int?
+
+  /// The approved Meta template fired when somebody submits the /build intake.
+  ///
+  /// Blank = no WhatsApp is sent, and that is the shipping default. A template has to be
+  /// submitted and approved inside Meta Business Manager before it can be used at all,
+  /// which is an account action nobody can perform from this app - so the send stays
+  /// dormant until a real approved name is pasted here, rather than failing on every
+  /// submission and filling the log with rejections nobody can fix from inside the app.
+  ///
+  /// The body takes ONE variable, the business name: a template's variable count is fixed
+  /// at approval time, and a mismatch is rejected by the API rather than degraded.
+  dfyWabaTemplate String?
+  dfyWabaLang     String?
+
   onboardingVideoUrl String?
 
   /// The getting-started steps every tenant sees on their dashboard during trial, in
@@ -2344,11 +2370,11 @@ enum TemplateReviewStatus {
 /// every field, gate, result page and band that a transfer carries, a template carries,
 /// and import is the code that already existed.
 model Template {
-  id    String @id @default(cuid())
+  id       String        @id @default(cuid())
   /// Library slug - identifies the template, NOT the assessment it creates. The
   /// imported copy gets its own globally unique assessment slug at import time.
-  slug  String @unique
-  title String
+  slug     String        @unique
+  title    String
   /// Audience bucket shown as a heading in the list, e.g. "Coaches", "Clinics".
   /// A plain string, not an enum: a new audience must not need a migration.
   category String
@@ -2409,4 +2435,59 @@ model Template {
   @@index([ownerTenantId])
   @@index([reviewStatus])
   @@map("template")
+}
+
+// ---------------------------------------------------------------------------
+// DfyRequest - an application for the done-for-you scorecard build.
+//
+// The home page's PRIMARY call to action lands here, so losing one is losing the
+// conversion the whole page is built around. It is therefore STORED FIRST and
+// notified second: the owner's email and WhatsApp are best-effort and a dead SMTP
+// host must never be the reason an application disappeared. `notifiedAt` records
+// whether the alert actually went out, so the ones that did not are findable.
+//
+// No tenant relation on purpose: an applicant is not a tenant yet, and most never
+// will be - the offer exists to put a finished funnel in front of someone before
+// they are asked to sign up for anything.
+// ---------------------------------------------------------------------------
+
+model DfyRequest {
+  id String @id @default(cuid())
+
+  // Who, and how to reach them. Email is here although the brief's field list stops at
+  // ten: the same section asks for a confirmation EMAIL, which cannot be sent to a
+  // WhatsApp number. Everything else is exactly the ten fields as specified.
+  business String
+  email    String
+  whatsapp String
+  website  String?
+
+  // What they sell and to whom.
+  sells         String
+  pricePoint    String
+  trafficSource String
+  monthlyLeads  String
+
+  /// The most important field on the form, and the only free-text one: who is a BAD
+  /// lead for you. It is what the gate gets written from, so it is required and it is
+  /// given room on the page rather than a single-line input.
+  badLead String
+
+  calendarLink    String?
+  adAccountAccess Boolean @default(false)
+
+  /// NEW | CONTACTED | BUILT | DECLINED. A string rather than an enum: this is an
+  /// operational pipeline that will be renamed as the offer is run, and a renamed
+  /// enum value costs a migration while a renamed string costs nothing.
+  status String @default("NEW")
+
+  /// When the owner's alert actually sent. Null = it never did, which is a row that
+  /// needs chasing by hand rather than a silent loss.
+  notifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@map("dfy_request")
 }

@@ -95,7 +95,12 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
     body: "Every respondent gets a personalized, hosted result: their score, their strengths, and a clear next step.",
   },
   {
+    // 🔴 NOT BUILT. The card claimed a feature that does not exist: the text importer
+    // parses a list you paste, it calls no model. Flagged rather than deleted, because
+    // the build is scheduled - but an unbuilt feature advertised flat is the one thing
+    // on this page a competitor could screenshot.
     title: "AI question generation",
+    soon: true,
     body: "Generate a first draft of your questions and answer options with AI, then edit - a full scorecard in minutes.",
   },
   {
@@ -328,6 +333,13 @@ export const OVERAGE_NOTE = "Overage: $15 per extra 500 qualified responses.";
 
 export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
   {
+    // Replaces the speed question. "How fast is it" invites a promise that depends on
+    // things we do not control - their pixel access, their answers, a weekend. What
+    // happens on the call is entirely within our control, so it can be stated exactly.
+    q: "What happens on the 30-minute call?",
+    a: "First you send us a short brief, so we arrive already knowing your offer and who wastes your time. On the call we set your workspace up, lay the scorecard in, tweak the gate with you, connect your Meta pixel and the Conversions API, and build the exclusion and retargeting audiences in your ad account. You are in the room while it happens.",
+  },
+  {
     q: "How is a scorecard different from a form?",
     a: "A form collects answers. A scorecard evaluates them - weighting each response against your fit criteria and returning a score, a result, and a next step. You learn who someone is, not just how to reach them.",
   },
@@ -348,3 +360,234 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
     a: "Only qualified responses count - disqualified visitors are never metered. You'll get a heads-up as you approach the limit. Past it, answers are still captured and nothing is lost, but new results are held until you upgrade, so no lead disappears while you decide.",
   },
 ];
+
+// ===========================================================================
+//  Gate -> Score -> Signal: the mechanism, and the spine of the home page.
+// ===========================================================================
+
+/**
+ * The category is NEGATIVE lead generation. Every other tool in this market is paid to
+ * deliver more leads; this one is paid to deliver fewer. The mechanism is three steps,
+ * and the THIRD is the only one a competitor cannot also claim: a gate is buyable, a
+ * weighted score is buyable, teaching the ad platform to stop finding the wrong people
+ * is not. So the page leads with the mechanism and lists features underneath it.
+ *
+ * Previous hero, kept because it is the line the old ads and the old OG card still use:
+ *   eyebrow  "Lead qualification, not just capture, not just assess"
+ *   headline "Know which leads are worth a sales call - before you make one."
+ */
+// ===========================================================================
+//  The done-for-you offer. ONE source for the wording and the slot count.
+// ===========================================================================
+
+/**
+ * How many free builds the offer covers.
+ *
+ * 🔴 Exported and referenced everywhere the number appears, never typed into copy. It
+ * shows up in the announcement bar, the call-to-action sub-line and the admin default,
+ * and a figure repeated in three places is a figure that will eventually disagree with
+ * itself in front of a buyer.
+ */
+export const OFFER_SLOTS = 20;
+
+/**
+ * The offer, in the exact words it is allowed to use.
+ *
+ * There is no delivery-time promise anywhere in here, on purpose. "Built in 24 hours"
+ * was a clock that started the moment somebody submitted a form, ran whether or not we
+ * had their pixel, and could be missed by a weekend. "One 30-minute call" is a thing
+ * that either happens or does not, and the customer is in the room when it does.
+ */
+export const OFFER = {
+  /** The sticky bar above the nav. {slots} is filled from the live remaining count. */
+  bar: (slots: number) =>
+    `First ${OFFER_SLOTS}: we build your qualifying scorecard free and take it live on one 30-minute call. ${slots} slots left.`,
+  /** The sub-line under EVERY primary call to action. Same words in every placement. */
+  ctaSubline: `One 30-minute call. We build it, wire it to your ads, and it goes live before you hang up. ${OFFER_SLOTS} slots.`,
+} as const;
+
+export const HERO = {
+  eyebrow: "Negative lead generation",
+  headline: "The wrong leads never become leads. And your ads learn to stop finding them.",
+  sub: "A gate runs before the opt-in, so wrong-fit traffic never becomes a lead record. Everyone who passes is scored against criteria you weight. Then only the qualified ones are reported back to Meta, so your campaigns optimise toward buyers instead of form-fillers.",
+  primaryCta: "Get my scorecard built free",
+  secondaryCta: "Start 14-day trial",
+} as const;
+
+/** The done-for-you offer. One place, because it appears on most public surfaces. */
+export const DFY = {
+  href: "/build",
+  heading: "We build your first scorecard with you, free, on one 30-minute call",
+  body: "Tell us what you sell and who wastes your time. We write the gate, the questions, the weights and the result bands, and bring the draft to a 30-minute call where we wire it to your ads and put it live. You do not touch the builder unless you want to.",
+  cta: "Get my scorecard built free",
+} as const;
+
+/**
+ * The metering argument, promoted out of the pricing table.
+ *
+ * It belongs high on the page because it is the only claim here that is structural
+ * rather than promotional: it is checkable against an invoice, and it describes an
+ * incentive, not a feature. PRICING_HEADLINE is reused verbatim so the sentence cannot
+ * drift between the two places it now appears.
+ */
+export const METERING = {
+  heading: PRICING_HEADLINE,
+  lead: "Not a discount. A different business model, and you can check it on your invoice.",
+  points: [
+    { text: "Every other assessment tool meters raw submissions.", strong: ["raw submissions"] },
+    {
+      text: "Read that as an incentive. They earn more when more unqualified people get through.",
+      strong: ["earn more when more unqualified people get through"],
+    },
+    { text: "Here, a visitor who fails your gate stores nothing. No lead, no submission, no result.", strong: ["stores nothing"] },
+    { text: "Nothing stored means nothing to meter, and nothing to bill you for.", strong: ["nothing to bill you for"] },
+    { text: "We earn more only when you capture leads worth having.", strong: ["only when you capture leads worth having"] },
+    { text: "It is the one claim on this page you can verify from your own invoice.", strong: ["verify from your own invoice"] },
+  ],
+} as const;
+
+export type Pillar = {
+  key: "gate" | "score" | "signal";
+  step: string;
+  name: string;
+  tagline: string;
+  body: string;
+  /**
+   * Capability titles, in render order.
+   *
+   * Membership lives HERE as a list of titles rather than as a field on each of the 19
+   * capabilities, for one reason: nothing in CAPABILITIES has to be edited to group it,
+   * so the re-grouping cannot quietly drop a card. Anything a pillar does not claim
+   * renders in the supporting row instead of vanishing (see supportingCapabilities).
+   */
+  titles: ReadonlyArray<string>;
+};
+
+export const PILLARS: ReadonlyArray<Pillar> = [
+  {
+    key: "gate",
+    step: "01",
+    name: "Gate",
+    tagline: "Nothing wrong-fit becomes a lead",
+    body: "The screen runs BEFORE the opt-in, not after it. A visitor who fails never reaches the form, so there is no lead record, no stored result and nothing to clean out of your CRM later.",
+    titles: [
+      "Pre-assessment qualification gate",
+      "Repeat & back-button protection",
+      "Manual-review screening questions",
+      "Conditional logic & branching",
+    ],
+  },
+  {
+    key: "score",
+    step: "02",
+    name: "Score",
+    tagline: "The rest get ranked, and told the truth",
+    body: "Everyone who passes the gate is scored against the criteria you weight, and gets a result that names where they actually stand and what to do next. Ranking your pipeline and being useful to the respondent are the same act.",
+    titles: [
+      "Weighted scoring engine",
+      "Result interpretation & bands",
+      "Dynamic result pages",
+      "AI question generation",
+      "AI-written result reports",
+      "Branded PDF reports",
+    ],
+  },
+  {
+    key: "signal",
+    step: "03",
+    name: "Signal",
+    tagline: "Your ads learn who to stop finding",
+    body: "The step nobody else has. Qualified completions report back as their own conversion event and the disqualified build an exclusion audience, so the algorithm stops buying the traffic that was never going to close. A gate saves your calendar; this saves your ad budget.",
+    titles: [
+      "Meta Pixel + Conversions API",
+      "Audience exclusion + retargeting on autopilot",
+      "Qualified-only optimization signal",
+      "Auto-exclude the unqualified",
+      "First-party match keys",
+    ],
+  },
+];
+
+/**
+ * Everything no pillar claimed, in the order it appears in CAPABILITIES.
+ *
+ * Derived rather than listed, so a capability added to CAPABILITIES and forgotten here
+ * still renders. The failure mode of a hand-kept second list is a feature that silently
+ * leaves the site, and nobody notices because nothing errors.
+ */
+export const supportingCapabilities = (): ReadonlyArray<Capability> => {
+  const claimed = new Set(PILLARS.flatMap((p) => p.titles));
+  return CAPABILITIES.filter((c) => !claimed.has(c.title));
+};
+
+/** Look up the capabilities of one pillar, in the pillar's own order. */
+export const pillarCapabilities = (p: Pillar): ReadonlyArray<Capability> =>
+  p.titles
+    .map((t) => CAPABILITIES.find((c) => c.title === t))
+    .filter((c): c is Capability => c !== undefined);
+
+/**
+ * Why this exists. No founder name and no photo on purpose: the credential is the fact,
+ * and a face invites the reader to assess the person instead of the argument.
+ *
+ * Bullets rather than prose, and short ones. This sits directly under the hero now,
+ * where a reader is still deciding whether to keep reading - two dense paragraphs at
+ * that position get skipped, and a skipped section is the same as an absent one. Each
+ * line carries ONE fact, with the load-bearing words marked so the section survives
+ * being skimmed rather than read.
+ *
+ * `strong` is matched against the line and rendered bold. Plain strings, not markup, so
+ * the copy stays editable by someone who does not write HTML.
+ */
+export const WHY_EXISTS = {
+  heading: "Why this exists",
+  lead: "Not designed in a workshop. Built by an operator, out of what kept going wrong.",
+  points: [
+    {
+      text: "I paid for ScoreApp, Typeform, Outgrow, LeadQuizzes and Interact.",
+      strong: ["paid for"],
+    },
+    {
+      text: "I ran real money through all of them. Cold Meta traffic, not a demo.",
+      strong: ["real money"],
+    },
+    {
+      text: "Every one collected answers brilliantly. None of them asked whether the person was worth a call.",
+      strong: ["worth a call"],
+    },
+    {
+      text: "So the gate was built. The opt-in was happening before anyone knew who it was.",
+      strong: ["the gate"],
+    },
+    {
+      text: "Then the exclusion event. The ad account kept buying more of the same wrong people.",
+      strong: ["the exclusion event"],
+    },
+    {
+      text: "Then the qualified-only signal. Meta was being taught to find form-fillers.",
+      strong: ["the qualified-only signal"],
+    },
+    {
+      text: "Every feature here started as a wall, in a real funnel, that cost real money.",
+      strong: ["cost real money"],
+    },
+  ],
+} as const;
+
+
+/**
+ * Who it is for.
+ *
+ * The audiences are NOT listed here. They are read from TEMPLATE_CATEGORIES, the same
+ * list the template library is organised by, so this section can never advertise an
+ * audience the product has nothing for - and a new vertical appears on the home page
+ * the moment its scorecard is added, with nobody having to remember.
+ *
+ * verify:templates asserts every category has at least one built-in behind it, which is
+ * what makes the sentence below true rather than merely plausible.
+ */
+export const AUDIENCES = {
+  heading: "Who it is for",
+  lead: "Anyone who buys traffic and pays for it twice: once for the click, and again in the hour someone spends on a call that was never going to close.",
+  note: "Every audience below has a ready-made scorecard in the library, with the gate questions already written. Start from one and change the wording, or write your own from scratch.",
+} as const;

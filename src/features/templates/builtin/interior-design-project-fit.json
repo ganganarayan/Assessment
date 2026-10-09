@@ -1,0 +1,749 @@
+{
+  "slug": "interior-design-project-fit",
+  "title": "Interior design project qualifier",
+  "category": "Interior design",
+  "summary": "Stops the site visit to a flat whose possession is a year away, owned by someone collecting five quotes. Then scores the real projects on brief, budget and decision maker.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "You are writing the note an interior designer reads before meeting this prospect.\n\nWrite 200 to 280 words, second person, warm and practical. Name the ONE thing that would stall this project if it started tomorrow, using their dimension scores by name as evidence. Say plainly what it costs to start without settling it.\n\nDo NOT quote a price, do NOT estimate a cost per square foot, and do NOT propose a design direction. Describe the gap clearly enough that they recognise it, then stop.\n\nNever promise a timeline, never mention scores as numbers.",
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 4,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "18 questions, 4 minutes",
+    "subheadline": "A straight read on whether your project is ready for a designer, and what to settle before the first meeting.",
+    "qualifiedNote": "You qualify. Tell us where to send your result.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "What stage is the property at?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "Possession taken",
+              "points": 0
+            },
+            {
+              "id": "g1b",
+              "label": "Possession within 3 months",
+              "points": 0
+            },
+            {
+              "id": "g1c",
+              "label": "Possession in 3 to 9 months",
+              "points": 0
+            },
+            {
+              "id": "g1d",
+              "label": "Possession more than 9 months away",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g1e",
+              "label": "Still deciding whether to buy",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "What is the carpet area?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Above 4,000 sq ft",
+              "points": 0
+            },
+            {
+              "id": "g2b",
+              "label": "2,000 to 4,000 sq ft",
+              "points": 0
+            },
+            {
+              "id": "g2c",
+              "label": "1,200 to 2,000 sq ft",
+              "points": 0
+            },
+            {
+              "id": "g2d",
+              "label": "600 to 1,200 sq ft",
+              "points": 0
+            },
+            {
+              "id": "g2e",
+              "label": "Under 600 sq ft",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "What budget have you set for interiors?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "Above $60,000 (above ₹50 lakh)",
+              "points": 0
+            },
+            {
+              "id": "g3b",
+              "label": "$30,000 to $60,000 (₹25 to 50 lakh)",
+              "points": 0
+            },
+            {
+              "id": "g3c",
+              "label": "$14,000 to $30,000 (₹12 to 25 lakh)",
+              "points": 0
+            },
+            {
+              "id": "g3d",
+              "label": "$6,000 to $14,000 (₹5 to 12 lakh)",
+              "points": 0
+            },
+            {
+              "id": "g3e",
+              "label": "Under $6,000 (under ₹5 lakh)",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g3f",
+              "label": "I have not decided",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Who decides on the design and the spend?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "Me alone",
+              "points": 0
+            },
+            {
+              "id": "g4b",
+              "label": "My partner and I, both aligned",
+              "points": 0
+            },
+            {
+              "id": "g4c",
+              "label": "My partner and I, not yet aligned",
+              "points": 0
+            },
+            {
+              "id": "g4d",
+              "label": "A family member who is not on this form",
+              "points": 0
+            },
+            {
+              "id": "g4e",
+              "label": "The builder or the landlord",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "When do you want work to begin?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Immediately",
+              "points": 0
+            },
+            {
+              "id": "g5b",
+              "label": "Within a month",
+              "points": 0
+            },
+            {
+              "id": "g5c",
+              "label": "In 1 to 3 months",
+              "points": 0
+            },
+            {
+              "id": "g5d",
+              "label": "In 3 to 6 months",
+              "points": 0
+            },
+            {
+              "id": "g5e",
+              "label": "No fixed date",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g6",
+          "text": "What are you looking for?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g6a",
+              "label": "Full turnkey interiors",
+              "points": 0
+            },
+            {
+              "id": "g6b",
+              "label": "Design only, I will execute",
+              "points": 0
+            },
+            {
+              "id": "g6c",
+              "label": "Specific rooms only",
+              "points": 0
+            },
+            {
+              "id": "g6d",
+              "label": "Just a quotation to compare",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g6e",
+              "label": "Only ideas right now",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks for telling us plainly.",
+      "subtext": "On your answers this is not the right moment to bring a designer in, so we will not take up more of your time. When possession, budget or the decision maker moves, run this again.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Project substance",
+        "description": "How much real work there is, and whether the budget matches it.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "What is the scope?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "A single room",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Two or three rooms",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Most of the home",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Full home, turnkey",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How does your budget compare to the area you are doing?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Well under what the market charges",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A little under",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "About right for the city",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Comfortably above the band",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How much civil work is involved?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Structural changes, walls moving",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Some plumbing and electrical",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Light work only",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "None, surfaces and furniture only",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What happens to the furniture?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Reusing almost everything",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Reusing most of it",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Some new, some kept",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "All new",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Decision readiness",
+        "description": "Whether this can actually be decided, and by whom.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How many designers have you already spoken to?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "More than five",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Three or four",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "One or two",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "None, you are the first",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Do you have a brief or a reference set?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Nothing written down",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A few saved images",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A folder of references",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A written brief, room by room",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Is the household aligned on the budget?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "No, it is a live argument",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Roughly, with a gap",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Yes, within a range",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Yes, to the rupee",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How fixed is the budget?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Fixed hard, no movement",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Slight movement for the right design",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Can move 10 to 20 percent",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Design led, the number follows",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Working fit",
+        "description": "How this client and this firm would actually work together.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How realistic is your timeline against the scope?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Weeks, for a full home",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Tight but conceivable",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Reasonable",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Generous, with room to do it properly",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What leads your decision?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Price, first and last",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Timeline above all",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Design, with a price ceiling",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Design led",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Would you sign a design agreement before detailed drawings?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "No",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Only after seeing full drawings",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Probably, after a concept",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Yes, that is how I expect it to work",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How did you find us?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "An ad",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A search",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Social media, following for a while",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A referral from someone we worked for",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Not yet",
+        "description": "The timeline or the budget does not support the work you are describing, and starting now means a design that gets value engineered down to nothing. Next step: the budget guide below, and a note in the diary for your possession month.",
+        "minScore": 0,
+        "maxScore": 40,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Shape the brief first",
+        "description": "This is a genuine project with an unformed brief, or a household not yet aligned on the number. A site visit now would be a conversation you have to repeat. Next step: a 30 minute brief building call.",
+        "minScore": 41,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "Ready to design",
+        "description": "Possession, budget and decision maker are all in place, and the brief is real enough to quote against. Next step: a paid design consultation or a site visit.",
+        "minScore": 60,
+        "maxScore": 75,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Send a designer out",
+        "description": "Possession, budget, brief and decision-maker all line up, and they are ready to pay for design rather than collect another quote. Next step: the site visit, booked on this call.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "title": "Is your project ready to design?",
+    "slug": "interior-project-fit"
+  }
+}

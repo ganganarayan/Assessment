@@ -6,6 +6,8 @@ import { SectionBody } from "./section-body";
 import { AnswerList } from "./answer-list";
 import { OnThisPage } from "./on-this-page";
 import { SeoCta } from "./seo-cta";
+import { ComparisonTable, MigrationBlock, BetterWhen, PageFaqs } from "./comparison-table";
+import { DfyOffer } from "./dfy-offer";
 import type { Answer, SeoPage } from "@/lib/seo/types";
 import { seoPath } from "@/lib/seo/urls";
 
@@ -29,6 +31,8 @@ export function SeoPageShell({
   related: ReadonlyArray<SeoPage>;
   jsonLd: string;
 }) {
+  const faqs = page.faqs ?? [];
+
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
@@ -58,13 +62,37 @@ export function SeoPageShell({
 
         <OnThisPage
           sections={page.sections}
-          extra={answers.length > 0 ? [{ id: "answers", label: "Common questions" }] : []}
+          extra={[
+            ...(page.comparison ? [{ id: "side-by-side", label: "Side by side" }] : []),
+            ...(page.betterWhen && page.comparison
+              ? [{ id: "better-when", label: `When ${page.comparison.competitor} is better` }]
+              : []),
+            ...(page.comparison ? [{ id: "migration", label: "Moving across" }] : []),
+            ...(faqs.length > 0 ? [{ id: "faq", label: "Questions people ask" }] : []),
+            ...(answers.length > 0 ? [{ id: "answers", label: "Common questions" }] : []),
+          ]}
         />
 
         <div className="flex flex-col gap-12">
           {page.sections.map((s) => (
             <SectionBody key={s.id} section={s} />
           ))}
+
+          {/* Order is deliberate: the table states the difference, the concession makes
+              the table believable, and the migration offer is what to do about it. An
+              offer placed before the concession reads as a pitch interrupting an
+              argument. */}
+          {page.comparison ? <ComparisonTable table={page.comparison} /> : null}
+          {page.comparison && page.betterWhen ? (
+            <BetterWhen competitor={page.comparison.competitor} body={page.betterWhen} />
+          ) : null}
+          {page.comparison ? <MigrationBlock competitor={page.comparison.competitor} /> : null}
+          {faqs.length > 0 ? <PageFaqs faqs={faqs} /> : null}
+
+          {/* Industry pages get the done-for-you offer of their own. Comparison pages
+              already carry it inside the migration block, and a second copy on the same
+              page would be two asks in a row rather than one. */}
+          {page.kind === "use-case" ? <DfyOffer audience={page.shortName} /> : null}
 
           <AnswerList answers={answers} heading="Common questions" />
         </div>

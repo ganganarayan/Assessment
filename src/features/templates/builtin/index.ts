@@ -19,6 +19,19 @@ import agencyRetainerFit from "./agency-retainer-fit.json";
 import consultantEngagementFit from "./consultant-engagement-fit.json";
 import clinicTreatmentFit from "./clinic-treatment-fit.json";
 import realEstateBuyerFit from "./real-estate-buyer-fit.json";
+// Templates 9 to 20, the second wave. Same shape, same rules, one vertical each.
+import studyAbroadEligibility from "./study-abroad-eligibility.json";
+import interiorDesignProjectFit from "./interior-design-project-fit.json";
+import franchiseApplicantFit from "./franchise-applicant-fit.json";
+import solarRooftopFit from "./solar-rooftop-fit.json";
+import adviserSuitabilityFit from "./adviser-suitability-fit.json";
+import legalIntakeTriage from "./legal-intake-triage.json";
+import itProjectFit from "./it-project-fit.json";
+import homeServicesJobFit from "./home-services-job-fit.json";
+import cohortReadiness from "./cohort-readiness.json";
+import insuranceEligibilityFit from "./insurance-eligibility-fit.json";
+import webinarAttendeeFit from "./webinar-attendee-fit.json";
+import candidateRoleFit from "./candidate-role-fit.json";
 
 export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   coachClientFit,
@@ -29,4 +42,16 @@ export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   consultantEngagementFit,
   clinicTreatmentFit,
   realEstateBuyerFit,
+  studyAbroadEligibility,
+  interiorDesignProjectFit,
+  franchiseApplicantFit,
+  solarRooftopFit,
+  adviserSuitabilityFit,
+  legalIntakeTriage,
+  itProjectFit,
+  homeServicesJobFit,
+  cohortReadiness,
+  insuranceEligibilityFit,
+  webinarAttendeeFit,
+  candidateRoleFit,
 ];

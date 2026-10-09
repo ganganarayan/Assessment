@@ -44,17 +44,17 @@
             {
               "id": "g1a",
               "label": "Within three months",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g1b",
               "label": "Within six months",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g1c",
               "label": "Within a year",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g1d",
@@ -74,17 +74,17 @@
             {
               "id": "g2a",
               "label": "Cash, available now",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2b",
               "label": "Mortgage, already approved in principle",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g2c",
               "label": "Mortgage, not yet applied for",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g2d",
@@ -104,17 +104,17 @@
             {
               "id": "g3a",
               "label": "No",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g3b",
               "label": "Yes, and it is under offer",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g3c",
               "label": "Yes, and it is on the market",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g3d",
@@ -133,17 +133,17 @@
             {
               "id": "g4a",
               "label": "Just me",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4b",
               "label": "Me and a partner, both available",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g4c",
               "label": "Me and a partner, rarely free together",
-              "points": 1
+              "points": 0
             },
             {
               "id": "g4d",
@@ -162,17 +162,17 @@
             {
               "id": "g5a",
               "label": "Yes, several",
-              "points": 3
+              "points": 0
             },
             {
               "id": "g5b",
               "label": "Yes, one or two",
-              "points": 2
+              "points": 0
             },
             {
               "id": "g5c",
               "label": "No, this would be the first",
-              "points": 1
+              "points": 0
             }
           ]
         }

@@ -1,0 +1,696 @@
+{
+  "slug": "candidate-role-fit",
+  "title": "Candidate role fit screener",
+  "category": "Recruiters",
+  "summary": "Screens on availability, compensation and must-have skills only. Nothing about age, family, health or background, which are both unlawful to screen on and useless as predictors.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "You are writing the note a recruiter reads before a screening call, about this candidate.\n\nWrite 200 to 280 words, second person, respectful and specific. Describe what their answers say about fit for THIS role: depth in the core skill, the level they are operating at, and what they appear to want next. Use the dimension names as evidence.\n\nBINDING CONSTRAINTS. Say nothing about age, family, marital status, health, religion, caste, gender or anything not job related, even if it could be inferred. Never promise an interview, an offer or a salary. Never evaluate them as a person, only against the requirements of this role.\n\nIf the fit is poor, say so plainly and without implying anything is wrong with them. Never mention scores as numbers.",
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 4,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "18 questions, 4 minutes",
+    "subheadline": "A few job related questions so we only take up your time if this role actually matches what you are looking for.",
+    "qualifiedNote": "You qualify. Tell us where to send your result.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "What is your notice period?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "Immediate",
+              "points": 0
+            },
+            {
+              "id": "g1b",
+              "label": "15 days",
+              "points": 0
+            },
+            {
+              "id": "g1c",
+              "label": "30 days",
+              "points": 0
+            },
+            {
+              "id": "g1d",
+              "label": "60 days",
+              "points": 0
+            },
+            {
+              "id": "g1e",
+              "label": "90 days or more",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "What compensation are you expecting?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Within the range for this role",
+              "points": 0
+            },
+            {
+              "id": "g2b",
+              "label": "At the top of the range",
+              "points": 0
+            },
+            {
+              "id": "g2c",
+              "label": "Below the range for this role",
+              "points": 0
+            },
+            {
+              "id": "g2d",
+              "label": "Above the ceiling for this role",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "Can you work on the basis this role requires, on site, hybrid or remote?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "Yes",
+              "points": 0
+            },
+            {
+              "id": "g3b",
+              "label": "Only with relocation support",
+              "points": 0
+            },
+            {
+              "id": "g3c",
+              "label": "No",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Do you have the must-have skill or certification for this role?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "Yes, with several years of it",
+              "points": 0
+            },
+            {
+              "id": "g4b",
+              "label": "Yes, under a year of it",
+              "points": 0
+            },
+            {
+              "id": "g4c",
+              "label": "No, but I am learning it",
+              "points": 0
+            },
+            {
+              "id": "g4d",
+              "label": "No",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "Are you legally able to work in this country without sponsorship?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Yes",
+              "points": 0
+            },
+            {
+              "id": "g5b",
+              "label": "No",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g6",
+          "text": "Are you interviewing elsewhere at the moment?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g6a",
+              "label": "No",
+              "points": 0
+            },
+            {
+              "id": "g6b",
+              "label": "One or two processes",
+              "points": 0
+            },
+            {
+              "id": "g6c",
+              "label": "Several, and I am at offer stage",
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thank you for your time.",
+      "subtext": "On notice period, compensation, location or the must-have skill this particular role is not a match, so we will not take it further. This is about the role's requirements and nothing else. Other openings may suit you better.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Skill depth",
+        "description": "How deep the core skill goes, and at what scale.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How many years in the core skill for this role?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.0,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Under 1",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "1 to 3",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "3 to 6",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "More than 6",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What is the largest scale you have handled in it?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.0,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Personal or training projects",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A small team or product",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A department or a mature product",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Organisation wide",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How current is your hands-on tooling?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.0,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Several years out of date",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A little behind",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Current",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Current, and I evaluate new tools",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Do you have domain experience in this industry?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.0,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "None",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Adjacent",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Some direct",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Several years direct",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How do you keep the skill sharp?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.0,
+            "required": true,
+            "displayOrder": 4,
+            "options": [
+              {
+                "label": "I do not actively",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "On the job only",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Reading and courses",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "I teach or write about it",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Role fit",
+        "description": "Whether the level and the shape of the job match.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "What team size have you managed, if any?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "None, and I do not want to",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "None, but I want to",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Up to five",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "More than five",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Who have you reported to in recent roles?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "A team lead",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A manager",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A head of function",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "The founder or an executive",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How much autonomy have you worked with?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Closely directed",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Clear tasks, own method",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Own goals, reviewed",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Set the goals myself",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How closely does your recent work match this role's description?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Loosely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Partly",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Closely",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost exactly",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Intent",
+        "description": "What they want next, and whether this role is it.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "What is driving the move?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.3333,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Nothing specific, I am looking around",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Compensation",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A better manager or culture",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Work I cannot get where I am",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What do you want from your next role?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.3333,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "More or less what I have now",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "More money",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "More scope",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A specific kind of work I can name",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How do you feel about this role's known trade-offs?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.3333,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "They are a problem",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "I would need to think about them",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "I can live with them",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "They suit me",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Not this role",
+        "description": "This particular role is not the right match for what you have done and what you are looking for. That is about the role, not about you. Next step: we will keep your profile for other openings if you would like us to, and you can say so below.",
+        "minScore": 0,
+        "maxScore": 40,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Worth a look",
+        "description": "There is a real match here with one thing to check, usually level or how closely the recent work lines up. Next step: a recruiter will review and come back to you either way.",
+        "minScore": 41,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "Shortlist",
+        "description": "Depth, level and what you are looking for all match this role closely. Next step: book a screening call directly below.",
+        "minScore": 60,
+        "maxScore": 75,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Interview immediately",
+        "description": "Depth, level and motivation all match the role closely, and they are available. Candidates like this are in other processes within the week. Next step: a screening call booked on the spot.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "title": "Are you a fit for this role?",
+    "slug": "role-fit-screener"
+  }
+}

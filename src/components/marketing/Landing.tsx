@@ -1,6 +1,9 @@
 import { MARKETING, TIERS, FAQS } from "@/lib/marketing/content";
 import { Nav } from "./Nav";
 import { Hero } from "./Hero";
+import { Metering } from "./Metering";
+import { WhyThisExists } from "./WhyThisExists";
+import { WhoItIsFor } from "./WhoItIsFor";
 import { Problem } from "./Problem";
 import { HowItWorks } from "./HowItWorks";
 import { Capabilities } from "./Capabilities";
@@ -73,6 +76,18 @@ export function Landing({
       <Nav />
       <main id="main">
         <Hero video={videos?.hero ?? null} />
+        {/* Directly under the hero: who built this and why, in seven lines somebody can
+            skim. It answers "why should I believe any of this" before the page starts
+            making claims, and it is the one section a competitor cannot answer by
+            shipping a feature. */}
+        <WhyThisExists />
+        {/* Then the twenty audiences, so a reader can find their own line before the
+            page argues anything. The list is the template library's own, so it cannot
+            advertise an audience with nothing behind it. */}
+        <WhoItIsFor />
+        {/* Then the only claim on the page that can be checked against an invoice, which
+            is worth more to a sceptical reader than the next three sections combined. */}
+        <Metering />
         <Problem />
         <HowItWorks />
         <Capabilities videos={videos?.tiles} />

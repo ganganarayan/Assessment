@@ -1,0 +1,624 @@
+{
+  "slug": "cohort-readiness",
+  "title": "Cohort readiness check",
+  "category": "Course creators",
+  "summary": "Screens out the serial non-finishers and the people with no hours, then scores the rest on capacity and motivation. Protecting completion rates is what protects testimonials.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "You are writing the note a course creator reads before a cohort starts, addressed to the applicant.\n\nWrite 200 to 280 words, second person, warm and honest. Name the ONE thing most likely to stop them finishing, using the dimension names as evidence. Be kind about it and do not soften it into nothing.\n\nDo NOT promise an outcome, an income, a job or a result from the programme. Do NOT tell them how to fix the blocker. Describe it clearly enough that they recognise it, then stop.\n\nNever mention scores as numbers.",
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 4,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "15 questions, 4 minutes",
+    "subheadline": "An honest read on whether this cohort will work for you right now, and what would have to change if not.",
+    "qualifiedNote": "You qualify. Tell us where to send your result.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "How many hours a week can you give this?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "More than 8",
+              "points": 0
+            },
+            {
+              "id": "g1b",
+              "label": "4 to 8",
+              "points": 0
+            },
+            {
+              "id": "g1c",
+              "label": "2 to 4",
+              "points": 0
+            },
+            {
+              "id": "g1d",
+              "label": "Under 2",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "Can you attend live sessions at the scheduled times?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Yes, all of them",
+              "points": 0
+            },
+            {
+              "id": "g2b",
+              "label": "Most of them",
+              "points": 0
+            },
+            {
+              "id": "g2c",
+              "label": "A few of them",
+              "points": 0
+            },
+            {
+              "id": "g2d",
+              "label": "No, recordings only",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "What investment range have you set aside for this?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "Comfortably above the programme price",
+              "points": 0
+            },
+            {
+              "id": "g3b",
+              "label": "About the programme price",
+              "points": 0
+            },
+            {
+              "id": "g3c",
+              "label": "Slightly below it, but I can stretch",
+              "points": 0
+            },
+            {
+              "id": "g3d",
+              "label": "Well below the programme price",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Where are you starting from?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "Experienced, and I want structure",
+              "points": 0
+            },
+            {
+              "id": "g4b",
+              "label": "Some experience",
+              "points": 0
+            },
+            {
+              "id": "g4c",
+              "label": "Complete beginner",
+              "points": 0
+            },
+            {
+              "id": "g4d",
+              "label": "Expert, I am looking for peers",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "Have you bought a course like this before?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Yes, and I completed it",
+              "points": 0
+            },
+            {
+              "id": "g5b",
+              "label": "No, this is my first",
+              "points": 0
+            },
+            {
+              "id": "g5c",
+              "label": "Yes, and I did not finish it",
+              "points": 0
+            },
+            {
+              "id": "g5d",
+              "label": "Several, and I finished none of them",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks for answering honestly.",
+      "subtext": "On your answers this cohort would not work for you right now, so we are not going to sell you a seat in it. That is not a judgement: hours, live attendance and finishing history are simply the things that decide this. Come back for a later cohort.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Capacity",
+        "description": "Whether the hours and the support to use them actually exist.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How do your available hours compare to what the programme asks?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Well short",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Just short",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "About right",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "More than enough",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Does your household or workplace support the time commitment?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "No, it will be a fight",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "They do not know yet",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Broadly supportive",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Fully, and they have planned around it",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What else is competing for your time in this window?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "A house move, a newborn or a new job",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A heavy work period",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "The usual load",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Unusually little",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Do you have the tools or software the programme needs?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "None of them",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Some of them",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Most of them",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "All of them, already in use",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Motivation quality",
+        "description": "Whether there is a real reason, or only an intention.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How specific is the outcome you want?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "I want to generally improve",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A vague direction",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A clear goal, no number",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A specific outcome I could describe to a stranger",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Is there a deadline driving this?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "None",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Self imposed, soft",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Self imposed, firm",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A real external deadline",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What have you already tried on your own?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Nothing yet",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Read and watched a lot",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Tried, and stalled",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Tried, got partway, and know where it broke",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What does it cost you to leave this unsolved for another year?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Not much, it would be nice to have",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Some frustration",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Real money or real opportunities",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "It is the main thing holding everything else back",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Fit with the format",
+        "description": "Whether a group programme suits how you learn.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How do you feel about learning in a group rather than one to one?",
+            "type": "SINGLE_SELECT",
+            "weight": 12.5,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "I would much rather have one to one",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Nervous about it",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happy either way",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "The group is part of why I want this",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Would you share unfinished work for feedback?",
+            "type": "SINGLE_SELECT",
+            "weight": 12.5,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "No",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Only privately, to the teacher",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Yes, reluctantly",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Yes, that is how I improve fastest",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Not this programme",
+        "description": "On hours, format or reason this would most likely end unfinished, and that costs you more than the fee. Next step: the lower commitment resource below. Protecting who is in the room is what keeps the programme worth joining.",
+        "minScore": 0,
+        "maxScore": 40,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Right person, wrong month",
+        "description": "This is clearly for you, and the window you are about to walk into is not. Starting now is how a good fit turns into an unfinished course. Next step: the next cohort date below, plus the prep material.",
+        "minScore": 41,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "Ready for this cohort",
+        "description": "The hours, the reason and the format all line up, and nothing obvious stands between you and finishing. Next step: enrol, or a short fit call if the programme is high ticket.",
+        "minScore": 60,
+        "maxScore": 75,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Enrol them now",
+        "description": "The hours exist, the reason is specific and deadline-driven, and the format suits how they learn. This is the person who finishes and then gives you the testimonial. Next step: enrol, or one short call if the programme is high ticket.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "title": "Are you ready for this cohort?",
+    "slug": "cohort-readiness-check"
+  }
+}

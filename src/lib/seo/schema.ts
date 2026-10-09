@@ -151,8 +151,39 @@ export async function pillarGraph(page: SeoPage, answers: ReadonlyArray<Answer>)
     { name: "Home", url: absolute("/") },
     { name: page.shortName, url },
   ]));
-  if (answers.length > 0) {
-    nodes.push(faqNode(url, answers.map((a) => ({ q: a.question, a: a.short }))));
+  // Guide pages are editorial, so they also declare themselves as an Article.
+  //
+  // Only the PILLARS. A comparison page is a commercial page about somebody else's
+  // product and a use-case page is a landing page, and calling either one an Article
+  // claims an editorial standing that invites being judged by it. The guides are the
+  // pages actually written to be read end to end.
+  //
+  // No datePublished: the content files carry updatedAt and nothing else, and inventing
+  // a first-published date would be a fabricated claim in structured data, which is the
+  // one place a wrong date is read by a machine rather than a person.
+  if (page.kind === "pillar") {
+    nodes.push({
+      "@type": "Article",
+      "@id": `${url}#article`,
+      headline: page.title,
+      description: page.description,
+      mainEntityOfPage: { "@id": `${url}#webpage` },
+      author: { "@id": ORG_ID },
+      publisher: { "@id": ORG_ID },
+      dateModified: page.updatedAt,
+      inLanguage: "en",
+    });
+  }
+
+  // The page's own questions and the cluster's, in ONE FAQPage node. Two nodes on one
+  // URL is two competing answers to "what is this page's FAQ", and the page-level ones
+  // go first because they are the ones written for this URL specifically.
+  const qa = [
+    ...(page.faqs ?? []).map((f) => ({ q: f.q, a: f.a })),
+    ...answers.map((a) => ({ q: a.question, a: a.short })),
+  ];
+  if (qa.length > 0) {
+    nodes.push(faqNode(url, qa));
   }
 
   return graph(nodes);

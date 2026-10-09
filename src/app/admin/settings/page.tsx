@@ -27,7 +27,9 @@ import {
 import { PlatformPixelForm } from "@/features/admin/components/platform-pixel-form";
 import { OnboardingVideoForm } from "@/features/admin/components/onboarding-video-form";
 import { OnboardingStepsForm } from "@/features/admin/components/onboarding-steps-form";
-import { resolveOnboardingVideoUrl, resolveOnboardingSteps } from "@/lib/settings/config";
+import { DfyScarcityForm } from "@/features/admin/components/dfy-scarcity-form";
+import { DfyWabaForm } from "@/features/admin/components/dfy-waba-form";
+import { resolveOnboardingVideoUrl, resolveOnboardingSteps, resolveDfyScarcity, resolveDfyWabaTemplate } from "@/lib/settings/config";
 import { PaymentsMasterSwitch } from "@/features/admin/components/payments-master-switch";
 import { PlatformToggle } from "@/features/admin/components/platform-toggle";
 import { getPlatformPayments, getPlatformWaba } from "@/features/admin/actions/platform-integrations";
@@ -62,7 +64,7 @@ export default async function SettingsPage() {
   const impersonating = actingId !== null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
-  const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn, onboardingVideoUrl, onboardingSteps] = await Promise.all([
+  const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn, onboardingVideoUrl, onboardingSteps, dfyScarcity, dfyWaba] = await Promise.all([
     impersonating ? getIntegrationSettings() : getPlatformIntegrationSettings(),
     impersonating ? getDomainSettings() : Promise.resolve(null),
     impersonating ? Promise.resolve(null) : getLegalSettings(),
@@ -73,6 +75,8 @@ export default async function SettingsPage() {
     impersonating ? Promise.resolve(false) : getPlatformWaba(),
     impersonating ? Promise.resolve(null) : resolveOnboardingVideoUrl(),
     impersonating ? Promise.resolve([]) : resolveOnboardingSteps(),
+    impersonating ? Promise.resolve(null) : resolveDfyScarcity(),
+    impersonating ? Promise.resolve(null) : resolveDfyWabaTemplate(),
   ]);
 
   return (
@@ -203,6 +207,34 @@ export default async function SettingsPage() {
                 since nothing reports to their ad account until it is set.
               </p>
               <OnboardingStepsForm initial={onboardingSteps} />
+            </div>
+            <div className="mt-6 border-t pt-5">
+              <p className="text-sm font-medium">Free builds remaining</p>
+              <p className="mb-3 mt-0.5 text-xs text-[var(--muted-foreground)]">
+                Fills the slot count in the sticky offer bar above the nav, on every public
+                page. Leave Remaining BLANK and it counts itself: one slot per tenant that has
+                actually started building, gate or scored questions. Your own workspaces and
+                the platform are excluded. Fill it in only to override that - to close the
+                offer early, or to honour a build done for somebody who never signed up.
+                Zero takes the offer down.
+              </p>
+              <DfyScarcityForm
+                initialTotal={dfyScarcity?.total ?? 20}
+                initialRemaining={dfyScarcity?.remaining ?? null}
+              />
+            </div>
+            <div className="mt-6 border-t pt-5">
+              <p className="text-sm font-medium">Build request WhatsApp</p>
+              <p className="mb-3 mt-0.5 text-xs text-[var(--muted-foreground)]">
+                Fired to whoever submits the /build form, in addition to the confirmation
+                email. Leave blank until you have an approved template in Meta Business
+                Manager - nothing here can create or approve one, and sending at an
+                unapproved name is rejected on every submission.
+              </p>
+              <DfyWabaForm
+                initialTemplate={dfyWaba?.template ?? ""}
+                initialLang={dfyWaba?.lang ?? "en"}
+              />
             </div>
           </CardContent>
         </Card>

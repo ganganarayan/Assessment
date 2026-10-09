@@ -1,3 +1,4 @@
+import { MARKETING } from "@/lib/marketing/content";
 import Link from "next/link";
 
 /**
@@ -17,7 +18,10 @@ export function AssessBadge({ show }: { show: boolean }) {
   return (
     <div className="mt-10 flex justify-center pb-6">
       <Link
-        href="https://assess360.divineleads.guru/?utm_source=badge&utm_medium=referral"
+        // Built from MARKETING.domain rather than typed out, so the badge on every Gate-tier
+        // funnel follows the platform to a new domain instead of pointing at the old one
+        // forever. The UTM is what makes this measurable as an acquisition channel.
+        href={`${MARKETING.domain}/?utm_source=badge&utm_medium=referral`}
         target="_blank"
         rel="noopener"
         className="text-xs text-[var(--muted-foreground)] transition-opacity hover:opacity-80"

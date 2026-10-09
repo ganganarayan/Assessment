@@ -16,7 +16,7 @@ export const page: SeoPage = {
     "How Assess360 differs from an embeddable quiz maker: a hosted qualification funnel on your own domain that filters enquiries and reports the outcome to your ads.",
   h1: "Assess360 as a Riddle alternative",
   shortName: "vs Riddle",
-  factsCheckedOn: "2026-10-06",
+  factsCheckedOn: "2026-10-09",
   lede:
     "Embedded quizzes and polls are engagement content: they sit inside a page someone is already reading and give them something to do. A qualification funnel is a destination of its own, because an ad has to point somewhere and that somewhere has to make a decision.",
   updatedAt: "2026-10-06",
@@ -46,6 +46,84 @@ export const page: SeoPage = {
         "Bands, weighted scoring and a qualified threshold",
         "Qualified-only conversion events and an exclusion audience",
       ],
+    },
+    {
+      id: "unlimited-for-whom",
+      heading: "Unlimited is worth a lot, for the right business",
+      answer: "For a publisher, unmetered responses are plainly better. For a service business, they are beside the point.",
+      paragraphs: [
+        "Riddle's model suits media: run a quiz across a large audience, collect everything, pay a flat fee. If entrants are audience members rather than sales prospects, counting them would be absurd and Riddle is right not to.",
+        "The calculation changes entirely when each respondent is a potential call. Then the question is not how many you can collect without being charged, but how few you can get away with speaking to.",
+        "There is a version of this where both are true at once: a publisher running audience quizzes on Riddle, and one gated scorecard on a landing page that feeds the sales team. Nothing about the two models conflicts, and the second is a far smaller purchase than replacing the first.",
+      ],
+      bullets: [
+        "Disqualified visitors leave no lead record, so nothing reaches your CRM to be cleaned out later",
+        "A qualified-only conversion event, so the algorithm optimises toward people who passed rather than people who typed fast",
+        "An exclusion audience that grows by itself, so you stop paying to reach the people you just turned away",
+      ],
+    },
+  ],
+  comparison: {
+    competitor: "Riddle",
+    source: "read from their own pricing page on 9 October 2026. Several vendors price by region, so the figure you are shown may differ",
+    rows: [
+    {
+      label: "Gate runs before the opt-in",
+      us: "Yes, before the opt-in. A failed gate stores no lead, no submission and no result.",
+      them: "No pre-opt-in gate.",
+    },
+    {
+      label: "Are disqualified visitors metered?",
+      us: "Never. Only qualified responses count against the plan.",
+      them: "Unlimited submissions and leads on every paid plan, which is rare.",
+      themWins: true,
+    },
+    {
+      label: "Weighted category scoring",
+      us: "Yes. Weighted categories, a weighted total, and named result bands.",
+      them: "Scored quizzes and personality formats. No weighted categories with bands.",
+    },
+    {
+      label: "Qualified-only conversion event",
+      us: "Yes. Qualified completions fire their own conversion event.",
+      them: "No qualified-only conversion event.",
+    },
+    {
+      label: "Server-side exclusion audience",
+      us: "Yes. Server-side exclusion audience via the Conversions API.",
+      them: "No server-side exclusion audience.",
+    },
+    {
+      label: "First-party match keys",
+      us: "Yes, on every Pixel and CAPI event.",
+      them: "Standard pixel integrations.",
+    },
+    {
+      label: "Custom domain",
+      us: "Yes, from $79/mo.",
+      them: "White labelling from the Pro plan.",
+    },
+    {
+      label: "Entry price",
+      us: "$39/mo, or $32 billed annually.",
+      them: "Priced by region. Their page quotes Pro at ₹10,000/mo in India, roughly $118. No Essential tier any more.",
+    },
+    ],
+  },
+  betterWhen:
+    "Riddle is built for publishers and media teams, and its unmetered model is genuinely better than ours for high volume: unlimited submissions on every paid plan, plus GDPR-focused hosting options and a wide spread of content formats. It costs several times what we do, which for a media team running quizzes at scale is the right trade - every entrant is an audience member, and you stop counting.",
+  faqs: [
+    {
+      q: "Riddle has unlimited responses. Isn't that strictly better?",
+      a: "For a publisher, yes. Unlimited matters when every respondent has value. When most of them do not, unlimited collection of people you cannot sell to is not a saving, and the cost has just moved from your invoice to your calendar.",
+    },
+    {
+      q: "Does Assess360 do personality quizzes and the other formats?",
+      a: "No. One format, a gated scorecard. Riddle covers considerably more ground on content types and does it well.",
+    },
+    {
+      q: "Which is better for GDPR?",
+      a: "Riddle makes more of it, with EU hosting options aimed at publishers. We keep data minimal by a different route: a disqualified visitor has nothing stored about them at all, because the record is never created.",
     },
   ],
   cta: {

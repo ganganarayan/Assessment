@@ -16,7 +16,7 @@ export const page: SeoPage = {
     "How Assess360 differs from a Google Form: enquiries are scored, wrong-fit respondents stop before the opt-in, and each person gets a result.",
   h1: "Assess360 as a Google Forms alternative",
   shortName: "vs Google Forms",
-  factsCheckedOn: "2026-10-06",
+  factsCheckedOn: "2026-10-09",
   lede:
     "A Google Form is free, quick and perfectly good at collecting answers into a spreadsheet. The trouble starts when the spreadsheet is the thing standing between your enquiries and your calendar, and somebody has to read it every morning.",
   updatedAt: "2026-10-06",
@@ -56,6 +56,83 @@ export const page: SeoPage = {
         "Nothing here says a free form is wrong. It says the moment the reading becomes a job, the tool has stopped matching the task.",
       ],
       bullets: [],
+    },
+    {
+      id: "when-free-stops-being-free",
+      heading: "When free stops being free",
+      answer: "The subscription is not where a Google Form costs you money. The invisibility is.",
+      paragraphs: [
+        "Two things are missing and only one of them is obvious. The obvious one is that it cannot qualify: every respondent arrives looking identical and somebody sorts them by hand.",
+        "The one that costs more is that it cannot report. No pixel, no Conversions API, no event of any kind, so if paid traffic is landing on a Google Form your ad account has no idea what happened after the click and is optimising on a guess. That is money leaving quietly, every day, with no line item anywhere.",
+      ],
+      bullets: [
+        "Disqualified visitors leave no lead record, so nothing reaches your CRM to be cleaned out later",
+        "A qualified-only conversion event, so the algorithm optimises toward people who passed rather than people who typed fast",
+        "An exclusion audience that grows by itself, so you stop paying to reach the people you just turned away",
+      ],
+    },
+  ],
+  comparison: {
+    competitor: "Google Forms",
+    source: "Google's published pricing, October 2026",
+    rows: [
+    {
+      label: "Gate runs before the opt-in",
+      us: "Yes, before the opt-in. A failed gate stores no lead, no submission and no result.",
+      them: "No. Sections and branching exist, but everyone reaches the form.",
+    },
+    {
+      label: "Are disqualified visitors metered?",
+      us: "Never. Only qualified responses count against the plan.",
+      them: "No metering at all.",
+    },
+    {
+      label: "Weighted category scoring",
+      us: "Yes. Weighted categories, a weighted total, and named result bands.",
+      them: "Quiz scoring for right and wrong answers. No weighted fit scoring.",
+    },
+    {
+      label: "Qualified-only conversion event",
+      us: "Yes. Qualified completions fire their own conversion event.",
+      them: "No conversion events of any kind.",
+    },
+    {
+      label: "Server-side exclusion audience",
+      us: "Yes. Server-side exclusion audience via the Conversions API.",
+      them: "No server-side exclusion audience.",
+    },
+    {
+      label: "First-party match keys",
+      us: "Yes, on every Pixel and CAPI event.",
+      them: "No pixel or Conversions API support.",
+    },
+    {
+      label: "Custom domain",
+      us: "Yes, from $79/mo.",
+      them: "No.",
+    },
+    {
+      label: "Entry price",
+      us: "$39/mo, or $32 billed annually.",
+      them: "Free.",
+      themWins: true,
+    },
+    ],
+  },
+  betterWhen:
+    "Google Forms is free, everybody already has it, and for an internal signup, an event RSVP or a quick survey it is the correct choice and always will be. Nothing here is an argument against using it for those. It only becomes the wrong tool when a form is the front door of a business that buys traffic, because at that point it cannot tell you who is worth calling and cannot tell your ad account anything at all.",
+  faqs: [
+    {
+      q: "Why pay when Google Forms is free?",
+      a: "You would not, until the form starts costing you something other than money. The question is what an hour on a wrong-fit call is worth and how many of them a month you take. Below a certain number, Google Forms is the rational answer and we would rather say so.",
+    },
+    {
+      q: "Can Google Forms track my ads?",
+      a: "No. There is no pixel, no Conversions API and no event of any kind, so a Google Form sitting behind paid traffic is a funnel your ad account cannot see into. Every optimisation decision after that is made on partial data.",
+    },
+    {
+      q: "Can I move my Google Form across?",
+      a: "Yes, in minutes. Paste the questions into the plain-text importer. The gate and the weights are the new parts, and we will write them for you free if you send us the link, then take it live with you on one 30-minute call.",
     },
   ],
   cta: {

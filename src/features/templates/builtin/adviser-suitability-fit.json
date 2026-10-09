@@ -1,0 +1,722 @@
+{
+  "slug": "adviser-suitability-fit",
+  "title": "Advice suitability check",
+  "category": "Financial advisers",
+  "summary": "Establishes fit for an advisory relationship, and nothing else. No product, no projection, no return. Screens out tip-seekers and one-off transactions before a meeting is booked.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "You are writing the note a financial adviser reads before a first meeting. The reader is the prospective client.\n\nWrite 200 to 280 words, second person, calm and plain. Describe what their answers say about the SHAPE of an advisory relationship that would suit them: how complex their situation is, how ready they are to work with someone, and what the two of you would need to agree early. Use the dimension names as evidence.\n\nBINDING CONSTRAINTS. Never recommend a product, a fund, an asset class, an allocation or a transaction. Never project, estimate or imply a return, a growth rate or an outcome. Never say they will be better off. Never comment on whether their current adviser is good or bad. Never use the words guarantee, assured or risk-free. Say nothing that could be read as personal financial advice.\n\nThis establishes fit for a conversation. It is not advice, and the note should read as though a compliance officer will see it, because one might.",
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 4,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "18 questions, 4 minutes",
+    "subheadline": "A fit check for an advisory relationship. It does not recommend anything, and it cannot: that is what the conversation is for.",
+    "qualifiedNote": "You qualify. Tell us where to send your result.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "What are you looking for?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "Ongoing financial planning",
+              "points": 0
+            },
+            {
+              "id": "g1b",
+              "label": "A one time plan review",
+              "points": 0
+            },
+            {
+              "id": "g1c",
+              "label": "Help executing specific transactions",
+              "points": 0
+            },
+            {
+              "id": "g1d",
+              "label": "Tax filing only",
+              "disqualifies": true,
+              "points": 0
+            },
+            {
+              "id": "g1e",
+              "label": "Stock tips or recommendations",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "Roughly what investable assets do you hold, excluding the home you live in?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "Above $1,200,000 (above ₹10 crore)",
+              "points": 0
+            },
+            {
+              "id": "g2b",
+              "label": "$240,000 to $1,200,000 (₹2 to 10 crore)",
+              "points": 0
+            },
+            {
+              "id": "g2c",
+              "label": "$60,000 to $240,000 (₹50 lakh to 2 crore)",
+              "points": 0
+            },
+            {
+              "id": "g2d",
+              "label": "$12,000 to $60,000 (₹10 to 50 lakh)",
+              "points": 0
+            },
+            {
+              "id": "g2e",
+              "label": "Under $12,000 (under ₹10 lakh)",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "Do you currently work with an adviser?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "No",
+              "points": 0
+            },
+            {
+              "id": "g3b",
+              "label": "Yes, and I am looking to switch",
+              "points": 0
+            },
+            {
+              "id": "g3c",
+              "label": "Yes, and I want a second opinion",
+              "points": 0
+            },
+            {
+              "id": "g3d",
+              "label": "Yes, and I am happy with them",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "How would you prefer to pay for advice?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "A fee for the advice itself",
+              "points": 0
+            },
+            {
+              "id": "g4b",
+              "label": "I am not sure yet",
+              "points": 0
+            },
+            {
+              "id": "g4c",
+              "label": "Commission built into the products",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "What is your planning horizon?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Retirement planning",
+              "points": 0
+            },
+            {
+              "id": "g5b",
+              "label": "10 years or more",
+              "points": 0
+            },
+            {
+              "id": "g5c",
+              "label": "5 to 10 years",
+              "points": 0
+            },
+            {
+              "id": "g5d",
+              "label": "2 to 5 years",
+              "points": 0
+            },
+            {
+              "id": "g5e",
+              "label": "Under 2 years",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g6",
+          "text": "Who else is part of this decision?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g6a",
+              "label": "Just me",
+              "points": 0
+            },
+            {
+              "id": "g6b",
+              "label": "Me and my spouse",
+              "points": 0
+            },
+            {
+              "id": "g6c",
+              "label": "A family trust or HUF",
+              "points": 0
+            },
+            {
+              "id": "g6d",
+              "label": "A business partner",
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thank you for your time.",
+      "subtext": "On your answers this is not the right fit, so we will not book a meeting. This is a statement about fit only and is not financial advice. Nothing here recommends or discourages any product or course of action.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "Complexity of need",
+        "description": "How many moving parts there are to plan around.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How many separate goals are you planning for?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "One",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Two or three",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Four or five",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "More than five",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Where does your income come from?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Salary only",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Salary and some rental or interest",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Business income",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Several sources including capital gains",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Any cross border elements?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "None",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "I have lived abroad previously",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Some foreign assets or income",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "NRI status, or assets in more than one country",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Is business ownership or an ESOP in the picture?",
+            "type": "SINGLE_SELECT",
+            "weight": 8.75,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Neither",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A small holding",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "ESOPs that matter to the plan",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "I own a business",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advisory readiness",
+        "description": "How ready you are to actually work with someone on this.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "What documentation could you put in front of an adviser?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Almost nothing organised",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Some statements",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Most statements and policies",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Statements, policies and returns, organised",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What has your experience of advice been?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Bad, and it put me off",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "None at all",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Mixed",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Good, and I want that again",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How involved do you want to be?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "I want to drive every decision myself",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "I want to approve each step",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Collaborative",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Largely hands off, with reviews",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How comfortable are you discussing your full financial position?",
+            "type": "SINGLE_SELECT",
+            "weight": 10.0,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Only in broad terms",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Mostly comfortable",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Completely, that is the point",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Relationship fit",
+        "description": "Whether how you want to work matches how this firm works.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. This is what to fix first.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and currently costing you. A focused push here moves the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest catches up.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How would you react to a plan that recommends doing LESS, not more?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "I would feel short changed",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "I would want it justified at length",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "I would want the reasoning",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "That would increase my confidence",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How often would you want contact?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Weekly",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Monthly",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Quarterly",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Twice a year, plus when something changes",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How clear are you on how fee based advice works?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Not clear at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "I have read about it",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Reasonably clear",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Clear, and it is what I want",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "When would you want to start?",
+            "type": "SINGLE_SELECT",
+            "weight": 6.25,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "No particular time",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Within six months",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Within a month or two",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "As soon as possible",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Not the right fit, and that is an honest answer",
+        "description": "What you are looking for and what this firm does are different things, and a meeting would mostly establish that slowly. For a fee based practice this is a feature rather than a failure. Next step: the educational resources below.",
+        "minScore": 0,
+        "maxScore": 40,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "A fit, with the scope to define",
+        "description": "There is a real basis for working together, and one thing to agree first: usually how involved you want to be, or what the engagement actually covers. Next step: a shorter scoping conversation before anything is planned.",
+        "minScore": 41,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "A strong fit for an advisory relationship",
+        "description": "Your situation has enough moving parts to be worth planning properly, and how you want to work matches how this firm works. Next step: a structured discovery meeting. This is a statement about fit, not advice.",
+        "minScore": 60,
+        "maxScore": 75,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Priority discovery meeting",
+        "description": "Complex enough to need real planning, organised enough to start, and they want the kind of relationship this firm offers. Next step: a structured discovery meeting, booked soon. This describes fit for a conversation and is not financial advice.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "title": "Would we work well together?",
+    "slug": "advice-suitability"
+  }
+}

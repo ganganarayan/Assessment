@@ -1,0 +1,235 @@
+{
+  "slug": "insurance-eligibility-fit",
+  "title": "Policy eligibility check",
+  "category": "Insurance brokers",
+  "summary": "Says only whether a broker conversation is worth having. No underwriting, no premium, no recommendation, and no medical questions beyond a broad declaration.",
+  "shape": "GATE_ONLY",
+  "aiInstructions": null,
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 2,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "6 quick questions",
+    "subheadline": "Six questions that say whether we can help. Eligibility and pricing are decided by the insurer, not here.",
+    "qualifiedNote": "You qualify. Tell us where to send your result.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": false,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "What cover are you looking for?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "A type of cover shown on the list",
+              "points": 0
+            },
+            {
+              "id": "g1b",
+              "label": "More than one of those",
+              "points": 0
+            },
+            {
+              "id": "g1c",
+              "label": "A type of cover not on the list",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "Who is the cover for?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "A business or its employees",
+              "points": 0
+            },
+            {
+              "id": "g2b",
+              "label": "Family including children",
+              "points": 0
+            },
+            {
+              "id": "g2c",
+              "label": "Myself and my spouse",
+              "points": 0
+            },
+            {
+              "id": "g2d",
+              "label": "Myself",
+              "points": 0
+            },
+            {
+              "id": "g2e",
+              "label": "Parents",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "What is the age of the eldest person to be covered?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "Under 35",
+              "points": 0
+            },
+            {
+              "id": "g3b",
+              "label": "35 to 45",
+              "points": 0
+            },
+            {
+              "id": "g3c",
+              "label": "45 to 55",
+              "points": 0
+            },
+            {
+              "id": "g3d",
+              "label": "55 to 65",
+              "points": 0
+            },
+            {
+              "id": "g3e",
+              "label": "Above the insurer's maximum entry age",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Do you already hold cover of this type?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "No",
+              "points": 0
+            },
+            {
+              "id": "g4b",
+              "label": "Yes, and I am looking to add to it",
+              "points": 0
+            },
+            {
+              "id": "g4c",
+              "label": "Yes, and I am looking to replace it",
+              "points": 0
+            },
+            {
+              "id": "g4d",
+              "label": "Yes, and I am happy with it",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "Has an application for this type of cover ever been declined or loaded?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "No",
+              "points": 0
+            },
+            {
+              "id": "g5b",
+              "label": "I am not sure",
+              "points": 0
+            },
+            {
+              "id": "g5c",
+              "label": "Yes",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g6",
+          "text": "When do you need the cover in force?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g6a",
+              "label": "Immediately",
+              "points": 0
+            },
+            {
+              "id": "g6b",
+              "label": "Within a month",
+              "points": 0
+            },
+            {
+              "id": "g6c",
+              "label": "In 1 to 3 months",
+              "points": 0
+            },
+            {
+              "id": "g6d",
+              "label": "I am just comparing",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thank you, and please read this.",
+      "subtext": "On your answers we are not able to help with this enquiry, so we will not take up more of your time. This is not an underwriting decision and it is not a quote: eligibility and pricing are determined by the insurer, not by this form. Another broker may well be able to place it.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [],
+    "resultBands": [],
+    "title": "Is a broker conversation worth having?",
+    "slug": "cover-eligibility-check"
+  }
+}

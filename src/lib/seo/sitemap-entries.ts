@@ -1,4 +1,5 @@
 import { ANSWERS, PAGES } from "./registry";
+import { publishedCaseStudies } from "@/content/case-studies";
 import { answerPath, seoPath } from "./urls";
 
 export type SitemapEntry = {
@@ -18,9 +19,19 @@ export type SitemapEntry = {
  * page and every answer is in it, instead of that first being observable in production.
  */
 const STATIC_PAGES: ReadonlyArray<SitemapEntry> = [
-  { path: "/", updated: "2026-10-02", changeFrequency: "weekly", priority: 1 },
+  { path: "/", updated: "2026-10-09", changeFrequency: "weekly", priority: 1 },
+  // The done-for-you intake, and the home page's primary call to action. Ranked above
+  // /sign-up deliberately: it is the conversion the site is currently built around, and
+  // "done for you" is a search intent of its own that a trial page cannot answer.
+  { path: "/build", updated: "2026-10-09", changeFrequency: "monthly", priority: 0.9 },
+  // Ungated, answers a question people actually type ("what does a bad sales call
+  // cost"), and asks for nothing. It is the cheapest entry point on the site.
+  { path: "/wasted-call-calculator", updated: "2026-10-09", changeFrequency: "monthly", priority: 0.8 },
   { path: "/sign-up", updated: "2026-10-01", changeFrequency: "monthly", priority: 0.6 },
   { path: "/pricing", updated: "2026-10-06", changeFrequency: "monthly", priority: 0.8 },
+  // The Agency tier advertises API access, so the docs have to be findable without
+  // being in the nav - an integration question is a search, not a browse.
+  { path: "/api-docs", updated: "2026-10-09", changeFrequency: "monthly", priority: 0.5 },
   { path: "/answers", updated: "2026-10-02", changeFrequency: "weekly", priority: 0.6 },
   { path: "/contact", updated: "2026-09-01", changeFrequency: "yearly", priority: 0.4 },
   { path: "/privacy", updated: "2026-09-01", changeFrequency: "yearly", priority: 0.2 },
@@ -48,6 +59,25 @@ export function publicSitemapEntries(): SitemapEntry[] {
       updated: a.updatedAt,
       changeFrequency: "monthly" as const,
       priority: 0.5,
+    })),
+    // Case studies, DERIVED from what is actually published. The index itself is only
+    // listed once there is something on it, because the page 404s until then and a
+    // sitemap advertising a 404 is a crawl budget spent on nothing.
+    ...(publishedCaseStudies().length > 0
+      ? [
+          {
+            path: "/case-studies",
+            updated: publishedCaseStudies()[0]!.updatedAt,
+            changeFrequency: "monthly" as const,
+            priority: 0.7,
+          },
+        ]
+      : []),
+    ...publishedCaseStudies().map((c) => ({
+      path: `/case-studies/${c.slug}`,
+      updated: c.updatedAt,
+      changeFrequency: "yearly" as const,
+      priority: 0.7,
     })),
   ];
 }

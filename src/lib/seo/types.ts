@@ -102,6 +102,33 @@ export const answerSchema = z.object({
 export type Answer = z.infer<typeof answerSchema>;
 
 /** What kind of page this is. Drives breadcrumbs and which schema types are emitted. */
+/**
+ * One row of a head-to-head table.
+ *
+ * `themWins` is the point of the whole thing. A comparison table where every row is a
+ * tick for us is an advertisement, and a reader who has used the other product knows it
+ * within two rows and discounts the rest. Marking the rows the competitor genuinely wins
+ * is what buys the others any credibility at all.
+ */
+export const comparisonRowSchema = z.object({
+  label: z.string().min(3),
+  us: z.string().min(1),
+  them: z.string().min(1),
+  // Optional, not .default(false): a default makes it REQUIRED in the inferred type,
+  // so every honest row would have to spell out that it is not a concession.
+  themWins: z.boolean().optional(),
+});
+export type ComparisonRow = z.infer<typeof comparisonRowSchema>;
+
+export const comparisonTableSchema = z.object({
+  /** How the other product is named in the header, e.g. "ScoreApp". */
+  competitor: z.string().min(2),
+  /** Where the competitor's facts came from, so a stale cell can be traced and refuted
+   *  rather than argued about. Shown under the table. */
+  source: z.string().min(4).optional(),
+  rows: z.array(comparisonRowSchema).min(5),
+});
+
 export const pageKindSchema = z.enum(["pillar", "use-case", "comparison", "glossary"]);
 export type PageKind = z.infer<typeof pageKindSchema>;
 
@@ -149,6 +176,25 @@ export const seoPageSchema = z.object({
    * instead of reading prose.
    */
   factsCheckedOn: isoDate.optional(),
+  /** The head-to-head table. Comparison pages only; a pillar has nobody to compare to. */
+  comparison: comparisonTableSchema.optional(),
+  /**
+   * When the OTHER product is the better choice. One short paragraph, deliberately
+   * capped: it is what makes everything above it believable, and at a third of the page
+   * it stops being fairness and starts being a reason to leave.
+   */
+  betterWhen: z.string().min(80).max(700).optional(),
+  /**
+   * Page-level questions, rendered on the page AND emitted as FAQPage JSON-LD.
+   *
+   * Separate from the answer cluster, because a comparison page owns questions that
+   * belong to nobody's topic ("can I move my existing quiz across") and would make no
+   * sense in the knowledge base.
+   */
+  // Optional rather than .default([]): a default makes the field REQUIRED in the inferred
+  // type, which would mean adding "faqs: []" to all thirty-two content files to add a
+  // field most of them will never use.
+  faqs: z.array(z.object({ q: z.string().min(10), a: z.string().min(40) })).optional(),
   cta: z.object({ heading: z.string().min(10), body: z.string().min(30) }),
   updatedAt: isoDate,
 });

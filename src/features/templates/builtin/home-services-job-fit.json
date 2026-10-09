@@ -1,0 +1,222 @@
+{
+  "slug": "home-services-job-fit",
+  "title": "Service area job qualifier",
+  "category": "Home services",
+  "summary": "Volume business, thin margins, and a scored assessment would only add friction. The gate is the whole product: no technician is ever dispatched outside the area or to a tenant with no authority.",
+  "shape": "GATE_ONLY",
+  "aiInstructions": null,
+  "body": {
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 2,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "6 quick questions",
+    "subheadline": "Six questions so we only send someone out when we can actually do the job.",
+    "qualifiedNote": "You qualify. Tell us where to send your result.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": false,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "What is your pincode?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "Inside the service area list",
+              "points": 0
+            },
+            {
+              "id": "g1b",
+              "label": "On the edge of it",
+              "points": 0
+            },
+            {
+              "id": "g1c",
+              "label": "Outside the service area",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "What do you need done?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "More than one of those services",
+              "points": 0
+            },
+            {
+              "id": "g2b",
+              "label": "A service shown on the list",
+              "points": 0
+            },
+            {
+              "id": "g2c",
+              "label": "Something else entirely",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "Is the property owned or rented?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "Owned",
+              "points": 0
+            },
+            {
+              "id": "g3b",
+              "label": "Rented, and I have the owner's approval",
+              "points": 0
+            },
+            {
+              "id": "g3c",
+              "label": "Rented, no approval yet",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "How soon do you need this?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "Today or tomorrow",
+              "points": 0
+            },
+            {
+              "id": "g4b",
+              "label": "This week",
+              "points": 0
+            },
+            {
+              "id": "g4c",
+              "label": "Within a month",
+              "points": 0
+            },
+            {
+              "id": "g4d",
+              "label": "Just getting an estimate for later",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "What is the scale of the job?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Commercial premises",
+              "points": 0
+            },
+            {
+              "id": "g5b",
+              "label": "A full home",
+              "points": 0
+            },
+            {
+              "id": "g5c",
+              "label": "One room or one area",
+              "points": 0
+            },
+            {
+              "id": "g5d",
+              "label": "A single unit or appliance",
+              "points": 0
+            },
+            {
+              "id": "g5e",
+              "label": "Smaller than a single unit",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g6",
+          "text": "Have you already had a quote from someone else?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g6a",
+              "label": "No",
+              "points": 0
+            },
+            {
+              "id": "g6b",
+              "label": "Yes, and I want a second opinion on the work",
+              "points": 0
+            },
+            {
+              "id": "g6c",
+              "label": "Yes, and I am comparing prices",
+              "disqualifies": true,
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks, that saves us both a wasted visit.",
+      "subtext": "On your answers this is not a job we can take: it is outside our service area, outside what we do, or it needs the owner's approval first. Nothing is stored. If that changes, come back and run this again.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [],
+    "resultBands": [],
+    "title": "Can we take this job?",
+    "slug": "service-area-job-check"
+  }
+}
