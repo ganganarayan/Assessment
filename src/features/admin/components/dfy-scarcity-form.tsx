@@ -5,7 +5,7 @@ import { updateDfyScarcity } from "@/features/admin/actions/platform-integration
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { OFFER, OFFER_SLOTS } from "@/lib/marketing/content";
+import { OFFER } from "@/lib/marketing/content";
 
 /**
  * The done-for-you scarcity counter.
@@ -40,7 +40,7 @@ export function DfyScarcityForm({
           <Input
             id="dfy-remaining"
             inputMode="numeric"
-            placeholder="Blank hides the counter"
+            placeholder="Blank = counted automatically"
             value={remaining}
             onChange={(e) => setRemaining(e.target.value)}
           />
@@ -64,9 +64,13 @@ export function DfyScarcityForm({
           </>
         ) : (
           <>
-            The bar reads:{" "}
-            <strong className="text-[var(--foreground)]">{OFFER.bar(shown ?? OFFER_SLOTS)}</strong>
-            {shown === null ? " (blank means a full allowance, not silence)" : ""}
+            {shown === null ? "The bar counts itself." : "The bar reads:"}{" "}
+            {shown === null ? null : (
+              <strong className="text-[var(--foreground)]">{OFFER.bar(shown)}</strong>
+            )}
+            {shown === null
+              ? " - and blank means it counts itself, one slot per tenant that has started building"
+              : " - a manual override, which wins over the automatic count"}
           </>
         )}
       </p>

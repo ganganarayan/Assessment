@@ -212,10 +212,11 @@ export default async function SettingsPage() {
               <p className="text-sm font-medium">Free builds remaining</p>
               <p className="mb-3 mt-0.5 text-xs text-[var(--muted-foreground)]">
                 Fills the slot count in the sticky offer bar above the nav, on every public
-                page. Two real numbers you edit after each build, never a timer - a counter
-                that refills overnight is noticed once and discredits the rest of the page
-                with it. Blank means a FULL allowance, so the bar launches without you
-                seeding it; set it to zero to take the offer down.
+                page. Leave Remaining BLANK and it counts itself: one slot per tenant that has
+                actually started building, gate or scored questions. Your own workspaces and
+                the platform are excluded. Fill it in only to override that - to close the
+                offer early, or to honour a build done for somebody who never signed up.
+                Zero takes the offer down.
               </p>
               <DfyScarcityForm
                 initialTotal={dfyScarcity?.total ?? 20}

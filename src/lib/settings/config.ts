@@ -4,11 +4,13 @@
 // it there is a hard crash that would take the whole cron down, existing sweeps
 // included. The guard only ever prevented CLIENT bundling, which the prisma/env/
 // crypto imports below already make impossible in a browser build.
+import { unstable_cache } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { OFFER_SLOTS } from "@/lib/marketing/content";
 import { env } from "@/lib/env";
 import { decryptWithSecret } from "@/lib/crypto";
-import { isPlatformScope } from "@/lib/tenant/platform-tenant";
+import { isPlatformScope, PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
 
 /**
@@ -313,24 +315,61 @@ export async function resolveDfyWabaTemplate(): Promise<{ template: string; lang
 }
 
 /**
- * Slots left for the announcement bar, or null when the offer should not be advertised.
+ * Slots left for the offer bar, or null when the offer should not be advertised.
  *
- * Differs from resolveDfyScarcity in one deliberate way: an UNSET count means the full
- * allowance rather than "say nothing". Before a single build has been done, "20 slots
- * left" is simply true, and making the operator seed a number before the bar appears
- * would mean the offer silently fails to launch.
+ * DERIVED by default: one slot is consumed per tenant that has actually started
+ * building - a gate, or a scored question, or both. A counter somebody has to remember
+ * to decrement after every call is a counter that is wrong within a fortnight, and this
+ * number sits on every public page.
  *
- * Zero still returns null. A bar reading "0 slots left" above a button that asks for one
- * is worse than no bar.
+ * The manual figure in Settings still WINS when it is set, because there are reasons to
+ * hold a number that no query can know: closing the offer early, honouring a promise
+ * made off-platform, or a build done for somebody who never signed up at all.
+ *
+ * Zero returns null either way. A bar reading "0 slots left" above a button asking you
+ * to take the offer is worse than no bar.
+ *
+ * Cached for five minutes. It is read on every marketing page, and a nested exists-count
+ * per page view is a real cost for a number that moves once a week at most.
  */
+const SLOTS_TTL_SECONDS = 300;
+
+async function countStartedBuilds(): Promise<number> {
+  return prisma.tenant.count({
+    where: {
+      deletedAt: null,
+      // The owner's own workspaces and the platform row are not customers of the offer.
+      unlimited: false,
+      id: { not: PLATFORM_TENANT_ID },
+      assessments: {
+        some: {
+          OR: [
+            { categories: { some: { questions: { some: {} } } } },
+            { qualification: { not: Prisma.DbNull } },
+          ],
+        },
+      },
+    },
+  });
+}
+
 export async function resolveOfferSlotsLeft(): Promise<number | null> {
-  const s = (await settingRow(null, { dfyBuildsTotal: true, dfyBuildsRemaining: true })) as
+  const row = (await settingRow(null, { dfyBuildsTotal: true, dfyBuildsRemaining: true })) as
     | { dfyBuildsTotal: number; dfyBuildsRemaining: number | null }
     | null;
-  const total = s?.dfyBuildsTotal ?? OFFER_SLOTS;
-  const left = s?.dfyBuildsRemaining ?? total;
-  return left > 0 ? Math.min(left, total) : null;
+  const total = row?.dfyBuildsTotal ?? OFFER_SLOTS;
+
+  const manual = row?.dfyBuildsRemaining ?? null;
+  if (manual !== null) return manual > 0 ? Math.min(manual, total) : null;
+
+  const used = await unstable_cache(countStartedBuilds, ["dfy-slots-used"], {
+    revalidate: SLOTS_TTL_SECONDS,
+  })().catch(() => 0);
+
+  const left = total - used;
+  return left > 0 ? left : null;
 }
+
 
 /**
  * The done-for-you scarcity counter, or null when there is nothing honest to show.
