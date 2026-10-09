@@ -57,6 +57,20 @@ export const page: SeoPage = {
       ],
       bullets: [],
     },
+    {
+      id: "which-number-is-costing-you",
+      heading: "Breadth against depth, and which one is costing you",
+      answer: "Outgrow does many content formats well. This does one, and does the part after it that nothing else does.",
+      paragraphs: [
+        "The decision is not which tool is better, because they are not aimed at the same number. Outgrow is aimed at how much interactive content you can put on a site. This is aimed at how many of the enquiries that content produces are worth a call.",
+        "If you cannot name what a wrong-fit call costs you, breadth is worth more and you should buy breadth. If you can name it, and it is an hour of somebody senior, the arithmetic has already been done for you.",
+      ],
+      bullets: [
+        "Disqualified visitors leave no lead record, so nothing reaches your CRM to be cleaned out later",
+        "A qualified-only conversion event, so the algorithm optimises toward people who passed rather than people who typed fast",
+        "An exclusion audience that grows by itself, so you stop paying to reach the people you just turned away",
+      ],
+    },
   ],
   comparison: {
     competitor: "Outgrow",

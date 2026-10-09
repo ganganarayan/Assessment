@@ -58,6 +58,20 @@ export const page: SeoPage = {
       ],
       bullets: [],
     },
+    {
+      id: "when-cheap-gets-expensive",
+      heading: "When the cheaper tool becomes the expensive one",
+      answer: "At thirteen dollars a month the subscription is not the cost. The calls are.",
+      paragraphs: [
+        "Take three hundred quiz completions in a month and suppose sixty of them are genuinely worth speaking to. The subscription difference between the two tools is a rounding error against the two hundred and forty conversations that either waste somebody's time or get screened out by hand, which is also somebody's time.",
+        "That is the whole argument, and it only works one way: if nobody is calling those leads, the cheaper tool wins and we would rather you kept it.",
+      ],
+      bullets: [
+        "Disqualified visitors leave no lead record, so nothing reaches your CRM to be cleaned out later",
+        "A qualified-only conversion event, so the algorithm optimises toward people who passed rather than people who typed fast",
+        "An exclusion audience that grows by itself, so you stop paying to reach the people you just turned away",
+      ],
+    },
   ],
   comparison: {
     competitor: "LeadQuizzes",

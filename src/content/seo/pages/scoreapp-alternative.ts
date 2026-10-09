@@ -58,6 +58,20 @@ export const page: SeoPage = {
       ],
       bullets: [],
     },
+    {
+      id: "first-month",
+      heading: "What the first month actually looks like",
+      answer: "Fewer leads, and a calendar that stops containing calls you knew were wrong within ninety seconds.",
+      paragraphs: [
+        "The number that moves first is the one that looks like a loss. Form fills drop, because people who would have filled the form are now stopped before it. If that number is what gets reported in your weekly meeting, say so in advance, because the second month is when the useful number moves and the first month is when somebody panics.",
+        "What moves second is cost per qualified lead, and it moves for a reason that has nothing to do with the gate: the ad account is being told which completions were worth having, so it stops buying more of the other kind.",
+      ],
+      bullets: [
+        "Disqualified visitors leave no lead record, so nothing reaches your CRM to be cleaned out later",
+        "A qualified-only conversion event, so the algorithm optimises toward people who passed rather than people who typed fast",
+        "An exclusion audience that grows by itself, so you stop paying to reach the people you just turned away",
+      ],
+    },
   ],
   comparison: {
     competitor: "ScoreApp",
