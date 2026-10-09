@@ -23,6 +23,9 @@ const STATIC_PAGES: ReadonlyArray<SitemapEntry> = [
   // /sign-up deliberately: it is the conversion the site is currently built around, and
   // "done for you" is a search intent of its own that a trial page cannot answer.
   { path: "/build", updated: "2026-10-09", changeFrequency: "monthly", priority: 0.9 },
+  // Ungated, answers a question people actually type ("what does a bad sales call
+  // cost"), and asks for nothing. It is the cheapest entry point on the site.
+  { path: "/wasted-call-calculator", updated: "2026-10-09", changeFrequency: "monthly", priority: 0.8 },
   { path: "/sign-up", updated: "2026-10-01", changeFrequency: "monthly", priority: 0.6 },
   { path: "/pricing", updated: "2026-10-06", changeFrequency: "monthly", priority: 0.8 },
   { path: "/answers", updated: "2026-10-02", changeFrequency: "weekly", priority: 0.6 },
