@@ -8,7 +8,7 @@ import {
   type PublicAssessment,
 } from "@/features/assessment/components/public/assessment-runner";
 import { readPublishedPages } from "@/features/assessment/pages/blocks";
-import { resolveAudienceCanonical } from "@/lib/settings/config";
+import { resolveAudienceList } from "@/lib/settings/config";
 import { cache } from "react";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { hasFeature } from "@/lib/billing/plans";
@@ -123,13 +123,14 @@ export default async function PublicAssessmentPage({
     label?: string;
     placeholder?: string;
     freeTextRequired?: boolean;
+    listId?: string;
     roles?: { id: string; label: string; target?: string }[];
   } | null;
   let audienceGate: PublicAssessment["audienceGate"] = null;
   if (gateRaw && gateRaw.mode === "FREETEXT") {
     // Free-text audience field: no options/routing - just capture, with live
     // suggestions from the tenant's canonical list.
-    const suggestions = await resolveAudienceCanonical(a.tenantId);
+    const suggestions = await resolveAudienceList(a.tenantId, gateRaw.listId);
     audienceGate = {
       mode: "FREETEXT",
       label: gateRaw.label?.trim() || null,

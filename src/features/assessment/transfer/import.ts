@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { type AssessmentBodyExport } from "./schema";
 import { parseDocument, type ParseResult } from "./format";
+import { importedGate } from "./gate";
 
 export type { ParseResult };
 
@@ -104,7 +105,7 @@ export function assessmentCreateData(
     // rather than overwriting them with nulls.
     ...(body.qualification != null ? { qualification: body.qualification as Prisma.InputJsonValue } : {}),
     ...(body.disqualifiedContent != null ? { disqualifiedContent: body.disqualifiedContent as Prisma.InputJsonValue } : {}),
-    ...(body.audienceGate != null ? { audienceGate: body.audienceGate as Prisma.InputJsonValue } : {}),
+    ...(body.audienceGate != null ? { audienceGate: importedGate(body.audienceGate) as Prisma.InputJsonValue } : {}),
     ...(body.resultPage != null ? { resultPage: body.resultPage as Prisma.InputJsonValue } : {}),
     ...(body.resultPagePublished != null ? { resultPagePublished: body.resultPagePublished as Prisma.InputJsonValue } : {}),
     ...(body.publishedPages != null ? { publishedPages: body.publishedPages as Prisma.InputJsonValue } : {}),

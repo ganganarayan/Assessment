@@ -211,6 +211,47 @@ export async function resolveHeatmapCode(tenantId: string | null): Promise<strin
  * JSON array of labels on the tenant's own AppSetting row (platform => singleton).
  * Anything non-string / blank is dropped; null/absent => empty list.
  */
+/**
+ * The role suggestions a public funnel shows, given the list its gate names.
+ *
+ * Resolution order, and why each step is there:
+ *   1. the named list, when it exists AND belongs to this tenant. The ownership check
+ *      is the security boundary: a listId travels in an assessment's JSON, and JSON
+ *      can arrive from a template import or a duplicated funnel, so "the id is
+ *      present" is never enough to serve another workspace's vocabulary.
+ *   2. the tenant's default list, which is what every gate saved before named lists
+ *      existed resolves to - they carry no listId at all.
+ *   3. the deprecated single list on AppSetting, for a tenant the backfill missed.
+ */
+export async function resolveAudienceList(tenantId: string | null, listId?: string | null): Promise<string[]> {
+  // A funnel on an unowned (pre-re-home) assessment has no tenant to scope lists by,
+  // so it goes straight to the legacy column rather than matching somebody else's row.
+  if (tenantId) {
+    const wanted = listId?.trim();
+    if (wanted) {
+      const named = await prisma.audienceList.findFirst({
+        where: { id: wanted, tenantId },
+        select: { items: true },
+      });
+      if (named) return readAudienceItems(named.items);
+    }
+    const def = await prisma.audienceList.findFirst({
+      where: { tenantId, isDefault: true },
+      select: { items: true },
+    });
+    if (def) return readAudienceItems(def.items);
+  }
+  return resolveAudienceCanonical(tenantId);
+}
+
+/** Trimmed, non-empty labels out of a stored JSON array. */
+function readAudienceItems(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((v) => (typeof v === "string" ? v.trim() : "")).filter((v) => v.length > 0);
+}
+
+/** DEPRECATED - the single pre-named-lists list. Only reached as the last fallback of
+ *  resolveAudienceList, for a tenant whose backfill found nothing to copy. */
 export async function resolveAudienceCanonical(tenantId: string | null): Promise<string[]> {
   const s = (await settingRow(tenantId, { audienceCanonical: true })) as { audienceCanonical: unknown } | null;
   const raw = s?.audienceCanonical;

@@ -158,6 +158,7 @@ model Tenant {
   contributedTemplates Template[]        @relation("TemplateContributor")
   adAccounts           AdAccount[]
   supportRequests      SupportRequest[]
+  audienceLists        AudienceList[]
 
   @@index([status])
   @@index([deletedAt])
@@ -2177,9 +2178,11 @@ model AppSetting {
   // to be world-readable; private files are served through short-lived signed URLs.
   r2PublicUrl          String?
 
-  // Canonical audience list ("your default list of roles"). Powers the free-text
-  // audience field's live suggestions AND the normalize screen that cleans up typed
-  // values. Stored as a JSON array of trimmed labels. null tenant => singleton row.
+  // DEPRECATED - superseded by the AudienceList table (named lists an assessment can
+  // pick between). The migration copied each non-empty array here into a list called
+  // "Default", marked default, and nothing writes this column any more. It is read ONLY
+  // as a last-resort fallback for a tenant whose backfill found nothing, and goes away
+  // once that is provably empty everywhere.
   audienceCanonical Json?
 
   // ---- Nurture (one-shot Email + WhatsApp on opt-in) - PER TENANT -----------
@@ -2535,6 +2538,48 @@ model AdAccount {
 
   @@index([tenantId])
   @@map("ad_account")
+}
+
+// ---------------------------------------------------------------------------
+// AudienceList - a NAMED list of roles a tenant maintains and an assessment picks.
+//
+// There used to be exactly one list per tenant (AppSetting.audienceCanonical), which
+// meant every funnel on the workspace offered the same suggestions: a clinic funnel and
+// a coaching funnel had to share one vocabulary, and the only way to serve both was a
+// single list long enough to be useless to either.
+//
+// So the list becomes a row with a name, and an assessment names the one it wants
+// (Assessment.audienceGate.listId). Nothing is forced to choose: a gate that names no
+// list falls back to the tenant's default, which is what the old single list was
+// migrated into - so every funnel that exists today keeps the suggestions it has.
+//
+// Labels live in a JSON array rather than a child table on purpose. A label has no
+// attributes of its own, order is the author's, and dedupe already happens on save;
+// a second table would buy nothing and cost a join on a page that renders an opt-in.
+model AudienceList {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// What the tenant calls it, e.g. "Clinic roles". Unique per tenant so picking one
+  /// from a dropdown is unambiguous.
+  name String
+
+  /// Trimmed labels, in the author's order. Deduped case-insensitively on save.
+  items Json
+
+  /// Used when an assessment's gate names no list. Exactly one per tenant is enforced
+  /// by a PARTIAL UNIQUE INDEX in the migration (Prisma cannot express "unique where
+  /// isDefault"), for the same reason as AdAccount: two defaults make the fallback pick
+  /// arbitrarily, and nothing about that looks like an error from the outside.
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("audience_list")
 }
 
 // ---------------------------------------------------------------------------

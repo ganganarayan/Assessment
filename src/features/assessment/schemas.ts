@@ -48,6 +48,11 @@ export const audienceGateSchema = z.object({
   placeholder: z.string().max(120).optional().or(z.literal("")).default(""),
   // FREETEXT only: whether the respondent must fill the field to continue.
   freeTextRequired: z.boolean().default(false),
+  // Which named audience list feeds this gate. "" = the tenant's default list, which
+  // is what every gate saved before named lists existed resolves to - so adding this
+  // changed nothing for a funnel already running. A list belonging to another tenant
+  // never resolves (the resolver checks ownership), it falls back to the default.
+  listId: z.string().max(60).optional().or(z.literal("")).default(""),
   // Every choice (including "None of the above", if wanted) is just a role row with
   // its own target. "" target = continue here; else an assessment id to redirect to.
   roles: z.array(audienceRoleSchema).max(30).default([]),
@@ -58,6 +63,7 @@ export const EMPTY_AUDIENCE_GATE: AudienceGateInput = {
   label: "",
   placeholder: "",
   freeTextRequired: false,
+  listId: "",
   roles: [],
 };
 
@@ -178,6 +184,10 @@ export const EMPTY_DISQUALIFIED: DisqualifiedContentInput = {
  *  screen. Trimmed, de-duped and capped in the settings action. */
 export const audienceCanonicalSchema = z.array(z.string().trim().min(1).max(120)).max(200).default([]);
 export type AudienceCanonicalInput = z.infer<typeof audienceCanonicalSchema>;
+
+/** A named audience list's name. Short, because it is read in a dropdown next to the
+ *  funnel it feeds, not in a page of its own. */
+export const audienceListNameSchema = z.string().trim().min(1, "Give the list a name.").max(60);
 
 export const assessmentSchema = z.object({
   title: z.string().min(2, "Title is required.").max(160),

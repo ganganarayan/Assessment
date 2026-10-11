@@ -217,6 +217,7 @@ export function AssessmentForm({
   basePath = "/admin/assessments",
   promptVersions = [],
   assessmentOptions = [],
+  audienceLists = [],
   canPlatformSignup = false,
 }: {
   /** True only in the PLATFORM scope. The server forces the flag false anywhere else,
@@ -234,6 +235,9 @@ export function AssessmentForm({
    *  gate's "None of the above" onward route. `published` flags whether the target
    *  is live (a draft can't be redirected to yet). */
   assessmentOptions?: { id: string; title: string; slug: string; published?: boolean }[];
+  /** The workspace's named audience lists, for the gate's list picker. Maintained on
+   *  the Audiences screen; this form only chooses between them. */
+  audienceLists?: { id: string; name: string; items: string[]; isDefault: boolean }[];
 }) {
   const router = useRouter();
   const [values, setValues] = useState<AssessmentFormValues>(
@@ -277,6 +281,10 @@ export function AssessmentForm({
   }
   const gate = values.audienceGate;
   const freeMode = gate.mode === "FREETEXT";
+  const defaultList = audienceLists.find((l) => l.isDefault) ?? null;
+  /* Which list the Dropdown-mode "fill roles" control copies from. Local to the form:
+     it is a one-shot action, not part of what gets saved. */
+  const [fillListId, setFillListId] = useState("");
   // The first screen replaces Profession when it's a free-text field OR a dropdown
   // that actually has roles.
   const gateOn = freeMode || gate.roles.length > 0;
@@ -639,16 +647,84 @@ export function AssessmentForm({
                     </span>
                   </span>
                 </label>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="gateListId">Suggestions list</Label>
+                  <select
+                    id="gateListId"
+                    className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm sm:max-w-sm"
+                    value={gate.listId ?? ""}
+                    onChange={(e) => setGate({ listId: e.target.value })}
+                  >
+                    <option value="">
+                      {defaultList ? `Default list (${defaultList.name})` : "Default list"}
+                    </option>
+                    {audienceLists.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name} ({l.items.length})
+                      </option>
+                    ))}
+                  </select>
+                  {audienceLists.length === 0 ? (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      🟡 No audience lists yet. Create one on the <strong>Audiences</strong> screen,
+                      then come back and pick it here.
+                    </p>
+                  ) : null}
+                </div>
                 <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-xs text-[var(--muted-foreground)]">
-                  Suggestions come from your <strong>default audience list</strong> - edit it and clean
-                  up typed answers on the <strong>Audiences</strong> screen. Values that don&apos;t match
-                  a suggestion are still saved. Free text can&apos;t route to another assessment; use
-                  Dropdown mode for that.
+                  Suggestions come from the list picked above - keep as many named lists as you need,
+                  and edit them or clean up typed answers on the <strong>Audiences</strong> screen.
+                  Values that don&apos;t match a suggestion are still saved. Free text can&apos;t route
+                  to another assessment; use Dropdown mode for that.
                 </p>
               </div>
             ) : (
             <div className="flex flex-col gap-2">
               <Label>Roles &amp; where each one goes</Label>
+              {audienceLists.length > 0 ? (
+                /* Dropdown roles are COPIED in from a list, not linked to it: each row
+                   carries its own routing target, and a live link would have to either
+                   throw those away whenever the list changed or quietly keep rows the
+                   list no longer has. Copying says plainly which it is. */
+                <div className="flex flex-wrap items-center gap-2 rounded-md bg-[var(--muted)]/40 px-3 py-2">
+                  <span className="text-xs text-[var(--muted-foreground)]">Fill from an audience list:</span>
+                  <select
+                    aria-label="Audience list to fill roles from"
+                    className="h-8 min-w-[10rem] rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-xs"
+                    value={fillListId}
+                    onChange={(e) => setFillListId(e.target.value)}
+                  >
+                    <option value="">Pick a list…</option>
+                    {audienceLists.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name} ({l.items.length})
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={!fillListId}
+                    onClick={() => {
+                      const list = audienceLists.find((l) => l.id === fillListId);
+                      if (!list) return;
+                      // Append only what is missing, so an owner who already set routing
+                      // on a role keeps it and a second click adds nothing.
+                      const have = new Set(gate.roles.map((r) => r.label.trim().toLowerCase()));
+                      const added = list.items
+                        .filter((label) => !have.has(label.toLowerCase()))
+                        .map((label) => ({ id: crypto.randomUUID(), label, target: "" }));
+                      if (added.length > 0) setGate({ roles: [...gate.roles, ...added] });
+                    }}
+                  >
+                    Add these roles
+                  </Button>
+                  <span className="text-xs text-[var(--muted-foreground)]">
+                    Copies the labels in; set where each one goes below.
+                  </span>
+                </div>
+              ) : null}
               {gate.roles.map((r, i) => (
                 <div key={r.id} className="flex flex-wrap items-center gap-2">
                   <Input

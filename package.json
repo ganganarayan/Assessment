@@ -44,6 +44,7 @@
     "verify:owner-stamp": "tsx scripts/verify-owner-stamp.ts",
     "verify:seo": "tsx scripts/verify-seo.ts",
     "verify:support": "tsx scripts/verify-support.ts",
+    "verify:audience-lists": "tsx scripts/verify-audience-lists.ts",
     "verify:payments": "tsx --conditions=react-server scripts/verify-payments.ts",
     "verify:routing": "tsx scripts/verify-routing.ts",
     "verify:flow": "tsx scripts/verify-flow.ts",
