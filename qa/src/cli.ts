@@ -7,7 +7,8 @@
  * Flags are parsed by hand: this folder keeps exactly one dependency, and an argument
  * parser is not worth a second.
  */
-import { loadQaEnv } from "./env.js";
+import { resolve } from "node:path";
+import { loadQaEnv, QA_ROOT } from "./env.js";
 import { closeDb } from "./db.js";
 import { readFunnel, type Funnel } from "./config/read.js";
 import { preflight, renderGuard } from "./guard.js";
@@ -16,6 +17,9 @@ import { generateCases } from "./cases/generate.js";
 import { expectationFor } from "./oracle/expect.js";
 import { oracleContext } from "./oracle/context.js";
 import type { CaseKind } from "./oracle/types.js";
+import { sweep } from "./sweep.js";
+import { renderTerminal, writeHtml } from "./report/render.js";
+import { newRunId } from "./drive/identity.js";
 
 interface Args {
   slug: string;
@@ -181,8 +185,24 @@ async function main(): Promise<number> {
     return 0;
   }
 
-  console.log("\nThe browser layer is not wired yet. Run with --plan to see the cases.");
-  return 0;
+  const drivable = cases.filter((c) => !c.unreachable).length;
+  console.log(`\nDriving ${drivable} case(s)${args.headed ? " in a visible browser" : ""}:`);
+  const runId = newRunId();
+  const result = await sweep(funnel, cases, ctx, {
+    baseUrl: env.baseUrl,
+    headed: args.headed,
+    slowMo: args.slow,
+    desktop: args.desktop,
+    trace: args.trace,
+    runId,
+    outRoot: resolve(QA_ROOT, "reports"),
+  });
+
+  console.log(renderTerminal(result));
+  const htmlPath = writeHtml(result);
+  console.log(`Open it: ${htmlPath}`);
+
+  return result.results.some((r) => r.verdict === "fail") ? 1 : 0;
 }
 
 main()

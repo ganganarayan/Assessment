@@ -545,7 +545,14 @@ export default async function ResultPage({
 
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
+              <div
+                className="flex items-center gap-2"
+                data-qa-result="overall"
+                data-qa-band={snap.resultBand ?? ""}
+                data-qa-percent={snap.scorePercent}
+                data-qa-score={snap.scoreRaw}
+                data-qa-max={snap.max}
+              >
                 {snap.resultBand ? <Badge variant="outline">{snap.resultBand}</Badge> : null}
                 <CardTitle>Overall: {snap.scorePercent}%</CardTitle>
               </div>
@@ -654,7 +661,14 @@ export default async function ResultPage({
           </div>
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
+              <div
+                className="flex items-center gap-2"
+                data-qa-result="overall"
+                data-qa-band={snap.resultBand ?? ""}
+                data-qa-percent={snap.scorePercent}
+                data-qa-score={snap.scoreRaw}
+                data-qa-max={snap.max}
+              >
                 {snap.resultBand ? <Badge variant="outline">{snap.resultBand}</Badge> : null}
                 <CardTitle>Overall: {snap.scorePercent}%</CardTitle>
               </div>
