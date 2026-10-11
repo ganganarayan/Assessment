@@ -1,4 +1,5 @@
 import "server-only";
+import { readExits, exitLabel } from "@/features/assessment/schemas";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { normalizeAttribution } from "@/lib/events/payload";
@@ -180,6 +181,37 @@ export async function getAnalyticsStats(
     { leftOptin: 0, gateIncomplete: 0 },
   );
 
+  // Turned away, BY ROUTE. One pooled "disqualified" number cannot tell three
+  // rejections from sixty people asking about the next cycle, and the whole point of
+  // routing is that those are different outcomes worth different money.
+  const exitGroups = await prisma.gateDisqualification.groupBy({
+    by: ["assessmentId", "exitKey"],
+    where: { ...scope, repeat: false, isBot: false },
+    _count: { _all: true },
+  });
+  // Named here rather than on the page: a key means nothing to anybody, and the name
+  // lives on the assessment the rejection belongs to. Grouped by assessment as well as
+  // by key, so two funnels that both call their first exit "exit1" are not merged.
+  const exitAssessments =
+    exitGroups.length > 0
+      ? await prisma.assessment.findMany({
+          where: { id: { in: [...new Set(exitGroups.map((g) => g.assessmentId))] } },
+          select: { id: true, disqualifiedContent: true },
+        })
+      : [];
+  const exitNames = new Map<string, string>();
+  for (const a of exitAssessments) {
+    readExits(a.disqualifiedContent).forEach((e, i) => exitNames.set(`${a.id}:${e.key}`, exitLabel(e, i)));
+  }
+  const exitTotals = new Map<string, number>();
+  for (const g of exitGroups) {
+    const name = exitNames.get(`${g.assessmentId}:${g.exitKey ?? ""}`) ?? "Exit 1";
+    exitTotals.set(name, (exitTotals.get(name) ?? 0) + g._count._all);
+  }
+  const byExit = [...exitTotals.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
   return {
     totalViews,
     uniqueViews: uniqueVisitors.length,
@@ -190,6 +222,7 @@ export async function getAnalyticsStats(
     paidAmount: (paidAgg._sum.amount ?? 0) / 100, // paise -> rupees
     disqualified,
     disqualifiedRepeat,
+    byExit,
     qualified,
     ...gateLosses,
     fired: fired
@@ -600,6 +633,13 @@ export async function listContactsForExport(range?: {
       customerId: true,
       resultToken: true,
       status: true,
+      // The gate's verdict, for the owner only. REVIEW is the band that exists so a
+      // borderline lead is read rather than thrown away, which only works if it is
+      // visible in the list they actually work from.
+      gateBand: true,
+      gateScore: true,
+      gateMax: true,
+      gateExitKey: true,
       resultFetchCount: true,
       attribution: true,
       clientIp: true,
@@ -710,6 +750,13 @@ export async function listContacts(opts: {
       customerId: true,
       resultToken: true,
       status: true,
+      // The gate's verdict, for the owner only. REVIEW is the band that exists so a
+      // borderline lead is read rather than thrown away, which only works if it is
+      // visible in the list they actually work from.
+      gateBand: true,
+      gateScore: true,
+      gateMax: true,
+      gateExitKey: true,
       resultFetchCount: true,
       attribution: true,
       clientIp: true,

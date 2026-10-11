@@ -121,6 +121,18 @@ export interface PayloadAttribution {
   fbclid: string | null;
   gclid: string | null;
 }
+/** How the Page-1 gate scored and routed one respondent. Internal: these numbers are
+ *  never shown to them, and the CRM is the only place they are read. */
+export interface PayloadGate {
+  /** PASS / REVIEW, or null on a funnel with no score bands. */
+  band: string | null;
+  score: number | null;
+  max: number | null;
+  /** Set when they came in through an OPTIN exit route (the waitlist case). */
+  exitKey: string | null;
+  exitName: string | null;
+}
+
 export interface PayloadScore {
   total: number;
   max: number;
@@ -226,6 +238,9 @@ export interface EmitInput {
   aiStatement?: string | null;
   /** CLINIC_AUDIT computed figures → contact.clinic_* custom fields + metadata.clinic. */
   clinic?: PayloadClinic | null;
+  /** Page-1 gate outcome → contact.gate_* custom fields. Sent on the opt-in so the CRM
+   *  can nurture a REVIEW lead, or a waitlist opt-in, differently from a clean pass. */
+  gate?: PayloadGate | null;
   attribution?: Partial<PayloadAttribution> | null;
   /** Which result-page CTA was clicked (CTA_CLICKED only). */
   cta?: PayloadCta | null;

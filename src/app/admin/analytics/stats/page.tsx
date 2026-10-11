@@ -98,10 +98,18 @@ export default async function StatsPage({
     {
       label: "Turned away by gate",
       value: s.disqualified,
+      // With more than one exit route the pooled number hides the thing worth knowing:
+      // a waitlist sign-up and a wrong-fit rejection are both "turned away" and are not
+      // remotely the same outcome.
       hint:
-        s.disqualifiedRepeat > 0
-          ? `+${s.disqualifiedRepeat.toLocaleString()} revisit${s.disqualifiedRepeat === 1 ? "" : "s"} by someone already rejected`
-          : undefined,
+        [
+          s.byExit.length > 1 ? s.byExit.map((e) => `${e.name}: ${e.count.toLocaleString()}`).join(" · ") : null,
+          s.disqualifiedRepeat > 0
+            ? `+${s.disqualifiedRepeat.toLocaleString()} revisit${s.disqualifiedRepeat === 1 ? "" : "s"} by someone already rejected`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("; ") || undefined,
     },
     // The two ways a qualified visitor is lost, kept apart because they are different
     // problems: one never saw the ask, the other saw it and said no.

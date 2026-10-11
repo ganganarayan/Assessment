@@ -37,6 +37,10 @@ export interface GateRejection {
   at: number;
   /** When GateDisqualified was last sent for this rejection; null = never. */
   firedAt: number | null;
+  /** Which exit route they were sent to, so a revisit lands on the SAME page. Blank on
+   *  a flag written before routes existed, which falls back to the first exit - the
+   *  only exit those funnels had. */
+  exitKey?: string;
 }
 
 /** localStorage key for one assessment's rejection (scoped per funnel). */
@@ -54,15 +58,16 @@ export function gateFlagKey(slug: string): string {
  */
 export function readGateRejection(raw: string | null | undefined): GateRejection | null {
   if (!raw) return null;
-  if (raw === "1") return { at: 0, firedAt: null };
+  if (raw === "1") return { at: 0, firedAt: null, exitKey: "" };
   try {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null) return null;
-    const { at, firedAt } = parsed as { at?: unknown; firedAt?: unknown };
+    const { at, firedAt, exitKey } = parsed as { at?: unknown; firedAt?: unknown; exitKey?: unknown };
     if (typeof at !== "number" || !Number.isFinite(at)) return null;
     return {
       at,
       firedAt: typeof firedAt === "number" && Number.isFinite(firedAt) ? firedAt : null,
+      exitKey: typeof exitKey === "string" ? exitKey : "",
     };
   } catch {
     return null;
@@ -80,11 +85,15 @@ export function shouldFireDisqualified(rejection: GateRejection, now: number = D
 }
 
 /** The value to store for a rejection happening now, not yet reported to Meta. */
-export function writeGateRejection(now: number = Date.now()): string {
-  return JSON.stringify({ at: now, firedAt: null } satisfies GateRejection);
+export function writeGateRejection(now: number = Date.now(), exitKey = ""): string {
+  return JSON.stringify({ at: now, firedAt: null, exitKey } satisfies GateRejection);
 }
 
 /** The same rejection, stamped with the moment GateDisqualified was just sent. */
 export function stampGateRejectionFired(rejection: GateRejection, now: number = Date.now()): string {
-  return JSON.stringify({ at: rejection.at || now, firedAt: now } satisfies GateRejection);
+  return JSON.stringify({
+    at: rejection.at || now,
+    firedAt: now,
+    exitKey: rejection.exitKey ?? "",
+  } satisfies GateRejection);
 }

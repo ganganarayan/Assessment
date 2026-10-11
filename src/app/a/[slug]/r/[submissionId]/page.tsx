@@ -8,6 +8,7 @@ import { computeResult, deriveInputs, resolveEngineConfig } from "@/lib/scoring/
 import { formatINR } from "@/lib/format/inr";
 import { ClinicAuditResult } from "@/features/assessment/components/public/clinic-audit-result";
 import { markResultViewed } from "@/features/events/record";
+import { qualificationSchema } from "@/features/assessment/schemas";
 import { resultUrlFor } from "@/lib/events/completion";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isSuperAdmin } from "@/lib/auth/guards";
@@ -162,6 +163,7 @@ export default async function ResultPage({
           title: true,
           targetUrl: true,
           nextStep: true,
+          qualification: true,
           resultLinkShowsResult: true,
           resultsContinueUrl: true,
           resultsContinueLabel: true,
@@ -245,7 +247,17 @@ export default async function ResultPage({
 
   // The gate as answered. Empty for an ungated funnel, and for submissions taken
   // before the breakdown was stored - both of which simply render nothing.
-  const gateRows = parseGateBreakdown(submission.gateBreakdown);
+  // The gate as answered - and whether the respondent is allowed to see it.
+  //
+  // Showing it is what this page has always done, and a gate-only funnel has nothing
+  // else to show, so it stays the default. A gate that scores people privately turns it
+  // off: a founder reading their own points learns exactly what to say next time, which
+  // is the one thing a screening question cannot survive.
+  const gateVisible = (() => {
+    const p = qualificationSchema.safeParse(submission.assessment.qualification);
+    return !p.success || p.data.showGateOnResult;
+  })();
+  const gateRows = gateVisible ? parseGateBreakdown(submission.gateBreakdown) : [];
 
   // Categories in the builder's order (displayOrder), not the stored snapshot's
   // scoring-iteration order - so the serial numbers baked into names/questions read

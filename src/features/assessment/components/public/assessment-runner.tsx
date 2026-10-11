@@ -8,6 +8,7 @@ import {
   saveDraftAnswers,
 } from "@/features/assessment/actions/submission";
 import { recordOptinView, recordGatePass, recordGateDisqualification, recordOptinSeen } from "@/features/assessment/actions/track";
+import { evaluateGate } from "@/features/assessment/actions/gate-route";
 import { gateFlagKey, readGateRejection, writeGateRejection } from "@/lib/gate-flag";
 import { firstStep, afterGateStep, type EntryInput } from "@/features/assessment/flow/entry";
 import { getResultForPages, type PageResultData } from "@/features/assessment/actions/pages";
@@ -176,23 +177,31 @@ export interface PublicAssessment {
   // A disqualifying answer routes to the disqualified page - no lead/submission/result.
   qualification: {
     enabled: boolean;
+    /** Ask the server for a verdict after the last question. The thresholds and the
+     *  points behind them never reach this page. */
+    bandsEnabled: boolean;
     questions: {
       id: string;
       text: string;
       type: "choice" | "text";
       placeholder: string;
       required: boolean;
-      options: { id: string; label: string; disqualifies: boolean }[];
+      options: { id: string; label: string; disqualifies: boolean; exitKey: string }[];
     }[];
   } | null;
-  disqualified: {
+  /** The exit routes. One entry for a gate built before routes existed, holding the
+   *  content its single disqualified page already had. The per-exit Meta settings stay
+   *  on the server - what fires is not the browser's decision to make. */
+  exits: {
+    key: string;
+    name: string;
+    mode: "PAGE" | "OPTIN";
     heading: string;
     subtext: string;
     bodyHtml: string;
     buttonLabel: string;
     buttonUrl: string;
-    fireDisqualifiedEvent: boolean;
-  } | null;
+  }[];
   categories: PublicCategory[];
   pages: AssessmentPageData[];
 }
@@ -307,6 +316,20 @@ export function AssessmentRunner({
   // change. Disqualifying picks never get here - that path ends the visit.
   const [qualChoices, setQualChoices] = useState<Record<string, string>>({});
 
+  // CONDITIONAL DISQUALIFYING ROUTE. Which exit this visitor was sent to, and whether
+  // that exit asks for their details instead of ending the visit.
+  //
+  // An OPTIN exit is not a rejection: nothing is written to the lockout flag, no
+  // GateDisqualified is reported, and the lead form is shown. The waitlist case - a
+  // founder who clears every bar and cannot make these dates - is a lead with a timing
+  // problem, and the only wrong thing to do with them is throw the email away.
+  const [exitKey, setExitKey] = useState<string>("");
+  const [exitOptin, setExitOptin] = useState(false);
+  const exits = assessment.exits ?? [];
+  /** The exit being shown. An unknown key falls back to the first: a dangling route is
+   *  a builder mistake, and the visitor should still see a page. */
+  const currentExit = exits.find((e) => e.key === exitKey) ?? exits[0] ?? null;
+
   // Audience gate: the current dropdown selection (option key) + the role label the
   // respondent picked (threaded to startSubmission; stored as their audience/role).
   const [gateChoice, setGateChoice] = useState<string>("");
@@ -392,7 +415,7 @@ export function AssessmentRunner({
   // answer that caused it; a `repeat` is a revisit short-circuited by the stored flag,
   // which must NOT re-fire the pixel (re-firing on every revisit is what inflated
   // Meta's exclusion count over the real number of people rejected).
-  const dqCauseRef = useRef<{ questionId?: string; optionId?: string; repeat: boolean } | null>(null);
+  const dqCauseRef = useRef<{ questionId?: string; optionId?: string; exitKey?: string; repeat: boolean } | null>(null);
 
   // Early-skip: a visitor already rejected by the gate (localStorage flag) goes
   // straight to the exit page without seeing the questions again. Checked after mount
@@ -403,8 +426,13 @@ export function AssessmentRunner({
     try {
       // A stored rejection never expires - a rejected visitor stays out of the funnel,
       // and the bfcache reload above routes a back-navigation through here too.
-      if (readGateRejection(localStorage.getItem(gateFlagKey(assessment.slug))) !== null) {
-        dqCauseRef.current = { repeat: true };
+      const stored = readGateRejection(localStorage.getItem(gateFlagKey(assessment.slug)));
+      if (stored !== null) {
+        // Back to the SAME exit they were sent to. A flag written before routes existed
+        // carries no key and falls back to the first exit, which is the only one those
+        // funnels ever had.
+        if (stored.exitKey) setExitKey(stored.exitKey);
+        dqCauseRef.current = { repeat: true, exitKey: stored.exitKey ?? "" };
         setStep("disqualified");
       }
     } catch {
@@ -425,6 +453,10 @@ export function AssessmentRunner({
     if (step !== "disqualified" || dqFiredRef.current) return;
     dqFiredRef.current = true;
     if (preview) return; // previewing the exit page is not a rejection
+    // An OPTIN exit reaches this screen as a THANK-YOU, after the lead was captured.
+    // Nobody was rejected, so nothing is reported here: the server already fired that
+    // exit's own event when it wrote the lead.
+    if (exitOptin) return;
     const cause = dqCauseRef.current ?? { repeat: true };
 
     void recordGateDisqualification(
@@ -432,6 +464,7 @@ export function AssessmentRunner({
       {
         questionId: cause.questionId,
         optionId: cause.optionId,
+        exitKey: cause.exitKey,
         repeat: cause.repeat,
         externalId: getOrCreateExternalId() ?? undefined,
       },
@@ -619,7 +652,7 @@ export function AssessmentRunner({
     const honeypot = hpRef.current?.value ?? "";
     const optin = Object.keys(optinAnswers).length ? optinAnswers : undefined;
     start(async () => {
-      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot, optin, selectedRole ?? undefined, getOrCreateExternalId() ?? undefined, Object.keys(qualTextAnswers).length ? qualTextAnswers : undefined, Object.keys(qualChoices).length ? qualChoices : undefined);
+      const res = await startSubmission(assessment.slug, lead, attribution, preview, honeypot, optin, selectedRole ?? undefined, getOrCreateExternalId() ?? undefined, Object.keys(qualTextAnswers).length ? qualTextAnswers : undefined, Object.keys(qualChoices).length ? qualChoices : undefined, exitOptin ? exitKey || undefined : undefined);
       if (!res.ok) {
         setError(res.error);
         return;
@@ -644,6 +677,15 @@ export function AssessmentRunner({
           resultAvailable: res.data.resultAvailable,
         });
         setStep("locked");
+        return;
+      }
+      // An OPTIN exit ends here: their details are captured and the exit's content is
+      // the thank-you. No questions, no result, and deliberately no CompleteRegistration
+      // - the server reports this one under the exit's own event name, because a
+      // waitlist sign-up filed as a registration corrupts both audiences at once.
+      if (exitOptin) {
+        setSubmissionId(res.data?.submissionId ?? null);
+        setStep("disqualified");
         return;
       }
       // Meta Pixel: fire CompleteRegistration ONLY on a genuine new
@@ -695,38 +737,92 @@ export function AssessmentRunner({
   // disqualified page - NO lead / submission / result is ever created (optionally
   // fires a custom "Disqualified" pixel event for ad exclusion). A qualifying answer
   // auto-advances to the next question, then enters the assessment after the last.
-  function pickQualOption(option: { id: string; disqualifies: boolean }) {
+  /**
+   * Send this visitor out through a named exit.
+   *
+   * PAGE exits behave as the single disqualified page always has: the lockout flag is
+   * written, the rejection is reported, and the exit's content is the last thing they
+   * see. OPTIN exits do none of that - they are not being turned away.
+   */
+  function goToExit(key: string, cause: { questionId?: string; optionId?: string }) {
+    const exit = exits.find((e) => e.key === key) ?? exits[0] ?? null;
+    const resolved = exit?.key ?? "";
+    setExitKey(resolved);
+
+    if (exit?.mode === "OPTIN") {
+      setExitOptin(true);
+      dqCauseRef.current = null;
+      setStep("leadForm");
+      return;
+    }
+
+    if (!preview) {
+      try {
+        // Locks this browser out for good, remembering WHICH exit, so a return visit
+        // lands on the same page rather than on whatever happens to be first.
+        localStorage.setItem(gateFlagKey(assessment.slug), writeGateRejection(Date.now(), resolved));
+      } catch {
+        /* private mode / blocked storage - non-fatal */
+      }
+    }
+    dqCauseRef.current = { ...cause, exitKey: resolved, repeat: false };
+    setStep("disqualified");
+  }
+
+  /**
+   * The end of the gate for somebody who dodged every hard exit.
+   *
+   * With bands switched on this asks the server for a verdict, because the thresholds
+   * and the points are deliberately not in this page. Without them it is the straight
+   * pass the gate has always been, with no round trip.
+   */
+  function finishGate(choices: Record<string, string>) {
+    const enter = () => {
+      markGatePassed(); // cleared the whole gate - they are now in the funnel
+      setStep(gated ? "gate" : afterIntroStep());
+    };
+    if (!qual?.bandsEnabled || preview) {
+      enter();
+      return;
+    }
+    start(async () => {
+      const verdict = await evaluateGate(assessment.slug, choices).catch(() => ({ outcome: "pass" as const }));
+      if (verdict.outcome === "exit") {
+        goToExit(verdict.exitKey ?? "", {});
+        return;
+      }
+      // "review" is a flag on the lead, not a different journey: the respondent walks
+      // the same funnel and never learns they were borderline. The band itself is
+      // recomputed and stored server-side when the submission starts.
+      enter();
+    });
+  }
+
+  function pickQualOption(option: { id: string; disqualifies: boolean; exitKey?: string }) {
     setError(null);
     // Fill the picked radio, then advance a beat later so the selection registers.
     setQualPickedId(option.id);
     window.setTimeout(() => {
       setQualPickedId(null);
       if (option.disqualifies) {
-        // Remember the rejection so a repeat visit skips straight to the exit page
-        // (free client-side layer; fires instantly, before the Meta audience populates).
-        // Scoped per-assessment so one funnel's rejection doesn't block another.
-        if (!preview) {
-          try {
-            // Locks this browser out for good; the effect below sends the
-            // GateDisqualified event and stamps the flag once it has.
-            localStorage.setItem(gateFlagKey(assessment.slug), writeGateRejection());
-          } catch {
-            /* private mode / blocked storage - non-fatal */
-          }
-        }
-        // A fresh rejection: the effect fires the pixel event and records the row.
-        dqCauseRef.current = { questionId: qual?.questions[qualIndex]?.id, optionId: option.id, repeat: false };
-        setStep("disqualified");
+        // A hard exit is decided HERE, from the key already in the payload, rather than
+        // by asking the server: making somebody wait on a network call to be told they
+        // are not a fit is its own small insult. The server re-checks it anyway before
+        // anything is reported to Meta.
+        goToExit(option.exitKey ?? "", {
+          questionId: qual?.questions[qualIndex]?.id,
+          optionId: option.id,
+        });
         return;
       }
       if (!qual) return;
       const answeredId = qual.questions[qualIndex]?.id;
-      if (answeredId) setQualChoices((m) => ({ ...m, [answeredId]: option.id }));
+      const nextChoices = answeredId ? { ...qualChoices, [answeredId]: option.id } : qualChoices;
+      if (answeredId) setQualChoices(nextChoices);
       if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
-      else {
-        markGatePassed(); // cleared the whole gate - they are now in the funnel
-        setStep(gated ? "gate" : afterIntroStep());
-      }
+      // The state set above has not landed yet, so the verdict is asked for with the
+      // map built by hand - the last answer is the one most likely to decide a band.
+      else finishGate(nextChoices);
     }, 160);
   }
 
@@ -741,14 +837,11 @@ export function AssessmentRunner({
     setError(null);
     if (!qual) return;
     if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
-    else {
-      markGatePassed(); // cleared the whole gate - they are now in the funnel
-      // Same exit as the radio path (afterIntroStep), not a hardcoded "intro": a gate
-      // whose LAST question happened to be a text one dropped the respondent on the
-      // title-and-Start screen the radio path skips, and on a gate-only funnel that is
-      // a Start button in front of nothing.
-      setStep(gated ? "gate" : afterIntroStep());
-    }
+    // Same exit as the radio path (finishGate), not a hardcoded "intro": a gate whose
+    // LAST question happened to be a text one dropped the respondent on the
+    // title-and-Start screen the radio path skips, and on a gate-only funnel that is
+    // a Start button in front of nothing.
+    else finishGate(qualChoices);
   }
 
   // Audience gate "Continue": a redirecting choice hops to its assessment; a
@@ -1196,7 +1289,7 @@ export function AssessmentRunner({
   }
 
   if (step === "disqualified") {
-    const dq = assessment.disqualified;
+    const dq = currentExit;
     return (
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-3">

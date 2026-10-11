@@ -193,6 +193,18 @@ export function buildEnvelope(
     envelope["contact.clinic_dormant_value"] = c.dormantValue;
     envelope["contact.clinic_five_case_ad_spend"] = c.fiveCaseAdSpend;
   }
+  // Page-1 gate outcome. Flat contact fields rather than a nested block, because the
+  // thing a CRM does with these is branch on them: a REVIEW lead gets a different
+  // sequence from a clean pass, and a waitlist opt-in gets a different one again.
+  // Absent entirely on a funnel with no gate, rather than sent as a row of nulls.
+  if (input.gate) {
+    const g = input.gate;
+    envelope["contact.gate_band"] = g.band;
+    envelope["contact.gate_score"] = g.score;
+    envelope["contact.gate_max"] = g.max;
+    envelope["contact.gate_exit"] = g.exitName;
+    envelope["contact.gate_exit_key"] = g.exitKey;
+  }
   // Event name as a contact custom field, so the CRM can match every event
   // uniformly on contact.event_type (lead_created / assessment_started /
   // assessment_completed / …). The score_updated resend overrides this in the sender.

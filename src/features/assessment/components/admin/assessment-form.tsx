@@ -207,7 +207,7 @@ const DEFAULTS: AssessmentFormValues = {
   paymentIntroText: "",
   audienceGate: EMPTY_AUDIENCE_GATE,
   fireMetaCapi: true,
-  metaEvents: { registration: true, completion: true, gateDisqualified: true, abandoned: true, gateIncomplete: false },
+  metaEvents: { registration: true, completion: true, gateDisqualified: true, abandoned: true, gateIncomplete: false, gatePassed: false },
 };
 
 export function AssessmentForm({
@@ -823,6 +823,7 @@ export function AssessmentForm({
                               abandoned: true,
                               // New events stay off until asked for - see DEFAULT_OFF.
                               gateIncomplete: false,
+                              gatePassed: false,
                             }),
                             [k]: e.target.checked,
                           })

@@ -29,7 +29,12 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
     // completedAt: null excludes ever-completed submissions - a paid-mode respondent
     // who completed then returned to edit is reset to STARTED (keeping the old
     // startedAt), and must NOT be swept as abandoned / nurtured as a lost lead.
-    where: { status: "STARTED", abandonedAt: null, completedAt: null, startedAt: { lt: cutoff } },
+    // gateExitKey null excludes an OPTIN EXIT ROUTE opt-in - the waitlist case. Those
+    // people were routed sideways by the gate and asked for their details; they were
+    // never going to answer the assessment, so chasing them as abandoners would mean
+    // an "you did not finish" nurture to somebody who finished what they were offered,
+    // and an AssessmentAbandoned event for a visit that did not abandon anything.
+    where: { status: "STARTED", abandonedAt: null, completedAt: null, gateExitKey: null, startedAt: { lt: cutoff } },
     select: {
       id: true,
       assessmentId: true,

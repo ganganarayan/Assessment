@@ -1236,6 +1236,21 @@ model Submission {
   gateScore Int?
   gateMax   Int?
 
+  // Which score band the gate put them in: PASS (clear) or REVIEW (through, but worth
+  // the owner's eyes before a call). Null = the funnel has no bands, which is every
+  // gate that existed before them. Never shown to the respondent - the gate score is
+  // the owner's instrument, and a number on the screen is a number to play to.
+  gateBand String?
+
+  // Set when this submission came in through an OPTIN exit route rather than the
+  // funnel proper - the waitlist case: someone the gate sent sideways, whose details
+  // are worth having anyway. Holds the exit's key.
+  //
+  // It is what keeps the two apart everywhere afterwards: these people never answer the
+  // assessment, so without it the abandoned sweep would chase them and every completion
+  // rate would read as though they had dropped out.
+  gateExitKey String?
+
   /// The gate, question by question, resolved AT THE MOMENT IT WAS ANSWERED: question
   /// text, the option picked, what it scored and what it could have scored.
   /// Shape: [{ q, a, points, max }].
@@ -1378,6 +1393,7 @@ model Submission {
   @@index([status, startedAt]) // abandonment sweep
   @@index([assessmentId, identifierValue, status]) // retake lockout + trend
   @@index([crmDirty]) // CRM resend drip queue
+  @@index([gateExitKey]) // waitlist/opt-in exit rows, kept apart from the funnel proper
   @@map("submission")
 }
 
@@ -2298,6 +2314,12 @@ model GateDisqualification {
   questionId String?
   optionId   String?
 
+  // Which exit route they were sent to, by the exit's key. Null on a row written before
+  // routes existed, and on a repeat the server could not attribute. Without it every
+  // exit pools into one "disqualified" number, and a funnel cannot tell three rejections
+  // from sixty people asking to be told about the next cycle.
+  exitKey String?
+
   // When GateDisqualified was actually SENT to Meta for this rejection (server CAPI).
   // Null = nothing was sent for this row: a revisit Meta already knows about, a
   // funnel with the event switched off, or a send that failed. Replaces the old
@@ -2345,6 +2367,7 @@ model GateDisqualification {
   @@index([utmCampaign])
   @@index([tenantId, createdAt])
   @@index([assessmentId, visitorId]) // "did we already report this visitor?"
+  @@index([exitKey]) // per-route counts
   @@map("gate_disqualification")
 }
 
