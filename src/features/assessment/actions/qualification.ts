@@ -169,9 +169,23 @@ export async function ensureGateExit(
   const existing = exits.find((e) => e.name.trim().toLowerCase() === clean.toLowerCase());
   if (existing) return { ok: true, data: { key: existing.key, name: existing.name } };
 
-  // The first exit of a gate that has never been named is the one already there (the
-  // old single disqualified page), so naming it adopts it instead of adding a second.
-  const firstUnnamed = exits.length === 1 && !exits[0]?.name.trim() ? exits[0] : null;
+  // An unnamed, EMPTY first exit is the placeholder every gate starts with, so naming
+  // it adopts it rather than leaving a blank route behind a named one.
+  //
+  // An unnamed exit that already HAS copy is a different thing: it is the page this
+  // funnel has been showing people. Renaming that one because somebody typed "Waitlist"
+  // on an answer would silently point the waitlist at the rejection page, with the
+  // evidence buried one builder step away. That gets a new route instead.
+  const first = exits.length === 1 ? exits[0] : null;
+  const firstIsBlank =
+    !!first &&
+    !first.name.trim() &&
+    !first.heading.trim() &&
+    !first.subtext.trim() &&
+    !first.bodyHtml.trim() &&
+    !first.buttonLabel.trim() &&
+    !first.buttonUrl.trim();
+  const firstUnnamed = firstIsBlank ? first : null;
   if (firstUnnamed) {
     const renamed = exits.map((e) => (e.key === firstUnnamed.key ? { ...e, name: clean } : e));
     await writeExits(assessmentId, renamed);

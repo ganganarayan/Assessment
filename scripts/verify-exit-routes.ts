@@ -231,5 +231,22 @@ expect(
   blockVisibleFor(block("EXIT", "c"), "c") && !blockVisibleFor(block("EXIT", "c"), "other"),
 );
 
+// --- Turned away, or routed on? ------------------------------------------------------
+//
+// Both write a gate_disqualification row, and the stats split them on the route's mode
+// (analytics.ts). The number this protects is one an owner acts on: counting waitlist
+// people as rejections files the most qualified traffic in the funnel under the heading
+// for the least.
+const countAsTurnedAway = (exit: { mode: string } | null | undefined): boolean => !exit || exit.mode === "PAGE";
+
+expect("a page exit counts as turned away", countAsTurnedAway(waitlist[0]!));
+expect("a waitlist route does not", !countAsTurnedAway(cont));
+expect("nor does a thank-you route", !countAsTurnedAway({ mode: "OPTIN" }));
+expect(
+  "a row whose route no longer resolves counts as turned away",
+  countAsTurnedAway(null),
+  "the legacy shape, and the only safe side to err on",
+);
+
 console.log(failures === 0 ? "\n🟢 All checks passed." : `\n🟡 ${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);

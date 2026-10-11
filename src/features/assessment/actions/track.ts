@@ -341,7 +341,15 @@ export async function recordGateDisqualification(
         const picked = q.data.questions.find((x) => x.id === questionId)?.options.find((o) => o.id === optionId);
         if (picked?.disqualifies) routeKey = (picked.exitKey ?? "").trim() || null;
       }
-    } else if (repeat) {
+    } else if (!repeat) {
+      // A SCORE-BAND exit names no answer - the band decided it, from a total the
+      // browser was never given. There is nothing to re-derive from here, so the key
+      // the funnel reports is taken as a hint and validated against this assessment's
+      // own exits below. The worst a tampered value can do is pick one of the owner's
+      // own routes; it cannot invent an event, because the event name is read from the
+      // route, server-side.
+      routeKey = exitKey?.trim() || null;
+    } else {
       const prior = await prisma.gateDisqualification.findFirst({
         where: { assessmentId: a.id, visitorId: c.get(VISITOR_COOKIE)?.value ?? "", exitKey: { not: null } },
         orderBy: { createdAt: "desc" },
@@ -351,11 +359,24 @@ export async function recordGateDisqualification(
     }
     const exit = resolveExit(exits, routeKey);
 
+    // A route that asks for their details writes no lockout flag - it has to let them
+    // carry on - so a second visit would otherwise arrive here as another FRESH row and
+    // inflate the very number this exists to make honest. A visitor already recorded on
+    // this route is marked a repeat, which the human-facing counts exclude.
+    let repeatRow = repeat;
+    if (!repeatRow && exit && exit.mode !== "PAGE") {
+      const seen = await prisma.gateDisqualification.findFirst({
+        where: { assessmentId: a.id, visitorId: c.get(VISITOR_COOKIE)?.value ?? "", exitKey: exit.key, repeat: false },
+        select: { id: true },
+      });
+      if (seen) repeatRow = true;
+    }
+
     const meta = {
       questionId: questionId ?? null,
       optionId: optionId ?? null,
       exitKey: exit?.key ?? null,
-      repeat,
+      repeat: repeatRow,
       isBot: isBotUserAgent(ua),
       userAgent: ua ? ua.slice(0, 512) : null,
       ip: ipRaw ? ipRaw.slice(0, 64) : null,

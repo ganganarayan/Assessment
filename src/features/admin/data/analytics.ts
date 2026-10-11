@@ -199,17 +199,26 @@ export async function getAnalyticsStats(
           select: { id: true, disqualifiedContent: true },
         })
       : [];
-  const exitNames = new Map<string, string>();
-  for (const a of exitAssessments) {
-    readExits(a.disqualifiedContent).forEach((e, i) => exitNames.set(`${a.id}:${e.key}`, exitLabel(e, i)));
-  }
-  const exitTotals = new Map<string, number>();
+  const exitsByAssessment = new Map(exitAssessments.map((a) => [a.id, readExits(a.disqualifiedContent)]));
+
+  // 🔴 A ROUTED-IN PERSON WAS NOT TURNED AWAY. They were sent sideways and asked for
+  // their details - on the waitlist route they go on to answer the whole assessment.
+  // Counting them in "turned away" would put the most qualified people in the funnel
+  // under the heading for the least, and that number is one an owner acts on.
+  const exitTotals = new Map<string, { count: number; routed: boolean }>();
+  let routedOn = 0;
   for (const g of exitGroups) {
-    const name = exitNames.get(`${g.assessmentId}:${g.exitKey ?? ""}`) ?? "Exit 1";
-    exitTotals.set(name, (exitTotals.get(name) ?? 0) + g._count._all);
+    const exits = exitsByAssessment.get(g.assessmentId) ?? [];
+    const idx = exits.findIndex((e) => e.key === (g.exitKey ?? ""));
+    const exit = idx >= 0 ? exits[idx] : exits[0];
+    const routed = !!exit && exit.mode !== "PAGE";
+    if (routed) routedOn += g._count._all;
+    const name = exit ? exitLabel(exit, idx >= 0 ? idx : 0) : "Exit 1";
+    const prev = exitTotals.get(name);
+    exitTotals.set(name, { count: (prev?.count ?? 0) + g._count._all, routed });
   }
   const byExit = [...exitTotals.entries()]
-    .map(([name, count]) => ({ name, count }))
+    .map(([name, v]) => ({ name, count: v.count, routed: v.routed }))
     .sort((a, b) => b.count - a.count);
 
   return {
@@ -220,7 +229,10 @@ export async function getAnalyticsStats(
     vslLoads,
     paidCount: paidAgg._count._all,
     paidAmount: (paidAgg._sum.amount ?? 0) / 100, // paise -> rupees
-    disqualified,
+    // Turned away = the rejections only. Routed-in people are counted beside them, not
+    // inside them; the two queries share a where clause, so the split always adds up.
+    disqualified: Math.max(0, disqualified - routedOn),
+    routedOn,
     disqualifiedRepeat,
     byExit,
     qualified,

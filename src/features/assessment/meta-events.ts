@@ -67,9 +67,9 @@ export const META_EVENT_META: Record<MetaEventKey, { label: string; event: strin
     help: "Fires when the assessment is finished. Gated funnels send QualifiedCompletion instead, so the audience only contains people who passed.",
   },
   gateDisqualified: {
-    label: "Disqualified",
+    label: "Gate exits",
     event: "GateDisqualified",
-    help: "Fires when the page-1 gate rejects someone. Its only purpose is an exclusion audience - turn it off and you lose the ability to stop paying for unfit traffic.",
+    help: "Fires when the page-1 gate sends somebody out through an exit route, under whatever event that route is named after (GateDisqualified unless you changed it). Covers every route, including a waitlist. Turn it off and you lose the exclusion audience that stops you paying for unfit traffic.",
   },
   abandoned: {
     label: "Left the opt-in",

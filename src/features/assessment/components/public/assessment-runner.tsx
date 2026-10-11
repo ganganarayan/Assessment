@@ -759,8 +759,44 @@ export function AssessmentRunner({
 
     if (exit?.mode === "OPTIN" || exit?.mode === "CONTINUE") {
       setExitOptin(true);
-      setExitContinues(exit.mode === "CONTINUE");
       dqCauseRef.current = null;
+
+      // 🔴 REPORTED HERE, AT THE GATE, not when they opt in.
+      //
+      // With capture at the end of the assessment the opt-in can be ten minutes and
+      // twenty-one questions away, and anybody who leaves in between would have left no
+      // trace at all. Taking the route IS the fact worth recording, and it needs no
+      // lead data: the server sends it with ip / user agent / fbp / external_id, the
+      // same match keys a rejection uses. Nothing else fires for these people afterwards.
+      if (!preview) {
+        void recordGateDisqualification(
+          assessment.slug,
+          {
+            questionId: cause.questionId,
+            optionId: cause.optionId,
+            exitKey: resolved,
+            repeat: false,
+            externalId: getOrCreateExternalId() ?? undefined,
+          },
+          attribution,
+        ).catch(() => {});
+      }
+
+      if (exit.mode === "CONTINUE") {
+        // 🔴 The funnel's OWN ordering, not a hardcoded lead form.
+        //
+        // Sending them straight to "leadForm" broke every lead-capture-AFTER funnel:
+        // the opt-in handler there assumes the questions are already answered, so it
+        // completed the submission on the spot with nothing in it. A routed-in
+        // respondent takes the same path as somebody who passed, which is the whole
+        // point of this mode - only what they are told at the end differs.
+        setExitContinues(true);
+        setStep(gated ? "gate" : afterIntroStep());
+        return;
+      }
+
+      // A thank-you route: the lead form IS the rest of the visit.
+      setExitContinues(false);
       setStep("leadForm");
       return;
     }

@@ -350,23 +350,15 @@ async function fireRegistration(
     // Server-side Meta CAPI. Fire-and-forget + LOGGED: every opt-in send (and its
     // Meta response) is recorded to the CAPI log. The wrapper checks config itself
     // and logs a "not configured" row, so a silent drop is now visible.
-    // 🔴 ONE EVENT, ONE MEANING. A waitlist sign-up is not a registration: filing it as
+    // 🔴 ONE EVENT, ONE MEANING. A routed-in opt-in is not a registration: filing it as
     // CompleteRegistration teaches the ad account that people who cannot attend are the
-    // conversion, and no care further down the funnel repairs that. So an exit route
-    // reports under its own name or not at all.
+    // conversion, and no care further down the funnel repairs that.
     //
-    // "Not at all" is the deliberate default. An OPTIN exit with no event name set
-    // fires NOTHING, rather than falling back to GateDisqualified - a silence an owner
-    // can notice and fix, against a corrupted exclusion audience nobody sees.
-    const exitEventName = exitRoute ? exitRoute.eventName.trim() : "";
-    const exitReports = !!exitRoute && exitRoute.fireDisqualifiedEvent && !!exitEventName;
-    if (fireMeta && exitRoute && !exitReports) {
-      // Nothing to send. Said out loud, because an exit that silently reports nothing
-      // is indistinguishable from one that is broken.
-      console.warn(`[start] exit route "${exitRoute.name || exitRoute.key}" reports no Meta event (no event name set)`);
-    }
-    if (fireMeta && (!exitRoute || exitReports)) {
-      const metaEventName = exitRoute ? exitEventName : "CompleteRegistration";
+    // So an exit route reports NOTHING here. Its one event already fired at the gate,
+    // the moment the route was taken, where it catches everybody - including the ones
+    // who never reach this form because the opt-in sits at the end of the assessment.
+    if (fireMeta && !exitRoute) {
+      const metaEventName = "CompleteRegistration";
       const ctx = await getMetaRequestContext();
       void sendAndLogLifecycleCapi(
         {
@@ -386,13 +378,7 @@ async function fireRegistration(
             zip: ctx.postalCode,
             externalId,
           },
-          customData: {
-            content_name: assessment.title,
-            assessment_name: assessment.title,
-            // Two exits that SHOULD share an event stay one audience and are still
-            // separable by a rule, instead of splitting thin volume across two names.
-            ...(exitRoute?.contentCategory ? { content_category: exitRoute.contentCategory } : {}),
-          },
+          customData: { content_name: assessment.title, assessment_name: assessment.title },
         },
         {
           tenantId: assessment.tenant?.id ?? null,

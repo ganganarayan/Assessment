@@ -65,6 +65,23 @@ export function QualificationManager({
   const router = useRouter();
   const [q, setQ] = useState<QualificationInput>(initialQualification);
   const [d, setD] = useState<DisqualifiedContentInput>(initialDisqualified);
+  /**
+   * 🔴 The two halves of this builder are two INSTANCES of this component (section
+   * "gate" and section "exit"), each holding its own copy of the exit content. Naming
+   * a route on an answer writes it on the server, so without this the exit step would
+   * not know the route existed until a full page reload - and saving that stale copy
+   * would delete the route that had just been made.
+   *
+   * So: when the server sends a different exit content than last time (a refresh after
+   * any save), adopt it. Keyed on the serialized prop, so ordinary typing is untouched.
+   */
+  const [seenDisq, setSeenDisq] = useState(() => JSON.stringify(initialDisqualified));
+  const incomingDisq = JSON.stringify(initialDisqualified);
+  if (incomingDisq !== seenDisq) {
+    setSeenDisq(incomingDisq);
+    setD(initialDisqualified);
+  }
+
   const [qMsg, setQMsg] = useState<Msg | null>(null);
   const [dMsg, setDMsg] = useState<Msg | null>(null);
   const [pending, start] = useTransition();
@@ -140,7 +157,10 @@ export function QualificationManager({
   const saveDisq = () =>
     start(async () => {
       setDMsg(null);
-      const res = await saveDisqualifiedContent(assessmentId, d);
+      // Send the MATERIALIZED list, never the raw state: a legacy gate's state carries
+      // `exits: []` until something is edited, and saving that over routes created from
+      // the answers screen would delete them.
+      const res = await saveDisqualifiedContent(assessmentId, { ...d, exits });
       setDMsg(res.ok ? { tone: "ok", text: "Saved." } : { tone: "error", text: res.error });
       if (res.ok) router.refresh();
     });
@@ -185,7 +205,36 @@ export function QualificationManager({
         setQMsg({ tone: "error", text: res.error });
         return;
       }
-      setOption(qi, oi, { exitKey: res.data?.key ?? "" });
+      const key = res.data?.key ?? "";
+      // Adopt it locally as well, so the field shows the name back instead of going
+      // blank while it waits for the server render.
+      setD((prev) => {
+        const list = prev.exits.length > 0 ? prev.exits : readExits(prev);
+        if (list.some((e) => e.key === key)) {
+          return { ...prev, exits: list.map((e) => (e.key === key ? { ...e, name: clean } : e)) };
+        }
+        return {
+          ...prev,
+          exits: [
+            ...list,
+            {
+              key,
+              name: clean,
+              mode: "PAGE" as const,
+              heading: "",
+              subtext: "",
+              bodyHtml: "",
+              buttonLabel: "",
+              buttonUrl: "",
+              fireDisqualifiedEvent: true,
+              eventName: "",
+              contentCategory: "",
+              completionEventName: "",
+            },
+          ],
+        };
+      });
+      setOption(qi, oi, { exitKey: key });
       setQMsg({ tone: "warn", text: `Exit "${clean}" created. Write what it says in the exit step, then save the gate.` });
       router.refresh();
     });

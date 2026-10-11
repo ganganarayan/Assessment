@@ -103,7 +103,10 @@ export default async function StatsPage({
       // remotely the same outcome.
       hint:
         [
-          s.byExit.length > 1 ? s.byExit.map((e) => `${e.name}: ${e.count.toLocaleString()}`).join(" · ") : null,
+          (() => {
+            const rejected = s.byExit.filter((e) => !e.routed);
+            return rejected.length > 1 ? rejected.map((e) => `${e.name}: ${e.count.toLocaleString()}`).join(" · ") : null;
+          })(),
           s.disqualifiedRepeat > 0
             ? `+${s.disqualifiedRepeat.toLocaleString()} revisit${s.disqualifiedRepeat === 1 ? "" : "s"} by someone already rejected`
             : null,
@@ -111,6 +114,21 @@ export default async function StatsPage({
           .filter(Boolean)
           .join("; ") || undefined,
     },
+    // Routed on rather than rejected: the waitlist case. Shown only once a funnel
+    // actually has such a route, so it never adds a permanent zero to every other one.
+    ...(s.routedOn > 0
+      ? [
+          {
+            label: "Routed on, not rejected",
+            value: s.routedOn,
+            hint:
+              s.byExit
+                .filter((e) => e.routed)
+                .map((e) => `${e.name}: ${e.count.toLocaleString()}`)
+                .join(" · ") || "Sent to a route that asks for their details.",
+          },
+        ]
+      : []),
     // The two ways a qualified visitor is lost, kept apart because they are different
     // problems: one never saw the ask, the other saw it and said no.
     { label: "Never reached opt-in", value: s.gateIncomplete, hint: "Passed the gate, left before the form." },
