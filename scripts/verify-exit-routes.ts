@@ -181,12 +181,28 @@ expect("a plain exit page does not", !exitTakesAssessment(waitlist[0]!));
 expect("both opt-in kinds capture a lead", exitCapturesLead(cont) && exitCapturesLead({ ...cont, mode: "OPTIN" }));
 expect("a page exit captures nothing", !exitCapturesLead(waitlist[0]!));
 expect("the gate reports them as waitlisted, not disqualified", cont.eventName === "GateWaitlisted");
+
+// What a completion on this route reports. The rule the app applies: a routed-in
+// respondent is SILENT unless the route names an event, where every other respondent
+// gets the funnel's normal completion event.
+const completionFor = (exit: { completionEventName: string } | null): string | null =>
+  exit ? exit.completionEventName.trim() || null : "AssessmentCompleted";
+
 expect(
-  "and their COMPLETION reports under its own name",
-  cont.completionEventName === "WaitlistCompleted",
-  "the funnel's normal completion event here teaches Meta to find people who cannot attend",
+  "a waitlist completion reports NOTHING by default",
+  completionFor({ completionEventName: "" }) === null,
+  "they opted in, so the CRM has them with full contact details - that is where the next-cycle list is sent from",
 );
-expect("a route with no completion event falls back to the funnel's", waitlist[0]!.completionEventName === "");
+expect(
+  "which is what keeps them out of the optimisation event",
+  completionFor({ completionEventName: "" }) !== "AssessmentCompleted",
+);
+expect(
+  "a route CAN name its own event if Meta should hold a copy",
+  completionFor({ completionEventName: "WaitlistCompleted" }) === "WaitlistCompleted",
+);
+expect("and everybody else still reports the funnel's event", completionFor(null) === "AssessmentCompleted");
+expect("a route saved with no completion event stays silent", cont.completionEventName === "WaitlistCompleted" || cont.completionEventName === "");
 
 // --- The close is addressed, the diagnosis is not -----------------------------------
 const block = (showFor: ResultBlock["showFor"], exitKey?: string): ResultBlock => ({

@@ -987,6 +987,9 @@ export async function completeSubmission(
     payment?: PaymentCheckout;
     paymentRedirectUrl?: string;
     eventId?: string;
+    /** The event the SERVER just sent, so the browser pixel fires the same name and the
+     *  two deduplicate. Absent when nothing was sent. */
+    eventName?: string;
     // Billing gate: the tenant is over its response cap, so this completion is locked.
     // The lead is shown a neutral "results unavailable - contact support" screen with
     // `supportEmail` instead of a result/VSL. No other data fields are returned.
@@ -1615,12 +1618,18 @@ export async function completeSubmission(
    * keeps the funnel's normal event, which is what every route that is not a waitlist
    * should do.
    */
-  const completionEvent = (() => {
+  const completionEvent: string | null = (() => {
     const normal = completionEventName(isQualificationActive(assessment.qualification));
     const key = full?.gateExitKey?.trim();
     if (!key) return normal;
+    // A routed-in respondent reports NOTHING at completion unless the owner names an
+    // event. Silence is the right default: they opted in, so they are in the CRM with
+    // full contact details, which is where the next-cycle list gets built and sent
+    // from. Meta does not need its own copy of a list nobody advertises to, and the
+    // one thing that would actually cost money - landing in the optimisation event -
+    // is exactly what firing the normal completion here would do.
     const exit = readExits(assessment.disqualifiedContent).find((e) => e.key === key);
-    return exit?.completionEventName.trim() || normal;
+    return exit?.completionEventName.trim() || null;
   })();
 
   // Completion without an in-app payment is ONE event: completed_unpaid. Paid mode
@@ -1689,8 +1698,8 @@ export async function completeSubmission(
   // anyway, which a client-side check would allow.
   const mayFireCompletion = await tenantCan(assessment.tenant?.id ?? null, "analyticsTracking");
   const completionOn = metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "completion");
-  const eventId = completionOn && mayFireCompletion ? randomUUID() : undefined;
-  if (completionOn && eventId) {
+  const eventId = completionOn && mayFireCompletion && completionEvent ? randomUUID() : undefined;
+  if (completionOn && eventId && completionEvent) {
     const ctx = await getMetaRequestContext();
     void sendAndLogLifecycleCapi(
       {
@@ -1765,5 +1774,15 @@ export async function completeSubmission(
   });
   // On a PAID exit, omit the token-bearing resultUrl from the client response.
   const paidExit = !!(paid.payment || paid.paymentRedirectUrl);
-  return { ok: true, data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid, ...(eventId ? { eventId } : {}) } };
+  return {
+    ok: true,
+    data: {
+      submissionId,
+      ...(paidExit ? {} : { resultUrl }),
+      ...paid,
+      // Both or neither: the browser fires the name the server just sent, with the same
+      // id, or it fires nothing at all.
+      ...(eventId && completionEvent ? { eventId, eventName: completionEvent } : {}),
+    },
+  };
 }

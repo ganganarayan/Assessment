@@ -988,7 +988,14 @@ export function AssessmentRunner({
       // redirect, ONLY for the winning completion (server returns an eventId
       // then). The eventId dedups against the server-side CAPI event.
       if (res.data?.eventId) {
-        pixelTrackCustom(completionEventName(!!qual), { content_name: assessment.title }, res.data.eventId);
+        // The NAME comes from the server, which decided it: a respondent routed in
+        // through a waitlist exit reports nothing at all, and one whose route names its
+        // own event must not have the funnel's name fired underneath it.
+        pixelTrackCustom(
+          res.data.eventName ?? completionEventName(!!qual),
+          { content_name: assessment.title },
+          res.data.eventId,
+        );
       }
       // Platform signup funnel. Deliberately placed AFTER the completion event fires:
       // the whole point of this funnel is that the qualified completion is measured

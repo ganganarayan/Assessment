@@ -464,6 +464,8 @@ export function QualificationManager({
                 close is set on the <strong>result page</strong> - give the blocks they should not
                 see (a seat button, a scarcity line) an audience of <strong>main path only</strong>,
                 and write their own CTA as a block for this route. The page below is not used.
+                Meta hears about them once, at the gate, under the event named above and nothing
+                after; if they never finish, the CRM still gets the abandoned event.
               </p>
             ) : null}
 
@@ -536,21 +538,24 @@ export function QualificationManager({
               ) : null}
               {exit.mode === "CONTINUE" ? (
                 <div className="flex flex-col gap-1">
-                  <Label className="text-xs">Event when they COMPLETE the assessment</Label>
+                  <Label className="text-xs">Event when they COMPLETE the assessment (optional)</Label>
                   <Input
                     value={exit.completionEventName}
-                    placeholder="WaitlistCompleted"
+                    placeholder="Leave blank: nothing is sent"
                     onChange={(e) => setExit(exit.key, { completionEventName: e.target.value })}
                   />
                   {!exit.completionEventName.trim() ? (
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
-                      🟡 Blank, so these completions report as your normal completion event, the one
-                      your ads optimise toward. Meta then learns to find more people who cannot
-                      come, and the cost per filled seat climbs with nothing looking broken.
+                    <p className="text-xs text-[var(--muted-foreground)]">
+                      🟢 Blank, so these completions report nothing to Meta. Right for a waitlist:
+                      they opted in, so they are in your CRM with full contact details, which is
+                      where the next-cycle list gets built and sent from. They never touch
+                      CompleteRegistration or your completion event, which is the part that would
+                      have cost money.
                     </p>
                   ) : (
                     <p className="text-xs text-[var(--muted-foreground)]">
-                      Keeps them out of the optimisation event while still building an audience.
+                      Only needed if you want Meta to hold its own copy of this audience. The CRM
+                      has them either way.
                     </p>
                   )}
                 </div>
