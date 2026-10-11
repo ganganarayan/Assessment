@@ -45,6 +45,9 @@ export function eventDelta(before: EventCounts, after: EventCounts): EventCounts
 
 export interface RowObservation {
   submissionId: string | null;
+  /** How many submissions this identity has on this funnel. The retake lockout is the
+   *  reason it matters: a blocked second attempt must not leave a second row. */
+  submissionCount: number;
   status: "STARTED" | "COMPLETED" | null;
   hasLead: boolean;
   leadEmail: string | null;
@@ -69,7 +72,10 @@ export interface RowObservation {
 export async function readRows(
   funnel: Funnel,
   identity: Identity,
+  /** The server cookie: how a REJECTION is keyed. */
   visitorId: string | null,
+  /** The browser id: how a PASS is keyed. Two tables, two ids. */
+  externalId: string | null,
 ): Promise<RowObservation> {
   const assessmentId = funnel.row.id;
   const identifierValue = normalizeIdentifier(funnel.row.uniqueIdentifier, {
@@ -100,9 +106,13 @@ export async function readRows(
       })
     : null;
 
-  const gateEntry = visitorId
+  const submissionCount = identifierValue
+    ? await db().submission.count({ where: { assessmentId, identifierValue } })
+    : 0;
+
+  const gateEntry = externalId
     ? await db().gateEntry.findFirst({
-        where: { assessmentId, visitorId },
+        where: { assessmentId, visitorId: externalId },
         select: { id: true, optinSeenAt: true },
       })
     : null;
@@ -119,6 +129,7 @@ export async function readRows(
 
   return {
     submissionId: submission?.id ?? null,
+    submissionCount,
     status: submission?.status ?? null,
     hasLead: Boolean(submission && (submission.leadEmail || submission.leadMobile || submission.leadFirstName)),
     leadEmail: submission?.leadEmail ?? null,

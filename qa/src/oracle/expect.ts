@@ -58,8 +58,11 @@ export function expectationFor(
       exitName: exit ? exit.name.trim() || UNNAMED_EXIT : null,
       exitMode: exit?.mode ?? null,
       exitHeading: exit ? exit.heading.trim() || null : null,
-      exitButtonLabel: exit ? exit.buttonLabel.trim() || null : null,
+      // The exit page renders its button only when a URL is set - a label saved without
+      // one is dropped, so expecting it would be expecting something the funnel has
+      // never shown anybody. The default label is the app's own fallback.
       exitButtonUrl: exit ? exit.buttonUrl.trim() || null : null,
+      exitButtonLabel: exit && exit.buttonUrl.trim() ? exit.buttonLabel.trim() || "Continue" : null,
       score: totals.score,
       max: totals.max,
       band: gateBandOf(funnel.qualification, totals.score, totals.max),

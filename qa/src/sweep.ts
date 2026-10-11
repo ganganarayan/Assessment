@@ -19,6 +19,7 @@ import { driveCase, newCaseContext, openBrowser, type DriveOptions, type Observa
 import { identityFor } from "./drive/identity.js";
 import { eventDelta, eventSnapshot, readRows, type EventCounts, type RowObservation } from "./assert/db.js";
 import { compare, worst, type Check, type Verdict } from "./assert/compare.js";
+import { adminPass, type AdminPassResult } from "./assert/admin.js";
 import type { Expectation } from "./oracle/types.js";
 
 export interface CaseResult {
@@ -31,6 +32,8 @@ export interface CaseResult {
   unreachable?: string;
   expectation?: Expectation;
   observation?: Observation;
+  /** The second run, for the cases that come back as the same person. */
+  retakeObservation?: Observation;
   rows?: RowObservation;
   events?: EventCounts;
   identityEmail?: string;
@@ -47,19 +50,22 @@ export interface SweepResult {
   seconds: number;
   results: CaseResult[];
   outDir: string;
+  /** The same run, seen from the admin screens, when it was asked for. */
+  admin?: AdminPassResult;
 }
 
 export async function sweep(
   funnel: Funnel,
   cases: GeneratedCase[],
   ctx: OracleContext,
-  opts: DriveOptions & { outRoot: string },
+  opts: DriveOptions & { outRoot: string; admin: boolean },
 ): Promise<SweepResult> {
   const startedAt = new Date();
   const outDir = join(opts.outRoot, `${startedAt.toISOString().replace(/[:.]/g, "-")}-${funnel.row.slug}`);
   mkdirSync(outDir, { recursive: true });
 
   const results: CaseResult[] = [];
+  let admin: AdminPassResult | undefined;
   let browser: Browser | null = null;
   try {
     browser = await openBrowser(opts);
@@ -87,6 +93,7 @@ export async function sweep(
       const context = await newCaseContext(browser, opts);
       let observation: Observation | undefined;
       let retakeObs: Observation | undefined;
+      let crash: string | undefined;
       try {
         observation = await driveCase(context, funnel, c.plan, opts);
         // The lockout can only be observed by coming back as the same person, which the
@@ -99,6 +106,10 @@ export async function sweep(
             await second.close();
           }
         }
+      } catch (err) {
+        // One case that cannot be driven is a finding about that case, not a reason to
+        // abandon the sweep: the remaining cases still have something to say.
+        crash = err instanceof Error ? err.message.split("\n")[0] : String(err);
       } finally {
         if (opts.trace) {
           const tracePath = join(outDir, `${c.plan.id}.trace.zip`);
@@ -111,11 +122,25 @@ export async function sweep(
       // browser is done, so give it one before reading rows back.
       await new Promise((r) => setTimeout(r, 2500));
       const identity = identityFor(opts.runId, c.plan.id);
-      const rows = await readRows(funnel, identity, observation?.visitorId ?? null);
+      const rows = await readRows(funnel, identity, observation?.visitorId ?? null, observation?.externalId ?? null);
       const events = eventDelta(before, await eventSnapshot(funnel.row.id));
       const checks = observation
         ? compare(funnel, c.plan, expectation, observation, rows, events, retakeObs)
-        : [{ verdict: "fail" as Verdict, what: "the case could be driven at all", observed: "the browser never finished" }];
+        : [
+            {
+              verdict: "fail" as Verdict,
+              what: "the case can be driven at all",
+              expected: "a run from the first screen to an ending",
+              observed: crash ?? "the browser never finished",
+            },
+          ];
+      if (crash && observation) {
+        checks.push({
+          verdict: "warn",
+          what: "the browser hit an error part way through, so later checks may be incomplete",
+          observed: crash,
+        });
+      }
       const verdict = worst(checks);
 
       let screenshotPath: string | undefined;
@@ -133,6 +158,7 @@ export async function sweep(
         checks,
         expectation,
         observation,
+        retakeObservation: retakeObs,
         rows,
         events,
         identityEmail: identity.email,
@@ -144,6 +170,20 @@ export async function sweep(
       const failed = checks.filter((x) => x.verdict === "fail").length;
       console.log(
         `${verdict.toUpperCase()}${failed ? ` (${failed} failed check${failed === 1 ? "" : "s"})` : ""} ${seconds}s`,
+      );
+    }
+    // The owner's side, with the browser still open: the same run read back through
+    // the admin screens, using this sweep's own identities as the needle.
+    if (opts.admin) {
+      const emails = results
+        .filter((r) => r.verdict !== "skip" && r.expectation?.rows.completed && r.identityEmail)
+        .map((r) => r.identityEmail as string);
+      process.stdout.write("  admin screens ... ");
+      admin = await adminPass(browser, funnel, opts.runId, emails, opts.baseUrl);
+      console.log(
+        admin.ran
+          ? `${admin.checks.filter((c) => c.verdict === "fail").length} failed check(s)`
+          : `skipped: ${admin.why ?? ""}`,
       );
     }
   } finally {
@@ -158,5 +198,6 @@ export async function sweep(
     seconds: Math.round((Date.now() - startedAt.getTime()) / 1000),
     results,
     outDir,
+    admin,
   };
 }

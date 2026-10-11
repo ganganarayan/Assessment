@@ -196,6 +196,7 @@ async function main(): Promise<number> {
     trace: args.trace,
     runId,
     outRoot: resolve(QA_ROOT, "reports"),
+    admin: args.admin,
   });
 
   console.log(renderTerminal(result));

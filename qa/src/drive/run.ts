@@ -45,8 +45,18 @@ export interface Observation {
   max: number | null;
   /** Submission id, read off the result URL. */
   submissionId: string | null;
-  /** The first-party visitor id, which is how the gate rows are keyed. */
+  /**
+   * The server-set visitor cookie (a360_vid). GateDisqualification rows are keyed on
+   * this one, because a rejected visitor never runs the client code that would make
+   * the other id.
+   */
   visitorId: string | null;
+  /**
+   * The browser's own first-party id (localStorage a360_xid). GateEntry and the CAPI
+   * external_id are keyed on THIS one. Two ids, two tables - mixing them up reads as
+   * "the funnel never recorded the pass", which is how this field came to exist.
+   */
+  externalId: string | null;
   /** Browser-side Meta pixel calls, by event name. Empty when no pixel is configured. */
   pixelEvents: string[];
   consoleErrors: string[];
@@ -108,6 +118,7 @@ export async function driveCase(
     max: null,
     submissionId: null,
     visitorId: null,
+    externalId: null,
     pixelEvents: [],
     consoleErrors: [],
     trail: [],
@@ -135,6 +146,10 @@ export async function driveCase(
   // A run is a short sequence of screens; the cap is generous and only exists so a
   // funnel that loops cannot hang the sweep.
   const MAX_SCREENS = 120;
+  // A screen that will not move on is its own finding: the loop gives it three goes and
+  // then stops, rather than filling the same form forty times and timing out the sweep.
+  let lastStep = "";
+  let sameStepCount = 0;
   for (let i = 0; i < MAX_SCREENS; i++) {
     const step = await currentStep(page);
     if (!step) {
@@ -142,6 +157,20 @@ export async function driveCase(
       break;
     }
     if (obs.steps[obs.steps.length - 1] !== step) obs.steps.push(step);
+    // The fingerprint is the step AND what is on it, because a gate asks nine questions
+    // without ever leaving the "qualify" step: guarding on the step alone would call a
+    // working gate stuck on its third question.
+    const fingerprint = `${step}|${await screenKey(page, step)}`;
+    if (fingerprint === lastStep) {
+      sameStepCount += 1;
+      if (sameStepCount >= 3) {
+        obs.trail.push(`stuck on "${fingerprint}" after three attempts, stopping`);
+        break;
+      }
+    } else {
+      lastStep = fingerprint;
+      sameStepCount = 0;
+    }
 
     if (TERMINAL_STEPS.has(step)) {
       if (step === "disqualified") {
@@ -243,12 +272,26 @@ export async function driveCase(
   }
   const cookies = await context.cookies();
   obs.visitorId = cookies.find((c) => c.name === "a360_vid")?.value ?? null;
+  obs.externalId = await page
+    .evaluate(() => {
+      try {
+        return (globalThis as unknown as { localStorage: { getItem(k: string): string | null } }).localStorage.getItem("a360_xid");
+      } catch {
+        return null;
+      }
+    })
+    .catch(() => null);
 
   if (plan.behaviours.includes("back-after-exit")) {
+    // Pressing back from the exit page leaves the funnel entirely, because the exit is
+    // a client screen rather than a navigation - there is nothing in history to go back
+    // TO. The question worth asking is the one the rejection flag exists for: does
+    // coming BACK to the funnel let them in? So the funnel is opened again.
     await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => {});
-    await page.waitForTimeout(1500);
+    await page.goto(url, { waitUntil: "domcontentloaded" }).catch(() => {});
+    await page.waitForTimeout(2000);
     const after = await currentStep(page);
-    obs.trail.push(`after pressing back: ${after ?? "(off the funnel)"}`);
+    obs.trail.push(`after coming back to the funnel: ${after ?? "(no funnel screen)"}`);
     if (after) obs.steps.push(`back:${after}`);
   }
 
@@ -303,6 +346,12 @@ async function answerAudience(page: Page, plan: CasePlan, obs: Observation): Pro
     if (plan.audienceRoleId) {
       await select.selectOption(plan.audienceRoleId);
       obs.trail.push(`audience: picked role ${plan.audienceRoleId}`);
+    } else {
+      // The plan did not name a role, and the Continue button stays disabled until one
+      // is chosen, so the first real option is taken rather than pressing a dead button
+      // three times and calling the screen stuck.
+      await select.selectOption({ index: 1 }).catch(() => {});
+      obs.trail.push("audience: no role in the plan, took the first option");
     }
   } else {
     const input = page.locator("input#audience-gate");
@@ -381,6 +430,20 @@ async function answerQuestionScreen(
 
 /* ---------- small helpers ------------------------------------------------------- */
 
+/** What is on the screen right now, so progress inside one step is visible. */
+async function screenKey(page: Page, step: string): Promise<string> {
+  if (step === "qualify") {
+    return (await attr(page, "[data-qa-qual-question]", "data-qa-qual-question")) ?? "";
+  }
+  if (step === "questions") {
+    const ids = await page.locator("[data-qa-question]").evaluateAll((els) =>
+      els.map((e) => e.getAttribute("data-qa-question") ?? "").join(","),
+    );
+    return ids;
+  }
+  return "";
+}
+
 async function currentStep(page: Page): Promise<string | null> {
   const el = page.locator("[data-qa-step]").first();
   try {
@@ -391,6 +454,27 @@ async function currentStep(page: Page): Promise<string | null> {
   return el.getAttribute("data-qa-step");
 }
 
+/**
+ * Fill a field that may be re-rendered under us.
+ *
+ * The opt-in form is a controlled React form, so typing into one field re-renders the
+ * others and Playwright's fill can lose the element mid-action. That is a fact about
+ * the page, not a failure of the funnel, so it is retried rather than reported.
+ */
+async function safeFill(page: Page, selector: string, value: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const el = page.locator(selector).first();
+    if (!(await el.count())) return false;
+    try {
+      await el.fill(value, { timeout: 8000 });
+      return true;
+    } catch {
+      await page.waitForTimeout(300);
+    }
+  }
+  return false;
+}
+
 async function fillLead(page: Page, identity: Identity, obs: Observation): Promise<void> {
   const map: Record<string, string> = {
     firstName: identity.firstName,
@@ -399,14 +483,18 @@ async function fillLead(page: Page, identity: Identity, obs: Observation): Promi
     mobile: identity.mobile,
   };
   for (const [field, value] of Object.entries(map)) {
-    const input = page.locator(`[data-qa-field='${field}']`);
-    if (await input.count()) await input.fill(value);
+    const selector = `[data-qa-field='${field}']`;
+    if (!(await page.locator(selector).count())) continue;
+    const filled = await safeFill(page, selector, value);
+    if (!filled) obs.trail.push(`could not fill ${field}`);
   }
   // Extra opt-in fields the owner added: text gets the marker, selects get the first
   // real option, because leaving a required one empty would block the form.
   const extras = page.locator("[data-qa-field^='optin:']");
   const n = await extras.count();
-  for (let i = 0; i < n; i++) await extras.nth(i).fill(identity.text).catch(() => {});
+  for (let i = 0; i < n; i++) {
+    await extras.nth(i).fill(identity.text, { timeout: 8000 }).catch(() => {});
+  }
   const selects = page.locator("[data-qa-step] select:not(#audience-gate)");
   const sn = await selects.count();
   for (let i = 0; i < sn; i++) {
@@ -421,20 +509,54 @@ async function fillLead(page: Page, identity: Identity, obs: Observation): Promi
 async function fillVisibleText(page: Page, identity: Identity, obs: Observation): Promise<void> {
   const inputs = page.locator("[data-qa-step='details'] input, [data-qa-step='details'] textarea");
   const n = await inputs.count();
-  for (let i = 0; i < n; i++) await inputs.nth(i).fill(identity.text).catch(() => {});
+  for (let i = 0; i < n; i++) {
+    await inputs.nth(i).fill(identity.text, { timeout: 8000 }).catch(() => {});
+  }
   if (n > 0) obs.trail.push(`filled ${n} detail field(s)`);
 }
 
+/**
+ * Click, and do not wait for the button to look ready.
+ *
+ * The opt-in button disables itself and says "Please wait…" the moment it is pressed,
+ * so Playwright's default wait-for-enabled turns a successful submit into a thirty
+ * second timeout and then a retry on a button that has already done its job. The click
+ * is forced, the timeout is short, and a failure is written down rather than thrown:
+ * what matters next is whether the screen changed, and the loop checks that anyway.
+ */
 async function click(page: Page, selector: string, obs: Observation): Promise<void> {
   const el = page.locator(selector).first();
   if (!(await el.count())) {
     obs.trail.push(`nothing to click for ${selector}`);
     return;
   }
-  await el.click().catch((e: unknown) => {
-    obs.trail.push(`click failed on ${selector}: ${e instanceof Error ? e.message : String(e)}`);
-  });
-  await page.waitForTimeout(400);
+  const before = await fingerprintOf(page);
+  try {
+    await el.click({ timeout: 8000, force: true });
+  } catch (e) {
+    obs.trail.push(`click on ${selector} did not settle: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}`);
+  }
+  // Then WAIT for the screen to answer. Submitting the opt-in is a server round trip
+  // that can take seconds - the retake lockout is decided inside it - and a fixed
+  // half-second wait would read "still on the form" and press the button again.
+  const changed = await waitForScreenChange(page, before, 25_000);
+  if (!changed) obs.trail.push(`the screen did not change after ${selector}`);
+}
+
+/** url + step + what is on the step: enough to tell "it moved" from "it did not". */
+async function fingerprintOf(page: Page): Promise<string> {
+  const step = (await attr(page, "[data-qa-step]", "data-qa-step")) ?? "";
+  return `${page.url()}|${step}|${await screenKey(page, step)}`;
+}
+
+async function waitForScreenChange(page: Page, before: string, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(400);
+    const now = await fingerprintOf(page).catch(() => before);
+    if (now !== before) return true;
+  }
+  return false;
 }
 
 async function attr(page: Page, selector: string, name: string): Promise<string | null> {

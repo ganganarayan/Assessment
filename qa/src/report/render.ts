@@ -32,6 +32,15 @@ export function renderTerminal(r: SweepResult): string {
       if (check.observed !== undefined) lines.push(`      observed ${check.observed}`);
     }
   }
+  if (r.admin) {
+    lines.push("");
+    lines.push("Admin screens");
+    if (!r.admin.ran) lines.push(`   skipped: ${r.admin.why ?? ""}`);
+    for (const check of r.admin.checks) {
+      lines.push(`   ${check.verdict.toUpperCase()}: ${check.what}`);
+      if (check.observed !== undefined) lines.push(`      observed ${check.observed}`);
+    }
+  }
   lines.push("");
   lines.push(
     `${counts.pass} passed, ${counts.fail} failed, ${counts.warn} with warnings, ${counts.skip} skipped, in ${r.seconds}s`,
@@ -87,6 +96,11 @@ function caseSection(c: CaseResult): string {
       <pre>${esc((obs?.trail ?? []).join("\n"))}</pre>
       <h4>Screens</h4>
       <pre>${esc((obs?.steps ?? []).join(" -> "))}</pre>
+      ${
+        c.retakeObservation
+          ? `<h4>The second run, as the same person</h4><pre>${esc(c.retakeObservation.trail.join("\n"))}</pre><pre>${esc(c.retakeObservation.steps.join(" -> "))}</pre>`
+          : ""
+      }
       <h4>Rows read back</h4>
       <pre>${esc(JSON.stringify(c.rows, null, 2))}</pre>
       <h4>Event firings during this case</h4>
@@ -147,6 +161,15 @@ export function writeHtml(r: SweepResult): string {
   <div><b>${r.results.length}</b> cases</div>
 </div>
 ${r.results.map(caseSection).join("\n")}
+${
+  r.admin
+    ? `<details class="case ${r.admin.checks.some((c) => c.verdict === "fail") ? "fail" : "pass"}" open>
+  <summary><span class="dot">${r.admin.checks.some((c) => c.verdict === "fail") ? DOT.fail : DOT.pass}</span><span class="title">The same run, seen from the admin screens</span></summary>
+  ${r.admin.ran ? "" : `<p class="unreachable">Skipped: ${esc(r.admin.why)}</p>`}
+  <table><thead><tr><th>Verdict</th><th>Statement</th><th>Expected</th><th>Observed</th></tr></thead><tbody>${checkRows(r.admin.checks)}</tbody></table>
+</details>`
+    : ""
+}
 </div></body></html>`;
   const path = join(r.outDir, "index.html");
   writeFileSync(path, html, "utf8");

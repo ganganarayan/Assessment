@@ -207,6 +207,17 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
   // A respondent who answers everything middling: the baseline the other cases vary.
   const baselineAnswers = answersAtFraction(sq, 0.6);
   const baselineGate = safePicks(qs);
+  // Every case that is not ABOUT the audience still has to get past it, and it has to
+  // stay in this funnel while doing so - a role that hands them to another assessment
+  // would quietly turn every other case into a test of that one.
+  const stayingRole = funnel.audienceActive && funnel.audience.mode === "DROPDOWN"
+    ? (funnel.audience.roles.find((r) => !r.target) ?? funnel.audience.roles[0])
+    : undefined;
+  const baselineAudience: Pick<CasePlan, "audienceRoleId" | "audienceText"> = funnel.audienceActive
+    ? funnel.audience.mode === "DROPDOWN"
+      ? { audienceRoleId: stayingRole?.id }
+      : { audienceText: funnel.audience.roles[0]?.label || "Founder" }
+    : {};
 
   /* --- the way through ---------------------------------------------------------- */
   if (wanted("entry")) {
@@ -215,6 +226,8 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
         id: "clean-run",
         kind: "entry",
         title: "answers everything and gets through to the end",
+        ...baselineAudience,
+        ...baselineAudience,
         gateChoices: baselineGate,
         gateTexts: texts,
         answers: baselineAnswers,
@@ -295,6 +308,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
             id: `gate-dq-${q.id}-${o.id}`,
             kind: "gate",
             title: `answers "${o.label}" and should leave by exit "${exitKeyOf(funnel, q.id, o.id)}"`,
+            ...baselineAudience,
             gateChoices: choices,
             gateTexts: texts,
             answers: baselineAnswers,
@@ -328,7 +342,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
           continue;
         }
         out.push({
-          plan: { id: w.id, kind: "gate", title: w.title, gateChoices: picks, gateTexts: texts, answers: baselineAnswers, behaviours: [] },
+          plan: { id: w.id, kind: "gate", title: w.title, ...baselineAudience, gateChoices: picks, gateTexts: texts, answers: baselineAnswers, behaviours: [] },
         });
       }
     } else {
@@ -337,6 +351,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
           id: "gate-clean-pass",
           kind: "gate",
           title: "dodges every disqualifying answer and is let through",
+          ...baselineAudience,
           gateChoices: safePicks(qs),
           gateTexts: texts,
           answers: baselineAnswers,
@@ -366,6 +381,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
           id: `route-${optionId}`,
           kind: "routes",
           title: `answers to trigger the ${route.action.toLowerCase().replace(/_/g, " ")} route and should see ${after.length} question(s)`,
+          ...baselineAudience,
           gateChoices: baselineGate,
           gateTexts: texts,
           answers: reachPath,
@@ -391,6 +407,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
           id: `band-${band.id}`,
           kind: "bands",
           title: `lands in "${band.title}" (${band.minScore} to ${band.maxScore})`,
+          ...baselineAudience,
           gateChoices: baselineGate,
           gateTexts: texts,
           answers: found,
@@ -407,6 +424,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
         id: "edge-reload-mid-flow",
         kind: "edge",
         title: "reloads the page part way through and carries on",
+        ...baselineAudience,
         gateChoices: baselineGate,
         gateTexts: texts,
         answers: baselineAnswers,
@@ -418,6 +436,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
         id: "edge-abandon-at-optin",
         kind: "edge",
         title: "reaches the opt-in and walks away, leaving no lead",
+        ...baselineAudience,
         gateChoices: baselineGate,
         gateTexts: texts,
         answers: baselineAnswers,
@@ -458,7 +477,8 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
           plan: {
             id: "edge-back-after-exit",
             kind: "edge",
-            title: "is turned away, presses back, and must not get into the funnel",
+            title: "is turned away, comes back to the funnel, and must still be out",
+            ...baselineAudience,
             gateChoices: { ...safePicks(qs), [dq.q.id]: dq.o.id },
             gateTexts: texts,
             answers: baselineAnswers,

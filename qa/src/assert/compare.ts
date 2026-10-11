@@ -130,11 +130,32 @@ export function compare(
 
   /* --- the result --------------------------------------------------------------- */
   const reachedResult = obs.submissionId !== null || obs.band !== null;
+  if (expected.terminal && !expected.abandonsAtOptin && !expected.blockedAtRequired) {
+    // Where a run ENDS depends on the funnel, not on the case: a signup funnel hands
+    // off to /sign-up and has no result page at all, a result-page funnel shows its
+    // pages, and everything else lands on the result link or the owner's destination.
+    const url = obs.finalUrl || "";
+    if (expected.terminal === "SIGNUP") {
+      checks.push(ok("the run hands off to signup", url.includes("/sign-up"), "/sign-up", url || "(nowhere)"));
+    } else if (expected.terminal === "RESULT_PAGES") {
+      checks.push(ok("the result pages are shown", obs.steps.includes("resultPages"), "the resultPages screen", obs.steps.join(" -> ")));
+    } else if (expected.terminal === "PAYMENT") {
+      checks.push({ verdict: "skip", what: "the payment screen", observed: url || "(nowhere)" });
+    } else if (funnel.row.nextStep === "RESULTS") {
+      checks.push(ok("the run ends on their own result page", /\/r\//.test(url), `/a/${funnel.row.slug}/r/<id>`, url || "(nowhere)"));
+    } else if (funnel.row.targetUrl) {
+      checks.push(
+        ok("the run ends at the destination the owner set", url.startsWith(funnel.row.targetUrl), funnel.row.targetUrl, url || "(nowhere)"),
+      );
+    }
+  }
   if (expected.score && expected.terminal && !expected.abandonsAtOptin && !expected.blockedAtRequired) {
     if (!reachedResult) {
+      // No result page to read: a signup handoff and a destination redirect both end
+      // somewhere the score is not shown, and that is not a failure.
       checks.push({
-        verdict: expected.terminal === "DESTINATION" ? "skip" : "fail",
-        what: "the respondent reaches their result",
+        verdict: expected.terminal === "SIGNUP" || expected.terminal === "DESTINATION" ? "skip" : "fail",
+        what: "the score is shown to the respondent",
         expected: `ends at ${expected.terminal}`,
         observed: obs.finalUrl || "(nowhere)",
       });
@@ -243,24 +264,53 @@ export function compare(
     const after = obs.steps.find((s) => s.startsWith("back:"));
     checks.push(
       ok(
-        "pressing back does not get them into the funnel",
+        "coming back to the funnel does not get them in",
         after === "back:disqualified",
-        "still the exit page",
-        after?.replace("back:", "") ?? "(off the funnel)",
+        "the exit page again",
+        after?.replace("back:", "") ?? "(no funnel screen)",
       ),
     );
   }
 
   if (expected.expectsRetakeLockout) {
+    if (!retakeObs) {
+      checks.push({
+        verdict: "skip",
+        what: "the same person is locked out on the second attempt",
+        observed: "the second run was not driven",
+      });
+    } else if (expected.terminal === "SIGNUP") {
+      // A signup funnel has no result to withhold and no second run to sell, so a
+      // locked retake is deliberately sent to /sign-up rather than to a dead end
+      // telling them to come back in fifteen days. The lock still did its job; what
+      // changed is what that job MEANS on this ending.
+      checks.push(
+        ok(
+          "the locked retake is sent on to signup rather than a dead end",
+          retakeObs.finalUrl.includes("/sign-up"),
+          "/sign-up",
+          retakeObs.finalUrl || "(nowhere)",
+        ),
+      );
+    } else {
+      checks.push(
+        ok(
+          "the same person meets the lockout screen on the second attempt",
+          retakeObs.steps.includes("locked"),
+          "the lockout screen",
+          retakeObs.steps.join(" -> ") || "(nothing)",
+        ),
+      );
+    }
+    // Whatever the screen says, the row count is the fact that matters: a blocked
+    // second attempt must not leave a second submission behind.
     checks.push(
-      retakeObs
-        ? ok(
-            "the same person is locked out on the second attempt",
-            retakeObs.steps.includes("locked"),
-            "the lockout screen",
-            retakeObs.steps.join(" -> ") || "(nothing)",
-          )
-        : { verdict: "skip", what: "the same person is locked out on the second attempt", observed: "the second run was not driven" },
+      ok(
+        "and the second attempt leaves no second row",
+        rows.submissionCount === 1,
+        "exactly one submission for this person",
+        `${rows.submissionCount}`,
+      ),
     );
   }
 
