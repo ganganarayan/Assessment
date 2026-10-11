@@ -495,13 +495,27 @@ async function fillLead(page: Page, identity: Identity, obs: Observation): Promi
   for (let i = 0; i < n; i++) {
     await extras.nth(i).fill(identity.text, { timeout: 8000 }).catch(() => {});
   }
+  // Any dropdown on the form (Profession, or an owner's own select field): take the
+  // first REAL option. A required dropdown with no options is a form nobody can
+  // submit, and the browser blocks it silently - so that is named, not retried.
   const selects = page.locator("[data-qa-step] select:not(#audience-gate)");
   const sn = await selects.count();
   for (let i = 0; i < sn; i++) {
-    await selects
-      .nth(i)
-      .selectOption({ index: 1 })
-      .catch(() => {});
+    const select = selects.nth(i);
+    const choices = await select.locator("option:not([disabled])").count();
+    const required = (await select.getAttribute("required")) !== null;
+    if (choices === 0) {
+      obs.trail.push(
+        required
+          ? "a REQUIRED dropdown on this form has no options, so the form cannot be submitted at all"
+          : "a dropdown on this form has no options",
+      );
+      if (required) obs.blocked = "a required dropdown on the opt-in form has no options to choose";
+      continue;
+    }
+    await select.selectOption({ index: 0 }).catch(async () => {
+      await select.selectOption({ index: 1 }).catch(() => {});
+    });
   }
   obs.trail.push(`filled the opt-in as ${identity.email}`);
 }
@@ -540,7 +554,12 @@ async function click(page: Page, selector: string, obs: Observation): Promise<vo
   // that can take seconds - the retake lockout is decided inside it - and a fixed
   // half-second wait would read "still on the form" and press the button again.
   const changed = await waitForScreenChange(page, before, 25_000);
-  if (!changed) obs.trail.push(`the screen did not change after ${selector}`);
+  if (!changed) {
+    // A screen that refuses to move usually says why, and that sentence is the finding.
+    const shown = await text(page, "[data-qa-step] .text-red-500");
+    obs.trail.push(`the screen did not change after ${selector}${shown ? `, and it says: ${shown}` : ""}`);
+    if (shown) obs.blocked = shown;
+  }
 }
 
 /** url + step + what is on the step: enough to tell "it moved" from "it did not". */

@@ -352,6 +352,11 @@ async function seedOne(spec: FixtureSpec): Promise<string> {
       emailRequired: true,
       collectMobile: true,
       mobileRequired: false,
+      // Off deliberately: the field defaults to ON and REQUIRED, and with no profession
+      // options configured it renders a required dropdown with nothing in it, which
+      // cannot be submitted and says nothing about why. Not what these fixtures test.
+      collectProfession: false,
+      professionRequired: false,
       fireMetaCapi: true,
       useAiStatement: false,
       paidMode: false,

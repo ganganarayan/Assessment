@@ -1624,6 +1624,7 @@ export function AssessmentRunner({
             ) : (
               <Field
                 key={f.id}
+                qa={`optin:${f.id}`}
                 label={f.label}
                 required={f.required}
                 value={optinAnswers[f.id] ?? ""}
