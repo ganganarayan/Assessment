@@ -12,10 +12,15 @@ import { closeDb } from "./db.js";
 import { readFunnel, type Funnel } from "./config/read.js";
 import { preflight, renderGuard } from "./guard.js";
 import { exitLabel } from "../../src/features/assessment/schemas.js";
+import { generateCases } from "./cases/generate.js";
+import { expectationFor } from "./oracle/expect.js";
+import { oracleContext } from "./oracle/context.js";
+import type { CaseKind } from "./oracle/types.js";
 
 interface Args {
   slug: string;
   audit: boolean;
+  plan: boolean;
   headed: boolean;
   desktop: boolean;
   forceLive: boolean;
@@ -39,6 +44,7 @@ function parseArgs(argv: string[]): Args {
   return {
     slug: get("slug") ?? "",
     audit: has("audit"),
+    plan: has("plan"),
     headed: has("headed"),
     desktop: has("desktop"),
     forceLive: has("force-live"),
@@ -125,11 +131,57 @@ async function main(): Promise<number> {
     return 1;
   }
   if (args.audit) {
-    console.log("\nAudit only, nothing was driven.");
+    console.log("\nAudit only: the funnel and the pre-flight, nothing generated and nothing driven.");
     return 0;
   }
 
-  console.log("\nThe browser layer is not wired yet. Run with --audit for now.");
+  // The cases, and what each one should do. Derived from the funnel, never hand-written.
+  const only = args.only.filter((k): k is CaseKind =>
+    ["entry", "audience", "gate", "routes", "bands", "edge"].includes(k),
+  );
+  const cases = generateCases(funnel, only).filter((c) => !args.case || c.plan.id === args.case);
+  const ctx = await oracleContext(funnel);
+
+  console.log(`\nCases: ${cases.length}${args.case ? ` (filtered to ${args.case})` : ""}`);
+  for (const c of cases) {
+    if (c.unreachable) {
+      console.log(`  [unreachable] ${c.plan.id}`);
+      console.log(`    ${c.plan.title}`);
+      console.log(`    ${c.unreachable}`);
+      continue;
+    }
+    const e = expectationFor(funnel, c.plan, ctx);
+    const bits: string[] = [`opens on ${e.firstStep}`];
+    if (e.gate) {
+      bits.push(
+        e.gate.outcome === "exit"
+          ? `gate ${e.gate.score}/${e.gate.max} -> exit "${e.gate.exitName}" (${e.gate.exitMode}${e.gate.turnedAway ? ", turned away" : e.gate.takesAssessment ? ", takes the assessment" : ", lead captured"})`
+          : `gate ${e.gate.score}/${e.gate.max} -> ${e.gate.outcome}${e.gate.band ? ` (${e.gate.band})` : ""}`,
+      );
+    }
+    if (e.questionPath.length > 0) {
+      bits.push(`${e.questionPath.length} question(s)${e.skipped.length ? `, ${e.skipped.length} skipped` : ""}`);
+    }
+    const finishes = !e.abandonsAtOptin && !e.blockedAtRequired;
+    if (e.score && finishes) bits.push(`score ${e.score.total}/${e.score.max} = ${e.score.percentage}% -> ${e.score.bandTitle ?? "no band"}`);
+    if (e.terminal && finishes) bits.push(`ends at ${e.terminal}`);
+    if (e.abandonsAtOptin) bits.push("stops at the opt-in, owed an abandonment later");
+    if (e.blockedAtRequired) bits.push("is stopped by the required question");
+    if (e.expectsRetakeLockout) bits.push("and is locked out on the second attempt");
+    if (e.redirectToSlug) bits.push(`hands off to /a/${e.redirectToSlug}`);
+    console.log(`  ${c.plan.id}`);
+    console.log(`    ${c.plan.title}`);
+    console.log(`    expect: ${bits.join("; ")}`);
+    console.log(`    rows: ${Object.entries(e.rows).filter(([, v]) => v).map(([k]) => k).join(", ") || "none"}`);
+    console.log(`    events: fires ${e.events.fired.join(", ") || "nothing"}${e.events.never.length ? `; never ${e.events.never.join(", ")}` : ""}`);
+  }
+
+  if (args.plan) {
+    console.log("\nPlan only, nothing was driven.");
+    return 0;
+  }
+
+  console.log("\nThe browser layer is not wired yet. Run with --plan to see the cases.");
   return 0;
 }
 
