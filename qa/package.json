@@ -1,0 +1,14 @@
+{
+  "name": "assessment-qa",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Browser-driven funnel verification against staging. Deliberately OUTSIDE the app's dependency tree: Railway never installs this, and the Next build never sees it.",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.1",
+    "typescript": "^5.7.2"
+  }
+}

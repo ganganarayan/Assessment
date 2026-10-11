@@ -61,7 +61,8 @@
     "verify:templates": "tsx scripts/verify-templates.ts",
     "verify:json-repair": "tsx scripts/verify-json-repair.ts",
     "templates:unpublish": "tsx --conditions=react-server scripts/unpublish-templates.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "qa": "tsx qa/src/cli.ts"
   },
   "prisma": {
     "seed": "tsx --conditions=react-server prisma/seed.ts"
