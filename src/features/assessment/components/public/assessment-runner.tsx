@@ -195,7 +195,7 @@ export interface PublicAssessment {
   exits: {
     key: string;
     name: string;
-    mode: "PAGE" | "OPTIN";
+    mode: "PAGE" | "OPTIN" | "CONTINUE";
     heading: string;
     subtext: string;
     bodyHtml: string;
@@ -324,7 +324,12 @@ export function AssessmentRunner({
   // founder who clears every bar and cannot make these dates - is a lead with a timing
   // problem, and the only wrong thing to do with them is throw the email away.
   const [exitKey, setExitKey] = useState<string>("");
+  // They are being asked for their details rather than turned away (either opt-in mode).
   const [exitOptin, setExitOptin] = useState(false);
+  // …and this route sends them on THROUGH the assessment afterwards. The waitlist case:
+  // qualified people whose only problem was the dates, who are worth a finished
+  // diagnosis rather than a thank-you page.
+  const [exitContinues, setExitContinues] = useState(false);
   const exits = assessment.exits ?? [];
   /** The exit being shown. An unknown key falls back to the first: a dangling route is
    *  a builder mistake, and the visitor should still see a page. */
@@ -679,11 +684,14 @@ export function AssessmentRunner({
         setStep("locked");
         return;
       }
-      // An OPTIN exit ends here: their details are captured and the exit's content is
-      // the thank-you. No questions, no result, and deliberately no CompleteRegistration
-      // - the server reports this one under the exit's own event name, because a
-      // waitlist sign-up filed as a registration corrupts both audiences at once.
-      if (exitOptin) {
+      // An OPTIN exit ends here: details captured, the exit's content is the thank-you.
+      // A CONTINUE exit does NOT - it falls through to the ordinary flow below and
+      // answers the whole assessment, which is the entire point of that mode.
+      //
+      // Neither reports CompleteRegistration. The server files both under the exit's own
+      // event name, because a waitlist sign-up counted as a registration teaches the ad
+      // account to find more people who cannot come.
+      if (exitOptin && !exitContinues) {
         setSubmissionId(res.data?.submissionId ?? null);
         setStep("disqualified");
         return;
@@ -749,8 +757,9 @@ export function AssessmentRunner({
     const resolved = exit?.key ?? "";
     setExitKey(resolved);
 
-    if (exit?.mode === "OPTIN") {
+    if (exit?.mode === "OPTIN" || exit?.mode === "CONTINUE") {
       setExitOptin(true);
+      setExitContinues(exit.mode === "CONTINUE");
       dqCauseRef.current = null;
       setStep("leadForm");
       return;

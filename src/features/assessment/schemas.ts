@@ -226,12 +226,16 @@ export const START_TRIAL_EVENT = "StartTrial";
  * cycle" reroutes nothing.
  *
  * MODE
- *   PAGE  - the exit page, as before. No lead, no submission, nothing stored.
- *   OPTIN - not a rejection at all. The person is sent to the lead form, their details
- *           are captured, the lead webhook fires, and the exit's content is then shown
- *           as the thank-you. For the waitlist case: a founder who clears every bar and
- *           cannot make the dates is a qualified lead with a timing problem, and
- *           throwing their email away to keep the gate "clean" is the expensive choice.
+ *   PAGE     - the exit page, as before. No lead, no submission, nothing stored.
+ *   OPTIN    - not a rejection. Sent to the lead form, details captured, lead webhook
+ *              fired, and the exit's content shown as the thank-you. They never answer
+ *              the assessment.
+ *   CONTINUE - the waitlist route, and the one that pays. They are QUALIFIED; what they
+ *              failed was a date. So they take the whole assessment like anybody else
+ *              and reach the same result page - throwing away a completed diagnosis on a
+ *              qualified founder to keep the gate tidy is the expensive trade. What
+ *              changes is the CLOSE (result-page blocks can be addressed to them alone)
+ *              and what Meta is told, which must never be the main optimisation event.
  *
  * META
  *   `fireDisqualifiedEvent` and `eventName` stay PER EXIT. One event, one meaning: an
@@ -241,7 +245,7 @@ export const START_TRIAL_EVENT = "StartTrial";
  *   SHOULD share an event (both are "get these people out of the ad set") can still be
  *   told apart in an audience rule without splitting thin volume across two event names.
  */
-export const EXIT_MODES = ["PAGE", "OPTIN"] as const;
+export const EXIT_MODES = ["PAGE", "OPTIN", "CONTINUE"] as const;
 export const exitModeSchema = z.enum(EXIT_MODES).default("PAGE");
 export type ExitMode = (typeof EXIT_MODES)[number];
 
@@ -259,6 +263,14 @@ export const gateExitSchema = z.object({
   eventName: z.string().trim().max(60).optional().or(z.literal("")).default(""),
   /** custom_data.content_category on that event, e.g. "not_yet" / "wrong_fit". */
   contentCategory: z.string().trim().max(60).optional().or(z.literal("")).default(""),
+  /**
+   * CONTINUE only: what Meta is told when one of these people COMPLETES the assessment.
+   * Blank = the funnel's normal completion event, which for a waitlist route is the
+   * wrong answer: CompleteRegistration and AssessmentCompleted are what the ad account
+   * optimises toward, and teaching it to find founders who cannot attend doubles the
+   * cost of a filled seat without anything looking broken.
+   */
+  completionEventName: z.string().trim().max(60).optional().or(z.literal("")).default(""),
 });
 export type GateExitInput = z.infer<typeof gateExitSchema>;
 
@@ -313,6 +325,7 @@ export function readExits(raw: unknown): GateExitInput[] {
       fireDisqualifiedEvent: d.fireDisqualifiedEvent,
       eventName: "",
       contentCategory: "",
+      completionEventName: "",
     },
   ];
 }
@@ -328,6 +341,17 @@ export function resolveExit(exits: ReadonlyArray<GateExitInput>, key: string | n
     if (found) return found;
   }
   return exits[0] ?? null;
+}
+
+/** True when this route sends the person on through the assessment rather than ending
+ *  the visit. The waitlist case: qualified people, wrong dates. */
+export function exitTakesAssessment(exit: GateExitInput | null | undefined): boolean {
+  return exit?.mode === "CONTINUE";
+}
+
+/** True when this route asks for their details at all (either kind of opt-in). */
+export function exitCapturesLead(exit: GateExitInput | null | undefined): boolean {
+  return exit?.mode === "OPTIN" || exit?.mode === "CONTINUE";
 }
 
 /** What a named exit is called in a list, falling back to its position. */

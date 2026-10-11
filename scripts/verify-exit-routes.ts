@@ -18,10 +18,13 @@ import {
   readExits,
   resolveExit,
   exitLabel,
+  exitTakesAssessment,
+  exitCapturesLead,
   EMPTY_DISQUALIFIED,
   GATE_PASSED_EVENT,
   GATE_DISQUALIFIED_EVENT,
 } from "../src/features/assessment/schemas";
+import { blockVisibleFor, type ResultBlock } from "../src/features/assessment/result-page/blocks";
 import { readGateRejection, writeGateRejection } from "../src/lib/gate-flag";
 import { readMetaEvents } from "../src/features/assessment/meta-events";
 
@@ -156,6 +159,61 @@ expect("and falls back to the first route", (readGateRejection("1")?.exitKey ?? 
 // --- Nothing silently changed -------------------------------------------------------
 expect("an empty exit content still defaults to reporting", EMPTY_DISQUALIFIED.fireDisqualifiedEvent === true);
 expect("and holds no routes until somebody makes one", EMPTY_DISQUALIFIED.exits.length === 0);
+
+// --- The waitlist route takes the assessment ----------------------------------------
+const waitlist = disqualifiedContentSchema.parse({
+  exits: [
+    { key: "a", name: "Not yet", mode: "PAGE" },
+    {
+      key: "c",
+      name: "Waitlist",
+      mode: "CONTINUE",
+      fireDisqualifiedEvent: true,
+      eventName: "GateWaitlisted",
+      completionEventName: "WaitlistCompleted",
+    },
+  ],
+}).exits;
+const cont = waitlist[1]!;
+
+expect("a waitlist route carries them on through the assessment", exitTakesAssessment(cont));
+expect("a plain exit page does not", !exitTakesAssessment(waitlist[0]!));
+expect("both opt-in kinds capture a lead", exitCapturesLead(cont) && exitCapturesLead({ ...cont, mode: "OPTIN" }));
+expect("a page exit captures nothing", !exitCapturesLead(waitlist[0]!));
+expect("the gate reports them as waitlisted, not disqualified", cont.eventName === "GateWaitlisted");
+expect(
+  "and their COMPLETION reports under its own name",
+  cont.completionEventName === "WaitlistCompleted",
+  "the funnel's normal completion event here teaches Meta to find people who cannot attend",
+);
+expect("a route with no completion event falls back to the funnel's", waitlist[0]!.completionEventName === "");
+
+// --- The close is addressed, the diagnosis is not -----------------------------------
+const block = (showFor: ResultBlock["showFor"], exitKey?: string): ResultBlock => ({
+  id: "b",
+  type: "button",
+  config: {},
+  showFor,
+  exitKey,
+});
+expect(
+  "a block written before audiences existed shows to everyone",
+  blockVisibleFor({ id: "b", type: "text", config: {} }, "c"),
+);
+expect("the diagnosis shows on both paths", blockVisibleFor(block("ALL"), null) && blockVisibleFor(block("ALL"), "c"));
+expect(
+  "the seat button is hidden from a routed-in respondent",
+  blockVisibleFor(block("MAIN"), null) && !blockVisibleFor(block("MAIN"), "c"),
+  "they have just said they cannot make those dates",
+);
+expect(
+  "their own close is hidden from everybody else",
+  !blockVisibleFor(block("EXIT"), null) && blockVisibleFor(block("EXIT"), "c"),
+);
+expect(
+  "and can be narrowed to ONE route",
+  blockVisibleFor(block("EXIT", "c"), "c") && !blockVisibleFor(block("EXIT", "c"), "other"),
+);
 
 console.log(failures === 0 ? "\n🟢 All checks passed." : `\n🟡 ${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);

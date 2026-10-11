@@ -99,10 +99,48 @@ export interface FooterConfig {
   copyright?: string;
 }
 
+/**
+ * Who a block is written for.
+ *
+ * The waitlist route gets the same diagnosis and the same VSL, and must not get the
+ * same close: a button saying APPLY FOR YOUR SEAT, shown to somebody who has just said
+ * they cannot make those dates, reads as a taunt, and a scarcity line they cannot act
+ * on is pressure with nowhere to go.
+ *
+ * So a block can be addressed. ALL is the default and is what every block ever saved
+ * already is, which is why adding this changes nothing until somebody sets it.
+ */
+export type BlockAudience =
+  | "ALL" // everyone (default)
+  | "MAIN" // only the people who came through the funnel proper
+  | "EXIT"; // only people routed in through an exit (optionally one named exit)
+
 export interface ResultBlock {
   id: string;
   type: ResultBlockType;
   config: Record<string, unknown>;
+  /** Who sees it. Absent = ALL, so nothing that exists today is affected. */
+  showFor?: BlockAudience;
+  /** With showFor EXIT: restrict to ONE route by key. Blank = any exit route. */
+  exitKey?: string;
+}
+
+/**
+ * Whether a block renders for a given viewer, where `exitKey` is the route they came
+ * in through (null = the funnel proper).
+ *
+ * Unknown values render: a block whose audience cannot be read is a block the owner
+ * wrote and expects to see, and silently dropping it is the worse failure.
+ */
+export function blockVisibleFor(block: ResultBlock, exitKey: string | null): boolean {
+  const showFor = block.showFor ?? "ALL";
+  if (showFor === "MAIN") return !exitKey;
+  if (showFor === "EXIT") {
+    if (!exitKey) return false;
+    const only = (block.exitKey ?? "").trim();
+    return !only || only === exitKey;
+  }
+  return true;
 }
 
 // ---- Theme presets ---------------------------------------------------------

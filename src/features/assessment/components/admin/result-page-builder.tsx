@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   RESULT_BLOCK_TYPES,
+  type BlockAudience,
   RESULT_THEMES,
   defaultResultConfig,
   type ResultPageData,
@@ -28,11 +29,16 @@ export function ResultPageBuilder({
   initial,
   initialPublished,
   lastPublishedAt,
+  hasExitRoutes = false,
 }: {
   assessmentId: string;
   initial: ResultPageData;
   initialPublished: boolean;
   lastPublishedAt: string | null;
+  /** True when the gate has a route that sends people on through the assessment (the
+   *  waitlist case). Only then does "who is this block for" mean anything, so only
+   *  then is it offered. */
+  hasExitRoutes?: boolean;
 }) {
   const [page, setPage] = useState<ResultPageData>(initial);
   const pageRef = useRef(page);
@@ -61,6 +67,11 @@ export function ResultPageBuilder({
 
   const setBlockConfig = (id: string, config: Record<string, unknown>) =>
     update({ ...page, blocks: page.blocks.map((b) => (b.id === id ? { ...b, config } : b)) });
+
+  /** Who a block is written for. Committed immediately (it is a select, there is no
+   *  blur to wait for) so the choice survives leaving the page. */
+  const setBlockAudience = (id: string, showFor: BlockAudience) =>
+    commit({ ...page, blocks: page.blocks.map((b) => (b.id === id ? { ...b, showFor } : b)) });
 
   const addBlock = (type: ResultBlockType) =>
     commit({
@@ -201,6 +212,8 @@ export function ResultPageBuilder({
             last={i === page.blocks.length - 1}
             pending={pending}
             onChange={(cfg) => setBlockConfig(block.id, cfg)}
+            onAudience={(a) => setBlockAudience(block.id, a)}
+            hasExitRoutes={hasExitRoutes}
             onBlur={persist}
             onMove={(dir) => moveBlock(block.id, dir)}
             onDelete={() => removeBlock(block.id)}
@@ -239,6 +252,8 @@ function BlockEditor({
   last,
   pending,
   onChange,
+  onAudience,
+  hasExitRoutes,
   onBlur,
   onMove,
   onDelete,
@@ -248,6 +263,10 @@ function BlockEditor({
   last: boolean;
   pending: boolean;
   onChange: (config: Record<string, unknown>) => void;
+  onAudience: (showFor: BlockAudience) => void;
+  /** Whether this assessment has a gate route that sends people on through the
+   *  assessment. With none, the audience selector is noise and stays hidden. */
+  hasExitRoutes: boolean;
   onBlur: () => void;
   onMove: (dir: "up" | "down") => void;
   onDelete: () => void;
@@ -262,6 +281,25 @@ function BlockEditor({
     <div className="flex flex-col gap-2 rounded-md border p-3">
       <div className="flex items-center gap-2">
         <span className="text-xs font-medium">{label}</span>
+        {/* WHO THIS IS FOR. A seat button and a scarcity line shown to somebody who has
+            just said they cannot make those dates read as a taunt, and the whole reason
+            the waitlist route exists is that they are otherwise qualified. */}
+        {hasExitRoutes ? (
+          <select
+            className="h-7 rounded-md border border-[var(--border)] bg-[var(--background)] px-1 text-[11px]"
+            value={block.showFor ?? "ALL"}
+            disabled={pending}
+            title="Who sees this block"
+            onChange={(e) => {
+              const v = e.target.value;
+              onAudience(v === "MAIN" ? "MAIN" : v === "EXIT" ? "EXIT" : "ALL");
+            }}
+          >
+            <option value="ALL">Everyone</option>
+            <option value="MAIN">Main path only</option>
+            <option value="EXIT">Routed-in only</option>
+          </select>
+        ) : null}
         <div className="ml-auto flex gap-1">
           <Button size="sm" variant="outline" disabled={pending || first} onClick={() => onMove("up")}>↑</Button>
           <Button size="sm" variant="outline" disabled={pending || last} onClick={() => onMove("down")}>↓</Button>

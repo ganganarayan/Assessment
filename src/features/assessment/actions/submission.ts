@@ -649,7 +649,10 @@ export async function startSubmission(
     const wanted = typeof exitKey === "string" ? exitKey.trim() : "";
     if (!wanted) return null;
     const found = readExits(assessment.disqualifiedContent).find((e) => e.key === wanted);
-    return found && found.mode === "OPTIN" ? found : null;
+    // Both opt-in kinds qualify: one ends at the thank-you, the other goes on to answer
+    // the assessment. What they share is that neither is a rejection and neither may be
+    // reported as an ordinary registration.
+    return found && (found.mode === "OPTIN" || found.mode === "CONTINUE") ? found : null;
   })();
   const cleanExitKey = exitRoute?.key ?? null;
 
@@ -1157,6 +1160,7 @@ export async function completeSubmission(
       fireMetaCapi: true,
       metaEvents: true,
       // Gated funnels fire QualifiedCompletion instead of AssessmentCompleted.
+      disqualifiedContent: true,
       qualification: true,
       tenant: { select: { id: true, slug: true, name: true } },
       categories: {
@@ -1592,8 +1596,32 @@ export async function completeSubmission(
       leadEmail: true,
       leadMobile: true,
       metaExternalId: true,
+      // Which route they came in through. A waitlist respondent completes the same
+      // assessment as everybody else and must NOT be reported as the same conversion.
+      gateExitKey: true,
     },
   });
+
+  /**
+   * 🔴 THE EVENT THIS COMPLETION REPORTS.
+   *
+   * CompleteRegistration and the completion event are what a lead campaign optimises
+   * toward. Let a waitlist completion fire them and Meta learns, correctly and
+   * expensively, to go and find more founders who cannot make the dates - and nothing
+   * about that looks like a fault. It shows up weeks later as a cost per filled seat
+   * that has quietly doubled.
+   *
+   * So a route with its own completion event name reports under that instead. Blank
+   * keeps the funnel's normal event, which is what every route that is not a waitlist
+   * should do.
+   */
+  const completionEvent = (() => {
+    const normal = completionEventName(isQualificationActive(assessment.qualification));
+    const key = full?.gateExitKey?.trim();
+    if (!key) return normal;
+    const exit = readExits(assessment.disqualifiedContent).find((e) => e.key === key);
+    return exit?.completionEventName.trim() || normal;
+  })();
 
   // Completion without an in-app payment is ONE event: completed_unpaid. Paid mode
   // fires completed_paid (on payment) + completed_unpaid (30-min sweep); free mode
@@ -1666,7 +1694,7 @@ export async function completeSubmission(
     const ctx = await getMetaRequestContext();
     void sendAndLogLifecycleCapi(
       {
-        eventName: completionEventName(isQualificationActive(assessment.qualification)),
+        eventName: completionEvent,
         eventId,
         eventTimeMs: Date.now(),
         eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
@@ -1695,7 +1723,7 @@ export async function completeSubmission(
         bumpFunnelEventCount({
           assessmentId: assessment.id,
           tenantId: assessment.tenant?.id ?? null,
-          eventName: completionEventName(isQualificationActive(assessment.qualification)),
+          eventName: completionEvent,
           ok: r.ok,
         }),
       )

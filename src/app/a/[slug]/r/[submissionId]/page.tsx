@@ -156,6 +156,7 @@ export default async function ResultPage({
       leadMobile: true,
       leadProfession: true,
       gateBreakdown: true,
+      gateExitKey: true,
       completedAt: true,
       assessment: {
         select: {
@@ -472,6 +473,9 @@ export default async function ResultPage({
           // Null in an admin preview, so previewing the page cannot record a booking
           // request or email the owner about a click nobody made.
           submissionId={canViewInternally ? null : submissionId}
+          // Which route they came in through. A waitlist respondent gets the same
+          // diagnosis and the same video, and a different close.
+          exitKey={submission.gateExitKey ?? null}
         />
       );
     }

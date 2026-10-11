@@ -198,6 +198,7 @@ export async function ensureGateExit(
     fireDisqualifiedEvent: true,
     eventName: "",
     contentCategory: "",
+    completionEventName: "",
   };
   await writeExits(assessmentId, [...exits, created]);
   return { ok: true, data: { key: created.key, name: created.name } };

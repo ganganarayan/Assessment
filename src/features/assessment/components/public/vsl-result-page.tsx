@@ -4,6 +4,7 @@ import {
   extractEmbedSrc,
   youtubeEmbedUrl,
   normalizeHref,
+  blockVisibleFor,
   type ResultPageData,
   type ResultBlock,
   type TextAlign,
@@ -28,6 +29,7 @@ export function VslResultPage({
   resultToken,
   vidapulseParam,
   submissionId = null,
+  exitKey = null,
 }: {
   page: ResultPageData;
   aiStatement: string | null;
@@ -37,6 +39,9 @@ export function VslResultPage({
   /** Whose result page this is. Null in an admin preview - booking CTAs then link
    *  straight out rather than recording a click nobody made. */
   submissionId?: string | null;
+  /** The exit route this respondent came in through, null for the funnel proper.
+   *  Decides which blocks are addressed to them - same diagnosis, different close. */
+  exitKey?: string | null;
 }) {
   const t = themeOf(page.theme);
   return (
@@ -54,7 +59,7 @@ export function VslResultPage({
         }}
         className="flex flex-col gap-6"
       >
-        {page.blocks.map((b) => (
+        {page.blocks.filter((b) => blockVisibleFor(b, exitKey)).map((b) => (
           <Block
             key={b.id}
             block={b}

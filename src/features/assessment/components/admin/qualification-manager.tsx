@@ -427,10 +427,14 @@ export function QualificationManager({
                 <select
                   className="h-10 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
                   value={exit.mode}
-                  onChange={(e) => setExit(exit.key, { mode: e.target.value === "OPTIN" ? "OPTIN" : "PAGE" })}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setExit(exit.key, { mode: v === "OPTIN" ? "OPTIN" : v === "CONTINUE" ? "CONTINUE" : "PAGE" });
+                  }}
                 >
                   <option value="PAGE">Show this page and stop</option>
-                  <option value="OPTIN">Ask for their details first, then show it</option>
+                  <option value="OPTIN">Ask for their details, then show it</option>
+                  <option value="CONTINUE">Ask for their details, then let them take the assessment</option>
                 </select>
               </div>
               {exits.length > 1 ? (
@@ -448,9 +452,18 @@ export function QualificationManager({
             {exit.mode === "OPTIN" ? (
               <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-xs text-[var(--muted-foreground)]">
                 Not a rejection. They are sent to the opt-in form, their details are captured, the
-                lead webhook fires, and this page is the thank-you. For the waitlist case: somebody
-                who clears every bar and cannot make the dates is a lead with a timing problem.
-                They never answer the assessment, so they are kept out of your completion rates.
+                lead webhook fires, and this page is the thank-you. They never answer the
+                assessment, so they stay out of your completion rates.
+              </p>
+            ) : null}
+            {exit.mode === "CONTINUE" ? (
+              <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-xs text-[var(--muted-foreground)]">
+                They opt in and then answer the whole assessment, reaching the same result page as
+                everybody else. For the waitlist case: these people are qualified, what they failed
+                was a date, and a finished diagnosis is worth more than a thank-you page. Their
+                close is set on the <strong>result page</strong> - give the blocks they should not
+                see (a seat button, a scarcity line) an audience of <strong>main path only</strong>,
+                and write their own CTA as a block for this route. The page below is not used.
               </p>
             ) : null}
 
@@ -521,8 +534,29 @@ export function QualificationManager({
                   </div>
                 </div>
               ) : null}
+              {exit.mode === "CONTINUE" ? (
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs">Event when they COMPLETE the assessment</Label>
+                  <Input
+                    value={exit.completionEventName}
+                    placeholder="WaitlistCompleted"
+                    onChange={(e) => setExit(exit.key, { completionEventName: e.target.value })}
+                  />
+                  {!exit.completionEventName.trim() ? (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      🟡 Blank, so these completions report as your normal completion event, the one
+                      your ads optimise toward. Meta then learns to find more people who cannot
+                      come, and the cost per filled seat climbs with nothing looking broken.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-[var(--muted-foreground)]">
+                      Keeps them out of the optimisation event while still building an audience.
+                    </p>
+                  )}
+                </div>
+              ) : null}
               {exit.fireDisqualifiedEvent && !exit.eventName.trim() ? (
-                exit.mode === "OPTIN" ? (
+                exit.mode === "OPTIN" || exit.mode === "CONTINUE" ? (
                   <p className="text-xs text-amber-600 dark:text-amber-400">
                     🟡 No event name, so this exit reports nothing. These people are not
                     rejections, so falling back to GateDisqualified would put them in your
@@ -564,6 +598,7 @@ export function QualificationManager({
                       fireDisqualifiedEvent: true,
                       eventName: "",
                       contentCategory: "",
+                      completionEventName: "",
                     },
                   ],
                 };

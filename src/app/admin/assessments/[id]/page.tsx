@@ -31,6 +31,7 @@ import {
   EMPTY_DISQUALIFIED,
   qualificationSchema,
   disqualifiedContentSchema,
+  readExits,
   type AudienceGateInput,
 } from "@/features/assessment/schemas";
 import { QualificationManager } from "@/features/assessment/components/admin/qualification-manager";
@@ -398,6 +399,9 @@ export default async function EditAssessmentPage({
         initial={readResultPage(a.resultPage ?? null)}
         initialPublished={!!a.resultPagePublished}
         lastPublishedAt={a.resultPagePublishedAt ? a.resultPagePublishedAt.toISOString() : null}
+        // Only a gate route that carries people on through the assessment makes "who is
+        // this block for" a real question.
+        hasExitRoutes={readExits(a.disqualifiedContent).some((e) => e.mode === "CONTINUE")}
       />
     </section>
   );
