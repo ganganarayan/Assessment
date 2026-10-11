@@ -49,6 +49,19 @@ export function compare(
   const checks: Check[] = [];
   const sawStep = (s: string) => obs.steps.includes(s);
 
+  // The funnel falling over is a different statement from the funnel behaving wrongly,
+  // and reporting it as seven failed expectations buries it. It leads, alone.
+  if (obs.crashed) {
+    return [
+      {
+        verdict: "fail",
+        what: "the funnel renders without falling over",
+        expected: "the next screen",
+        observed: "the app's error boundary, twice in a row",
+      },
+    ];
+  }
+
   /* --- the screens -------------------------------------------------------------- */
   checks.push(eq("the run opens on the right screen", expected.firstStep, obs.steps[0] ?? "(nothing)"));
 

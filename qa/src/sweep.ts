@@ -120,6 +120,21 @@ export async function sweep(
         await context.close();
       }
 
+      // The app's error boundary is transient by nature (staging Postgres restarts,
+      // a cold lambda). One retry, then it is reported as what it is.
+      if (observation?.crashed) {
+        process.stdout.write("(the funnel fell over, retrying) ");
+        const retryContext = await newCaseContext(browser, opts);
+        try {
+          const second = await driveCase(retryContext, funnel, c.plan, opts);
+          if (!second.crashed) observation = second;
+        } catch {
+          /* keep the first observation */
+        } finally {
+          await retryContext.close();
+        }
+      }
+
       // Server-side work (CAPI sends, counters, the CRM queue) lands a beat after the
       // browser is done, so give it one before reading rows back.
       await new Promise((r) => setTimeout(r, 2500));

@@ -60,6 +60,9 @@ export interface Observation {
   /** Browser-side Meta pixel calls, by event name. Empty when no pixel is configured. */
   pixelEvents: string[];
   consoleErrors: string[];
+  /** The app's own error boundary rendered: the funnel fell over, which is a different
+   *  statement from the funnel behaving wrongly, and is usually transient. */
+  crashed: boolean;
   /** Everything the driver did, for the report when something goes wrong. */
   trail: string[];
   screenshot?: Buffer;
@@ -121,6 +124,7 @@ export async function driveCase(
     externalId: null,
     pixelEvents: [],
     consoleErrors: [],
+    crashed: false,
     trail: [],
   };
 
@@ -151,6 +155,11 @@ export async function driveCase(
   let lastStep = "";
   let sameStepCount = 0;
   for (let i = 0; i < MAX_SCREENS; i++) {
+    if (await page.locator("[data-qa-error='boundary']").count()) {
+      obs.crashed = true;
+      obs.trail.push("the app's error boundary rendered, so the run stopped here");
+      break;
+    }
     const step = await currentStep(page);
     if (!step) {
       // Either a redirect away from the funnel, or the result page.
