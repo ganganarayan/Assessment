@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db/prisma";
 import { qualificationSchema } from "@/features/assessment/schemas";
+import { gateVerdict, type GateVerdict } from "@/features/assessment/gate-verdict";
 
 /**
  * The gate's verdict on one respondent, decided on the SERVER.
@@ -21,11 +22,7 @@ import { qualificationSchema } from "@/features/assessment/schemas";
  * database must not strand a qualified founder on a dead screen - the band is a triage
  * aid, and losing one to an outage costs more than letting one through unflagged.
  */
-export interface GateVerdict {
-  outcome: "pass" | "review" | "exit";
-  /** Set when outcome is "exit": which route to show. */
-  exitKey?: string;
-}
+export type { GateVerdict };
 
 export async function evaluateGate(slug: string, choices: Record<string, string>): Promise<GateVerdict> {
   try {
@@ -39,27 +36,10 @@ export async function evaluateGate(slug: string, choices: Record<string, string>
     if (!parsed.success || !parsed.data.enabled) return { outcome: "pass" };
     const q = parsed.data;
 
-    // An answer that disqualifies outranks any total. Re-checked here rather than
-    // trusted from the client: this is the same resolution the browser did, done again
-    // against the stored gate, so a tampered payload cannot buy its way past an exit.
-    for (const question of q.questions) {
-      if (question.type !== "choice") continue;
-      const picked = question.options.find((o) => o.id === choices[question.id]);
-      if (picked?.disqualifies) return { outcome: "exit", exitKey: picked.exitKey ?? "" };
-    }
-
-    if (!q.bands.enabled) return { outcome: "pass" };
-
-    let score = 0;
-    for (const question of q.questions) {
-      if (question.type !== "choice") continue;
-      const picked = question.options.find((o) => o.id === choices[question.id]);
-      if (picked) score += picked.points;
-    }
-
-    if (score >= q.bands.passMin) return { outcome: "pass" };
-    if (score >= q.bands.reviewMin) return { outcome: "review" };
-    return { outcome: "exit", exitKey: q.bands.belowExitKey ?? "" };
+    // The decision itself is in gate-verdict.ts: a disqualifying answer outranks any
+    // total, then the bands. Re-run here against the STORED gate rather than trusted
+    // from the client, so a tampered payload cannot buy its way past an exit.
+    return gateVerdict(q, choices);
   } catch {
     return { outcome: "pass" };
   }
