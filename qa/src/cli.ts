@@ -20,11 +20,14 @@ import type { CaseKind } from "./oracle/types.js";
 import { sweep } from "./sweep.js";
 import { renderTerminal, writeHtml } from "./report/render.js";
 import { newRunId } from "./drive/identity.js";
+import { applyOverrides, loadOverrides, overrideExpectation, writeOverridesTemplate } from "./cases/overrides.js";
+import { cleanupRun } from "./cleanup.js";
 
 interface Args {
   slug: string;
   audit: boolean;
   plan: boolean;
+  writeCases: boolean;
   headed: boolean;
   desktop: boolean;
   forceLive: boolean;
@@ -49,6 +52,7 @@ function parseArgs(argv: string[]): Args {
     slug: get("slug") ?? "",
     audit: has("audit"),
     plan: has("plan"),
+    writeCases: has("write-cases"),
     headed: has("headed"),
     desktop: has("desktop"),
     forceLive: has("force-live"),
@@ -143,7 +147,20 @@ async function main(): Promise<number> {
   const only = args.only.filter((k): k is CaseKind =>
     ["entry", "audience", "gate", "routes", "bands", "edge"].includes(k),
   );
-  const cases = generateCases(funnel, only).filter((c) => !args.case || c.plan.id === args.case);
+  const generated = generateCases(funnel, only);
+
+  // The owner's file gets the last word: cases to skip, expectations to pin, and runs
+  // of answers written by hand. Absent, the generated set stands as it is.
+  const overrides = loadOverrides(args.slug);
+  const applied = applyOverrides(funnel, generated, overrides);
+  if (overrides.exists) console.log(`\nUsing ${overrides.path}`);
+  for (const problem of applied.problems) console.log(`  [cases file] ${problem}`);
+  if (args.writeCases) {
+    const written = writeOverridesTemplate(funnel, generated);
+    console.log(`\nWrote ${written} - edit it to skip cases, pin expectations or add your own.`);
+  }
+
+  const cases = applied.cases.filter((c) => !args.case || c.plan.id === args.case);
   const ctx = await oracleContext(funnel);
 
   console.log(`\nCases: ${cases.length}${args.case ? ` (filtered to ${args.case})` : ""}`);
@@ -154,7 +171,7 @@ async function main(): Promise<number> {
       console.log(`    ${c.unreachable}`);
       continue;
     }
-    const e = expectationFor(funnel, c.plan, ctx);
+    const e = overrideExpectation(expectationFor(funnel, c.plan, ctx), overrides.expect[c.plan.id]);
     const bits: string[] = [`opens on ${e.firstStep}`];
     if (e.gate) {
       bits.push(
@@ -188,7 +205,7 @@ async function main(): Promise<number> {
   const drivable = cases.filter((c) => !c.unreachable).length;
   console.log(`\nDriving ${drivable} case(s)${args.headed ? " in a visible browser" : ""}:`);
   const runId = newRunId();
-  const result = await sweep(funnel, cases, ctx, {
+  const result = await sweep(funnel, cases, ctx, overrides, {
     baseUrl: env.baseUrl,
     headed: args.headed,
     slowMo: args.slow,
@@ -200,6 +217,13 @@ async function main(): Promise<number> {
   });
 
   console.log(renderTerminal(result));
+  if (args.cleanup) {
+    const removed = await cleanupRun(funnel, result);
+    console.log(
+      `
+Cleaned up this run: ${removed.submissions} submission(s), ${removed.gateEntries} gate entry/ies, ${removed.disqualifications} rejection(s).`,
+    );
+  }
   const htmlPath = writeHtml(result);
   console.log(`Open it: ${htmlPath}`);
 

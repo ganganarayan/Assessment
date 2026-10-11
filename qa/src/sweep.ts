@@ -21,6 +21,7 @@ import { eventDelta, eventSnapshot, readRows, type EventCounts, type RowObservat
 import { compare, worst, type Check, type Verdict } from "./assert/compare.js";
 import { adminPass, type AdminPassResult } from "./assert/admin.js";
 import type { Expectation } from "./oracle/types.js";
+import { overrideExpectation, type Overrides } from "./cases/overrides.js";
 
 export interface CaseResult {
   id: string;
@@ -58,6 +59,7 @@ export async function sweep(
   funnel: Funnel,
   cases: GeneratedCase[],
   ctx: OracleContext,
+  overrides: Overrides,
   opts: DriveOptions & { outRoot: string; admin: boolean },
 ): Promise<SweepResult> {
   const startedAt = new Date();
@@ -88,7 +90,7 @@ export async function sweep(
         continue;
       }
 
-      const expectation = expectationFor(funnel, c.plan, ctx);
+      const expectation = overrideExpectation(expectationFor(funnel, c.plan, ctx), overrides.expect[c.plan.id]);
       const before = await eventSnapshot(funnel.row.id);
       const context = await newCaseContext(browser, opts);
       let observation: Observation | undefined;

@@ -1,0 +1,39 @@
+# QA fixture: answers that change the path
+#
+# The harness generates its cases from this funnel, so there is usually nothing to
+# do here. Uncomment what you need:
+#   skip    case ids to leave out of the sweep
+#   only    run ONLY these ids
+#   expect  pin an expectation, so changing the funnel breaks the run instead of
+#           quietly changing what is expected
+#   cases   runs of answers you want driven every time (ids or the labels on screen)
+
+slug: qa-fixture-routing
+
+# skip:
+#   - clean-run   # answers everything and gets through to the end
+#   - route-qafix-qa-fixture-routing-r-q1-b   # answers to trigger the jump to question route and should see 3 question(s)
+#   - route-qafix-qa-fixture-routing-r-q1-c   # answers to trigger the jump to category route and should see 2 question(s)
+#   - route-qafix-qa-fixture-routing-r-q1-d   # answers to trigger the skip to end route and should see 1 question(s)
+#   - band-qafix-qa-fixture-routing-band-0   # lands in "Low" (0 to 49)
+#   - band-qafix-qa-fixture-routing-band-1   # lands in "High" (50 to 100)
+#   - edge-reload-mid-flow   # reloads the page part way through and carries on
+#   - edge-abandon-at-optin   # reaches the opt-in and walks away, leaving no lead
+#   - edge-skip-required   # tries to continue with a required question unanswered and must be stopped
+
+# only: []
+
+# expect:
+#   clean-run:
+#     completed: true
+#   route-qafix-qa-fixture-routing-r-q1-b:
+#     completed: true
+#   route-qafix-qa-fixture-routing-r-q1-c:
+#     completed: true
+
+# cases:
+#   - id: the-one-i-worry-about
+#     title: what this run is meant to prove
+#     behaviours: [reload-mid-flow]
+#     expect:
+#       completed: true

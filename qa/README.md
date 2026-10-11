@@ -77,10 +77,42 @@ decided to report, not what Meta received.
 ## Changing a case
 
 The generated cases cover the funnel's own conditions, so most of the time there is
-nothing to change. When there is, the file `qa/cases/<slug>.yaml` is yours: it can pin a
-case to an expectation, skip one, or add a run of answers the generator would not think
-of. (The generator writes a first draft of this file on request; hand-written cases are
-read back on every run.)
+nothing to change. When there is, `qa/cases/<slug>.yaml` is yours. Write the first draft
+with every generated case listed and commented out:
+
+```bash
+npm run qa -- --slug=my-funnel --write-cases --plan
+```
+
+Four things it can do:
+
+- **skip** - case ids to leave out of the sweep
+- **only** - run nothing but these ids
+- **expect** - pin an expectation per case id (`exitKey`, `lead`, `submission`,
+  `completed`, `gateEntry`, `disqualification`, `bandTitle`, `percent`, `terminal`,
+  `events.fires`, `events.never`). A pinned expectation means that changing the funnel
+  breaks the run instead of quietly changing what is expected, which is the point.
+- **cases** - runs of answers you want driven every time. Answers can be option ids or
+  the labels on screen, because nobody knows their own option ids:
+
+```yaml
+cases:
+  - id: the-one-i-worry-about
+    title: a founder who qualifies but will not start this month
+    audienceRole: I am the right person
+    gate:
+      "When would you want this fixed?": "No timeline yet"
+    behaviours: [reload-mid-flow]
+    expect:
+      completed: true
+```
+
+Anything in the file that does not resolve against the funnel is reported at the top of
+the run rather than ignored.
+
+The rows a sweep writes are left in place, because they are the evidence a failure is
+argued from. Pass `--cleanup` to remove that run's own submissions, gate entries and
+rejections afterwards.
 
 ## What it does not cover
 
