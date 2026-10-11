@@ -161,7 +161,11 @@ export function compare(
       });
     } else {
       if (obs.percent !== null) {
-        checks.push(eq("the percentage on the result page", expected.score.percentage, obs.percent));
+        // The page shows a whole number, because that is what a respondent should read.
+        // The exact figure is checked against the row instead.
+        checks.push(
+          eq("the percentage on the result page", Math.round(expected.score.percentage), Math.round(obs.percent)),
+        );
       }
       if (obs.score !== null) checks.push(eq("the score on the result page", expected.score.total, obs.score));
       if (obs.max !== null) checks.push(eq("out of the achievable total", expected.score.max, obs.max));

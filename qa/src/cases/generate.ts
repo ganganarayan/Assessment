@@ -393,8 +393,29 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
 
   /* --- the result bands --------------------------------------------------------- */
   if (wanted("bands") && funnel.row.resultBands.length > 0 && sq.length > 0) {
+    // The gate's points count towards the result, so on a gate-heavy funnel the lowest
+    // band is out of reach for a respondent who aced the gate. The search is therefore
+    // allowed to vary the gate too - but only across answer sets that still get
+    // THROUGH it, since an exit never reaches a result at all.
+    const gateCandidates = (gateLive
+      ? [safePicks(qs), lowestSafePicks(qs), gatePicksForScore(funnel, qs, funnel.qualification.bands.reviewMin, funnel.qualification.bands.passMin - 1)]
+      : [{}]
+    ).filter((picks): picks is Record<string, string> => {
+      if (!picks) return false;
+      if (!gateLive) return true;
+      return gateVerdict(funnel.qualification, picks).outcome !== "exit";
+    });
+
     for (const band of funnel.row.resultBands) {
-      const found = answersForBand(funnel, sq, spine, byOption, baselineGate, band.minScore, band.maxScore);
+      let found: Record<string, string> | null = null;
+      let withGate = baselineGate;
+      for (const gatePicks of gateCandidates) {
+        found = answersForBand(funnel, sq, spine, byOption, gatePicks, band.minScore, band.maxScore);
+        if (found) {
+          withGate = gatePicks;
+          break;
+        }
+      }
       if (!found) {
         out.push({
           plan: { id: `band-${band.id}`, kind: "bands", title: `lands in "${band.title}" (${band.minScore} to ${band.maxScore})`, gateChoices: baselineGate, gateTexts: texts, answers: {}, behaviours: [] },
@@ -408,7 +429,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
           kind: "bands",
           title: `lands in "${band.title}" (${band.minScore} to ${band.maxScore})`,
           ...baselineAudience,
-          gateChoices: baselineGate,
+          gateChoices: withGate,
           gateTexts: texts,
           answers: found,
           behaviours: [],

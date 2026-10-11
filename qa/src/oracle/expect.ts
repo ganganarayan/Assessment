@@ -36,6 +36,27 @@ import type { CasePlan, Expectation, ExpectedGate } from "./types.js";
 /** The opt-in event Meta is told about, by its real name. */
 const REGISTRATION_EVENT = "CompleteRegistration";
 
+/**
+ * The gate answers the browser actually submits.
+ *
+ * The runner routes a disqualifying answer out the instant it is clicked, without
+ * adding it to the answer map, so everything from that question on never reaches the
+ * server. Expecting the full set made the gate score read two points high on a
+ * waitlist route, which is the kind of quiet difference this harness exists to catch.
+ */
+function submittedGateChoices(funnel: Funnel, choices: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const question of funnel.qualification.questions) {
+    if (question.type !== "choice") continue;
+    const pickedId = choices[question.id];
+    if (!pickedId) continue;
+    const picked = question.options.find((o) => o.id === pickedId);
+    if (picked?.disqualifies) break;
+    out[question.id] = pickedId;
+  }
+  return out;
+}
+
 export function expectationFor(
   funnel: Funnel,
   plan: CasePlan,
@@ -50,7 +71,11 @@ export function expectationFor(
   let gate: ExpectedGate | null = null;
   if (gateIsLive(entry)) {
     const verdict = gateVerdict(funnel.qualification, plan.gateChoices);
-    const totals = gateTotals(funnel.qualification, plan.gateChoices);
+    // What the browser actually SENDS. A disqualifying answer routes them out from the
+    // click, and that pick is never added to the answers - so the gate's score is the
+    // questions answered BEFORE it, not every answer the case had lined up. (The
+    // ceiling still counts every question, exactly as the completion action does.)
+    const totals = gateTotals(funnel.qualification, submittedGateChoices(funnel, plan.gateChoices));
     const exit = verdict.outcome === "exit" ? resolveExit(funnel.exits, verdict.exitKey) : null;
     gate = {
       outcome: verdict.outcome,
@@ -182,8 +207,18 @@ export function expectationFor(
     // Nothing a lead would ever produce may appear for somebody who never opted in.
     never.push(REGISTRATION_EVENT, completionEventName(funnel.gateActive));
   } else {
-    if (eventOn("registration")) fired.push(REGISTRATION_EVENT);
-    else never.push(REGISTRATION_EVENT);
+    // A lead-capturing exit route files the opt-in under the ROUTE's own event, never
+    // under CompleteRegistration: a waitlist sign-up counted as a registration teaches
+    // the ad account to find more people who cannot buy, and that is the one mistake
+    // this whole exit-route feature exists to prevent.
+    const exitTookTheLead = gate?.outcome === "exit" && gate.capturesLead;
+    if (exitTookTheLead) {
+      never.push(REGISTRATION_EVENT);
+    } else if (eventOn("registration")) {
+      fired.push(REGISTRATION_EVENT);
+    } else {
+      never.push(REGISTRATION_EVENT);
+    }
     if (!stopsAtThankYou && !blockedAtRequired && eventOn("completion")) {
       // A CONTINUE route's completion is reported under its OWN name, and a blank name
       // means silence: the ad account must not learn to find people who cannot buy.
