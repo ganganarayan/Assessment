@@ -117,7 +117,22 @@ async function main(): Promise<number> {
   const env = loadQaEnv();
 
   if (!args.slug) {
-    console.log("Usage: npm run qa -- --slug=<funnel-slug> [--audit] [--headed] [--only=gate,routes,bands] [--case=<id>]");
+    console.log(`Usage: npm run qa -- --slug=<funnel-slug> [flags]
+
+  --audit                  what the funnel is and whether driving it is safe; drives nothing
+  --plan                   the cases it would run and what it expects; drives nothing
+  --headed --slow=<ms>     a visible browser, slowly, so you can watch it fill
+  --case=<id>              one case only
+  --only=<kinds>           entry, audience, gate, routes, bands, edge (comma separated)
+  --desktop                a desktop viewport instead of a phone
+  --trace                  keep a Playwright trace per case
+  --admin                  also read the run back through the admin screens
+  --write-cases            write qa/cases/<slug>.yaml, the file where you get the last word
+  --cleanup                remove this run's own rows afterwards
+  --force-live             run even though a live pixel or CAPI token resolves
+  --i-know-this-is-prod    run against a host that is not staging
+
+Seed the fixtures with: npm run qa:seed   (and -- --rm to remove them)`);
     return 2;
   }
 

@@ -98,6 +98,17 @@ export function expectationFor(
     };
   }
 
+  // An audience role can send the respondent to a DIFFERENT assessment. When it does,
+  // this funnel is not where the run happens: no questions here, no row here, nothing
+  // reported here. Whatever the other funnel then does is that funnel's sweep to make.
+  const redirectToSlug = (() => {
+    if (!plan.audienceRoleId) return null;
+    const role = funnel.audience.roles.find((r) => r.id === plan.audienceRoleId);
+    if (!role || !role.target) return null;
+    return ctx.redirectSlugByAssessmentId.get(role.target) ?? null;
+  })();
+  const handsOff = redirectToSlug !== null;
+
   // The awkward things a respondent does, which change what should EXIST rather than
   // what should be shown. Folded in here so one place answers "what rows and events
   // does this run owe", instead of each assertion guessing.
@@ -132,7 +143,7 @@ export function expectationFor(
   const reached = funnel.routingActive
     ? walk(answersByQuestion, spine, byOption).reached
     : spine.map((s) => s.id);
-  const questionPath = turnedAway || stopsAtThankYou ? [] : reached;
+  const questionPath = turnedAway || stopsAtThankYou || handsOff ? [] : reached;
   const skipped = spine.map((s) => s.id).filter((id) => !reached.includes(id));
 
   // --- the score ------------------------------------------------------------------
@@ -157,7 +168,7 @@ export function expectationFor(
   const gateScore = gate && gate.max > 0 ? gate.score : 0;
   const gateMax = gate && gate.max > 0 ? gate.max : 0;
   const scored =
-    turnedAway || stopsAtThankYou
+    turnedAway || stopsAtThankYou || handsOff
       ? null
       : computeScores(
           scoringQuestions,
@@ -169,7 +180,7 @@ export function expectationFor(
 
   // --- the ending -----------------------------------------------------------------
   const terminal =
-    turnedAway || stopsAtThankYou
+    turnedAway || stopsAtThankYou || handsOff
       ? null
       : terminalStage({
           platformSignup: row.platformSignup,
@@ -201,7 +212,7 @@ export function expectationFor(
 
   // Somebody who walked away from the opt-in, or who was stopped before reaching it,
   // produces no lead - so nothing that only a lead produces may be reported.
-  const noOptin = abandonsAtOptin || (blockedAtRequired && row.leadCaptureAfter);
+  const noOptin = abandonsAtOptin || handsOff || (blockedAtRequired && row.leadCaptureAfter);
 
   if (turnedAway || noOptin) {
     // Nothing a lead would ever produce may appear for somebody who never opted in.
@@ -248,13 +259,6 @@ export function expectationFor(
     completed: opted && !stopsAtThankYou && !blockedAtRequired,
   };
 
-  const redirectToSlug = (() => {
-    if (!plan.audienceRoleId) return null;
-    const role = funnel.audience.roles.find((r) => r.id === plan.audienceRoleId);
-    if (!role || !role.target) return null;
-    return ctx.redirectSlugByAssessmentId.get(role.target) ?? null;
-  })();
-
   return {
     firstStep: firstStep(entry),
     afterGate: afterGateStep(entry),
@@ -277,7 +281,7 @@ export function expectationFor(
       : null,
     rows,
     events: { fired, never: never.filter((n) => !fired.includes(n)) },
-    optinSeen: !turnedAway && !(blockedAtRequired && row.leadCaptureAfter),
+    optinSeen: !turnedAway && !handsOff && !(blockedAtRequired && row.leadCaptureAfter),
     abandonsAtOptin,
     blockedAtRequired,
     expectsRetakeLockout,

@@ -371,6 +371,7 @@ async function answerQuestionScreen(
   plan: CasePlan,
   obs: Observation,
   flags: { skipsRequired: boolean },
+  step = "questions",
 ): Promise<boolean> {
   const blocks = page.locator("[data-qa-question]");
   const count = await blocks.count();
@@ -408,9 +409,16 @@ async function answerQuestionScreen(
     obs.trail.push(`question ${qid}: picked ${optionId}`);
   }
 
-  // SINGLE mode auto-advances a quarter of a second after the pick, so the screen may
-  // already have moved on; pressing Next then does nothing, which is harmless.
-  await page.waitForTimeout(600);
+  // SINGLE mode auto-advances a quarter of a second after the pick. When it has, there
+  // is nothing left to press and looking for the button costs a second a question - on
+  // a fifteen-question funnel that is most of the case.
+  const before = `${step}|${idsOnScreen.join(",")}`;
+  for (let waited = 0; waited < 2000; waited += 250) {
+    await page.waitForTimeout(250);
+    const now = `${(await attr(page, "[data-qa-step]", "data-qa-step")) ?? ""}|${await screenKey(page, "questions")}`;
+    if (now !== before) return true;
+  }
+
   const submit = page.locator("[data-qa-nav='submit']");
   const next = page.locator("[data-qa-nav='next']");
   if (await submit.count()) {
