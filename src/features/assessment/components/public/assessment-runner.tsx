@@ -1568,6 +1568,7 @@ export function AssessmentRunner({
         <div className="flex flex-col gap-4">
           {assessment.collectFirstName ? (
             <Field
+              qa="firstName"
               label={assessment.firstNameLabel?.trim() || "First name"}
               required={assessment.firstNameRequired}
               value={lead.firstName ?? ""}
@@ -1576,6 +1577,7 @@ export function AssessmentRunner({
           ) : null}
           {assessment.collectLastName ? (
             <Field
+              qa="lastName"
               label={assessment.lastNameLabel?.trim() || "Last name"}
               required={assessment.lastNameRequired}
               value={lead.lastName ?? ""}
@@ -1584,6 +1586,7 @@ export function AssessmentRunner({
           ) : null}
           {assessment.collectEmail ? (
             <Field
+              qa="email"
               label={assessment.emailLabel?.trim() || "Email"}
               type="email"
               required={assessment.emailRequired}
@@ -1593,6 +1596,7 @@ export function AssessmentRunner({
           ) : null}
           {assessment.collectMobile ? (
             <Field
+              qa="mobile"
               label={assessment.mobileLabel?.trim() || "Mobile"}
               required={assessment.mobileRequired}
               value={lead.mobile ?? ""}
