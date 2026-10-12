@@ -61,6 +61,16 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    // Two items and not one. A ticket is "something is broken" and onboarding is
+    // "help me start", and a customer who cannot tell which one they are in writes
+    // neither. They are also the two queues the owner can route separately.
+    title: "Support",
+    items: [
+      { href: "/w/support", label: "Raise a ticket" },
+      { href: "/w/onboarding", label: "Onboarding help" },
+    ],
+  },
+  {
     title: "Account",
     items: [
       { href: "/w/operations", label: "Operations" },
@@ -71,7 +81,14 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-export function WorkspaceNav({ hidden = [] }: { hidden?: string[] }) {
+export function WorkspaceNav({
+  hidden = [],
+  badges = {},
+}: {
+  hidden?: string[];
+  /** href -> count, resolved on the server. Here it is only drawn. */
+  badges?: Record<string, number>;
+}) {
   const pathname = usePathname();
   const tab = useBuilderTab();
   const editing = isAssessmentEditor(pathname);
@@ -80,7 +97,9 @@ export function WorkspaceNav({ hidden = [] }: { hidden?: string[] }) {
 
   const sections = SECTIONS.map((s) => ({
     ...s,
-    items: s.items.filter((i) => !hidden.includes(i.href)),
+    items: s.items
+      .filter((i) => !hidden.includes(i.href))
+      .map((i) => (badges[i.href] ? { ...i, badge: badges[i.href] } : i)),
   })).filter((s) => s.items.length > 0);
 
   return (

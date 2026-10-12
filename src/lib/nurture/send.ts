@@ -62,12 +62,25 @@ export async function sendTrackedEmail(
   return err;
 }
 
+/**
+ * Options that are not part of every send.
+ *
+ * `replyTo` exists for one case and it matters: a support ticket FORWARDED to the
+ * support inbox has to carry the tenant as the reply address. Without it, support hits
+ * Reply and the answer comes back to the platform's own mailbox, which is the exact
+ * loop that forwarding was supposed to end.
+ */
+export interface SendEmailOptions {
+  replyTo?: string | null;
+}
+
 /** Send one email through the tenant's SMTP. Returns an error string, or null on success. */
 export async function sendEmail(
   tenantId: string | null,
   to: string,
   subject: string,
   htmlBody: string,
+  opts?: SendEmailOptions,
 ): Promise<string | null> {
   const smtp = await resolveSmtpConfig(tenantId);
   if (!smtp.host || !smtp.port || !smtp.fromEmail) return "SMTP is not configured.";
@@ -76,7 +89,7 @@ export async function sendEmail(
   // up as "Connection timeout". Send via ZeptoMail's HTTPS API (port 443, never
   // blocked) instead - same Send-Mail token as the SMTP password.
   if (/(^|\.)zeptomail\./i.test(smtp.host)) {
-    return sendViaZeptoMailApi(smtp, to, subject, htmlBody);
+    return sendViaZeptoMailApi(smtp, to, subject, htmlBody, opts);
   }
 
   try {
@@ -97,6 +110,7 @@ export async function sendEmail(
       to,
       subject,
       html: htmlBody,
+      ...(opts?.replyTo ? { replyTo: opts.replyTo } : {}),
     });
     return null;
   } catch (e) {
@@ -111,6 +125,7 @@ async function sendViaZeptoMailApi(
   to: string,
   subject: string,
   htmlBody: string,
+  opts?: SendEmailOptions,
 ): Promise<string | null> {
   if (!smtp.host) return "SMTP host is not set.";
   if (!smtp.pass) return "ZeptoMail token (the SMTP password) is not set.";
@@ -127,6 +142,7 @@ async function sendViaZeptoMailApi(
         to: [{ email_address: { address: to } }],
         subject,
         htmlbody: htmlBody,
+        ...(opts?.replyTo ? { reply_to: [{ address: opts.replyTo }] } : {}),
       }),
       signal: AbortSignal.timeout(12_000),
     });

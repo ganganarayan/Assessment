@@ -26,6 +26,7 @@ export const META_EVENT_KEYS = [
   "gateDisqualified",
   "abandoned",
   "gateIncomplete",
+  "gatePassed",
 ] as const;
 
 export type MetaEventKey = (typeof META_EVENT_KEYS)[number];
@@ -39,6 +40,7 @@ export const ALL_META_EVENTS: MetaEventFlags = {
   gateDisqualified: true,
   abandoned: true,
   gateIncomplete: false,
+  gatePassed: false,
 };
 
 /**
@@ -50,7 +52,7 @@ export const ALL_META_EVENTS: MetaEventFlags = {
  * would start sending a new event from every funnel on the platform, including other
  * tenants' live ones, without anybody choosing it.
  */
-const DEFAULT_OFF = new Set<MetaEventKey>(["gateIncomplete"]);
+const DEFAULT_OFF = new Set<MetaEventKey>(["gateIncomplete", "gatePassed"]);
 
 /** Labels and the "why you might turn this off" for the builder. */
 export const META_EVENT_META: Record<MetaEventKey, { label: string; event: string; help: string }> = {
@@ -65,14 +67,19 @@ export const META_EVENT_META: Record<MetaEventKey, { label: string; event: strin
     help: "Fires when the assessment is finished. Gated funnels send QualifiedCompletion instead, so the audience only contains people who passed.",
   },
   gateDisqualified: {
-    label: "Disqualified",
+    label: "Gate exits",
     event: "GateDisqualified",
-    help: "Fires when the page-1 gate rejects someone. Its only purpose is an exclusion audience - turn it off and you lose the ability to stop paying for unfit traffic.",
+    help: "Fires when the page-1 gate sends somebody out through an exit route, under whatever event that route is named after (GateDisqualified unless you changed it). Covers every route, including a waitlist. Turn it off and you lose the exclusion audience that stops you paying for unfit traffic.",
   },
   abandoned: {
     label: "Left the opt-in",
     event: "AssessmentAbandoned",
     help: "Fires ten minutes after someone who passed the gate reached the opt-in form and left without opting in. They saw the ask and refused it, so they are worth showing the ad again.",
+  },
+  gatePassed: {
+    label: "Passed the gate",
+    event: "GatePassed",
+    help: "Fires the moment someone clears page 1 and is let through, before they give you anything. The seed for a lookalike built on people who qualify rather than on people who merely clicked. Off until you turn it on.",
   },
   gateIncomplete: {
     label: "Never reached the opt-in",

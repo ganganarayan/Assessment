@@ -77,6 +77,24 @@ async function validateGate(
   return null;
 }
 
+/**
+ * The audience list this gate may actually use. An unknown or foreign id is CLEARED
+ * rather than rejected: the public resolver already falls back to the tenant's default
+ * list when an id does not resolve, so failing the whole save would block an unrelated
+ * edit over a value that costs nothing to drop. The ownership check matters because a
+ * listId rides inside the gate JSON, and that JSON can arrive from a duplicated funnel
+ * or an imported template.
+ */
+async function sanitizeGateListId(gate: AudienceGateInput, tenantId: string): Promise<string> {
+  const wanted = gate.listId?.trim();
+  if (!wanted) return "";
+  const found = await prisma.audienceList.findFirst({
+    where: { id: wanted, tenantId },
+    select: { id: true },
+  });
+  return found ? wanted : "";
+}
+
 export async function createAssessment(
   input: AssessmentInput,
 ): Promise<ActionResult<{ id: string }>> {
@@ -114,6 +132,7 @@ export async function createAssessment(
 
   const gateErr = await validateGate(null, d.audienceGate, scope);
   if (gateErr) return { ok: false, error: gateErr };
+  d.audienceGate.listId = await sanitizeGateListId(d.audienceGate, configTenantOf(scope));
 
   const created = await prisma.assessment.create({
     data: {
@@ -221,6 +240,7 @@ export async function updateAssessment(
 
   const gateErr = await validateGate(id, d.audienceGate, scope);
   if (gateErr) return { ok: false, error: gateErr };
+  d.audienceGate.listId = await sanitizeGateListId(d.audienceGate, configTenantOf(scope));
 
   await prisma.assessment.update({
     where: { id },

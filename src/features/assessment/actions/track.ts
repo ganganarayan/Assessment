@@ -20,7 +20,15 @@ import { tenantCan } from "@/lib/billing/plan-resolve";
 import { GATE_DQ_AUDIENCE_REFRESH_MS } from "@/lib/gate-flag";
 import { env } from "@/lib/env";
 import { randomUUID } from "crypto";
-import { isQualificationActive, disqualifiedContentSchema, GATE_DISQUALIFIED_EVENT } from "@/features/assessment/schemas";
+import {
+  isQualificationActive,
+  qualificationSchema,
+  readExits,
+  resolveExit,
+  GATE_DISQUALIFIED_EVENT,
+  GATE_PASSED_EVENT,
+  type GateExitInput,
+} from "@/features/assessment/schemas";
 
 const VISITOR_COOKIE = "a360_vid";
 
@@ -161,7 +169,7 @@ export async function recordGatePass(
 
     const a = await prisma.assessment.findFirst({
       where: { slug, status: "PUBLISHED" },
-      select: { id: true, tenantId: true, qualification: true, fireMetaCapi: true },
+      select: { id: true, slug: true, title: true, tenantId: true, qualification: true, fireMetaCapi: true, metaEvents: true },
     });
     // No gate configured → nothing was "passed". Routed (non-ad-entry) assessments
     // deliberately tell Meta nothing, keeping its learning on the ad-entry funnel,
@@ -205,6 +213,31 @@ export async function recordGatePass(
       update: { ...signals, tenantId: a.tenantId, passedAt: new Date(), abandonedFiredAt: null },
       create: { assessmentId: a.id, tenantId: a.tenantId, visitorId: vid, ...signals },
     });
+
+    // GatePassed - the seed for a lookalike built on people who QUALIFY rather than on
+    // people who clicked. Off unless this assessment asks for it: no audience can
+    // depend on an event that did not exist yesterday, and switching it on for every
+    // gated funnel on the install would change live event volume nobody asked to change.
+    if (metaEventOn(a.fireMetaCapi, a.metaEvents, "gatePassed") && (await tenantCan(a.tenantId, "capi"))) {
+      const res = await sendCapiEventVerbose(
+        {
+          eventName: GATE_PASSED_EVENT,
+          eventId: randomUUID(),
+          eventTimeMs: Date.now(),
+          eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${a.slug}`,
+          user: {
+            ...ctx,
+            state: ctx.region,
+            zip: ctx.postalCode,
+            // Nobody has given a name or an email yet - that is the point of the event.
+            externalId: vid,
+          },
+          customData: { assessment: a.slug, assessment_name: a.title },
+        },
+        a.tenantId,
+      );
+      await bumpFunnelEventCount({ assessmentId: a.id, tenantId: a.tenantId, eventName: GATE_PASSED_EVENT, ok: res.ok });
+    }
   } catch {
     // never surface tracking failures to the visitor
   }
@@ -217,6 +250,11 @@ const gateDisqualificationSchema = z.object({
   questionId: z.string().trim().min(1).max(60).optional(),
   optionId: z.string().trim().min(1).max(60).optional(),
   repeat: z.boolean().default(false),
+  /** Which exit the funnel showed. A HINT only - on a fresh rejection the server
+   *  re-derives the route from its own copy of the gate, because this value decides
+   *  which Meta event fires and the browser does not get to decide that. Used as given
+   *  only on a `repeat`, where there is no answer left to derive it from. */
+  exitKey: z.string().trim().max(60).optional(),
   /** First-party visitor id (the same one the opt-in sends) → CAPI external_id, so a
    *  rejection and a later registration match the same person in Meta. */
   externalId: z.string().trim().min(1).max(64).optional(),
@@ -248,7 +286,7 @@ export async function recordGateDisqualification(
 
     const parsed = gateDisqualificationSchema.safeParse(input);
     if (!parsed.success) return; // malformed payload - never a reason to disturb the visitor
-    const { questionId, optionId, repeat, externalId } = parsed.data;
+    const { questionId, optionId, repeat, exitKey, externalId } = parsed.data;
 
     const a = await prisma.assessment.findFirst({
       where: { slug, status: "PUBLISHED" },
@@ -288,10 +326,57 @@ export async function recordGateDisqualification(
     const ipRaw = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip")?.trim() || null;
     const geo = readGeoHeaders((k) => h.get(k));
     const device = parseUserAgent(ua);
+    // WHICH EXIT, decided here rather than taken from the page.
+    //
+    // A fresh rejection is re-resolved from the stored gate: the answer they clicked
+    // names its route, and that route names the Meta event. On a repeat there is no
+    // answer to resolve - they were short-circuited by the stored flag - so the key the
+    // funnel remembered is used, falling back to the last route this visitor was
+    // actually sent to.
+    const exits = readExits(a.disqualifiedContent);
+    let routeKey: string | null = null;
+    if (!repeat && questionId && optionId) {
+      const q = qualificationSchema.safeParse(a.qualification);
+      if (q.success) {
+        const picked = q.data.questions.find((x) => x.id === questionId)?.options.find((o) => o.id === optionId);
+        if (picked?.disqualifies) routeKey = (picked.exitKey ?? "").trim() || null;
+      }
+    } else if (!repeat) {
+      // A SCORE-BAND exit names no answer - the band decided it, from a total the
+      // browser was never given. There is nothing to re-derive from here, so the key
+      // the funnel reports is taken as a hint and validated against this assessment's
+      // own exits below. The worst a tampered value can do is pick one of the owner's
+      // own routes; it cannot invent an event, because the event name is read from the
+      // route, server-side.
+      routeKey = exitKey?.trim() || null;
+    } else {
+      const prior = await prisma.gateDisqualification.findFirst({
+        where: { assessmentId: a.id, visitorId: c.get(VISITOR_COOKIE)?.value ?? "", exitKey: { not: null } },
+        orderBy: { createdAt: "desc" },
+        select: { exitKey: true },
+      });
+      routeKey = prior?.exitKey ?? (exitKey?.trim() || null);
+    }
+    const exit = resolveExit(exits, routeKey);
+
+    // A route that asks for their details writes no lockout flag - it has to let them
+    // carry on - so a second visit would otherwise arrive here as another FRESH row and
+    // inflate the very number this exists to make honest. A visitor already recorded on
+    // this route is marked a repeat, which the human-facing counts exclude.
+    let repeatRow = repeat;
+    if (!repeatRow && exit && exit.mode !== "PAGE") {
+      const seen = await prisma.gateDisqualification.findFirst({
+        where: { assessmentId: a.id, visitorId: c.get(VISITOR_COOKIE)?.value ?? "", exitKey: exit.key, repeat: false },
+        select: { id: true },
+      });
+      if (seen) repeatRow = true;
+    }
+
     const meta = {
       questionId: questionId ?? null,
       optionId: optionId ?? null,
-      repeat,
+      exitKey: exit?.key ?? null,
+      repeat: repeatRow,
       isBot: isBotUserAgent(ua),
       userAgent: ua ? ua.slice(0, 512) : null,
       ip: ipRaw ? ipRaw.slice(0, 64) : null,
@@ -332,7 +417,7 @@ export async function recordGateDisqualification(
     });
 
     // The exclusion audience is fed from HERE now (server CAPI), not the browser.
-    await fireGateDisqualified(a, vid, row.id, meta.isBot, externalId ?? null);
+    await fireGateDisqualified(a, vid, row.id, meta.isBot, externalId ?? null, exit);
   } catch {
     // never surface analytics failures to the visitor
   }
@@ -369,6 +454,9 @@ async function fireGateDisqualified(
   rowId: string,
   isBot: boolean,
   externalId: string | null,
+  /** The route they were sent out through. Each exit carries its own event name and
+   *  content_category, because they are not all the same kind of "no". */
+  exit: GateExitInput | null,
 ): Promise<void> {
   try {
     // A crawler executing the page's JS must never enter the exclusion audience.
@@ -376,8 +464,11 @@ async function fireGateDisqualified(
     // Routed (non-ad-entry) assessments tell Meta nothing - same rule as the opt-in.
     if (!metaEventOn(a.fireMetaCapi, a.metaEvents, "gateDisqualified")) return;
     if (!isQualificationActive(a.qualification)) return;
-    const dq = disqualifiedContentSchema.safeParse(a.disqualifiedContent ?? {});
-    if (!dq.success || !dq.data.fireDisqualifiedEvent) return;
+    // Per EXIT, not per funnel. An exclusion audience built from every kind of "no"
+    // pooled together is an exclusion audience that excludes the wrong people, and the
+    // damage is invisible until the ad account has already learned from it.
+    if (!exit || !exit.fireDisqualifiedEvent) return;
+    const eventName = exit.eventName.trim() || GATE_DISQUALIFIED_EVENT;
 
     // Already reported recently? Then Meta knows: staying silent is what keeps the
     // event count equal to the number of people, not the number of visits.
@@ -395,7 +486,7 @@ async function fireGateDisqualified(
     const ctx = await getMetaRequestContext();
     const res = await sendCapiEventVerbose(
       {
-        eventName: GATE_DISQUALIFIED_EVENT,
+        eventName,
         eventId: randomUUID(),
         eventTimeMs: Date.now(),
         eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${a.slug}`,
@@ -406,7 +497,13 @@ async function fireGateDisqualified(
           // No email/phone/name exists for a rejected visitor - and none is needed.
           externalId: externalId ?? visitorId,
         },
-        customData: { assessment: a.slug, assessment_name: a.title },
+        customData: {
+          assessment: a.slug,
+          assessment_name: a.title,
+          // Two exits that share an event stay one audience and are still separable by
+          // a rule, rather than splitting thin volume across two event names.
+          ...(exit.contentCategory.trim() ? { content_category: exit.contentCategory.trim() } : {}),
+        },
       },
       a.tenantId,
     );
@@ -416,7 +513,7 @@ async function fireGateDisqualified(
     if (res.ok) {
       await prisma.gateDisqualification.update({ where: { id: rowId }, data: { capiFiredAt: new Date() } }).catch(() => {});
     }
-    await bumpFunnelEventCount({ assessmentId: a.id, tenantId: a.tenantId, eventName: GATE_DISQUALIFIED_EVENT, ok: res.ok });
+    await bumpFunnelEventCount({ assessmentId: a.id, tenantId: a.tenantId, eventName, ok: res.ok });
   } catch {
     // never surface tracking failures to the visitor
   }

@@ -8,7 +8,7 @@ import {
   type PublicAssessment,
 } from "@/features/assessment/components/public/assessment-runner";
 import { readPublishedPages } from "@/features/assessment/pages/blocks";
-import { resolveAudienceCanonical } from "@/lib/settings/config";
+import { resolveAudienceList } from "@/lib/settings/config";
 import { cache } from "react";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { hasFeature } from "@/lib/billing/plans";
@@ -17,8 +17,7 @@ import { FunnelPaused } from "@/features/assessment/components/public/funnel-pau
 import {
   type PreResultField,
   qualificationSchema,
-  disqualifiedContentSchema,
-  EMPTY_DISQUALIFIED,
+  readExits,
 } from "@/features/assessment/schemas";
 
 export const dynamic = "force-dynamic";
@@ -123,13 +122,14 @@ export default async function PublicAssessmentPage({
     label?: string;
     placeholder?: string;
     freeTextRequired?: boolean;
+    listId?: string;
     roles?: { id: string; label: string; target?: string }[];
   } | null;
   let audienceGate: PublicAssessment["audienceGate"] = null;
   if (gateRaw && gateRaw.mode === "FREETEXT") {
     // Free-text audience field: no options/routing - just capture, with live
     // suggestions from the tenant's canonical list.
-    const suggestions = await resolveAudienceCanonical(a.tenantId);
+    const suggestions = await resolveAudienceList(a.tenantId, gateRaw.listId);
     audienceGate = {
       mode: "FREETEXT",
       label: gateRaw.label?.trim() || null,
@@ -213,15 +213,50 @@ export default async function PublicAssessmentPage({
     // Qualification gate (Page 1): only pass it when enabled with questions.
     qualification: (() => {
       const p = qualificationSchema.safeParse(a.qualification);
-      return p.success && p.data.enabled && p.data.questions.length > 0 ? p.data : null;
+      if (!p.success || !p.data.enabled || p.data.questions.length === 0) return null;
+      // 🔴 REBUILT FIELD BY FIELD, not passed through. The stored gate carries the
+      // POINTS each answer is worth and the thresholds they are measured against, and
+      // this object is serialized into the page a respondent can read. Handing the
+      // whole parsed blob over published the scoring to anyone who opened view-source.
+      //
+      // The browser needs to render questions and know which answers end the visit and
+      // where they go. It never needs a number.
+      return {
+        enabled: true,
+        // Whether to ask the server for a verdict after the last question. The
+        // thresholds themselves stay on the server.
+        bandsEnabled: p.data.bands.enabled,
+        questions: p.data.questions.map((q) => ({
+          id: q.id,
+          text: q.text,
+          type: q.type,
+          placeholder: q.placeholder,
+          required: q.required,
+          options: q.options.map((o) => ({
+            id: o.id,
+            label: o.label,
+            disqualifies: o.disqualifies,
+            exitKey: o.exitKey ?? "",
+          })),
+        })),
+      };
     })(),
-    disqualified: (() => {
-      // Parse against {} when unset so defaults (incl. fireDisqualifiedEvent: true)
-      // apply - otherwise enabling the gate without saving the exit page would
-      // silently never fire the GateDisqualified exclusion event.
-      const p = disqualifiedContentSchema.safeParse(a.disqualifiedContent ?? {});
-      return p.success ? p.data : EMPTY_DISQUALIFIED;
-    })(),
+    // The exit routes. A gate saved before routes existed reads back as exactly one
+    // exit carrying the content it already has, so nothing that is live changes.
+    //
+    // The per-exit Meta settings are deliberately NOT here: the server decides what
+    // fires, from its own copy of the gate, and a browser that cannot see the decision
+    // cannot be made to lie about it.
+    exits: readExits(a.disqualifiedContent).map((e) => ({
+      key: e.key,
+      name: e.name,
+      mode: e.mode,
+      heading: e.heading,
+      subtext: e.subtext,
+      bodyHtml: e.bodyHtml,
+      buttonLabel: e.buttonLabel,
+      buttonUrl: e.buttonUrl,
+    })),
     // Public renders ONLY the published snapshot (never the draft rows).
     pages: readPublishedPages(a.publishedPages),
     categories: a.categories.map((c) => ({

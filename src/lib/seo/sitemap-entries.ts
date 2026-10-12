@@ -27,6 +27,11 @@ const STATIC_PAGES: ReadonlyArray<SitemapEntry> = [
   // Ungated, answers a question people actually type ("what does a bad sales call
   // cost"), and asks for nothing. It is the cheapest entry point on the site.
   { path: "/wasted-call-calculator", updated: "2026-10-09", changeFrequency: "monthly", priority: 0.8 },
+  // The two By-industry pages: where an emailed funnel audit lands, and the only
+  // pages that argue the mechanism in one industry's own words. Ranked with /build
+  // rather than with the keyword pages, because they are campaign destinations.
+  { path: "/industries/study-abroad", updated: "2026-10-09", changeFrequency: "monthly", priority: 0.9 },
+  { path: "/industries/clinics", updated: "2026-10-09", changeFrequency: "monthly", priority: 0.9 },
   { path: "/sign-up", updated: "2026-10-01", changeFrequency: "monthly", priority: 0.6 },
   { path: "/pricing", updated: "2026-10-06", changeFrequency: "monthly", priority: 0.8 },
   // The Agency tier advertises API access, so the docs have to be findable without

@@ -1,4 +1,5 @@
 import "server-only";
+import { readExits, exitLabel } from "@/features/assessment/schemas";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { normalizeAttribution } from "@/lib/events/payload";
@@ -180,6 +181,46 @@ export async function getAnalyticsStats(
     { leftOptin: 0, gateIncomplete: 0 },
   );
 
+  // Turned away, BY ROUTE. One pooled "disqualified" number cannot tell three
+  // rejections from sixty people asking about the next cycle, and the whole point of
+  // routing is that those are different outcomes worth different money.
+  const exitGroups = await prisma.gateDisqualification.groupBy({
+    by: ["assessmentId", "exitKey"],
+    where: { ...scope, repeat: false, isBot: false },
+    _count: { _all: true },
+  });
+  // Named here rather than on the page: a key means nothing to anybody, and the name
+  // lives on the assessment the rejection belongs to. Grouped by assessment as well as
+  // by key, so two funnels that both call their first exit "exit1" are not merged.
+  const exitAssessments =
+    exitGroups.length > 0
+      ? await prisma.assessment.findMany({
+          where: { id: { in: [...new Set(exitGroups.map((g) => g.assessmentId))] } },
+          select: { id: true, disqualifiedContent: true },
+        })
+      : [];
+  const exitsByAssessment = new Map(exitAssessments.map((a) => [a.id, readExits(a.disqualifiedContent)]));
+
+  // 🔴 A ROUTED-IN PERSON WAS NOT TURNED AWAY. They were sent sideways and asked for
+  // their details - on the waitlist route they go on to answer the whole assessment.
+  // Counting them in "turned away" would put the most qualified people in the funnel
+  // under the heading for the least, and that number is one an owner acts on.
+  const exitTotals = new Map<string, { count: number; routed: boolean }>();
+  let routedOn = 0;
+  for (const g of exitGroups) {
+    const exits = exitsByAssessment.get(g.assessmentId) ?? [];
+    const idx = exits.findIndex((e) => e.key === (g.exitKey ?? ""));
+    const exit = idx >= 0 ? exits[idx] : exits[0];
+    const routed = !!exit && exit.mode !== "PAGE";
+    if (routed) routedOn += g._count._all;
+    const name = exit ? exitLabel(exit, idx >= 0 ? idx : 0) : "Exit 1";
+    const prev = exitTotals.get(name);
+    exitTotals.set(name, { count: (prev?.count ?? 0) + g._count._all, routed });
+  }
+  const byExit = [...exitTotals.entries()]
+    .map(([name, v]) => ({ name, count: v.count, routed: v.routed }))
+    .sort((a, b) => b.count - a.count);
+
   return {
     totalViews,
     uniqueViews: uniqueVisitors.length,
@@ -188,8 +229,12 @@ export async function getAnalyticsStats(
     vslLoads,
     paidCount: paidAgg._count._all,
     paidAmount: (paidAgg._sum.amount ?? 0) / 100, // paise -> rupees
-    disqualified,
+    // Turned away = the rejections only. Routed-in people are counted beside them, not
+    // inside them; the two queries share a where clause, so the split always adds up.
+    disqualified: Math.max(0, disqualified - routedOn),
+    routedOn,
     disqualifiedRepeat,
+    byExit,
     qualified,
     ...gateLosses,
     fired: fired
@@ -600,6 +645,13 @@ export async function listContactsForExport(range?: {
       customerId: true,
       resultToken: true,
       status: true,
+      // The gate's verdict, for the owner only. REVIEW is the band that exists so a
+      // borderline lead is read rather than thrown away, which only works if it is
+      // visible in the list they actually work from.
+      gateBand: true,
+      gateScore: true,
+      gateMax: true,
+      gateExitKey: true,
       resultFetchCount: true,
       attribution: true,
       clientIp: true,
@@ -710,6 +762,13 @@ export async function listContacts(opts: {
       customerId: true,
       resultToken: true,
       status: true,
+      // The gate's verdict, for the owner only. REVIEW is the band that exists so a
+      // borderline lead is read rather than thrown away, which only works if it is
+      // visible in the list they actually work from.
+      gateBand: true,
+      gateScore: true,
+      gateMax: true,
+      gateExitKey: true,
       resultFetchCount: true,
       attribution: true,
       clientIp: true,

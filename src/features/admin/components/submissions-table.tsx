@@ -180,6 +180,15 @@ export interface SubmissionRow {
   metaQualifiedAt: string | null;
   metaStartTrialAt: string | null;
   metaDisqualifiedAt: string | null;
+  /** The Page-1 gate's verdict. PASS / REVIEW, or null on a funnel with no score
+   *  bands. REVIEW is the band that exists so a borderline lead gets read instead of
+   *  rejected, which only works if it is visible where the work is done. */
+  gateBand?: string | null;
+  gateScore?: number | null;
+  gateMax?: number | null;
+  /** Set when they came in through an exit route that asked for their details (the
+   *  waitlist case) rather than through the funnel. */
+  gateExitKey?: string | null;
   deviceType: string | null;
   browser: string | null;
   os: string | null;
@@ -560,7 +569,28 @@ export function SubmissionsTable({
                     {/* Contact */}
                     <td className="px-3 py-2">
                       <div className="flex flex-col">
-                        <span className="font-medium">{[s.firstName, s.lastName].filter(Boolean).join(" ") || "-"}</span>
+                        <span className="font-medium">
+                          {[s.firstName, s.lastName].filter(Boolean).join(" ") || "-"}
+                          {/* The gate's verdict, for you only - the respondent never
+                              saw a band or a number. REVIEW means "through, but read
+                              this one before the call". */}
+                          {s.gateBand === "REVIEW" ? (
+                            <span
+                              className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400"
+                              title={s.gateScore != null ? `Gate score ${s.gateScore}/${s.gateMax ?? 0}` : "Borderline at the gate"}
+                            >
+                              REVIEW
+                            </span>
+                          ) : null}
+                          {s.gateExitKey ? (
+                            <span
+                              className="ml-2 rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600 dark:text-sky-400"
+                              title="Came in through an exit route, not through the assessment"
+                            >
+                              EXIT
+                            </span>
+                          ) : null}
+                        </span>
                         <span className="text-xs text-[var(--muted-foreground)]">
                           {s.email ?? ""}{s.mobile ? ` · ${s.mobile}` : ""}
                         </span>

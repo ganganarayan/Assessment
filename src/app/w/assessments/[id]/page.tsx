@@ -9,11 +9,13 @@ import {
   EMPTY_DISQUALIFIED,
   qualificationSchema,
   disqualifiedContentSchema,
+  readExits,
   type AudienceGateInput,
 } from "@/features/assessment/schemas";
 import { QualificationManager } from "@/features/assessment/components/admin/qualification-manager";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
+import { getAudienceListsForTenant } from "@/features/admin/actions/audience-list";
 import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
 import { CategoriesManager } from "@/features/assessment/components/admin/categories-manager";
 import { env } from "@/lib/env";
@@ -50,6 +52,7 @@ export default async function WorkspaceEditAssessmentPage({
   if (!a || a.tenantId !== tenantId) notFound();
   if (!(await currentUserCanEdit())) redirect("/w/assessments");
   const promptVersions = (await listPromptVersions(tenantId)).map((v) => ({ id: v.id, label: v.label }));
+  const audienceLists = await getAudienceListsForTenant(tenantId);
   // The Meta publish lock, resolved for the button and the warning. A super admin who
   // has entered this workspace is exempt, exactly as the action is, so the screen never
   // shows a rule that would not actually fire.
@@ -249,7 +252,7 @@ export default async function WorkspaceEditAssessmentPage({
         />
       </BuilderStep>
 
-      <AssessmentForm mode="edit" id={a.id} initial={initial} basePath="/w/assessments" promptVersions={promptVersions} assessmentOptions={routeTargets} />
+      <AssessmentForm mode="edit" id={a.id} initial={initial} basePath="/w/assessments" promptVersions={promptVersions} assessmentOptions={routeTargets} audienceLists={audienceLists} />
 
       <BuilderStep step="gate">
       <section className="flex flex-col gap-3">
@@ -368,6 +371,9 @@ export default async function WorkspaceEditAssessmentPage({
         initial={readResultPage(a.resultPage ?? null)}
         initialPublished={!!a.resultPagePublished}
         lastPublishedAt={a.resultPagePublishedAt ? a.resultPagePublishedAt.toISOString() : null}
+        // Only a gate route that carries people on through the assessment makes "who is
+        // this block for" a real question.
+        hasExitRoutes={readExits(a.disqualifiedContent).some((e) => e.mode === "CONTINUE")}
       />
     </section>
   );

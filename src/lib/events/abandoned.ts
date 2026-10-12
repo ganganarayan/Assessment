@@ -6,7 +6,7 @@ import { normalizeAttribution } from "@/lib/events/payload";
 import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
 import { metaEventOn } from "@/features/assessment/meta-events";
 import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
-import { ABANDONED_EVENT, GATE_INCOMPLETE_EVENT } from "@/features/assessment/schemas";
+import { ABANDONED_EVENT, GATE_INCOMPLETE_EVENT, readExits, exitTakesAssessment } from "@/features/assessment/schemas";
 import { type EmitInput } from "@/features/events/types";
 
 const DEFAULT_HOURS = 24;
@@ -29,10 +29,18 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
     // completedAt: null excludes ever-completed submissions - a paid-mode respondent
     // who completed then returned to edit is reset to STARTED (keeping the old
     // startedAt), and must NOT be swept as abandoned / nurtured as a lost lead.
+    // Routed-in respondents are INCLUDED. Somebody who opted in and never finished did
+    // not finish, whichever door they came through, and the abandoned event is how the
+    // CRM knows to follow up.
+    //
+    // The one exception is handled below, not here: a route that ENDS at a thank-you
+    // never offered an assessment, so its opt-ins are not abandoners. That needs the
+    // route's mode, which lives in the assessment's JSON rather than in a column.
     where: { status: "STARTED", abandonedAt: null, completedAt: null, startedAt: { lt: cutoff } },
     select: {
       id: true,
       assessmentId: true,
+      gateExitKey: true,
       startedAt: true,
       leadFirstName: true,
       leadLastName: true,
@@ -44,6 +52,7 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
           id: true,
           slug: true,
           title: true,
+          disqualifiedContent: true,
           tenant: { select: { id: true, slug: true, name: true } },
         },
       },
@@ -53,6 +62,14 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
 
   let swept = 0;
   for (const s of candidates) {
+    // A route that ends at a thank-you asked for their details and offered nothing
+    // else. Those people finished what they were given, so an "you did not finish"
+    // follow-up would be aimed at something that never existed. A route that carries
+    // them on through the assessment is swept like anybody else.
+    if (s.gateExitKey) {
+      const route = readExits(s.assessment.disqualifiedContent).find((e) => e.key === s.gateExitKey);
+      if (route && !exitTakesAssessment(route)) continue;
+    }
     const claim = await prisma.submission.updateMany({
       where: { id: s.id, status: "STARTED", abandonedAt: null },
       data: { abandonedAt: new Date() },

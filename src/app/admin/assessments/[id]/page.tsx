@@ -6,6 +6,7 @@ import { listPromptVersions } from "@/lib/ai/versions";
 import { resolveActingScope, actingConfigTenantId } from "@/lib/tenant/acting";
 import { isPlatformScope, PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
+import { getAudienceListsForTenant } from "@/features/admin/actions/audience-list";
 import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
 import { CategoriesManager } from "@/features/assessment/components/admin/categories-manager";
 import { env } from "@/lib/env";
@@ -30,6 +31,7 @@ import {
   EMPTY_DISQUALIFIED,
   qualificationSchema,
   disqualifiedContentSchema,
+  readExits,
   type AudienceGateInput,
 } from "@/features/assessment/schemas";
 import { QualificationManager } from "@/features/assessment/components/admin/qualification-manager";
@@ -48,7 +50,9 @@ export default async function EditAssessmentPage({
   const a = await getAssessmentById(id);
   if (!a) notFound();
   if (!(await currentUserCanEdit())) redirect("/admin/assessment-builder");
-  const promptVersions = (await listPromptVersions(await actingConfigTenantId())).map((v) => ({ id: v.id, label: v.label }));
+  const configTenantId = await actingConfigTenantId();
+  const promptVersions = (await listPromptVersions(configTenantId)).map((v) => ({ id: v.id, label: v.label }));
+  const audienceLists = await getAudienceListsForTenant(configTenantId);
 
   const initial: AssessmentFormValues = {
     title: a.title,
@@ -266,7 +270,7 @@ export default async function EditAssessmentPage({
         />
       </BuilderStep>
 
-      <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} canPlatformSignup={canPlatformSignup} />
+      <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} audienceLists={audienceLists} canPlatformSignup={canPlatformSignup} />
 
       <BuilderStep step="gate">
       <section className="flex flex-col gap-3">
@@ -395,6 +399,9 @@ export default async function EditAssessmentPage({
         initial={readResultPage(a.resultPage ?? null)}
         initialPublished={!!a.resultPagePublished}
         lastPublishedAt={a.resultPagePublishedAt ? a.resultPagePublishedAt.toISOString() : null}
+        // Only a gate route that carries people on through the assessment makes "who is
+        // this block for" a real question.
+        hasExitRoutes={readExits(a.disqualifiedContent).some((e) => e.mode === "CONTINUE")}
       />
     </section>
   );

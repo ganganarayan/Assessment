@@ -21,6 +21,9 @@ export interface SubmissionExportFlatRow {
   percent: string | number;
   overallBand: string;
   overallLevel: string;
+  gateBand: string;
+  gateScore: string | number;
+  gateMax: string | number;
   paidAmount: string | number;
   paidAt: string;
   resultUrl: string;
@@ -62,6 +65,9 @@ export const SUBMISSION_EXPORT_COLUMNS: CsvColumn<SubmissionExportFlatRow>[] = [
   { key: "percent", label: "Percent" },
   { key: "overallBand", label: "Overall band" },
   { key: "overallLevel", label: "Overall level" },
+  { key: "gateBand", label: "Gate band" },
+  { key: "gateScore", label: "Gate score" },
+  { key: "gateMax", label: "Gate max" },
   { key: "paidAmount", label: "Paid amount (₹)" },
   { key: "paidAt", label: "Paid at (IST)" },
   { key: "resultUrl", label: "Result link" },
@@ -104,6 +110,9 @@ export function flattenSubmissionExportRow(r: SubmissionExportRow): SubmissionEx
     percent: r.scorePercent ?? "",
     overallBand: r.overallBand ?? "",
     overallLevel: r.overallBandLevel ?? "",
+    gateBand: r.gateBand ?? "",
+    gateScore: r.gateScore ?? "",
+    gateMax: r.gateMax ?? "",
     paidAmount: r.paidAmount ?? "",
     paidAt: r.paidAtIST ?? "",
     resultUrl: r.resultUrl ?? "",

@@ -11,6 +11,9 @@ import { ThemeColorForm } from "@/features/workspace/components/theme-color-form
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
 import { DomainSettings } from "@/features/workspace/components/domain-settings";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
+import { SupportWhatsappForm } from "@/features/support/components/whatsapp-form";
+import { prisma } from "@/lib/db/prisma";
+import { isStaff } from "@/lib/auth/guards";
 import { WorkspaceLogins } from "@/features/workspace/components/workspace-logins";
 import { listWorkspaceLogins } from "@/features/workspace/actions/logins";
 import Link from "next/link";
@@ -31,7 +34,7 @@ export const dynamic = "force-dynamic";
  * singleton. An unconfigured tenant simply has no AI (it never borrows Gita's key).
  */
 export default async function WorkspaceSettingsPage() {
-  const { impersonating } = await requireWorkspace();
+  const { user, impersonating } = await requireWorkspace();
   const integrations = await getIntegrationSettings();
   const domains = await getDomainSettings();
   const bookingUrl = await getBookingUrl();
@@ -40,6 +43,17 @@ export default async function WorkspaceSettingsPage() {
   // Same trap as /admin: impersonating, "your own password" is the operator's, not
   // this tenant's. Inside someone else's workspace, show THEIR logins instead.
   const logins = impersonating ? await listWorkspaceLogins() : null;
+  /**
+   * The WhatsApp number support replies to, read for THIS login.
+   *
+   * Not shown while a super admin is operating the workspace: the signed-in person is
+   * then the operator, and the field would offer to save the operator's own number as
+   * the one this customer's tickets notify.
+   */
+  const me =
+    impersonating || isStaff(user)
+      ? null
+      : await prisma.user.findUnique({ where: { id: user.id }, select: { whatsapp: true } });
 
   return (
     <div className="flex flex-col gap-6">
@@ -169,6 +183,22 @@ export default async function WorkspaceSettingsPage() {
           </CardContent>
         </Card>
       )}
+
+      {me ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Support notifications</CardTitle>
+            <CardDescription>
+              Where we tell you a support thread has been answered. Email always goes to your login
+              address. A WhatsApp number is optional, used for nothing else, and passed to support
+              so they can reach you there instead of waiting on an inbox.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SupportWhatsappForm initial={me.whatsapp ?? ""} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* System prompt versions used to be duplicated here as well as on /w/ai. Two
           editors over one row is two places to get it wrong, and it doubled the surface

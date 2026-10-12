@@ -156,6 +156,9 @@ model Tenant {
   ownedTemplates       Template[]        @relation("TemplateOwner")
   /// Templates this workspace sent to the master library.
   contributedTemplates Template[]        @relation("TemplateContributor")
+  adAccounts           AdAccount[]
+  supportRequests      SupportRequest[]
+  audienceLists        AudienceList[]
 
   @@index([status])
   @@index([deletedAt])
@@ -460,9 +463,20 @@ model User {
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  /// How this login is reached on WhatsApp, in any readable form (the sender
+  /// normalises it to E.164 digits). Optional, and the support thread SAYS so when it
+  /// is blank: a reply then goes out by email only.
+  ///
+  /// On the USER and not the tenant, because the person who raised a ticket is the
+  /// person who wants telling it was answered, and a workspace with two logins has two
+  /// different people with two different phones.
+  whatsapp           String?
+
   sessions           Session[]
   accounts           Account[]
   createdAssessments Assessment[]
+  supportRequests    SupportRequest[]
+  supportMessages    SupportMessage[]
 
   @@index([tenantId])
   @@map("user")
@@ -614,6 +628,11 @@ enum NextStep {
 // ---------------------------------------------------------------------------
 
 model Assessment {
+  /// Which ad account this funnel reports to. NULL means the tenant's default, which is
+  /// why no backfill is needed: every existing assessment keeps working untouched.
+  adAccountId String?
+  adAccount   AdAccount? @relation(fields: [adAccountId], references: [id], onDelete: Restrict)
+
   // Platform signup funnel: after the lead form and the completion event, send the
   // person to /sign-up prefilled with their email instead of a result page. Only
   // honoured on a PLATFORM-owned assessment - a tenant must never be able to mint
@@ -1217,6 +1236,21 @@ model Submission {
   gateScore Int?
   gateMax   Int?
 
+  // Which score band the gate put them in: PASS (clear) or REVIEW (through, but worth
+  // the owner's eyes before a call). Null = the funnel has no bands, which is every
+  // gate that existed before them. Never shown to the respondent - the gate score is
+  // the owner's instrument, and a number on the screen is a number to play to.
+  gateBand String?
+
+  // Set when this submission came in through an OPTIN exit route rather than the
+  // funnel proper - the waitlist case: someone the gate sent sideways, whose details
+  // are worth having anyway. Holds the exit's key.
+  //
+  // It is what keeps the two apart everywhere afterwards: these people never answer the
+  // assessment, so without it the abandoned sweep would chase them and every completion
+  // rate would read as though they had dropped out.
+  gateExitKey String?
+
   /// The gate, question by question, resolved AT THE MOMENT IT WAS ANSWERED: question
   /// text, the option picked, what it scored and what it could have scored.
   /// Shape: [{ q, a, points, max }].
@@ -1359,6 +1393,7 @@ model Submission {
   @@index([status, startedAt]) // abandonment sweep
   @@index([assessmentId, identifierValue, status]) // retake lockout + trend
   @@index([crmDirty]) // CRM resend drip queue
+  @@index([gateExitKey]) // waitlist/opt-in exit rows, kept apart from the funnel proper
   @@map("submission")
 }
 
@@ -2159,9 +2194,11 @@ model AppSetting {
   // to be world-readable; private files are served through short-lived signed URLs.
   r2PublicUrl          String?
 
-  // Canonical audience list ("your default list of roles"). Powers the free-text
-  // audience field's live suggestions AND the normalize screen that cleans up typed
-  // values. Stored as a JSON array of trimmed labels. null tenant => singleton row.
+  // DEPRECATED - superseded by the AudienceList table (named lists an assessment can
+  // pick between). The migration copied each non-empty array here into a list called
+  // "Default", marked default, and nothing writes this column any more. It is read ONLY
+  // as a last-resort fallback for a tenant whose backfill found nothing, and goes away
+  // once that is provably empty everywhere.
   audienceCanonical Json?
 
   // ---- Nurture (one-shot Email + WhatsApp on opt-in) - PER TENANT -----------
@@ -2215,6 +2252,45 @@ model AppSetting {
   crmCustomDelayMax  Int      @default(12)
   crmCustomActive    Boolean  @default(false)
 
+  /// How tickets and onboarding requests are HANDLED, one setting per kind.
+  ///
+  /// IN_APP  the tenant raises it here, the owner's rail badges it, the owner answers
+  ///         in the thread, and the tenant is told by email and WhatsApp.
+  /// EMAIL   the tenant still raises it here, but it is forwarded to the support inbox
+  ///         and the conversation genuinely MOVES to email. No badge, no WhatsApp.
+  /// OFF     the raise form is withdrawn. Threads already open stay readable.
+  ///
+  /// Two settings and not one, because the two queues fill at different rates: a
+  /// product with a hundred tenants gets onboarding questions constantly and real
+  /// faults rarely, and the owner has to be able to hand one of them to a support
+  /// team without going blind to the other.
+  ///
+  /// Strings and not an enum, deliberately, following dfy_request.status: this is an
+  /// operational routing choice that will be renamed while the support process is
+  /// being worked out, and renaming a Postgres enum value costs a migration.
+  supportMode    String @default("IN_APP")
+  onboardingMode String @default("IN_APP")
+
+  /// Where EMAIL mode forwards to. A mode that forwards nowhere is a black hole, so
+  /// the setter refuses to save EMAIL while this is blank.
+  supportInboxEmail String?
+
+  /// Where a reply is announced to the outside world, as one POST.
+  ///
+  /// WhatsApp is NOT sent from here. The owner's CRM already holds the approved
+  /// templates, the opt-in state and the sending number, and a second sender inside
+  /// this app would be a second place to approve a template, a second number to keep
+  /// warm and a second set of sends to reconcile. This app states the fact (there is a
+  /// reply on AS-1042, here is the link, here is the person); the CRM decides what to
+  /// do about it.
+  ///
+  /// Blank = nothing is posted, which is the shipping state and a working one: the
+  /// reply email still goes out on its own.
+  ///
+  /// The payload uses the flat contact_name / contact_email / contact_phone keys the
+  /// owner's CRM automations already map, plus event_type "support_reply".
+  supportWebhookUrl String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2237,6 +2313,12 @@ model GateDisqualification {
   // skipped straight to the exit page from the stored flag without re-answering.
   questionId String?
   optionId   String?
+
+  // Which exit route they were sent to, by the exit's key. Null on a row written before
+  // routes existed, and on a repeat the server could not attribute. Without it every
+  // exit pools into one "disqualified" number, and a funnel cannot tell three rejections
+  // from sixty people asking to be told about the next cycle.
+  exitKey String?
 
   // When GateDisqualified was actually SENT to Meta for this rejection (server CAPI).
   // Null = nothing was sent for this row: a revisit Meta already knows about, a
@@ -2285,6 +2367,7 @@ model GateDisqualification {
   @@index([utmCampaign])
   @@index([tenantId, createdAt])
   @@index([assessmentId, visitorId]) // "did we already report this visitor?"
+  @@index([exitKey]) // per-route counts
   @@map("gate_disqualification")
 }
 
@@ -2438,6 +2521,91 @@ model Template {
 }
 
 // ---------------------------------------------------------------------------
+// AdAccount - one Meta configuration a tenant can run funnels against.
+//
+// The pricing page has metered "ad accounts" (1 / 2 / 10 / 25) since launch while the
+// product had no such concept: a tenant had exactly ONE Meta config, living as columns
+// on its AppSetting row. This is that concept, and it is the first thing that has to
+// exist before the published claim is true.
+//
+// 🔴 The platform's own pixel is NOT represented here. It lives in platformPixelId /
+// platformCapiTokenEnc on the singleton and is read by a different path
+// (resolvePlatformMetaConfig). Folding it in would give the SaaS funnel and a customer's
+// funnel one shared table and two meanings for "default".
+// ---------------------------------------------------------------------------
+
+model AdAccount {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// What the tenant calls it, e.g. "Acme - AU". Theirs to name; never shown publicly.
+  label String
+
+  /// For a tenant the pixel id IS the dataset id, which is why there is no separate
+  /// column. resolveMetaConfig has always returned it as both.
+  pixelId      String?
+  /// Encrypted at rest, like every other secret in this schema.
+  capiTokenEnc String?
+
+  /// The one used when an assessment names no ad account. Exactly one per tenant is
+  /// enforced by a PARTIAL UNIQUE INDEX in the migration - Prisma cannot express
+  /// "unique where isDefault", and without it two defaults make the resolver pick
+  /// arbitrarily between two live pixels.
+  isDefault Boolean @default(false)
+
+  assessments Assessment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("ad_account")
+}
+
+// ---------------------------------------------------------------------------
+// AudienceList - a NAMED list of roles a tenant maintains and an assessment picks.
+//
+// There used to be exactly one list per tenant (AppSetting.audienceCanonical), which
+// meant every funnel on the workspace offered the same suggestions: a clinic funnel and
+// a coaching funnel had to share one vocabulary, and the only way to serve both was a
+// single list long enough to be useless to either.
+//
+// So the list becomes a row with a name, and an assessment names the one it wants
+// (Assessment.audienceGate.listId). Nothing is forced to choose: a gate that names no
+// list falls back to the tenant's default, which is what the old single list was
+// migrated into - so every funnel that exists today keeps the suggestions it has.
+//
+// Labels live in a JSON array rather than a child table on purpose. A label has no
+// attributes of its own, order is the author's, and dedupe already happens on save;
+// a second table would buy nothing and cost a join on a page that renders an opt-in.
+model AudienceList {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// What the tenant calls it, e.g. "Clinic roles". Unique per tenant so picking one
+  /// from a dropdown is unambiguous.
+  name String
+
+  /// Trimmed labels, in the author's order. Deduped case-insensitively on save.
+  items Json
+
+  /// Used when an assessment's gate names no list. Exactly one per tenant is enforced
+  /// by a PARTIAL UNIQUE INDEX in the migration (Prisma cannot express "unique where
+  /// isDefault"), for the same reason as AdAccount: two defaults make the fallback pick
+  /// arbitrarily, and nothing about that looks like an error from the outside.
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("audience_list")
+}
+
+// ---------------------------------------------------------------------------
 // DfyRequest - an application for the done-for-you scorecard build.
 //
 // The home page's PRIMARY call to action lands here, so losing one is losing the
@@ -2490,4 +2658,178 @@ model DfyRequest {
 
   @@index([status, createdAt])
   @@map("dfy_request")
+}
+
+// ---------------------------------------------------------------------------
+// Support - in-app tickets and onboarding requests.
+//
+// ONE MODEL, TWO MENU ITEMS. A ticket and an onboarding request have the same
+// lifecycle, the same notify path, the same badge and the same thread; `kind` is what
+// splits the screens and the topic list. Two parallel models would have duplicated
+// every one of those, bugs included.
+//
+// A thread is a RECORD, not a mailbox. The tenant raises it, the owner answers it, and
+// the tenant is told by email (and WhatsApp where it is set up) that there is something
+// to read. There is no inbound mail ingestion anywhere in this app, which is why EMAIL
+// mode says plainly that the conversation moved rather than pretending the thread is
+// still live.
+// ---------------------------------------------------------------------------
+
+enum SupportKind {
+  /// Something is wrong, or I need help using it. Shown as AS-1042.
+  SUPPORT
+  /// Help me get set up. Shown as OB-1042.
+  ONBOARDING
+}
+
+enum SupportStatus {
+  /// Raised, nobody has answered yet.
+  OPEN
+  /// The tenant has added something since the last platform reply. Badges.
+  AWAITING_US
+  /// The platform has replied and is waiting on the tenant.
+  AWAITING_TENANT
+  /// Answered and agreed done.
+  RESOLVED
+  /// Closed without a resolution, or closed by the owner.
+  CLOSED
+  /// Handed to the support inbox by EMAIL mode. The thread stops claiming to be a
+  /// conversation and tells the tenant to check their email, because that is where the
+  /// answer is actually going to arrive.
+  FORWARDED
+}
+
+enum SupportAuthorRole {
+  TENANT
+  PLATFORM
+}
+
+model SupportRequest {
+  id String @id @default(cuid())
+
+  /// The human reference, rendered AS-1042 / OB-1042 by lib/support/ref.
+  ///
+  /// A Postgres SEQUENCE, created by hand in the migration, because a count-and-add
+  /// would hand two simultaneous tickets the same number and the number is what the
+  /// tenant quotes back. Shared across both kinds on purpose: one sequence means one
+  /// number can never mean two different threads, and the prefix is what tells a
+  /// ticket from an onboarding request.
+  number Int @unique @default(dbgenerated("nextval('support_request_number_seq')"))
+
+  kind   SupportKind
+  status SupportStatus @default(OPEN)
+
+  /// One of the fixed topics in lib/support/topics (validated on write). Fixed rather
+  /// than tenant-authored: the topic is what decides where a request is routed, and a
+  /// free-text subject line already exists for everything else.
+  topic   String
+  subject String
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// Who raised it. Nullable and SetNull: a login can be removed while the thread it
+  /// opened is still the record of what was asked and answered.
+  createdByUserId String?
+  createdBy       User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  /// Contact details SNAPSHOTTED when it was raised.
+  ///
+  /// Not read live from the user row: a reply is answering the person who asked, and
+  /// if they changed their email in between, the notification should still reach the
+  /// address the conversation started on. Also means a removed login does not take the
+  /// thread's only way of reaching anybody with it.
+  contactEmail    String
+  contactWhatsapp String?
+
+  /// When the tenant last opened the thread. Anything newer than this from the
+  /// platform side is what makes the tenant's own badge light up.
+  lastSeenByTenantAt DateTime?
+
+  /// When the platform first answered. The one support metric worth keeping, and it
+  /// cannot be recovered later from message rows once a thread has several replies.
+  firstResponseAt DateTime?
+
+  /// When this was handed to the support inbox by EMAIL mode. Set once: switching the
+  /// mode back and forth must not forward the same thread twice.
+  forwardedAt DateTime?
+
+  messages    SupportMessage[]
+  attachments SupportAttachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The owner's queue: this kind, these statuses, newest first.
+  @@index([kind, status, createdAt])
+  /// The tenant's own list.
+  @@index([tenantId, kind, createdAt])
+  @@map("support_request")
+}
+
+model SupportMessage {
+  id        String         @id @default(cuid())
+  requestId String
+  request   SupportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  authorRole SupportAuthorRole
+  /// Shown in the thread. Snapshotted for the same reason the contacts are.
+  authorName String
+  authorId   String?
+  author     User?             @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  body String
+
+  /// The owner's private note. NEVER sent and never rendered on the tenant's side.
+  ///
+  /// Written through its own action and its own button rather than a checkbox on the
+  /// reply box: a reply fires email and WhatsApp the moment it is saved, and there is
+  /// no unsend. A note typed into the wrong box with a tick in the wrong state is a
+  /// mistake that cannot be taken back, so the two are different buttons.
+  isInternal Boolean @default(false)
+
+  /// What the notification actually did. Null = nothing was attempted (an internal
+  /// note, or a tenant's own message). SENT / FAILED / SKIPPED otherwise, with the
+  /// error kept so the thread can show a Resend button beside the failure instead of
+  /// failing silently and waiting to be noticed.
+  ///
+  /// `webhook*` is the POST to the owner's CRM, which is what turns a reply into a
+  /// WhatsApp at their end. Kept per message for the same reason as the email: a
+  /// delivery nobody can see the state of is one nobody chases.
+  emailStatus   String?
+  emailError    String?
+  webhookStatus String?
+  webhookError  String?
+
+  attachments SupportAttachment[]
+
+  createdAt DateTime @default(now())
+
+  @@index([requestId, createdAt])
+  @@map("support_message")
+}
+
+model SupportAttachment {
+  id        String         @id @default(cuid())
+  requestId String
+  request   SupportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  /// The message it came in with. Nullable because an attachment outlives nothing: it
+  /// belongs to the request, and the message is only where it was added.
+  messageId String?
+  message   SupportMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  /// The R2 object key, under the tenant's own prefix. Served only through
+  /// /api/support/attachments/[id], which authorises first. Never a bucket URL: a
+  /// screenshot of a stuck funnel carries lead names, and a public object URL is
+  /// guessable forever.
+  key         String
+  filename    String
+  contentType String
+  bytes       Int
+
+  createdAt DateTime @default(now())
+
+  @@index([requestId])
+  @@map("support_attachment")
 }

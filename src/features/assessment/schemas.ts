@@ -48,6 +48,11 @@ export const audienceGateSchema = z.object({
   placeholder: z.string().max(120).optional().or(z.literal("")).default(""),
   // FREETEXT only: whether the respondent must fill the field to continue.
   freeTextRequired: z.boolean().default(false),
+  // Which named audience list feeds this gate. "" = the tenant's default list, which
+  // is what every gate saved before named lists existed resolves to - so adding this
+  // changed nothing for a funnel already running. A list belonging to another tenant
+  // never resolves (the resolver checks ownership), it falls back to the default.
+  listId: z.string().max(60).optional().or(z.literal("")).default(""),
   // Every choice (including "None of the above", if wanted) is just a role row with
   // its own target. "" target = continue here; else an assessment id to redirect to.
   roles: z.array(audienceRoleSchema).max(30).default([]),
@@ -58,6 +63,7 @@ export const EMPTY_AUDIENCE_GATE: AudienceGateInput = {
   label: "",
   placeholder: "",
   freeTextRequired: false,
+  listId: "",
   roles: [],
 };
 
@@ -80,6 +86,14 @@ export const qualOptionSchema = z.object({
   label: z.string().trim().min(1, "Option label is required.").max(200),
   disqualifies: z.boolean().default(false),
   points: z.number().int().min(-1000).max(1000).default(0),
+  // CONDITIONAL DISQUALIFYING ROUTE. Which exit this answer sends them to, by the
+  // exit's stable key. "" = the first exit, which is what every disqualifying answer
+  // did before routes existed, so nothing that is live today changes.
+  //
+  // The KEY is stored, never the name: the owner renames an exit whenever they like,
+  // and a name used as the identifier would re-route every question that pointed at it
+  // the moment it was reworded. Only meaningful when `disqualifies` is true.
+  exitKey: z.string().max(60).optional().or(z.literal("")).default(""),
 });
 export type QualOptionInput = z.infer<typeof qualOptionSchema>;
 
@@ -102,12 +116,56 @@ export const qualQuestionSchema = z
   });
 export type QualQuestionInput = z.infer<typeof qualQuestionSchema>;
 
+/**
+ * SCORE BANDS. What happens to somebody who answered every question without hitting a
+ * hard exit, decided by the gate total rather than by any one answer.
+ *
+ * The problem it solves: a gate built only from hard exits throws away the founder who
+ * is weak on one axis and strong on the others. With bands, a weak answer is survivable
+ * - the total decides - and the band in the middle is a queue the owner reads rather
+ * than a door that slams.
+ *
+ *   score >= passMin                 -> through, untagged
+ *   reviewMin <= score < passMin     -> through, tagged REVIEW
+ *   score < reviewMin                -> routed to `belowExitKey`
+ *
+ * `enabled` false (the default) means no band ever applies, which is every gate that
+ * exists today: they pass everyone who dodged the hard exits, exactly as before.
+ *
+ * 🔴 Evaluated on the SERVER, never in the browser. The points live only in the
+ * assessment row; the public payload carries labels and exit keys, never numbers, so a
+ * respondent cannot read the thresholds out of the page and answer to them.
+ */
+export const gateBandsSchema = z.object({
+  enabled: z.boolean().default(false),
+  passMin: z.number().int().min(-10000).max(10000).default(0),
+  reviewMin: z.number().int().min(-10000).max(10000).default(0),
+  /** Exit for anyone under reviewMin. "" = the first exit. */
+  belowExitKey: z.string().max(60).optional().or(z.literal("")).default(""),
+});
+export type GateBandsInput = z.infer<typeof gateBandsSchema>;
+export const EMPTY_GATE_BANDS: GateBandsInput = { enabled: false, passMin: 0, reviewMin: 0, belowExitKey: "" };
+
+/** What the bands decided for one respondent. Stored, never shown to them. */
+export const GATE_BANDS = ["PASS", "REVIEW"] as const;
+export type GateBand = (typeof GATE_BANDS)[number];
+
 export const qualificationSchema = z.object({
   enabled: z.boolean().default(false),
   questions: z.array(qualQuestionSchema).max(20).default([]),
+  bands: gateBandsSchema.default(EMPTY_GATE_BANDS),
+  // Whether the respondent sees their gate answers and points on the result page.
+  // TRUE is what the app has always done, and a gate-only funnel has nothing else to
+  // show, so it stays the default. Turned off by a gate that scores people privately.
+  showGateOnResult: z.boolean().default(true),
 });
 export type QualificationInput = z.infer<typeof qualificationSchema>;
-export const EMPTY_QUALIFICATION: QualificationInput = { enabled: false, questions: [] };
+export const EMPTY_QUALIFICATION: QualificationInput = {
+  enabled: false,
+  questions: [],
+  bands: EMPTY_GATE_BANDS,
+  showGateOnResult: true,
+};
 
 /** True when an assessment's qualification gate is actually live (enabled + has at
  *  least one question). Pure - safe on client and server. */
@@ -142,6 +200,11 @@ export function completionEventName(gateActive: boolean): string {
  *   its own departure, so this is decided later by the sweep, not by the page.
  */
 export const GATE_DISQUALIFIED_EVENT = "GateDisqualified";
+/** Passed the gate and was let through to the assessment. OFF unless an assessment
+ *  asks for it (metaEvents.gatePassed === true), because every gated funnel on the
+ *  install would otherwise start firing a new event on the next deploy - a change to
+ *  live event volume nobody asked for. */
+export const GATE_PASSED_EVENT = "GatePassed";
 export const ABANDONED_EVENT = "AssessmentAbandoned";
 /** Passed the gate but never reached the opt-in form. A different audience from
  *  ABANDONED_EVENT: these people never saw the ask, so there is nothing for them to
@@ -152,9 +215,69 @@ export const GATE_INCOMPLETE_EVENT = "GateIncomplete";
  *  above CompleteRegistration on one pixel: lead, trial, revenue. */
 export const START_TRIAL_EVENT = "StartTrial";
 
-/** Content of the disqualified page. `fireDisqualifiedEvent` sends the custom
- *  GateDisqualified event to Meta server-side (for building an exclusion audience) -
- *  the only outward signal a rejected visitor leaves. */
+/**
+ * ONE EXIT ROUTE. A gate used to have a single disqualified page, so every rejection -
+ * the employee, the practitioner, the founder who simply cannot make these dates - left
+ * through the same door and arrived in the same Meta audience. They are not the same
+ * person and they are not worth the same thing, which is the whole argument for this.
+ *
+ * `key` is generated once and never changes; `name` is the owner's word for it and is
+ * editable at any time. An answer stores the key, so renaming "Waitlist" to "Next
+ * cycle" reroutes nothing.
+ *
+ * MODE
+ *   PAGE     - the exit page, as before. No lead, no submission, nothing stored.
+ *   OPTIN    - not a rejection. Sent to the lead form, details captured, lead webhook
+ *              fired, and the exit's content shown as the thank-you. They never answer
+ *              the assessment.
+ *   CONTINUE - the waitlist route, and the one that pays. They are QUALIFIED; what they
+ *              failed was a date. So they take the whole assessment like anybody else
+ *              and reach the same result page - throwing away a completed diagnosis on a
+ *              qualified founder to keep the gate tidy is the expensive trade. What
+ *              changes is the CLOSE (result-page blocks can be addressed to them alone)
+ *              and what Meta is told, which must never be the main optimisation event.
+ *
+ * META
+ *   `fireDisqualifiedEvent` and `eventName` stay PER EXIT. One event, one meaning: an
+ *   exclusion audience built from waitlist sign-ups is a corrupted exclusion audience,
+ *   and no amount of care further down the funnel repairs it.
+ *   `contentCategory` rides along as custom_data.content_category, so two exits that
+ *   SHOULD share an event (both are "get these people out of the ad set") can still be
+ *   told apart in an audience rule without splitting thin volume across two event names.
+ */
+export const EXIT_MODES = ["PAGE", "OPTIN", "CONTINUE"] as const;
+export const exitModeSchema = z.enum(EXIT_MODES).default("PAGE");
+export type ExitMode = (typeof EXIT_MODES)[number];
+
+export const gateExitSchema = z.object({
+  key: z.string().min(1).max(60),
+  name: z.string().trim().max(60).default(""),
+  mode: exitModeSchema,
+  heading: z.string().max(200).optional().or(z.literal("")).default(""),
+  subtext: z.string().max(500).optional().or(z.literal("")).default(""),
+  bodyHtml: z.string().max(10000).optional().or(z.literal("")).default(""),
+  buttonLabel: z.string().max(80).optional().or(z.literal("")).default(""),
+  buttonUrl: z.string().max(2000).optional().or(z.literal("")).default(""),
+  fireDisqualifiedEvent: z.boolean().default(true),
+  /** Blank = GateDisqualified. An exit that is not a rejection should say so here. */
+  eventName: z.string().trim().max(60).optional().or(z.literal("")).default(""),
+  /** custom_data.content_category on that event, e.g. "not_yet" / "wrong_fit". */
+  contentCategory: z.string().trim().max(60).optional().or(z.literal("")).default(""),
+  /**
+   * CONTINUE only: what Meta is told when one of these people COMPLETES the assessment.
+   * Blank = the funnel's normal completion event, which for a waitlist route is the
+   * wrong answer: CompleteRegistration and AssessmentCompleted are what the ad account
+   * optimises toward, and teaching it to find founders who cannot attend doubles the
+   * cost of a filled seat without anything looking broken.
+   */
+  completionEventName: z.string().trim().max(60).optional().or(z.literal("")).default(""),
+});
+export type GateExitInput = z.infer<typeof gateExitSchema>;
+
+/** Content of the exit page(s). The six legacy fields stay at the top level as EXIT
+ *  ONE's content, written on every save, so a rollback or an in-flight cached payload
+ *  still renders a real page instead of the default copy. They are derived - `exits` is
+ *  the source of truth whenever it is present - and come out in a later release. */
 export const disqualifiedContentSchema = z.object({
   heading: z.string().max(200).optional().or(z.literal("")).default(""),
   subtext: z.string().max(500).optional().or(z.literal("")).default(""),
@@ -162,6 +285,7 @@ export const disqualifiedContentSchema = z.object({
   buttonLabel: z.string().max(80).optional().or(z.literal("")).default(""),
   buttonUrl: z.string().max(2000).optional().or(z.literal("")).default(""),
   fireDisqualifiedEvent: z.boolean().default(true),
+  exits: z.array(gateExitSchema).max(20).default([]),
 });
 export type DisqualifiedContentInput = z.infer<typeof disqualifiedContentSchema>;
 export const EMPTY_DISQUALIFIED: DisqualifiedContentInput = {
@@ -171,13 +295,79 @@ export const EMPTY_DISQUALIFIED: DisqualifiedContentInput = {
   buttonLabel: "",
   buttonUrl: "",
   fireDisqualifiedEvent: true,
+  exits: [],
 };
+
+/** The name shown for an exit that has not been named yet. */
+export const UNNAMED_EXIT = "Exit";
+
+/**
+ * The exits of an assessment, normalized.
+ *
+ * A gate saved before routes existed has no `exits` array at all: its single page
+ * becomes exit one, carrying the content already there, so it keeps rendering what it
+ * renders today and the owner never has to open the builder. Pure - safe on both sides.
+ */
+export function readExits(raw: unknown): GateExitInput[] {
+  const parsed = disqualifiedContentSchema.safeParse(raw ?? {});
+  const d = parsed.success ? parsed.data : EMPTY_DISQUALIFIED;
+  if (d.exits.length > 0) return d.exits;
+  return [
+    {
+      key: "exit1",
+      name: "",
+      mode: "PAGE",
+      heading: d.heading,
+      subtext: d.subtext,
+      bodyHtml: d.bodyHtml,
+      buttonLabel: d.buttonLabel,
+      buttonUrl: d.buttonUrl,
+      fireDisqualifiedEvent: d.fireDisqualifiedEvent,
+      eventName: "",
+      contentCategory: "",
+      completionEventName: "",
+    },
+  ];
+}
+
+/** The exit an answer (or a band) routes to. An unknown or blank key lands on the
+ *  first exit rather than on nothing: a dangling key is a builder mistake, and the
+ *  respondent should still be shown a page. */
+export function resolveExit(exits: ReadonlyArray<GateExitInput>, key: string | null | undefined): GateExitInput | null {
+  if (exits.length === 0) return null;
+  const k = (key ?? "").trim();
+  if (k) {
+    const found = exits.find((e) => e.key === k);
+    if (found) return found;
+  }
+  return exits[0] ?? null;
+}
+
+/** True when this route sends the person on through the assessment rather than ending
+ *  the visit. The waitlist case: qualified people, wrong dates. */
+export function exitTakesAssessment(exit: GateExitInput | null | undefined): boolean {
+  return exit?.mode === "CONTINUE";
+}
+
+/** True when this route asks for their details at all (either kind of opt-in). */
+export function exitCapturesLead(exit: GateExitInput | null | undefined): boolean {
+  return exit?.mode === "OPTIN" || exit?.mode === "CONTINUE";
+}
+
+/** What a named exit is called in a list, falling back to its position. */
+export function exitLabel(exit: GateExitInput, index: number): string {
+  return exit.name.trim() || `${UNNAMED_EXIT} ${index + 1}`;
+}
 
 /** The tenant's canonical audience list (AppSetting.audienceCanonical): the
  *  default roles that feed both the free-field suggestions and the normalize
  *  screen. Trimmed, de-duped and capped in the settings action. */
 export const audienceCanonicalSchema = z.array(z.string().trim().min(1).max(120)).max(200).default([]);
 export type AudienceCanonicalInput = z.infer<typeof audienceCanonicalSchema>;
+
+/** A named audience list's name. Short, because it is read in a dropdown next to the
+ *  funnel it feeds, not in a page of its own. */
+export const audienceListNameSchema = z.string().trim().min(1, "Give the list a name.").max(60);
 
 export const assessmentSchema = z.object({
   title: z.string().min(2, "Title is required.").max(160),
@@ -327,8 +517,10 @@ export const assessmentSchema = z.object({
       // This one is new, nothing can depend on it yet, and defaulting it on would
       // start a brand new event firing from every funnel on the platform.
       gateIncomplete: z.boolean().default(false),
+      // Same reasoning, same answer: new event, nothing depends on it, off until asked.
+      gatePassed: z.boolean().default(false),
     })
-    .default({ registration: true, completion: true, gateDisqualified: true, abandoned: true, gateIncomplete: false }),
+    .default({ registration: true, completion: true, gateDisqualified: true, abandoned: true, gateIncomplete: false, gatePassed: false }),
 }).superRefine((d, ctx) => {
   if (d.nextStep === "PAYMENT" && !d.paymentAmount && !d.paymentUrl) {
     ctx.addIssue({

@@ -45,6 +45,11 @@ export interface SubmissionExportRow {
   scorePercent: number | null;
   overallBand: string | null;
   overallBandLevel: string | null;
+  /** Page-1 gate verdict: PASS / REVIEW, blank on a funnel with no score bands. The
+   *  band the owner works the queue from, so it belongs in the file they work from. */
+  gateBand: string | null;
+  gateScore: number | null;
+  gateMax: number | null;
   paidAmount: number | null;
   paidAtIST: string | null;
   resultUrl: string | null;
@@ -118,6 +123,9 @@ export async function listSubmissionsForExport(
       qualificationAnswers: true,
       totalScore: true,
       maxScore: true,
+      gateBand: true,
+      gateScore: true,
+      gateMax: true,
       attribution: true,
       deviceType: true,
       browser: true,
@@ -203,6 +211,9 @@ export async function listSubmissionsForExport(
       scorePercent: snap?.scorePercent ?? null,
       overallBand: s.resultBand?.title ?? snap?.resultBand ?? null,
       overallBandLevel: s.resultBand?.level ?? snap?.resultBandLevel ?? null,
+      gateBand: s.gateBand ?? null,
+      gateScore: s.gateScore ?? null,
+      gateMax: s.gateMax ?? null,
       paidAmount: p?.amount ?? null,
       paidAtIST: p?.at ? formatIST(new Date(p.at)) : null,
       resultUrl: resultUrlFor(s.assessment.targetUrl, s.assessment.slug, s.id, s.resultToken, s.customerId, paramByTenant.get(s.assessment?.tenantId ?? null) ?? null),

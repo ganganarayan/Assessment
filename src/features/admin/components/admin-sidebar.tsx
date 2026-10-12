@@ -19,6 +19,8 @@ interface AdminSidebarProps {
   user: { name: string; email: string };
   /** The tenant a super admin has entered, shown under the wordmark. Null = platform. */
   tenantName?: string | null;
+  /** href -> count, counted on the server. Here it is only drawn. */
+  badges?: Record<string, number>;
 }
 
 /**
@@ -80,6 +82,16 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    // The owner's two queues. Badged in red, and only while the queue is set to
+    // in-app: a number for work that was handed to a support team is a number nobody
+    // can clear, which is how badges stop being read at all.
+    title: "Support",
+    items: [
+      { href: "/admin/support", label: "Tickets" },
+      { href: "/admin/onboarding", label: "Onboarding" },
+    ],
+  },
+  {
     title: "Account",
     items: [
       { href: "/admin/ai", label: "AI" },
@@ -90,7 +102,7 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-export function AdminSidebar({ user, tenantName }: AdminSidebarProps) {
+export function AdminSidebar({ user, tenantName, badges = {} }: AdminSidebarProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const tab = useBuilderTab();
@@ -126,7 +138,10 @@ export function AdminSidebar({ user, tenantName }: AdminSidebarProps) {
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <NavShell
-              sections={SECTIONS}
+              sections={SECTIONS.map((s) => ({
+                ...s,
+                items: s.items.map((i) => (badges[i.href] ? { ...i, badge: badges[i.href] } : i)),
+              }))}
               isActive={isActive}
               storageKey="admin"
               renderUnder={(it) =>

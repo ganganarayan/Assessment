@@ -10,8 +10,10 @@ import {
   isQualificationActive,
   qualificationSchema,
   completionEventName,
+  readExits,
   type LeadInput,
   type AnswersInput,
+  type QualificationInput,
 } from "@/features/assessment/schemas";
 import {
   computeScores,
@@ -24,7 +26,7 @@ import { sendNurtureForSubmission } from "@/lib/nurture/send";
 import { resultUrlFor, vidapulseParamForTenant } from "@/lib/events/completion";
 import { appendVidapulseId } from "@/lib/vidapulse";
 import { normalizeAttribution } from "@/lib/events/payload";
-import { type EmitInput, type PayloadCategory } from "@/features/events/types";
+import { type EmitInput, type PayloadCategory, type PayloadGate } from "@/features/events/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { normalizeIdentifier, evaluateLockout } from "@/features/assessment/lockout";
@@ -298,6 +300,9 @@ async function emitStart(
   customerId: string,
   lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null; profession: string | null },
   attr: ReturnType<typeof normalizeAttribution>,
+  /** The gate's verdict on this person, when there was a gate. Travels with the opt-in
+   *  so the CRM can nurture a REVIEW lead, or a waitlist one, on its own track. */
+  gate?: PayloadGate | null,
 ) {
   await emitEvent(EventType.LEAD_CREATED, {
     submissionId,
@@ -306,6 +311,7 @@ async function emitStart(
     assessment: { id: assessment.id, slug: assessment.slug, title: assessment.title },
     lead,
     attribution: attr ?? undefined,
+    ...(gate ? { gate } : {}),
   });
 }
 
@@ -328,6 +334,11 @@ async function fireRegistration(
   fireMeta: boolean,
   /** First-party visitor id (from the browser) → CAPI external_id. */
   externalId: string | null,
+  /** The gate's verdict, for the CRM payload. */
+  gate?: PayloadGate | null,
+  /** Set when this opt-in came in through an OPTIN EXIT ROUTE. Changes what Meta is
+   *  told: an exit reports under its OWN event name, never CompleteRegistration. */
+  exitRoute?: { key: string; name: string; fireDisqualifiedEvent: boolean; eventName: string; contentCategory: string } | null,
 ): Promise<string | undefined> {
   const eventId = randomUUID();
   // The submission is ALREADY persisted before this runs, so no CRM/CAPI side-effect
@@ -335,15 +346,23 @@ async function fireRegistration(
   // opt-in still succeeds. The eventId is returned (for pixel dedup) ONLY when Meta
   // firing is on; otherwise undefined so the browser pixel stays silent too.
   try {
-    await emitStart(assessment, submissionId, customerId, lead, attr);
+    await emitStart(assessment, submissionId, customerId, lead, attr, gate);
     // Server-side Meta CAPI. Fire-and-forget + LOGGED: every opt-in send (and its
     // Meta response) is recorded to the CAPI log. The wrapper checks config itself
     // and logs a "not configured" row, so a silent drop is now visible.
-    if (fireMeta) {
+    // 🔴 ONE EVENT, ONE MEANING. A routed-in opt-in is not a registration: filing it as
+    // CompleteRegistration teaches the ad account that people who cannot attend are the
+    // conversion, and no care further down the funnel repairs that.
+    //
+    // So an exit route reports NOTHING here. Its one event already fired at the gate,
+    // the moment the route was taken, where it catches everybody - including the ones
+    // who never reach this form because the opt-in sits at the end of the assessment.
+    if (fireMeta && !exitRoute) {
+      const metaEventName = "CompleteRegistration";
       const ctx = await getMetaRequestContext();
       void sendAndLogLifecycleCapi(
         {
-          eventName: "CompleteRegistration",
+          eventName: metaEventName,
           eventId,
           eventTimeMs: Date.now(),
           eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
@@ -377,7 +396,7 @@ async function fireRegistration(
           bumpFunnelEventCount({
             assessmentId: assessment.id,
             tenantId: assessment.tenant?.id ?? null,
-            eventName: "CompleteRegistration",
+            eventName: metaEventName,
             ok: r.ok,
           }),
         )
@@ -386,6 +405,9 @@ async function fireRegistration(
   } catch (e) {
     console.error("[start] fireRegistration side-effect failed (lead still captured):", e instanceof Error ? e.message : String(e));
   }
+  // No eventId for an exit route: the browser pixel fires CompleteRegistration off the
+  // back of it, and that is precisely the event an exit must not report.
+  if (exitRoute) return undefined;
   return fireMeta ? eventId : undefined;
 }
 
@@ -421,6 +443,11 @@ export async function startSubmission(
   /** Gate CHOICE picks: question id -> option id. Points are resolved server-side from
    *  the stored gate config, never taken from the client. */
   qualChoices?: Record<string, string>,
+  /** Set when this opt-in came in through an OPTIN EXIT ROUTE - the waitlist case,
+   *  where the gate sent somebody sideways and asked for their details anyway. Holds
+   *  the exit's key. Validated against the assessment's own exits; anything else is
+   *  dropped, and the submission is then an ordinary one. */
+  exitKey?: string,
 ): Promise<ActionResult<StartResult>> {
   // Bot guard #1 - honeypot: a hidden form field no human fills. If it carries a
   // value, silently refuse (no submission created) so bot opt-ins never pollute the
@@ -455,6 +482,7 @@ export async function startSubmission(
       fireMetaCapi: true,
       metaEvents: true,
       audienceGate: true,
+      disqualifiedContent: true,
       qualification: true,
     },
   });
@@ -587,6 +615,33 @@ export async function startSubmission(
           .map(([k, v]) => [String(k).slice(0, 60), String(v).slice(0, 1000)]),
       )
     : {};
+  // Which score band the gate put them in, from the gate's own thresholds. Returns null
+  // when the funnel has no bands or awarded nothing - "this gate does not band people"
+  // and "they landed in the bottom band" are different facts, and only one of them
+  // should read as a deliberate tag later.
+  //
+  // Note what is NOT here: an exit. Somebody under reviewMin never reaches this code,
+  // because the verdict call routed them out before any submission existed.
+  function gateBandOf(q: QualificationInput | null, score: number, max: number): string | null {
+    if (!q || !q.bands.enabled || max <= 0) return null;
+    return score >= q.bands.passMin ? "PASS" : "REVIEW";
+  }
+
+  // The OPTIN exit route, checked against the assessment's own exits. A key naming an
+  // exit that is not there, or one that is not an OPTIN exit, is dropped: this flag
+  // decides which Meta event the lead is reported under, so it is not something the
+  // browser gets to assert.
+  const exitRoute = (() => {
+    const wanted = typeof exitKey === "string" ? exitKey.trim() : "";
+    if (!wanted) return null;
+    const found = readExits(assessment.disqualifiedContent).find((e) => e.key === wanted);
+    // Both opt-in kinds qualify: one ends at the thank-you, the other goes on to answer
+    // the assessment. What they share is that neither is a rejection and neither may be
+    // reported as an ordinary registration.
+    return found && (found.mode === "OPTIN" || found.mode === "CONTINUE") ? found : null;
+  })();
+  const cleanExitKey = exitRoute?.key ?? null;
+
   // Gate CHOICE picks, resolved against the STORED gate rather than trusted. The client
   // sends option ids; the labels and the points come from the assessment, so a tampered
   // payload can at worst name an option that does not exist, which is then ignored.
@@ -635,6 +690,12 @@ export async function startSubmission(
     // read as a deliberate zero later.
     gateScore: gateMax > 0 ? gateScore : null,
     gateMax: gateMax > 0 ? gateMax : null,
+    // The band, recomputed here rather than taken from the client's verdict call: this
+    // is the copy anyone reads later, and a tag the browser could name is a tag the
+    // browser could choose. Null when the funnel has no bands, which is every gate
+    // built before they existed.
+    gateBand: gateBandOf(gate.success ? gate.data : null, gateScore, gateMax),
+    gateExitKey: cleanExitKey,
     gateBreakdown: gateRows.length ? (gateRows as unknown as Prisma.InputJsonValue) : undefined,
     leadFirstName: assessment.collectFirstName ? firstName : null,
     leadLastName: assessment.collectLastName ? lastName : null,
@@ -664,6 +725,19 @@ export async function startSubmission(
     ...qualData,
     ...(attr ? { attribution: attr as unknown as Prisma.InputJsonValue } : {}),
   };
+
+  // The gate's verdict as the CRM will read it. Built once, from the same values that
+  // were just stamped on the row, so the webhook and the database cannot disagree.
+  const gatePayload: PayloadGate | null =
+    gateMax > 0 || cleanExitKey
+      ? {
+          band: gateBandOf(gate.success ? gate.data : null, gateScore, gateMax),
+          score: gateMax > 0 ? gateScore : null,
+          max: gateMax > 0 ? gateMax : null,
+          exitKey: cleanExitKey,
+          exitName: exitRoute ? exitRoute.name.trim() || null : null,
+        }
+      : null;
 
   // Lockout path - serialize per-(assessment + identifier) with an advisory lock
   // so concurrent submits can't slip two leads through, and a blocked retaker
@@ -765,7 +839,7 @@ export async function startSubmission(
     }
     let eventId: string | undefined;
     if (outcome.kind === "created") {
-      eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid);
+      eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid, gatePayload, exitRoute);
     }
     // Nurture (one-shot Email + WhatsApp) now fires on COMPLETION, not here, so the
     // {{resultUrl}} placeholder resolves to the finished result - see completeSubmission.
@@ -787,7 +861,7 @@ export async function startSubmission(
     data: { ...submissionData, customerId: newCustomerId },
     select: { id: true },
   });
-  const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid);
+  const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid, gatePayload, exitRoute);
   // Nurture now fires on COMPLETION (see completeSubmission) so {{resultUrl}} resolves.
   return { ok: true, data: { status: "started", submissionId: created.id, editToken: newEditToken, ...(eventId ? { eventId } : {}) } };
 }
@@ -899,6 +973,9 @@ export async function completeSubmission(
     payment?: PaymentCheckout;
     paymentRedirectUrl?: string;
     eventId?: string;
+    /** The event the SERVER just sent, so the browser pixel fires the same name and the
+     *  two deduplicate. Absent when nothing was sent. */
+    eventName?: string;
     // Billing gate: the tenant is over its response cap, so this completion is locked.
     // The lead is shown a neutral "results unavailable - contact support" screen with
     // `supportEmail` instead of a result/VSL. No other data fields are returned.
@@ -1072,6 +1149,7 @@ export async function completeSubmission(
       fireMetaCapi: true,
       metaEvents: true,
       // Gated funnels fire QualifiedCompletion instead of AssessmentCompleted.
+      disqualifiedContent: true,
       qualification: true,
       tenant: { select: { id: true, slug: true, name: true } },
       categories: {
@@ -1507,8 +1585,38 @@ export async function completeSubmission(
       leadEmail: true,
       leadMobile: true,
       metaExternalId: true,
+      // Which route they came in through. A waitlist respondent completes the same
+      // assessment as everybody else and must NOT be reported as the same conversion.
+      gateExitKey: true,
     },
   });
+
+  /**
+   * 🔴 THE EVENT THIS COMPLETION REPORTS.
+   *
+   * CompleteRegistration and the completion event are what a lead campaign optimises
+   * toward. Let a waitlist completion fire them and Meta learns, correctly and
+   * expensively, to go and find more founders who cannot make the dates - and nothing
+   * about that looks like a fault. It shows up weeks later as a cost per filled seat
+   * that has quietly doubled.
+   *
+   * So a route with its own completion event name reports under that instead. Blank
+   * keeps the funnel's normal event, which is what every route that is not a waitlist
+   * should do.
+   */
+  const completionEvent: string | null = (() => {
+    const normal = completionEventName(isQualificationActive(assessment.qualification));
+    const key = full?.gateExitKey?.trim();
+    if (!key) return normal;
+    // A routed-in respondent reports NOTHING at completion unless the owner names an
+    // event. Silence is the right default: they opted in, so they are in the CRM with
+    // full contact details, which is where the next-cycle list gets built and sent
+    // from. Meta does not need its own copy of a list nobody advertises to, and the
+    // one thing that would actually cost money - landing in the optimisation event -
+    // is exactly what firing the normal completion here would do.
+    const exit = readExits(assessment.disqualifiedContent).find((e) => e.key === key);
+    return exit?.completionEventName.trim() || null;
+  })();
 
   // Completion without an in-app payment is ONE event: completed_unpaid. Paid mode
   // fires completed_paid (on payment) + completed_unpaid (30-min sweep); free mode
@@ -1576,12 +1684,12 @@ export async function completeSubmission(
   // anyway, which a client-side check would allow.
   const mayFireCompletion = await tenantCan(assessment.tenant?.id ?? null, "analyticsTracking");
   const completionOn = metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "completion");
-  const eventId = completionOn && mayFireCompletion ? randomUUID() : undefined;
-  if (completionOn && eventId) {
+  const eventId = completionOn && mayFireCompletion && completionEvent ? randomUUID() : undefined;
+  if (completionOn && eventId && completionEvent) {
     const ctx = await getMetaRequestContext();
     void sendAndLogLifecycleCapi(
       {
-        eventName: completionEventName(isQualificationActive(assessment.qualification)),
+        eventName: completionEvent,
         eventId,
         eventTimeMs: Date.now(),
         eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
@@ -1610,7 +1718,7 @@ export async function completeSubmission(
         bumpFunnelEventCount({
           assessmentId: assessment.id,
           tenantId: assessment.tenant?.id ?? null,
-          eventName: completionEventName(isQualificationActive(assessment.qualification)),
+          eventName: completionEvent,
           ok: r.ok,
         }),
       )
@@ -1652,5 +1760,15 @@ export async function completeSubmission(
   });
   // On a PAID exit, omit the token-bearing resultUrl from the client response.
   const paidExit = !!(paid.payment || paid.paymentRedirectUrl);
-  return { ok: true, data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid, ...(eventId ? { eventId } : {}) } };
+  return {
+    ok: true,
+    data: {
+      submissionId,
+      ...(paidExit ? {} : { resultUrl }),
+      ...paid,
+      // Both or neither: the browser fires the name the server just sent, with the same
+      // id, or it fires nothing at all.
+      ...(eventId && completionEvent ? { eventId, eventName: completionEvent } : {}),
+    },
+  };
 }

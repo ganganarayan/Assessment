@@ -61,6 +61,15 @@ export const FEATURES = [
   "capi", // server-side Meta Conversions API (audience exclusion + retargeting)
   "heatmap", // heatmap / session-recording snippet injection
   "manualReview", // free-text screening questions stored for the owner to read
+  // CONDITIONAL DISQUALIFYING ROUTE (Signal and up): more than one exit from the gate,
+  // each named, each with its own Meta event, plus score bands that decide who is
+  // waved through, who is flagged for review and who is routed out.
+  //
+  // Gate keeps the gate itself and its single exit - the mechanism the tier exists to
+  // demonstrate. What Signal adds is TELLING REJECTIONS APART, which is an ad-account
+  // problem: it only starts to pay once somebody is running enough spend to care that
+  // their exclusion audience is clean.
+  "conditionalExit",
   // Bulk import of a whole assessment from a JSON/CSV export. The plain-text import
   // stays on every tier: writing your own scorecard is the product. Lifting a finished
   // one out of another workspace is an agency motion, so it is priced as one.
@@ -167,6 +176,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
       aiReports: true,
       heatmap: true,
       manualReview: true,
+      conditionalExit: true,
     },
   },
   // Agency - unlimited scorecards, sub-accounts, API. The sub-account FEATURE does not
@@ -183,6 +193,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
       aiReports: true,
       heatmap: true,
       manualReview: true,
+      conditionalExit: true,
       apiAccess: true,
       bulkImport: true,
     },
@@ -202,6 +213,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
       aiReports: true,
       heatmap: true,
       manualReview: true,
+      conditionalExit: true,
       apiAccess: true,
       bulkImport: true,
     },

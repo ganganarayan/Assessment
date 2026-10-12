@@ -65,11 +65,37 @@ export default async function WorkspaceStatsPage({
     {
       label: "Turned away by gate",
       value: s.disqualified,
+      // With more than one exit route the pooled number hides the thing worth knowing:
+      // a waitlist sign-up and a wrong-fit rejection are both "turned away" and are not
+      // remotely the same outcome.
       hint:
-        s.disqualifiedRepeat > 0
-          ? `+${s.disqualifiedRepeat.toLocaleString()} revisit${s.disqualifiedRepeat === 1 ? "" : "s"} by someone already rejected`
-          : undefined,
+        [
+          (() => {
+            const rejected = s.byExit.filter((e) => !e.routed);
+            return rejected.length > 1 ? rejected.map((e) => `${e.name}: ${e.count.toLocaleString()}`).join(" · ") : null;
+          })(),
+          s.disqualifiedRepeat > 0
+            ? `+${s.disqualifiedRepeat.toLocaleString()} revisit${s.disqualifiedRepeat === 1 ? "" : "s"} by someone already rejected`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("; ") || undefined,
     },
+    // Routed on rather than rejected: the waitlist case. Shown only once a funnel
+    // actually has such a route, so it never adds a permanent zero to every other one.
+    ...(s.routedOn > 0
+      ? [
+          {
+            label: "Routed on, not rejected",
+            value: s.routedOn,
+            hint:
+              s.byExit
+                .filter((e) => e.routed)
+                .map((e) => `${e.name}: ${e.count.toLocaleString()}`)
+                .join(" · ") || "Sent to a route that asks for their details.",
+          },
+        ]
+      : []),
     // The two ways a qualified visitor is lost, kept apart because they are different
     // problems: one never saw the ask, the other saw it and said no.
     { label: "Never reached opt-in", value: s.gateIncomplete, hint: "Passed the gate, left before the form." },
