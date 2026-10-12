@@ -398,7 +398,7 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
   },
   {
     q: "What happens to someone who fits but cannot start right now?",
-    a: "He is not a rejection, he is a lead with a timing problem. He takes the full assessment like anyone else and lands on the same result page with a waitlist close, so you keep the finished diagnosis and he keeps his place. His exit fires its own Meta event, separate from both your exclusion audience and the event your ads optimise toward.",
+    a: "He is not a rejection, he is a lead with a timing problem. He takes the full assessment like anyone else and lands on the same result page with a waitlist close, so you keep the finished diagnosis and he keeps his place. His exit fires its own Meta event, separate from both your exclusion audience and the event your ads optimise toward. Because he completes the assessment and you keep the result, he counts as a qualified response; only the people your gate turns away are unmetered.",
   },
 ];
 
@@ -527,6 +527,15 @@ export const METERING = {
     { text: "Here, a visitor who fails your gate stores nothing. No lead, no submission, no result.", strong: ["stores nothing"] },
     { text: "Nothing stored means nothing to meter, and nothing to bill you for.", strong: ["nothing to bill you for"] },
     { text: "We earn more only when you capture leads worth having.", strong: ["only when you capture leads worth having"] },
+    // Said out loud, because this is the one claim a customer can audit, and the one
+    // place the new waitlist route could have made it quietly untrue. A waitlist lead
+    // completes the assessment and has a result on file, so it is a captured lead and
+    // it is metered. Leaving that to be discovered on an invoice would cost more trust
+    // than the sentence costs conversions.
+    {
+      text: "A waitlist lead finishes the assessment, so it counts. Only the people your gate turns away are free.",
+      strong: ["so it counts"],
+    },
     { text: "It is the one claim on this page you can verify from your own invoice.", strong: ["verify from your own invoice"] },
   ],
 } as const;
