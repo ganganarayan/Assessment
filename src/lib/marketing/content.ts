@@ -83,8 +83,24 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
     body: "Screen every visitor before the assessment even starts. Unfit traffic - wrong role, size, or intent - is routed to a separate exit page with no lead, no result and nothing stored, so your pipeline only fills with people who actually fit.",
   },
   {
+    title: "A different exit for each answer",
+    body: "An employee, a practitioner you would rather send elsewhere, and a founder who simply cannot make your dates are three different answers - not one rejection. Each disqualifying answer names its own exit, and you write what each one says.",
+  },
+  {
+    title: "Score bands, not one yes or no",
+    body: "Gate answers carry points. Above your threshold they go straight through; in the band below it they still go through, flagged for you to read before the call; under that they are routed out. One weak answer no longer loses someone who is strong everywhere else.",
+  },
+  {
+    title: "A waitlist, instead of a rejection",
+    body: "Someone who clears every bar and cannot make the dates is a lead with a timing problem. That route takes the whole assessment like anybody else and lands on the same result page with a different close, so you keep the finished diagnosis and they keep their place.",
+  },
+  {
     title: "Manual-review screening questions",
     body: "Add free-text questions - company name, website, what the business does - captured with each qualified lead, so you can eyeball the ones who slip through and disqualify fakers by hand.",
+  },
+  {
+    title: "Named audience lists",
+    body: "Keep as many lists of roles as the work needs and point each scorecard at the one it uses, so a clinic funnel and a coaching funnel stop sharing one vocabulary that suits neither.",
   },
   {
     title: "Repeat & back-button protection",
@@ -126,6 +142,10 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
   {
     title: "Auto-exclude the unqualified",
     body: "Every disqualified visitor fires a custom exclusion event. Build one Meta audience from it and stop paying to show your ad to people who will never qualify.",
+  },
+  {
+    title: "One event per exit",
+    body: "Each exit reports its own Meta event, or none at all. A waitlist sign-up never lands in your exclusion audience and never in the event your ads optimise toward, so the algorithm is not quietly taught to go and find more people who cannot come.",
   },
   {
     title: "First-party match keys",
@@ -238,6 +258,7 @@ export const TIERS: ReadonlyArray<Tier> = [
       "AI-written reports (your own key)",
       "Heatmap + session recording",
       "Manual-review screening fields",
+      "Conditional exit routes + score bands",
       "3 users · 2 ad accounts",
     ],
     cta: "Start 14-day trial",
@@ -472,6 +493,9 @@ export const PILLARS: ReadonlyArray<Pillar> = [
     body: "The screen runs BEFORE the opt-in, not after it. A visitor who fails never reaches the form, so there is no lead record, no stored result and nothing to clean out of your CRM later.",
     titles: [
       "Pre-assessment qualification gate",
+      "A different exit for each answer",
+      "Score bands, not one yes or no",
+      "A waitlist, instead of a rejection",
       "Repeat & back-button protection",
       "Manual-review screening questions",
       "Conditional logic & branching",
@@ -503,6 +527,7 @@ export const PILLARS: ReadonlyArray<Pillar> = [
       "Audience exclusion + retargeting on autopilot",
       "Qualified-only optimization signal",
       "Auto-exclude the unqualified",
+      "One event per exit",
       "First-party match keys",
     ],
   },
