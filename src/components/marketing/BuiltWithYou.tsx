@@ -4,7 +4,12 @@ import { DFY, OFFER_SLOTS } from "@/lib/marketing/content";
 import { resolveOfferSlotsLeft } from "@/lib/settings/config";
 
 /**
- * "You are not buying software."
+ * The offer, as a section.
+ *
+ * The headline sells the OUTCOME, not the apparatus. "A funnel that already works" is
+ * a thing nobody wants to own: the buyer wants the calls at the end of it, and saying
+ * so costs nothing and removes the only sentence here that asked them to care about
+ * plumbing.
  *
  * The offer had one home: the strip above the nav, which a reader skims past in the
  * first second and never meets again. This is the same offer as a section, placed after
@@ -25,7 +30,7 @@ export async function BuiltWithYou() {
         <div className="rounded-2xl border bg-[var(--muted)] px-8 py-14 sm:px-12">
           <div className="max-w-3xl">
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              You are not buying software. You are buying a funnel that already works.
+              You are not buying software. You are buying calls that are worth taking.
             </h2>
             <p className="mt-5 text-lg leading-relaxed text-[var(--muted-foreground)]">
               Send a short brief, then take one 30-minute call. We set up your workspace, lay the
