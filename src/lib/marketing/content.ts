@@ -393,6 +393,10 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
     a: "It does the opposite. Everyone who passes the gate gets a real score, a named band that tells them where they actually stand, and a recommended next step. Being assessed feels like being helped, which is why qualified respondents arrive at the call already treating you as the expert.",
   },
   {
+    q: "Do I need the top plan to stop losing borderline leads?",
+    a: "No. Score bands are on every paid plan, including the entry one, because a gate nobody dares set a real bar on is a gate that does not work. What the higher plans add is the router: a named exit for each disqualifying answer, each with its own page and its own Meta event, so a waitlist and a wrong-fit rejection stop sharing one audience.",
+  },
+  {
     q: "What happens to someone who fits but cannot start right now?",
     a: "He is not a rejection, he is a lead with a timing problem. He takes the full assessment like anyone else and lands on the same result page with a waitlist close, so you keep the finished diagnosis and he keeps his place. His exit fires its own Meta event, separate from both your exclusion audience and the event your ads optimise toward.",
   },
@@ -601,7 +605,11 @@ export const PILLARS: ReadonlyArray<Pillar> = [
  * leaves the site, and nobody notices because nothing errors.
  */
 export const supportingCapabilities = (): ReadonlyArray<Capability> => {
-  const claimed = new Set(PILLARS.flatMap((p) => p.titles));
+  // Claimed by a PILLAR or by the fear section. Both have to be here: the derivation is
+  // "anything nobody claimed", and promoting the four routing cards into their own
+  // section unclaimed them, so they rendered once there and again down here as though
+  // they were leftovers. The whole point of promoting them was that they are not.
+  const claimed = new Set([...PILLARS.flatMap((p) => p.titles), ...NO_GOOD_LEAD.titles]);
   return CAPABILITIES.filter((c) => !claimed.has(c.title));
 };
 

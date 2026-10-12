@@ -8,8 +8,13 @@ export const answer: Answer = {
   topicId: "pre-call-qualification",
   primaryKeyword: "should unqualified leads book a call",
   secondaryKeywords: ["turning down unqualified leads", "disqualifying leads politely"],
-  related: ["how-do-i-qualify-leads-before-a-sales-call", "what-is-a-good-lead-score-threshold"],
-  updatedAt: "2026-10-02",
+  related: [
+    "how-do-i-qualify-leads-before-a-sales-call",
+    "what-is-a-good-lead-score-threshold",
+    "will-a-qualification-gate-reject-good-leads",
+    "what-do-i-do-with-a-lead-who-cannot-start-yet",
+  ],
+  updatedAt: "2026-10-12",
   body: [
     {
       id: "the-alternative",

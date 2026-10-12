@@ -20,6 +20,9 @@ import { answer as doQuizFunnelsStillWork } from "./answers/do-quiz-funnels-stil
 import { answer as qualifyBeforeCall } from "./answers/how-do-i-qualify-leads-before-a-sales-call";
 import { answer as questionsToQualify } from "./answers/what-questions-should-i-ask-to-qualify-a-lead";
 import { answer as unqualifiedBooking } from "./answers/should-i-let-unqualified-leads-book-a-call";
+import { answer as gateRejectGoodLeads } from "./answers/will-a-qualification-gate-reject-good-leads";
+import { answer as leadWhoCannotStartYet } from "./answers/what-do-i-do-with-a-lead-who-cannot-start-yet";
+import { answer as oneExclusionAudience } from "./answers/should-all-rejected-leads-go-in-one-exclusion-audience";
 
 // Meta ads and lead quality - the cluster written from the pipeline this app runs.
 import { answer as qualifiedOnlyEvent } from "./answers/what-is-a-qualified-only-conversion-event";
@@ -100,7 +103,10 @@ export const ANSWER_SOURCES = [
   qualifyBeforeCall,
   questionsToQualify,
   unqualifiedBooking,
+  gateRejectGoodLeads,
+  leadWhoCannotStartYet,
   // Meta ads
+  oneExclusionAudience,
   qualifiedOnlyEvent,
   excludeUnqualified,
   retargetQualified,
