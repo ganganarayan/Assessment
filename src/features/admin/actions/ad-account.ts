@@ -75,7 +75,7 @@ function cleanPixelId(raw: string): { ok: true; value: string | null } | { ok: f
 }
 
 /** Resolve the owning tenant for a mutation, or the refusal to return instead. */
-async function editableTenant(): Promise<{ tenantId: string } | { ok: false; error: string }> {
+async function editableTenant(): Promise<{ tenantId: string; isSuper: boolean } | { ok: false; error: string }> {
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
@@ -87,7 +87,7 @@ async function editableTenant(): Promise<{ tenantId: string } | { ok: false; err
         "The platform's own pixel is not an ad account - it lives in Settings under Platform pixel. Enter a workspace to manage that workspace's ad accounts.",
     };
   }
-  return { tenantId };
+  return { tenantId, isSuper: scope.isSuper };
 }
 
 function revalidateAdAccounts() {
@@ -152,16 +152,24 @@ export async function createAdAccount(
 ): Promise<ActionResult<{ id: string }>> {
   const got = await editableTenant();
   if ("ok" in got) return got;
-  const { tenantId } = got;
+  const { tenantId, isSuper } = got;
 
   const name = cleanLabel(label);
   if (!name) return { ok: false, error: "Give this ad account a name you will recognise, e.g. \"Acme - AU\"." };
   const pixel = cleanPixelId(pixelId);
   if (!pixel.ok) return pixel;
 
-  // Billing gate. Parked reads as a cap of 0, which would otherwise be reported as
-  // "your plan's limit of 0 ad accounts" - true, and indistinguishable from a bug.
-  const cap = await assertCanCreateAdAccount(tenantId);
+  /**
+   * Billing gate. Parked reads as a cap of 0, which would otherwise be reported as
+   * "your plan's limit of 0 ad accounts" - true, and indistinguishable from a bug.
+   *
+   * The app owner operating a workspace is exempt, the same rule
+   * `assertCanCreateAssessment` follows: an operator is not rated against the plan they
+   * are administering, and setting up a client's account by hand is exactly the case the
+   * exemption exists for. Their own escape hatch for selling an extra account before the
+   * overage counter exists is this plus `limitOverrides.adAccounts`.
+   */
+  const cap = isSuper ? ({ ok: true } as const) : await assertCanCreateAdAccount(tenantId);
   if (!cap.ok) {
     if ((await resolvePlan(tenantId)).parked) return { ok: false, error: PARKED_MESSAGE };
     return {
