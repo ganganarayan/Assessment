@@ -6,6 +6,7 @@ import { AssessmentForm } from "@/features/assessment/components/admin/assessmen
 import { buttonVariants } from "@/components/ui/button";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { getAudienceListsForTenant } from "@/features/admin/actions/audience-list";
+import { getAdAccountsForTenant } from "@/features/admin/actions/ad-account";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,8 @@ export default async function WorkspaceNewAssessmentPage() {
 
   const promptVersions = (await listPromptVersions(tenantId)).map((v) => ({ id: v.id, label: v.label }));
   const audienceLists = await getAudienceListsForTenant(tenantId);
+  // The accounts the Meta tracking step may point this funnel at.
+  const adAccounts = await getAdAccountsForTenant(tenantId);
 
   return (
     <div className="flex flex-col gap-6">
@@ -55,7 +58,7 @@ export default async function WorkspaceNewAssessmentPage() {
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">New assessment</h1>
       </div>
-      <AssessmentForm mode="create" basePath="/w/assessments" promptVersions={promptVersions} audienceLists={audienceLists} />
+      <AssessmentForm mode="create" basePath="/w/assessments" promptVersions={promptVersions} audienceLists={audienceLists} adAccounts={adAccounts} />
     </div>
   );
 }

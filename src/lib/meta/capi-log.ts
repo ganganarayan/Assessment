@@ -29,7 +29,18 @@ export interface CapiSendOutcome {
  */
 export async function sendAndLogLifecycleCapi(
   input: CapiEventInput,
-  ctx: { tenantId: string | null; submissionId: string | null; name?: string | null },
+  ctx: {
+    tenantId: string | null;
+    submissionId: string | null;
+    /**
+     * The ad account THIS FUNNEL reports to (Assessment.adAccountId), or null for the
+     * tenant's default. Required, not optional: a funnel on a second ad account that
+     * silently reported to the first one is the failure the whole ad-account model
+     * exists to prevent, and an optional field here is how it comes back.
+     */
+    adAccountId: string | null;
+    name?: string | null;
+  },
 ): Promise<CapiSendOutcome> {
   const base = {
     eventName: input.eventName,
@@ -39,6 +50,7 @@ export async function sendAndLogLifecycleCapi(
     matched: !!ctx.submissionId,
     submissionId: ctx.submissionId,
     tenantId: ctx.tenantId,
+    adAccountId: ctx.adAccountId,
     autoFired: true,
     firedAt: new Date(),
   };
@@ -53,7 +65,7 @@ export async function sendAndLogLifecycleCapi(
     return { ok: false, error: "Conversions API requires the Growth plan or higher." };
   }
 
-  if (!(await isCapiConfigured(ctx.tenantId))) {
+  if (!(await isCapiConfigured(ctx.tenantId, ctx.adAccountId))) {
     // Record WHY nothing reached Meta, so a missing token is visible in the log.
     await prisma.capiLog
       .create({ data: { ...base, status: "failed", response: "Meta CAPI not configured for this scope." } })
@@ -61,7 +73,7 @@ export async function sendAndLogLifecycleCapi(
     return { ok: false, error: "Meta CAPI is not configured for this scope (Settings → Integrations)." };
   }
 
-  const r = await sendCapiEventVerbose(input, ctx.tenantId);
+  const r = await sendCapiEventVerbose(input, ctx.tenantId, ctx.adAccountId);
   await prisma.capiLog
     .create({
       data: {
@@ -159,7 +171,9 @@ const SUB_SELECT = {
   fbclidTimestamp: true,
   metaExternalId: true,
   createdAt: true,
-  assessment: { select: { targetUrl: true } },
+  // adAccountId: which pixel this funnel reports to, so a deferred Purchase fired from
+  // the log viewer lands on the same dataset the funnel's other events did.
+  assessment: { select: { targetUrl: true, adAccountId: true } },
 } as const;
 
 export interface PurchaseSettings {
@@ -253,6 +267,10 @@ export async function recordCapture(input: {
         matched: !!sub,
         submissionId: sub?.id ?? input.submissionId ?? null,
         tenantId: sub?.tenantId ?? input.tenantId ?? null,
+        // The funnel's own ad account, resolved through the matched submission. No
+        // match means no assessment and therefore no better answer than the tenant
+        // default - which is what null has always meant here.
+        adAccountId: sub?.assessment?.adAccountId ?? null,
         status: "pending",
       },
       select: { id: true },
@@ -290,14 +308,30 @@ export async function fireCapiLogRow(
 
   const eventName = opts?.eventNameOverride?.trim() || log.eventName;
 
-  if (!(await isCapiConfigured(log.tenantId))) {
+  // Resolved BEFORE the config check, because which account to check is the question.
+  const sub = await findSubmission(log.submissionId, log.email);
+
+  /**
+   * Which ad account this row fires to.
+   *
+   * The row's own stamp wins: it records where this event belongs, and a funnel that
+   * has since been pointed at a different account must not retroactively move a sale
+   * that was captured under the old one. A row written BEFORE the column existed has
+   * no stamp, so it falls back to the matched funnel's account and then to the tenant
+   * default - which is exactly what such a row used to resolve to.
+   */
+  const adAccountId = log.adAccountId ?? sub?.assessment?.adAccountId ?? null;
+
+  if (!(await isCapiConfigured(log.tenantId, adAccountId))) {
+    // Says WHICH account, because "not configured" on a workspace with four of them
+    // sends the operator to the wrong screen.
+    const where = adAccountId ? "the ad account this funnel reports to" : "this workspace's default ad account";
     await prisma.capiLog
-      .update({ where: { id: logId }, data: { status: "failed", response: "Meta CAPI is not configured for this tenant (Settings → Integrations)", firedAt: new Date() } })
+      .update({ where: { id: logId }, data: { status: "failed", response: `Meta CAPI is not configured for ${where} (Ad accounts)`, firedAt: new Date() } })
       .catch(() => {});
-    return { ok: false, error: "Meta CAPI is not configured (add the token in Settings → Integrations)." };
+    return { ok: false, error: `Meta CAPI is not configured for ${where} - add the pixel id and token on the Ad accounts screen.` };
   }
 
-  const sub = await findSubmission(log.submissionId, log.email);
   const user = sub ? buildPurchaseUserData(sub) : { email: log.email, phone: log.phone };
   const amountRupees = log.amountPaise != null ? log.amountPaise / 100 : null;
 
@@ -310,7 +344,7 @@ export async function fireCapiLogRow(
     eventSourceUrl: sub?.assessment?.targetUrl ?? env.NEXT_PUBLIC_APP_URL,
     user,
     customData: amountRupees != null ? { value: amountRupees, currency: log.currency || "INR" } : { currency: log.currency || "INR" },
-  }, log.tenantId);
+  }, log.tenantId, adAccountId);
 
   await prisma.capiLog
     .update({
@@ -318,6 +352,9 @@ export async function fireCapiLogRow(
       data: {
         eventName,
         matched: !!sub,
+        // Record where it actually went. A legacy row resolved through the funnel now
+        // carries the account, so the log stops being ambiguous after one fire.
+        adAccountId,
         status: r.ok ? "sent" : "failed",
         httpStatus: r.status ?? null,
         response: (r.response ?? r.error ?? "").slice(0, 800) || null,

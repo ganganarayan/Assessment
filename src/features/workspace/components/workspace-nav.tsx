@@ -52,6 +52,9 @@ const SECTIONS: NavSection[] = [
   {
     title: "Automation",
     items: [
+      // Above the testers: setting a pixel is the first thing a new workspace does, and
+      // every other item in this group is for checking something that is already wired.
+      { href: "/w/ad-accounts", label: "Ad accounts" },
       { href: "/w/webhooks", label: "Webhooks", exact: true },
       { href: "/w/webhooks/logs", label: "Webhook Logs" },
       { href: "/w/nurture", label: "Nurture" },

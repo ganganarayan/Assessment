@@ -1930,6 +1930,21 @@ model CapiLog {
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
+  // Which AD ACCOUNT this event was sent to (null = the tenant's default at fire time).
+  //
+  // 🔴 Stamped so a DEFERRED fire resolves the same pixel the funnel does. A pending or
+  // failed row is fired later - minutes or days later, by the auto path or by hand from
+  // the log viewer - and before this column the only scope it carried was the tenant, so
+  // a funnel running on the tenant's second ad account had its Purchase re-fired against
+  // the FIRST one. Nothing errors: the event is accepted, by the wrong dataset, and the
+  // first symptom is an ad account reporting a sale it never produced.
+  //
+  // No foreign key, deliberately. The row is a historical record of where an event went,
+  // and if that account is later deleted the honest outcome is a fire that REFUSES (the
+  // resolver returns nothing for an id it cannot match) rather than one that silently
+  // falls back to the default pixel - which is the exact failure this column prevents.
+  adAccountId String?
+
   // Which funnel this event belongs to. Both funnels write rows with tenantId null
   // and the same standard event names, so without this they are indistinguishable -
   // an assessment opt-in and an Assess360 signup both read "CompleteRegistration".

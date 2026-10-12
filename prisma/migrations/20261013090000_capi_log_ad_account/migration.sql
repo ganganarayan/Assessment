@@ -1,0 +1,14 @@
+-- Which ad account a CAPI event was sent to. NULL = the tenant's default at fire time,
+-- which is what every row written before this column means.
+--
+-- 🔴 WHY A DEFERRED FIRE NEEDS IT. A capi_log row can be fired long after it is written:
+-- the auto path fires on capture, and the log viewer's "Fire to Meta" button fires
+-- whatever is still pending or failed. Both resolved the pixel from the TENANT alone, so
+-- a funnel running on the tenant's second ad account had its Purchase re-fired against
+-- the first one. The event is accepted, by the wrong dataset, and the only visible
+-- symptom is an ad account reporting a sale it never produced.
+--
+-- No foreign key, deliberately: the row records where an event WENT, and an id whose
+-- account has since been deleted must make the re-fire refuse rather than fall back to
+-- the default pixel.
+ALTER TABLE "capi_log" ADD COLUMN "adAccountId" TEXT;

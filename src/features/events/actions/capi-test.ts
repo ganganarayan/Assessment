@@ -10,15 +10,29 @@ import { fireCapiLogRow } from "@/lib/meta/capi-log";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { formatIST } from "@/lib/date";
 
-/** Diagnostic: fire a server-side CAPI event (any name, default AssessmentCompleted)
- *  to Meta and return Meta's real response. Scoped to the caller - a tenant admin
- *  fires against their OWN dataset; a super admin uses the tenant they've entered (or
- *  the platform/Gita dataset). View-only staff are blocked. */
-export async function testMetaCapi(testEventCode?: string, eventName?: string) {
+/**
+ * Diagnostic: fire a server-side CAPI event (any name, default AssessmentCompleted)
+ * to Meta and return Meta's real response. Scoped to the caller - a tenant admin
+ * fires against their OWN dataset; a super admin uses the tenant they've entered (or
+ * the platform/Gita dataset). View-only staff are blocked.
+ *
+ * 🟡 `adAccountId` is which of the workspace's ad accounts to test, blank meaning the
+ * default. It is a real argument and not a convenience: a workspace running two
+ * accounts got one green result here for whichever account happened to be the default,
+ * and read it as proof that every funnel was reporting. A test that cannot fail for the
+ * account you are worried about is worse than no test.
+ */
+export async function testMetaCapi(testEventCode?: string, eventName?: string, adAccountId?: string) {
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return { ok: false, eventName: eventName ?? "AssessmentCompleted", error: denied.error };
-  return testCapi(testEventCode, eventName, scope.tenantId);
+  const target = (adAccountId ?? "").trim() || null;
+  // Never let one workspace test another's credentials: an id that is not theirs is
+  // treated as "not given" rather than resolved.
+  const owned = target && scope.tenantId
+    ? await prisma.adAccount.findFirst({ where: { id: target, tenantId: scope.tenantId }, select: { id: true } })
+    : null;
+  return testCapi(testEventCode, eventName, scope.tenantId, owned?.id ?? null);
 }
 
 /**
@@ -52,7 +66,9 @@ export async function resendPurchaseToMeta(submissionId: string, force = false):
       userAgent: true,
       fbclidTimestamp: true,
       createdAt: true,
-      assessment: { select: { slug: true, targetUrl: true, paymentAmount: true, paymentEventName: true } },
+      // adAccountId: a recovered purchase must land on the dataset this funnel reports
+      // to, not on whichever account happens to be the workspace default.
+      assessment: { select: { slug: true, targetUrl: true, paymentAmount: true, paymentEventName: true, adAccountId: true } },
     },
   });
   if (!s?.assessment) return { ok: false, error: "Submission or assessment not found." };
@@ -95,7 +111,7 @@ export async function resendPurchaseToMeta(submissionId: string, force = false):
     // Full match signals (email/phone/name + fbc/fbp/ip/UA).
     user: buildPurchaseUserData(s),
     customData: amountRupees != null ? { value: amountRupees, currency: p.currency || "INR" } : { currency: p.currency || "INR" },
-  }, s.tenantId);
+  }, s.tenantId, s.assessment.adAccountId);
   if (r.ok) {
     await prisma.payment
       .updateMany({ where: { providerPaymentId: p.providerPaymentId, metaConversionAt: null }, data: { metaConversionAt: new Date() } })

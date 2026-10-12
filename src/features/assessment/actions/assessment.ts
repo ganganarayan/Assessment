@@ -95,6 +95,24 @@ async function sanitizeGateListId(gate: AudienceGateInput, tenantId: string): Pr
   return found ? wanted : "";
 }
 
+/**
+ * The ad account this assessment may actually report to. An unknown or FOREIGN id is
+ * cleared to null, which means the tenant's default.
+ *
+ * Cleared rather than rejected, for the same reason as the audience list above: a value
+ * that rides along with a duplicated funnel must not be able to fail an unrelated save.
+ * The ownership check is the part that matters - an id belonging to another workspace
+ * would point this funnel at a stranger's pixel, and nothing in either account would
+ * look broken. The resolver's own guard (an unresolvable id reports NOWHERE rather than
+ * falling back) is the backstop; this is the gate in front of it.
+ */
+async function sanitizeAdAccountId(wantedRaw: string | undefined, tenantId: string): Promise<string | null> {
+  const wanted = wantedRaw?.trim();
+  if (!wanted) return null;
+  const found = await prisma.adAccount.findFirst({ where: { id: wanted, tenantId }, select: { id: true } });
+  return found ? wanted : null;
+}
+
 export async function createAssessment(
   input: AssessmentInput,
 ): Promise<ActionResult<{ id: string }>> {
@@ -133,6 +151,7 @@ export async function createAssessment(
   const gateErr = await validateGate(null, d.audienceGate, scope);
   if (gateErr) return { ok: false, error: gateErr };
   d.audienceGate.listId = await sanitizeGateListId(d.audienceGate, configTenantOf(scope));
+  const adAccountId = await sanitizeAdAccountId(d.adAccountId, configTenantOf(scope));
 
   const created = await prisma.assessment.create({
     data: {
@@ -202,6 +221,7 @@ export async function createAssessment(
       paymentEventName: (d.paymentEventName?.trim() || "Purchase121"),
       paymentIntroText: nullifyEmpty(d.paymentIntroText),
       audienceGate: d.audienceGate as unknown as Prisma.InputJsonValue,
+      adAccountId,
       fireMetaCapi: d.fireMetaCapi,
       metaEvents: d.metaEvents as unknown as Prisma.InputJsonValue,
       createdById: scope.user.id,
@@ -241,6 +261,7 @@ export async function updateAssessment(
   const gateErr = await validateGate(id, d.audienceGate, scope);
   if (gateErr) return { ok: false, error: gateErr };
   d.audienceGate.listId = await sanitizeGateListId(d.audienceGate, configTenantOf(scope));
+  const adAccountId = await sanitizeAdAccountId(d.adAccountId, configTenantOf(scope));
 
   await prisma.assessment.update({
     where: { id },
@@ -311,6 +332,7 @@ export async function updateAssessment(
       paymentEventName: (d.paymentEventName?.trim() || "Purchase121"),
       paymentIntroText: nullifyEmpty(d.paymentIntroText),
       audienceGate: d.audienceGate as unknown as Prisma.InputJsonValue,
+      adAccountId,
       fireMetaCapi: d.fireMetaCapi,
       metaEvents: d.metaEvents as unknown as Prisma.InputJsonValue,
     },
@@ -366,7 +388,10 @@ export async function setAssessmentStatus(
   // Same shape as the parked rule above: publish only, and super admins exempt
   // (they are not rated against a tenant's configuration).
   if (publish && !scope.isSuper && scope.tenantId) {
-    const blocked = await metaPublishBlock(scope.tenantId);
+    // The funnel's OWN ad account, not the workspace default: publishing a funnel whose
+    // chosen account has no token is the case this lock now exists to catch.
+    const target = await prisma.assessment.findFirst({ where: { id }, select: { adAccountId: true } });
+    const blocked = await metaPublishBlock(scope.tenantId, target?.adAccountId ?? null);
     if (blocked) return { ok: false, error: blocked };
   }
   await prisma.assessment.update({
@@ -492,6 +517,10 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
       paymentEventName: src.paymentEventName,
       paymentIntroText: src.paymentIntroText,
       audienceGate: (src.audienceGate ?? Prisma.DbNull) as Prisma.InputJsonValue,
+      // Same workspace, so the copy keeps reporting where the original did. (A
+      // TEMPLATE is the opposite case: it crosses tenants, so the transfer shape must
+      // never carry an ad account - see features/templates/import.ts.)
+      adAccountId: src.adAccountId,
       qualification: (src.qualification ?? Prisma.DbNull) as Prisma.InputJsonValue,
       disqualifiedContent: (src.disqualifiedContent ?? Prisma.DbNull) as Prisma.InputJsonValue,
       fireMetaCapi: src.fireMetaCapi,

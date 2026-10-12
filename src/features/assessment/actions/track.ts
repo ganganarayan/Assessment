@@ -169,7 +169,8 @@ export async function recordGatePass(
 
     const a = await prisma.assessment.findFirst({
       where: { slug, status: "PUBLISHED" },
-      select: { id: true, slug: true, title: true, tenantId: true, qualification: true, fireMetaCapi: true, metaEvents: true },
+      // adAccountId: GatePassed belongs to the same dataset as the rest of this funnel.
+      select: { id: true, slug: true, title: true, tenantId: true, qualification: true, fireMetaCapi: true, metaEvents: true, adAccountId: true },
     });
     // No gate configured → nothing was "passed". Routed (non-ad-entry) assessments
     // deliberately tell Meta nothing, keeping its learning on the ad-entry funnel,
@@ -235,6 +236,7 @@ export async function recordGatePass(
           customData: { assessment: a.slug, assessment_name: a.title },
         },
         a.tenantId,
+        a.adAccountId,
       );
       await bumpFunnelEventCount({ assessmentId: a.id, tenantId: a.tenantId, eventName: GATE_PASSED_EVENT, ok: res.ok });
     }
@@ -292,7 +294,7 @@ export async function recordGateDisqualification(
       where: { slug, status: "PUBLISHED" },
       // disqualified/qualification/fireMetaCapi decide whether GateDisqualified is
       // sent from here - the browser no longer fires it.
-      select: { id: true, slug: true, title: true, tenantId: true, disqualifiedContent: true, qualification: true, fireMetaCapi: true, metaEvents: true },
+      select: { id: true, slug: true, title: true, tenantId: true, disqualifiedContent: true, qualification: true, fireMetaCapi: true, metaEvents: true, adAccountId: true },
     });
     if (!a) return;
 
@@ -449,6 +451,8 @@ async function fireGateDisqualified(
     qualification: unknown;
     fireMetaCapi: boolean;
     metaEvents: unknown;
+    /** Which ad account the exclusion event reports to. null = the tenant's default. */
+    adAccountId: string | null;
   },
   visitorId: string,
   rowId: string,
@@ -506,6 +510,10 @@ async function fireGateDisqualified(
         },
       },
       a.tenantId,
+      // 🔴 The exclusion audience this event feeds is built INSIDE one ad account. Fire
+      // it to the wrong one and the account that is spending keeps buying the people it
+      // just rejected, while a different account quietly excludes them.
+      a.adAccountId,
     );
 
     // Stamp only on success, so a failed send is retried on the next rejection

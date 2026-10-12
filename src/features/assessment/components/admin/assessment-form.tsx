@@ -206,6 +206,7 @@ const DEFAULTS: AssessmentFormValues = {
   paymentEventName: "Purchase121",
   paymentIntroText: "",
   audienceGate: EMPTY_AUDIENCE_GATE,
+  adAccountId: "",
   fireMetaCapi: true,
   metaEvents: { registration: true, completion: true, gateDisqualified: true, abandoned: true, gateIncomplete: false, gatePassed: false },
 };
@@ -218,6 +219,7 @@ export function AssessmentForm({
   promptVersions = [],
   assessmentOptions = [],
   audienceLists = [],
+  adAccounts = [],
   canPlatformSignup = false,
 }: {
   /** True only in the PLATFORM scope. The server forces the flag false anywhere else,
@@ -238,6 +240,9 @@ export function AssessmentForm({
   /** The workspace's named audience lists, for the gate's list picker. Maintained on
    *  the Audiences screen; this form only chooses between them. */
   audienceLists?: { id: string; name: string; items: string[]; isDefault: boolean }[];
+  /** The workspace's ad accounts, for the Meta tracking picker. Maintained on the Ad
+   *  accounts screen; this form only chooses between them. */
+  adAccounts?: { id: string; label: string; isDefault: boolean }[];
 }) {
   const router = useRouter();
   const [values, setValues] = useState<AssessmentFormValues>(
@@ -784,6 +789,39 @@ export function AssessmentForm({
           <FormStep step="tracking">
           <div className="flex flex-col gap-4 rounded-lg border p-4">
             <p className="text-sm font-medium">Meta tracking</p>
+
+            {/* WHICH ACCOUNT, before whether to fire. Deliberately outside the
+                fireMetaCapi block below: the browser pixel on this funnel renders from
+                this account either way, so hiding the choice behind the CAPI switch
+                would leave a funnel whose page views and conversions could go to two
+                different datasets with nothing on screen explaining it. */}
+            {adAccounts.length > 1 ? (
+              <div className="flex flex-col gap-2 border-t pt-3">
+                <Label htmlFor="adAccountId">Reports to</Label>
+                <select
+                  id="adAccountId"
+                  className="h-10 rounded-md border border-[var(--input)] bg-[var(--background)] px-3 text-sm"
+                  value={values.adAccountId ?? ""}
+                  onChange={(e) => set("adAccountId", e.target.value)}
+                >
+                  <option value="">
+                    Workspace default
+                    {adAccounts.find((x) => x.isDefault) ? ` (${adAccounts.find((x) => x.isDefault)?.label})` : ""}
+                  </option>
+                  {adAccounts.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  The ad account this funnel&apos;s pixel and Conversions API events belong to.
+                  Its exclusion and retargeting audiences are built inside that account, so a
+                  funnel pointed at the wrong one teaches the wrong ad account.
+                </p>
+              </div>
+            ) : null}
+
             <label className="flex items-start gap-2 border-t pt-3 text-sm">
               <input
                 type="checkbox"

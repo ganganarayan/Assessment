@@ -36,6 +36,11 @@ export async function getPlatformIntegrationSettings(): Promise<IntegrationSetti
     // they are from the parked rule, so the platform row never needs the opt-out and
     // this is false rather than read from the singleton.
     metaNotUsed: false,
+    // The platform does not own ad accounts: its pixel lives in platformPixelId and is
+    // read by resolvePlatformMetaConfig. Zero here keeps the shared form from offering
+    // a workspace feature in a scope that has none.
+    adAccountCount: 0,
+    defaultAdAccountLabel: null,
     razorpayKeyId: s?.razorpayKeyId ?? "",
     hasRazorpaySecret: !!s?.razorpayKeySecretEnc,
     hasRazorpayWebhookSecret: !!s?.razorpayWebhookSecretEnc,

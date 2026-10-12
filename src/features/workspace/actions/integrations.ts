@@ -22,6 +22,14 @@ import { tenantAppSettingId } from "@/lib/settings/tenant-row";
 export interface IntegrationSettingsView {
   metaPixelId: string;
   hasCapiToken: boolean;
+  /**
+   * How many ad accounts this workspace has. The Meta fields on this screen edit the
+   * DEFAULT one; with more than one configured the screen says so and sends people to
+   * the Ad accounts screen rather than pretending there is a single pixel.
+   */
+  adAccountCount: number;
+  /** The default account's name, so the fields say which account they are editing. */
+  defaultAdAccountLabel: string | null;
   /** "We don't use Meta" - the tenant's opt-out of the publish lock. */
   metaNotUsed: boolean;
   razorpayKeyId: string;
@@ -41,7 +49,7 @@ export interface IntegrationSettingsView {
 
 export async function getIntegrationSettings(): Promise<IntegrationSettingsView> {
   const { tenantId } = await requireWorkspace();
-  const [s, tenant, domain] = await Promise.all([
+  const [s, tenant, domain, defaultAccount, adAccountCount] = await Promise.all([
     prisma.appSetting.findUnique({ where: { tenantId } }),
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true } }),
     // The tenant's OWN domain, preferring a verified one. Razorpay must be pointed
@@ -52,11 +60,24 @@ export async function getIntegrationSettings(): Promise<IntegrationSettingsView>
       orderBy: [{ verified: "desc" }, { createdAt: "asc" }],
       select: { hostname: true },
     }),
+    // 🔴 READ FROM THE SAME PLACE THE FUNNEL READS. The pixel moved into AdAccount when
+    // the model landed, and this screen kept reading the AppSetting columns - so a
+    // tenant whose row had been backfilled saw the value the resolver had stopped using.
+    prisma.adAccount.findFirst({
+      where: { tenantId, isDefault: true },
+      select: { label: true, pixelId: true, capiTokenEnc: true },
+    }),
+    prisma.adAccount.count({ where: { tenantId } }),
   ]);
   const base = domain?.hostname ? `https://${domain.hostname}` : env.NEXT_PUBLIC_APP_URL;
   return {
-    metaPixelId: s?.metaPixelId ?? "",
-    hasCapiToken: !!s?.metaCapiTokenEnc,
+    // The default ad account is the source of truth; the legacy columns are read only
+    // for a tenant that has no ad-account rows at all, which is exactly when the
+    // resolver reads them too.
+    metaPixelId: defaultAccount ? (defaultAccount.pixelId ?? "") : (s?.metaPixelId ?? ""),
+    hasCapiToken: defaultAccount ? !!defaultAccount.capiTokenEnc : !!s?.metaCapiTokenEnc,
+    adAccountCount,
+    defaultAdAccountLabel: defaultAccount?.label ?? null,
     metaNotUsed: s?.metaNotUsed ?? false,
     razorpayKeyId: s?.razorpayKeyId ?? "",
     hasRazorpaySecret: !!s?.razorpayKeySecretEnc,
@@ -91,17 +112,64 @@ export async function updateHeatmapSettings(code: string): Promise<ActionResult>
   return { ok: true };
 }
 
+/**
+ * Save this workspace's Meta pixel + CAPI token - which now means saving them ON THE
+ * DEFAULT AD ACCOUNT.
+ *
+ * 🔴 THE BUG THIS FIXES WAS LIVE AND SILENT. The ad-account migration backfilled one row
+ * per tenant from these AppSetting columns and `resolveMetaConfig` began preferring the
+ * row. This action kept writing the columns. So for every backfilled tenant, saving a
+ * pixel here updated a value nothing reads: the form said saved, the funnel kept firing
+ * the old pixel, and no error appeared anywhere. A tenant fixing a wrong pixel id would
+ * have had no way to tell it had not taken.
+ *
+ * NOT METERED, deliberately. This creates a row only when a tenant has none, which moves
+ * their existing single pixel into the model rather than adding capacity - and metering
+ * it would stop a Gate tenant (one ad account) from saving the one pixel they already
+ * had. New accounts beyond the first go through createAdAccount, which is metered.
+ *
+ * The legacy columns are CLEARED as the row is written, so there is one source of truth
+ * from the first save onwards and no stale value waiting behind the fallback.
+ */
 export async function updateMetaSettings(pixelId: string, capiToken: string): Promise<ActionResult> {
   const { user, tenantId } = await requireWorkspace();
   const denied = editDenied(user);
   if (denied) return denied;
-  const data = {
-    metaPixelId: pixelId.trim() || null,
-    // Blank = keep the existing token (never round-trips the secret to the client).
-    ...(capiToken.trim() ? { metaCapiTokenEnc: encryptWithSecret(capiToken.trim(), env.BETTER_AUTH_SECRET) } : {}),
-  };
-  await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { id: tenantAppSettingId(tenantId), tenantId, ...data } });
+
+  const pixel = pixelId.trim() || null;
+  const tokenEnc = capiToken.trim() ? encryptWithSecret(capiToken.trim(), env.BETTER_AUTH_SECRET) : null;
+
+  const existing = await prisma.adAccount.findFirst({
+    where: { tenantId, isDefault: true },
+    select: { id: true },
+  });
+
+  if (existing) {
+    await prisma.adAccount.update({
+      where: { id: existing.id },
+      data: { pixelId: pixel, ...(tokenEnc ? { capiTokenEnc: tokenEnc } : {}) },
+    });
+  } else {
+    // No row yet: this tenant predates the model, or has never configured Meta. Name it
+    // "Default" - the same label the migration's backfill used, so the two paths produce
+    // one recognisable thing rather than two conventions.
+    await prisma.adAccount.create({
+      data: { tenantId, label: "Default", pixelId: pixel, capiTokenEnc: tokenEnc, isDefault: true },
+    });
+  }
+
+  // Retire the columns for this tenant now that a row owns the value.
+  await prisma.appSetting.upsert({
+    where: { tenantId },
+    update: { metaPixelId: null, metaCapiTokenEnc: null },
+    create: { id: tenantAppSettingId(tenantId), tenantId, metaPixelId: null, metaCapiTokenEnc: null },
+  });
+
   revalidatePath("/w/settings");
+  revalidatePath("/w/ad-accounts");
+  // The publish lock reads this, so an assessment editor open in another tab has to
+  // re-resolve rather than keep showing a block that no longer applies.
+  revalidatePath("/w/assessments");
   return { ok: true };
 }
 

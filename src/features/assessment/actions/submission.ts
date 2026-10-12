@@ -290,6 +290,8 @@ type StartAssessment = {
   slug: string;
   title: string;
   tenant: { id: string; slug: string; name: string } | null;
+  /** Which ad account this funnel reports to. null = the tenant's default. */
+  adAccountId: string | null;
 };
 
 /** Fire the single opt-in event (LEAD_CREATED -> "optin"). The old separate
@@ -382,6 +384,7 @@ async function fireRegistration(
         },
         {
           tenantId: assessment.tenant?.id ?? null,
+          adAccountId: assessment.adAccountId,
           submissionId,
           name: [lead.firstName, lead.lastName].filter(Boolean).join(" ") || null,
         },
@@ -464,6 +467,8 @@ export async function startSubmission(
       title: true,
       tenantId: true,
       tenant: { select: { id: true, slug: true, name: true } },
+      // Which pixel this funnel's opt-in reports to (null = the tenant's default).
+      adAccountId: true,
       collectFirstName: true,
       firstNameRequired: true,
       collectLastName: true,
@@ -1127,6 +1132,8 @@ export async function completeSubmission(
       // Phase 2: routed assessments have this OFF → no completion CAPI/pixel.
       fireMetaCapi: true,
       metaEvents: true,
+      // Which pixel the completion event reports to (null = the tenant's default).
+      adAccountId: true,
       // Gated funnels fire QualifiedCompletion instead of AssessmentCompleted.
       disqualifiedContent: true,
       qualification: true,
@@ -1686,6 +1693,7 @@ export async function completeSubmission(
       },
       {
         tenantId: assessment.tenant?.id ?? null,
+        adAccountId: assessment.adAccountId,
         submissionId,
         name: [full?.leadFirstName, full?.leadLastName].filter(Boolean).join(" ") || null,
       },

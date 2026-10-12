@@ -501,6 +501,15 @@ export const assessmentSchema = z.object({
   // Each role's `target` (and noneTarget) is "" = continue in this assessment, else
   // an assessment id to redirect to (existence + no-cycle validated in the action).
   audienceGate: audienceGateSchema.default(EMPTY_AUDIENCE_GATE),
+  /**
+   * Which AD ACCOUNT this funnel reports to. "" = the workspace default.
+   *
+   * Validated in the action against the tenant's own accounts, never trusted from the
+   * client: an id from another workspace would point a funnel at someone else's pixel,
+   * and the only visible symptom would be a stranger's ad account filling up with
+   * events it did not buy.
+   */
+  adAccountId: z.string().max(40).optional().or(z.literal("")),
   // Meta CAPI + pixel fire only when true (ad-entry assessment). Routed ones = false.
   fireMetaCapi: z.boolean().default(true),
   // Per-event selection, applied when fireMetaCapi is on. Every key optional and

@@ -21,11 +21,21 @@ function withSourceUrl(input: CapiEventInput): CapiEventInput {
   return { ...input, eventSourceUrl: src && src.length > 0 ? src : env.NEXT_PUBLIC_APP_URL };
 }
 
-/** Resolve the CAPI config for a tenant from Settings (null = platform/Gita, which
- *  falls back to env). Token/pixel/dataset are per-tenant; version + test code stay
- *  global (env). */
-async function getConfig(tenantId: string | null = null) {
-  const m = await resolveMetaConfig(tenantId);
+/**
+ * Resolve the CAPI config for a SCOPE from Settings. Token/pixel/dataset come from the
+ * tenant's ad account; version + test code stay global (env).
+ *
+ * 🔴 `adAccountId` IS NOT OPTIONAL, anywhere in this file, and that is the whole point.
+ * `resolveMetaConfig` has accepted a per-assessment ad account since the model landed,
+ * and because the parameter was optional not one caller ever passed it - so the column
+ * existed, the resolver supported it, and every event in the app still went to the
+ * tenant's default pixel. An optional argument on a hot path is a feature nobody uses
+ * and nobody notices is unused. Required, the compiler asks every call site which
+ * account this event belongs to, and `null` becomes a deliberate answer ("the tenant's
+ * default") rather than an oversight.
+ */
+async function getConfig(tenantId: string | null, adAccountId: string | null) {
+  const m = await resolveMetaConfig(tenantId, adAccountId);
   return resolveCapiConfig({
     accessToken: m.capiToken,
     datasetId: m.datasetId,
@@ -35,9 +45,9 @@ async function getConfig(tenantId: string | null = null) {
   });
 }
 
-/** True when a token + dataset are configured for this tenant (CAPI will send). */
-export async function isCapiConfigured(tenantId: string | null = null): Promise<boolean> {
-  return (await getConfig(tenantId)) !== null;
+/** True when a token + dataset are configured for this scope (CAPI will send). */
+export async function isCapiConfigured(tenantId: string | null, adAccountId: string | null): Promise<boolean> {
+  return (await getConfig(tenantId, adAccountId)) !== null;
 }
 
 /**
@@ -46,7 +56,7 @@ export async function isCapiConfigured(tenantId: string | null = null): Promise<
  * for "is the app's event reaching Meta" - unlike sendCapiEvent it surfaces the
  * status + body instead of swallowing.
  */
-export async function testCapi(testEventCode?: string, eventNameInput?: string, tenantId: string | null = null): Promise<{
+export async function testCapi(testEventCode: string | undefined, eventNameInput: string | undefined, tenantId: string | null, adAccountId: string | null): Promise<{
   ok: boolean;
   eventName: string;
   datasetId?: string;
@@ -55,7 +65,7 @@ export async function testCapi(testEventCode?: string, eventNameInput?: string, 
   error?: string;
 }> {
   const eventName = (eventNameInput && eventNameInput.trim()) || "AssessmentCompleted";
-  const cfg = await getConfig(tenantId);
+  const cfg = await getConfig(tenantId, adAccountId);
   if (!cfg) {
     return {
       ok: false,
@@ -111,13 +121,13 @@ export async function testCapi(testEventCode?: string, eventNameInput?: string, 
  * applies a test code - for the admin "re-send a real purchase" recovery tool, so
  * the operator can see the conversion was accepted (events_received: 1).
  */
-export async function sendCapiEventVerbose(input: CapiEventInput, tenantId: string | null = null): Promise<{
+export async function sendCapiEventVerbose(input: CapiEventInput, tenantId: string | null, adAccountId: string | null): Promise<{
   ok: boolean;
   status?: number;
   response?: string;
   error?: string;
 }> {
-  const cfg = await getConfig(tenantId);
+  const cfg = await getConfig(tenantId, adAccountId);
   if (!cfg) {
     return { ok: false, error: "No Meta pixel id + Conversions API token for this scope. Set them in Settings; environment variables are no longer read." };
   }
@@ -178,8 +188,8 @@ export async function isPlatformCapiConfigured(): Promise<boolean> {
   return !!(m.pixelId && m.capiToken);
 }
 
-export async function sendCapiEvent(input: CapiEventInput, tenantId: string | null = null): Promise<void> {
-  const cfg = await getConfig(tenantId);
+export async function sendCapiEvent(input: CapiEventInput, tenantId: string | null, adAccountId: string | null): Promise<void> {
+  const cfg = await getConfig(tenantId, adAccountId);
   if (!cfg) return; // inert until configured
 
   // PRODUCTION path: never attach test_event_code. A lingering

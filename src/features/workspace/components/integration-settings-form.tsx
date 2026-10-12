@@ -91,6 +91,27 @@ export function IntegrationSettingsForm({
       {/* Meta */}
       {showMeta ? (
       <div className="flex flex-col gap-3">
+        {/* Which account these two fields edit. Without this line a workspace running
+            several ad accounts reads one pixel field here and reasonably concludes it is
+            THE pixel - then changes it and wonders why one funnel never moved. */}
+        {initial.adAccountCount > 0 ? (
+          <p className="text-xs text-[var(--muted-foreground)]">
+            {initial.adAccountCount === 1 ? (
+              <>
+                These are the credentials of your ad account
+                {initial.defaultAdAccountLabel ? <strong> {initial.defaultAdAccountLabel}</strong> : null}. Running more than one?{" "}
+                <a href="/w/ad-accounts" className="underline">Ad accounts</a> holds them all.
+              </>
+            ) : (
+              <>
+                You have {initial.adAccountCount} ad accounts. These fields edit your DEFAULT one
+                {initial.defaultAdAccountLabel ? <strong> ({initial.defaultAdAccountLabel})</strong> : null} - the
+                one a funnel uses when it names none. Edit the others on{" "}
+                <a href="/w/ad-accounts" className="underline">Ad accounts</a>.
+              </>
+            )}
+          </p>
+        ) : null}
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Meta Pixel ID</Label>
           <Input value={pixelId} onChange={(e) => setPixelId(e.target.value)} placeholder="e.g. 1129238316012161" />

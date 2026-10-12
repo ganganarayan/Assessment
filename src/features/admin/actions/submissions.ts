@@ -115,7 +115,9 @@ export async function sendMetaVerdict(
       region: true,
       postalCode: true,
       metaExternalId: true,
-      assessment: { select: { id: true, slug: true, title: true } },
+      // adAccountId: a verdict fired by hand must land on the same dataset the funnel's
+      // automatic events did.
+      assessment: { select: { id: true, slug: true, title: true, adAccountId: true } },
     },
   });
   if (!s) return { ok: false, error: "Not found." };
@@ -165,6 +167,7 @@ export async function sendMetaVerdict(
     },
     {
       tenantId: s.tenantId,
+      adAccountId: s.assessment.adAccountId,
       submissionId: s.id,
       name: [s.leadFirstName, s.leadLastName].filter(Boolean).join(" ") || null,
     },
