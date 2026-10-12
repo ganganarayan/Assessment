@@ -12,8 +12,12 @@ export const answer: Answer = {
     "retargeting audience lead quality",
     "lookalike from qualified leads",
   ],
-  related: ["what-is-a-qualified-only-conversion-event", "how-do-i-exclude-unqualified-leads-from-meta-ads"],
-  updatedAt: "2026-10-06",
+  related: [
+    "what-is-a-qualified-only-conversion-event",
+    "how-do-i-exclude-unqualified-leads-from-meta-ads",
+    "should-all-rejected-leads-go-in-one-exclusion-audience",
+  ],
+  updatedAt: "2026-10-12",
   body: [
     {
       id: "why-it-matters",

@@ -12,8 +12,12 @@ export const answer: Answer = {
     "stop meta ads bad leads",
     "disqualified traffic exclusion",
   ],
-  related: ["what-is-a-qualified-only-conversion-event", "can-i-retarget-only-the-leads-that-qualified"],
-  updatedAt: "2026-10-06",
+  related: [
+    "what-is-a-qualified-only-conversion-event",
+    "can-i-retarget-only-the-leads-that-qualified",
+    "should-all-rejected-leads-go-in-one-exclusion-audience",
+  ],
+  updatedAt: "2026-10-12",
   body: [
     {
       id: "the-missing-signal",

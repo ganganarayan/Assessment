@@ -341,6 +341,16 @@
       "pillar": "/qualify-leads-before-sales-call",
       "terms": [
         {
+          "term": "bad timing lead",
+          "url": "/answers/what-do-i-do-with-a-lead-who-cannot-start-yet",
+          "role": "secondary"
+        },
+        {
+          "term": "borderline lead review",
+          "url": "/answers/will-a-qualification-gate-reject-good-leads",
+          "role": "secondary"
+        },
+        {
           "term": "disqualifying leads politely",
           "url": "/answers/should-i-let-unqualified-leads-book-a-call",
           "role": "secondary"
@@ -353,6 +363,26 @@
         {
           "term": "lead qualifying questions",
           "url": "/answers/what-questions-should-i-ask-to-qualify-a-lead",
+          "role": "secondary"
+        },
+        {
+          "term": "lead scoring bands",
+          "url": "/answers/will-a-qualification-gate-reject-good-leads",
+          "role": "secondary"
+        },
+        {
+          "term": "lead who is not ready to buy yet",
+          "url": "/answers/what-do-i-do-with-a-lead-who-cannot-start-yet",
+          "role": "primary"
+        },
+        {
+          "term": "losing good leads to screening",
+          "url": "/answers/will-a-qualification-gate-reject-good-leads",
+          "role": "secondary"
+        },
+        {
+          "term": "nurture leads who fit",
+          "url": "/answers/what-do-i-do-with-a-lead-who-cannot-start-yet",
           "role": "secondary"
         },
         {
@@ -404,6 +434,16 @@
           "term": "turning down unqualified leads",
           "url": "/answers/should-i-let-unqualified-leads-book-a-call",
           "role": "secondary"
+        },
+        {
+          "term": "waitlist leads",
+          "url": "/answers/what-do-i-do-with-a-lead-who-cannot-start-yet",
+          "role": "secondary"
+        },
+        {
+          "term": "will a qualification gate reject good leads",
+          "url": "/answers/will-a-qualification-gate-reject-good-leads",
+          "role": "primary"
         }
       ]
     },
@@ -416,6 +456,11 @@
           "term": "browser pixel vs conversions api",
           "url": "/answers/should-lead-events-go-through-the-browser-or-the-server",
           "role": "primary"
+        },
+        {
+          "term": "content_category custom audience",
+          "url": "/answers/should-all-rejected-leads-go-in-one-exclusion-audience",
+          "role": "secondary"
         },
         {
           "term": "conversion event lead quality",
@@ -453,6 +498,11 @@
           "role": "primary"
         },
         {
+          "term": "exclusion audience mistakes",
+          "url": "/answers/should-all-rejected-leads-go-in-one-exclusion-audience",
+          "role": "secondary"
+        },
+        {
           "term": "facebook ads unqualified leads",
           "url": "/meta-ads-lead-qualification",
           "role": "secondary"
@@ -485,6 +535,16 @@
         {
           "term": "meta exclusion audience",
           "url": "/answers/how-do-i-exclude-unqualified-leads-from-meta-ads",
+          "role": "secondary"
+        },
+        {
+          "term": "meta exclusion audience segmentation",
+          "url": "/answers/should-all-rejected-leads-go-in-one-exclusion-audience",
+          "role": "primary"
+        },
+        {
+          "term": "one event one meaning",
+          "url": "/answers/should-all-rejected-leads-go-in-one-exclusion-audience",
           "role": "secondary"
         },
         {
@@ -569,6 +629,8 @@
     "automated lead qualification": "/lead-qualification-software",
     "automated lead scoring": "/lead-scoring",
     "b2b saas lead qualification": "/lead-qualification-for-saas",
+    "bad timing lead": "/answers/what-do-i-do-with-a-lead-who-cannot-start-yet",
+    "borderline lead review": "/answers/will-a-qualification-gate-reject-good-leads",
     "broker enquiry screening": "/lead-qualification-for-insurance-brokers",
     "browser pixel vs conversions api": "/answers/should-lead-events-go-through-the-browser-or-the-server",
     "can ai write assessment questions": "/answers/can-ai-write-my-assessment-questions",
@@ -579,6 +641,7 @@
     "consultant enquiry form": "/lead-qualification-for-consultants",
     "consulting lead qualification": "/lead-qualification-for-consultants",
     "consulting lead scoring": "/lead-qualification-for-consultants",
+    "content_category custom audience": "/answers/should-all-rejected-leads-go-in-one-exclusion-audience",
     "contractor lead qualification": "/lead-qualification-for-home-services",
     "conversion event lead quality": "/answers/what-is-a-qualified-only-conversion-event",
     "conversions api lead events": "/answers/should-lead-events-go-through-the-browser-or-the-server",
@@ -593,6 +656,7 @@
     "education lead scoring": "/lead-qualification-for-course-creators",
     "event deduplication meta": "/answers/should-lead-events-go-through-the-browser-or-the-server",
     "exclude unqualified leads from meta ads": "/answers/how-do-i-exclude-unqualified-leads-from-meta-ads",
+    "exclusion audience mistakes": "/answers/should-all-rejected-leads-go-in-one-exclusion-audience",
     "facebook ads unqualified leads": "/meta-ads-lead-qualification",
     "fillout alternative": "/fillout-alternative",
     "fillout alternative for lead qualification": "/fillout-alternative",
@@ -650,15 +714,18 @@
     "lead qualifying questions": "/answers/what-questions-should-i-ask-to-qualify-a-lead",
     "lead quality vs cost per lead": "/answers/why-does-cost-per-lead-go-up-when-lead-quality-improves",
     "lead score cutoff": "/answers/what-is-a-good-lead-score-threshold",
+    "lead scoring bands": "/answers/will-a-qualification-gate-reject-good-leads",
     "lead scoring explained": "/answers/how-does-lead-scoring-work",
     "lead scoring software": "/lead-scoring",
     "lead scoring tool": "/lead-scoring",
+    "lead who is not ready to buy yet": "/answers/what-do-i-do-with-a-lead-who-cannot-start-yet",
     "leadquizzes alternative": "/leadquizzes-alternative",
     "leadquizzes alternative for lead qualification": "/leadquizzes-alternative",
     "leadquizzes vs assess360": "/leadquizzes-alternative",
     "legal client intake form": "/lead-qualification-for-law-firms",
     "legal lead qualification": "/lead-qualification-for-law-firms",
     "lookalike from qualified leads": "/answers/can-i-retarget-only-the-leads-that-qualified",
+    "losing good leads to screening": "/answers/will-a-qualification-gate-reject-good-leads",
     "marketing agency lead qualification": "/lead-qualification-for-agencies",
     "marquiz alternative": "/marquiz-alternative",
     "marquiz alternative for lead qualification": "/marquiz-alternative",
@@ -666,6 +733,9 @@
     "meta ads lead qualification": "/meta-ads-lead-qualification",
     "meta ads lead quality": "/meta-ads-lead-qualification",
     "meta exclusion audience": "/answers/how-do-i-exclude-unqualified-leads-from-meta-ads",
+    "meta exclusion audience segmentation": "/answers/should-all-rejected-leads-go-in-one-exclusion-audience",
+    "nurture leads who fit": "/answers/what-do-i-do-with-a-lead-who-cannot-start-yet",
+    "one event one meaning": "/answers/should-all-rejected-leads-go-in-one-exclusion-audience",
     "online assessment meaning": "/answers/what-is-an-online-assessment",
     "online assessment software": "/assessment-software",
     "online scorecard": "/scorecard",
@@ -745,12 +815,14 @@
     "typeform vs assess360": "/typeform-alternative",
     "unqualified leads from facebook ads": "/answers/why-do-my-ads-produce-unqualified-leads",
     "use an assessment to qualify leads": "/answers/what-is-an-online-assessment",
+    "waitlist leads": "/answers/what-do-i-do-with-a-lead-who-cannot-start-yet",
     "what counts as a qualified lead for ads": "/answers/what-is-a-qualified-only-conversion-event",
     "what is a good lead score threshold": "/answers/what-is-a-good-lead-score-threshold",
     "what is a quiz funnel": "/answers/what-is-a-quiz-funnel",
     "what is a scorecard": "/answers/what-is-an-online-scorecard",
     "what is lead qualification": "/answers/what-is-lead-qualification-software",
-    "why do my ads produce unqualified leads": "/answers/why-do-my-ads-produce-unqualified-leads"
+    "why do my ads produce unqualified leads": "/answers/why-do-my-ads-produce-unqualified-leads",
+    "will a qualification gate reject good leads": "/answers/will-a-qualification-gate-reject-good-leads"
   },
   "collisions": []
 }
