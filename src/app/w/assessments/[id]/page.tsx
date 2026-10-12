@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
+import { tenantCan } from "@/lib/billing/gate";
 import { getAssessmentById, listAssessments } from "@/features/assessment/data";
 import { buildSpine } from "@/lib/routing/engine";
 import {
@@ -53,6 +54,12 @@ export default async function WorkspaceEditAssessmentPage({
   if (!(await currentUserCanEdit())) redirect("/w/assessments");
   const promptVersions = (await listPromptVersions(tenantId)).map((v) => ({ id: v.id, label: v.label }));
   const audienceLists = await getAudienceListsForTenant(tenantId);
+  // What this workspace's plan allows, so the builder can say so BEFORE the owner does
+  // the work rather than refusing it afterwards. An operator inside a workspace
+  // (impersonating) is never limited, matching every save action.
+  const [canRoute, canBands] = impersonating
+    ? [true, true]
+    : await Promise.all([tenantCan(tenantId, "conditionalExit"), tenantCan(tenantId, "gateScoreBands")]);
   // The Meta publish lock, resolved for the button and the warning. A super admin who
   // has entered this workspace is exempt, exactly as the action is, so the screen never
   // shows a rule that would not actually fire.
@@ -270,6 +277,8 @@ export default async function WorkspaceEditAssessmentPage({
           initialQualification={qualification}
           initialDisqualified={disqualified}
           storedUnreadable={qualUnreadable}
+          canRoute={canRoute}
+          canBands={canBands}
           section="gate"
         />
         <BuilderStepNav step="gate" />
@@ -289,6 +298,8 @@ export default async function WorkspaceEditAssessmentPage({
           initialQualification={qualification}
           initialDisqualified={disqualified}
           storedUnreadable={qualUnreadable}
+          canRoute={canRoute}
+          canBands={canBands}
           section="exit"
         />
         <BuilderStepNav step="exit" />

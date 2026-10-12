@@ -37,12 +37,28 @@ async function conditionalExitDenied(): Promise<{ ok: false; error: string } | n
   };
 }
 
-/** Whether a saved gate actually uses the capability: an answer routing somewhere
- *  other than the first exit, or score bands switched on. One named exit on its own is
- *  just the exit page every plan has. */
+/**
+ * Whether a saved gate ROUTES: an answer sent somewhere other than the first exit. One
+ * named exit on its own is just the exit page every plan has.
+ *
+ * Score bands are deliberately NOT part of this. They are a separate, cheaper flag
+ * (gateScoreBands, every paid tier), because they are the thing that makes a gate safe
+ * to set a real bar on - and a safety net sold as an upgrade is a safety net the people
+ * who most need it do not have.
+ */
 function usesConditionalExit(q: QualificationInput): boolean {
-  if (q.bands.enabled) return true;
   return q.questions.some((question) => question.options.some((o) => o.disqualifies && !!o.exitKey?.trim()));
+}
+
+/** Score bands are a paid-tier capability, available from the entry plan up. */
+async function scoreBandsDenied(): Promise<{ ok: false; error: string } | null> {
+  const scope = await resolveActingScope();
+  if (scope.isSuper) return null;
+  if (await tenantCan(scope.tenantId, "gateScoreBands")) return null;
+  return {
+    ok: false,
+    error: "Score bands need a paid plan. Upgrade to flag borderline answers instead of turning them away.",
+  };
 }
 
 /** Save the Page-1 qualification gate config for an assessment. */
@@ -64,8 +80,13 @@ export async function saveQualification(
     if (!scope.isSuper && !(await tenantCan(scope.tenantId, "qualificationGate"))) {
       return { ok: false, error: "The qualification gate is available on the Growth plan and up. Upgrade to enable it." };
     }
-    // Routing on top of the gate is the Signal capability. Checked only when the saved
-    // config actually routes, so a Gate tenant can keep editing their single-exit gate.
+    // Bands from the entry tier up; ROUTING on top of them is the Signal capability.
+    // Each checked only when the saved config actually uses it, so a Gate tenant can
+    // keep editing a banded, single-exit gate without meeting a wall.
+    if (parsed.data.bands.enabled) {
+      const bandsDenied = await scoreBandsDenied();
+      if (bandsDenied) return bandsDenied;
+    }
     if (usesConditionalExit(parsed.data)) {
       const denied2 = await conditionalExitDenied();
       if (denied2) return denied2;
