@@ -65,9 +65,6 @@ export const SUBMISSION_EXPORT_COLUMNS: CsvColumn<SubmissionExportFlatRow>[] = [
   { key: "percent", label: "Percent" },
   { key: "overallBand", label: "Overall band" },
   { key: "overallLevel", label: "Overall level" },
-  { key: "gateBand", label: "Gate band" },
-  { key: "gateScore", label: "Gate score" },
-  { key: "gateMax", label: "Gate max" },
   { key: "paidAmount", label: "Paid amount (₹)" },
   { key: "paidAt", label: "Paid at (IST)" },
   { key: "resultUrl", label: "Result link" },
@@ -89,6 +86,13 @@ export const SUBMISSION_EXPORT_COLUMNS: CsvColumn<SubmissionExportFlatRow>[] = [
   { key: "categories", label: "Category results" },
   { key: "aiDefault", label: "AI message (default)" },
   { key: "aiVersions", label: "AI versions (all)" },
+  // APPENDED, not slotted in beside the other scores. A CSV someone already imports is
+  // a contract: a new column in the middle shifts every position after it, and an
+  // import mapped by position starts writing emails into the phone field without
+  // erroring. New columns go on the end, where nothing moves.
+  { key: "gateBand", label: "Gate band" },
+  { key: "gateScore", label: "Gate score" },
+  { key: "gateMax", label: "Gate max" },
 ];
 
 export function flattenSubmissionExportRow(r: SubmissionExportRow): SubmissionExportFlatRow {

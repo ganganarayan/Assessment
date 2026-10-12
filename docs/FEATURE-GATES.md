@@ -96,7 +96,8 @@ not a way to unlock overage for free.
 
 **Already in `FEATURES`:** `pdfReports`, `webhooks`, `leadExport`, `customDomain`,
 `brandingRemoved`, `analyticsTracking`, `staffRoles`, `apiAccess`, `aiReports`,
-`prioritySupport`, `qualificationGate`, `conditionalRouting`, `capi`, `heatmap`.
+`prioritySupport`, `qualificationGate`, `conditionalRouting`, `capi`, `heatmap`,
+`conditionalExit` (added 2026-10-11).
 
 **New flags this pricing needs:**
 
@@ -137,7 +138,7 @@ Gate exists as a tier.
 STARTER tenant gains features on migration. Intended, but it is a giveaway, not a no-op.
 
 **Off:** `customDomain`, `brandingRemoved`, `aiReports`, `heatmap`, `manualReview`,
-`subAccounts`, `apiAccess`, `sso`.
+`conditionalExit`, `subAccounts`, `apiAccess`, `sso`.
 
 **Badge shown.** Needs a badge component on the public funnel and result page, hidden
 when `brandingRemoved` is on. Does not exist yet.
@@ -145,7 +146,16 @@ when `brandingRemoved` is on. Does not exist yet.
 ### SIGNAL - $79
 
 Everything in Gate, plus `customDomain`, `brandingRemoved`, `aiReports`, `heatmap`,
-`manualReview`.
+`manualReview`, `conditionalExit`.
+
+`conditionalExit` ("conditional disqualifying route", added 2026-10-11) is more than one
+exit from the page-1 gate: each route named, each with its own Meta event, plus the score
+bands that decide who is waved through, who is flagged REVIEW and who is routed out. Gate
+keeps the gate itself and its single exit - the mechanism that tier exists to demonstrate.
+What Signal adds is TELLING REJECTIONS APART, which only starts to pay once somebody is
+spending enough to care that their exclusion audience is clean. Enforced in
+`features/assessment/actions/qualification.ts` (a second exit, an answer routed anywhere
+but the first, or bands switched on).
 
 | Limit | Value |
 |---|---|
