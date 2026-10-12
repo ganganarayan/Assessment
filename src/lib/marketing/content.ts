@@ -336,6 +336,14 @@ export const PLAN_MATRIX: ReadonlyArray<MatrixRow> = [
   { label: "AI-written reports (BYO key)", cells: ["-", "✓", "✓", "✓"] },
   { label: "Heatmap / session recording", cells: ["-", "✓", "✓", "✓"] },
   { label: "Manual-review screening fields", cells: ["-", "✓", "✓", "✓"] },
+  // Bands on every paid tier, the router from Signal: the safety net is what makes a
+  // gate safe to set a real bar on, and selling it as the upgrade leaves it missing
+  // from the plan a first-time buyer picks. See PAID_BASE_FEATURES.
+  { label: "Score bands on gate answers", cells: ["✓", "✓", "✓", "✓"], strong: true },
+  { label: "Conditional exit routes per answer", cells: ["-", "✓", "✓", "✓"] },
+  { label: "Waitlist route", cells: ["-", "✓", "✓", "✓"] },
+  { label: "One Meta event per exit", cells: ["-", "✓", "✓", "✓"] },
+  { label: "Named audience lists", cells: ["✓", "✓", "✓", "✓"] },
   { label: "Client sub-accounts, white-label", cells: ["-", "-", "✓", "✓"] },
   { label: "API access", cells: ["-", "-", "✓", "✓"] },
   { label: "SSO, SLA, onboarding", cells: ["-", "-", "-", "✓"] },
@@ -379,6 +387,14 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
   {
     q: "What happens at my response limit?",
     a: "Only qualified responses count - disqualified visitors are never metered. You'll get a heads-up as you approach the limit. Past it, answers are still captured and nothing is lost, but new results are held until you upgrade, so no lead disappears while you decide.",
+  },
+  {
+    q: "Will screening people out make me look arrogant to the good leads?",
+    a: "It does the opposite. Everyone who passes the gate gets a real score, a named band that tells them where they actually stand, and a recommended next step. Being assessed feels like being helped, which is why qualified respondents arrive at the call already treating you as the expert.",
+  },
+  {
+    q: "What happens to someone who fits but cannot start right now?",
+    a: "He is not a rejection, he is a lead with a timing problem. He takes the full assessment like anyone else and lands on the same result page with a waitlist close, so you keep the finished diagnosis and he keeps his place. His exit fires its own Meta event, separate from both your exclusion audience and the event your ads optimise toward.",
   },
 ];
 
@@ -429,10 +445,54 @@ export const OFFER = {
 
 export const HERO = {
   eyebrow: "Negative lead generation",
-  headline: "The wrong leads never become leads. And your ads learn to stop finding them.",
-  sub: "A gate runs before the opt-in, so wrong-fit traffic never becomes a lead record. Everyone who passes is scored against criteria you weight. Then only the qualified ones are reported back to Meta, so your campaigns optimise toward buyers instead of form-fillers.",
+  // Names the SECOND cost, which is the one nobody has priced. Everyone selling a quiz
+  // says the first half; the sentence that is ours is that the bad lead does not just
+  // cost you a click, it teaches the auction to go and find more of him.
+  headline: "You are not paying for bad leads once. You are teaching Meta to find more of them.",
+  sub: "A gate runs before the opt-in, so wrong-fit traffic never becomes a lead record. Everyone who passes is scored against criteria you weight. Then only the qualified ones report back to Meta, and the rejected ones build an exclusion audience. Your campaigns stop shopping in the wrong aisle, and your cost per qualified lead falls.",
   primaryCta: "Get my scorecard built free",
   secondaryCta: "Start 14-day trial",
+} as const;
+
+/**
+ * The second cost, directly under the hero.
+ *
+ * The first cost is in Ads Manager and everybody has already seen it. The one that
+ * decides whether this product is worth anything is the hour a rep spends on a call
+ * that was never going to close, and that one appears on no invoice - which is exactly
+ * why it goes unmanaged.
+ */
+export const REAL_COST = {
+  heading: "A bad lead costs you twice. The second time is the expensive one.",
+  paras: [
+    "The first cost is the click, and you can see it in Ads Manager. The second cost is the 45 minutes your rep spends on a call that was never going to close, and that one never appears on any invoice.",
+    "Run 40 calls a month. If half are wrong-fit, that is 15 hours gone, plus the ad spend that bought them, plus the spend tomorrow when the algorithm goes looking for more of the same person. The leak is not your sales skill. It is that nothing in your funnel ever told the machine who was worth buying.",
+  ],
+} as const;
+
+/**
+ * The fear section.
+ *
+ * The objection that actually kills this sale is not price and not setup time: it is "I
+ * am scared to turn away someone I could have closed". Loss aversion beats efficiency,
+ * every time, and it is why people buy a quiz tool and then never configure the hard
+ * questions. These four capabilities are the answer to it, which is why they are a
+ * section of their own rather than four cards among nineteen.
+ */
+export const NO_GOOD_LEAD = {
+  heading: "The reason most people never set a real bar is fear of losing someone good.",
+  intro:
+    "A gate that only says yes or no is a bouncer, and nobody trusts a bouncer with their pipeline. This one is a router. A strong lead with one weak answer is banded and flagged, not lost. A lead who fits everything except your dates finishes the whole assessment, lands on the same result page with a different close, and keeps his place. Each exit reports its own Meta event, or none at all, so a waitlist sign-up never teaches your ads to go and find more people who cannot come.",
+  /** The four capability titles promoted into this section. Looked up in CAPABILITIES,
+   *  so the copy lives in exactly one place and cannot drift from the feature list. */
+  titles: [
+    "Score bands, not one yes or no",
+    "A different exit for each answer",
+    "A waitlist, instead of a rejection",
+    "One event per exit",
+  ],
+  closing:
+    "You can set the bar where it should be, because the people above it are no longer the only ones you keep.",
 } as const;
 
 /** The done-for-you offer. One place, because it appears on most public surfaces. */
@@ -491,11 +551,12 @@ export const PILLARS: ReadonlyArray<Pillar> = [
     name: "Gate",
     tagline: "Nothing wrong-fit becomes a lead",
     body: "The screen runs BEFORE the opt-in, not after it. A visitor who fails never reaches the form, so there is no lead record, no stored result and nothing to clean out of your CRM later.",
+    // The four routing cards are NOT here: they were promoted into their own section
+    // (NO_GOOD_LEAD), because the fear of turning away someone good is the objection
+    // that decides this sale and it cannot be answered from card eleven of nineteen.
+    // Listed in one place only - a copy left behind here would render them twice.
     titles: [
       "Pre-assessment qualification gate",
-      "A different exit for each answer",
-      "Score bands, not one yes or no",
-      "A waitlist, instead of a rejection",
       "Repeat & back-button protection",
       "Manual-review screening questions",
       "Conditional logic & branching",
@@ -527,7 +588,6 @@ export const PILLARS: ReadonlyArray<Pillar> = [
       "Audience exclusion + retargeting on autopilot",
       "Qualified-only optimization signal",
       "Auto-exclude the unqualified",
-      "One event per exit",
       "First-party match keys",
     ],
   },
@@ -565,19 +625,19 @@ export const pillarCapabilities = (p: Pillar): ReadonlyArray<Capability> =>
  * the copy stays editable by someone who does not write HTML.
  */
 export const WHY_EXISTS = {
-  heading: "Why this exists",
-  lead: "Not designed in a workshop. Built by an operator, out of what kept going wrong.",
+  heading: "Built out of what kept going wrong. Not designed in a workshop.",
+  lead: "Every line below is a wall this hit in a live funnel, with real budget behind it.",
   points: [
     {
       text: "I paid for ScoreApp, Typeform, Outgrow, LeadQuizzes and Interact.",
       strong: ["paid for"],
     },
     {
-      text: "I ran real money through all of them. Cold Meta traffic, not a demo.",
-      strong: ["real money"],
+      text: "I ran cold Meta traffic through all of them. Real budget, not a demo.",
+      strong: ["Real budget"],
     },
     {
-      text: "Every one collected answers brilliantly. None of them asked whether the person was worth a call.",
+      text: "Every one collected answers brilliantly. Not one of them asked whether the person was worth a call.",
       strong: ["worth a call"],
     },
     {
@@ -585,15 +645,15 @@ export const WHY_EXISTS = {
       strong: ["the gate"],
     },
     {
-      text: "Then the exclusion event. The ad account kept buying more of the same wrong people.",
+      text: "Then the exclusion event, because the ad account kept buying more of the same wrong people.",
       strong: ["the exclusion event"],
     },
     {
-      text: "Then the qualified-only signal. Meta was being taught to find form-fillers.",
+      text: "Then the qualified-only signal, because Meta was being taught to find form-fillers.",
       strong: ["the qualified-only signal"],
     },
     {
-      text: "Every feature here started as a wall, in a real funnel, that cost real money.",
+      text: "Every feature on this page started as a wall in a live funnel that cost real money.",
       strong: ["cost real money"],
     },
   ],

@@ -7,6 +7,10 @@ import { WhoItIsFor } from "./WhoItIsFor";
 import { Problem } from "./Problem";
 import { HowItWorks } from "./HowItWorks";
 import { Capabilities } from "./Capabilities";
+import { Mechanism } from "./Mechanism";
+import { RealCost } from "./RealCost";
+import { NoGoodLeadLost } from "./NoGoodLeadLost";
+import { BuiltWithYou } from "./BuiltWithYou";
 import { UseCases } from "./UseCases";
 import { Pricing } from "./Pricing";
 import { Faq } from "./Faq";
@@ -76,18 +80,31 @@ export function Landing({
       <Nav />
       <main id="main">
         <Hero video={videos?.hero ?? null} />
-        {/* Directly under the hero: who built this and why, in seven lines somebody can
-            skim. It answers "why should I believe any of this" before the page starts
-            making claims, and it is the one section a competitor cannot answer by
-            shipping a feature. */}
+        {/* The bill the reader has already paid and never seen itemised. It earns the
+            attention the next five sections spend, which is why it asks for nothing. */}
+        <RealCost />
+        {/* Then who built this and why, in seven lines somebody can skim. It answers
+            "why should I believe any of this" before the page starts making claims, and
+            it is the one section a competitor cannot answer by shipping a feature. */}
         <WhyThisExists />
-        {/* Then the twenty audiences, so a reader can find their own line before the
-            page argues anything. The list is the template library's own, so it cannot
-            advertise an audience with nothing behind it. */}
-        <WhoItIsFor />
+        {/* The mechanism, split out of the capability grid and moved up. The three steps
+            are the argument; nineteen cards are the evidence, and evidence after the
+            claim reads very differently from evidence instead of it. */}
+        <Mechanism />
+        {/* The objection that actually kills this sale: fear of turning away someone
+            good. It sits immediately after the mechanism because that is the moment the
+            reader first pictures their own leads being thrown out. */}
+        <NoGoodLeadLost />
         {/* Then the only claim on the page that can be checked against an invoice, which
             is worth more to a sceptical reader than the next three sections combined. */}
         <Metering />
+        {/* The offer, as a section rather than a strip nobody reads twice - placed where
+            somebody who now believes the argument can act on it. */}
+        <BuiltWithYou />
+        {/* Then the twenty audiences, so a reader can find their own line. The list is
+            the template library's own, so it cannot advertise an audience with nothing
+            behind it. */}
+        <WhoItIsFor />
         <Problem />
         <HowItWorks />
         <Capabilities videos={videos?.tiles} />
