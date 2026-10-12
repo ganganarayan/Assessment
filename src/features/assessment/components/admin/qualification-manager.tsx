@@ -43,6 +43,8 @@ export function QualificationManager({
   initialDisqualified,
   storedUnreadable = false,
   section = "both",
+  canRoute = true,
+  canBands = true,
 }: {
   assessmentId: string;
   initialQualification: QualificationInput;
@@ -61,6 +63,17 @@ export function QualificationManager({
    * keeps any caller that has not been split.
    */
   section?: "gate" | "exit" | "both";
+  /**
+   * What this workspace's plan allows, resolved on the server.
+   *
+   * 🔴 These DISABLE the controls rather than letting the save refuse them. A paywall
+   * discovered after the work is done - type the route name, tab away, watch it vanish -
+   * charges for effort already spent and teaches the owner the builder is unreliable.
+   * The server check stays exactly where it was, because a disabled input is a courtesy
+   * and not a boundary; this only decides where the person finds out.
+   */
+  canRoute?: boolean;
+  canBands?: boolean;
 }) {
   const router = useRouter();
   const [q, setQ] = useState<QualificationInput>(initialQualification);
@@ -350,6 +363,7 @@ export function QualificationManager({
                       <ExitNameField
                         value={exitNameOf(opt.exitKey ?? "")}
                         onCommit={(typed) => commitExitName(qi, oi, typed)}
+                        locked={!canRoute && exits.length > 0 && !!exits[0]?.name.trim()}
                       />
                     ) : null}
                     <Button size="sm" variant="ghost" onClick={() => removeOption(qi, oi)}>✕</Button>
@@ -362,6 +376,14 @@ export function QualificationManager({
             )}
           </div>
         ))}
+        {!canRoute ? (
+          <p className="rounded-md border border-dashed px-3 py-2 text-xs text-[var(--muted-foreground)]">
+            Your plan has <strong>one exit</strong>, so every disqualifying answer leaves by the
+            same door. Signal and up adds a named exit per answer, each with its own page and its
+            own Meta event. Score bands below work on your plan either way.
+          </p>
+        ) : null}
+
         {/* Names already in use, so the second answer routing to "Waitlist" lands on
             the same exit as the first instead of creating a near-duplicate. */}
         <datalist id="gate-exit-names">
@@ -378,10 +400,17 @@ export function QualificationManager({
             <input
               type="checkbox"
               checked={q.bands.enabled}
+              disabled={!canBands}
               onChange={(e) => setQ((s) => ({ ...s, bands: { ...s.bands, enabled: e.target.checked } }))}
             />
             Route on the total score as well
           </label>
+          {!canBands ? (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              🟡 Score bands need a paid plan. They are the part that lets you set a real bar
+              without losing someone who is strong everywhere but one answer.
+            </p>
+          ) : null}
           <p className="text-xs text-[var(--muted-foreground)]">
             Scored on the points above, after every question is answered. Anyone hitting a
             disqualifying answer leaves before this is reached. The score is never shown to the
@@ -629,10 +658,19 @@ export function QualificationManager({
           </div>
         ))}
 
+        {!canRoute && exits.length > 0 ? (
+          <p className="rounded-md border border-dashed px-3 py-2 text-xs text-[var(--muted-foreground)]">
+            One exit on your plan. Signal and up lets each disqualifying answer leave by its own
+            door, with its own page and its own Meta event, so a waitlist and a wrong-fit
+            rejection stop sharing one audience.
+          </p>
+        ) : null}
+
         <div>
           <Button
             size="sm"
             variant="outline"
+            disabled={!canRoute && exits.length > 0}
             onClick={() =>
               setD((s) => {
                 const list = s.exits.length > 0 ? s.exits : readExits(s);
@@ -687,9 +725,13 @@ export function QualificationManager({
 function ExitNameField({
   value,
   onCommit,
+  locked = false,
 }: {
   value: string;
   onCommit: (typed: string) => void;
+  /** The plan has its one exit already, so naming another would be refused on save.
+   *  Shown as a dead field with the reason, rather than as a vanishing name. */
+  locked?: boolean;
 }) {
   const [text, setText] = useState(value);
   // The committed name wins whenever it changes underneath (a rename in the exit step,
@@ -701,10 +743,15 @@ function ExitNameField({
   }
   return (
     <input
-      className="h-9 w-32 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-xs"
+      className="h-9 w-32 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
       list="gate-exit-names"
-      placeholder="Exit name"
-      title="Which exit this answer goes to. Blank = the first exit."
+      disabled={locked}
+      placeholder={locked ? "One exit" : "Exit name"}
+      title={
+        locked
+          ? "Your plan has one exit, so every disqualifying answer uses it. Signal and up adds a named exit per answer."
+          : "Which exit this answer goes to. Blank = the first exit."
+      }
       value={text}
       onChange={(e) => setText(e.target.value)}
       onBlur={() => {

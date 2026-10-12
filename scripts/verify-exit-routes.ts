@@ -26,6 +26,7 @@ import {
 } from "../src/features/assessment/schemas";
 import { blockVisibleFor, type ResultBlock } from "../src/features/assessment/result-page/blocks";
 import { gateVerdict, gateTotals, gateBandOf } from "../src/features/assessment/gate-verdict";
+import { PLAN_LIMITS, PARKED_LIMITS } from "../src/lib/billing/plans";
 import { readGateRejection, writeGateRejection } from "../src/lib/gate-flag";
 import { readMetaEvents } from "../src/features/assessment/meta-events";
 
@@ -267,6 +268,27 @@ expect(
   "a row whose route no longer resolves counts as turned away",
   countAsTurnedAway(null),
   "the legacy shape, and the only safe side to err on",
+);
+
+// --- Which tier gets what ------------------------------------------------------------
+//
+// Bands and routes are deliberately NOT one flag. The objection that kills this sale is
+// "I am scared to turn leads away", and bands are the answer to it: putting the safety
+// net behind the upgrade leaves it missing from the plan a nervous first-time buyer
+// picks. Pinned here because it is a one-word edit to undo by accident.
+expect(
+  "every paid tier gets score bands, including the entry plan",
+  PLAN_LIMITS.GATE.features.gateScoreBands &&
+    PLAN_LIMITS.SIGNAL.features.gateScoreBands &&
+    PLAN_LIMITS.AGENCY.features.gateScoreBands,
+);
+expect(
+  "the multi-exit router stays Signal and up",
+  !PLAN_LIMITS.GATE.features.conditionalExit && PLAN_LIMITS.SIGNAL.features.conditionalExit,
+);
+expect(
+  "and a parked workspace gets neither",
+  !PARKED_LIMITS.features.gateScoreBands && !PARKED_LIMITS.features.conditionalExit,
 );
 
 console.log(failures === 0 ? "\n🟢 All checks passed." : `\n🟡 ${failures} check(s) failed.`);

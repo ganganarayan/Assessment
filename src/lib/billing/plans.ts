@@ -61,14 +61,21 @@ export const FEATURES = [
   "capi", // server-side Meta Conversions API (audience exclusion + retargeting)
   "heatmap", // heatmap / session-recording snippet injection
   "manualReview", // free-text screening questions stored for the owner to read
-  // CONDITIONAL DISQUALIFYING ROUTE (Signal and up): more than one exit from the gate,
-  // each named, each with its own Meta event, plus score bands that decide who is
-  // waved through, who is flagged for review and who is routed out.
+  // SCORE BANDS on the gate (every PAID tier, including Gate). Deliberately NOT sold
+  // with the router below.
   //
-  // Gate keeps the gate itself and its single exit - the mechanism the tier exists to
-  // demonstrate. What Signal adds is TELLING REJECTIONS APART, which is an ad-account
-  // problem: it only starts to pay once somebody is running enough spend to care that
-  // their exclusion audience is clean.
+  // The objection that kills this sale is "I am scared to turn leads away", and bands
+  // are the answer to it: a strong lead with one weak answer is flagged, not lost. Put
+  // that behind the $79 wall and the $39 plan - the one a nervous first-time buyer picks
+  // - is the scary binary version, which is exactly the product nobody configures a real
+  // bar on. The upgrade is the ROUTER, not the safety net.
+  "gateScoreBands",
+  // CONDITIONAL DISQUALIFYING ROUTE (Signal and up): more than one exit from the gate,
+  // each named, each with its own Meta event. Score bands are a separate flag above.
+  //
+  // Gate keeps the gate, its single exit and the bands. What Signal adds is TELLING
+  // REJECTIONS APART, which is an ad-account problem: it only starts to pay once
+  // somebody is running enough spend to care that their exclusion audience is clean.
   "conditionalExit",
   // Bulk import of a whole assessment from a JSON/CSV export. The plain-text import
   // stays on every tier: writing your own scorecard is the product. Lifting a finished
@@ -101,6 +108,10 @@ export const PAID_BASE_FEATURES = [
   // The differentiator lives in the ENTRY tier on purpose: a qualification gate behind a
   // $79 wall is a gate the buyer never experiences before deciding.
   "qualificationGate",
+  // Score bands ride WITH the gate, for the same reason the gate is in this tier: a
+  // gate nobody dares set a real bar on is a gate that does not work, at any price.
+  // The upgrade is the router, not the safety net.
+  "gateScoreBands",
   "conditionalRouting",
   "capi", // server-side Conversions API - measurement, not a premium add-on
   "pdfReports",
