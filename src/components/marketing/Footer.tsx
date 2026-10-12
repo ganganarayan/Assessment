@@ -75,12 +75,20 @@ export function Footer() {
           The header carries the knowledge base too, but that row is desktop-only; on a
           phone this footer is the entry point, which is why it holds the full list.
         */}
-        <div className="mt-12 border-t pt-10">
-          <nav aria-label="Answers">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+        <div className="mt-12 rounded-2xl border bg-[var(--muted)] p-6 sm:p-10">
+          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+            Read before you buy anything
+          </h2>
+          <p className="mt-3 max-w-2xl leading-relaxed text-[var(--muted-foreground)]">
+            The arguments behind this product, written out: how qualification works, what it
+            does to an ad account, and how it reads in your industry.
+          </p>
+
+          <nav aria-label="Answers" className="mt-8 rounded-xl border bg-[var(--background)] p-5">
+            <h3 className="text-sm font-semibold">
               Answers
-            </h2>
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--muted-foreground)]">
+            </h3>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--muted-foreground)]">
               Short, direct answers about lead qualification, scoring and assessments - one
               question per page.
             </p>
@@ -111,10 +119,12 @@ export function Footer() {
                   }));
             if (links.length === 0) return null;
             return (
-              <nav key={group.kind} aria-label={group.label} className="mt-10">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-                  {group.label}
-                </h2>
+              <nav
+                key={group.kind}
+                aria-label={group.label}
+                className="mt-6 rounded-xl border bg-[var(--background)] p-5"
+              >
+                <h3 className="text-sm font-semibold">{group.label}</h3>
                 <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-6">
                   {links.map((l) => (
                     <li key={l.href}>
@@ -123,7 +133,7 @@ export function Footer() {
                         className={
                           l.featured
                             ? "text-sm font-semibold text-green-700 transition-colors hover:text-green-600 dark:text-green-400"
-                            : "text-sm text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
+                            : "text-sm text-[var(--foreground)]/80 transition-colors hover:text-[var(--foreground)]"
                         }
                       >
                         {l.label}

@@ -19,15 +19,19 @@ import { Emphasised, Tick } from "./Emphasised";
 export function Metering() {
   return (
     <section className="border-b bg-[var(--muted)]">
-      <div className="mx-auto max-w-3xl px-5 py-16 sm:px-8 sm:py-20">
+      {/* Wider than the prose it holds, on purpose. At max-w-3xl the headline broke
+          across two lines on a desktop that had room for one, which makes the single
+          most checkable claim on the page read as an afterthought. The column widens
+          for the heading; the paragraph and the list keep a readable measure below. */}
+      <div className="mx-auto max-w-5xl px-5 py-16 sm:px-8 sm:py-20">
         <h2 className="text-2xl font-bold leading-tight tracking-tight sm:text-4xl">
           {METERING.heading}
         </h2>
-        <p className="mt-4 text-lg leading-relaxed text-[var(--muted-foreground)]">
+        <p className="mt-4 max-w-3xl text-lg leading-relaxed text-[var(--muted-foreground)]">
           {METERING.lead}
         </p>
 
-        <ul className="mt-8 flex flex-col gap-4">
+        <ul className="mt-8 flex max-w-3xl flex-col gap-4">
           {METERING.points.map((p) => (
             <li key={p.text} className="flex items-start gap-3">
               <Tick />
