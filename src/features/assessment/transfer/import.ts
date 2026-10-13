@@ -262,6 +262,17 @@ export async function performImportAll(
 }
 
 /**
+ * The transaction client as THIS prisma instance hands it over.
+ *
+ * Not `Prisma.TransactionClient`: the shared client is `$extends`-ed
+ * (lib/db/prisma.ts), so its transaction callback receives the extended client, which
+ * is a different type and is rejected on assignment. Derived from the real
+ * `$transaction` signature, the same way scripts/adopt-assessment.ts does it, so it
+ * cannot drift from whatever the extensions make it.
+ */
+type ImportTx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/**
  * Give an imported assessment its own result pages, in the library.
  *
  * The transfer shape carries page CONTENT (resultPage, resultPagePublished,
@@ -279,7 +290,7 @@ export async function performImportAll(
  * content.
  */
 export async function createResultDocsForImport(
-  tx: Prisma.TransactionClient,
+  tx: ImportTx,
   args: {
     assessmentId: string;
     assessmentSlug: string;
