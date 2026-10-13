@@ -15,9 +15,14 @@ import { saveCtaOffer } from "@/features/platform/cta-offer";
  * Three fields, because changing the offer used to mean editing
  * src/lib/marketing/content.ts and deploying.
  *
+ * The save is NOT a plain write. The action repairs the link, fetches it, and refuses
+ * the save if it does not load - so a missing colon cannot take the funnel off the air
+ * while every page still looks perfectly normal. When it repairs something, the
+ * corrected value is written back INTO the field here, so the owner sees what was
+ * stored instead of having to guess.
+ *
  * Every field shows the shipped wording as its PLACEHOLDER, and blank means exactly
- * that wording. So the page can never be left with an empty or dead button, and
- * clearing a field is the undo rather than a way to break the site.
+ * that wording, so the page can never be left with an empty or dead button.
  */
 export function CtaOfferCard({
   initialHref,
@@ -32,20 +37,36 @@ export function CtaOfferCard({
   const [trialLabel, setTrialLabel] = useState(initialTrialLabel);
   const [dfyLabel, setDfyLabel] = useState(initialDfyLabel);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [savedUrl, setSavedUrl] = useState<string | null>(null);
+  const [unverified, setUnverified] = useState(false);
+  const [canForce, setCanForce] = useState(false);
   const [pending, start] = useTransition();
 
   const shownHref = href.trim() || MARKETING.ctaHref;
   const shownTrial = trialLabel.trim() || TRIAL_CTA;
   const shownDfy = dfyLabel.trim() || DFY_CTA;
 
-  const save = () =>
+  const save = (force = false) =>
     start(async () => {
       setError(null);
-      setSaved(false);
-      const r = await saveCtaOffer({ href, trialLabel, dfyLabel });
-      if (!r.ok) return setError(r.error);
-      setSaved(true);
+      setNote(null);
+      setSavedUrl(null);
+      setCanForce(false);
+      const r = await saveCtaOffer({ href, trialLabel, dfyLabel, force });
+      if (!r.ok) {
+        // The repaired candidate goes into the field even on failure: it is strictly
+        // closer to a working link than what was typed, and the next attempt starts
+        // from there rather than from the typo.
+        if (r.href !== undefined) setHref(r.href);
+        setError(r.error);
+        setCanForce(Boolean(r.canForce));
+        return;
+      }
+      setHref(r.href);
+      setNote(r.repaired);
+      setSavedUrl(r.checkedUrl);
+      setUnverified(r.unverified);
     });
 
   return (
@@ -59,15 +80,16 @@ export function CtaOfferCard({
           instead of in the code.
         </p>
         <p className="mt-2 text-xs text-[var(--muted-foreground)]">
-          Blank means the shipped wording, so emptying a field puts the default back
-          rather than leaving a dead button.
+          Saving opens the link first and refuses it if the page does not load, so a typo
+          cannot take the funnel off the air while every page still looks right. Blank
+          means the shipped wording.
         </p>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="cta-href">Where every button goes</Label>
         <p className="text-xs text-[var(--muted-foreground)]">
-          A path on this site, or a full https:// URL. The ad&apos;s utm and click-id
+          A path on this site, or a full https:// address. The ad&apos;s utm and click-id
           parameters are added automatically and travel on to signup.
         </p>
         <Input
@@ -127,14 +149,49 @@ export function CtaOfferCard({
         </p>
       </div>
 
-      {error ? <p className="text-sm text-red-500">{error}</p> : null}
-      {saved && !error ? (
-        <p className="text-sm text-green-600">Saved. Every public page now shows this.</p>
+      {error ? (
+        <div className="flex flex-col gap-2 rounded-md border border-red-500 bg-red-500/10 p-3">
+          <p className="break-all text-sm">{error}</p>
+          {canForce ? (
+            <div>
+              {/* Only ever offered for an unreachable page, never for a 404: a 404 is
+                  the site answering that the link is wrong. */}
+              <Button variant="outline" size="sm" disabled={pending} onClick={() => save(true)}>
+                Save anyway
+              </Button>
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
-      <div>
-        <Button onClick={save} disabled={pending}>
-          {pending ? "Saving…" : "Save call to action"}
+      {savedUrl !== null || (note && !error) ? (
+        <div className="flex flex-col gap-2 rounded-md border border-green-600 bg-green-600/10 p-3">
+          <p className="text-sm">
+            {note ? `${note} ` : null}
+            {unverified
+              ? "Saved without the check. Open it and make sure it loads."
+              : "Saved, and the page loads. Every public page now shows this."}
+          </p>
+          {savedUrl ? (
+            <div>
+              {/* Opened by the owner, not fetched by us: the check above proves the
+                  server can reach it, this proves the page is the right page. */}
+              <a
+                href={savedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium hover:bg-[var(--muted)]"
+              >
+                Open the link in a new window
+              </a>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="flex items-center gap-3">
+        <Button onClick={() => save(false)} disabled={pending}>
+          {pending ? "Checking the link…" : "Check link and save"}
         </Button>
       </div>
     </section>
