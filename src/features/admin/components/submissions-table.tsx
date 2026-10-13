@@ -230,7 +230,8 @@ const join = (parts: (string | null)[], sep: string) => {
 /**
  * Submissions grouped by assessment (name shown once as a section header), with
  * click-to-sort columns (toggles asc/desc, applied within each group). This is the
- * superset view: it also carries every opt-in/tracking field the Contacts page shows.
+ * superset view: it also carries every opt-in/tracking field the retired Contacts page
+ * used to show, which is why that page is gone rather than maintained twice.
  *  `exportBase`, when given, adds per-assessment "CSV" / "JSON" export links.
  */
 export function SubmissionsTable({

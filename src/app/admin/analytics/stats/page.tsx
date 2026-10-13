@@ -370,7 +370,7 @@ export default async function StatsPage({
           <p className="text-sm text-[var(--muted-foreground)]">
             {logPage.total.toLocaleString()} human visits, newest first - page{" "}
             {logPage.page.toLocaleString()} of {logPage.pages.toLocaleString()}. A visitor becomes a contact once
-            they opt in - they then appear with lead data on Contacts. Automated hits (Meta
+            they opt in - they then appear with lead data on Submissions. Automated hits (Meta
             ad-review, crawlers) are clubbed by source into the <BotTag /> rows below and excluded
             from every number above.
           </p>

@@ -45,7 +45,6 @@ export async function deleteSubmissions(ids: string[]): Promise<ActionResult> {
 
   await prisma.submission.deleteMany({ where });
 
-  revalidatePath("/admin/analytics/contacts");
   revalidatePath("/admin/analytics/stats");
   revalidatePath("/admin/submissions");
   revalidatePath("/w/submissions");

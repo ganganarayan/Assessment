@@ -28,7 +28,7 @@ export default async function WorkspaceDataWindowPage({
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Data window</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Pick the date your reporting starts from. The Stats, Contacts, and Submissions
+          Pick the date your reporting starts from. The Stats and Submissions
           {scoped ? " for this assessment" : " (and Dashboard)"} then show only data from then
           onward - a clean slate without deleting anything. Clear it to see all history again.
         </p>

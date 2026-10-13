@@ -1,42 +1,13 @@
 import "server-only";
 import { readExits, exitLabel } from "@/features/assessment/schemas";
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
 import { normalizeAttribution } from "@/lib/events/payload";
-import { appendVidapulseId } from "@/lib/vidapulse";
-import { vidapulseParamForTenant } from "@/lib/events/completion";
 import { istDateRangeToUtc, formatIST } from "@/lib/date";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { statsFloorFor, floorCreatedAt } from "@/lib/stats-floor";
 import { ALL_TENANTS, whereScope, type Scope } from "@/lib/tenant/scope";
-import type { PayloadAttribution } from "@/features/events/types";
-import { labeledAnswers, labeledAnswersText, type LabeledAnswer } from "@/features/assessment/custom-fields";
+import { labeledAnswers, labeledAnswersText } from "@/features/assessment/custom-fields";
 import { botSourceFromUserAgent } from "@/lib/bots";
-
-/** The destination URL a contact lands on (targetUrl?t=token&cid=<customerId>),
- *  falling back to the internal result page. Same rule as the completion/CRM builders;
- *  appends the opaque customerId (VidaPulse `cid`) when tracking is on so the operator's
- *  copied/exported link carries the id into VidaPulse for VSL nurture. */
-function buildResultUrl(
-  targetUrl: string | null,
-  slug: string,
-  submissionId: string,
-  token: string | null,
-  customerId: string | null = null,
-  vidapulseParam: string | null = null,
-): string {
-  let url = `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}`;
-  if (targetUrl && token) {
-    try {
-      const u = new URL(targetUrl);
-      u.searchParams.set("t", token);
-      url = u.toString();
-    } catch {
-      /* malformed targetUrl - keep the internal result-page fallback */
-    }
-  }
-  return appendVidapulseId(url, vidapulseParam, customerId);
-}
 
 /**
  * A Prisma `where` fragment scoping `createdAt` to the selected date range AND
@@ -547,43 +518,6 @@ export async function getBotSourceRows(opts: {
     .sort((a, b) => b.count - a.count || (a.lastAt < b.lastAt ? 1 : -1));
 }
 
-export interface ContactRow {
-  id: string;
-  createdAt: string;
-  firstName: string | null;
-  lastName: string | null;
-  email: string | null;
-  mobile: string | null;
-  profession: string | null;
-  /** Stable 8-char id (also sent to the CRM as contact.customer_id). */
-  customerId: string | null;
-  /** 16-char result token - the t= value in the post-assessment URL. */
-  resultToken: string | null;
-  /** Full destination URL the contact lands on (targetUrl?t=token). */
-  resultUrl: string | null;
-  completed: boolean;
-  /** Captured payment (paid step comes before VSL load). null = not paid. */
-  paidAmount: number | null;
-  paidAt: string | null;
-  /** Total VSL page loads for this contact (0 = never loaded). */
-  vslLoads: number;
-  attribution: PayloadAttribution | null;
-  /** Meta CAPI match signals captured at opt-in (null for pre-capture contacts). */
-  clientIp: string | null;
-  userAgent: string | null;
-  fbp: string | null;
-  fbclidTimestamp: number | null;
-  /** Geo (Cloudflare) + device (parsed UA) captured at opt-in. */
-  country: string | null;
-  city: string | null;
-  region: string | null;
-  deviceType: string | null;
-  browser: string | null;
-  os: string | null;
-  /** Custom opt-in + pre-results field answers (label + value), in field order. */
-  customAnswers: LabeledAnswer[];
-}
-
 export interface ContactExportRow {
   optInDateIST: string;
   firstName: string;
@@ -731,131 +665,4 @@ export async function listContactsForExport(range?: {
       timezone: r.timezone ?? null,
     };
   });
-}
-
-/** One row per submission (= one opt-in contact) for the Contacts page. */
-export async function listContacts(opts: {
-  page: number;
-  pageSize: number;
-  from?: string;
-  to?: string;
-  /** Which rows to include: one workspace, or every tenant. */
-  scope?: Scope;
-  /** Scope to a single assessment (with its own reporting floor). */
-  assessmentId?: string | null;
-  floor?: Date | null;
-}): Promise<{ rows: ContactRow[]; total: number; page: number; pages: number }> {
-  // createdAtScope applies the tenant filter and the scope's own reporting window.
-  const where = await createdAtScope({ from: opts.from, to: opts.to }, opts.scope ?? ALL_TENANTS, {
-    assessmentId: opts.assessmentId,
-    ...("floor" in opts ? { floor: opts.floor } : {}),
-  });
-
-  // Count first so an out-of-range ?page= is clamped to the last real page
-  // (avoids a nonsensical "Page 9999 of 3" pager and a wasted skip past the end).
-  const total = await prisma.submission.count({ where });
-  const pages = Math.max(1, Math.ceil(total / opts.pageSize));
-  const page = Math.min(Math.max(1, opts.page), pages);
-
-  const rows = await prisma.submission.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    skip: (page - 1) * opts.pageSize,
-    take: opts.pageSize,
-    select: {
-      id: true,
-      createdAt: true,
-      leadFirstName: true,
-      leadLastName: true,
-      leadEmail: true,
-      leadMobile: true,
-      leadProfession: true,
-      customerId: true,
-      resultToken: true,
-      status: true,
-      // The gate's verdict, for the owner only. REVIEW is the band that exists so a
-      // borderline lead is read rather than thrown away, which only works if it is
-      // visible in the list they actually work from.
-      gateBand: true,
-      gateScore: true,
-      gateMax: true,
-      gateExitKey: true,
-      resultFetchCount: true,
-      attribution: true,
-      clientIp: true,
-      userAgent: true,
-      fbp: true,
-      fbclidTimestamp: true,
-      country: true,
-      city: true,
-      region: true,
-      postalCode: true,
-      timezone: true,
-      deviceType: true,
-      browser: true,
-      os: true,
-      optinAnswers: true,
-      preResultAnswers: true,
-      qualificationAnswers: true,
-      assessment: { select: { slug: true, targetUrl: true, tenantId: true, optinFields: true, preResultFields: true, qualification: true } },
-    },
-  });
-
-  const paid = await getPaidBySubmission(rows.map((r) => r.id));
-
-  // VidaPulse `cid` param per distinct tenant (a platform page may span tenants), so
-  // each contact's Result URL carries the customer id alongside the token.
-  const paramByTenant = new Map<string | null, string | null>();
-  for (const tid of new Set(rows.map((r) => r.assessment?.tenantId ?? null))) {
-    paramByTenant.set(tid, await vidapulseParamForTenant(tid));
-  }
-
-  return {
-    total,
-    page,
-    pages,
-    rows: rows.map((r) => {
-      const p = paid.get(r.id);
-      return {
-        id: r.id,
-        createdAt: r.createdAt.toISOString(),
-        firstName: r.leadFirstName,
-        lastName: r.leadLastName,
-        email: r.leadEmail,
-        mobile: r.leadMobile,
-        profession: r.leadProfession,
-        customerId: r.customerId,
-        resultToken: r.resultToken,
-        // A result link exists ONLY for a completed submission; a not-taken/started
-        // row stays blank (no misleading link).
-        resultUrl:
-          r.status === "COMPLETED"
-            ? buildResultUrl(r.assessment?.targetUrl ?? null, r.assessment?.slug ?? "", r.id, r.resultToken, r.customerId, paramByTenant.get(r.assessment?.tenantId ?? null) ?? null)
-            : null,
-        completed: r.status === "COMPLETED",
-        paidAmount: p?.amount ?? null,
-        paidAt: p?.at ?? null,
-        vslLoads: r.resultFetchCount,
-        attribution: normalizeAttribution(r.attribution),
-        clientIp: r.clientIp,
-        userAgent: r.userAgent,
-        fbp: r.fbp,
-        fbclidTimestamp: r.fbclidTimestamp,
-        country: r.country,
-        city: r.city,
-        region: r.region,
-        deviceType: r.deviceType,
-        browser: r.browser,
-        os: r.os,
-        customAnswers: labeledAnswers({
-          optinFields: r.assessment?.optinFields,
-          optinAnswers: r.optinAnswers,
-          preResultFields: r.assessment?.preResultFields,
-          preResultAnswers: r.preResultAnswers,
-          qualification: r.assessment?.qualification,
-          qualificationAnswers: r.qualificationAnswers,
-        }),
-      };
-    }),
-  };
 }
