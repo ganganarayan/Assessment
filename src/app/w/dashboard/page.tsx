@@ -9,6 +9,8 @@ import { TemplateLibrary } from "@/features/templates/components/template-librar
 import { assertCanCreateAssessment } from "@/lib/billing/gate";
 import { currentUserCanEdit } from "@/lib/auth/guards";
 import { resolvePlan } from "@/lib/billing/entitlements";
+import { getSetupProgress } from "@/features/workspace/data/setup-progress";
+import { SetupProgressPanel } from "@/features/workspace/components/setup-progress-panel";
 import { TrialFocus } from "@/features/billing/components/trial-focus";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,7 +54,7 @@ export const dynamic = "force-dynamic";
 
 export default async function WorkspaceDashboardPage() {
   const { tenantId, impersonating } = await requireWorkspace();
-  const [counts, onboardingVideoUrl, onboardingSteps, templates, canEdit, cap, resolved] = await Promise.all([
+  const [counts, onboardingVideoUrl, onboardingSteps, templates, canEdit, cap, resolved, setup] = await Promise.all([
     getDashboardCounts(tenantOnly(tenantId)),
     resolveOnboardingVideoUrl(),
     resolveOnboardingSteps(),
@@ -60,6 +62,9 @@ export default async function WorkspaceDashboardPage() {
     currentUserCanEdit(),
     impersonating ? Promise.resolve({ ok: true } as const) : assertCanCreateAssessment(tenantId),
     resolvePlan(tenantId),
+    // Where this workspace actually is, derived from its own data - the state the
+    // owner-authored steps below have never been able to carry.
+    getSetupProgress(tenantId),
   ]);
 
   const capReason = cap.ok
@@ -76,6 +81,8 @@ export default async function WorkspaceDashboardPage() {
       </div>
 
       <TrialFocus resolved={resolved} />
+
+      <SetupProgressPanel progress={setup} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Stat label="Assessments" value={counts.assessments} />

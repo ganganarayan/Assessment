@@ -36,7 +36,13 @@ interface Notice {
  * from the same resolved state, and a second caller of this would be two ways to say
  * one thing - which is how `parkedDenied()` became dead code.
  */
-function billingNotice(resolved: ResolvedPlan): Notice | null {
+/** When the response meter starts being worth saying out loud. */
+const WARN_AT = 0.8;
+
+function billingNotice(
+  resolved: ResolvedPlan,
+  usage: { used: number; limit: number } | null,
+): Notice | null {
   // The platform and internal-unlimited tenants are not rated against the catalog, so
   // there is no trial to count down and nothing to park. Checked first: both carry
   // plan: null, which every other branch here would misread as "no plan".
@@ -79,6 +85,39 @@ function billingNotice(resolved: ResolvedPlan): Notice | null {
     };
   }
 
+  /**
+   * The response cap, approaching and passed.
+   *
+   * 🔴 WHY THIS IS NOT DECORATION. The public FAQ says, in these words, "You'll get a
+   * heads-up as you approach the limit" - and nothing in the app did. `getUsage` had
+   * zero callers, so a paying tenant could not see their count anywhere, hit the cap
+   * mid-campaign, and have new results held back with no notice at all. The first
+   * person to find out was a respondent seeing a withheld result.
+   *
+   * Over the cap is louder than approaching it, and both say the number: a warning that
+   * does not say how close you are is a warning people learn to scroll past.
+   */
+  if (usage) {
+    const { used, limit } = usage;
+    if (used >= limit) {
+      return {
+        tone: "blocked",
+        headline: `Response limit reached - ${used.toLocaleString()} of ${limit.toLocaleString()}`,
+        detail:
+          "Answers are still being captured, and nothing is lost. New results are held back until you raise the plan, and raising it unlocks every held lead immediately - including the ones captured while you decide.",
+        cta: "Raise the limit",
+      };
+    }
+    if (used / limit >= WARN_AT) {
+      return {
+        tone: "warn",
+        headline: `${(limit - used).toLocaleString()} qualified responses left this period`,
+        detail: `You have used ${used.toLocaleString()} of ${limit.toLocaleString()}. Past the cap answers are still captured, but new results are held until the plan goes up - so this is the moment to decide, not after a campaign lands.`,
+        cta: "See plans",
+      };
+    }
+  }
+
   if (resolved.status === "PAST_DUE") {
     return {
       tone: "warn",
@@ -99,8 +138,15 @@ const TONE: Record<Notice["tone"], string> = {
 };
 
 /** The strip itself. Renders nothing when there is no notice - the common case. */
-export function BillingBanner({ resolved }: { resolved: ResolvedPlan }) {
-  const notice = billingNotice(resolved);
+export function BillingBanner({
+  resolved,
+  usage = null,
+}: {
+  resolved: ResolvedPlan;
+  /** Response count vs cap, or null when there is nothing to meter. */
+  usage?: { used: number; limit: number } | null;
+}) {
+  const notice = billingNotice(resolved, usage);
   if (!notice) return null;
   return (
     <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-4 py-2 text-sm ${TONE[notice.tone]}`}>
