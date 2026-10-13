@@ -188,7 +188,12 @@ export function compare(
       }
       if (obs.score !== null) checks.push(eq("the score on the result page", expected.score.total, obs.score));
       if (obs.max !== null) checks.push(eq("out of the achievable total", expected.score.max, obs.max));
-      if (obs.percent === null && obs.score === null && obs.band === null) {
+      // The VSL result page and the clinic page are different animals: the first shows
+      // no score at all, deliberately (it is marketing, not a scorecard), and the second
+      // reports in its own shape. Only a page that is supposed to carry a score is held
+      // to carrying one.
+      const scorelessByDesign = obs.steps.includes("vslResult") || obs.steps.includes("clinicResult");
+      if (!scorelessByDesign && obs.percent === null && obs.score === null && obs.band === null) {
         // Reaching the result and reading nothing from it is not a pass. It means the
         // page this funnel ends on carries no score handles - a different renderer, or
         // one that lost them - and silently skipping three checks would hide that.
