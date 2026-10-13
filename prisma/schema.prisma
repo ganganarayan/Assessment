@@ -470,7 +470,7 @@ model User {
   /// On the USER and not the tenant, because the person who raised a ticket is the
   /// person who wants telling it was answered, and a workspace with two logins has two
   /// different people with two different phones.
-  whatsapp           String?
+  whatsapp String?
 
   sessions           Session[]
   accounts           Account[]
@@ -2081,6 +2081,32 @@ model AppSetting {
   /// rather than quietly go stale in front of buyers.
   dfyBuildsTotal     Int  @default(20)
   dfyBuildsRemaining Int?
+
+  /// ---------------------------------------------------------------------------
+  ///  The one call to action, editable without a deploy.
+  /// ---------------------------------------------------------------------------
+  ///
+  /// Every CTA on every public surface reads these three values: the landing page,
+  /// the industry pages, /pricing, the comparison pages, the offer bar and the nav
+  /// button. They used to be constants in src/lib/marketing/content.ts, which meant
+  /// changing the offer was a code edit and a deploy - and an offer that costs a
+  /// deploy to change is an offer nobody changes.
+  ///
+  /// NULL / blank means "use the constant in content.ts", so clearing a field puts
+  /// the shipped copy back rather than printing an empty button. That is the one
+  /// behaviour this needs to be safe: a half-finished edit cannot produce a page
+  /// with a blank or dead button on it.
+  ///
+  /// `ctaHref` is a path on this app ("/a/paying-for-junk-leads") or an absolute
+  /// https URL. It is operator-set and never request input, so it is not an
+  /// open-redirect surface - but it IS rendered into every button, which is why the
+  /// action that writes it validates the shape rather than trusting the field.
+  ctaHref       String?
+  /// The trial-framed label (nav, hero secondary, the priced tiers, the SEO blocks).
+  ctaTrialLabel String?
+  /// The free-build-framed label (hero primary, metering, the comparison and
+  /// industry offer blocks, the calculator).
+  ctaDfyLabel   String?
 
   /// The approved Meta template fired when somebody submits the /build intake.
   ///

@@ -28,8 +28,9 @@ import { PlatformPixelForm } from "@/features/admin/components/platform-pixel-fo
 import { OnboardingVideoForm } from "@/features/admin/components/onboarding-video-form";
 import { OnboardingStepsForm } from "@/features/admin/components/onboarding-steps-form";
 import { DfyScarcityForm } from "@/features/admin/components/dfy-scarcity-form";
+import { CtaOfferForm } from "@/features/admin/components/cta-offer-form";
 import { DfyWabaForm } from "@/features/admin/components/dfy-waba-form";
-import { resolveOnboardingVideoUrl, resolveOnboardingSteps, resolveDfyScarcity, resolveDfyWabaTemplate } from "@/lib/settings/config";
+import { resolveOnboardingVideoUrl, resolveOnboardingSteps, resolveDfyScarcity, resolveDfyWabaTemplate, resolveCtaRaw } from "@/lib/settings/config";
 import { PaymentsMasterSwitch } from "@/features/admin/components/payments-master-switch";
 import { PlatformToggle } from "@/features/admin/components/platform-toggle";
 import { getPlatformPayments, getPlatformWaba } from "@/features/admin/actions/platform-integrations";
@@ -66,7 +67,7 @@ export default async function SettingsPage() {
   const impersonating = actingId !== null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
-  const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn, onboardingVideoUrl, onboardingSteps, dfyScarcity, dfyWaba] = await Promise.all([
+  const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn, onboardingVideoUrl, onboardingSteps, dfyScarcity, dfyWaba, cta] = await Promise.all([
     impersonating ? getIntegrationSettings() : getPlatformIntegrationSettings(),
     impersonating ? getDomainSettings() : Promise.resolve(null),
     impersonating ? Promise.resolve(null) : getLegalSettings(),
@@ -79,6 +80,7 @@ export default async function SettingsPage() {
     impersonating ? Promise.resolve([]) : resolveOnboardingSteps(),
     impersonating ? Promise.resolve(null) : resolveDfyScarcity(),
     impersonating ? Promise.resolve(null) : resolveDfyWabaTemplate(),
+    impersonating ? Promise.resolve(null) : resolveCtaRaw(),
   ]);
 
   // Platform-wide, so it is not read at all while operating a tenant's workspace: how
@@ -213,6 +215,21 @@ export default async function SettingsPage() {
                 since nothing reports to their ad account until it is set.
               </p>
               <OnboardingStepsForm initial={onboardingSteps} />
+            </div>
+            <div className="mt-6 border-t pt-5">
+              <p className="text-sm font-medium">The call to action</p>
+              <p className="mb-3 mt-0.5 text-xs text-[var(--muted-foreground)]">
+                One destination and two labels, for every button on every public page:
+                the landing page, the thirteen industry pages, pricing, the comparison
+                pages, the answer pages, the calculator, the offer bar and the nav. Change
+                the offer here instead of in the code. Blank means the shipped wording, so
+                emptying a field puts the default back rather than leaving a dead button.
+              </p>
+              <CtaOfferForm
+                initialHref={cta?.href ?? ""}
+                initialTrialLabel={cta?.trialLabel ?? ""}
+                initialDfyLabel={cta?.dfyLabel ?? ""}
+              />
             </div>
             <div className="mt-6 border-t pt-5">
               <p className="text-sm font-medium">Free builds remaining</p>

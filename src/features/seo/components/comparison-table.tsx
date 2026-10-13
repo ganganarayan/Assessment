@@ -1,4 +1,5 @@
-import { MARKETING, DFY, OFFER } from "@/lib/marketing/content";
+import { MARKETING, OFFER } from "@/lib/marketing/content";
+import { getCta } from "@/lib/settings/cta";
 import { CtaLink } from "@/components/marketing/CtaLink";
 import type { SeoPage } from "@/lib/seo/types";
 
@@ -110,7 +111,9 @@ function ThemWins() {
  * thirteen and thirteen hand-written versions of one promise is how three of them end up
  * describing a different promise.
  */
-export function MigrationBlock({ competitor }: { competitor: string }) {
+export async function MigrationBlock({ competitor }: { competitor: string }) {
+  const cta = await getCta();
+
   return (
     <section id="migration" className="scroll-mt-20 rounded-xl border bg-[var(--muted)] p-6 sm:p-8">
       <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
@@ -139,10 +142,10 @@ export function MigrationBlock({ competitor }: { competitor: string }) {
       </ul>
       <div className="mt-6">
         <CtaLink
-          href={MARKETING.ctaHref}
+          href={cta.href}
           className="inline-flex h-11 items-center justify-center rounded-md bg-green-600 px-6 font-medium text-white"
         >
-          {DFY.cta}
+          {cta.dfyLabel}
         </CtaLink>
         <p className="mt-3 text-sm font-medium">{OFFER.ctaSubline}</p>
       </div>

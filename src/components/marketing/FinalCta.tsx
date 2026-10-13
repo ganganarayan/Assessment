@@ -1,8 +1,10 @@
 import { buttonVariants } from "@/components/ui/button";
-import { MARKETING } from "@/lib/marketing/content";
+import { getCta } from "@/lib/settings/cta";
 import { CtaLink } from "./CtaLink";
 
-export function FinalCta() {
+export async function FinalCta() {
+  const cta = await getCta();
+
   return (
     <section className="border-b">
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
@@ -13,8 +15,8 @@ export function FinalCta() {
           <p className="mx-auto mt-4 max-w-xl text-lg text-[var(--background)] opacity-70">
             Build your first scorecard in minutes and let fit decide who gets a call.
           </p>
-          <CtaLink href={MARKETING.ctaHref} className={cnLg}>
-            Start 14-day trial
+          <CtaLink href={cta.href} className={cnLg}>
+            {cta.trialLabel}
           </CtaLink>
         </div>
       </div>

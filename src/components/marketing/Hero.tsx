@@ -1,5 +1,6 @@
 import { buttonVariants } from "@/components/ui/button";
 import { TRIAL_NOTE, HERO, OFFER, MARKETING } from "@/lib/marketing/content";
+import { getCta } from "@/lib/settings/cta";
 import { CtaLink } from "./CtaLink";
 import { VideoEmbed } from "./VideoEmbed";
 
@@ -12,7 +13,9 @@ import { VideoEmbed } from "./VideoEmbed";
 //  1. "Know which leads are worth a sales call - before you make one."  (previous H1)
 //  2. "Turn a scorecard into a qualified pipeline."
 //  3. "Score every lead against your fit criteria. Talk only to the ready ones."
-export function Hero({ video }: { video?: string | null }) {
+export async function Hero({ video }: { video?: string | null }) {
+  const cta = await getCta();
+
   return (
     <section id="top" className="border-b">
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 sm:px-8 lg:grid-cols-2 lg:gap-16 lg:py-28">
@@ -34,14 +37,14 @@ export function Hero({ video }: { video?: string | null }) {
                 has just read that their ad account is buying the wrong people should see
                 the thing working on their own answers before they see a signup form or a
                 pricing table, whichever of the two framings got them to click. */}
-            <CtaLink href={MARKETING.ctaHref} className={buttonVariants({ size: "lg" })}>
-              {HERO.primaryCta}
+            <CtaLink href={cta.href} className={buttonVariants({ size: "lg" })}>
+              {cta.dfyLabel}
             </CtaLink>
             <CtaLink
-              href={MARKETING.ctaHref}
+              href={cta.href}
               className={buttonVariants({ variant: "outline", size: "lg" })}
             >
-              {HERO.secondaryCta}
+              {cta.trialLabel}
             </CtaLink>
           </div>
 

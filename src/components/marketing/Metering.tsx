@@ -1,5 +1,6 @@
 import { buttonVariants } from "@/components/ui/button";
-import { METERING, DFY, OFFER, MARKETING } from "@/lib/marketing/content";
+import { METERING, OFFER } from "@/lib/marketing/content";
+import { getCta } from "@/lib/settings/cta";
 import { CtaLink } from "./CtaLink";
 import { Emphasised, Tick } from "./Emphasised";
 
@@ -16,7 +17,9 @@ import { Emphasised, Tick } from "./Emphasised";
  * line, so a reader who skims still arrives at the conclusion instead of seeing a block
  * of text that looks like the small print.
  */
-export function Metering() {
+export async function Metering() {
+  const cta = await getCta();
+
   return (
     <section className="border-b bg-[var(--muted)]">
       {/* Wider than the prose it holds, on purpose. At max-w-3xl the headline broke
@@ -43,8 +46,8 @@ export function Metering() {
         </ul>
 
         <div className="mt-9 flex flex-col items-start gap-3">
-          <CtaLink href={MARKETING.ctaHref} className={buttonVariants({ size: "lg" })}>
-            {DFY.cta}
+          <CtaLink href={cta.href} className={buttonVariants({ size: "lg" })}>
+            {cta.dfyLabel}
           </CtaLink>
           {/* The slot COUNT lives in the offer bar; this is the standing sub-line, in
               the same words it carries everywhere else. */}

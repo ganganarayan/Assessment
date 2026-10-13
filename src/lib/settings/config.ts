@@ -7,7 +7,7 @@
 import { unstable_cache } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { OFFER_SLOTS } from "@/lib/marketing/content";
+import { OFFER_SLOTS, MARKETING, TRIAL_CTA, DFY_CTA } from "@/lib/marketing/content";
 import { env } from "@/lib/env";
 import { decryptWithSecret } from "@/lib/crypto";
 import { isPlatformScope, PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
@@ -462,6 +462,54 @@ export async function resolveOfferSlotsLeft(): Promise<number | null> {
  * null once it hits zero: "0 of 20 remaining" is a closed door with a call-to-action
  * underneath it, which reads worse than saying nothing.
  */
+/** The one call to action: where it goes, and what the buttons say. */
+export interface CtaConfig {
+  /** A path on this app, or an absolute https URL. Never empty. */
+  href: string;
+  /** Trial framing: nav, hero secondary, the priced tiers, the SEO blocks. */
+  trialLabel: string;
+  /** Free-build framing: hero primary, metering, the offer blocks, the calculator. */
+  dfyLabel: string;
+}
+
+/**
+ * The call to action, as the public pages should render it.
+ *
+ * Settings first, constants second. A blank field is not an empty button: it falls
+ * back to the shipped copy, so clearing the destination mid-edit cannot ship a page
+ * whose buttons go nowhere. That is the whole reason this returns a filled object
+ * rather than nullable fields the call sites have to each remember to default.
+ *
+ * Read on every public page, so it is cached for a minute. The offer changes a few
+ * times a year; the cost of reading it fresh on every view is paid every view.
+ */
+export async function resolveCta(): Promise<CtaConfig> {
+  const s = (await settingRow(null, { ctaHref: true, ctaTrialLabel: true, ctaDfyLabel: true })) as
+    | { ctaHref: string | null; ctaTrialLabel: string | null; ctaDfyLabel: string | null }
+    | null;
+  return {
+    href: s?.ctaHref?.trim() || MARKETING.ctaHref,
+    trialLabel: s?.ctaTrialLabel?.trim() || TRIAL_CTA,
+    dfyLabel: s?.ctaDfyLabel?.trim() || DFY_CTA,
+  };
+}
+
+/**
+ * The same three values as the admin form needs them: empty string where nothing is
+ * set, so the form can show the constant as a placeholder and tell "unset, using the
+ * default" apart from "deliberately set to the same words".
+ */
+export async function resolveCtaRaw(): Promise<{ href: string; trialLabel: string; dfyLabel: string }> {
+  const s = (await settingRow(null, { ctaHref: true, ctaTrialLabel: true, ctaDfyLabel: true })) as
+    | { ctaHref: string | null; ctaTrialLabel: string | null; ctaDfyLabel: string | null }
+    | null;
+  return {
+    href: s?.ctaHref?.trim() ?? "",
+    trialLabel: s?.ctaTrialLabel?.trim() ?? "",
+    dfyLabel: s?.ctaDfyLabel?.trim() ?? "",
+  };
+}
+
 export async function resolveDfyScarcity(): Promise<{ remaining: number; total: number } | null> {
   const s = (await settingRow(null, { dfyBuildsTotal: true, dfyBuildsRemaining: true })) as
     | { dfyBuildsTotal: number; dfyBuildsRemaining: number | null }

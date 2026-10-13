@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AUDIENCES } from "@/lib/marketing/content";
 import { TEMPLATE_CATEGORIES } from "@/features/templates/schema";
-import { MARKETING } from "@/lib/marketing/content";
+import { getCta } from "@/lib/settings/cta";
 import { CtaLink } from "./CtaLink";
 import { INDUSTRY_PAGES } from "@/lib/marketing/industries";
 
@@ -19,7 +19,9 @@ import { INDUSTRY_PAGES } from "@/lib/marketing/industries";
  * be twenty times the visual weight for a section whose whole job is to let someone find
  * their own line and move on.
  */
-export function WhoItIsFor() {
+export async function WhoItIsFor() {
+  const cta = await getCta();
+
   return (
     <section id="who" className="scroll-mt-20 border-b bg-[var(--muted)]">
       <div className="mx-auto max-w-4xl px-5 py-16 sm:px-8 sm:py-20">
@@ -72,7 +74,7 @@ export function WhoItIsFor() {
 
         <p className="mt-6 text-[var(--muted-foreground)]">
           Not on the list?{" "}
-          <CtaLink href={MARKETING.ctaHref} className="font-medium underline underline-offset-4">
+          <CtaLink href={cta.href} className="font-medium underline underline-offset-4">
             Tell us what you sell
           </CtaLink>{" "}
           and we will write the gate for it. The mechanism does not care about the

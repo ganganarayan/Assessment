@@ -1,5 +1,6 @@
 import { buttonVariants } from "@/components/ui/button";
-import { DFY, OFFER_SLOTS, MARKETING } from "@/lib/marketing/content";
+import { OFFER_SLOTS } from "@/lib/marketing/content";
+import { getCta } from "@/lib/settings/cta";
 import { CtaLink } from "./CtaLink";
 import { resolveOfferSlotsLeft } from "@/lib/settings/config";
 
@@ -22,7 +23,7 @@ import { resolveOfferSlotsLeft } from "@/lib/settings/config";
  * count cannot be resolved the sentence simply drops the number rather than guessing.
  */
 export async function BuiltWithYou() {
-  const slots = await resolveOfferSlotsLeft().catch(() => null);
+  const [slots, cta] = await Promise.all([resolveOfferSlotsLeft().catch(() => null), getCta()]);
 
   return (
     <section className="border-b">
@@ -38,8 +39,8 @@ export async function BuiltWithYou() {
               API, and build the exclusion and retargeting audiences inside your own ad account. You
               are in the room while it happens, and it is live before you hang up.
             </p>
-            <CtaLink href={MARKETING.ctaHref} className={`mt-8 ${buttonVariants({ size: "lg" })}`}>
-              {DFY.cta}
+            <CtaLink href={cta.href} className={`mt-8 ${buttonVariants({ size: "lg" })}`}>
+              {cta.dfyLabel}
             </CtaLink>
             <p className="mt-4 text-sm text-[var(--muted-foreground)]">
               {slots === null

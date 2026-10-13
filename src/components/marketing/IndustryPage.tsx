@@ -1,11 +1,12 @@
 import { buttonVariants } from "@/components/ui/button";
 import { CtaLink } from "./CtaLink";
+import { getCta } from "@/lib/settings/cta";
 import { Nav } from "./Nav";
 import { Footer } from "./Footer";
 import { Tick } from "./Emphasised";
 import { IndustryLeak } from "./IndustryLeak";
 import { OFFER, TRIAL_NOTE } from "@/lib/marketing/content";
-import { INDUSTRY_CTA, INDUSTRY_EYEBROW, type IndustrySpec } from "@/lib/marketing/industries";
+import { INDUSTRY_EYEBROW, type IndustrySpec } from "@/lib/marketing/industries";
 
 /**
  * One renderer for every By-industry page.
@@ -16,11 +17,13 @@ import { INDUSTRY_CTA, INDUSTRY_EYEBROW, type IndustrySpec } from "@/lib/marketi
  * A visitor should not be able to tell these pages were written separately.
  *
  * The page body carries ONE primary action, and it is the same action the landing
- * page leads with, read from INDUSTRY_CTA. No second ask, no form of its own, no
+ * page leads with, read from the one CTA setting. No second ask, no form of its own, no
  * pricing table: a reader who has just been shown what their enquiry flow costs
  * should have exactly one thing to click.
  */
-export function IndustryPage({ spec }: { spec: IndustrySpec }) {
+export async function IndustryPage({ spec }: { spec: IndustrySpec }) {
+  const cta = await getCta();
+
   return (
     <>
       <Nav anchorBase="/" />
@@ -41,14 +44,14 @@ export function IndustryPage({ spec }: { spec: IndustrySpec }) {
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <CtaLink href={INDUSTRY_CTA.primaryHref} className={buttonVariants({ size: "lg" })}>
-                {INDUSTRY_CTA.primaryLabel}
+              <CtaLink href={cta.href} className={buttonVariants({ size: "lg" })}>
+                {cta.dfyLabel}
               </CtaLink>
               <CtaLink
-                href={INDUSTRY_CTA.secondaryHref}
+                href={cta.href}
                 className={buttonVariants({ variant: "outline", size: "lg" })}
               >
-                {INDUSTRY_CTA.secondaryLabel}
+                {cta.trialLabel}
               </CtaLink>
             </div>
 
@@ -168,10 +171,10 @@ export function IndustryPage({ spec }: { spec: IndustrySpec }) {
             <div className="flex max-w-3xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="font-medium">{OFFER.ctaSubline}</p>
               <CtaLink
-                href={INDUSTRY_CTA.primaryHref}
+                href={cta.href}
                 className={buttonVariants({ size: "lg", className: "shrink-0" })}
               >
-                {INDUSTRY_CTA.primaryLabel}
+                {cta.dfyLabel}
               </CtaLink>
             </div>
           </div>
@@ -289,10 +292,10 @@ export function IndustryPage({ spec }: { spec: IndustrySpec }) {
                 {spec.finalCta.sub}
               </p>
               <CtaLink
-                href={INDUSTRY_CTA.primaryHref}
+                href={cta.href}
                 className={buttonVariants({ size: "lg", className: "mt-8" })}
               >
-                {INDUSTRY_CTA.primaryLabel}
+                {cta.dfyLabel}
               </CtaLink>
             </div>
           </div>
