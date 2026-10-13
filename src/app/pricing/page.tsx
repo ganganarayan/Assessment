@@ -31,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return platformPageMetadata({
     title: "Pricing",
     description:
-      "Assess360 plans and prices: Gate $39, Signal $79, Agency $249 per month, Enterprise from $499. Disqualified visitors are never metered. 14-day trial, no card.",
+      "Assess360 plans and prices: Gate $39, Signal $79, Agency $249 per month, Enterprise from $599. Disqualified visitors are never metered. 14-day trial, no card.",
     path: "/pricing",
   });
 }

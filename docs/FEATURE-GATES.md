@@ -31,7 +31,7 @@ two genuinely new concepts: the trial and the parked state.
 | STARTER | **GATE** | $39 / $32 annual |
 | GROWTH | **SIGNAL** | $79 / $69 annual |
 | SCALE | **AGENCY** | $249 / $219 annual *(repriced 2026-10-13, was $199 / $175)* |
-| - | **ENTERPRISE** | from $499, custom |
+| - | **ENTERPRISE** | from $599, custom |
 
 Prisma enum change means a migration. Postgres cannot drop an enum value that is in use,
 so: `ALTER TYPE "Plan" ADD VALUE` for the new names, backfill rows, leave the old values
@@ -185,13 +185,20 @@ reduction in what the money buys.
 on a subscription, so an existing Agency keeps ten accounts, and Razorpay keeps billing
 them against the plan id they subscribed on. Grandfathering needed no code.
 
-🔴 **One manual step before a buyer can be charged the new price.** `getOrCreatePlan`
-self-heals a price change into a fresh Razorpay Plan, but an env override skips that
-entirely: with `RAZORPAY_PLAN_ID_AGENCY` or the legacy `RAZORPAY_PLAN_ID_SCALE` set in
-Railway, the page says $249 and the card is charged $199. Run
-`railway run npm run verify:payments` against each environment - it fetches the override's
-Plan from Razorpay and asserts the amount - and unset the variable if it reports a
-mismatch.
+🟢 **Nothing to do in the environment.** `getOrCreatePlan` self-heals a price change into
+a fresh Razorpay Plan: the cached Plan carries the cents it was created at, a price change
+invalidates it, and the next checkout creates one at the new price using the Razorpay
+credentials from Settings.
+
+The one thing that could have defeated that was an env override, and on 2026-10-13 all six
+`RAZORPAY_PLAN_ID_*` variables were DELETED FROM THE CODE. None had ever been set in any
+environment - they were a pin for a dashboard-made Plan nobody made - but an override is
+read ahead of the price, so one set variable would have meant a $249 page charging $199
+with nothing anywhere disagreeing. Env launches the app; the price has one source
+(`PLAN_PRICE_USD`) and the credentials have one home (Settings).
+
+`railway run npm run verify:payments` remains worth running per environment: it now checks
+the CACHED Plan against the catalog, which is what a price change actually touches.
 
 🟢 Every line above is now enforced in code. What the tier sells is volume, ten SEPARATE
 ad accounts (§5), bulk import, and scoped API tokens.
@@ -206,7 +213,7 @@ client, so Cloudflare for SaaS has to be woken first.
 purchased counter and, more to the point, no real subscription has been put through this
 app yet. A comped extra account works today via `limitOverrides.adAccounts`.
 
-### ENTERPRISE, from $499 *(sketch only)*
+### ENTERPRISE, from $599 *(sketch only; repriced from $499 on 2026-10-13)*
 
 Custom everything, `sso`, SLA. Less a plan row than a sales motion, limits come from the
 per-tenant override `resolvePlan` already supports.
@@ -297,8 +304,8 @@ pricing page is fully true. 7 is a feature build, not a gate.
 
 - `npm run verify:billing`, pure: the catalog, the tier ladder, trial day-math, parked limits
 - `npm run verify:payments`, read-only pre-flight: keys, webhook secret, and the amount the
-  first subscriber would actually be charged (an env `RAZORPAY_PLAN_ID_*` override bypasses
-  the self-healing price check, and this is what catches a stale one)
+  first subscriber would actually be charged (the cached Razorpay Plan, fetched and compared
+  with the catalog; the env overrides that used to bypass this were deleted 2026-10-13)
 
 🔴 Neither proves a payment works. Checkout, signature verification and the webhook
 round-trip need one real subscription put through before ad spend points at a signup page.

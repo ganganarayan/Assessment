@@ -64,9 +64,9 @@ check("Enterprise = unlimited responses + unlimited scorecards",
   isUnlimited(PLAN_LIMITS.ENTERPRISE.responsesPerMonth) && isUnlimited(PLAN_LIMITS.ENTERPRISE.maxAssessments));
 
 console.log("Prices match the published pricing page");
-check("Gate 39 / Signal 79 / Agency 249 / Enterprise 499",
+check("Gate 39 / Signal 79 / Agency 249 / Enterprise 599",
   PLAN_PRICE_USD.GATE === 39 && PLAN_PRICE_USD.SIGNAL === 79 &&
-  PLAN_PRICE_USD.AGENCY === 249 && PLAN_PRICE_USD.ENTERPRISE === 499);
+  PLAN_PRICE_USD.AGENCY === 249 && PLAN_PRICE_USD.ENTERPRISE === 599);
 
 console.log("Feature gates - the differentiator ships in the ENTRY tier");
 // This is the whole pricing thesis: a qualification gate behind a $79 wall is a gate the
