@@ -31,8 +31,8 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: "/w/assessments", label: "Assessments" },
       { href: "/w/result-pages", label: "Result pages" },
-      { href: "/w/templates", label: "Templates" },
-      { href: "/w/import", label: "Import" },
+      { href: "/w/templates", label: "Templates (Assessment)" },
+      { href: "/w/import", label: "Import assessment" },
     ],
   },
   {

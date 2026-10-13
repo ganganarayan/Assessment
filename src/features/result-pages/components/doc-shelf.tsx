@@ -36,7 +36,9 @@ export function DocShelf({
   const router = useRouter();
   const [, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
-  const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string; href?: string } | null>(null);
+  // Addressed to a row where it belongs to one: a refusal rendered at the top of a long
+  // shelf reads as the button doing nothing at all.
+  const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string; href?: string; rowId?: string } | null>(null);
 
   if (rows.length === 0) return null;
 
@@ -47,7 +49,7 @@ export function DocShelf({
       const r = await importShelfDoc(row.id);
       setBusy(null);
       if (!r.ok) {
-        setMsg({ tone: "bad", text: r.error });
+        setMsg({ tone: "bad", text: r.error, rowId: row.id });
         return;
       }
       setMsg({
@@ -69,7 +71,7 @@ export function DocShelf({
         </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        {msg ? (
+        {msg && !msg.rowId ? (
           <p className={msg.tone === "ok" ? "text-sm text-green-700" : "text-sm text-amber-700"}>
             {msg.text}{" "}
             {msg.href ? (
@@ -109,6 +111,11 @@ export function DocShelf({
                         ? `${row.size} block${row.size === 1 ? "" : "s"}`
                         : `${row.size} page${row.size === 1 ? "" : "s"}`}
                     </p>
+                    {msg?.rowId === row.id ? (
+                      <p className={msg.tone === "ok" ? "mt-2 text-sm text-green-700" : "mt-2 text-sm text-amber-700"}>
+                        {msg.text}
+                      </p>
+                    ) : null}
                   </div>
                   {canEdit ? (
                     <div className="flex shrink-0 items-center gap-2">

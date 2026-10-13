@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireSuperAdmin, isStaff } from "@/lib/auth/guards";
 import { listAllTemplates } from "@/features/templates/data";
 import { TemplatesConsole } from "@/features/templates/components/templates-console";
@@ -20,11 +21,15 @@ export default async function AdminTemplatesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Templates</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Templates (Assessment)</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
           The starting points every workspace sees. Built-ins are seeded from the repo, so their content is
           changed in git and re-seeded here; publishing and ordering are decided on this screen and survive
-          every deploy.
+          every deploy. These are whole funnels; result page and VSL page templates have their own shelf under{" "}
+          <Link href="/admin/result-pages" className="underline">
+            Result pages
+          </Link>
+          .
         </p>
       </div>
       {/* The rule stated where the decision is made. A seeded template is invisible to

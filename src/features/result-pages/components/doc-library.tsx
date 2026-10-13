@@ -48,7 +48,15 @@ export function DocLibrary({ rows, basePath, canEdit, canManageShelf = false }: 
   const router = useRouter();
   const [, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
-  const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
+  /**
+   * A message, and the row it belongs to.
+   *
+   * It used to render only at the top of the list. Refusing to shelf a bound page then
+   * looked like nothing happening at all: the button is beside the row, the reason was
+   * two screens up, and the page does not scroll itself. A message about a row belongs
+   * on that row.
+   */
+  const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string; rowId?: string } | null>(null);
   const [newFor, setNewFor] = useState<DocKind | null>(null);
   const [newTitle, setNewTitle] = useState("");
 
@@ -76,12 +84,13 @@ export function DocLibrary({ rows, basePath, canEdit, canManageShelf = false }: 
     setMsg(null);
     start(async () => {
       const r = await cloneDoc(row.id);
+      const rowId = row.id;
       setBusy(null);
       if (!r.ok) {
-        setMsg({ tone: "bad", text: r.error });
+        setMsg({ tone: "bad", text: r.error, rowId });
         return;
       }
-      setMsg({ tone: "ok", text: `Copied. The copy is free to use on any funnel - change what differs, then bind it.` });
+      setMsg({ tone: "ok", text: "Copied. The copy is free to use on any funnel - change what differs, then bind it." });
       if (r.data) router.push(`${basePath}/${r.data.id}`);
       else router.refresh();
     });
@@ -95,7 +104,7 @@ export function DocLibrary({ rows, basePath, canEdit, canManageShelf = false }: 
     start(async () => {
       const r = await renameDoc(row.id, next);
       setBusy(null);
-      if (!r.ok) setMsg({ tone: "bad", text: r.error });
+      if (!r.ok) setMsg({ tone: "bad", text: r.error, rowId: row.id });
       else router.refresh();
     });
   }
@@ -107,10 +116,11 @@ export function DocLibrary({ rows, basePath, canEdit, canManageShelf = false }: 
       const r = await setDocShelf(row.id, listed);
       setBusy(null);
       if (!r.ok) {
-        setMsg({ tone: "bad", text: r.error });
+        setMsg({ tone: "bad", text: r.error, rowId: row.id });
         return;
       }
       setMsg({
+        rowId: row.id,
         tone: "ok",
         text: listed
           ? `"${row.title}" is on the shelf. Every workspace can now import a copy of it.`
@@ -133,7 +143,7 @@ export function DocLibrary({ rows, basePath, canEdit, canManageShelf = false }: 
     start(async () => {
       const r = await setDocShelfMeta(row.id, { category, summary });
       setBusy(null);
-      if (!r.ok) setMsg({ tone: "bad", text: r.error });
+      if (!r.ok) setMsg({ tone: "bad", text: r.error, rowId: row.id });
       else router.refresh();
     });
   }
@@ -145,14 +155,14 @@ export function DocLibrary({ rows, basePath, canEdit, canManageShelf = false }: 
     start(async () => {
       const r = await deleteDoc(row.id);
       setBusy(null);
-      if (!r.ok) setMsg({ tone: "bad", text: r.error });
+      if (!r.ok) setMsg({ tone: "bad", text: r.error, rowId: row.id });
       else router.refresh();
     });
   }
 
   return (
     <div className="flex flex-col gap-5">
-      {msg ? (
+      {msg && !msg.rowId ? (
         <p className={msg.tone === "ok" ? "text-sm text-green-700" : "text-sm text-amber-700"}>{msg.text}</p>
       ) : null}
 
@@ -232,6 +242,13 @@ export function DocLibrary({ rows, basePath, canEdit, canManageShelf = false }: 
                           <p className="mt-1 text-xs text-[var(--muted-foreground)]">
                             Shelf: {row.shelfCategory || "General"}
                             {row.shelfSummary ? ` · ${row.shelfSummary}` : " · no description yet"}
+                          </p>
+                        ) : null}
+                        {/* The answer where the question was asked. A refusal rendered
+                            at the top of a long list reads as the button doing nothing. */}
+                        {msg?.rowId === row.id ? (
+                          <p className={msg.tone === "ok" ? "mt-2 text-sm text-green-700" : "mt-2 text-sm text-amber-700"}>
+                            {msg.text}
                           </p>
                         ) : null}
                       </div>
