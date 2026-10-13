@@ -190,8 +190,13 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
       conditionalExit: true,
     },
   },
-  // Agency - unlimited scorecards, sub-accounts, API. The sub-account FEATURE does not
-  // exist yet (docs/FEATURE-GATES.md §8b); the flag is here so the tier is complete.
+  // Agency - unlimited scorecards, ten ad accounts, bulk import, API tokens.
+  //
+  // 🟡 NO sub-account flag, and the pricing page stopped claiming one on 2026-10-13.
+  // Client sub-accounts have no code anywhere (docs/FEATURE-GATES.md §8b), and the rest
+  // of that line - custom domain and badge removal, which together ARE white-label - is
+  // Signal's, so the row was selling Signal's features back to Agency buyers. What makes
+  // this a tier is volume, ten separate ad accounts, and bulk import.
   AGENCY: {
     responsesPerMonth: 5000,
     maxAssessments: null,

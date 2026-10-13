@@ -10,11 +10,13 @@ import { MARKETING } from "@/lib/marketing/content";
 /**
  * Public API documentation.
  *
- * 🔴 It says plainly, at the top, that this is NOT a general-purpose API. The Agency tier
- * advertises "API access" and the API is two read endpoints built for one job - feeding
- * server-side conversion events to an external automation. Documenting those two as
- * though they were a platform API would turn a thin claim into a misleading one, and the
- * person who discovers the gap would be a paying Agency customer mid-integration.
+ * 🔴 It says plainly, at the top, that this is NOT a general-purpose API, and since
+ * 2026-10-13 the pricing page agrees: the Agency row reads "API tokens (conversion
+ * lookups)" rather than "API access", which is what these two read endpoints are -
+ * feeding server-side conversion events to an external automation. This page was the
+ * only honest surface for a while; documenting the endpoints as though they were a
+ * platform API would have turned a thin claim into a misleading one, and the person who
+ * discovered the gap would have been a paying Agency customer mid-integration.
  *
  * Everything documented here is read from the handlers rather than imagined: the field
  * list is buildMetaMatchResponse's return shape, field for field.
