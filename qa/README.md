@@ -23,6 +23,14 @@ Then either copy `.env.qa.example` to `.env.qa` and fill it in, or run the harne
 ## Running it
 
 ```bash
+railway run npm run qa:all
+```
+
+Everything: the three fixtures, one after another, with a tally per funnel at the end
+and a non-zero exit if any of them failed. Add `-- --also=my-funnel` to include yours,
+or `-- --slugs=a,b` to sweep only what you name. Any other flag is handed to each sweep.
+
+```bash
 npm run qa -- --slug=my-funnel --audit
 ```
 
@@ -74,6 +82,33 @@ opt-in was marked as seen, the GateDisqualification, and that nothing outbound w
 pixel configured, because a failed send still counts: the question is what the funnel
 decided to report, not what Meta received.
 
+## The loss that happens ten minutes later
+
+Walking away from the opt-in fires nothing straight away. It starts a clock, because the
+form asks for a WhatsApp number and the commonest reason to leave it is to go and fetch
+that number. Ten minutes later a sweep decides which loss it was: AssessmentAbandoned for
+somebody who saw the ask and refused it, GateIncomplete for somebody who never got that
+far. Two audiences, and an ad written for one is wrong for the other.
+
+The sweep asserts the near half immediately - the clock is running, nothing is reported
+yet, and it names the verdict owed. The far half is a second command:
+
+```bash
+railway run npm run qa:abandon -- --slug=my-funnel --wait
+```
+
+It runs the app's own sweep function, then checks that what fired is what the funnel's
+configuration says should have, and that every visitor that was due now carries a verdict
+so none can fire twice. Without `--wait` it reports how long is left. Staging already runs
+a cron that settles these, so it often finds nothing to do, which is the right answer and
+it says so.
+
+Two things to know. A lead-FIRST funnel produces no abandonment signal at all: the stamp
+and the beacon both live on the dedicated opt-in step, which only a lead-after funnel has.
+And the harness dispatches the page's own pagehide before leaving, because headless
+Chromium drops a beacon sent while the page is being torn down - the funnel's own guard
+means one beacon is sent, never two.
+
 ## Changing a case
 
 The generated cases cover the funnel's own conditions, so most of the time there is
@@ -117,9 +152,15 @@ rejections afterwards.
 ## What it does not cover
 
 Whether Meta actually received and attributed an event, real email or WhatsApp delivery,
-custom-domain certificates, and live payments. The pre-flight blocks the run when a live
-pixel or CAPI token resolves, so a sweep cannot teach an ad account that thirty people
-converted.
+custom-domain certificates, and live payments. A paid funnel is driven as far as the
+payment screen and no further. The pre-flight blocks the run when a live pixel or CAPI
+token resolves, so a sweep cannot teach an ad account that thirty people converted.
+
+The admin-screen pass (`--admin`) reads the run back through the owner's own views - the
+submissions export and the stats export - using the same identities as the needle. It
+needs `QA_ADMIN_EMAIL` and `QA_ADMIN_PASSWORD` in `qa/.env.qa`, which is gitignored; the
+harness types them into the real sign-in form at run time and they are never logged.
+Without them the pass says so and skips.
 
 ## Why it is written in TypeScript next to the app
 

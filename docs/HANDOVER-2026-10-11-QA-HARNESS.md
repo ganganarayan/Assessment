@@ -17,11 +17,13 @@ three sources: the screen, the rows, and the Meta event intent.
 Full usage is in [qa/README.md](../qa/README.md).
 
 ```bash
-railway run npm run qa -- --slug=<funnel>            # the sweep
+railway run npm run qa:all                           # every fixture, one tally per funnel
+railway run npm run qa -- --slug=<funnel>            # one sweep
 npm run qa -- --slug=<funnel> --audit                # config + pre-flight only
 npm run qa -- --slug=<funnel> --plan                 # the derived cases
 npm run qa -- --slug=<funnel> --headed --slow=250    # watch it fill
 npm run qa -- --slug=<funnel> --case=<id> --trace    # replay one
+railway run npm run qa:abandon -- --slug=<funnel>    # settle the ten-minute verdict
 railway run npm run qa:seed                          # the fixtures
 ```
 
@@ -47,9 +49,19 @@ This is the reason the harness is TypeScript next to the app rather than a separ
 Python suite.
 
 **Absence is asserted as hard as presence.** The sharpest case in the whole sweep is the
-opt-in walk-away: a GateEntry, optinSeenAt stamped, and no lead, no submission, no
-CompleteRegistration. The second sharpest is a PAGE exit: a rejection row, the exit's
-own event, and nothing a lead would ever produce.
+opt-in walk-away: a GateEntry, optinSeenAt stamped, the ten-minute clock running, and no
+lead, no submission, no CompleteRegistration. The second sharpest is a PAGE exit: a
+rejection row, the exit's own event, and nothing a lead would ever produce.
+
+## The verdict that lands ten minutes later
+
+Leaving the opt-in starts a clock rather than firing anything, so the sweep asserts the
+clock and `npm run qa:abandon` settles the verdict by running the app's own sweep
+function and checking what fired against what the funnel says should fire. Two details
+worth keeping: a lead-FIRST funnel produces no abandonment signal at all (the stamp and
+the beacon both live on the dedicated opt-in step, which only a lead-after funnel has),
+and the harness dispatches the page's own pagehide before leaving, because headless
+Chromium drops a beacon sent while the page is being torn down.
 
 ## What it found
 

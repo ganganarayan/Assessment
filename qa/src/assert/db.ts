@@ -12,7 +12,7 @@
  * `failed`), which is exactly what makes this assertable on staging: the question is
  * what the funnel DECIDED to report, not what Meta received.
  */
-import { db } from "../db.js";
+import { db, withDbRetry } from "../db.js";
 import { normalizeIdentifier } from "../../../src/features/assessment/lockout.js";
 import type { Funnel } from "../config/read.js";
 import type { Identity } from "../drive/identity.js";
@@ -21,12 +21,12 @@ export type EventCounts = Map<string, number>;
 
 /** count + failed per event name for today, which is what a case can move. */
 export async function eventSnapshot(assessmentId: string): Promise<EventCounts> {
-  const rows = await db().funnelEventCount.findMany({
+  const rows = await withDbRetry(() => db().funnelEventCount.findMany({
     where: { assessmentId },
     select: { eventName: true, count: true, failed: true, day: true },
     orderBy: { day: "desc" },
     take: 200,
-  });
+  }), "reading the event counts");
   const out: EventCounts = new Map();
   for (const r of rows) {
     out.set(r.eventName, (out.get(r.eventName) ?? 0) + r.count + r.failed);

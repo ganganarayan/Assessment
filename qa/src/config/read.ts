@@ -11,7 +11,7 @@
  * Also reads what the gate is made of, parsed with the app's OWN zod schemas, so the
  * harness can never disagree with the app about what a gate says.
  */
-import { db } from "../db.js";
+import { db, withDbRetry } from "../db.js";
 import {
   qualificationSchema,
   audienceGateSchema,
@@ -26,25 +26,29 @@ import {
 import type { EntryInput } from "../../../src/features/assessment/flow/entry.js";
 
 export async function readFunnelRow(slug: string) {
-  return db().assessment.findFirst({
-    where: {
-      slug,
-      status: "PUBLISHED",
-      OR: [{ tenantId: null }, { tenant: { deletedAt: null } }],
-    },
-    include: {
-      categories: {
-        orderBy: { displayOrder: "asc" },
-        include: {
-          questions: {
-            orderBy: { displayOrder: "asc" },
-            include: { options: { orderBy: { displayOrder: "asc" }, include: { route: true } } },
-          },
+  return withDbRetry(
+    () =>
+      db().assessment.findFirst({
+        where: {
+          slug,
+          status: "PUBLISHED",
+          OR: [{ tenantId: null }, { tenant: { deletedAt: null } }],
         },
-      },
-      resultBands: { orderBy: { displayOrder: "asc" } },
-    },
-  });
+        include: {
+          categories: {
+            orderBy: { displayOrder: "asc" },
+            include: {
+              questions: {
+                orderBy: { displayOrder: "asc" },
+                include: { options: { orderBy: { displayOrder: "asc" }, include: { route: true } } },
+              },
+            },
+          },
+          resultBands: { orderBy: { displayOrder: "asc" } },
+        },
+      }),
+    "reading the funnel",
+  );
 }
 
 export type FunnelRow = NonNullable<Awaited<ReturnType<typeof readFunnelRow>>>;

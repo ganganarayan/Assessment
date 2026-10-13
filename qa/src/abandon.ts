@@ -45,26 +45,52 @@ function fillEnvForAppImport(baseUrl: string, databaseUrl: string): void {
   // `railway run` that is the internal host, which does not resolve from a laptop. Swap
   // it BEFORE the app module is imported or the sweep cannot reach the database.
   if (databaseUrl) process.env.DATABASE_URL = databaseUrl;
+  // The app logs every query when NODE_ENV is development, and a laptop's default is
+  // exactly that - which buries this command's own output in SQL.
+  if (process.env.NODE_ENV === "development") process.env.NODE_ENV = "production";
   process.env.NEXT_PUBLIC_APP_URL ||= baseUrl;
   process.env.BETTER_AUTH_URL ||= baseUrl;
   process.env.BETTER_AUTH_SECRET ||= "qa-harness-placeholder-not-a-secret";
 }
 
+/**
+ * Who has no verdict yet, and did they opt in?
+ *
+ * Two queries, not one per visitor: this is called either side of a ten minute wait,
+ * and a query per row was enough to exhaust the connection pool once the first
+ * connection had gone stale over that wait.
+ */
 async function pendingFor(assessmentId: string): Promise<Pending[]> {
-  const rows = await db().gateEntry.findMany({
-    where: { assessmentId, abandonedFiredAt: null },
-    select: { id: true, visitorId: true, optinSeenAt: true, abandonDueAt: true, passedAt: true },
-    orderBy: { passedAt: "desc" },
-    take: 200,
-  });
-  const out: Pending[] = [];
-  for (const r of rows) {
-    const optedIn = await db().submission.count({
-      where: { assessmentId, metaExternalId: r.visitorId },
+  return withReconnect(async () => {
+    const rows = await db().gateEntry.findMany({
+      where: { assessmentId, abandonedFiredAt: null },
+      select: { id: true, visitorId: true, optinSeenAt: true, abandonDueAt: true, passedAt: true },
+      orderBy: { passedAt: "desc" },
+      take: 200,
     });
-    out.push({ ...r, optedIn: optedIn > 0 });
+    if (rows.length === 0) return [];
+    // Opting in is the whole test, and the submission IS the opt-in: it is created by
+    // that form and by nothing else.
+    const opted = await db().submission.findMany({
+      where: { assessmentId, metaExternalId: { in: rows.map((r) => r.visitorId) } },
+      select: { metaExternalId: true },
+    });
+    const optedIds = new Set(opted.map((s) => s.metaExternalId));
+    return rows.map((r) => ({ ...r, optedIn: optedIds.has(r.visitorId) }));
+  });
+}
+
+/** A connection that has sat idle through the grace period may need waking. */
+async function withReconnect<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (!/connection pool|Can't reach database|Closed/i.test(message)) throw err;
+    await db().$disconnect().catch(() => {});
+    await db().$connect();
+    return fn();
   }
-  return out;
 }
 
 /** What the funnel should report for one pending visitor, by its own rules. */

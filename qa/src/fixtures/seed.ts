@@ -279,6 +279,10 @@ const FIXTURES: FixtureSpec[] = [
       },
       {
         key: "r-c2",
+        // PAGE 2, so the spine's page-1-then-page-2 ordering is exercised by something
+        // rather than assumed: the two scored pages are a shape real funnels use and
+        // the runner groups its screens by it.
+        page: 2,
         name: "The second run of questions",
         questions: [
           {

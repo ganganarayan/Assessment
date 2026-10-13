@@ -21,7 +21,16 @@ const CHROME_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 /** Screens that end a run: nothing further is pressed. */
-const TERMINAL_STEPS = new Set(["disqualified", "locked", "capLocked", "resultPages"]);
+const TERMINAL_STEPS = new Set([
+  "disqualified",
+  "locked",
+  "capLocked",
+  "resultPages",
+  // The other two result renderers: the clinic engine's own page, and the block-built
+  // VSL page, which shows no score by design.
+  "clinicResult",
+  "vslResult",
+]);
 
 export interface Observation {
   /** data-qa-step values in the order they appeared. */
