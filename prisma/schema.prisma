@@ -152,6 +152,7 @@ model Tenant {
   usageCounters        UsageCounter[]
   nurtureLogs          NurtureLog[]
   paymentHandoffs      PaymentHandoff[]
+  paymentLinks         PaymentLink[]
   /// Templates PRIVATE to this workspace (saved from the builder, never contributed).
   ownedTemplates       Template[]        @relation("TemplateOwner")
   /// Templates this workspace sent to the master library.
@@ -1818,7 +1819,13 @@ model Payment {
   providerPaymentId String?   @unique // razorpay payment id - dedups webhook retries
   providerOrderId   String?
   providerLinkId    String? // razorpay payment_link id
-  purpose           String // "assessment_unlock" | (future) "subscription"
+  // WHICH Razorpay account took the money: "GST" (the tenant's primary keys) or
+  // "NON_GST" (the second, optional account some tenants bill clients on). Null on
+  // every row written before the second account existed, which reads as GST - the
+  // only account there was. Carried so revenue can be split for accounting without
+  // reconciling against two dashboards by hand.
+  providerAccount   String?
+  purpose           String // "assessment_unlock" | "product_sale" | (future) "subscription"
   plan              String? // future: "starter" | "pro"
   submissionId      String?
   amount            Int? // paise
@@ -1895,6 +1902,93 @@ model PaymentHandoff {
   @@index([submissionId])
   @@index([expiresAt])
   @@map("payment_handoff")
+}
+
+enum PaymentLinkStatus {
+  CREATED // generated, not paid yet - the only state that can be cancelled
+  PAID // settled once, and therefore spent: the page refuses a second payment
+  CANCELLED // withdrawn by the operator before anyone paid
+}
+
+// ---------------------------------------------------------------------------
+// PaymentLink - a one-shot collection link an operator generates for ONE person
+// from the Submissions screen, copies, and sends by hand.
+//
+// It is NOT a Razorpay payment link. A Razorpay link fixes its amount at creation
+// and gives the payer no way to change it, and the ask here is the opposite: the
+// client sets the amount. So the link points at OUR page (/pay/<token>), which shows
+// their details already filled in and an editable amount, and opens Razorpay
+// Checkout against an Order created when they press pay.
+//
+// One link, one payment. On a settled payment the row goes PAID and the page stops
+// accepting money - "expires after payment", with no time expiry at all, because a
+// link nobody has paid yet is not dangerous and the operator simply generates the
+// next one when the next amount is due.
+//
+// The TOKEN is the whole access control: unguessable, bound to one submission, and
+// the only thing the public page is given. The amount the browser sends is checked
+// against minPaise/MAX here, never trusted.
+// ---------------------------------------------------------------------------
+model PaymentLink {
+  id String @id @default(cuid())
+
+  /// The unguessable half of the public URL. Unique, so /pay/<token> is a lookup.
+  token String @unique
+
+  /// Owning tenant, with the SAME convention every other money row uses: null means
+  /// the platform's own funnels (Apply Gita), whose submissions still carry a null
+  /// tenant because the re-home data move has not been run. Making this column
+  /// required would have made the owner's own funnels the one place the feature could
+  /// not be used.
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  /// Who this was generated for, denormalized alongside for reporting. No FK to the
+  /// submission: a sale must survive the lead record being deleted.
+  submissionId String
+  assessmentId String?
+
+  /// "GST" | "NON_GST" - which of the tenant's two Razorpay accounts signs the order
+  /// and verifies the return. Chosen when the link is generated and never inferred
+  /// afterwards, because the keys that signed an order are the only keys that can
+  /// verify its payment.
+  account String @default("GST")
+
+  /// What the operator typed, shown as the prefilled figure. The client may change
+  /// it - that is the point of the page - so this is a suggestion, not the price.
+  amountPaise Int
+
+  /// Floor enforced SERVER-SIDE on whatever the client types. The payer sets the
+  /// amount, so without a floor a sale can arrive as ₹1.
+  minPaise Int @default(100)
+
+  /// Overrides the tenant's standing description for this one link, when the sale
+  /// needs naming (a package, a retainer). Blank = the tenant's setting.
+  description String?
+
+  status PaymentLinkStatus @default(CREATED)
+
+  /// The Razorpay Order the client's chosen amount created, and the payment that
+  /// settled it. Both null until they press pay.
+  providerOrderId   String?
+  providerPaymentId String?
+
+  /// What was ACTUALLY paid, which is the client's figure and not necessarily
+  /// amountPaise. This is the number that belongs in revenue.
+  paidPaise Int?
+  paidAt    DateTime?
+
+  /// The operator who generated it. Plain scalar, not a relation: the record of who
+  /// sent a money link must outlive the staff account that sent it.
+  createdByUserId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([submissionId])
+  @@index([tenantId, createdAt])
+  @@index([status])
+  @@map("payment_link")
 }
 
 // ---------------------------------------------------------------------------
@@ -2138,6 +2232,29 @@ model AppSetting {
   razorpayKeyId            String?
   razorpayKeySecretEnc     String?
   razorpayWebhookSecretEnc String?
+
+  // The SECOND, optional Razorpay account - the one whose invoices carry no GST,
+  // kept for clients who will not pay the tax on top. Same three fields, stored the
+  // same way, read through a DIFFERENT accessor.
+  //
+  // 🔴 THIS ACCOUNT CAN NEVER TAKE A PLATFORM SUBSCRIPTION. Billing resolves its keys
+  // through resolveRazorpayConfig(null), which serves the GST columns above and takes
+  // no account argument - so there is no call path, and no mistake a future edit can
+  // make, that charges an Assess360 subscription on these keys. They exist for one
+  // purpose: collecting from a tenant's OWN clients.
+  //
+  // Both accounts are optional and neither is ever required: a tenant that collects
+  // no money at all leaves all six fields blank and nothing in the product asks for
+  // them. Blank simply means that account is not offered where an account is chosen.
+  razorpayNonGstKeyId            String?
+  razorpayNonGstKeySecretEnc     String?
+  razorpayNonGstWebhookSecretEnc String?
+
+  /// What the client reads on the payment page and on their Razorpay receipt, e.g.
+  /// "Consulting retainer - Divine Leads". One line per tenant, edited in Settings
+  /// rather than hardcoded, because it is the tenant's business name on someone
+  /// else's card statement. Blank falls back to a line built from the assessment.
+  paymentLinkDescription String?
 
   // WELCOME EMAIL sent once when a new workspace is provisioned at signup. Singleton
   // row only - it is a platform message, not a tenant's marketing. Body is HTML with

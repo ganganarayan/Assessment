@@ -62,6 +62,11 @@ function orEnv(stored: string | null, isPlatform: boolean, key: string, envValue
 
 const SEL_META = { metaPixelId: true, metaCapiTokenEnc: true } as const;
 const SEL_RZP = { razorpayKeyId: true, razorpayKeySecretEnc: true, razorpayWebhookSecretEnc: true } as const;
+const SEL_RZP_NONGST = {
+  razorpayNonGstKeyId: true,
+  razorpayNonGstKeySecretEnc: true,
+  razorpayNonGstWebhookSecretEnc: true,
+} as const;
 
 /**
  * Decrypt an encrypted secret, NEVER throwing. A corrupt/undecryptable stored value
@@ -367,6 +372,86 @@ export async function resolveRazorpayConfig(tenantId: string | null): Promise<Ra
     keySecret: orEnv(safeDecrypt(s?.razorpayKeySecretEnc), isPlatform, "RAZORPAY_KEY_SECRET", env.RAZORPAY_KEY_SECRET),
     webhookSecret: orEnv(safeDecrypt(s?.razorpayWebhookSecretEnc), isPlatform, "RAZORPAY_WEBHOOK_SECRET", env.RAZORPAY_WEBHOOK_SECRET),
   };
+}
+
+/**
+ * WHICH of a tenant's two Razorpay accounts a call means.
+ *
+ * "GST" is the primary account - the one the funnel has always used and the only one
+ * `resolveRazorpayConfig` serves. "NON_GST" is the optional second account, for
+ * clients who will not pay the tax on top.
+ */
+export type RazorpayAccountKind = "GST" | "NON_GST";
+
+/** Narrow an untrusted string (a stored column, a form value) to an account kind. */
+export function asRazorpayAccount(v: string | null | undefined): RazorpayAccountKind {
+  return v === "NON_GST" ? "NON_GST" : "GST";
+}
+
+/**
+ * Resolve the NON-GST account for a tenant.
+ *
+ * 🔴 NO ENV FALLBACK, not even for the platform. Env is for launching the app, and a
+ * second account that could silently come from a variable is a second way for money to
+ * land somewhere nobody chose. Blank here means the account is simply not offered.
+ */
+async function resolveRazorpayNonGstConfig(tenantId: string | null): Promise<RazorpayConfig> {
+  const s = (await settingRow(tenantId, SEL_RZP_NONGST)) as {
+    razorpayNonGstKeyId: string | null;
+    razorpayNonGstKeySecretEnc: string | null;
+    razorpayNonGstWebhookSecretEnc: string | null;
+  } | null;
+  return {
+    keyId: s?.razorpayNonGstKeyId?.trim() || null,
+    keySecret: safeDecrypt(s?.razorpayNonGstKeySecretEnc),
+    webhookSecret: safeDecrypt(s?.razorpayNonGstWebhookSecretEnc),
+  };
+}
+
+/**
+ * Resolve ONE named account for a tenant. The only accessor that takes an account
+ * argument, and therefore the only way the non-GST keys can be reached at all.
+ *
+ * 🔴 Platform BILLING never calls this. Subscriptions resolve their keys through
+ * `resolveRazorpayConfig(null)`, which has no account parameter, so an Assess360
+ * subscription cannot be charged on a tenant's non-GST account even by a later edit
+ * that forgets the rule - there is no call path to forget.
+ */
+export async function resolveRazorpayAccount(
+  tenantId: string | null,
+  account: RazorpayAccountKind,
+): Promise<RazorpayConfig> {
+  return account === "NON_GST" ? resolveRazorpayNonGstConfig(tenantId) : resolveRazorpayConfig(tenantId);
+}
+
+/**
+ * BOTH accounts for a tenant, for the webhook - which cannot know in advance which
+ * account signed the request it is holding, because Razorpay points both dashboards at
+ * the same URL. The caller tries each secret and rejects when neither matches.
+ */
+export async function resolveRazorpayAccounts(
+  tenantId: string | null,
+): Promise<{ account: RazorpayAccountKind; config: RazorpayConfig }[]> {
+  const [gst, nonGst] = await Promise.all([
+    resolveRazorpayConfig(tenantId),
+    resolveRazorpayNonGstConfig(tenantId),
+  ]);
+  return [
+    { account: "GST" as const, config: gst },
+    { account: "NON_GST" as const, config: nonGst },
+  ];
+}
+
+/**
+ * The tenant's standing description for a payment page - what the client reads above
+ * the amount and on their card statement. Blank is normal and the caller supplies its
+ * own fallback; this returns null rather than inventing a business name.
+ */
+export async function resolvePaymentLinkDescription(tenantId: string | null): Promise<string | null> {
+  const s = (await settingRow(tenantId, { paymentLinkDescription: true })) as {
+    paymentLinkDescription: string | null;
+  } | null;
+  return s?.paymentLinkDescription?.trim() || null;
 }
 
 /**

@@ -10,6 +10,8 @@ import {
   updateMetaSettings,
   updateMetaNotUsed,
   updateRazorpaySettings,
+  updateRazorpayNonGstSettings,
+  updatePaymentLinkDescription,
   updateHeatmapSettings,
   updateVidapulseSettings,
 } from "@/features/workspace/actions/integrations";
@@ -19,6 +21,8 @@ import {
   getPlatformIntegrationSettings,
   updatePlatformMetaSettings,
   updatePlatformRazorpaySettings,
+  updatePlatformRazorpayNonGstSettings,
+  updatePlatformPaymentLinkDescription,
   updatePlatformHeatmapSettings,
   updatePlatformVidapulseSettings,
   getLegalSettings,
@@ -115,6 +119,12 @@ export default async function SettingsPage() {
             initial={integrations}
             saveMetaAction={impersonating ? updateMetaSettings : updatePlatformMetaSettings}
             saveRazorpayAction={impersonating ? updateRazorpaySettings : updatePlatformRazorpaySettings}
+            saveRazorpayNonGstAction={
+              impersonating ? updateRazorpayNonGstSettings : updatePlatformRazorpayNonGstSettings
+            }
+            savePayDescriptionAction={
+              impersonating ? updatePaymentLinkDescription : updatePlatformPaymentLinkDescription
+            }
             saveVidapulseAction={impersonating ? updateVidapulseSettings : updatePlatformVidapulseSettings}
             // The publish lock is a TENANT rule and super admins are exempt from it, so
             // the opt-out is offered only while a workspace is entered - and even then it

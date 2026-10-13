@@ -3,6 +3,7 @@ import { responseLimitFor } from "@/lib/billing/gate";
 import { listSubmissions, getAssessmentForAnalytics, listAssessments } from "@/features/assessment/data";
 import { AssessmentPicker } from "@/features/admin/components/assessment-picker";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
+import { listPaymentLinks, configuredPaymentAccounts, getProductSalesBySubmission } from "@/features/payments/data";
 import { labeledAnswers } from "@/features/assessment/custom-fields";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { pickResultUrl, vidapulseParamForTenant } from "@/lib/events/completion";
@@ -54,6 +55,11 @@ export default async function WorkspaceSubmissionsPage({
   const lockedCount = submissions.reduce((n, s) => (isLockedLead(s) ? n + 1 : n), 0);
   const visibleSubmissions = submissions.filter((s) => !isLockedLead(s));
   const paid = await getPaidBySubmission(visibleSubmissions.map((s) => s.id));
+  const [payAccounts, payLinks, productSales] = await Promise.all([
+    configuredPaymentAccounts(tenantId),
+    listPaymentLinks(visibleSubmissions.map((s) => s.id)),
+    getProductSalesBySubmission(visibleSubmissions.map((s) => s.id)),
+  ]);
   const rows: SubmissionRow[] = visibleSubmissions.map((s) => {
     const p = paid.get(s.id);
     return {
@@ -90,6 +96,9 @@ export default async function WorkspaceSubmissionsPage({
         : null,
       paidAmount: p?.amount ?? null,
       paidAt: p?.at ?? null,
+      productPaidAmount: productSales.get(s.id)?.amount ?? null,
+      productPaidAt: productSales.get(s.id)?.at ?? null,
+      paymentLinks: payLinks.get(s.id) ?? [],
       vslLoads: s.resultFetchCount,
       ctaClickedAt: s.ctaClickedAt?.toISOString() ?? null,
       metaQualifiedAt: s.metaQualifiedAt?.toISOString() ?? null,
@@ -185,7 +194,7 @@ export default async function WorkspaceSubmissionsPage({
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions yet.</p>
       ) : (
-        <SubmissionsTable rows={rows} exportBase="/api/w/submissions/export" canDelete={canDelete} hideGroupTitle={!!scoped} basePath="/w/submissions" />
+        <SubmissionsTable rows={rows} exportBase="/api/w/submissions/export" canDelete={canDelete} hideGroupTitle={!!scoped} basePath="/w/submissions" payAccounts={payAccounts} />
       )}
     </div>
   );

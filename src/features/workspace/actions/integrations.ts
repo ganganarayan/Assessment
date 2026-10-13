@@ -35,6 +35,13 @@ export interface IntegrationSettingsView {
   razorpayKeyId: string;
   hasRazorpaySecret: boolean;
   hasRazorpayWebhookSecret: boolean;
+  /** The SECOND, optional account - the one whose invoices carry no GST. Blank is a
+   *  perfectly normal state: a tenant may hold one account, both, or neither. */
+  razorpayNonGstKeyId: string;
+  hasRazorpayNonGstSecret: boolean;
+  hasRazorpayNonGstWebhookSecret: boolean;
+  /** What a client reads on a payment page and on their receipt. */
+  paymentLinkDescription: string;
   /** Where THIS tenant must point Razorpay → Settings → Webhooks. */
   webhookUrl: string;
   /** Where THIS tenant points an EXTERNAL gateway's success redirect. One string for
@@ -82,6 +89,10 @@ export async function getIntegrationSettings(): Promise<IntegrationSettingsView>
     razorpayKeyId: s?.razorpayKeyId ?? "",
     hasRazorpaySecret: !!s?.razorpayKeySecretEnc,
     hasRazorpayWebhookSecret: !!s?.razorpayWebhookSecretEnc,
+    razorpayNonGstKeyId: s?.razorpayNonGstKeyId ?? "",
+    hasRazorpayNonGstSecret: !!s?.razorpayNonGstKeySecretEnc,
+    hasRazorpayNonGstWebhookSecret: !!s?.razorpayNonGstWebhookSecretEnc,
+    paymentLinkDescription: s?.paymentLinkDescription ?? "",
     webhookUrl: `${base}/api/payments/razorpay/${tenant?.slug ?? ""}`,
     paymentReturnUrl: `${base}/api/pay/return/${tenant?.slug ?? ""}`,
     heatmapCode: s?.heatmapCode ?? "",
@@ -211,6 +222,54 @@ export async function updateRazorpaySettings(
       ? { razorpayWebhookSecretEnc: encryptWithSecret(webhookSecret.trim(), env.BETTER_AUTH_SECRET) }
       : {}),
   };
+  await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { id: tenantAppSettingId(tenantId), tenantId, ...data } });
+  revalidatePath("/w/settings");
+  return { ok: true };
+}
+
+/**
+ * Save the SECOND Razorpay account - the non-GST one.
+ *
+ * A separate action from updateRazorpaySettings, writing separate columns, because the
+ * two accounts must never be able to overwrite each other: they are different legal
+ * entities' worth of consequence, and one form that saved "the keys" would be one typo
+ * away from collecting GST-invoiced money on the account that does not charge it.
+ *
+ * Blank stays blank. Neither account is required, because a tenant may collect no
+ * money at all through this platform, and nothing here is allowed to imply otherwise.
+ *
+ * 🔴 These keys are for the tenant's OWN clients. They cannot be used for an Assess360
+ * subscription: billing resolves its keys through an accessor that has no account
+ * argument, so there is no path from this column to a platform charge.
+ */
+export async function updateRazorpayNonGstSettings(
+  keyId: string,
+  keySecret: string,
+  webhookSecret: string,
+): Promise<ActionResult> {
+  const { user, tenantId } = await requireWorkspace();
+  const denied = editDenied(user);
+  if (denied) return denied;
+  const data = {
+    razorpayNonGstKeyId: keyId.trim() || null,
+    ...(keySecret.trim()
+      ? { razorpayNonGstKeySecretEnc: encryptWithSecret(keySecret.trim(), env.BETTER_AUTH_SECRET) }
+      : {}),
+    ...(webhookSecret.trim()
+      ? { razorpayNonGstWebhookSecretEnc: encryptWithSecret(webhookSecret.trim(), env.BETTER_AUTH_SECRET) }
+      : {}),
+  };
+  await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { id: tenantAppSettingId(tenantId), tenantId, ...data } });
+  revalidatePath("/w/settings");
+  return { ok: true };
+}
+
+/** Save the line a client reads on a payment page and on their card statement. */
+export async function updatePaymentLinkDescription(text: string): Promise<ActionResult> {
+  const { user, tenantId } = await requireWorkspace();
+  const denied = editDenied(user);
+  if (denied) return denied;
+  const data = { paymentLinkDescription: text.trim().slice(0, 200) || null };
   await prisma.appSetting.upsert({ where: { tenantId }, update: data, create: { id: tenantAppSettingId(tenantId), tenantId, ...data } });
   revalidatePath("/w/settings");
   return { ok: true };

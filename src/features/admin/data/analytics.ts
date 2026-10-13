@@ -107,7 +107,7 @@ export async function getAnalyticsStats(
   // ad-review agent) are recorded but never counted as traffic.
   const humanScope = { ...scope, isBot: false };
 
-  const [totalViews, uniqueVisitors, optins, completed, vslLoads, paidAgg, disqualified, disqualifiedRepeat, qualified, gatePassers, optinIds, fired] = await Promise.all([
+  const [totalViews, uniqueVisitors, optins, completed, vslLoads, paidAgg, productAgg, disqualified, disqualifiedRepeat, qualified, gatePassers, optinIds, fired] = await Promise.all([
     prisma.pageView.count({ where: humanScope }),
     // distinct visitorId rows; length = unique views (no raw SQL).
     prisma.pageView.findMany({ where: humanScope, select: { visitorId: true }, distinct: ["visitorId"] }),
@@ -122,6 +122,15 @@ export async function getAnalyticsStats(
     // with no app submissionId) are never counted as assessment sales.
     prisma.payment.aggregate({
       where: { ...scope, purpose: "assessment_unlock", status: "captured", submissionId: { not: null } },
+      _count: { _all: true },
+      _sum: { amount: true },
+    }),
+    // Captured PRODUCT sales (hand-sent payment links) in the same window - the final
+    // purchase, counted NEXT TO the consultation above and never added into it. One is
+    // what the funnel converted, the other is what was then sold; a single total would
+    // make every ad report read as though the funnel had done both.
+    prisma.payment.aggregate({
+      where: { ...scope, purpose: "product_sale", status: "captured", submissionId: { not: null } },
       _count: { _all: true },
       _sum: { amount: true },
     }),
@@ -229,6 +238,8 @@ export async function getAnalyticsStats(
     vslLoads,
     paidCount: paidAgg._count._all,
     paidAmount: (paidAgg._sum.amount ?? 0) / 100, // paise -> rupees
+    productSaleCount: productAgg._count._all,
+    productSaleAmount: (productAgg._sum.amount ?? 0) / 100, // paise -> rupees
     // Turned away = the rejections only. Routed-in people are counted beside them, not
     // inside them; the two queries share a where clause, so the split always adds up.
     disqualified: Math.max(0, disqualified - routedOn),
