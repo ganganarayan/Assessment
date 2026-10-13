@@ -7,6 +7,7 @@ import { resolveActingScope, actingConfigTenantId } from "@/lib/tenant/acting";
 import { isPlatformScope, PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
 import { getAudienceListsForTenant } from "@/features/admin/actions/audience-list";
+import { getAdAccountsForTenant } from "@/features/admin/actions/ad-account";
 import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
 import { CategoriesManager } from "@/features/assessment/components/admin/categories-manager";
 import { env } from "@/lib/env";
@@ -53,6 +54,8 @@ export default async function EditAssessmentPage({
   const configTenantId = await actingConfigTenantId();
   const promptVersions = (await listPromptVersions(configTenantId)).map((v) => ({ id: v.id, label: v.label }));
   const audienceLists = await getAudienceListsForTenant(configTenantId);
+  // The accounts the Meta tracking step may point this funnel at.
+  const adAccounts = await getAdAccountsForTenant(configTenantId);
 
   const initial: AssessmentFormValues = {
     title: a.title,
@@ -119,6 +122,7 @@ export default async function EditAssessmentPage({
     // Merge onto the defaults so a legacy gate (no mode/freeTextRequired) loads as a
     // well-formed DROPDOWN rather than with undefined fields.
     audienceGate: { ...EMPTY_AUDIENCE_GATE, ...((a.audienceGate as unknown as Partial<AudienceGateInput> | null) ?? {}) },
+    adAccountId: a.adAccountId ?? "",
     fireMetaCapi: a.fireMetaCapi,
     // null (never set) reads as every event on, matching what the assessment already does.
     metaEvents: readMetaEvents(a.metaEvents),
@@ -270,7 +274,7 @@ export default async function EditAssessmentPage({
         />
       </BuilderStep>
 
-      <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} audienceLists={audienceLists} canPlatformSignup={canPlatformSignup} />
+      <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} audienceLists={audienceLists} adAccounts={adAccounts} canPlatformSignup={canPlatformSignup} />
 
       <BuilderStep step="gate">
       <section className="flex flex-col gap-3">

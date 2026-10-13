@@ -51,6 +51,60 @@ export async function assertCanCreateAssessment(tenantId: string | null): Promis
   return used >= limit ? { ok: false, limit, used } : { ok: true };
 }
 
+// --- Ad accounts (hard cap) -------------------------------------------------
+
+export type CreateAdAccountGate =
+  | { ok: true }
+  | { ok: false; limit: number; used: number };
+
+/**
+ * Whether the tenant may configure one more ad account. HARD: blocks at the cap.
+ *
+ * 🔴 WHY THIS EXISTS AT ALL. The pricing page has metered ad accounts (1 / 2 / 10 / 25)
+ * since launch, `PlanLimits.adAccounts` has carried the number since the billing work,
+ * and NOTHING read it - so every plan's ad-account line was decorative and a Gate
+ * customer could run as many as they liked. A published limit nobody enforces is not a
+ * generous default, it is a price list that does not describe the product.
+ *
+ * The SETTINGS write-through is deliberately NOT metered (see updateMetaSettings): it
+ * moves a tenant's existing pixel out of the legacy columns into the row that replaced
+ * them, which adds no capacity. Metering it would mean a Gate tenant, capped at one,
+ * could not save the one pixel they already had.
+ */
+export async function assertCanCreateAdAccount(tenantId: string | null): Promise<CreateAdAccountGate> {
+  if (!isBusinessTenant(tenantId)) return { ok: true };
+  const { limits } = await resolvePlan(tenantId);
+  const limit = limits.adAccounts;
+  const used = await prisma.adAccount.count({ where: { tenantId } });
+  return used >= limit ? { ok: false, limit, used } : { ok: true };
+}
+
+// --- Seats (hard cap) -------------------------------------------------------
+
+export type AddSeatGate =
+  | { ok: true }
+  | { ok: false; limit: number; used: number };
+
+/**
+ * Whether the tenant may add one more user. HARD: blocks at the cap.
+ *
+ * As unenforced as ad accounts were: "1 / 3 / 10 users" was published, metered in the
+ * catalog, and read by nothing but the usage meter.
+ *
+ * 🔴 SOFT-DELETED USERS DO NOT COUNT, and that is not a detail. `User.deletedAt` exists
+ * and the usage meter counted every row regardless, so gating on that count would have
+ * told a Signal tenant who had hired and removed two staff that their three seats were
+ * full - a refusal they could not act on, about people who no longer have access. A seat
+ * is an active user.
+ */
+export async function assertCanAddSeat(tenantId: string | null): Promise<AddSeatGate> {
+  if (!isBusinessTenant(tenantId)) return { ok: true };
+  const { limits } = await resolvePlan(tenantId);
+  const limit = limits.seats;
+  const used = await prisma.user.count({ where: { tenantId, deletedAt: null } });
+  return used >= limit ? { ok: false, limit, used } : { ok: true };
+}
+
 // --- Responses (capture-but-lock) -------------------------------------------
 
 /**

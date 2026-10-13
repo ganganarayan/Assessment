@@ -36,9 +36,18 @@ export async function getPlatformIntegrationSettings(): Promise<IntegrationSetti
     // they are from the parked rule, so the platform row never needs the opt-out and
     // this is false rather than read from the singleton.
     metaNotUsed: false,
+    // The platform does not own ad accounts: its pixel lives in platformPixelId and is
+    // read by resolvePlatformMetaConfig. Zero here keeps the shared form from offering
+    // a workspace feature in a scope that has none.
+    adAccountCount: 0,
+    defaultAdAccountLabel: null,
     razorpayKeyId: s?.razorpayKeyId ?? "",
     hasRazorpaySecret: !!s?.razorpayKeySecretEnc,
     hasRazorpayWebhookSecret: !!s?.razorpayWebhookSecretEnc,
+    razorpayNonGstKeyId: s?.razorpayNonGstKeyId ?? "",
+    hasRazorpayNonGstSecret: !!s?.razorpayNonGstKeySecretEnc,
+    hasRazorpayNonGstWebhookSecret: !!s?.razorpayNonGstWebhookSecretEnc,
+    paymentLinkDescription: s?.paymentLinkDescription ?? "",
     // The platform/Gita webhook is the un-suffixed route.
     webhookUrl: `${env.NEXT_PUBLIC_APP_URL}/api/payments/razorpay`,
     // The platform scope has no tenant slug to route a return to, and its own funnels
@@ -310,6 +319,45 @@ export async function updatePlatformRazorpaySettings(
       ? { razorpayWebhookSecretEnc: encryptWithSecret(webhookSecret.trim(), env.BETTER_AUTH_SECRET) }
       : {}),
   };
+  await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
+  revalidatePath("/admin/settings");
+  return { ok: true };
+}
+
+/**
+ * The platform's SECOND Razorpay account - the non-GST one, for the owner's own client
+ * acquisition (Apply Gita, Divine Leads) rather than for anything Assess360 charges.
+ *
+ * 🔴 Separate columns from the account above, and unreachable from billing: Assess360
+ * subscriptions resolve their keys through `resolveRazorpayConfig(null)`, which serves
+ * the GST columns and takes no account argument. A subscription cannot be charged here.
+ */
+export async function updatePlatformRazorpayNonGstSettings(
+  keyId: string,
+  keySecret: string,
+  webhookSecret: string,
+): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  const data = {
+    razorpayNonGstKeyId: keyId.trim() || null,
+    ...(keySecret.trim()
+      ? { razorpayNonGstKeySecretEnc: encryptWithSecret(keySecret.trim(), env.BETTER_AUTH_SECRET) }
+      : {}),
+    ...(webhookSecret.trim()
+      ? { razorpayNonGstWebhookSecretEnc: encryptWithSecret(webhookSecret.trim(), env.BETTER_AUTH_SECRET) }
+      : {}),
+  };
+  await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
+  revalidatePath("/admin/settings");
+  return { ok: true };
+}
+
+/** The line a client reads on a payment page for the platform's own funnels. */
+export async function updatePlatformPaymentLinkDescription(text: string): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  const data = { paymentLinkDescription: text.trim().slice(0, 200) || null };
   await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
   revalidatePath("/admin/settings");
   return { ok: true };

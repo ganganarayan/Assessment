@@ -74,6 +74,7 @@ const SECTIONS: NavSection[] = [
   {
     title: "Automation",
     items: [
+      { href: "/admin/ad-accounts", label: "Ad accounts" },
       { href: "/admin/nurture", label: "Nurture" },
       { href: "/admin/webhooks", label: "Webhooks", exact: true },
       { href: "/admin/webhook-logs", label: "Webhook Logs" },

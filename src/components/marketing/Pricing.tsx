@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { CtaLink } from "./CtaLink";
 import { cn } from "@/lib/utils";
+import { type CtaConfig } from "@/lib/settings/config";
 import {
-  MARKETING,
   TIERS,
   PLAN_MATRIX,
   PLAN_NAMES,
@@ -27,7 +27,7 @@ import {
  *
  * So: never replace this with a conditional that renders only the active price.
  */
-export function Pricing() {
+export function Pricing({ cta }: { cta: CtaConfig }) {
   const [annual, setAnnual] = useState(false);
 
   return (
@@ -107,15 +107,18 @@ export function Pricing() {
                 {tier.blurb}
               </p>
 
-              <Link
-                href={MARKETING.signupHref}
+              <CtaLink
+                href={cta.href}
                 className={cn(
                   "mt-5",
                   buttonVariants({ variant: tier.highlight ? "default" : "outline" }),
                 )}
               >
-                {tier.cta}
-              </Link>
+                {/* The priced tiers all carry the trial label, which the owner edits in
+                    one place; "Talk to us" on Enterprise is the tier's own word and stays
+                    whatever the table says. */}
+                {tier.amount === null ? tier.cta : cta.trialLabel}
+              </CtaLink>
 
               <ul className="mt-6 space-y-3 border-t pt-6">
                 {tier.features.map((f) => (

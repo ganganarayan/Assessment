@@ -10,6 +10,19 @@ export const MARKETING = {
   // Internal links - same domain, same service.
   signupHref: "/sign-up",
   signinHref: "/sign-in",
+  /**
+   * 🟡 WHERE EVERY CALL TO ACTION GOES.
+   *
+   * Not /sign-up and not /build: the platform sells itself with its own product, so a
+   * visitor who is interested takes the scorecard first and we see what they answered
+   * before they ever see a pricing table. One constant, because the slug has to be
+   * changeable in one edit - and because a slug hardcoded in nineteen components is a
+   * slug that gets half-changed.
+   *
+   * Always linked through <CtaLink>, which keeps the ad's utm/click-id params on the
+   * URL into the funnel; the funnel then carries them on to /sign-up.
+   */
+  ctaHref: "/a/paying-for-junk-leads",
   heroImage: "/hero-scorecard.png",
   // NOTE: no ogImage key. The share card is GENERATED at /opengraph-image (see
   // app/opengraph-image.tsx) and injected into every route by Next's file convention,
@@ -41,6 +54,33 @@ export const MARKETING = {
   organizationDescription:
     "Assess360 builds lead qualification software: hosted scorecards that score each enquiry against the criteria a business sets, and report the qualified ones back to the ad platform that produced them.",
 } as const;
+
+// ---------------------------------------------------------------------------
+//  Button labels. Declared here, above everything that reads them, because TIERS
+//  and HERO are module-level consts: a label defined further down the file would be
+//  in its temporal dead zone when they initialise, and the page would not render.
+// ---------------------------------------------------------------------------
+
+/**
+ * The label on every trial button: nav, hero secondary, all three priced tiers, and
+ * the SEO blocks. One constant, because the same words used to be typed out in four
+ * separate components - which is how "Start 14-day trial" came to sit on buttons that
+ * open a scorecard.
+ *
+ * It says QUALIFY because that is what the button now does. The click opens the
+ * scorecard, not a signup form, and the trial it leads to is the one TRIAL_NOTE
+ * describes directly underneath - so the offer is still on the page, in the line that
+ * can carry its conditions.
+ */
+export const TRIAL_CTA = "Qualify me for 14 days trial";
+
+/**
+ * The label on the done-for-you buttons: hero primary, the metering section, the
+ * built-with-you block, the comparison pages, the industry offer and the calculator.
+ * Same destination as TRIAL_CTA (the scorecard); different framing, for the reader who
+ * would rather we built it than drive the builder themselves.
+ */
+export const DFY_CTA = "Qualify, build my free scorecard";
 
 export const NAV_LINKS: ReadonlyArray<{ label: string; href: string }> = [
   { label: "How it works", href: "#how" },
@@ -240,7 +280,7 @@ export const TIERS: ReadonlyArray<Tier> = [
       "1 user · 1 ad account",
       "Assess360 badge shown",
     ],
-    cta: "Start 14-day trial",
+    cta: TRIAL_CTA,
   },
   {
     name: "Signal",
@@ -261,7 +301,7 @@ export const TIERS: ReadonlyArray<Tier> = [
       "Conditional exit routes + score bands",
       "3 users · 2 ad accounts",
     ],
-    cta: "Start 14-day trial",
+    cta: TRIAL_CTA,
     highlight: true,
     badge: "14-day trial",
   },
@@ -454,8 +494,8 @@ export const HERO = {
   // cost you a click, it teaches the auction to go and find more of him.
   headline: "You are not paying for bad leads once. You are teaching Meta to find more of them.",
   sub: "A gate runs before the opt-in, so wrong-fit traffic never becomes a lead record. Everyone who passes is scored against criteria you weight. Then only the qualified ones report back to Meta, and the rejected ones build an exclusion audience. Your campaigns stop shopping in the wrong aisle, and your cost per qualified lead falls.",
-  primaryCta: "Get my scorecard built free",
-  secondaryCta: "Start 14-day trial",
+  primaryCta: DFY_CTA,
+  secondaryCta: TRIAL_CTA,
 } as const;
 
 /**
@@ -501,10 +541,13 @@ export const NO_GOOD_LEAD = {
 
 /** The done-for-you offer. One place, because it appears on most public surfaces. */
 export const DFY = {
-  href: "/build",
+  // No `href` any more. Every CTA on every surface now goes to MARKETING.ctaHref (the
+  // funnel), so a constant that still said "/build" was a second front door waiting for
+  // somebody to link it by accident. The /build page itself is unchanged and still
+  // reachable; it is just no longer what the buttons point at.
   heading: "We build your first scorecard with you, free, on one 30-minute call",
   body: "Tell us what you sell and who wastes your time. We write the gate, the questions, the weights and the result bands, and bring the draft to a 30-minute call where we wire it to your ads and put it live. You do not touch the builder unless you want to.",
-  cta: "Get my scorecard built free",
+  cta: DFY_CTA,
 } as const;
 
 /**

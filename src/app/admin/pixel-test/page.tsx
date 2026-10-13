@@ -6,12 +6,15 @@ import { CapiLogPanel } from "@/features/events/components/capi-log-panel";
 import { listRecentPurchases, listCapiLogs } from "@/features/events/data";
 import { getPurchaseSettingsForm } from "@/features/events/actions/capi-test";
 import { actingTenantId } from "@/lib/tenant/acting";
+import { getAdAccountsView } from "@/features/admin/actions/ad-account";
 
 export const dynamic = "force-dynamic";
 
 export default async function PixelTestPage() {
   // Scope to the entered tenant when impersonating; null = platform/Gita.
   const t = await actingTenantId();
+  // So a workspace with several accounts can test the one it is worried about.
+  const adAccounts = (await getAdAccountsView()).accounts.map((a) => ({ id: a.id, label: a.label, isDefault: a.isDefault }));
   const purchases = await listRecentPurchases(t);
   const capiLogs = await listCapiLogs(t);
   const purchaseSettings = await getPurchaseSettingsForm();
@@ -30,7 +33,7 @@ export default async function PixelTestPage() {
 
       <PixelTester />
 
-      <CapiTester />
+      <CapiTester accounts={adAccounts} />
 
       <div className="rounded-lg border border-blue-500/40 bg-blue-500/10 p-3 text-xs text-[var(--muted-foreground)]">
         <strong className="text-[var(--foreground)]">Purchase dedup rule.</strong> This app fires the

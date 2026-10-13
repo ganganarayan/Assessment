@@ -2,6 +2,7 @@ import { listSubmissions, getAssessmentForAnalytics, listAssessments } from "@/f
 import { actingTenantId, actingDataScope } from "@/lib/tenant/acting";
 import { AssessmentPicker } from "@/features/admin/components/assessment-picker";
 import { getPaidBySubmission } from "@/features/admin/data/payments";
+import { listPaymentLinks, configuredPaymentAccounts, getProductSalesBySubmission } from "@/features/payments/data";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { getStatsFloor } from "@/lib/stats-floor";
@@ -69,6 +70,16 @@ export default async function SubmissionsPage({
   // Effective reporting floor (Data window) actually applied to this list.
   const effectiveFloor: Date | null = scoped ? scoped.statsResetAt : await getStatsFloor(t);
   const paid = await getPaidBySubmission(submissions.map((s) => s.id));
+  // Payment links are per TENANT (their Razorpay keys), and this list is always one
+  // assessment - so the rows themselves name the tenant, which is more reliable here
+  // than the acting cookie (a super admin reading a tenant's assessment from the
+  // console has entered no workspace).
+  const payTenantId = submissions[0]?.tenantId ?? t;
+  const [payAccounts, payLinks, productSales] = await Promise.all([
+    configuredPaymentAccounts(payTenantId),
+    listPaymentLinks(submissions.map((s) => s.id)),
+    getProductSalesBySubmission(submissions.map((s) => s.id)),
+  ]);
   // Does this (scoped) assessment have a published native VSL result page? If so, the
   // Result-URL cell shows BOTH the primary link and the native /a/…/r link (each with
   // its own Copy), except when the primary link IS already the native one (RESULTS mode
@@ -117,6 +128,9 @@ export default async function SubmissionsPage({
           : null,
       paidAmount: p?.amount ?? null,
       paidAt: p?.at ?? null,
+      productPaidAmount: productSales.get(s.id)?.amount ?? null,
+      productPaidAt: productSales.get(s.id)?.at ?? null,
+      paymentLinks: payLinks.get(s.id) ?? [],
       vslLoads: s.resultFetchCount,
       ctaClickedAt: s.ctaClickedAt?.toISOString() ?? null,
       metaQualifiedAt: s.metaQualifiedAt?.toISOString() ?? null,
@@ -190,7 +204,7 @@ export default async function SubmissionsPage({
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions yet.</p>
       ) : (
-        <SubmissionsTable rows={rows} canDelete hideGroupTitle={!!scoped} basePath="/admin/submissions" />
+        <SubmissionsTable rows={rows} canDelete hideGroupTitle={!!scoped} basePath="/admin/submissions" payAccounts={payAccounts} />
       )}
     </div>
   );

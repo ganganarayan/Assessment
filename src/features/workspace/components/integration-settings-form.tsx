@@ -10,6 +10,7 @@ type SaveResult = { ok: boolean; error?: string };
 type SaveMeta = (pixelId: string, capiToken: string) => Promise<SaveResult>;
 type SaveRazorpay = (keyId: string, keySecret: string, webhookSecret: string) => Promise<SaveResult>;
 type SaveVidapulse = (param: string, enabled: boolean) => Promise<SaveResult>;
+type SavePayDescription = (text: string) => Promise<SaveResult>;
 type SaveMetaNotUsed = (notUsed: boolean) => Promise<SaveResult>;
 
 /**
@@ -22,6 +23,8 @@ export function IntegrationSettingsForm({
   initial,
   saveMetaAction,
   saveRazorpayAction,
+  saveRazorpayNonGstAction,
+  savePayDescriptionAction,
   saveVidapulseAction,
   saveMetaNotUsedAction,
   banner,
@@ -30,6 +33,9 @@ export function IntegrationSettingsForm({
   initial: IntegrationSettingsView;
   saveMetaAction: SaveMeta;
   saveRazorpayAction: SaveRazorpay;
+  /** The second, non-GST account. Same shape, different columns. */
+  saveRazorpayNonGstAction: SaveRazorpay;
+  savePayDescriptionAction: SavePayDescription;
   saveVidapulseAction: SaveVidapulse;
   /** Supplied by a TENANT scope only. The publish lock is a tenant rule, so the
    *  platform row has no opt-out to offer and the control is simply absent there. */
@@ -50,6 +56,10 @@ export function IntegrationSettingsForm({
   const [keyId, setKeyId] = useState(initial.razorpayKeyId);
   const [keySecret, setKeySecret] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
+  const [ngKeyId, setNgKeyId] = useState(initial.razorpayNonGstKeyId);
+  const [ngKeySecret, setNgKeySecret] = useState("");
+  const [ngWebhookSecret, setNgWebhookSecret] = useState("");
+  const [payDescription, setPayDescription] = useState(initial.paymentLinkDescription);
   const [vpParam, setVpParam] = useState(initial.vidapulseParam);
   const [vpEnabled, setVpEnabled] = useState(initial.vidapulseTrackingEnabled);
   const [msg, setMsg] = useState<string | null>(null);
@@ -74,6 +84,24 @@ export function IntegrationSettingsForm({
       }
     });
 
+  const saveRazorpayNonGst = () =>
+    start(async () => {
+      setMsg(null);
+      const r = await saveRazorpayNonGstAction(ngKeyId, ngKeySecret, ngWebhookSecret);
+      setMsg(r.ok ? "Non-GST Razorpay settings saved." : r.error ?? "Something went wrong.");
+      if (r.ok) {
+        setNgKeySecret("");
+        setNgWebhookSecret("");
+      }
+    });
+
+  const savePayDescription = () =>
+    start(async () => {
+      setMsg(null);
+      const r = await savePayDescriptionAction(payDescription);
+      setMsg(r.ok ? "Payment page description saved." : r.error ?? "Something went wrong.");
+    });
+
   const saveVidapulse = () =>
     start(async () => {
       setMsg(null);
@@ -91,6 +119,27 @@ export function IntegrationSettingsForm({
       {/* Meta */}
       {showMeta ? (
       <div className="flex flex-col gap-3">
+        {/* Which account these two fields edit. Without this line a workspace running
+            several ad accounts reads one pixel field here and reasonably concludes it is
+            THE pixel - then changes it and wonders why one funnel never moved. */}
+        {initial.adAccountCount > 0 ? (
+          <p className="text-xs text-[var(--muted-foreground)]">
+            {initial.adAccountCount === 1 ? (
+              <>
+                These are the credentials of your ad account
+                {initial.defaultAdAccountLabel ? <strong> {initial.defaultAdAccountLabel}</strong> : null}. Running more than one?{" "}
+                <a href="/w/ad-accounts" className="underline">Ad accounts</a> holds them all.
+              </>
+            ) : (
+              <>
+                You have {initial.adAccountCount} ad accounts. These fields edit your DEFAULT one
+                {initial.defaultAdAccountLabel ? <strong> ({initial.defaultAdAccountLabel})</strong> : null} - the
+                one a funnel uses when it names none. Edit the others on{" "}
+                <a href="/w/ad-accounts" className="underline">Ad accounts</a>.
+              </>
+            )}
+          </p>
+        ) : null}
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Meta Pixel ID</Label>
           <Input value={pixelId} onChange={(e) => setPixelId(e.target.value)} placeholder="e.g. 1129238316012161" />
@@ -155,9 +204,15 @@ export function IntegrationSettingsForm({
       </div>
       ) : null}
 
-      {/* Razorpay */}
+      {/* Razorpay, account one: GST. These are the columns the funnel has always
+          used, relabelled rather than moved - renaming a live money column buys a
+          migration and risks a silent blank. */}
       <div className="flex flex-col gap-3 border-t pt-4">
-        <p className="text-sm font-medium">Razorpay</p>
+        <p className="text-sm font-medium">Razorpay - GST account</p>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Your main account: funnel payments and payment links run on this one unless you pick the
+          other. Leave it blank if you do not collect money here.
+        </p>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Key ID</Label>
           <Input value={keyId} onChange={(e) => setKeyId(e.target.value)} placeholder="rzp_live_..." />
@@ -180,7 +235,74 @@ export function IntegrationSettingsForm({
           <p className="text-xs text-[var(--muted-foreground)]">Events: payment.captured and payment_link.paid.</p>
         </div>
         <div>
-          <Button size="sm" onClick={saveRazorpay} disabled={pending}>Save Razorpay settings</Button>
+          <Button size="sm" onClick={saveRazorpay} disabled={pending}>Save GST Razorpay settings</Button>
+        </div>
+      </div>
+
+      {/* Razorpay, account two: non-GST. Optional, like the first - a workspace may
+          hold one, both or neither, and nothing in the product demands either. */}
+      <div className="flex flex-col gap-3 border-t pt-4">
+        <p className="text-sm font-medium">Razorpay - Non-GST account</p>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          A second account for clients who will not pay GST on top. Optional, and it is chosen per
+          payment link, so nothing moves to it by itself.{" "}
+          <strong>Never used for your Assess360 subscription</strong> - that is always billed on the
+          account above.
+        </p>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Key ID</Label>
+          <Input value={ngKeyId} onChange={(e) => setNgKeyId(e.target.value)} placeholder="rzp_live_..." />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">
+            Key secret {initial.hasRazorpayNonGstSecret ? <span className="text-green-600">(saved)</span> : null}
+          </Label>
+          <Input
+            type="password"
+            value={ngKeySecret}
+            onChange={(e) => setNgKeySecret(e.target.value)}
+            placeholder={initial.hasRazorpayNonGstSecret ? "••••••••" : "Key secret"}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">
+            Webhook secret{" "}
+            {initial.hasRazorpayNonGstWebhookSecret ? <span className="text-green-600">(saved)</span> : null}
+          </Label>
+          <Input
+            type="password"
+            value={ngWebhookSecret}
+            onChange={(e) => setNgWebhookSecret(e.target.value)}
+            placeholder={initial.hasRazorpayNonGstWebhookSecret ? "••••••••" : "Webhook signing secret"}
+          />
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Point this account&apos;s webhook at the SAME URL as the one above - we check the signature
+            against both accounts and record which one took the money.
+          </p>
+        </div>
+        <div>
+          <Button size="sm" onClick={saveRazorpayNonGst} disabled={pending}>Save Non-GST Razorpay settings</Button>
+        </div>
+      </div>
+
+      {/* What the client reads on a payment page. Editable because it is the tenant's
+          business name on someone else's card statement, not ours. */}
+      <div className="flex flex-col gap-3 border-t pt-4">
+        <p className="text-sm font-medium">Payment page description</p>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Shown on every payment link you send and on the client&apos;s Razorpay receipt. Blank uses the
+          assessment&apos;s name.
+        </p>
+        <div className="flex flex-col gap-1">
+          <Input
+            value={payDescription}
+            onChange={(e) => setPayDescription(e.target.value)}
+            maxLength={200}
+            placeholder="e.g. Consulting retainer - Divine Leads"
+          />
+        </div>
+        <div>
+          <Button size="sm" onClick={savePayDescription} disabled={pending}>Save description</Button>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import { MARKETING, TIERS, FAQS } from "@/lib/marketing/content";
+import { getCta } from "@/lib/settings/cta";
 import { Nav } from "./Nav";
 import { Hero } from "./Hero";
 import { Metering } from "./Metering";
@@ -66,11 +67,17 @@ const jsonLd = {
   ],
 };
 
-export function Landing({
+export async function Landing({
   videos,
 }: {
   videos?: { hero: string | null; tiles: Record<string, string> };
 }) {
+  // Read once here for the two CLIENT components below (the pricing table and, on
+  // other pages, the calculator). Every other section on this page is a server
+  // component and asks getCta() for itself; the request-level cache makes that one
+  // query either way.
+  const cta = await getCta();
+
   return (
     <>
       <script
@@ -109,7 +116,7 @@ export function Landing({
         <HowItWorks />
         <Capabilities videos={videos?.tiles} />
         <UseCases />
-        <Pricing />
+        <Pricing cta={cta} />
         <Faq />
         <FinalCta />
       </main>

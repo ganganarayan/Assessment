@@ -1,5 +1,5 @@
 import { requireWorkspace } from "@/lib/auth/guards";
-import { getIntegrationSettings, updateMetaSettings, updateMetaNotUsed, updateRazorpaySettings, updateHeatmapSettings, updateVidapulseSettings } from "@/features/workspace/actions/integrations";
+import { getIntegrationSettings, updateMetaSettings, updateMetaNotUsed, updateRazorpaySettings, updateRazorpayNonGstSettings, updatePaymentLinkDescription, updateHeatmapSettings, updateVidapulseSettings } from "@/features/workspace/actions/integrations";
 import { HeatmapSettingsForm } from "@/features/workspace/components/heatmap-settings-form";
 import { getDomainSettings } from "@/features/workspace/actions/domains";
 import { getBookingUrl } from "@/features/workspace/actions/booking";
@@ -79,6 +79,8 @@ export default async function WorkspaceSettingsPage() {
             initial={integrations}
             saveMetaAction={updateMetaSettings}
             saveRazorpayAction={updateRazorpaySettings}
+            saveRazorpayNonGstAction={updateRazorpayNonGstSettings}
+            savePayDescriptionAction={updatePaymentLinkDescription}
             saveVidapulseAction={updateVidapulseSettings}
             saveMetaNotUsedAction={updateMetaNotUsed}
           />

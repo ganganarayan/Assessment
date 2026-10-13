@@ -125,8 +125,8 @@ is how you silently break working funnels.
 |---|---|---|
 | Scorecards | 2 | hard cap at create - `assertCanCreateAssessment` (exists) |
 | Qualified responses | 150 / period | capture-but-lock (exists) |
-| Users | 1 | hard cap at invite (exists) |
-| Ad accounts | 1 | **new limit, new concept** - §5 |
+| Users | 1 | hard cap at invite - `assertCanAddSeat` (built 2026-10-13) |
+| Ad accounts | 1 | hard cap at create - `assertCanCreateAdAccount` (built 2026-10-13) |
 
 **On:** `qualificationGate`, `capi`, `exclusionAudiences`, `qualifiedOnlyEvent`,
 `matchKeys`, `conditionalRouting`, `pdfReports`, `webhooks`, `leadExport`, `repeatLock`,
@@ -182,14 +182,48 @@ per-tenant override `resolvePlan` already supports.
 
 ---
 
-## 5. Ad accounts, the one genuinely missing model
+## 5. Ad accounts - BUILT 2026-10-13
 
-The pricing meters "ad accounts" and the app has **no such concept**. A tenant has one
-Meta pixel/CAPI config in settings, full stop. Planned in §8; deferred until ads start.
+🟢 Shipped end to end. The model and the resolver landed on 2026-10-09; this is the rest
+of it, and the published "1 / 2 / 10 / 25" now describes the product.
 
-🟡 Until it is built, the "ad accounts" row on the published pricing page describes
-something the product does not have. That is a claim already in front of buyers, so it
-is the first thing to build when Agency work begins, not the last.
+| Piece | Where |
+|---|---|
+| Model + per-assessment column + backfill | `AdAccount`, `Assessment.adAccountId`, migration `20261009160000_ad_account` |
+| One resolver, one precedence | `resolveMetaConfig(tenantId, adAccountId)` in `settings/config.ts` |
+| Screens | `/w/ad-accounts`, `/admin/ad-accounts`, `features/admin/actions/ad-account.ts` |
+| Picker | builder step 11, Meta tracking |
+| Cap | `assertCanCreateAdAccount` in `gate.ts` |
+| Checks | `npm run verify:ad-accounts` |
+
+**Four things it had to fix beyond the obvious, each of them silent:**
+
+1. 🔴 **Settings wrote a column nothing read.** The backfill moved every tenant's pixel
+   into an `AdAccount` row and the resolver began preferring the row, while
+   `updateMetaSettings` kept writing `metaPixelId`. For a backfilled tenant, saving a
+   pixel changed nothing and reported success. It now writes the default account and
+   clears the legacy columns, so there is one source of truth from the first save.
+2. 🔴 **The resolver's ad-account argument was optional, so nobody passed it.** The
+   parameter existed from the day the model landed and every event in the app still went
+   to the tenant default. It is now REQUIRED on every sender, `null` meaning "the default"
+   as a deliberate answer. The compiler found all nine call sites in one pass.
+3. 🔴 **The publish lock was per tenant.** A funnel pointed at a second account published
+   on the strength of the first one's credentials and then reported nothing - the exact
+   failure the lock exists to prevent, reintroduced by the feature. It now resolves the
+   assessment's own account.
+4. 🔴 **A deferred fire had no account.** `capi_log` rows are fired minutes or days later
+   by the auto path or by hand, resolving from the tenant alone - so a sale captured on
+   one account was re-fired against another. Rows now carry `adAccountId`
+   (migration `20261013090000_capi_log_ad_account`) and prefer their own stamp.
+
+**Seats came with it.** "1 / 3 / 10 users" was published and enforced nowhere either;
+`assertCanAddSeat` closes it at `createStaff`. 🔴 It counts ACTIVE users only - the usage
+meter counted soft-deleted rows, so gating on that number would have refused seats a
+tenant had genuinely freed by removing staff.
+
+🟡 **Still open:** quantity-based overage ($15 per extra account) needs an additive
+purchased counter, which is billing rather than gating - see §8a. A manual grant works
+today through the existing per-tenant `limitOverrides.adAccounts`.
 
 ---
 
@@ -215,7 +249,7 @@ for tenants with no payment method on file.
 2. 🟢 New feature flags, each checked against current unconditional behaviour
 3. 🟢 Trial + parked read-only, including the trial countdown, the paused page and `readResponseLimit`
 4. 🟢 Badge component (Gate)
-5. 🔴 `AdAccount` model + per-tenant limit - §8a
+5. 🟢 `AdAccount` model + per-tenant limit + UI + picker - §5 *(built 2026-10-13)*
 6. 🔴 Qualified-response naming + overage billing
 7. 🔴 Agency: sub-accounts / white-label, its own project
 
@@ -239,7 +273,7 @@ round-trip need one real subscription put through before ad spend points at a si
 > Parked on 2026-10-01: build when ads start. Nothing here is approved; it exists so the
 > Gate/Signal work does not paint it into a corner.
 
-### 8a. `AdAccount`, build this first
+### 8a. `AdAccount` - BUILT, see §5 for what shipped
 
 Today a tenant has exactly one Meta configuration, living as columns on its `AppSetting`
 row (pixel id, dataset id, encrypted CAPI token). "Two ad accounts" is not expressible,
@@ -272,10 +306,13 @@ table, will diverge, and the failure is silent: events fire against the wrong pi
 nobody notices until an ad account reports numbers that make no sense. One accessor, used
 everywhere, switched once.
 
-**Metering:** `adAccounts` as a `PlanLimits` number, hard-capped at create. Overage is
-quantity-based ($15 each beyond the plan), so it needs a per-tenant `adAccountsPurchased`
-override that `resolvePlan` adds to the plan default, the same override mechanism
-Enterprise uses.
+**Metering:** 🟢 done - `adAccounts` is hard-capped at create by
+`assertCanCreateAdAccount`. 🔴 Overage is NOT: quantity-based billing ($15 each beyond the
+plan) needs an ADDITIVE `adAccountsPurchased` on the subscription, because
+`limitOverrides.adAccounts` REPLACES the plan value rather than adding to it. Deliberately
+left for the pricing phase: no real subscription has been put through this app yet, and a
+metered add-on is the worst possible thing to debut on. A comped extra account works today
+by setting the override by hand.
 
 ### 8b. Sub-accounts and white-label
 
@@ -317,9 +354,8 @@ than new machinery, the smallest piece of this tier.
 
 ### 8d. Suggested order, when it starts
 
-1. `AdAccount` + resolver + migration from AppSetting columns *(unblocks the published
-   pricing claim)*
-2. `adAccounts` limit + purchased-quantity override + $15 add-on
+1. 🟢 `AdAccount` + resolver + migration from AppSetting columns *(done 2026-10-13)*
+2. 🟢 `adAccounts` limit *(done)* · 🔴 purchased-quantity counter + $15 add-on *(pricing phase)*
 3. `TenantMembership` + parent/child tenants
 4. Agency workspace switcher
 5. White-label audit, then white-label

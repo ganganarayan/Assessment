@@ -148,7 +148,9 @@ export async function sweepGateAbandoned(): Promise<{ fired: number; scanned: nu
       region: true,
       postalCode: true,
       assessment: {
-        select: { slug: true, title: true, fireMetaCapi: true, metaEvents: true, tenantId: true },
+        // adAccountId: the sweep runs in the Railway cron, long after the visitor left,
+        // and must still report to the account THIS funnel uses.
+        select: { slug: true, title: true, fireMetaCapi: true, metaEvents: true, tenantId: true, adAccountId: true },
       },
     },
     take: BATCH,
@@ -182,6 +184,8 @@ export type AbandonCandidate = {
     fireMetaCapi: boolean;
     metaEvents: unknown;
     tenantId: string | null;
+    /** Which ad account the sweep's event reports to. null = the tenant's default. */
+    adAccountId: string | null;
   };
 };
 
@@ -246,7 +250,7 @@ export async function fireAbandonedForEntry(g: AbandonCandidate): Promise<boolea
       },
       customData: { content_name: g.assessment.title, assessment_name: g.assessment.title },
     },
-    { tenantId: g.assessment.tenantId, submissionId: null },
+    { tenantId: g.assessment.tenantId, adAccountId: g.assessment.adAccountId, submissionId: null },
   ).catch(() => ({ ok: false }) as { ok: boolean });
 
   // Counted like every other funnel event, so "Fired to Meta" can show the

@@ -31,6 +31,8 @@
     "verify:result": "tsx scripts/verify-result.ts",
     "verify:vsl": "tsx scripts/verify-vsl.ts",
     "verify:cta-stamp": "tsx scripts/verify-cta-stamp.ts",
+    "verify:cta-link": "tsx scripts/verify-cta-link.ts",
+    "verify:client-bundle": "tsx scripts/verify-client-bundle.ts",
     "verify:gate-abandoned": "tsx scripts/verify-gate-abandoned.ts",
     "verify:capi": "tsx scripts/verify-capi.ts",
     "verify:ai": "tsx scripts/verify-ai.ts",
@@ -41,12 +43,14 @@
     "verify:enrichment": "tsx scripts/verify-enrichment.ts",
     "reset:result-views": "tsx scripts/reset-result-views.ts",
     "verify:billing": "tsx scripts/verify-billing.ts",
+    "verify:ad-accounts": "tsx scripts/verify-ad-accounts.ts",
     "verify:owner-stamp": "tsx scripts/verify-owner-stamp.ts",
     "verify:seo": "tsx scripts/verify-seo.ts",
     "verify:support": "tsx scripts/verify-support.ts",
     "verify:audience-lists": "tsx scripts/verify-audience-lists.ts",
     "verify:exit-routes": "tsx scripts/verify-exit-routes.ts",
     "verify:payments": "tsx --conditions=react-server scripts/verify-payments.ts",
+    "verify:pay-links": "tsx --conditions=react-server scripts/verify-pay-links.ts",
     "verify:routing": "tsx scripts/verify-routing.ts",
     "verify:flow": "tsx scripts/verify-flow.ts",
     "verify:gate-flag": "tsx scripts/verify-gate-flag.ts",
@@ -61,7 +65,9 @@
     "verify:templates": "tsx scripts/verify-templates.ts",
     "verify:json-repair": "tsx scripts/verify-json-repair.ts",
     "templates:unpublish": "tsx --conditions=react-server scripts/unpublish-templates.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "qa": "tsx qa/src/cli.ts",
+    "qa:seed": "tsx qa/src/fixtures/cli.ts"
   },
   "prisma": {
     "seed": "tsx --conditions=react-server prisma/seed.ts"

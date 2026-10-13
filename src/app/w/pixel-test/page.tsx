@@ -6,6 +6,7 @@ import { CapiLogPanel } from "@/features/events/components/capi-log-panel";
 import { listRecentPurchases, listCapiLogs } from "@/features/events/data";
 import { getPurchaseSettingsForm } from "@/features/events/actions/capi-test";
 import { actingTenantId } from "@/lib/tenant/acting";
+import { getAdAccountsView } from "@/features/admin/actions/ad-account";
 import { requireWorkspace } from "@/lib/auth/guards";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,8 @@ export default async function WorkspacePixelTestPage() {
   // firing, auto-fire settings) are platform-level and stay super-admin-only.
   const { impersonating } = await requireWorkspace();
   const t = await actingTenantId();
+  // So a workspace with several accounts can test the one it is worried about.
+  const adAccounts = (await getAdAccountsView()).accounts.map((a) => ({ id: a.id, label: a.label, isDefault: a.isDefault }));
   const purchases = impersonating ? await listRecentPurchases(t) : [];
   const capiLogs = impersonating ? await listCapiLogs(t) : [];
   const purchaseSettings = impersonating ? await getPurchaseSettingsForm() : null;
@@ -37,7 +40,7 @@ export default async function WorkspacePixelTestPage() {
 
       <PixelTester />
 
-      <CapiTester />
+      <CapiTester accounts={adAccounts} />
 
       {impersonating && purchaseSettings ? (
         <>

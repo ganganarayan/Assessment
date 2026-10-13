@@ -5,10 +5,10 @@
  * whether this feature is safe to ship on a funnel that is already spending money:
  * a gate built before routes existed must behave EXACTLY as it does today.
  *
- * The band arithmetic is reproduced rather than imported, because the real one lives
- * in a "use server" module that cannot be loaded here. It is eight lines and it is the
- * whole routing decision, so it is written out and checked against the table the owner
- * actually designed (38 and up through, 26 to 37 reviewed, below 26 out).
+ * The band arithmetic is now IMPORTED, not reproduced: it moved out of the "use server"
+ * module into gate-verdict.ts precisely so this script can check the rule the funnel
+ * actually runs, against the table the owner designed (38 and up through, 26 to 37
+ * reviewed, below 26 out).
  *
  *   npx tsx scripts/verify-exit-routes.ts
  */
@@ -25,6 +25,7 @@ import {
   GATE_DISQUALIFIED_EVENT,
 } from "../src/features/assessment/schemas";
 import { blockVisibleFor, type ResultBlock } from "../src/features/assessment/result-page/blocks";
+import { gateVerdict, gateTotals, gateBandOf } from "../src/features/assessment/gate-verdict";
 import { PLAN_LIMITS, PARKED_LIMITS } from "../src/lib/billing/plans";
 import { readGateRejection, writeGateRejection } from "../src/lib/gate-flag";
 import { readMetaEvents } from "../src/features/assessment/meta-events";
@@ -131,17 +132,37 @@ expect(
 );
 
 // --- The bands ---------------------------------------------------------------------
-const verdict = (score: number): string => {
-  if (!gate.bands.enabled) return "pass";
-  if (score >= gate.bands.passMin) return "pass";
-  if (score >= gate.bands.reviewMin) return "review";
-  return "exit";
-};
+// The real rule, asked about a respondent who scored exactly `score`: a one-question
+// gate carrying the same bands, answered with an option worth that many points.
+const verdict = (score: number): string =>
+  gateVerdict(
+    qualificationSchema.parse({
+      enabled: true,
+      bands: gate.bands,
+      questions: [
+        { id: "s", text: "scored", type: "choice", options: [{ id: "o", label: "o", points: score }, { id: "z", label: "z", points: 0 }] },
+      ],
+    }),
+    { s: "o" },
+  ).outcome;
 expect("56 of 56 goes through", verdict(56) === "pass");
 expect("38 is the first score that goes through clean", verdict(38) === "pass" && verdict(37) === "review");
 expect("26 is the bottom of the review band", verdict(26) === "review" && verdict(25) === "exit");
 expect("below 26 routes out", verdict(0) === "exit");
 expect("and out through the named route", gate.bands.belowExitKey === "a");
+
+// What the gate AWARDED, which is what lands on the submission row. The ceiling counts
+// every asked question, so an unanswered one still raises the bar.
+const totals = gateTotals(gate, { [q1.id]: q1.options[0]!.id });
+expect(
+  "the gate scores the picked option and still counts the question's ceiling",
+  totals.score === q1.options[0]!.points && totals.max === Math.max(...q1.options.map((o) => o.points)),
+  JSON.stringify(totals),
+);
+expect("and keeps one readable row per answered question", totals.rows.length === 1 && totals.rows[0]!.a === q1.options[0]!.label);
+expect("a gate with no bands tags nobody", gateBandOf(gate, 40, 0) === null, "max of 0 means the gate awarded nothing");
+expect("above passMin is tagged PASS", gateBandOf(gate, 38, 56) === "PASS");
+expect("below it is tagged REVIEW, never an exit", gateBandOf(gate, 37, 56) === "REVIEW");
 
 const unbanded = qualificationSchema.parse({ enabled: true, questions: [] });
 expect(

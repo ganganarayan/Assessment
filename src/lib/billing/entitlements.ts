@@ -75,7 +75,10 @@ export async function getUsage(tenantId: string | null, now: Date = new Date()):
       select: { count: true },
     }),
     prisma.assessment.count({ where: { tenantId: tenantId as string } }),
-    prisma.user.count({ where: { tenantId: tenantId as string } }),
+    // Active users only. Counting soft-deleted rows overstated the meter and, once
+    // assertCanAddSeat reads the same definition, would refuse seats a tenant has
+    // genuinely freed up by removing staff.
+    prisma.user.count({ where: { tenantId: tenantId as string, deletedAt: null } }),
   ]);
 
   return {

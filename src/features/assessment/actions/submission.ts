@@ -13,7 +13,6 @@ import {
   readExits,
   type LeadInput,
   type AnswersInput,
-  type QualificationInput,
 } from "@/features/assessment/schemas";
 import {
   computeScores,
@@ -36,6 +35,7 @@ import { env } from "@/lib/env";
 import { randomUUID } from "crypto";
 import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
 import { type GateAnswer } from "@/lib/result/gate";
+import { gateTotals, gateBandOf } from "@/features/assessment/gate-verdict";
 import { metaEventOn } from "@/features/assessment/meta-events";
 import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
 import { fbcCreationMs } from "@/lib/meta/capi";
@@ -290,6 +290,8 @@ type StartAssessment = {
   slug: string;
   title: string;
   tenant: { id: string; slug: string; name: string } | null;
+  /** Which ad account this funnel reports to. null = the tenant's default. */
+  adAccountId: string | null;
 };
 
 /** Fire the single opt-in event (LEAD_CREATED -> "optin"). The old separate
@@ -382,6 +384,7 @@ async function fireRegistration(
         },
         {
           tenantId: assessment.tenant?.id ?? null,
+          adAccountId: assessment.adAccountId,
           submissionId,
           name: [lead.firstName, lead.lastName].filter(Boolean).join(" ") || null,
         },
@@ -464,6 +467,8 @@ export async function startSubmission(
       title: true,
       tenantId: true,
       tenant: { select: { id: true, slug: true, name: true } },
+      // Which pixel this funnel's opt-in reports to (null = the tenant's default).
+      adAccountId: true,
       collectFirstName: true,
       firstNameRequired: true,
       collectLastName: true,
@@ -615,17 +620,6 @@ export async function startSubmission(
           .map(([k, v]) => [String(k).slice(0, 60), String(v).slice(0, 1000)]),
       )
     : {};
-  // Which score band the gate put them in, from the gate's own thresholds. Returns null
-  // when the funnel has no bands or awarded nothing - "this gate does not band people"
-  // and "they landed in the bottom band" are different facts, and only one of them
-  // should read as a deliberate tag later.
-  //
-  // Note what is NOT here: an exit. Somebody under reviewMin never reaches this code,
-  // because the verdict call routed them out before any submission existed.
-  function gateBandOf(q: QualificationInput | null, score: number, max: number): string | null {
-    if (!q || !q.bands.enabled || max <= 0) return null;
-    return score >= q.bands.passMin ? "PASS" : "REVIEW";
-  }
 
   // The OPTIN exit route, checked against the assessment's own exits. A key naming an
   // exit that is not there, or one that is not an OPTIN exit, is dropped: this flag
@@ -646,35 +640,25 @@ export async function startSubmission(
   // sends option ids; the labels and the points come from the assessment, so a tampered
   // payload can at worst name an option that does not exist, which is then ignored.
   const gate = qualificationSchema.safeParse(assessment.qualification);
-  const cleanChoices: Record<string, string> = {};
-  // The same resolution, kept as a readable row per question so the result page can
-  // show the gate the way an assessment is shown. Built HERE, where the chosen option
-  // is already in hand with its points, rather than re-derived later from the stored
-  // label: the owner can edit the gate at any moment, and a result that reworded itself
-  // afterwards would be a different result.
-  const gateRows: GateAnswer[] = [];
-  let gateScore = 0;
-  let gateMax = 0;
-  if (gate.success && qualChoices && typeof qualChoices === "object") {
-    for (const q of gate.data.questions) {
-      if (q.type !== "choice" || q.options.length === 0) continue;
-      // The achievable ceiling counts every ASKED question, matching how computeScores
-      // treats the assessment: a question nobody could score on still raises the bar.
-      const qMax = q.options.reduce((m, o) => Math.max(m, o.points), 0);
-      gateMax += qMax;
-      const pickedId = qualChoices[q.id];
-      const picked = q.options.find((o) => o.id === pickedId);
-      if (!picked) continue;
-      gateScore += picked.points;
-      cleanChoices[q.id] = picked.label.slice(0, 1000);
-      gateRows.push({
-        q: q.text.slice(0, 1000),
-        a: picked.label.slice(0, 1000),
-        points: picked.points,
-        max: qMax,
-      });
-    }
-  }
+  // The resolution itself is gateTotals in gate-verdict.ts, shared with the verdict the
+  // browser asked for, so the row and the routing cannot disagree about what the gate
+  // awarded. The length caps stay HERE: they are about what is safe to store, not about
+  // what the gate decided.
+  const totals = gateTotals(
+    gate.success ? gate.data : null,
+    qualChoices && typeof qualChoices === "object" ? qualChoices : null,
+  );
+  const gateScore = totals.score;
+  const gateMax = totals.max;
+  const cleanChoices: Record<string, string> = Object.fromEntries(
+    Object.entries(totals.picks).map(([k, v]) => [k, v.slice(0, 1000)]),
+  );
+  const gateRows: GateAnswer[] = totals.rows.map((r) => ({
+    q: r.q.slice(0, 1000),
+    a: r.a.slice(0, 1000),
+    points: r.points,
+    max: r.max,
+  }));
   const storedQual = { ...cleanQual, ...cleanChoices };
   const qualData = Object.keys(storedQual).length ? { qualificationAnswers: storedQual as unknown as Prisma.InputJsonValue } : {};
 
@@ -1148,6 +1132,8 @@ export async function completeSubmission(
       // Phase 2: routed assessments have this OFF → no completion CAPI/pixel.
       fireMetaCapi: true,
       metaEvents: true,
+      // Which pixel the completion event reports to (null = the tenant's default).
+      adAccountId: true,
       // Gated funnels fire QualifiedCompletion instead of AssessmentCompleted.
       disqualifiedContent: true,
       qualification: true,
@@ -1707,6 +1693,7 @@ export async function completeSubmission(
       },
       {
         tenantId: assessment.tenant?.id ?? null,
+        adAccountId: assessment.adAccountId,
         submissionId,
         name: [full?.leadFirstName, full?.leadLastName].filter(Boolean).join(" ") || null,
       },

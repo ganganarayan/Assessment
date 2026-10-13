@@ -10,6 +10,8 @@ import {
 import { PlatformConsole } from "@/features/platform/components/platform-console";
 import { LandingVideosCard } from "@/features/platform/components/landing-videos-card";
 import { getLandingVideosRaw } from "@/features/platform/landing-videos";
+import { CtaOfferCard } from "@/features/platform/components/cta-offer-card";
+import { getCtaOfferRaw } from "@/features/platform/cta-offer";
 import { StorageSettingsCard } from "@/features/platform/components/storage-settings-card";
 import { getStorageSettings } from "@/features/platform/storage-settings";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
@@ -18,17 +20,18 @@ export const dynamic = "force-dynamic";
 
 export default async function PlatformPage() {
   const me = await requireSuperAdmin();
-  const [t, dt, u, d, lv, st] = await Promise.all([
+  const [t, dt, u, d, lv, st, cta] = await Promise.all([
     listTenants(),
     listDeletedTenants(),
     listUsers(),
     listDeletedUsers(),
     getLandingVideosRaw(),
     getStorageSettings(),
+    getCtaOfferRaw(),
   ]);
   // Any loader that failed (a transient DB error) surfaces as a banner - the page
   // still renders with whatever loaded, instead of a full-page server crash.
-  const loadErrors = [t, dt, u, d, lv, st]
+  const loadErrors = [t, dt, u, d, lv, st, cta]
     .filter((r): r is { ok: false; error: string } => !r.ok)
     .map((r) => r.error);
   return (
@@ -77,6 +80,15 @@ export default async function PlatformPage() {
         initialDeletedUsers={d.ok && d.data ? d.data : []}
         currentUserId={me.id}
       />
+      {/* The offer first, then the videos: what the buttons say and where they go is
+          the landing page's whole job, and the videos dress it. */}
+      {cta.ok && cta.data ? (
+        <CtaOfferCard
+          initialHref={cta.data.href}
+          initialTrialLabel={cta.data.trialLabel}
+          initialDfyLabel={cta.data.dfyLabel}
+        />
+      ) : null}
       <LandingVideosCard
         initialHero={lv.ok && lv.data ? lv.data.hero : ""}
         initialTiles={lv.ok && lv.data ? lv.data.tiles : {}}

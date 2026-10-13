@@ -17,6 +17,7 @@ import { QualificationManager } from "@/features/assessment/components/admin/qua
 import { listPromptVersions } from "@/lib/ai/versions";
 import { AssessmentForm, type AssessmentFormValues } from "@/features/assessment/components/admin/assessment-form";
 import { getAudienceListsForTenant } from "@/features/admin/actions/audience-list";
+import { getAdAccountsForTenant } from "@/features/admin/actions/ad-account";
 import { ConnectDestination } from "@/features/assessment/components/admin/connect-destination";
 import { CategoriesManager } from "@/features/assessment/components/admin/categories-manager";
 import { env } from "@/lib/env";
@@ -54,6 +55,8 @@ export default async function WorkspaceEditAssessmentPage({
   if (!(await currentUserCanEdit())) redirect("/w/assessments");
   const promptVersions = (await listPromptVersions(tenantId)).map((v) => ({ id: v.id, label: v.label }));
   const audienceLists = await getAudienceListsForTenant(tenantId);
+  // The accounts the Meta tracking step may point this funnel at.
+  const adAccounts = await getAdAccountsForTenant(tenantId);
   // What this workspace's plan allows, so the builder can say so BEFORE the owner does
   // the work rather than refusing it afterwards. An operator inside a workspace
   // (impersonating) is never limited, matching every save action.
@@ -63,7 +66,7 @@ export default async function WorkspaceEditAssessmentPage({
   // The Meta publish lock, resolved for the button and the warning. A super admin who
   // has entered this workspace is exempt, exactly as the action is, so the screen never
   // shows a rule that would not actually fire.
-  const publishBlock = impersonating ? null : await metaPublishBlock(tenantId);
+  const publishBlock = impersonating ? null : await metaPublishBlock(tenantId, a.adAccountId);
 
   const initial: AssessmentFormValues = {
     title: a.title,
@@ -130,6 +133,7 @@ export default async function WorkspaceEditAssessmentPage({
     // Merge onto the defaults so a legacy gate (no mode/freeTextRequired) loads as a
     // well-formed DROPDOWN rather than with undefined fields.
     audienceGate: { ...EMPTY_AUDIENCE_GATE, ...((a.audienceGate as unknown as Partial<AudienceGateInput> | null) ?? {}) },
+    adAccountId: a.adAccountId ?? "",
     fireMetaCapi: a.fireMetaCapi,
     // null (never set) reads as every event on, matching what the assessment already does.
     metaEvents: readMetaEvents(a.metaEvents),
@@ -259,7 +263,7 @@ export default async function WorkspaceEditAssessmentPage({
         />
       </BuilderStep>
 
-      <AssessmentForm mode="edit" id={a.id} initial={initial} basePath="/w/assessments" promptVersions={promptVersions} assessmentOptions={routeTargets} audienceLists={audienceLists} />
+      <AssessmentForm mode="edit" id={a.id} initial={initial} basePath="/w/assessments" promptVersions={promptVersions} assessmentOptions={routeTargets} audienceLists={audienceLists} adAccounts={adAccounts} />
 
       <BuilderStep step="gate">
       <section className="flex flex-col gap-3">

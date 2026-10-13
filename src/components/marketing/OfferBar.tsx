@@ -1,5 +1,6 @@
-import Link from "next/link";
-import { OFFER, DFY } from "@/lib/marketing/content";
+import { OFFER } from "@/lib/marketing/content";
+import { getCta } from "@/lib/settings/cta";
+import { CtaLink } from "./CtaLink";
 import { resolveOfferSlotsLeft } from "@/lib/settings/config";
 
 /**
@@ -19,17 +20,17 @@ import { resolveOfferSlotsLeft } from "@/lib/settings/config";
  * seed a number first would mean the offer quietly fails to launch.
  */
 export async function OfferBar() {
-  const slots = await resolveOfferSlotsLeft().catch(() => null);
+  const [slots, cta] = await Promise.all([resolveOfferSlotsLeft().catch(() => null), getCta()]);
   if (slots === null) return null;
 
   return (
     <div className="border-b border-green-600/30 bg-green-600/10">
-      <Link
-        href={DFY.href}
+      <CtaLink
+        href={cta.href}
         className="mx-auto flex max-w-6xl items-center justify-center gap-2 px-5 py-2 text-center text-sm font-medium text-green-800 hover:underline dark:text-green-400 sm:px-8"
       >
         {OFFER.bar(slots)}
-      </Link>
+      </CtaLink>
     </div>
   );
 }

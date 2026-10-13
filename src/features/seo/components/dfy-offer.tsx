@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { DFY, OFFER } from "@/lib/marketing/content";
+import { getCta } from "@/lib/settings/cta";
+import { CtaLink } from "@/components/marketing/CtaLink";
 
 /**
  * The done-for-you offer, on the industry pages.
@@ -10,7 +12,9 @@ import { DFY, OFFER } from "@/lib/marketing/content";
  * reader on an industry page is usually still deciding whether they have the problem at
  * all, and a number they work out themselves settles that faster than a paragraph.
  */
-export function DfyOffer({ audience }: { audience?: string }) {
+export async function DfyOffer({ audience }: { audience?: string }) {
+  const cta = await getCta();
+
   return (
     <section id="done-for-you" className="scroll-mt-20 rounded-xl border bg-[var(--muted)] p-6 sm:p-8">
       <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{DFY.heading}</h2>
@@ -21,12 +25,12 @@ export function DfyOffer({ audience }: { audience?: string }) {
       </p>
       <p className="mt-3 font-medium">{OFFER.ctaSubline}</p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <Link
-          href={DFY.href}
+        <CtaLink
+          href={cta.href}
           className="inline-flex h-11 items-center justify-center rounded-md bg-green-600 px-6 font-medium text-white"
         >
-          {DFY.cta}
-        </Link>
+          {cta.dfyLabel}
+        </CtaLink>
         <Link
           href="/wasted-call-calculator"
           className="inline-flex h-11 items-center justify-center rounded-md border px-6 font-medium"

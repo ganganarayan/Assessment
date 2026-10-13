@@ -222,6 +222,23 @@ export default async function StatsPage({
             <p className="text-[11px] leading-snug text-[var(--muted-foreground)]">₹{s.paidAmount.toLocaleString()} total</p>
           </CardContent>
         </Card>
+        {/* Product sales - what was sold by hand on a payment link AFTER the funnel
+            did its job. Its own tile, never folded into Paid above: that one is the
+            consultation this funnel converts, and a single total would credit the
+            funnel with the closing too. */}
+        <Card className="gap-0 py-3">
+          <CardHeader className="px-3 pb-1">
+            <CardTitle className="text-xs font-medium leading-tight text-[var(--muted-foreground)]">
+              Product sales
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-3">
+            <p className="text-2xl font-bold tabular-nums text-green-600">{s.productSaleCount.toLocaleString()}</p>
+            <p className="text-[11px] leading-snug text-[var(--muted-foreground)]">
+              ₹{s.productSaleAmount.toLocaleString()} total
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Events actually sent to Meta, as running counts. The numbers above are
@@ -353,7 +370,7 @@ export default async function StatsPage({
           <p className="text-sm text-[var(--muted-foreground)]">
             {logPage.total.toLocaleString()} human visits, newest first - page{" "}
             {logPage.page.toLocaleString()} of {logPage.pages.toLocaleString()}. A visitor becomes a contact once
-            they opt in - they then appear with lead data on Contacts. Automated hits (Meta
+            they opt in - they then appear with lead data on Submissions. Automated hits (Meta
             ad-review, crawlers) are clubbed by source into the <BotTag /> rows below and excluded
             from every number above.
           </p>

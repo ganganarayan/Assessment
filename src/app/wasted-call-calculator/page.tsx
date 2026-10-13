@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getCta } from "@/lib/settings/cta";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentTenant } from "@/lib/tenant/context";
@@ -84,7 +85,7 @@ export default async function WastedCallCalculatorPage() {
         </p>
 
         <div className="mt-10">
-          <WastedCallCalculator />
+          <WastedCallCalculator cta={await getCta()} />
         </div>
 
         <section className="mt-14 border-t pt-10">

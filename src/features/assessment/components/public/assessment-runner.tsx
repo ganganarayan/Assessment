@@ -19,6 +19,7 @@ import { ResultPages } from "@/features/assessment/components/public/result-page
 import { type LeadInput, professionOptionsFor, completionEventName, type PreResultField } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { getOrCreateExternalId } from "@/lib/external-id";
+import { currentAdParams } from "@/lib/attribution-client";
 import { appendVidapulseId } from "@/lib/vidapulse";
 import { detectUnitFromQuestion, isClinicRole, type ClinicRole } from "@/lib/scoring/clinic-audit";
 import { buildSpine, nextIndex, walk, type RouteSpec } from "@/lib/routing/engine";
@@ -639,6 +640,14 @@ export function AssessmentRunner({
     if (lead.email) params.set("email", lead.email);
     const name = [lead.firstName, lead.lastName].filter(Boolean).join(" ").trim();
     if (name) params.set("name", name);
+    // The ad params come with them. This is the last hop of the chain that starts at the
+    // marketing CTA, and it used to be where the chain ended: the signup URL carried a
+    // prefilled email and nothing about where the person came from. The cookie records
+    // the acquisition either way, but anything reading the signup URL - a pixel event,
+    // a session replay, a support ticket asking which campaign this account came from -
+    // saw direct traffic.
+    for (const [key, value] of Object.entries(currentAdParams()))
+      if (!params.has(key)) params.set(key, value);
     const qs = params.toString();
     window.location.href = qs ? `/sign-up?${qs}` : "/sign-up";
   }
@@ -1189,16 +1198,16 @@ export function AssessmentRunner({
   const leadFieldsBlock = (
     <div className="flex flex-col gap-4">
       {assessment.collectFirstName ? (
-        <Field label={assessment.firstNameLabel?.trim() || "First name"} required={assessment.firstNameRequired} value={lead.firstName ?? ""} onChange={(v) => setLead((l) => ({ ...l, firstName: v }))} />
+        <Field qa="firstName" label={assessment.firstNameLabel?.trim() || "First name"} required={assessment.firstNameRequired} value={lead.firstName ?? ""} onChange={(v) => setLead((l) => ({ ...l, firstName: v }))} />
       ) : null}
       {assessment.collectLastName ? (
-        <Field label={assessment.lastNameLabel?.trim() || "Last name"} required={assessment.lastNameRequired} value={lead.lastName ?? ""} onChange={(v) => setLead((l) => ({ ...l, lastName: v }))} />
+        <Field qa="lastName" label={assessment.lastNameLabel?.trim() || "Last name"} required={assessment.lastNameRequired} value={lead.lastName ?? ""} onChange={(v) => setLead((l) => ({ ...l, lastName: v }))} />
       ) : null}
       {assessment.collectEmail ? (
-        <Field label={assessment.emailLabel?.trim() || "Email"} type="email" required={assessment.emailRequired} value={lead.email ?? ""} onChange={(v) => setLead((l) => ({ ...l, email: v }))} />
+        <Field qa="email" label={assessment.emailLabel?.trim() || "Email"} type="email" required={assessment.emailRequired} value={lead.email ?? ""} onChange={(v) => setLead((l) => ({ ...l, email: v }))} />
       ) : null}
       {assessment.collectMobile ? (
-        <Field label={assessment.mobileLabel?.trim() || "Mobile"} required={assessment.mobileRequired} value={lead.mobile ?? ""} onChange={(v) => setLead((l) => ({ ...l, mobile: v }))} />
+        <Field qa="mobile" label={assessment.mobileLabel?.trim() || "Mobile"} required={assessment.mobileRequired} value={lead.mobile ?? ""} onChange={(v) => setLead((l) => ({ ...l, mobile: v }))} />
       ) : null}
       {assessment.collectProfession && !gated ? (
         <SelectField label={assessment.professionLabel?.trim() || "Profession"} required={assessment.professionRequired} value={lead.profession ?? ""} options={professionOptionsFor(assessment.professionOptions)} placeholder={assessment.professionPlaceholder?.trim() || "Select your profession"} onChange={(v) => setLead((l) => ({ ...l, profession: v }))} />
@@ -1207,7 +1216,7 @@ export function AssessmentRunner({
         f.type === "select" ? (
           <SelectField key={f.id} label={f.label} required={f.required} value={optinAnswers[f.id] ?? ""} options={f.options} placeholder="Select…" onChange={(v) => setOptinAnswers((prev) => ({ ...prev, [f.id]: v }))} />
         ) : (
-          <Field key={f.id} label={f.label} required={f.required} value={optinAnswers[f.id] ?? ""} onChange={(v) => setOptinAnswers((prev) => ({ ...prev, [f.id]: v }))} />
+          <Field key={f.id} qa={`optin:${f.id}`} label={f.label} required={f.required} value={optinAnswers[f.id] ?? ""} onChange={(v) => setOptinAnswers((prev) => ({ ...prev, [f.id]: v }))} />
         ),
       )}
     </div>
@@ -1216,7 +1225,7 @@ export function AssessmentRunner({
   // Lead-capture-AFTER: the opt-in form on its own step, shown after the questions.
   if (step === "leadForm") {
     return (
-      <form onSubmit={submitLead} className="flex flex-col gap-6">
+      <form onSubmit={submitLead} className="flex flex-col gap-6" data-qa-step="leadForm">
         {honeypotInput}
         <div className="flex flex-col gap-1">
           <h2 className="text-2xl font-bold tracking-tight">{optin.heading}</h2>
@@ -1225,7 +1234,7 @@ export function AssessmentRunner({
         {qualifiedNote}
         {leadFieldsBlock}
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
-        <Button size="lg" type="submit" disabled={pending} style={ctaStyle}>
+        <Button size="lg" type="submit" disabled={pending} style={ctaStyle} data-qa-nav="optin-submit">
           {pending ? "Please wait…" : assessment.resultsButtonLabel?.trim() || "Show my results"}
         </Button>
       </form>
@@ -1236,7 +1245,7 @@ export function AssessmentRunner({
     // qualIndex only advances within bounds via pickQualOption, so this is defensive.
     const question = qual.questions[qualIndex] ?? qual.questions[0]!;
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6" data-qa-step="qualify">
         {assessment.eyebrow ? (
           <p className="text-sm font-semibold uppercase tracking-wide text-[#D4AF37]">{assessment.eyebrow}</p>
         ) : null}
@@ -1258,7 +1267,7 @@ export function AssessmentRunner({
             Section 1 ({qualIndex + 1}/{qual.questions.length})
           </span>
         </div>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3" data-qa-qual-question={question.id}>
           <Label>
             {question.text}
             {question.type === "text" && !question.required ? (
@@ -1273,7 +1282,7 @@ export function AssessmentRunner({
                 onChange={(e) => setQualTextAnswers((a) => ({ ...a, [question.id]: e.target.value }))}
               />
               {error ? <p className="text-sm text-red-500">{error}</p> : null}
-              <Button size="lg" type="button" style={ctaStyle} onClick={() => submitQualText(question.id, question.required)}>
+              <Button size="lg" type="button" style={ctaStyle} data-qa-nav="qual-continue" onClick={() => submitQualText(question.id, question.required)}>
                 Continue
               </Button>
             </>
@@ -1288,6 +1297,7 @@ export function AssessmentRunner({
                     type="button"
                     variant="outline"
                     className="justify-start gap-3 text-left"
+                    data-qa-qual-option={o.id}
                     onClick={() => pickQualOption(o)}
                   >
                     <span
@@ -1313,7 +1323,7 @@ export function AssessmentRunner({
     // Over-cap completion: the lead's answers are stored, but results are unavailable
     // until the workspace upgrades. Neutral, non-alarming copy + a support contact.
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6" data-qa-step="capLocked">
         <div className="flex flex-col gap-3">
           <h1 className="text-2xl font-bold tracking-tight">Thanks - your responses are in.</h1>
           <p className="text-[var(--muted-foreground)]">
@@ -1343,7 +1353,7 @@ export function AssessmentRunner({
   if (step === "disqualified") {
     const dq = currentExit;
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6" data-qa-step="disqualified" data-qa-exit={dq?.key ?? ""}>
         <div className="flex flex-col gap-3">
           <h1 className="text-2xl font-bold tracking-tight">
             {dq?.heading?.trim() || "Thanks for your interest."}
@@ -1378,7 +1388,7 @@ export function AssessmentRunner({
     const placeholder = gate.placeholder?.trim() || (isFree ? "Start typing…" : "Select…");
     const continueDisabled = isFree ? gate.required && !freeAudience.trim() : !gateChoice;
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6" data-qa-step="gate">
         {assessment.eyebrow ? (
           <p className="text-sm font-semibold uppercase tracking-wide text-[#D4AF37]">{assessment.eyebrow}</p>
         ) : null}
@@ -1428,6 +1438,7 @@ export function AssessmentRunner({
                           <li key={s}>
                             <button
                               type="button"
+                              data-qa-audience-suggestion={s}
                               className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--muted)] active:bg-[var(--muted)]"
                               // onMouseDown/onTouchStart fire before the input's blur,
                               // so preventDefault keeps focus and the pick lands.
@@ -1466,7 +1477,7 @@ export function AssessmentRunner({
                 >
                   <option value="" disabled>{placeholder}</option>
                   {gate.options.map((o) => (
-                    <option key={o.key} value={o.key}>{o.label}</option>
+                    <option key={o.key} value={o.key} data-qa-role={o.key}>{o.label}</option>
                   ))}
                 </select>
                 <SelectChevron />
@@ -1476,7 +1487,7 @@ export function AssessmentRunner({
           )}
         </div>
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
-        <Button size="lg" type="button" style={ctaStyle} disabled={continueDisabled} onClick={submitGate}>
+        <Button size="lg" type="button" style={ctaStyle} disabled={continueDisabled} onClick={submitGate} data-qa-nav="audience-continue">
           {assessment.startButtonLabel?.trim() || "Continue"}
         </Button>
       </div>
@@ -1530,7 +1541,7 @@ export function AssessmentRunner({
     // after the questions (the "leadForm" step). No lead fields here.
     if (assessment.leadCaptureAfter) {
       return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6" data-qa-step="intro" data-qa-optin="after">
           {landing}
           {error ? <p className="text-sm text-red-500">{error}</p> : null}
           <Button
@@ -1549,6 +1560,7 @@ export function AssessmentRunner({
               }
               setStep("questions");
             }}
+            data-qa-nav="start"
           >
             {assessment.startButtonLabel?.trim() || "Start"}
           </Button>
@@ -1558,13 +1570,14 @@ export function AssessmentRunner({
 
     // Default: landing + opt-in form on one screen.
     return (
-      <form onSubmit={submitLead} className="flex flex-col gap-6">
+      <form onSubmit={submitLead} className="flex flex-col gap-6" data-qa-step="intro" data-qa-optin="first">
         {honeypotInput}
         {landing}
 
         <div className="flex flex-col gap-4">
           {assessment.collectFirstName ? (
             <Field
+              qa="firstName"
               label={assessment.firstNameLabel?.trim() || "First name"}
               required={assessment.firstNameRequired}
               value={lead.firstName ?? ""}
@@ -1573,6 +1586,7 @@ export function AssessmentRunner({
           ) : null}
           {assessment.collectLastName ? (
             <Field
+              qa="lastName"
               label={assessment.lastNameLabel?.trim() || "Last name"}
               required={assessment.lastNameRequired}
               value={lead.lastName ?? ""}
@@ -1581,6 +1595,7 @@ export function AssessmentRunner({
           ) : null}
           {assessment.collectEmail ? (
             <Field
+              qa="email"
               label={assessment.emailLabel?.trim() || "Email"}
               type="email"
               required={assessment.emailRequired}
@@ -1590,6 +1605,7 @@ export function AssessmentRunner({
           ) : null}
           {assessment.collectMobile ? (
             <Field
+              qa="mobile"
               label={assessment.mobileLabel?.trim() || "Mobile"}
               required={assessment.mobileRequired}
               value={lead.mobile ?? ""}
@@ -1621,6 +1637,7 @@ export function AssessmentRunner({
             ) : (
               <Field
                 key={f.id}
+                qa={`optin:${f.id}`}
                 label={f.label}
                 required={f.required}
                 value={optinAnswers[f.id] ?? ""}
@@ -1636,7 +1653,7 @@ export function AssessmentRunner({
           </div>
         ) : null}
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
-        <Button size="lg" type="submit" disabled={pending} style={ctaStyle}>
+        <Button size="lg" type="submit" disabled={pending} style={ctaStyle} data-qa-nav="optin-submit">
           {pending ? "Starting…" : assessment.startButtonLabel?.trim() || "Start"}
         </Button>
       </form>
@@ -1647,7 +1664,7 @@ export function AssessmentRunner({
     const lastDate = fmtDate(lockout.lastCompletedAt);
     const nextDate = fmtDate(lockout.nextAvailableAt);
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6" data-qa-step="locked">
         <div className="flex flex-col gap-2">
           <h2 className="text-2xl font-bold tracking-tight">
             {lockout.policy === "NEVER"
@@ -1715,7 +1732,7 @@ export function AssessmentRunner({
   if (step === "details") {
     const setDetail = (id: string, v: string) => setDetailAnswers((prev) => ({ ...prev, [id]: v }));
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6" data-qa-step="details">
         <div className="flex flex-col gap-2">
           <h2 className="text-2xl font-bold tracking-tight">
             {assessment.preResultHeading?.trim() || "A few last details"}
@@ -1873,7 +1890,7 @@ export function AssessmentRunner({
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8" data-qa-step="questions">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-xl font-semibold">{assessment.title}</h2>
         {screens.length > 1 ? (
@@ -1907,7 +1924,7 @@ export function AssessmentRunner({
             ) : null}
           </div>
           {g.qs.map((q) => (
-            <fieldset key={q.id} className="flex flex-col gap-2 rounded-lg border p-4">
+            <fieldset key={q.id} className="flex flex-col gap-2 rounded-lg border p-4" data-qa-question={q.id}>
               <legend className="px-1 text-sm font-medium">
                 {q.text} {q.required ? <span className="text-red-500">*</span> : null}
               </legend>
@@ -1917,6 +1934,7 @@ export function AssessmentRunner({
                     <input
                       type="radio"
                       name={q.id}
+                      data-qa-option={o.id}
                       checked={answers[q.id] === o.id}
                       onChange={() => selectAnswer(q.id, o.id)}
                     />
@@ -1967,14 +1985,14 @@ export function AssessmentRunner({
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex items-center justify-between gap-3">
         {(routingActive ? pathStack.length > 1 : idx > 0) ? (
-          <Button size="lg" variant="outline" onClick={goBack} disabled={pending}>
+          <Button size="lg" variant="outline" onClick={goBack} disabled={pending} data-qa-nav="back">
             Back
           </Button>
         ) : (
           <span />
         )}
         {isLast ? (
-          <Button size="lg" onClick={submitAnswers} disabled={pending} style={ctaStyle}>
+          <Button size="lg" onClick={submitAnswers} disabled={pending} style={ctaStyle} data-qa-nav="submit">
             {pending
               ? "Submitting…"
               : assessment.pages.length === 0 && assessment.paidMode && assessment.paymentButtonLabel
@@ -1982,7 +2000,7 @@ export function AssessmentRunner({
                 : "Submit"}
           </Button>
         ) : (
-          <Button size="lg" onClick={goNext} disabled={pending} style={ctaStyle}>
+          <Button size="lg" onClick={goNext} disabled={pending} style={ctaStyle} data-qa-nav="next">
             Next
           </Button>
         )}
@@ -2019,7 +2037,7 @@ function EvaluatingCountdown({ redirectUrl, seconds }: { redirectUrl: string | n
     if (n <= 0 && redirectUrl) window.location.replace(redirectUrl);
   }, [n, redirectUrl]);
   return (
-    <div className="flex min-h-[55vh] flex-col items-center justify-center gap-6 text-center">
+    <div className="flex min-h-[55vh] flex-col items-center justify-center gap-6 text-center" data-qa-step="evaluating">
       <div className="relative h-36 w-36">
         <div className="absolute inset-0 animate-spin rounded-full border-4 border-[var(--muted)] border-t-[var(--primary)]" />
         {counting ? (
@@ -2039,12 +2057,15 @@ function Field({
   onChange,
   required,
   type = "text",
+  qa,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   required?: boolean;
   type?: string;
+  /** Stable handle for the verification harness (qa/). Inert in the browser. */
+  qa?: string;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -2055,6 +2076,7 @@ function Field({
         type={type}
         value={value}
         required={required}
+        data-qa-field={qa}
         onChange={(e) => onChange(e.target.value)}
       />
     </div>

@@ -88,6 +88,13 @@ export async function importTemplateForTenant(args: {
   // never quietly re-enable one of them.
   data.fireMetaCapi = false;
   data.platformSignup = false;
+  // 🔴 NEVER an ad account. A template crosses tenants, and an ad account id belongs to
+  // exactly one: carried across, it would point an imported funnel at a STRANGER'S pixel
+  // and fill their ad account with events they did not buy. The transfer shape does not
+  // carry the field today, and this line is what keeps that true if somebody adds it.
+  // Expressed as the relation (Prisma's create input has `adAccount`, not the raw
+  // column) so this reads as "connected to nothing" rather than a stray id.
+  data.adAccount = undefined;
   data.status = "DRAFT";
   data.publishedAt = null;
 

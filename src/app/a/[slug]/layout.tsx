@@ -17,10 +17,18 @@ export default async function AssessmentSlugLayout({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const a = await prisma.assessment.findFirst({ where: { slug }, select: { tenantId: true, heatmapCode: true } });
+  const a = await prisma.assessment.findFirst({
+    where: { slug },
+    // adAccountId: which pixel THIS funnel renders. Null = the tenant's default, which
+    // is what every assessment carried before the picker existed.
+    select: { tenantId: true, heatmapCode: true, adAccountId: true },
+  });
   const tenantId = a?.tenantId ?? null;
   const [{ pixelId }, tenantHeatmap, canHeatmap] = await Promise.all([
-    resolveMetaConfig(tenantId),
+    // 🔴 The browser pixel and the server-side events must resolve the SAME account, or
+    // one funnel reports its page views to one dataset and its conversions to another -
+    // which looks like a tracking bug nobody can locate.
+    resolveMetaConfig(tenantId, a?.adAccountId ?? null),
     resolveHeatmapCode(tenantId),
     // Billing gate: heatmap / session recording is a Growth+ capability. Platform/Gita
     // scope (tenantId null) is unlimited and always allowed.

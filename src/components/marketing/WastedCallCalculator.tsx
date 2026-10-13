@@ -5,7 +5,9 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { buttonVariants } from "@/components/ui/button";
-import { DFY, OFFER } from "@/lib/marketing/content";
+import { OFFER } from "@/lib/marketing/content";
+import { type CtaConfig } from "@/lib/settings/config";
+import { CtaLink } from "./CtaLink";
 
 /**
  * The wasted-call calculator. Ungated on purpose: no email to see the number.
@@ -26,7 +28,7 @@ const CURRENCIES = [
   { code: "INR", symbol: "₹", step: 500 },
 ] as const;
 
-export function WastedCallCalculator() {
+export function WastedCallCalculator({ cta }: { cta: CtaConfig }) {
   const [calls, setCalls] = useState("40");
   const [wrongFitPct, setWrongFitPct] = useState("60");
   const [minutes, setMinutes] = useState("30");
@@ -132,9 +134,9 @@ export function WastedCallCalculator() {
         </ul>
         <p className="mt-6 font-medium">{OFFER.ctaSubline}</p>
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <Link href={DFY.href} className={buttonVariants({ size: "lg" })}>
-            {DFY.cta}
-          </Link>
+          <CtaLink href={cta.href} className={buttonVariants({ size: "lg" })}>
+            {cta.dfyLabel}
+          </CtaLink>
           <Link href="/" className={buttonVariants({ variant: "outline", size: "lg" })}>
             See how it works
           </Link>

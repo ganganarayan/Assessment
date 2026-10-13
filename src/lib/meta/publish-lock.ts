@@ -25,14 +25,21 @@ import { appSettingWhere } from "@/lib/settings/tenant-row";
  * Returns null when publishing is allowed, or the sentence to show when it is not. The
  * sentence names the missing field, because "configure Meta" sends somebody hunting
  * through a settings page they have already looked at.
+ *
+ * 🔴 PER ASSESSMENT, not per tenant. This check used to resolve the tenant's default ad
+ * account whatever funnel was being published, so a funnel pointed at a SECOND ad
+ * account published cleanly on the strength of the first one's credentials and then
+ * reported nothing - the precise silent failure described above, reintroduced by the
+ * feature that made multiple accounts possible. `adAccountId` is therefore required:
+ * callers pass the assessment's own value, and null still means "the tenant's default".
  */
-export async function metaPublishBlock(tenantId: string): Promise<string | null> {
+export async function metaPublishBlock(tenantId: string, adAccountId: string | null): Promise<string | null> {
   const [setting, meta] = await Promise.all([
     prisma.appSetting.findUnique({
       where: appSettingWhere(tenantId) as never,
       select: { metaNotUsed: true },
     }),
-    resolveMetaConfig(tenantId),
+    resolveMetaConfig(tenantId, adAccountId),
   ]);
 
   if ((setting as { metaNotUsed?: boolean } | null)?.metaNotUsed === true) return null;
@@ -43,5 +50,11 @@ export async function metaPublishBlock(tenantId: string): Promise<string | null>
   if (missing.length === 0) return null;
 
   const what = missing.length === 2 ? `${missing[0]} and ${missing[1]}` : missing[0];
-  return `You can't publish yet: ${what} ${missing.length === 2 ? "are" : "is"} missing. Without it this funnel will collect leads and report nothing to your ad account. Add it in Settings, or tick "We don't use Meta" there if you are not running Meta ads.`;
+  // Name the account when the funnel picked one: on a workspace with several, "add it in
+  // Settings" is the wrong instruction and the right screen is the one holding THAT
+  // account's credentials.
+  const where = adAccountId
+    ? "Add it to the ad account this funnel reports to (Ad accounts)"
+    : "Add it to your default ad account (Ad accounts)";
+  return `You can't publish yet: ${what} ${missing.length === 2 ? "are" : "is"} missing. Without it this funnel will collect leads and report nothing to your ad account. ${where}, or tick "We don't use Meta" in Settings if you are not running Meta ads.`;
 }

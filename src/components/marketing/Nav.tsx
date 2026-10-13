@@ -2,14 +2,18 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { MARKETING, NAV_LINKS } from "@/lib/marketing/content";
+import { getCta } from "@/lib/settings/cta";
 import { OfferBar } from "./OfferBar";
+import { CtaLink } from "./CtaLink";
 
 /**
  * `anchorBase` exists because this nav is rendered on pages that are not the landing
  * page. NAV_LINKS are in-page anchors ("#pricing"); on /lead-qualification-software they
  * would scroll to nothing. SEO pages pass "/" so the same links become "/#pricing".
  */
-export function Nav({ anchorBase = "" }: { anchorBase?: string }) {
+export async function Nav({ anchorBase = "" }: { anchorBase?: string }) {
+  const cta = await getCta();
+
   return (
     <header className="sticky top-0 z-40 border-b bg-[var(--background)]">
       {/* Inside the sticky header, above the nav row, so it travels with it rather than
@@ -65,9 +69,9 @@ export function Nav({ anchorBase = "" }: { anchorBase?: string }) {
           >
             Sign in
           </Link>
-          <Link href={MARKETING.signupHref} className={buttonVariants({ size: "sm" })}>
-            Start 14-day trial
-          </Link>
+          <CtaLink href={cta.href} className={buttonVariants({ size: "sm" })}>
+            {cta.trialLabel}
+          </CtaLink>
         </div>
       </nav>
     </header>

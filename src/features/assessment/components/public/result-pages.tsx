@@ -112,7 +112,7 @@ function Block({
       return (
         <p className="text-center text-lg">
           {prefix ? <span className="text-[var(--muted-foreground)]">{prefix} </span> : null}
-          <strong className="text-2xl">{result.overallBandTitle ?? "-"}</strong>
+          <strong className="text-2xl" data-qa-band={result.overallBandTitle ?? ""}>{result.overallBandTitle ?? "-"}</strong>
         </p>
       );
     }

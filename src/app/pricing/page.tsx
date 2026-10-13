@@ -5,6 +5,7 @@ import { getCurrentTenant } from "@/lib/tenant/context";
 import { Nav } from "@/components/marketing/Nav";
 import { Footer } from "@/components/marketing/Footer";
 import { Pricing } from "@/components/marketing/Pricing";
+import { getCta } from "@/lib/settings/cta";
 import { FinalCta } from "@/components/marketing/FinalCta";
 import { MARKETING, TIERS, TRIAL_NOTE } from "@/lib/marketing/content";
 import { platformPageMetadata } from "@/lib/seo/site";
@@ -94,7 +95,7 @@ export default async function PricingPage() {
           </div>
         </section>
 
-        <Pricing />
+        <Pricing cta={await getCta()} />
 
         <section className="border-b">
           <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">

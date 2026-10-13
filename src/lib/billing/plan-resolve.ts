@@ -1,4 +1,4 @@
-import { type Plan, type Subscription, type SubscriptionStatus } from "@prisma/client";
+import { type Subscription, type SubscriptionStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
   PLAN_LIMITS,
@@ -29,32 +29,14 @@ import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
  * unchanged and there is exactly one implementation of the rules.
  */
 
-/**
- * The plan a subscription actually ENTITLES to, given its status. A canceled/halted
- * subscription (lapsed) or a still-pending one (never paid) falls back to FREE;
- * PAST_DUE keeps the plan (dunning grace). Pure, centralized so Phase 4 reuses it.
- */
-export function entitledPlan(plan: Plan, status: SubscriptionStatus): PlanId | null {
-  // null = PARKED. There is no free tier to fall back to any more, and silently
-  // downgrading a lapsed customer to the cheapest paid plan would be worse than parking:
-  // their scorecards would keep collecting on a plan they never chose, and the first
-  // sign would be a bill or a feature that stopped working with no explanation.
-  if (status === "CANCELED" || status === "HALTED" || status === "PENDING") return null;
-  return plan as PlanId;
-}
-
-/**
- * The plan a manual grant entitles to right now, or null when there is no live grant.
- *
- * Pure, and exported so the platform console and verify:billing read the same rule the
- * resolver does. A date in the past is not a grant; neither is a date with no paid plan
- * behind it.
- */
-export function grantedPlan(plan: Plan, planExpiresAt: Date | null, now: Date = new Date()): PlanId | null {
-  if (!planExpiresAt || planExpiresAt.getTime() <= now.getTime()) return null;
-  const id = plan as PlanId;
-  return PLAN_LIMITS[id] ? id : null;
-}
+// entitledPlan and grantedPlan live in plan-grant.ts, which imports no database: the
+// platform console is a client component and needs them, and importing them from here
+// put PrismaClient in the browser bundle. Re-exported, so every caller of this module
+// is unchanged.
+// Imported as well as re-exported: `export ... from` alone does not put the names in
+// this module's scope, and resolvePlan below calls both.
+import { entitledPlan, grantedPlan } from "@/lib/billing/plan-grant";
+export { entitledPlan, grantedPlan };
 
 export interface ResolvedPlan {
   /** null = not rated against the catalog at all - the platform, or an internal tenant. */

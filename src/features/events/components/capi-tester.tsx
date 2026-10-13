@@ -7,15 +7,29 @@ import { Input } from "@/components/ui/input";
 
 type Result = Awaited<ReturnType<typeof testMetaCapi>>;
 
-export function CapiTester() {
+/**
+ * `accounts` is the workspace's ad accounts, so the test can be aimed at the one being
+ * doubted.
+ *
+ * 🔴 Why it is not just "the workspace's pixel" any more: this tester resolved the
+ * DEFAULT account, so a workspace running two got one green tick for one dataset and
+ * read it as proof that every funnel was reporting. The account that cannot be tested is
+ * always the one with the problem.
+ */
+export function CapiTester({
+  accounts = [],
+}: {
+  accounts?: { id: string; label: string; isDefault: boolean }[];
+}) {
   const [result, setResult] = useState<Result | null>(null);
   const [code, setCode] = useState("");
   const [eventName, setEventName] = useState("AssessmentCompleted");
+  const [adAccountId, setAdAccountId] = useState("");
   const [pending, start] = useTransition();
 
   function run() {
     setResult(null);
-    start(async () => setResult(await testMetaCapi(code, eventName)));
+    start(async () => setResult(await testMetaCapi(code, eventName, adAccountId)));
   }
 
   return (
@@ -32,6 +46,23 @@ export function CapiTester() {
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        {accounts.length > 1 ? (
+          <select
+            className="h-10 rounded-md border border-[var(--input)] bg-[var(--background)] px-3 text-sm sm:w-56"
+            value={adAccountId}
+            onChange={(e) => setAdAccountId(e.target.value)}
+          >
+            <option value="">
+              Default account
+              {accounts.find((a) => a.isDefault) ? ` (${accounts.find((a) => a.isDefault)?.label})` : ""}
+            </option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.label}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <Input
           className="sm:w-56"
           value={eventName}

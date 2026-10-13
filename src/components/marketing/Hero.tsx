@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { MARKETING, TRIAL_NOTE, HERO, DFY, OFFER } from "@/lib/marketing/content";
+import { TRIAL_NOTE, HERO, OFFER, MARKETING } from "@/lib/marketing/content";
+import { getCta } from "@/lib/settings/cta";
+import { CtaLink } from "./CtaLink";
 import { VideoEmbed } from "./VideoEmbed";
 
 // The hero now carries the MECHANISM rather than the benefit. "Know which leads are
@@ -12,7 +13,9 @@ import { VideoEmbed } from "./VideoEmbed";
 //  1. "Know which leads are worth a sales call - before you make one."  (previous H1)
 //  2. "Turn a scorecard into a qualified pipeline."
 //  3. "Score every lead against your fit criteria. Talk only to the ready ones."
-export function Hero({ video }: { video?: string | null }) {
+export async function Hero({ video }: { video?: string | null }) {
+  const cta = await getCta();
+
   return (
     <section id="top" className="border-b">
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 sm:px-8 lg:grid-cols-2 lg:gap-16 lg:py-28">
@@ -30,19 +33,19 @@ export function Hero({ video }: { video?: string | null }) {
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            {/* The done-for-you build is the primary action, not the trial. Someone who
-                has just read that their ad account is buying the wrong people wants it
-                fixed, not a fourteen-day homework assignment. The trial stays one click
-                away for the people who would rather drive themselves. */}
-            <Link href={DFY.href} className={buttonVariants({ size: "lg" })}>
-              {HERO.primaryCta}
-            </Link>
-            <Link
-              href={MARKETING.signupHref}
+            {/* Both buttons go to the same place now: the scorecard itself. Someone who
+                has just read that their ad account is buying the wrong people should see
+                the thing working on their own answers before they see a signup form or a
+                pricing table, whichever of the two framings got them to click. */}
+            <CtaLink href={cta.href} className={buttonVariants({ size: "lg" })}>
+              {cta.dfyLabel}
+            </CtaLink>
+            <CtaLink
+              href={cta.href}
               className={buttonVariants({ variant: "outline", size: "lg" })}
             >
-              {HERO.secondaryCta}
-            </Link>
+              {cta.trialLabel}
+            </CtaLink>
           </div>
 
           {/* Was "No credit card. 25 responses a month on the free plan." - copy that

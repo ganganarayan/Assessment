@@ -15,24 +15,12 @@
 //  The one thing we do for them is build the first scorecard with them on a call,
 //  which is the DFY offer that already exists on every other public surface.
 
-import { DFY, HERO, MARKETING, OFFER_SLOTS } from "./content";
+import { HERO, OFFER_SLOTS } from "./content";
 
-/**
- * The call to action, in one place, and deliberately the SAME one the landing
- * page hero carries.
- *
- * An industry page with a CTA of its own would split the funnel: two different
- * asks, two different conversion events, and an announcement bar above the fold
- * promising a third thing. So the primary action is the free build, the
- * secondary is the trial, and both labels come from the constants the home page
- * already renders.
- */
-export const INDUSTRY_CTA = {
-  primaryHref: DFY.href,
-  primaryLabel: DFY.cta,
-  secondaryHref: MARKETING.signupHref,
-  secondaryLabel: HERO.secondaryCta,
-} as const;
+// INDUSTRY_CTA is gone. An industry page never had a CTA of its own - it rendered the
+// landing page's - and now there is only one CTA on the whole site, resolved per
+// request from the super-admin setting by getCta(). A constant here could only
+// disagree with it.
 
 /** The eyebrow is the category, and it is the same category on every page. */
 export const INDUSTRY_EYEBROW = HERO.eyebrow;

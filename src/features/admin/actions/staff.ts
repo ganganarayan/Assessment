@@ -7,6 +7,9 @@ import { prisma } from "@/lib/db/prisma";
 import { auth } from "@/lib/auth/auth";
 import { requireOwnerAdmin, isSuperAdmin } from "@/lib/auth/guards";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { assertCanAddSeat } from "@/lib/billing/gate";
+import { resolvePlan } from "@/lib/billing/entitlements";
+import { PARKED_MESSAGE } from "@/lib/billing/plans";
 
 /**
  * Staff provisioning - OWNER/ADMIN ONLY (requireOwnerAdmin bounces staff). A super
@@ -132,6 +135,32 @@ export async function createStaff(input: CreateStaffInput): Promise<ActionResult
 
   const existing = await prisma.user.findUnique({ where: { email: d.email }, select: { id: true } });
   if (existing) return { ok: false, error: "A user with that email already exists." };
+
+  /**
+   * Seat cap. Published as "1 / 3 / 10 users" since launch, carried in PlanLimits, and
+   * until now read by nothing but the usage meter - so the number on the pricing page
+   * described nothing the product did.
+   *
+   * The owner is a seat, which is why Gate (one user) refuses every staff invite. That
+   * is exactly what the plan says, and it would still read as a bug, so the message says
+   * who the one seat belongs to instead of quoting a limit.
+   *
+   * Super admins are never capped - they are not rated against a plan - and platform
+   * staff (no tenant) have no plan to be capped by.
+   */
+  if (!isSuper && tenantId) {
+    const seat = await assertCanAddSeat(tenantId);
+    if (!seat.ok) {
+      if ((await resolvePlan(tenantId)).parked) return { ok: false, error: PARKED_MESSAGE };
+      return {
+        ok: false,
+        error:
+          seat.limit === 1
+            ? "Your plan includes one user, which is your own login. Upgrade to add staff."
+            : `Your plan includes ${seat.limit} users and all ${seat.used} are in use. Remove a staff member, or upgrade to add more.`,
+      };
+    }
+  }
 
   // Hash with Better Auth's own hasher so email+password sign-in verifies it.
   const ctx = await auth.$context;

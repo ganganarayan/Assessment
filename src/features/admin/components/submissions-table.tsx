@@ -11,6 +11,8 @@ import { deleteSubmissions, sendMetaVerdict } from "@/features/admin/actions/sub
 import { lookupSubmissionRef } from "@/features/admin/actions/lookup";
 import { type LookupHit } from "@/features/admin/lookup-types";
 import { type PayloadAttribution } from "@/features/events/types";
+import { PaymentLinkCell } from "@/features/payments/components/payment-link-cell";
+import { type PaymentLinkAccount, type PaymentLinkView } from "@/features/payments/links-shared";
 
 /**
  * The two manual Meta verdict buttons for one row, stacked.
@@ -171,6 +173,13 @@ export interface SubmissionRow {
   resultUrlNative?: string | null;
   paidAmount: number | null;
   paidAt: string | null;
+  /** Captured PRODUCT sale (a hand-sent payment link), in rupees. Kept apart from
+   *  paidAmount, which is the funnel's own consultation unlock - adding the two
+   *  together would report a hand-made sale as a funnel conversion. */
+  productPaidAmount?: number | null;
+  productPaidAt?: string | null;
+  /** Links generated for this lead, newest first. */
+  paymentLinks?: PaymentLinkView[];
   vslLoads: number;
   /** First click on a result-page booking CTA (ISO), null = never asked for a call.
    *  The thank-you page lives in the CRM, so this stamp is the only in-app record
@@ -221,7 +230,8 @@ const join = (parts: (string | null)[], sep: string) => {
 /**
  * Submissions grouped by assessment (name shown once as a section header), with
  * click-to-sort columns (toggles asc/desc, applied within each group). This is the
- * superset view: it also carries every opt-in/tracking field the Contacts page shows.
+ * superset view: it also carries every opt-in/tracking field the retired Contacts page
+ * used to show, which is why that page is gone rather than maintained twice.
  *  `exportBase`, when given, adds per-assessment "CSV" / "JSON" export links.
  */
 export function SubmissionsTable({
@@ -230,9 +240,14 @@ export function SubmissionsTable({
   canDelete = false,
   hideGroupTitle = false,
   basePath = "/admin/submissions",
+  payAccounts = [],
 }: {
   rows: SubmissionRow[];
   exportBase?: string;
+  /** Which Razorpay accounts this workspace has keys for. Empty = the Payment link
+   *  column tells the operator to add keys instead of offering a link that cannot be
+   *  paid. */
+  payAccounts?: PaymentLinkAccount[];
   /** Show the select + delete controls. Super-admin only (the delete action is
    *  super-admin-guarded), so the tenant workspace view leaves this off. */
   canDelete?: boolean;
@@ -524,6 +539,10 @@ export function SubmissionsTable({
                     <div>Completed</div>
                     <div className="opacity-70">Paid</div>
                   </th>
+                  <th className="whitespace-nowrap px-3 py-2">
+                    <div>Payment link</div>
+                    <div className="opacity-70">Product sale</div>
+                  </th>
                   <th className="px-3 py-2 text-center">Booking</th>
                   <th className="px-3 py-2 text-center">VSL</th>
                   <th className="px-3 py-2">
@@ -672,6 +691,24 @@ export function SubmissionsTable({
                           )}
                         </span>
                       </div>
+                    </td>
+                    {/* Payment link: generate / copy / withdraw, and the product sale
+                        it collected. Separate from the Paid column above on purpose -
+                        that one is the consultation the funnel sells. */}
+                    <td className="px-3 py-2 align-top">
+                      <PaymentLinkCell
+                        submissionId={s.id}
+                        accounts={payAccounts}
+                        links={s.paymentLinks ?? []}
+                      />
+                      {s.productPaidAmount != null ? (
+                        <div
+                          className="mt-1 text-[11px] font-medium text-green-600 tabular-nums"
+                          title={s.productPaidAt ? `Paid ${formatIST(s.productPaidAt)} IST` : undefined}
+                        >
+                          Sale ₹{s.productPaidAmount.toLocaleString("en-IN")}
+                        </div>
+                      ) : null}
                     </td>
                     {/* Booking requested - who clicked the result page's booking CTA */}
                     <td className="px-3 py-2 text-center whitespace-nowrap">
