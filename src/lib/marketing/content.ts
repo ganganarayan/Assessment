@@ -307,16 +307,16 @@ export const TIERS: ReadonlyArray<Tier> = [
   },
   {
     name: "Agency",
-    price: "$199",
-    annual: "$175",
+    price: "$249",
+    annual: "$219",
     period: "/ month",
-    amount: 199,
+    amount: 249,
     blurb: "Run qualification for a roomful of clients, each on its own ad account.",
     features: [
       "Unlimited scorecards",
       "5,000 qualified responses / month",
       "Everything in Signal, plus:",
-      "10 ad accounts, each with its own pixel",
+      "5 ad accounts, each with its own pixel",
       "10 users",
       "Bulk import a finished scorecard",
       "API tokens for conversion lookups",
@@ -356,13 +356,13 @@ export type MatrixRow = {
 };
 
 export const PLAN_MATRIX: ReadonlyArray<MatrixRow> = [
-  { label: "Monthly", cells: ["$39", "$79", "$199", "from $499"], strong: true },
-  { label: "Annual, per month", cells: ["$32", "$69", "$175", "custom"] },
+  { label: "Monthly", cells: ["$39", "$79", "$249", "from $499"], strong: true },
+  { label: "Annual, per month", cells: ["$32", "$69", "$219", "custom"] },
   { label: "Scorecards", cells: ["2", "10", "Unlimited", "Unlimited"] },
   { label: "Qualified responses", cells: ["150", "1,000", "5,000", "Custom"] },
   { label: "Disqualified visitors", cells: ["Free, unmetered", "Free", "Free", "Free"], note: true },
   { label: "Users", cells: ["1", "3", "10", "Custom"] },
-  { label: "Ad accounts", cells: ["1", "2", "10", "Custom"], strong: true },
+  { label: "Ad accounts", cells: ["1", "2", "5", "Custom"], strong: true },
   { label: "Qualification gate", cells: ["✓", "✓", "✓", "✓"], strong: true },
   { label: "Meta Pixel + CAPI, dedup", cells: ["✓", "✓", "✓", "✓"], strong: true },
   { label: "Exclusion + retargeting audiences", cells: ["✓", "✓", "✓", "✓"], strong: true },

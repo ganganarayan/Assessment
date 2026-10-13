@@ -201,7 +201,18 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     responsesPerMonth: 5000,
     maxAssessments: null,
     seats: 10,
-    adAccounts: 10,
+    // FIVE, not ten, from 2026-10-13, with the price at $249.
+    //
+    // Ten included was the number that made Agency underpriced: one Agency replaced
+    // about five Signal seats, which is $395 of value sold for $199. Five keeps the
+    // tier comfortably ahead of Signal's two while leaving the heavy users somewhere to
+    // pay, and the price moved at the same time so the change is a repricing rather
+    // than a quiet reduction.
+    //
+    // 🟢 EXISTING SUBSCRIBERS KEEP TEN, with no special case: resolvePlan reads the
+    // frozen limitsSnapshot on their subscription, so this catalog edit cannot reach
+    // anybody who has already bought.
+    adAccounts: 5,
     features: {
       ...PAID_BASE,
       customDomain: true,
@@ -240,7 +251,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
 export const PLAN_PRICE_USD: Record<PlanId, number> = {
   GATE: 39,
   SIGNAL: 79,
-  AGENCY: 199,
+  AGENCY: 249,
   ENTERPRISE: 499,
 };
 
@@ -248,7 +259,7 @@ export const PLAN_PRICE_USD: Record<PlanId, number> = {
 export const PLAN_PRICE_USD_ANNUAL: Record<PlanId, number | null> = {
   GATE: 32,
   SIGNAL: 69,
-  AGENCY: 175,
+  AGENCY: 219,
   ENTERPRISE: null,
 };
 

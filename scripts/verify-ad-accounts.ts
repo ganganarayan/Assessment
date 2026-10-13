@@ -36,7 +36,7 @@ function check(name: string, ok: boolean, detail?: string): void {
 // (assertCanCreateAdAccount), so a drift here is a drift between price and product.
 check("Gate includes 1 ad account", PLAN_LIMITS.GATE.adAccounts === 1);
 check("Signal includes 2 ad accounts", PLAN_LIMITS.SIGNAL.adAccounts === 2);
-check("Agency includes 10 ad accounts", PLAN_LIMITS.AGENCY.adAccounts === 10);
+check("Agency includes 5 ad accounts", PLAN_LIMITS.AGENCY.adAccounts === 5);
 check("Enterprise includes 25 ad accounts", PLAN_LIMITS.ENTERPRISE.adAccounts === 25);
 check("Every plan includes at least one", Object.values(PLAN_LIMITS).every((l) => l.adAccounts >= 1),
   "A plan with zero would make the Ad accounts screen unusable on a tier that is paying.");

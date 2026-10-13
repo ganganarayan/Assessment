@@ -30,7 +30,7 @@ two genuinely new concepts: the trial and the parked state.
 | FREE | *(removed)* | existing FREE tenants must land somewhere, see below |
 | STARTER | **GATE** | $39 / $32 annual |
 | GROWTH | **SIGNAL** | $79 / $69 annual |
-| SCALE | **AGENCY** | $199 / $175 annual |
+| SCALE | **AGENCY** | $249 / $219 annual *(repriced 2026-10-13, was $199 / $175)* |
 | - | **ENTERPRISE** | from $499, custom |
 
 Prisma enum change means a migration. Postgres cannot drop an enum value that is in use,
@@ -170,10 +170,28 @@ but the first, or bands switched on).
 🟢 `customDomain` is already gated through `tenantCan(tenantId, "customDomain")` in
 `addDomain`, the one gate in this table that is already live and correct.
 
-### AGENCY - $199 *(enforced; repricing to $249 is its own phase)*
+### AGENCY - $249 *(repriced 2026-10-13, was $199)*
 
-Unlimited scorecards · 5,000 qualified responses · 10 users · 10 ad accounts ·
+Unlimited scorecards · 5,000 qualified responses · 10 users · 5 ad accounts ·
 `apiAccess`, `bulkImport`.
+
+**Why $249 with five accounts, not $199 with ten.** Ten included made the tier
+underpriced: one Agency replaced roughly five Signal seats, which is $395 of value sold
+for $199. Five stays well clear of Signal's two and leaves the heavy users somewhere to
+pay. The price moved at the same time, so this is a repricing rather than a quiet
+reduction in what the money buys.
+
+🟢 **Nobody already paying is affected.** `resolvePlan` reads the frozen `limitsSnapshot`
+on a subscription, so an existing Agency keeps ten accounts, and Razorpay keeps billing
+them against the plan id they subscribed on. Grandfathering needed no code.
+
+🔴 **One manual step before a buyer can be charged the new price.** `getOrCreatePlan`
+self-heals a price change into a fresh Razorpay Plan, but an env override skips that
+entirely: with `RAZORPAY_PLAN_ID_AGENCY` or the legacy `RAZORPAY_PLAN_ID_SCALE` set in
+Railway, the page says $249 and the card is charged $199. Run
+`railway run npm run verify:payments` against each environment - it fetches the override's
+Plan from Razorpay and asserts the amount - and unset the variable if it reports a
+mismatch.
 
 🟢 Every line above is now enforced in code. What the tier sells is volume, ten SEPARATE
 ad accounts (§5), bulk import, and scoped API tokens.
@@ -198,7 +216,7 @@ per-tenant override `resolvePlan` already supports.
 ## 5. Ad accounts - BUILT 2026-10-13
 
 🟢 Shipped end to end. The model and the resolver landed on 2026-10-09; this is the rest
-of it, and the published "1 / 2 / 10 / 25" now describes the product.
+of it, and the published ad-account ladder (now 1 / 2 / 5 / 25) describes the product.
 
 | Piece | Where |
 |---|---|
