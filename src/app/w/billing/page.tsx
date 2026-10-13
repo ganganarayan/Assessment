@@ -15,10 +15,16 @@ function featuresFor(plan: PlanId): string[] {
   const responses = l.responsesPerMonth === null ? "Unlimited responses" : `${l.responsesPerMonth.toLocaleString()} responses / mo`;
   const out = [assessments, responses];
   out.push("Disqualified visitors free, unmetered");
+  // The two limits that are now enforced rather than published: a tenant deciding
+  // whether to upgrade is usually standing in front of one of these walls.
+  out.push(`${l.seats} user${l.seats === 1 ? "" : "s"} · ${l.adAccounts} ad account${l.adAccounts === 1 ? "" : "s"}`);
   if (plan === "GATE") out.push("Qualification gate, CAPI, routing · badge shown");
   if (plan === "SIGNAL") out.push("Custom domain, AI reports, heatmap · badge removed");
-  if (plan === "AGENCY") out.push("Everything in Signal + sub-accounts, API");
-  if (plan === "ENTERPRISE") out.push("Custom caps, SSO, SLA");
+  // 🔴 Said "sub-accounts, API" until 2026-10-13. Sub-accounts do not exist in the
+  // product at all, and this card is shown to someone who is already PAYING for the
+  // tier - the worst possible audience for a feature list that overstates it.
+  if (plan === "AGENCY") out.push("Everything in Signal + bulk import, API tokens");
+  if (plan === "ENTERPRISE") out.push("Custom caps · SSO, SLA by agreement");
   return out;
 }
 

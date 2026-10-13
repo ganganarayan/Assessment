@@ -311,17 +311,18 @@ export const TIERS: ReadonlyArray<Tier> = [
     annual: "$175",
     period: "/ month",
     amount: 199,
-    blurb: "Run qualification for every client from one account, under your own name.",
+    blurb: "Run qualification for a roomful of clients, each on its own ad account.",
     features: [
       "Unlimited scorecards",
       "5,000 qualified responses / month",
       "Everything in Signal, plus:",
-      "Client sub-accounts, white-label",
-      "API access",
-      "10 users · 10 ad accounts",
-      "Extra ad accounts $15 each / month",
+      "10 ad accounts, each with its own pixel",
+      "10 users",
+      "Bulk import a finished scorecard",
+      "API tokens for conversion lookups",
+      "Extra ad accounts on request",
     ],
-    cta: "Start 14-day trial",
+    cta: TRIAL_CTA,
   },
   {
     name: "Enterprise",
@@ -329,14 +330,13 @@ export const TIERS: ReadonlyArray<Tier> = [
     annual: null,
     period: "/ month",
     amount: 499,
-    blurb: "Negotiated caps, SSO and an SLA - priced to what you actually run.",
+    blurb: "Negotiated caps and terms - priced to what you actually run.",
     features: [
       "Unlimited scorecards",
       "Custom qualified-response cap",
       "Everything in Agency, plus:",
-      "SSO",
-      "SLA + dedicated onboarding",
       "Custom users + ad accounts",
+      "SSO, SLA and onboarding by agreement",
     ],
     cta: "Talk to us",
   },
@@ -362,7 +362,7 @@ export const PLAN_MATRIX: ReadonlyArray<MatrixRow> = [
   { label: "Qualified responses", cells: ["150", "1,000", "5,000", "Custom"] },
   { label: "Disqualified visitors", cells: ["Free, unmetered", "Free", "Free", "Free"], note: true },
   { label: "Users", cells: ["1", "3", "10", "Custom"] },
-  { label: "Ad accounts", cells: ["1", "2", "10 (+$15 ea.)", "Custom"] },
+  { label: "Ad accounts", cells: ["1", "2", "10", "Custom"], strong: true },
   { label: "Qualification gate", cells: ["✓", "✓", "✓", "✓"], strong: true },
   { label: "Meta Pixel + CAPI, dedup", cells: ["✓", "✓", "✓", "✓"], strong: true },
   { label: "Exclusion + retargeting audiences", cells: ["✓", "✓", "✓", "✓"], strong: true },
@@ -384,9 +384,11 @@ export const PLAN_MATRIX: ReadonlyArray<MatrixRow> = [
   { label: "Waitlist route", cells: ["-", "✓", "✓", "✓"] },
   { label: "One Meta event per exit", cells: ["-", "✓", "✓", "✓"] },
   { label: "Named audience lists", cells: ["✓", "✓", "✓", "✓"] },
-  { label: "Client sub-accounts, white-label", cells: ["-", "-", "✓", "✓"] },
-  { label: "API access", cells: ["-", "-", "✓", "✓"] },
-  { label: "SSO, SLA, onboarding", cells: ["-", "-", "-", "✓"] },
+  { label: "Bulk import a finished scorecard", cells: ["-", "-", "✓", "✓"] },
+  // Named for what it IS. "API access" reads as a general platform API, and this is
+  // scoped bearer tokens for two purpose-built conversion endpoints - documented at
+  // /api-docs, which says the same thing in the same words.
+  { label: "API tokens (conversion lookups)", cells: ["-", "-", "✓", "✓"] },
 ];
 
 /** The single best line on the page - true to how the product works. */
@@ -398,7 +400,18 @@ export const PRICING_SUB =
 export const TRIAL_NOTE =
   "14-day Signal trial, no card. At day 15 the account parks read-only - your scorecard pauses, your data stays.";
 
-export const OVERAGE_NOTE = "Overage: $15 per extra 500 qualified responses.";
+/**
+ * 🔴 NOT "$15 per extra 500 qualified responses". That was the plan for metered overage
+ * and no code ever charged it: going over the cap runs CAPTURE-BUT-LOCK (see gate.ts).
+ * The answers are stored, the lead and the result are withheld until the plan is raised,
+ * and raising it unlocks everything retroactively with no backfill.
+ *
+ * Which is a better promise than the invoice was, and the only one that is true: a buyer
+ * told their overflow costs $15 would discover instead that it was held back, on the day
+ * their campaign worked harder than they expected.
+ */
+export const OVERAGE_NOTE =
+  "Over your cap, answers are still captured - the leads unlock the moment you raise the plan. Nothing is lost.";
 
 export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
   {

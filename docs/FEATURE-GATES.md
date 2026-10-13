@@ -1,8 +1,11 @@
 # Feature gates - Gate · Signal · Agency · Enterprise
 
-> Status: **PLAN, not built.** Approved scope is **Gate + Signal**. Agency and Enterprise
-> are sketched so the model does not have to be rebuilt later, several Agency features
-> (sub-accounts, white-label) do not exist in the product at all yet.
+> Status: **Gate, Signal and Agency's real content are BUILT and enforced.** Ad accounts
+> and seats closed on 2026-10-13 (§5), and on the same day the pricing page stopped
+> claiming the two Agency features that have no code: client sub-accounts (none, anywhere)
+> and white-label (custom domain + badge removal, which together ARE white-label, are
+> Signal's). Enterprise stays a sales motion: SSO, SLA and onboarding are stated as
+> negotiated terms rather than shipped capabilities.
 
 ## What already exists
 
@@ -108,8 +111,8 @@ not a way to unlock overage for free.
 | `matchKeys` | first-party match keys on CAPI | Gate |
 | `repeatLock` | back-button / repeat-submission lock | Gate |
 | `manualReview` | manual-review screening fields | Signal |
-| `subAccounts` | client sub-accounts + white-label | Agency |
-| `sso` | SSO | Enterprise |
+| ~~`subAccounts`~~ | 🔴 NOT ADDED - no code exists; the page no longer claims it (2026-10-13) |
+| ~~`sso`~~ | 🔴 NOT ADDED - a contractual term, quoted per Enterprise deal |
 
 🟡 Several of these may already be unconditional behaviour (repeat lock, match keys).
 Each needs checking first, adding a gate to something that currently runs for everyone
@@ -167,13 +170,23 @@ but the first, or bands switched on).
 🟢 `customDomain` is already gated through `tenantCan(tenantId, "customDomain")` in
 `addDomain`, the one gate in this table that is already live and correct.
 
-### AGENCY - $199 *(deferred until ads start, see §8)*
+### AGENCY - $199 *(enforced; repricing to $249 is its own phase)*
 
-Unlimited scorecards · 5,000 qualified responses · 10 users · 10 ad accounts with extras
-at $15/mo · `subAccounts`, `apiAccess`.
+Unlimited scorecards · 5,000 qualified responses · 10 users · 10 ad accounts ·
+`apiAccess`, `bulkImport`.
 
-**Sub-accounts and white-label do not exist.** That is a feature build; the gate is the
-last 5% of it. Planned in full in §8.
+🟢 Every line above is now enforced in code. What the tier sells is volume, ten SEPARATE
+ad accounts (§5), bulk import, and scoped API tokens.
+
+🔴 **Sub-accounts and white-label do not exist and are no longer advertised** (2026-10-13).
+Sub-accounts have no code anywhere; white-label was Signal's custom domain and badge
+removal sold back at $199. The build is planned in §8b, and it is blocked by something
+outside itself: Railway caps custom domains per service and an agency wants one per
+client, so Cloudflare for SaaS has to be woken first.
+
+🟡 **Extra ad accounts read "on request", not "$15 each".** The add-on needs an additive
+purchased counter and, more to the point, no real subscription has been put through this
+app yet. A comped extra account works today via `limitOverrides.adAccounts`.
 
 ### ENTERPRISE, from $499 *(sketch only)*
 
@@ -240,6 +253,12 @@ the promise is visible exactly where someone checks their usage.
 Overage ($15 per extra 500) is a **billing** change rather than a gate: the cap stops
 being a wall and becomes a threshold that bills. Capture-but-lock stays as the backstop
 for tenants with no payment method on file.
+
+🔴 Until that exists the page must not promise it, and as of 2026-10-13 it does not. The
+old note read "Overage: $15 per extra 500 qualified responses", which no code charged -
+going over runs capture-but-lock. A buyer told their overflow costs $15 would have found
+out otherwise on the day their campaign over-performed. The note now says what happens:
+answers are captured, the leads unlock when the plan is raised, nothing is lost.
 
 ---
 

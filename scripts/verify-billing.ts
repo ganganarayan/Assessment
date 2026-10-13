@@ -7,6 +7,8 @@
  *
  * Run: npm run verify:billing
  */
+import { readFileSync } from "fs";
+import { join } from "path";
 import { type Plan } from "@prisma/client";
 import { grantedPlan } from "../src/lib/billing/plan-resolve";
 import {
@@ -36,12 +38,15 @@ import {
 const SIGNAL_CAPS: Feature[] = ["customDomain", "brandingRemoved", "aiReports", "heatmap", "manualReview"];
 
 let failed = 0;
-function check(name: string, cond: boolean): void {
+/** `why` is printed only on failure: a check that fails without saying what it was
+ *  protecting is a check the next person deletes. */
+function check(name: string, cond: boolean, why?: string): void {
   if (cond) {
     console.log(`  ok   ${name}`);
   } else {
     failed++;
-    console.error(`  FAIL ${name}`);
+    console.error(`  FAIL ${name}${why ? `
+       ${why}` : ""}`);
   }
 }
 
@@ -151,6 +156,39 @@ check(
   PLAN_LIMITS[grantedPlan("AGENCY" as Plan, future) as "AGENCY"].responsesPerMonth ===
     PLAN_LIMITS.AGENCY.responsesPerMonth,
 );
+
+/* ---------------------------------------------------------------------------
+ * The published claims, checked against the product
+ *
+ * 🔴 WHY A SOURCE SCAN LIVES IN THE BILLING CHECKS. Every other check here proves the
+ * catalog is self-consistent. None of them could catch the thing that was actually
+ * wrong: the pricing page sold client sub-accounts (no code anywhere), white-label
+ * (which is Signal's custom domain and badge removal, sold back at $199) and metered
+ * overage (no code ever charged it - going over runs capture-but-lock). Corrected
+ * 2026-10-13. A claim is only safe while something fails when it comes back.
+ * ------------------------------------------------------------------------- */
+console.log("Published claims match the product");
+const marketing = readFileSync(join(__dirname, "..", "src/lib/marketing/content.ts"), "utf8");
+// Comments explaining the removal are allowed; a claim in the tier/matrix data is not.
+const claimLines = marketing
+  .split(/\r?\n/)
+  .filter((l) => !l.trim().startsWith("*") && !l.trim().startsWith("//"));
+const claims = claimLines.join("\n");
+
+check("the pricing page does not sell client sub-accounts", !/sub-account/i.test(claims),
+  "No sub-account code exists in the repo. See docs/FEATURE-GATES.md §8b.");
+check("the pricing page does not sell white-label", !/white.?label/i.test(claims),
+  "Custom domain + badge removal ARE white-label, and they are Signal's.");
+check("no plan advertises a general API", !/"API access"/.test(claims),
+  "The surface is scoped tokens for two conversion endpoints - say that instead.");
+check("the overage note does not promise a price", !/\$15 per extra/.test(claims),
+  "Over the cap the app runs capture-but-lock; it charges nothing.");
+check("no tier sells per-account overage", !/ad accounts \$15/i.test(claims),
+  "The add-on needs an additive purchased counter and a payment that has actually run.");
+// The flag the deleted claim would have needed. If somebody adds it to the catalog
+// without building the feature, this fails before the copy can follow it back.
+check("there is still no subAccounts feature flag", !FEATURES.includes("subAccounts" as never),
+  "A flag with no feature behind it is how the pricing claim came back the first time.");
 
 const unusedType: PlanLimits = PLAN_LIMITS.GATE;
 void unusedType;
