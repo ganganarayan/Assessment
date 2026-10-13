@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { DFY, OFFER } from "@/lib/marketing/content";
+import { DFY, OFFER, MARKETING } from "@/lib/marketing/content";
+import { CtaLink } from "@/components/marketing/CtaLink";
 
 /**
  * The done-for-you offer, on the industry pages.
@@ -21,12 +22,12 @@ export function DfyOffer({ audience }: { audience?: string }) {
       </p>
       <p className="mt-3 font-medium">{OFFER.ctaSubline}</p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <Link
-          href={DFY.href}
+        <CtaLink
+          href={MARKETING.ctaHref}
           className="inline-flex h-11 items-center justify-center rounded-md bg-green-600 px-6 font-medium text-white"
         >
           {DFY.cta}
-        </Link>
+        </CtaLink>
         <Link
           href="/wasted-call-calculator"
           className="inline-flex h-11 items-center justify-center rounded-md border px-6 font-medium"

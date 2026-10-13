@@ -3,6 +3,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { MARKETING, NAV_LINKS } from "@/lib/marketing/content";
 import { OfferBar } from "./OfferBar";
+import { CtaLink } from "./CtaLink";
 
 /**
  * `anchorBase` exists because this nav is rendered on pages that are not the landing
@@ -65,9 +66,9 @@ export function Nav({ anchorBase = "" }: { anchorBase?: string }) {
           >
             Sign in
           </Link>
-          <Link href={MARKETING.signupHref} className={buttonVariants({ size: "sm" })}>
+          <CtaLink href={MARKETING.ctaHref} className={buttonVariants({ size: "sm" })}>
             Start 14-day trial
-          </Link>
+          </CtaLink>
         </div>
       </nav>
     </header>

@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { DFY, OFFER_SLOTS } from "@/lib/marketing/content";
+import { DFY, OFFER_SLOTS, MARKETING } from "@/lib/marketing/content";
+import { CtaLink } from "./CtaLink";
 import { resolveOfferSlotsLeft } from "@/lib/settings/config";
 
 /**
@@ -38,9 +38,9 @@ export async function BuiltWithYou() {
               API, and build the exclusion and retargeting audiences inside your own ad account. You
               are in the room while it happens, and it is live before you hang up.
             </p>
-            <Link href={DFY.href} className={`mt-8 ${buttonVariants({ size: "lg" })}`}>
+            <CtaLink href={MARKETING.ctaHref} className={`mt-8 ${buttonVariants({ size: "lg" })}`}>
               {DFY.cta}
-            </Link>
+            </CtaLink>
             <p className="mt-4 text-sm text-[var(--muted-foreground)]">
               {slots === null
                 ? `First ${OFFER_SLOTS} clients. Check the banner at the top for slots left.`

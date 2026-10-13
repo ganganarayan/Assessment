@@ -19,6 +19,7 @@ import { ResultPages } from "@/features/assessment/components/public/result-page
 import { type LeadInput, professionOptionsFor, completionEventName, type PreResultField } from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { getOrCreateExternalId } from "@/lib/external-id";
+import { currentAdParams } from "@/lib/attribution-client";
 import { appendVidapulseId } from "@/lib/vidapulse";
 import { detectUnitFromQuestion, isClinicRole, type ClinicRole } from "@/lib/scoring/clinic-audit";
 import { buildSpine, nextIndex, walk, type RouteSpec } from "@/lib/routing/engine";
@@ -639,6 +640,14 @@ export function AssessmentRunner({
     if (lead.email) params.set("email", lead.email);
     const name = [lead.firstName, lead.lastName].filter(Boolean).join(" ").trim();
     if (name) params.set("name", name);
+    // The ad params come with them. This is the last hop of the chain that starts at the
+    // marketing CTA, and it used to be where the chain ended: the signup URL carried a
+    // prefilled email and nothing about where the person came from. The cookie records
+    // the acquisition either way, but anything reading the signup URL - a pixel event,
+    // a session replay, a support ticket asking which campaign this account came from -
+    // saw direct traffic.
+    for (const [key, value] of Object.entries(currentAdParams()))
+      if (!params.has(key)) params.set(key, value);
     const qs = params.toString();
     window.location.href = qs ? `/sign-up?${qs}` : "/sign-up";
   }

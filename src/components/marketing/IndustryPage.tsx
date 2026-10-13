@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { CtaLink } from "./CtaLink";
 import { Nav } from "./Nav";
 import { Footer } from "./Footer";
 import { Tick } from "./Emphasised";
@@ -41,15 +41,15 @@ export function IndustryPage({ spec }: { spec: IndustrySpec }) {
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href={INDUSTRY_CTA.primaryHref} className={buttonVariants({ size: "lg" })}>
+              <CtaLink href={INDUSTRY_CTA.primaryHref} className={buttonVariants({ size: "lg" })}>
                 {INDUSTRY_CTA.primaryLabel}
-              </Link>
-              <Link
+              </CtaLink>
+              <CtaLink
                 href={INDUSTRY_CTA.secondaryHref}
                 className={buttonVariants({ variant: "outline", size: "lg" })}
               >
                 {INDUSTRY_CTA.secondaryLabel}
-              </Link>
+              </CtaLink>
             </div>
 
             <p className="mt-5 text-sm font-medium">{OFFER.ctaSubline}</p>
@@ -167,12 +167,12 @@ export function IndustryPage({ spec }: { spec: IndustrySpec }) {
           <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
             <div className="flex max-w-3xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="font-medium">{OFFER.ctaSubline}</p>
-              <Link
+              <CtaLink
                 href={INDUSTRY_CTA.primaryHref}
                 className={buttonVariants({ size: "lg", className: "shrink-0" })}
               >
                 {INDUSTRY_CTA.primaryLabel}
-              </Link>
+              </CtaLink>
             </div>
           </div>
         </section>
@@ -288,12 +288,12 @@ export function IndustryPage({ spec }: { spec: IndustrySpec }) {
               <p className="mx-auto mt-4 max-w-xl text-lg text-[var(--background)] opacity-70">
                 {spec.finalCta.sub}
               </p>
-              <Link
+              <CtaLink
                 href={INDUSTRY_CTA.primaryHref}
                 className={buttonVariants({ size: "lg", className: "mt-8" })}
               >
                 {INDUSTRY_CTA.primaryLabel}
-              </Link>
+              </CtaLink>
             </div>
           </div>
         </section>

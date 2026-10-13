@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { METERING, DFY, OFFER } from "@/lib/marketing/content";
+import { METERING, DFY, OFFER, MARKETING } from "@/lib/marketing/content";
+import { CtaLink } from "./CtaLink";
 import { Emphasised, Tick } from "./Emphasised";
 
 /**
@@ -43,9 +43,9 @@ export function Metering() {
         </ul>
 
         <div className="mt-9 flex flex-col items-start gap-3">
-          <Link href={DFY.href} className={buttonVariants({ size: "lg" })}>
+          <CtaLink href={MARKETING.ctaHref} className={buttonVariants({ size: "lg" })}>
             {DFY.cta}
-          </Link>
+          </CtaLink>
           {/* The slot COUNT lives in the offer bar; this is the standing sub-line, in
               the same words it carries everywhere else. */}
           <p className="text-sm font-medium">{OFFER.ctaSubline}</p>

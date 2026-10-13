@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { buttonVariants } from "@/components/ui/button";
-import { DFY, OFFER } from "@/lib/marketing/content";
+import { DFY, OFFER, MARKETING } from "@/lib/marketing/content";
+import { CtaLink } from "./CtaLink";
 
 /**
  * The wasted-call calculator. Ungated on purpose: no email to see the number.
@@ -132,9 +133,9 @@ export function WastedCallCalculator() {
         </ul>
         <p className="mt-6 font-medium">{OFFER.ctaSubline}</p>
         <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <Link href={DFY.href} className={buttonVariants({ size: "lg" })}>
+          <CtaLink href={MARKETING.ctaHref} className={buttonVariants({ size: "lg" })}>
             {DFY.cta}
-          </Link>
+          </CtaLink>
           <Link href="/" className={buttonVariants({ variant: "outline", size: "lg" })}>
             See how it works
           </Link>

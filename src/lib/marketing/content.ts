@@ -10,6 +10,19 @@ export const MARKETING = {
   // Internal links - same domain, same service.
   signupHref: "/sign-up",
   signinHref: "/sign-in",
+  /**
+   * ðŸŸ¡ WHERE EVERY CALL TO ACTION GOES.
+   *
+   * Not /sign-up and not /build: the platform sells itself with its own product, so a
+   * visitor who is interested takes the scorecard first and we see what they answered
+   * before they ever see a pricing table. One constant, because the slug has to be
+   * changeable in one edit - and because a slug hardcoded in nineteen components is a
+   * slug that gets half-changed.
+   *
+   * Always linked through <CtaLink>, which keeps the ad's utm/click-id params on the
+   * URL into the funnel; the funnel then carries them on to /sign-up.
+   */
+  ctaHref: "/a/paying-for-junk-leads",
   heroImage: "/hero-scorecard.png",
   // NOTE: no ogImage key. The share card is GENERATED at /opengraph-image (see
   // app/opengraph-image.tsx) and injected into every route by Next's file convention,
@@ -501,7 +514,10 @@ export const NO_GOOD_LEAD = {
 
 /** The done-for-you offer. One place, because it appears on most public surfaces. */
 export const DFY = {
-  href: "/build",
+  // No `href` any more. Every CTA on every surface now goes to MARKETING.ctaHref (the
+  // funnel), so a constant that still said "/build" was a second front door waiting for
+  // somebody to link it by accident. The /build page itself is unchanged and still
+  // reachable; it is just no longer what the buttons point at.
   heading: "We build your first scorecard with you, free, on one 30-minute call",
   body: "Tell us what you sell and who wastes your time. We write the gate, the questions, the weights and the result bands, and bring the draft to a 30-minute call where we wire it to your ads and put it live. You do not touch the builder unless you want to.",
   cta: "Get my scorecard built free",

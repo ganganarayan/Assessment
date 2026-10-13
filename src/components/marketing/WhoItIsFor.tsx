@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { AUDIENCES } from "@/lib/marketing/content";
 import { TEMPLATE_CATEGORIES } from "@/features/templates/schema";
-import { DFY } from "@/lib/marketing/content";
+import { MARKETING } from "@/lib/marketing/content";
+import { CtaLink } from "./CtaLink";
 import { INDUSTRY_PAGES } from "@/lib/marketing/industries";
 
 /**
@@ -71,9 +72,9 @@ export function WhoItIsFor() {
 
         <p className="mt-6 text-[var(--muted-foreground)]">
           Not on the list?{" "}
-          <Link href={DFY.href} className="font-medium underline underline-offset-4">
+          <CtaLink href={MARKETING.ctaHref} className="font-medium underline underline-offset-4">
             Tell us what you sell
-          </Link>{" "}
+          </CtaLink>{" "}
           and we will write the gate for it. The mechanism does not care about the
           industry, only about whether a bad lead costs you something.
         </p>

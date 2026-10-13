@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { MARKETING, DFY, OFFER } from "@/lib/marketing/content";
+import { CtaLink } from "@/components/marketing/CtaLink";
 import type { SeoPage } from "@/lib/seo/types";
 
 /**
@@ -138,12 +138,12 @@ export function MigrationBlock({ competitor }: { competitor: string }) {
         </li>
       </ul>
       <div className="mt-6">
-        <Link
-          href={DFY.href}
+        <CtaLink
+          href={MARKETING.ctaHref}
           className="inline-flex h-11 items-center justify-center rounded-md bg-green-600 px-6 font-medium text-white"
         >
           {DFY.cta}
-        </Link>
+        </CtaLink>
         <p className="mt-3 text-sm font-medium">{OFFER.ctaSubline}</p>
       </div>
     </section>

@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { OFFER, DFY } from "@/lib/marketing/content";
+import { OFFER, MARKETING } from "@/lib/marketing/content";
+import { CtaLink } from "./CtaLink";
 import { resolveOfferSlotsLeft } from "@/lib/settings/config";
 
 /**
@@ -24,12 +24,12 @@ export async function OfferBar() {
 
   return (
     <div className="border-b border-green-600/30 bg-green-600/10">
-      <Link
-        href={DFY.href}
+      <CtaLink
+        href={MARKETING.ctaHref}
         className="mx-auto flex max-w-6xl items-center justify-center gap-2 px-5 py-2 text-center text-sm font-medium text-green-800 hover:underline dark:text-green-400 sm:px-8"
       >
         {OFFER.bar(slots)}
-      </Link>
+      </CtaLink>
     </div>
   );
 }

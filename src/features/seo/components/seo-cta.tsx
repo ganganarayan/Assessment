@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { MARKETING, TRIAL_NOTE } from "@/lib/marketing/content";
+import { CtaLink } from "@/components/marketing/CtaLink";
 
 /**
  * ONE call to action per page, at the end.
@@ -16,9 +17,9 @@ export function SeoCta({ heading, body }: { heading: string; body: string }) {
       <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{heading}</h2>
       <p className="mt-3 leading-relaxed text-[var(--muted-foreground)]">{body}</p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <Link href={MARKETING.signupHref} className={buttonVariants({ size: "lg" })}>
+        <CtaLink href={MARKETING.ctaHref} className={buttonVariants({ size: "lg" })}>
           Start 14-day trial
-        </Link>
+        </CtaLink>
         <Link href="/" className={buttonVariants({ variant: "outline", size: "lg" })}>
           See how Assess360 works
         </Link>

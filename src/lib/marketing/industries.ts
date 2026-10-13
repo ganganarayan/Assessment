@@ -28,9 +28,13 @@ import { DFY, HERO, MARKETING, OFFER_SLOTS } from "./content";
  * already renders.
  */
 export const INDUSTRY_CTA = {
-  primaryHref: DFY.href,
+  // Both hrefs are the funnel now (MARKETING.ctaHref). The two buttons stay because the
+  // labels offer two different framings of the same next step - the free build, or
+  // driving it yourself - and the one page where both were tried as one button read as
+  // a page with nothing to choose. The destination is deliberately identical.
+  primaryHref: MARKETING.ctaHref,
   primaryLabel: DFY.cta,
-  secondaryHref: MARKETING.signupHref,
+  secondaryHref: MARKETING.ctaHref,
   secondaryLabel: HERO.secondaryCta,
 } as const;
 

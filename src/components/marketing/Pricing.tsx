@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { CtaLink } from "./CtaLink";
 import { cn } from "@/lib/utils";
 import {
   MARKETING,
@@ -107,15 +107,15 @@ export function Pricing() {
                 {tier.blurb}
               </p>
 
-              <Link
-                href={MARKETING.signupHref}
+              <CtaLink
+                href={MARKETING.ctaHref}
                 className={cn(
                   "mt-5",
                   buttonVariants({ variant: tier.highlight ? "default" : "outline" }),
                 )}
               >
                 {tier.cta}
-              </Link>
+              </CtaLink>
 
               <ul className="mt-6 space-y-3 border-t pt-6">
                 {tier.features.map((f) => (

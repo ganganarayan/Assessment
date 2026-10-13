@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { MARKETING, TRIAL_NOTE, HERO, DFY, OFFER } from "@/lib/marketing/content";
+import { TRIAL_NOTE, HERO, OFFER, MARKETING } from "@/lib/marketing/content";
+import { CtaLink } from "./CtaLink";
 import { VideoEmbed } from "./VideoEmbed";
 
 // The hero now carries the MECHANISM rather than the benefit. "Know which leads are
@@ -30,19 +30,19 @@ export function Hero({ video }: { video?: string | null }) {
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            {/* The done-for-you build is the primary action, not the trial. Someone who
-                has just read that their ad account is buying the wrong people wants it
-                fixed, not a fourteen-day homework assignment. The trial stays one click
-                away for the people who would rather drive themselves. */}
-            <Link href={DFY.href} className={buttonVariants({ size: "lg" })}>
+            {/* Both buttons go to the same place now: the scorecard itself. Someone who
+                has just read that their ad account is buying the wrong people should see
+                the thing working on their own answers before they see a signup form or a
+                pricing table, whichever of the two framings got them to click. */}
+            <CtaLink href={MARKETING.ctaHref} className={buttonVariants({ size: "lg" })}>
               {HERO.primaryCta}
-            </Link>
-            <Link
-              href={MARKETING.signupHref}
+            </CtaLink>
+            <CtaLink
+              href={MARKETING.ctaHref}
               className={buttonVariants({ variant: "outline", size: "lg" })}
             >
               {HERO.secondaryCta}
-            </Link>
+            </CtaLink>
           </div>
 
           {/* Was "No credit card. 25 responses a month on the free plan." - copy that

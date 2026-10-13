@@ -39,6 +39,40 @@ function withLeadPrefill(
   }
 }
 
+/**
+ * Append the submission's stored ad params to a destination we own.
+ *
+ * Same host guard as the lead prefill above, for a weaker reason: utm values are not
+ * personal data, but an operator's onward URL can name any site and nobody's campaign
+ * names need to end up in a third party's logs.
+ *
+ * Why at all: when the onward step is our own signup page, this is the hop where the
+ * ad that paid for the visit either stays attached to the account or does not. The
+ * a360_attr cookie covers the same ground, so this is the visible half - and the half
+ * that still works when the respondent opened the result link in a different browser
+ * than the one that clicked the ad, because here the params come off the submission.
+ */
+function withStoredAdParams(dest: string, requestHost: string, attribution: unknown): string {
+  if (!attribution || typeof attribution !== "object") return dest;
+  const entries = Object.entries(attribution as Record<string, unknown>).filter(
+    ([k, v]) =>
+      (k.startsWith("utm_") || k === "fbclid" || k === "gclid") &&
+      typeof v === "string" &&
+      v.trim().length > 0,
+  );
+  if (entries.length === 0) return dest;
+  try {
+    const u = new URL(dest);
+    const ours = u.host.toLowerCase() === requestHost.toLowerCase() || isPlatformHost(u.host);
+    if (!ours) return dest;
+    // Never overwrite what the operator put on their own URL.
+    for (const [k, v] of entries) if (!u.searchParams.has(k)) u.searchParams.set(k, String(v).slice(0, 512));
+    return u.toString();
+  } catch {
+    return dest;
+  }
+}
+
 export async function GET(req: Request, ctx: { params: Promise<{ submissionId: string }> }) {
   const { submissionId } = await ctx.params;
   const requestHost = (() => {
@@ -57,6 +91,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ submissionId: s
       leadEmail: true,
       leadFirstName: true,
       leadLastName: true,
+      attribution: true,
       assessment: { select: { resultsContinueUrl: true, tenantId: true } },
     },
   });
@@ -118,6 +153,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ submissionId: s
     email: sub.leadEmail,
     name: [sub.leadFirstName, sub.leadLastName].filter(Boolean).join(" ").trim() || null,
   });
+
+  // And the ad params this submission was captured with, under the same host guard.
+  dest = withStoredAdParams(dest, requestHost, sub.attribution);
 
   return NextResponse.redirect(dest, 302);
 }
