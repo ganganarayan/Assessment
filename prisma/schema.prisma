@@ -177,6 +177,8 @@ model Tenant {
   adAccounts           AdAccount[]
   supportRequests      SupportRequest[]
   audienceLists        AudienceList[]
+  /// Result pages (RESULTS + VSL) in this workspace's library.
+  resultPageDocs       ResultPageDoc[]
 
   @@index([status])
   @@index([deletedAt])
@@ -897,6 +899,18 @@ model Assessment {
   resultPagePublished   Json?
   resultPagePublishedAt DateTime?
 
+  // The two result pages this assessment uses, each a ResultPageDoc bound 1:1. The
+  // UNIQUE on each id is the whole rule: a doc can be used by at most one assessment,
+  // enforced by the database rather than by whichever action happens to check. Need the
+  // same page on a second funnel? Clone it - that is a different doc with its own slug.
+  //
+  // SetNull on delete: deleting an assessment frees its pages back into the library
+  // rather than destroying work that is still worth cloning.
+  resultsDocId String?        @unique
+  resultsDoc   ResultPageDoc? @relation("AssessmentResultsDoc", fields: [resultsDocId], references: [id], onDelete: SetNull)
+  vslDocId     String?        @unique
+  vslDoc       ResultPageDoc? @relation("AssessmentVslDoc", fields: [vslDocId], references: [id], onDelete: SetNull)
+
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -914,13 +928,86 @@ model Assessment {
   pageViews             PageView[]
   gateDisqualifications GateDisqualification[]
   ctaClicks             CtaClick[]
-  pages                 AssessmentPage[]
   gateEntries           GateEntry[]
   eventCounts           FunnelEventCount[]
 
   @@index([tenantId])
   @@index([status])
   @@map("assessment")
+}
+
+// ---------------------------------------------------------------------------
+// ResultPageDoc - a result page as a record of its own.
+//
+// WHY A SEPARATE TABLE
+// Both result pages used to live on the assessment: the post-questions page as
+// AssessmentPage rows plus a published snapshot, the VSL page as two JSON columns.
+// That made every page a child of one funnel, so building the next funnel meant
+// rebuilding the same eyebrow, headline, video and footer by hand.
+//
+// A doc is the same content with its own name, slug, editor and Publish button. You
+// clone one, change the video link, bind it to a funnel, publish. The binding is
+// strictly 1:1 (see the UNIQUE columns on Assessment): no two funnels ever share a
+// page, so editing one can never reword a page somebody else's ad traffic is landing
+// on, and a per-funnel value (a booking inbox, a calendar link, an exit-route block)
+// is always correct for the one funnel it serves.
+//
+// WHAT IS LIVE
+// Publishing a doc writes this row's snapshot AND mirrors it onto the bound
+// assessment's own column, which is what the public still renders. The live read path
+// is therefore unchanged by this table existing, and a doc that is bound to nothing
+// is simply a draft in the library.
+//
+// Each kind keeps the storage it already had: VSL in `draft` (theme + blocks),
+// RESULTS in AssessmentPage rows pointing here. Asymmetric on purpose - it is what
+// made this a re-parent instead of a rewrite of two working builders.
+// ---------------------------------------------------------------------------
+
+enum ResultPageKind {
+  RESULTS // the page shown after the questions (bands, category teaser, pay button)
+  VSL // the marketing page on the token link (headline, video, booking CTA)
+}
+
+model ResultPageDoc {
+  id    String         @id @default(cuid())
+  kind  ResultPageKind
+  title String
+  /// Library identifier, unique within the workspace. Not a public URL - a respondent
+  /// always arrives at /a/<assessment-slug>/r/<id>?t=... - so there is no reason to
+  /// make one workspace's naming collide with another's.
+  slug  String
+
+  /// VSL only: the editable draft (theme + ordered blocks). RESULTS keeps its draft in
+  /// the AssessmentPage rows below.
+  draft Json?
+
+  /// The published snapshot, in the shape that kind already published: ResultPageData
+  /// for VSL, AssessmentPageData[] for RESULTS. Mirrored onto the bound assessment.
+  published   Json?
+  publishedAt DateTime?
+
+  /// The doc this one was cloned from, for provenance only. Never a live link.
+  sourceSlug String?
+
+  /// Owning workspace. Null = the platform's own library (super admin, no workspace
+  /// entered). SetNull rather than Cascade: a deleted tenant's assessments survive as
+  /// platform-owned, so their pages must survive with them.
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  /// RESULTS only: the editable draft.
+  pages AssessmentPage[]
+
+  /// The 1:1 binding, seen from this side. Both null = a free page in the library.
+  resultsOf Assessment? @relation("AssessmentResultsDoc")
+  vslOf     Assessment? @relation("AssessmentVslDoc")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, kind])
+  @@map("result_page_doc")
 }
 
 // ---------------------------------------------------------------------------
@@ -931,17 +1018,20 @@ model Assessment {
 // ---------------------------------------------------------------------------
 
 model AssessmentPage {
-  id           String   @id @default(cuid())
-  assessmentId String
-  order        Int      @default(0)
-  title        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(cuid())
+  /// The result page this draft page belongs to. A page is owned by a DOC, not by an
+  /// assessment: the same content can be cloned into a new doc and bound elsewhere,
+  /// and a doc that is bound to nothing is still editable.
+  docId     String
+  order     Int      @default(0)
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  assessment Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  blocks     PageBlock[]
+  doc    ResultPageDoc @relation(fields: [docId], references: [id], onDelete: Cascade)
+  blocks PageBlock[]
 
-  @@index([assessmentId, order])
+  @@index([docId, order])
   @@map("assessment_page")
 }
 

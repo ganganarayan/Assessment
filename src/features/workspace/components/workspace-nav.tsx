@@ -30,6 +30,7 @@ const SECTIONS: NavSection[] = [
     title: "Build",
     items: [
       { href: "/w/assessments", label: "Assessments" },
+      { href: "/w/result-pages", label: "Result pages" },
       { href: "/w/templates", label: "Templates" },
       { href: "/w/import", label: "Import" },
     ],

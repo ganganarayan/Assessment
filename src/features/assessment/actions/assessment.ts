@@ -11,6 +11,7 @@ import { resolvePlan } from "@/lib/billing/entitlements";
 import { PARKED_MESSAGE } from "@/lib/billing/plans";
 import { metaPublishBlock } from "@/lib/meta/publish-lock";
 import { getAssessmentById } from "@/features/assessment/data";
+import { cloneDoc, bindDoc } from "@/features/result-pages/actions/docs";
 import { assessmentSchema, type AssessmentInput, type AudienceGateInput } from "@/features/assessment/schemas";
 import { originOf } from "@/lib/result/cors";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
@@ -451,8 +452,8 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
       slug,
       status: "DRAFT",
       publishedAt: null,
-      // The copy is a draft - nothing is live yet. The draft page ROWS are copied
-      // below so it can be edited + published; the live snapshot starts empty.
+      // The copy is a draft - nothing is live yet. Its result pages are cloned below
+      // (each its own doc), and the live snapshot starts empty until one is published.
       publishedPages: Prisma.DbNull,
       pagesPublishedAt: null,
       eyebrow: src.eyebrow,
@@ -576,22 +577,25 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
           displayOrder: b.displayOrder,
         })),
       },
-      pages: {
-        create: src.pages.map((p) => ({
-          order: p.order,
-          title: p.title,
-          blocks: {
-            create: p.blocks.map((bl) => ({
-              type: bl.type,
-              order: bl.order,
-              config: (bl.config ?? {}) as Prisma.InputJsonValue,
-            })),
-          },
-        })),
-      },
     },
     select: { id: true },
   });
+
+  // The result pages. A page is bound 1:1, so the copy cannot share the original's -
+  // it gets its own clone of each, which is also what keeps the duplicate's booking
+  // inbox, calendar link and video from being the same row as the original's.
+  //
+  // The copy's pages start UNPUBLISHED (cloneDoc's rule), which matches the copy
+  // itself being a draft: duplicating a funnel must not put a second live page on the
+  // internet without a decision.
+  for (const [kind, doc] of [
+    ["RESULTS", src.resultsDoc],
+    ["VSL", src.vslDoc],
+  ] as const) {
+    if (!doc) continue;
+    const copy = await cloneDoc(doc.id);
+    if (copy.ok && copy.data) await bindDoc(created.id, kind, copy.data.id);
+  }
 
   revalidatePath("/admin/assessment-builder");
   revalidatePath("/admin/assessments");

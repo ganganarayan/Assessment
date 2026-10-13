@@ -8,7 +8,7 @@ import { resolvePlan } from "@/lib/billing/entitlements";
 import { PARKED_MESSAGE } from "@/lib/billing/plans";
 import { buildAssessmentBody } from "@/features/assessment/transfer/export";
 import { importTemplateForTenant } from "@/features/templates/import";
-import { assessmentCreateData } from "@/features/assessment/transfer/import";
+import { assessmentCreateData, createResultDocsForImport } from "@/features/assessment/transfer/import";
 import { parseTemplateBody } from "@/features/templates/schema";
 import { nextVersionNumber } from "@/lib/ai/versions";
 import { invalidatePublicAssessmentById } from "@/features/assessment/data";
@@ -340,6 +340,16 @@ export async function applyTemplateToAssessment(
           ...data,
           ...(promptVersionId ? { aiPromptVersionId: promptVersionId } : { useAiStatement: false }),
         },
+      });
+      // The template's pages become docs bound to this assessment. Reached only when
+      // the template carries page content; the guard above already refused any
+      // assessment that has questions on it, so there is nothing to overwrite.
+      await createResultDocsForImport(tx, {
+        assessmentId,
+        assessmentSlug: target.slug,
+        assessmentTitle: target.title,
+        tenantId,
+        body: parsed.data,
       });
       return { promptVersionLabel };
     },

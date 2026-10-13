@@ -30,14 +30,14 @@ import {
  * edits are local while typing and persisted on blur.
  */
 export function PagesBuilder({
-  assessmentId,
+  docId,
   initialPages,
   bandTitles,
   initialDirty,
   initialPublished,
   lastPublishedAt,
 }: {
-  assessmentId: string;
+  docId: string;
   initialPages: AssessmentPageData[];
   bandTitles: Record<string, string>; // level -> your word (Stable / Overwhelmed / …)
   initialDirty: boolean;
@@ -78,7 +78,7 @@ export function PagesBuilder({
 
   const publish = () =>
     start(async () => {
-      const r = await publishPages(assessmentId);
+      const r = await publishPages(docId);
       if (r.ok && r.data) {
         setDirtyPub(false);
         setIsLive(true);
@@ -90,7 +90,7 @@ export function PagesBuilder({
   // straight to the destination (VSL). Draft is kept - Publish restores it.
   const unpublish = () =>
     start(async () => {
-      const r = await unpublishPages(assessmentId);
+      const r = await unpublishPages(docId);
       if (r.ok) {
         setIsLive(false);
         setPublishedAt(null);
@@ -196,7 +196,7 @@ export function PagesBuilder({
 
       {pages.length === 0 ? (
         <div>
-          <Button disabled={pending} onClick={() => run(() => addPage(assessmentId))}>
+          <Button disabled={pending} onClick={() => run(() => addPage(docId))}>
             + Add results page
           </Button>
         </div>

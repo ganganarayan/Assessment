@@ -79,8 +79,9 @@ export const STEP_HEADINGS: Record<string, { title: string; blurb: string }> = {
   tracking: { title: "Tracking & rules", blurb: "Meta events, colours, retakes - the settings nobody changes twice." },
 };
 
-/** The steps the Back / Save & next buttons walk through. The last two are separate
- *  builders with their own draft and Publish button, so the walk stops before them. */
+/** The steps the Back / Save & next buttons walk through. The last two only BIND a
+ *  result page - the page itself is built and published in the Result pages library,
+ *  which has its own draft and Publish button - so the walk stops before them. */
 export const STEP_KEYS = BUILDER_TABS.map((t) => t.key).filter(
   (k) => k !== "results" && k !== "resultPage",
 ) as readonly string[];

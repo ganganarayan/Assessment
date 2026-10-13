@@ -25,13 +25,13 @@ import { VslResultPage } from "@/features/assessment/components/public/vsl-resul
  * persist on blur. Publish snapshots the draft to the live page the token URL renders.
  */
 export function ResultPageBuilder({
-  assessmentId,
+  docId,
   initial,
   initialPublished,
   lastPublishedAt,
   hasExitRoutes = false,
 }: {
-  assessmentId: string;
+  docId: string;
   initial: ResultPageData;
   initialPublished: boolean;
   lastPublishedAt: string | null;
@@ -55,13 +55,13 @@ export function ResultPageBuilder({
   };
   const persist = () =>
     start(async () => {
-      await saveResultPage(assessmentId, pageRef.current);
+      await saveResultPage(docId, pageRef.current);
     });
   /** Apply a change and persist it immediately (for structural edits). */
   const commit = (next: ResultPageData) => {
     update(next);
     start(async () => {
-      await saveResultPage(assessmentId, next);
+      await saveResultPage(docId, next);
     });
   };
 
@@ -96,8 +96,8 @@ export function ResultPageBuilder({
 
   const publish = () =>
     start(async () => {
-      await saveResultPage(assessmentId, pageRef.current);
-      const r = await publishResultPage(assessmentId);
+      await saveResultPage(docId, pageRef.current);
+      const r = await publishResultPage(docId);
       if (r.ok && r.data) {
         setDirtyPub(false);
         setIsLive(true);
@@ -109,7 +109,7 @@ export function ResultPageBuilder({
 
   const unpublish = () =>
     start(async () => {
-      const r = await unpublishResultPage(assessmentId);
+      const r = await unpublishResultPage(docId);
       if (r.ok) {
         setIsLive(false);
         setPublishedAt(null);

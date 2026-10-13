@@ -93,6 +93,7 @@ const TABLES = [
   "webhookDelivery",
   "apiToken",
   "aiPromptVersion",
+  "resultPageDoc",
 ] as const;
 
 type TableName = (typeof TABLES)[number];
