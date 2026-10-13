@@ -74,7 +74,13 @@ export async function sweep(
 
     for (const [index, c] of cases.entries()) {
       const started = Date.now();
-      process.stdout.write(`  [${index + 1}/${cases.length}] ${c.plan.id} ... `);
+      // On a terminal the case name and its verdict share a line, which reads well
+      // while watching. Redirected to a file, a half-written line sits in a buffer and
+      // a healthy sweep looks hung - so there the two are printed separately.
+      const live = process.stdout.isTTY === true;
+      const label = `  [${index + 1}/${cases.length}] ${c.plan.id}`;
+      if (live) process.stdout.write(`${label} ... `);
+      else console.log(`${label} ...`);
 
       if (c.unreachable) {
         results.push({
@@ -86,7 +92,7 @@ export async function sweep(
           unreachable: c.unreachable,
           seconds: 0,
         });
-        console.log(`unreachable: ${c.unreachable}`);
+        console.log(live ? `unreachable: ${c.unreachable}` : `${label} -> unreachable: ${c.unreachable}`);
         continue;
       }
 
@@ -139,8 +145,36 @@ export async function sweep(
       // browser is done, so give it one before reading rows back.
       await new Promise((r) => setTimeout(r, 2500));
       const identity = identityFor(opts.runId, c.plan.id);
-      const rows = await readRows(funnel, identity, observation?.visitorId ?? null, observation?.externalId ?? null);
-      const events = eventDelta(before, await eventSnapshot(funnel.row.id));
+      let rows: RowObservation;
+      let events: EventCounts;
+      try {
+        rows = await readRows(funnel, identity, observation?.visitorId ?? null, observation?.externalId ?? null);
+        events = eventDelta(before, await eventSnapshot(funnel.row.id));
+      } catch (err) {
+        // The reads have their own retry; if they still fail, this case is unjudged and
+        // says so, and the sweep carries on. Losing one case beats losing the funnel.
+        const why = err instanceof Error ? err.message.split("\n")[0] : String(err);
+        results.push({
+          id: c.plan.id,
+          kind: c.plan.kind,
+          title: c.plan.title,
+          verdict: "fail",
+          checks: [
+            {
+              verdict: "fail",
+              what: "the rows this case wrote can be read back",
+              expected: "a database that answers",
+              observed: why,
+            },
+          ],
+          expectation,
+          observation,
+          identityEmail: identity.email,
+          seconds: Math.round((Date.now() - started) / 100) / 10,
+        });
+        console.log(live ? `UNJUDGED (${why})` : `${label} -> UNJUDGED (${why})`);
+        continue;
+      }
       const checks = observation
         ? compare(funnel, c.plan, expectation, observation, rows, events, retakeObs)
         : [
@@ -185,9 +219,8 @@ export async function sweep(
       });
 
       const failed = checks.filter((x) => x.verdict === "fail").length;
-      console.log(
-        `${verdict.toUpperCase()}${failed ? ` (${failed} failed check${failed === 1 ? "" : "s"})` : ""} ${seconds}s`,
-      );
+      const tail = `${verdict.toUpperCase()}${failed ? ` (${failed} failed check${failed === 1 ? "" : "s"})` : ""} ${seconds}s`;
+      console.log(live ? tail : `${label} -> ${tail}`);
     }
     // The owner's side, with the browser still open: the same run read back through
     // the admin screens, using this sweep's own identities as the needle.

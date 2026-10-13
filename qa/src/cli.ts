@@ -18,7 +18,7 @@ import { expectationFor } from "./oracle/expect.js";
 import { oracleContext } from "./oracle/context.js";
 import type { CaseKind } from "./oracle/types.js";
 import { sweep } from "./sweep.js";
-import { renderTerminal, writeHtml } from "./report/render.js";
+import { renderTerminal, writeHtml, writeResultJson } from "./report/render.js";
 import { newRunId } from "./drive/identity.js";
 import { applyOverrides, loadOverrides, overrideExpectation, writeOverridesTemplate } from "./cases/overrides.js";
 import { cleanupRun } from "./cleanup.js";
@@ -240,6 +240,7 @@ Cleaned up this run: ${removed.submissions} submission(s), ${removed.gateEntries
     );
   }
   const htmlPath = writeHtml(result);
+  writeResultJson(result);
   console.log(`Open it: ${htmlPath}`);
 
   return result.results.some((r) => r.verdict === "fail") ? 1 : 0;

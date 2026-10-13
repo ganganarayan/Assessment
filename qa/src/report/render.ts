@@ -113,6 +113,19 @@ function caseSection(c: CaseResult): string {
 </details>`;
 }
 
+/** The tally, for anything that runs sweeps and needs the answer rather than the page. */
+export function writeResultJson(r: SweepResult): string {
+  const counts = { pass: 0, fail: 0, warn: 0, skip: 0 };
+  for (const c of r.results) counts[c.verdict] += 1;
+  const path = join(r.outDir, "result.json");
+  writeFileSync(
+    path,
+    JSON.stringify({ slug: r.slug, runId: r.runId, seconds: r.seconds, cases: r.results.length, ...counts }, null, 2),
+    "utf8",
+  );
+  return path;
+}
+
 export function writeHtml(r: SweepResult): string {
   const counts = { pass: 0, fail: 0, warn: 0, skip: 0 };
   for (const c of r.results) counts[c.verdict] += 1;

@@ -74,7 +74,24 @@ export interface RowObservation {
   webhookDeliveries: number;
 }
 
+/**
+ * Everything one case wrote, behind one retry.
+ *
+ * A dropped connection in the middle of a sweep used to throw out of the case loop and
+ * lose the whole funnel, including the report for the cases that had already run - so
+ * an infrastructure blip read as "the sweep failed", which is the one thing a harness
+ * must never say.
+ */
 export async function readRows(
+  funnel: Funnel,
+  identity: Identity,
+  visitorId: string | null,
+  externalId: string | null,
+): Promise<RowObservation> {
+  return withDbRetry(() => readRowsOnce(funnel, identity, visitorId, externalId), "reading the rows this case wrote");
+}
+
+async function readRowsOnce(
   funnel: Funnel,
   identity: Identity,
   /** The server cookie: how a REJECTION is keyed. */
