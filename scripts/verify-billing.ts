@@ -235,9 +235,44 @@ const gateSrc = readFileSync(join(__dirname, "..", "src/lib/billing/gate.ts"), "
 check("agency tenants are only sold while something enforces the count",
   !sellsAgencyTenants || /assertCanCreateAgencyTenant/.test(gateSrc),
   "A published count nobody checks is a price list that does not describe the product.");
+const schemaSrc = readFileSync(join(__dirname, "..", "prisma/schema.prisma"), "utf8");
+const slotsSrc = readFileSync(join(__dirname, "..", "src/features/billing/actions/slots.ts"), "utf8");
+const webhookSrc = readFileSync(join(__dirname, "..", "src/app/api/billing/razorpay/route.ts"), "utf8");
 check("the page does not price the extras before the slot can be bought",
-  !/\$29/.test(claims) || /razorpaySlotSubscriptionId/.test(readFileSync(join(__dirname, "..", "prisma/schema.prisma"), "utf8")),
+  !/\$29/.test(claims) ||
+    (/razorpaySlotSubscriptionId/.test(schemaSrc) &&
+      /addAgencyTenantSlot/.test(slotsSrc) &&
+      /updateSlotQuantity/.test(slotsSrc)),
   "Naming a price for an extra workspace needs the purchased counter AND the charge path.");
+
+console.log("Client-workspace slots (the $29 extras)");
+// 🔴 THE ORDERING BUG THIS CHECK EXISTS FOR. A tenant can hold TWO Razorpay
+// subscriptions - the tier and the slots - and activateSubscription writes the TIER's
+// razorpaySubscriptionId. If a slot event reached it, the tier's id would be overwritten
+// with the slot subscription's and the tier would quietly stop renewing while the app
+// went on reporting it active. Nothing else in the file would fail: the webhook returns
+// 200, the row looks populated, and the first symptom is a missed renewal weeks later.
+const slotBranchAt = webhookSrc.indexOf("SLOT_NOTE_KIND");
+const activateAt = webhookSrc.indexOf("await activateSubscription(");
+check("the webhook recognises a slot event before it can be treated as a tier charge",
+  slotBranchAt > 0 && activateAt > 0 && slotBranchAt < activateAt,
+  "A slot charge routed into activateSubscription overwrites the tier's subscription id.");
+check("the slot branch returns rather than falling through",
+  /slots: true/.test(webhookSrc) && /slotsEnded: true/.test(webhookSrc));
+check("a cancelled slot subscription clears the paid count",
+  /clearPaidSlots/.test(webhookSrc),
+  "Extras that survive a cancellation are workspaces running for free.");
+// The two asymmetric directions, which are the whole reason updateSlotQuantity takes a
+// `when`: an increase is immediate (the owner's requirement), a decrease waits for the
+// period they already paid for.
+check("an added workspace is immediate and a removed one waits for the period end",
+  /"now"/.test(slotsSrc) && /"cycle_end"/.test(slotsSrc));
+check("a slot cannot be given back below the workspaces in use",
+  /usage\.used > usage\.included \+ quantity/.test(slotsSrc),
+  "Otherwise the agency pays for fewer workspaces than it runs, and the cap refuses a create it never asked to lose.");
+check("an unpaid slot subscription cannot be topped up",
+  /extraAgencyTenants > 0/.test(slotsSrc),
+  "A stored subscription id means Checkout OPENED, not that anybody paid - topping that up hands out a free workspace.");
 check("the pricing page does not sell white-label", !/white.?label/i.test(claims),
   "Custom domain + badge removal ARE white-label, and they are Signal's.");
 check("no plan advertises a general API", !/"API access"/.test(claims),

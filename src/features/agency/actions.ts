@@ -59,6 +59,13 @@ export interface AgencyTenantsView {
   insideId: string | null;
   /** Price of one agency tenant beyond the included count, USD / month. */
   extraPriceUsd: number;
+  /**
+   * Whether MORE can be bought right now. False on the trial (one, to try) and while
+   * parked - in both cases the answer to "I need another" is the plan, not a slot, and
+   * offering a $29 button to somebody with no subscription to attach it to would fail at
+   * Razorpay with a message nobody could act on.
+   */
+  canBuySlots: boolean;
   /** True while the agency admin's own workspace is parked - the cause of notReselling. */
   parkedMessage: string | null;
 }
@@ -143,7 +150,7 @@ export async function getAgencyTenantsView(): Promise<AgencyTenantsView> {
     return {
       tenants: [], removed: [], usage: empty, canEdit: false,
       blocked: scope.blocked, insideId: null, extraPriceUsd: AGENCY_TENANT_EXTRA_USD,
-      parkedMessage: null,
+      parkedMessage: null, canBuySlots: false,
     };
   }
 
@@ -170,6 +177,7 @@ export async function getAgencyTenantsView(): Promise<AgencyTenantsView> {
     insideId: inside,
     extraPriceUsd: AGENCY_TENANT_EXTRA_USD,
     parkedMessage: resolved.parked ? PARKED_MESSAGE : null,
+    canBuySlots: scope.canEdit && usage.included > 0 && !resolved.parked && !resolved.trialing,
   };
 }
 

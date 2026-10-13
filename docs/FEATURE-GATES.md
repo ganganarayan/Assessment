@@ -408,12 +408,33 @@ resells), **agency tenant** (a workspace under an agency admin). Not "parent", n
 - **A trial creates one** (`TRIAL_AGENCY_TENANTS`), so the tier can be evaluated. 🟡 There
   is one trial and it grants Signal, so this reaches every trialing workspace.
 
-**Still to build, in order:** the create/enter surface at /w/agency-tenants (including
-creation reusing the platform's `createTenant` path, so the two cannot drift), the meter
-on the agency admin's billing page, and the $29 slot purchase - a SECOND Razorpay
-subscription carrying quantity, because quantity on the base plan multiplies $249 rather
-than adding $29. `Subscription.razorpaySlotSubscriptionId` and `extraAgencyTenants` are
-already in the schema for it.
+**The surface, built the same day:** /w/agency-tenants ("Client workspaces" to the agency
+admin, agency tenants everywhere in the code) with create, Enter, leave, Remove and
+Restore; the meter on both that screen and billing; the hierarchy shown in the platform
+console; and the permanent delete refusing in a sentence while agency tenants still hang
+off a workspace. Creation goes through `provisionWorkspace` (src/lib/tenant/provision.ts),
+shared with the platform's createTenant so the two screens cannot drift.
+
+🔴 **An agency tenant has no billing**, and honouring that took four places rather than
+one: the nav hides the link, the route returns a "your agency handles the plan" page, the
+paused banner drops its Choose-a-plan button for who to ask, and WorkspaceLocked grew a
+third reason with no plan button and the export left in. The trial pitch (welcome modal,
+support strip, countdown) is withheld there too - that clock belongs to the agency admin.
+
+**The $29 slots, also built.** A SECOND Razorpay subscription carrying the quantity,
+because quantity on the tier plan multiplies the tier price ($249 x 2, not $249 + $29).
+`Subscription.razorpaySlotSubscriptionId` + `extraAgencyTenants`, a `notes.kind` the
+webhook routes on, and two asymmetric directions: an increase takes effect NOW and is
+billed on the next invoice (the owner's "instant" requirement), a decrease waits for the
+period already paid for and the count then follows the next charge. Three traps, each
+with a check in verify:billing: a slot event must never reach `activateSubscription` (it
+would overwrite the TIER's subscription id and the tier would stop renewing), a stored
+slot subscription id is not proof of payment (Checkout merely opened, so topping it up
+would hand out a free workspace), and a slot cannot be given back below the workspaces
+actually in use.
+
+🟡 **No live charge has ever been put through this app**, for slots or for any tier. The
+config is verifiable (verify:payments), the money is not.
 
 🟡 White-label is bigger than removing a badge: emails, PDF reports, result pages, the
 sender identity and any `assess360` string in a customer-visible surface. Audit the

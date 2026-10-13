@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { razorpayRequest, type RazorpayKeys } from "@/lib/payments/razorpay";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
-import { PLAN_LABEL, PLAN_PRICE_USD, type PlanId } from "@/lib/billing/plans";
+import { AGENCY_TENANT_EXTRA_USD, PLAN_LABEL, PLAN_PRICE_USD, type PlanId } from "@/lib/billing/plans";
 import { snapshotFor } from "@/lib/billing/entitlements";
 
 /**
@@ -80,7 +80,7 @@ export async function getOrCreatePlan(plan: PaidPlanId): Promise<string> {
   return created.id;
 }
 
-interface TenantForBilling {
+export interface TenantForBilling {
   id: string;
   name: string | null;
   razorpayCustomerId: string | null;
@@ -228,4 +228,128 @@ export async function markPastDue(tenantId: string): Promise<void> {
  */
 export async function endSubscription(tenantId: string, status: "CANCELED" | "HALTED"): Promise<void> {
   await prisma.subscription.updateMany({ where: { tenantId }, data: { status } });
+}
+
+/* ---------------------------------------------------------------------------
+ * AGENCY-TENANT SLOTS - the $29/mo workspaces beyond the plan's included count
+ *
+ * 🔴 WHY A SECOND SUBSCRIPTION AND NOT A QUANTITY ON THE FIRST. Razorpay multiplies a
+ * subscription's quantity by its plan amount, so quantity 2 on the Agency plan charges
+ * $498, not $249 + $29. The slots therefore ride their own monthly plan at $29 with the
+ * quantity on THAT subscription, and a tenant can hold two live Razorpay subscriptions
+ * at once: the tier, and the slots.
+ *
+ * Everything downstream has to know the difference, which is what notes.kind is for:
+ * the webhook resolves a slot event by it and must never route one into
+ * activateSubscription, or the tier's razorpaySubscriptionId would be overwritten with
+ * the slot subscription's id and the tier would stop renewing.
+ * ------------------------------------------------------------------------- */
+
+/** RazorpayPlan cache key for the slot plan. Not a PlanId - it is not a tier. */
+export const SLOT_PLAN_KEY = "AGENCY_TENANT_SLOT";
+
+/** notes.kind on the slot subscription, so the webhook can tell the two apart. */
+export const SLOT_NOTE_KIND = "agency_tenant_slots";
+
+/**
+ * Get or create the $29 monthly Razorpay Plan the slots are charged against. Same
+ * cache-and-invalidate-on-price-change shape as getOrCreatePlan: change
+ * AGENCY_TENANT_EXTRA_USD and the next purchase creates a plan at the new price, leaving
+ * the subscribers already on the old one where they are.
+ */
+export async function getOrCreateSlotPlan(): Promise<string> {
+  const amountCents = AGENCY_TENANT_EXTRA_USD * 100;
+  const cached = await prisma.razorpayPlan.findUnique({ where: { planKey: SLOT_PLAN_KEY } });
+  if (cached && cached.amountCents === amountCents && cached.currency === "USD") {
+    return cached.razorpayPlanId;
+  }
+  const created = await razorpayRequest<RazorpayPlanCreated>("POST", "/plans", await platformKeys(), {
+    period: "monthly",
+    interval: 1,
+    item: {
+      name: "Assess360 client workspace",
+      amount: amountCents,
+      currency: "USD",
+    },
+  });
+  await prisma.razorpayPlan.upsert({
+    where: { planKey: SLOT_PLAN_KEY },
+    create: { planKey: SLOT_PLAN_KEY, razorpayPlanId: created.id, amountCents, currency: "USD" },
+    update: { razorpayPlanId: created.id, amountCents, currency: "USD" },
+  });
+  return created.id;
+}
+
+/**
+ * Open the FIRST slot purchase: a new Razorpay subscription at quantity 1, paid now
+ * through Checkout. The id is stored on the tenant's existing Subscription row
+ * immediately so the webhook can find it, but extraAgencyTenants stays where it is -
+ * the count follows the money, and nothing has been charged yet.
+ */
+export async function createSlotSubscription(
+  tenant: TenantForBilling,
+  quantity: number,
+): Promise<CreatedCheckout> {
+  const [customerId, planId] = await Promise.all([getOrCreateCustomer(tenant), getOrCreateSlotPlan()]);
+  const sub = await razorpayRequest<RazorpaySubscriptionCreated>("POST", "/subscriptions", await platformKeys(), {
+    plan_id: planId,
+    customer_id: customerId,
+    quantity,
+    total_count: 120,
+    customer_notify: 0,
+    notes: { tenantId: tenant.id, kind: SLOT_NOTE_KIND },
+  });
+  await prisma.subscription.update({
+    where: { tenantId: tenant.id },
+    data: { razorpaySlotSubscriptionId: sub.id },
+  });
+  return { subscriptionId: sub.id, shortUrl: sub.short_url };
+}
+
+/**
+ * Change the quantity on an existing slot subscription.
+ *
+ * `when` is the whole design, and the two directions are deliberately asymmetric:
+ *  - "now" for an INCREASE. The workspace is usable immediately and the difference lands
+ *    on the next invoice. The owner's requirement was that paying raises the cap at once,
+ *    and arrears pro-ration is the standard way to do that without a second charge flow.
+ *  - "cycle_end" for a DECREASE. They paid for the period, so they keep the slot until
+ *    it ends; the count then follows the next charged event rather than a date we hold.
+ */
+export async function updateSlotQuantity(
+  subscriptionId: string,
+  quantity: number,
+  when: "now" | "cycle_end",
+): Promise<void> {
+  await razorpayRequest("PATCH", `/subscriptions/${encodeURIComponent(subscriptionId)}`, await platformKeys(), {
+    quantity,
+    schedule_change_at: when,
+  });
+}
+
+/**
+ * Record the slots a tenant has PAID for. Called by the verify path and, as the source
+ * of truth, by the webhook on every charge - so a quantity changed in the Razorpay
+ * dashboard converges here too.
+ */
+export async function setPaidSlots(tenantId: string, quantity: number): Promise<void> {
+  await prisma.subscription.updateMany({
+    where: { tenantId },
+    data: { extraAgencyTenants: Math.max(0, Math.trunc(quantity)) },
+  });
+}
+
+/**
+ * The slot subscription ended (cancelled, completed or halted): the extras are gone.
+ *
+ * 🟡 This can drop an agency below the number of workspaces they are running. Nothing
+ * is deleted and nothing is taken away from the client workspaces themselves - the cap
+ * simply refuses the next create, exactly as it would for any over-limit account, and
+ * the agency screen shows "6 of 5".
+ */
+export async function clearPaidSlots(tenantId: string): Promise<void> {
+  await prisma.subscription.updateMany({
+    where: { tenantId },
+    data: { extraAgencyTenants: 0, razorpaySlotSubscriptionId: null },
+  });
 }

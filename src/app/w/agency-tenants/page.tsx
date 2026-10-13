@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { requireWorkspace } from "@/lib/auth/guards";
+import { getCurrentUser } from "@/lib/auth/session";
+import { SlotPurchase } from "@/features/billing/components/slot-purchase";
 import { getAgencyTenantsView } from "@/features/agency/actions";
 import { AgencyTenantManager } from "@/features/agency/components/agency-tenant-manager";
 
@@ -19,7 +21,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function AgencyTenantsPage() {
   await requireWorkspace();
-  const view = await getAgencyTenantsView();
+  const [view, user] = await Promise.all([getAgencyTenantsView(), getCurrentUser()]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -57,6 +59,19 @@ export default async function AgencyTenantsPage() {
       ) : null}
 
       {view.blocked === "no" ? <AgencyTenantManager view={view} /> : null}
+
+      {/* The buy button sits BELOW the list and its meter, not next to the cap warning:
+          an agency admin at their limit should see what they already run, and the option
+          to remove one, before they are offered a bigger bill. */}
+      {view.blocked === "no" && view.canBuySlots ? (
+        <SlotPurchase
+          included={view.usage.included}
+          extra={view.usage.extra}
+          used={view.usage.used}
+          priceUsd={view.extraPriceUsd}
+          prefill={{ name: user?.name ?? "", email: user?.email ?? "" }}
+        />
+      ) : null}
     </div>
   );
 }

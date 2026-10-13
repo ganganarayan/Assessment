@@ -322,7 +322,7 @@ export const TIERS: ReadonlyArray<Tier> = [
       "Run them all from your one login",
       "Bulk import a finished scorecard into each",
       "API tokens for conversion lookups",
-      "Extra agency tenants on request",
+      "Extra agency tenants $29 / month each",
     ],
     cta: TRIAL_CTA,
   },
