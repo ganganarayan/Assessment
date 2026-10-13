@@ -10,12 +10,13 @@
  * is the configuration you think it is. Specifically the one way a customer could be
  * charged the WRONG AMOUNT -
  *
- *   `getOrCreatePlan` normally self-heals: it caches a Razorpay Plan id with the cents it
- *   was created at, and a price change invalidates the cache, so a new Plan is created at
- *   the new price. An env override (RAZORPAY_PLAN_ID_*) SKIPS that check entirely and is
- *   returned unverified. Point one at a Plan created at an old price - Growth was $89
- *   where Signal is $79 - and every subscriber is billed the old amount against a
- *   published price, with nothing in the app disagreeing.
+ *   `getOrCreatePlan` self-heals: it caches a Razorpay Plan id with the cents it was
+ *   created at, and a price change invalidates the cache, so a new Plan is created at the
+ *   new price. The one thing that could defeat that was an env override
+ *   (RAZORPAY_PLAN_ID_*), returned unverified ahead of the price - 🟢 removed from the
+ *   code on 2026-10-13, having never been set in any environment. What remains to check
+ *   is the CACHE: a cached Plan whose amount still matches is reused, so this fetches it
+ *   from Razorpay and compares it with the catalog.
  *
  * So this resolves the plan id the code would ACTUALLY use for each paid tier, fetches
  * that Plan from Razorpay, and asserts the amount, currency and period match the
@@ -57,21 +58,6 @@ const expect = (n: string, cond: boolean, d = "") => (cond ? pass(n) : fail(n, d
 /** The paid tiers that have a published price and a Razorpay Plan. */
 const PAID: PlanId[] = PLAN_IDS.filter((p) => p !== "ENTERPRISE");
 
-/** The env override for a tier, mirroring `planEnvOverride` in razorpay-subscriptions. */
-function envOverride(plan: PlanId): { id: string; via: string } | null {
-  const pick = (id: string | undefined, via: string) => (id ? { id, via } : null);
-  switch (plan) {
-    case "GATE":
-      return pick(env.RAZORPAY_PLAN_ID_GATE, "RAZORPAY_PLAN_ID_GATE") ?? pick(env.RAZORPAY_PLAN_ID_STARTER, "RAZORPAY_PLAN_ID_STARTER (legacy)");
-    case "SIGNAL":
-      return pick(env.RAZORPAY_PLAN_ID_SIGNAL, "RAZORPAY_PLAN_ID_SIGNAL");
-    case "AGENCY":
-      return pick(env.RAZORPAY_PLAN_ID_AGENCY, "RAZORPAY_PLAN_ID_AGENCY") ?? pick(env.RAZORPAY_PLAN_ID_SCALE, "RAZORPAY_PLAN_ID_SCALE (legacy)");
-    default:
-      return null;
-  }
-}
-
 interface FetchedPlan {
   id: string;
   period?: string;
@@ -107,32 +93,25 @@ async function main(): Promise<void> {
   for (const plan of PAID) {
     const label = `${PLAN_LABEL[plan]} ($${PLAN_PRICE_USD[plan]}/mo)`;
     const expectedCents = PLAN_PRICE_USD[plan] * 100;
-    const override = envOverride(plan);
 
-    let planId: string | null = null;
-    let source: string;
-    if (override) {
-      planId = override.id;
-      source = `env override via ${override.via}`;
-    } else {
-      const cached = await prisma.razorpayPlan.findUnique({ where: { planKey: plan } });
-      if (!cached) {
-        // Not an error: no override and no cache means the FIRST checkout creates the
-        // Plan from the catalog, which is correct by construction - that is the path
-        // that cannot be wrong.
-        pass(`${label} - no override, no cached Plan: created from the catalog on first checkout`);
-        continue;
-      }
-      planId = cached.razorpayPlanId;
-      source = "cached RazorpayPlan row";
-      if (cached.amountCents !== expectedCents || cached.currency !== "USD") {
-        // Self-healing, but worth naming: the cache is stale and will be replaced.
-        warn(
-          `${label} - cached row is stale (${cached.amountCents} ${cached.currency})`,
-          "Expected; getOrCreatePlan ignores a stale cache and creates a fresh Plan at the current price.",
-        );
-        continue;
-      }
+    const cached = await prisma.razorpayPlan.findUnique({ where: { planKey: plan } });
+    if (!cached) {
+      // Not an error: no cache means the FIRST checkout creates the Plan from the
+      // catalog, which is correct by construction - that is the path that cannot be
+      // wrong, and since the env overrides were removed it is also the only one.
+      pass(`${label} - no cached Plan: created from the catalog on first checkout`);
+      continue;
+    }
+    const planId = cached.razorpayPlanId;
+    const source = "cached RazorpayPlan row";
+    if (cached.amountCents !== expectedCents || cached.currency !== "USD") {
+      // Self-healing, but worth naming: the cache is stale and will be replaced. This is
+      // what a price change looks like here the day after it ships.
+      warn(
+        `${label} - cached row is stale (${cached.amountCents} ${cached.currency})`,
+        "Expected after a price change; getOrCreatePlan ignores a stale cache and creates a fresh Plan at the current price.",
+      );
+      continue;
     }
 
     let fetched: FetchedPlan;
@@ -154,8 +133,7 @@ async function main(): Promise<void> {
     } else {
       fail(
         `${label} - Plan ${planId} does NOT match the catalog (${source})`,
-        `Razorpay says ${cents} ${currency} every ${fetched.interval ?? 1} ${fetched.period ?? "?"}; the catalog says ${expectedCents} USD monthly.` +
-          (override ? ` 🔴 This is an ENV OVERRIDE, which bypasses the price check - unset ${override.via} to let the catalog create the right Plan.` : ""),
+        `Razorpay says ${cents} ${currency} every ${fetched.interval ?? 1} ${fetched.period ?? "?"}; the catalog says ${expectedCents} USD monthly. The cached row claims it matches, so the Plan was edited inside Razorpay - delete the razorpay_plan row for this tier and let the next checkout create a correct one.`,
       );
     }
   }
@@ -168,15 +146,10 @@ async function main(): Promise<void> {
   console.log(`        ${env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/api/billing/razorpay`);
   console.log("        events: subscription.activated, .charged, .pending, .halted, .cancelled, .completed");
 
-  // (e) The legacy Growth id. Deliberately NOT a Signal fallback - Growth was $89 and
-  //     Signal is $79, so falling back would overcharge by $10/mo against a published
-  //     price. If it is still set, it is dead config that reads as if it were wired up.
-  if (env.RAZORPAY_PLAN_ID_GROWTH) {
-    warn(
-      "RAZORPAY_PLAN_ID_GROWTH is set and IGNORED",
-      "Signal deliberately has no legacy fallback ($89 vs $79). Delete the variable so it cannot be mistaken for live config.",
-    );
-  }
+  // (e) 🟢 The six RAZORPAY_PLAN_ID_* variables are gone from the code (2026-10-13), so
+  //     there is no longer a way to pin a tier to a Plan the catalog did not create.
+  //     Anything still set with that name in an environment is inert - the app no longer
+  //     reads it - and should be deleted so it cannot be mistaken for live config.
 
   console.log(
     `\n${failures === 0 ? "🟢 Config pre-flight clean" : `🔴 ${failures} failure(s)`}${warnings ? ` · ${warnings} warning(s)` : ""}.`,

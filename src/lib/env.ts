@@ -65,21 +65,20 @@ const serverSchema = z.object({
   // POST /api/admin/recover to reset a SUPER_ADMIN password via Bearer <secret>.
   // Unset => the route is disabled (404). Rotate/unset to revoke.
   ADMIN_RECOVERY_SECRET: z.string().min(24).optional(),
-  // Optional Razorpay Plan-id overrides for the SaaS subscription tiers. LEAVE UNSET
-  // to have the app create the Plans via the Razorpay API on first checkout and cache
-  // them (the "no dashboard plans" model). Set one only to pin a tier to a specific
-  // pre-made Razorpay Plan id.
-  RAZORPAY_PLAN_ID_STARTER: z.string().min(1).optional(),
-  RAZORPAY_PLAN_ID_GROWTH: z.string().min(1).optional(),
-  RAZORPAY_PLAN_ID_SCALE: z.string().min(1).optional(),
-  // 🔴 Tier-named overrides. The old three were created for Starter $39 / Growth $89 /
-  // Scale $199. Signal sells at $79, so reusing RAZORPAY_PLAN_ID_GROWTH would charge a
-  // customer $89 off a $79 page - a refund and a trust problem, not a bug report. Set
-  // these to plans created at the CURRENT prices; the legacy vars remain only as a
-  // fallback for tiers whose price did not move.
-  RAZORPAY_PLAN_ID_GATE: z.string().min(1).optional(),
-  RAZORPAY_PLAN_ID_SIGNAL: z.string().min(1).optional(),
-  RAZORPAY_PLAN_ID_AGENCY: z.string().min(1).optional(),
+  // 🔴 NO RAZORPAY PLAN-ID OVERRIDES. Removed 2026-10-13, and they are not coming back.
+  //
+  // Six of them existed (STARTER/GROWTH/SCALE, then GATE/SIGNAL/AGENCY) and NONE was set
+  // in any environment - they were a pin in the code for a dashboard-made Plan that
+  // nobody ever made. What they did carry was a live-money trap: an override is read
+  // AHEAD of the price, so a variable set once meant the page said one number and the
+  // card was charged another, silently, until somebody re-read the variable.
+  //
+  // Env is for launching the app; everything configurable lives in Settings, and the
+  // Razorpay CREDENTIALS already do (resolveRazorpayConfig reads the settings singleton,
+  // with env only as the platform bootstrap). The Plan is not configuration at all: it
+  // is derived from PLAN_PRICE_USD and created through the API on first checkout, which
+  // is exactly why a price change self-heals. One source for the price, and it is the
+  // catalog.
 });
 
 const publicSchema = z.object({

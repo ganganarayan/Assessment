@@ -1,7 +1,6 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
 import { razorpayRequest, type RazorpayKeys } from "@/lib/payments/razorpay";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { PLAN_LABEL, PLAN_PRICE_USD, type PlanId } from "@/lib/billing/plans";
@@ -18,7 +17,7 @@ import { snapshotFor } from "@/lib/billing/entitlements";
  */
 
 /**
- * Chargeable tiers. Enterprise is excluded: it is published as "from $499" and sold by
+ * Chargeable tiers. Enterprise is excluded: it is published as "from $599" and sold by
  * negotiation, so there is no fixed Razorpay plan to charge against - quoting one would
  * be the flat number the pricing deliberately avoids.
  */
@@ -38,39 +37,25 @@ export async function platformKeyId(): Promise<string | null> {
   return (await platformKeys()).keyId;
 }
 
-/** An env-pinned Razorpay Plan id for a tier, if the operator set one. */
-function planEnvOverride(plan: PaidPlanId): string | null {
-  switch (plan) {
-    // Gate is $39, the same price the Starter plan object was created at, so the legacy
-    // id is a safe fallback.
-    case "GATE":
-      return env.RAZORPAY_PLAN_ID_GATE ?? env.RAZORPAY_PLAN_ID_STARTER ?? null;
-    // 🔴 NO legacy fallback. Growth was $89; Signal is $79. Falling back would silently
-    // overcharge by $10/month against a published price. Unset means "create the plan
-    // from the catalog", which uses PLAN_PRICE_USD and is correct by construction.
-    case "SIGNAL":
-      return env.RAZORPAY_PLAN_ID_SIGNAL ?? null;
-    // Agency is $199, as Scale was.
-    case "AGENCY":
-      return env.RAZORPAY_PLAN_ID_AGENCY ?? env.RAZORPAY_PLAN_ID_SCALE ?? null;
-    default:
-      return null;
-  }
-}
-
 interface RazorpayPlanCreated {
   id: string;
 }
 
 /**
- * Get or create the Razorpay Plan id for a tier. Order: env override → cached row
- * (only when its amount still matches the current price) → create via API + cache.
- * A price change invalidates the cache, so a fresh Plan is created at the new price.
+ * Get or create the Razorpay Plan id for a tier. Order: cached row (only when its amount
+ * still matches the current price) → create via API + cache. A price change invalidates
+ * the cache, so a fresh Plan is created at the new price and the old one is simply left
+ * behind for the subscribers already on it.
+ *
+ * 🔴 THERE IS NO ENV OVERRIDE ANY MORE (removed 2026-10-13). Six RAZORPAY_PLAN_ID_* vars
+ * used to be read ahead of everything here, and none of them was ever set in any
+ * environment. What they created was a way for the published price and the charged price
+ * to disagree in silence: pin a tier to a Plan made at an old amount, change the catalog,
+ * and the page says $249 while the card is charged $199 with nothing anywhere reporting
+ * a problem. The price now has exactly one source, PLAN_PRICE_USD, and the credentials
+ * come from Settings (platformKeys, below).
  */
 export async function getOrCreatePlan(plan: PaidPlanId): Promise<string> {
-  const override = planEnvOverride(plan);
-  if (override) return override;
-
   const amountCents = PLAN_PRICE_USD[plan] * 100;
   const cached = await prisma.razorpayPlan.findUnique({ where: { planKey: plan } });
   if (cached && cached.amountCents === amountCents && cached.currency === "USD") {

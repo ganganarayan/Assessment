@@ -326,10 +326,10 @@ export const TIERS: ReadonlyArray<Tier> = [
   },
   {
     name: "Enterprise",
-    price: "from $499",
+    price: "from $599",
     annual: null,
     period: "/ month",
-    amount: 499,
+    amount: 599,
     blurb: "Negotiated caps and terms - priced to what you actually run.",
     features: [
       "Unlimited scorecards",
@@ -356,7 +356,7 @@ export type MatrixRow = {
 };
 
 export const PLAN_MATRIX: ReadonlyArray<MatrixRow> = [
-  { label: "Monthly", cells: ["$39", "$79", "$249", "from $499"], strong: true },
+  { label: "Monthly", cells: ["$39", "$79", "$249", "from $599"], strong: true },
   { label: "Annual, per month", cells: ["$32", "$69", "$219", "custom"] },
   { label: "Scorecards", cells: ["2", "10", "Unlimited", "Unlimited"] },
   { label: "Qualified responses", cells: ["150", "1,000", "5,000", "Custom"] },

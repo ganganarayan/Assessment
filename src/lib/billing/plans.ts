@@ -225,7 +225,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
       bulkImport: true,
     },
   },
-  // Enterprise - published as "from $499". Real limits come from the per-tenant override
+  // Enterprise - published as "from $599". Real limits come from the per-tenant override
   // resolvePlan already applies, because a flat published number would cap the revenue on
   // the biggest accounts while uncapping their cost.
   ENTERPRISE: {
@@ -252,7 +252,7 @@ export const PLAN_PRICE_USD: Record<PlanId, number> = {
   GATE: 39,
   SIGNAL: 79,
   AGENCY: 249,
-  ENTERPRISE: 499,
+  ENTERPRISE: 599,
 };
 
 /** Annual price PER MONTH (billed yearly). Enterprise is quoted, never published. */
