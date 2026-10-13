@@ -2,6 +2,7 @@ import { requireWorkspace } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { ImpersonationBanner } from "@/features/admin/components/impersonation-banner";
+import { AgencyTenantBanner } from "@/features/agency/components/agency-tenant-banner";
 import { WorkspaceNav } from "@/features/workspace/components/workspace-nav";
 import { BuilderTabProvider } from "@/features/admin/components/builder-tab-context";
 import { AppBrand } from "@/components/app-brand";
@@ -28,7 +29,7 @@ import { tenantUnreadCounts } from "@/features/support/data";
  * unscoped page can leak another tenant's data.
  */
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  const { user, tenantId, impersonating } = await requireWorkspace();
+  const { user, tenantId, impersonating, viaAgency } = await requireWorkspace();
   const [tenant, platformMeta, resolved, me, responseUsage] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, trialEndsAt: true } }),
     resolvePlatformMetaConfig(),
@@ -46,6 +47,15 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   // link is presentation, never a permission - but offering a page that only says "not
   // on your plan" is a worse way to sell an upgrade than the billing page is.
   const hiddenNav = impersonating || resolved.limits.features.apiAccess ? [] : ["/w/api"];
+  // Client workspaces: hidden unless this plan includes any. An agency tenant resolves
+  // 0 (depth is one), so the link disappears inside a client workspace without a second
+  // rule. A super admin who has entered a workspace sees it only when that workspace's
+  // own plan has it, which is what they are there to look at.
+  if (resolved.limits.agencyTenants <= 0) hiddenNav.push("/w/agency-tenants");
+  // 🔴 AN AGENCY TENANT HAS NO BILLING PAGE. The owner's rule: the agency is the
+  // customer, and a client workspace must not be able to see or act on a plan. The
+  // route guards itself as well - a hidden link is presentation, never a permission.
+  if (resolved.agencyTenant) hiddenNav.push("/w/billing");
 
   /**
    * The Support section, and the red count on it.
@@ -95,6 +105,8 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
    */
   const exemptWhileParked =
     path.startsWith("/w/billing") || path.startsWith("/w/support") || path.startsWith("/w/onboarding");
+  // An agency tenant cannot end its own lock, so billing is not an escape hatch for it -
+  // only support and the export are, and both are already exempt above.
   const locked = resolved.parked && !impersonating && !exemptWhileParked;
   const supportEmail = locked ? await supportEmailFor(tenantId) : null;
 
@@ -116,10 +128,15 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
    * and telling them their trial expired would be wrong twice over.
    */
   const trialEnded = !!tenant?.trialEndsAt && tenant.trialEndsAt.getTime() <= Date.now();
-  const lockReason: "trial-expired" | "parked" =
-    resolved.status === null && trialEnded ? "trial-expired" : "parked";
+  const lockReason: "trial-expired" | "parked" | "agency" = resolved.agencyTenant
+    ? "agency"
+    : resolved.status === null && trialEnded
+    ? "trial-expired"
+    : "parked";
 
-  const onTrial = resolved.trialing && !impersonating;
+  // Not inside an agency tenant: the trial being counted down belongs to the agency
+  // admin, and a client workspace being pitched a plan it cannot buy is noise at best.
+  const onTrial = resolved.trialing && !impersonating && !resolved.agencyTenant;
   const loginCount = me?.loginCount ?? 1;
   const showWelcome = onTrial && loginCount <= 5;
 
@@ -148,6 +165,11 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       </aside>
       <main className="min-w-0 flex-1">
         {impersonating && tenant ? <ImpersonationBanner tenantName={tenant.name} /> : null}
+        {/* An agency admin standing inside one of their client workspaces. Separate
+            from the impersonation strip above because it is a different claim: that
+            one says "you are the platform owner acting as somebody", this one says
+            "this is your client's workspace, and here is the way back". */}
+        {viaAgency && tenant ? <AgencyTenantBanner tenantName={tenant.name} /> : null}
         {/* Below the impersonation strip on purpose: when an owner enters a parked
             tenant, "who am I acting as" has to be read before "what state is it in",
             or the paused notice looks like the owner's own account. */}

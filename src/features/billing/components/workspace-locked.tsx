@@ -33,10 +33,15 @@ export function WorkspaceLocked({
   supportEmail?: string | null;
   /** Why it is locked. A lapsed subscription and an expired trial are different
    *  conversations: one is "your payment stopped", the other is "your free run is
-   *  over, here is what it costs". Saying "paused" to both told neither. */
-  reason?: "trial-expired" | "parked";
+   *  over, here is what it costs". Saying "paused" to both told neither.
+   *
+   *  "agency" is the third: this workspace belongs to an AGENCY ADMIN whose plan has
+   *  lapsed. The reader cannot fix it by paying - they are not the customer - so the
+   *  plan button is withheld and the data export is not. */
+  reason?: "trial-expired" | "parked" | "agency";
 }) {
   const trialExpired = reason === "trial-expired";
+  const viaAgency = reason === "agency";
   return (
     <div className="relative min-h-[70vh]">
       {/* The decorative "workspace behind glass". Pure presentation: the real pages
@@ -60,7 +65,9 @@ export function WorkspaceLocked({
             {trialExpired ? "Trial expired" : "This workspace is paused"}
           </h1>
           <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-            {trialExpired
+            {viaAgency
+              ? "This workspace is managed by the agency that set it up, and their plan has lapsed. Nothing has been deleted: every assessment, lead and setting is exactly where it was, and it all comes back when they restore it. Ask them to."
+              : trialExpired
               ? "Your 14-day trial has ended. Nothing has been deleted: every assessment, lead and setting is exactly where you left it, and picking a plan brings all of it straight back."
               : "Your plan has lapsed. Nothing has been deleted: every assessment, lead and setting is exactly where you left it, and picking a plan brings all of it straight back."}
           </p>
@@ -70,9 +77,11 @@ export function WorkspaceLocked({
           </p>
 
           <div className="mt-5 flex flex-col gap-2">
-            <Link href="/w/billing" className={buttonVariants({ className: "w-full" })}>
-              Choose a plan
-            </Link>
+            {viaAgency ? null : (
+              <Link href="/w/billing" className={buttonVariants({ className: "w-full" })}>
+                Choose a plan
+              </Link>
+            )}
             <a
               href="/api/w/submissions/export?format=csv"
               className={buttonVariants({ variant: "outline", className: "w-full" })}

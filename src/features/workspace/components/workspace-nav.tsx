@@ -76,6 +76,10 @@ const SECTIONS: NavSection[] = [
   {
     title: "Account",
     items: [
+      // Shown only when the plan includes client workspaces (the layout hides it
+      // otherwise). It lives in Account rather than Build because it is about who you
+      // are running the tool for, not about the scorecards inside any one workspace.
+      { href: "/w/agency-tenants", label: "Client workspaces" },
       { href: "/w/operations", label: "Operations" },
       { href: "/w/staff", label: "Staff" },
       { href: "/w/billing", label: "Billing" },

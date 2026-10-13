@@ -352,7 +352,23 @@ export function PlatformConsole({
               ) : (
                 tenants.map((t) => (
                   <tr key={t.id}>
-                    <td className="px-3 py-2 font-medium">{t.name}</td>
+                    <td className="px-3 py-2 font-medium">
+                      {t.name}
+                      {/* Whose workspace this is, when it is not its own. Five client
+                          workspaces under one agency are ONE subscription, so reading
+                          them as five trials to chase would be wrong. */}
+                      {t.agencyAdminName ? (
+                        <span className="block text-xs font-normal text-[var(--muted-foreground)]">
+                          under {t.agencyAdminName}
+                        </span>
+                      ) : null}
+                      {t.agencyTenantCount > 0 ? (
+                        <span className="block text-xs font-normal text-[var(--muted-foreground)]">
+                          agency · {t.agencyTenantCount} client workspace
+                          {t.agencyTenantCount === 1 ? "" : "s"}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2 font-mono text-xs">{t.slug}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.adminCount}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.assessmentCount}</td>
@@ -561,7 +577,23 @@ export function PlatformConsole({
               <tbody className="divide-y">
                 {deletedTenants.map((t) => (
                   <tr key={t.id} className="text-[var(--muted-foreground)]">
-                    <td className="px-3 py-2 font-medium">{t.name}</td>
+                    <td className="px-3 py-2 font-medium">
+                      {t.name}
+                      {/* Whose workspace this is, when it is not its own. Five client
+                          workspaces under one agency are ONE subscription, so reading
+                          them as five trials to chase would be wrong. */}
+                      {t.agencyAdminName ? (
+                        <span className="block text-xs font-normal text-[var(--muted-foreground)]">
+                          under {t.agencyAdminName}
+                        </span>
+                      ) : null}
+                      {t.agencyTenantCount > 0 ? (
+                        <span className="block text-xs font-normal text-[var(--muted-foreground)]">
+                          agency · {t.agencyTenantCount} client workspace
+                          {t.agencyTenantCount === 1 ? "" : "s"}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2 font-mono text-xs">{t.slug}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.assessmentCount}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.submissionCount}</td>

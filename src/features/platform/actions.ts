@@ -46,11 +46,10 @@ async function softFail(
   }
 }
 import { isPlatformOwner } from "@/lib/auth/platform";
-import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { auth } from "@/lib/auth/auth";
 import { readActingTenant, writeActingTenant, clearActingTenant } from "@/lib/tenant/acting-cookie";
-import { slugSchema } from "@/features/assessment/schemas";
+import { provisionWorkspace } from "@/lib/tenant/provision";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /** Super admin "enters" a tenant to operate its workspace as that tenant. */
@@ -161,6 +160,22 @@ export async function purgeTenant(tenantId: string, confirmSlug: string): Promis
   }
   if ((confirmSlug ?? "").trim().toLowerCase() !== t.slug.toLowerCase()) {
     return { ok: false, error: `Type the slug "${t.slug}" exactly to confirm.` };
+  }
+  // 🔴 AGENCY TENANTS BLOCK THE PURGE, and they are checked here so the operator reads a
+  // sentence instead of a database error. Tenant.agencyAdminTenantId is ON DELETE
+  // RESTRICT on purpose: cascading from an agency admin would destroy several unrelated
+  // businesses in one click. Without this check the FK refusal lands in softFail and is
+  // reported as "a temporary database error", which is both untrue and unactionable -
+  // the operator would retry it forever.
+  //
+  // Soft-deleted agency tenants count too: the row still exists, so the constraint still
+  // fires, and they are exactly the ones nobody remembers.
+  const under = await prisma.tenant.count({ where: { agencyAdminTenantId: tenantId } });
+  if (under > 0) {
+    return {
+      ok: false,
+      error: `This workspace still has ${under} client workspace${under === 1 ? "" : "s"} under it. Delete those permanently first - deleting this one would destroy them with it.`,
+    };
   }
   if ((await readActingTenant(me.id)) === tenantId) {
     await clearActingTenant();
@@ -341,6 +356,17 @@ export interface TenantRow {
   /** Total sign-ins across this workspace's logins. A floor, not a lifetime total -
    *  it was backfilled from surviving sessions, and expired ones were already gone. */
   loginCount: number;
+  /**
+   * The AGENCY ADMIN this workspace belongs to, when it is an agency tenant. Null for a
+   * tenant directly under the super admin.
+   *
+   * Carried because the console is where the owner finds out why there are suddenly six
+   * workspaces for one customer: five of them are somebody's clients, entitled through
+   * one subscription, and reading them as six trials to chase would be wrong.
+   */
+  agencyAdminName: string | null;
+  /** Agency tenants under this workspace. Non-zero = this is an agency admin. */
+  agencyTenantCount: number;
 }
 
 /**
@@ -353,9 +379,10 @@ export interface TenantRow {
  */
 type TenantWithCounts = Prisma.TenantGetPayload<{
   include: {
-    _count: { select: { users: true; assessments: true; submissions: true } };
+    _count: { select: { users: true; assessments: true; submissions: true; agencyTenants: true } };
     subscription: { select: { status: true; plan: true; currentPeriodEnd: true } };
     users: { select: { lastLoginAt: true; loginCount: true } };
+    agencyAdmin: { select: { name: true } };
   };
 }>;
 
@@ -382,6 +409,8 @@ function toTenantRow(t: TenantWithCounts): TenantRow {
     plan: t.plan,
     planExpiresAt: t.planExpiresAt?.toISOString() ?? null,
     trialEndsAt: t.trialEndsAt?.toISOString() ?? null,
+    agencyAdminName: t.agencyAdmin?.name ?? null,
+    agencyTenantCount: t._count.agencyTenants,
     subStatus: t.subscription?.status ?? null,
     subPlan: t.subscription?.plan ?? null,
     subPeriodEnd: t.subscription?.currentPeriodEnd?.toISOString() ?? null,
@@ -392,7 +421,10 @@ function toTenantRow(t: TenantWithCounts): TenantRow {
 
 /** What both tenant lists load. Shared so the two can never select different columns. */
 const TENANT_INCLUDE = {
-  _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } },
+  _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true, agencyTenants: true } },
+  // The workspace above this one, when there is one. A name, not an id: the console
+  // reads it, it never acts on it.
+  agencyAdmin: { select: { name: true } },
   subscription: { select: { status: true, plan: true, currentPeriodEnd: true } },
   // Only the one field the row needs. A deleted login's last sign-in is not this
   // workspace's activity any more, so they are excluded exactly as the count is.
@@ -452,47 +484,14 @@ export async function createTenant(
   slug?: string,
 ): Promise<ActionResult<{ id: string }>> {
   if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
-  const nm = name.trim();
-  if (nm.length < 2) return { ok: false, error: "Name is required." };
-  const em = email.trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return { ok: false, error: "Enter a valid admin email." };
-  const pw = (password ?? "").trim();
-  if (pw.length < 8) return { ok: false, error: "Password must be at least 8 characters." };
-
-  const rawSlug = slug && slug.trim()
-    ? slug.trim().toLowerCase()
-    : nm.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32);
-  const s = slugSchema.safeParse(rawSlug);
-  if (!s.success) return { ok: false, error: s.error.issues[0]?.message ?? "Invalid slug." };
-  const clash = await prisma.tenant.findUnique({
-    where: { slug: s.data },
-    select: { id: true, deletedAt: true },
-  });
-  if (clash) {
-    return {
-      ok: false,
-      error: clash.deletedAt
-        ? `A deleted tenant still holds the slug "${s.data}". Restore it, or delete it permanently from the deleted list, to free the name.`
-        : "That tenant slug is already in use.",
-    };
-  }
-  if (await prisma.user.findUnique({ where: { email: em }, select: { id: true } })) {
-    return { ok: false, error: "A login with that email already exists." };
-  }
-
-  const ctx = await auth.$context;
-  const hashed = await ctx.password.hash(pw);
-  // Same 14-day trial as a self-signup. Without it the tenant is born with no trial and
-  // no subscription, which resolves as PARKED - an owner-created workspace that is
-  // read-only from its first second.
-  const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-  const t = await prisma.tenant.create({ data: { slug: s.data, name: nm, trialEndsAt } });
-  const u = await prisma.user.create({
-    data: { name: nm, email: em, role: Role.ADMIN, tenantId: t.id, emailVerified: true },
-  });
-  await prisma.account.create({ data: { accountId: u.id, providerId: "credential", password: hashed, userId: u.id } });
+  // The steps themselves live in provisionWorkspace, shared with createAgencyTenant, so
+  // the owner's create screen and an agency admin's cannot drift apart. The trial is
+  // stamped here because a tenant under the super admin has no other entitlement: born
+  // without it, it resolves as PARKED and is read-only from its first second.
+  const done = await provisionWorkspace({ name, email, password, slug, trial: true });
+  if (!done.ok) return { ok: false, error: done.error };
   revalidatePath("/platform");
-  return { ok: true, data: { id: t.id } };
+  return { ok: true, data: { id: done.tenantId } };
 }
 
 export interface PlatformUserRow {
