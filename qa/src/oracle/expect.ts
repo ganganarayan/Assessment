@@ -287,15 +287,19 @@ export function expectationFor(
     // funnel has. A lead-first funnel shows the form on its intro screen, where neither
     // that stamp nor the departure beacon runs - so it produces no abandonment signal
     // at all. Worth knowing before building a funnel that depends on one.
-    optinSeen: row.leadCaptureAfter && !turnedAway && !handsOff && !blockedAtRequired,
+    // Same reason: the stamp lives on the GateEntry, which only a page-1 gate creates.
+    optinSeen: gate !== null && row.leadCaptureAfter && !turnedAway && !handsOff && !blockedAtRequired,
     abandonsAtOptin,
     blockedAtRequired,
     expectsRetakeLockout,
-    // The clock only starts for somebody who reached the dedicated opt-in step and left
-    // it. Everyone else is either a lead already or never got that far.
-    abandonDue: abandonsAtOptin && row.leadCaptureAfter && !turnedAway && !handsOff,
+    // The whole abandonment machinery hangs off a GateEntry, and a GateEntry is only
+    // ever written when somebody CLEARS THE PAGE-1 GATE. A funnel without one records
+    // no pass, so it has no optinSeenAt, no clock and no retargeting event - however
+    // many people walk away from its opt-in. Worth knowing before building a funnel
+    // whose ads depend on that audience.
+    abandonDue: abandonsAtOptin && gate !== null && row.leadCaptureAfter && !turnedAway && !handsOff,
     abandonEvent:
-      abandonsAtOptin && !turnedAway && !handsOff
+      abandonsAtOptin && gate !== null && !turnedAway && !handsOff
         ? row.leadCaptureAfter
           ? ABANDONED_EVENT
           : GATE_INCOMPLETE_EVENT

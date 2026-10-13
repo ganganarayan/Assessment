@@ -82,6 +82,11 @@ it against the real thing. Each correction is a rule of the product worth knowin
 - **The opt-in fields exist twice in the runner.** The lead-AFTER step uses the shared
   `leadFieldsBlock`; the lead-FIRST intro keeps its own copy. A field added to one does
   not appear in the other, and nothing points that out. Worth collapsing.
+- **No page-1 gate means no abandonment signal at all.** The whole machinery hangs off
+  a GateEntry, and a GateEntry is only written when somebody clears the qualification
+  gate. A funnel without one records no pass, so it has no optinSeenAt, no departure
+  clock and no AssessmentAbandoned or GateIncomplete - however many people walk away
+  from its opt-in. The audience gate does not count.
 - **`collectProfession` defaults ON and REQUIRED.** With no profession options
   configured, the opt-in renders a required dropdown with nothing in it: the browser
   blocks the submit and says nothing about why. Worth a builder guard.

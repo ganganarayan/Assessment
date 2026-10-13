@@ -156,7 +156,12 @@ export async function settleAbandonment(args: {
 
   const settling = due();
   if (settling.length === 0) {
-    console.log("\nNothing is due. Run a sweep with an opt-in walk-away first.");
+    const noClock = pending.filter((p) => !p.abandonDueAt).length;
+    console.log(
+      noClock > 0
+        ? `\nNothing is due. ${noClock} visitor(s) have no departure recorded, so they wait on the 24 hour fallback - which is what a visitor who simply closed the tab looks like, and what the staging cron settles overnight.`
+        : "\nNothing is due. Run a sweep with an opt-in walk-away first.",
+    );
     return 0;
   }
 
