@@ -495,21 +495,13 @@ export async function resolveCta(): Promise<CtaConfig> {
 }
 
 /**
- * The same three values as the admin form needs them: empty string where nothing is
- * set, so the form can show the constant as a placeholder and tell "unset, using the
- * default" apart from "deliberately set to the same words".
+ * The done-for-you scarcity counter, or null when there is nothing honest to show.
+ *
+ * Returns null unless an operator has actually set a remaining count, so an unmaintained
+ * counter disappears from the public pages instead of standing there going stale. Also
+ * null once it hits zero: "0 of 20 remaining" is a closed door with a call-to-action
+ * underneath it, which reads worse than saying nothing.
  */
-export async function resolveCtaRaw(): Promise<{ href: string; trialLabel: string; dfyLabel: string }> {
-  const s = (await settingRow(null, { ctaHref: true, ctaTrialLabel: true, ctaDfyLabel: true })) as
-    | { ctaHref: string | null; ctaTrialLabel: string | null; ctaDfyLabel: string | null }
-    | null;
-  return {
-    href: s?.ctaHref?.trim() ?? "",
-    trialLabel: s?.ctaTrialLabel?.trim() ?? "",
-    dfyLabel: s?.ctaDfyLabel?.trim() ?? "",
-  };
-}
-
 export async function resolveDfyScarcity(): Promise<{ remaining: number; total: number } | null> {
   const s = (await settingRow(null, { dfyBuildsTotal: true, dfyBuildsRemaining: true })) as
     | { dfyBuildsTotal: number; dfyBuildsRemaining: number | null }

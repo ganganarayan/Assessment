@@ -135,56 +135,6 @@ export async function updateDfyScarcity(total: number, remaining: number | null)
 }
 
 /**
- * Save the ONE call to action: where every public button goes, and what it says.
- *
- * Blank clears a field, and cleared means "use the constant in content.ts" rather
- * than "render an empty button". So the destructive-looking action here - emptying
- * the destination - restores the shipped behaviour instead of breaking the page.
- *
- * The destination is validated for SHAPE, not just trimmed. It is operator-set and
- * never request input, so it is not an open-redirect surface, but it is rendered into
- * every button on every marketing page: a typo with no leading slash would quietly
- * resolve relative to whatever page the button sits on, giving every page a different
- * broken link. A path must start with "/", and an absolute URL must be https.
- */
-export async function updateCtaOffer(
-  href: string,
-  trialLabel: string,
-  dfyLabel: string,
-): Promise<ActionResult> {
-  const denied = editDenied(await requireSuperAdmin());
-  if (denied) return denied;
-
-  const h = href.trim().slice(0, 500);
-  if (h && !h.startsWith("/")) {
-    let parsed: URL;
-    try {
-      parsed = new URL(h);
-    } catch {
-      return { ok: false, error: 'Destination must be a path like /a/my-funnel, or a full https:// URL.' };
-    }
-    if (parsed.protocol !== "https:") {
-      return { ok: false, error: "A full URL has to be https, so no button on the site drops to http." };
-    }
-  }
-
-  const data = {
-    ctaHref: h || null,
-    ctaTrialLabel: trialLabel.trim().slice(0, 60) || null,
-    ctaDfyLabel: dfyLabel.trim().slice(0, 60) || null,
-  };
-  await prisma.appSetting.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
-
-  revalidatePath("/admin/settings");
-  // Every public page carries these buttons - the landing page, the thirteen industry
-  // pages, /pricing, the comparison pages, /answers, the calculator - and they are
-  // cached independently. "layout" scope is the only thing that clears the lot; naming
-  // paths one by one is how a new page ships with last month's offer on it.
-  revalidatePath("/", "layout");
-  return { ok: true };
-}
-
-/**
  * Save (or clear) the approved WhatsApp template fired by the /build intake. Blank
  * clears it, which stops the send entirely rather than leaving it failing quietly.
  */
