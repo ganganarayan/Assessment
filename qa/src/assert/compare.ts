@@ -188,6 +188,17 @@ export function compare(
       }
       if (obs.score !== null) checks.push(eq("the score on the result page", expected.score.total, obs.score));
       if (obs.max !== null) checks.push(eq("out of the achievable total", expected.score.max, obs.max));
+      if (obs.percent === null && obs.score === null && obs.band === null) {
+        // Reaching the result and reading nothing from it is not a pass. It means the
+        // page this funnel ends on carries no score handles - a different renderer, or
+        // one that lost them - and silently skipping three checks would hide that.
+        checks.push({
+          verdict: "warn",
+          what: "the result page exposes its score to the harness",
+          expected: "a band, a percentage and a score",
+          observed: "the page was reached but carried none of them",
+        });
+      }
       if (expected.score.bandTitle) {
         checks.push(eq("and the band it falls in", expected.score.bandTitle, obs.band ?? "(none)"));
       }
