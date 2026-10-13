@@ -1,4 +1,6 @@
-import { entitledPlan, grantedPlan } from "@/lib/billing/plan-resolve";
+// plan-grant, NOT plan-resolve: this module is imported by the platform console, which
+// is a client component, and plan-resolve imports prisma. See plan-grant.ts.
+import { entitledPlan, grantedPlan } from "@/lib/billing/plan-grant";
 import { PLAN_LABEL, TRIAL_PLAN, type PlanId } from "@/lib/billing/plans";
 import { type Plan, type SubscriptionStatus } from "@prisma/client";
 
