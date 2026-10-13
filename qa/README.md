@@ -30,6 +30,13 @@ Everything: the three fixtures, one after another, with a tally per funnel at th
 and a non-zero exit if any of them failed. Add `-- --also=my-funnel` to include yours,
 or `-- --slugs=a,b` to sweep only what you name. Any other flag is handed to each sweep.
 
+A note on the connection: everything here reads staging through Railway's public
+Postgres proxy, which drops for a minute or two at a time - four times in one afternoon
+while this was being built. Reads retry five times, backing off to half a minute, and a
+case whose reads still fail is reported UNJUDGED rather than as a funnel failure. If a
+whole run says it could not reach the database, that is the proxy, not the funnel: wait
+and run it again.
+
 ```bash
 npm run qa -- --slug=my-funnel --audit
 ```
