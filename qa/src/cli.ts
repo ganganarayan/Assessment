@@ -112,8 +112,13 @@ function describe(f: Funnel): string {
   return lines.join("\n");
 }
 
-async function main(): Promise<number> {
-  const args = parseArgs(process.argv.slice(2));
+/**
+ * One funnel's sweep. Exported so the all-funnels runner can call it in process:
+ * spawning npm was the first design and Windows refuses to spawn a .cmd without a
+ * shell, while spawning it with one concatenates arguments unescaped.
+ */
+export async function runSweep(argv: string[]): Promise<number> {
+  const args = parseArgs(argv);
   const env = loadQaEnv();
 
   if (!args.slug) {
@@ -246,13 +251,17 @@ Cleaned up this run: ${removed.submissions} submission(s), ${removed.gateEntries
   return result.results.some((r) => r.verdict === "fail") ? 1 : 0;
 }
 
-main()
-  .then(async (code) => {
-    await closeDb();
-    process.exit(code);
-  })
-  .catch(async (err: unknown) => {
-    console.error(`\nFailed: ${err instanceof Error ? err.message : String(err)}`);
-    await closeDb();
-    process.exit(1);
-  });
+/** Run directly (npm run qa) rather than imported by the all-funnels runner. */
+const invokedDirectly = process.argv[1]?.replace(/\\/g, "/").endsWith("qa/src/cli.ts") === true;
+if (invokedDirectly) {
+  runSweep(process.argv.slice(2))
+    .then(async (code) => {
+      await closeDb();
+      process.exit(code);
+    })
+    .catch(async (err: unknown) => {
+      console.error(`\nFailed: ${err instanceof Error ? err.message : String(err)}`);
+      await closeDb();
+      process.exit(1);
+    });
+}

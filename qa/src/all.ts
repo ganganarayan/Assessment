@@ -11,17 +11,20 @@
  *   railway run npm run qa:all -- --slugs=a,b,c      whatever you name instead
  *   railway run npm run qa:all -- --also=my-funnel   the fixtures plus yours
  *
- * Each sweep writes its own tally to result.json beside its report, and that is what is
- * read back here. The runner deliberately does NOT pipe the children's output: piping it
- * through a second process and on into a redirect made a healthy sweep look hung for
- * minutes at a time. The children write straight to the same place this does.
+ * Each sweep runs IN THIS PROCESS, one after another, and writes its own tally to a
+ * result.json beside its report, which is what is read back here. Spawning them was the
+ * first design and it was wrong twice over: piping a child's output through a second
+ * process made a healthy sweep look hung for minutes, and on Windows spawning npm.cmd
+ * without a shell is refused outright while spawning it with one concatenates arguments
+ * unescaped. Calling a function is simpler than either.
  *
  * Exits non-zero when any funnel has a failure, so it can gate a push.
  */
-import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { QA_ROOT, REPO_ROOT } from "./env.js";
+import { QA_ROOT } from "./env.js";
+import { runSweep } from "./cli.js";
+import { closeDb } from "./db.js";
 
 const FIXTURES = ["qa-fixture-gate", "qa-fixture-routing", "qa-fixture-audience"];
 
@@ -66,20 +69,23 @@ function readTally(slug: string, startedAt: number): Tally | null {
   return null;
 }
 
-function runOne(slug: string, passThrough: string[]): Outcome {
+async function runOne(slug: string, passThrough: string[]): Promise<Outcome> {
   const startedAt = Date.now();
-  // npm.cmd directly rather than through a shell: passing arguments to a shell
-  // concatenates them unescaped, which Node now warns about. stdio inherited, so the
-  // sweep's own output goes where this command's output goes, with nothing in between.
-  const child = spawnSync(
-    process.platform === "win32" ? "npm.cmd" : "npm",
-    ["run", "--silent", "qa", "--", `--slug=${slug}`, ...passThrough],
-    { cwd: REPO_ROOT, stdio: "inherit" },
-  );
-  return { slug, code: child.status ?? 1, tally: readTally(slug, startedAt) };
+  let code = 1;
+  try {
+    code = await runSweep([`--slug=${slug}`, ...passThrough]);
+  } catch (err) {
+    // One funnel that cannot be swept is not a reason to skip the others.
+    // Prisma's message starts with a blank line and buries the reason three lines in,
+    // so take the first line that actually says something.
+    const text = err instanceof Error ? err.message : String(err);
+    const why = text.split("\n").map((l) => l.trim()).find(Boolean) ?? "no reason given";
+    console.error(`  the sweep stopped: ${why}`);
+  }
+  return { slug, code, tally: readTally(slug, startedAt) };
 }
 
-function main(): number {
+async function main(): Promise<number> {
   const argv = process.argv.slice(2);
   const valueOf = (name: string): string | undefined => {
     const hit = argv.find((a) => a.startsWith(`--${name}=`));
@@ -94,7 +100,7 @@ function main(): number {
   const outcomes: Outcome[] = [];
   for (const slug of slugs) {
     console.log(`\n${"=".repeat(72)}\n${slug}\n${"=".repeat(72)}`);
-    outcomes.push(runOne(slug, passThrough));
+    outcomes.push(await runOne(slug, passThrough));
   }
 
   console.log(`\n${"=".repeat(72)}\nAll funnels\n${"=".repeat(72)}`);
@@ -109,4 +115,14 @@ function main(): number {
   return outcomes.some((o) => o.code !== 0) ? 1 : 0;
 }
 
-process.exit(main());
+main()
+  .then(async (code) => {
+    await closeDb();
+    process.exit(code);
+  })
+  .catch(async (err: unknown) => {
+    console.error(`
+Failed: ${err instanceof Error ? err.message : String(err)}`);
+    await closeDb();
+    process.exit(1);
+  });
