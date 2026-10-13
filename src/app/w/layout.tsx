@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PlatformPixel } from "@/components/platform-pixel";
 import { StartTrialReporter } from "@/features/billing/components/start-trial-reporter";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
-import { resolvePlan } from "@/lib/billing/entitlements";
+import { resolvePlan, responseUsageFor } from "@/lib/billing/entitlements";
 import { supportEmailFor } from "@/lib/billing/gate";
 import { BillingBanner } from "@/features/billing/components/billing-banner";
 import { WorkspaceLocked } from "@/features/billing/components/workspace-locked";
@@ -29,7 +29,7 @@ import { tenantUnreadCounts } from "@/features/support/data";
  */
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { user, tenantId, impersonating } = await requireWorkspace();
-  const [tenant, platformMeta, resolved, me] = await Promise.all([
+  const [tenant, platformMeta, resolved, me, responseUsage] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, trialEndsAt: true } }),
     resolvePlatformMetaConfig(),
     resolvePlan(tenantId),
@@ -37,6 +37,9 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     // Read here rather than carried on the session: a session copy would be stale for
     // the whole of the visit it was created in, which is the one visit that matters.
     prisma.user.findUnique({ where: { id: user.id }, select: { loginCount: true } }),
+    // The response count, for the cap warning in the strip below. Two cheap selects;
+    // null for the platform, an internal tenant, an unlimited plan or a parked one.
+    responseUsageFor(tenantId),
   ]);
 
   // Hide what this plan cannot reach. The ROUTES are guarded independently - a hidden
@@ -148,7 +151,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         {/* Below the impersonation strip on purpose: when an owner enters a parked
             tenant, "who am I acting as" has to be read before "what state is it in",
             or the paused notice looks like the owner's own account. */}
-        <BillingBanner resolved={resolved} />
+        <BillingBanner resolved={resolved} usage={responseUsage} />
         {/* The standing offer. Below the billing strip because "what state is my
             account in" has to be read before "who to call about it". */}
         {onTrial ? <SupportStrip /> : null}

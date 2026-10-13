@@ -1,6 +1,7 @@
 import { requireWorkspace } from "@/lib/auth/guards";
 import { getCurrentUser } from "@/lib/auth/session";
-import { resolvePlan } from "@/lib/billing/entitlements";
+import { resolvePlan, getUsage } from "@/lib/billing/entitlements";
+import { UsageMeters } from "@/features/billing/components/usage-meters";
 import { PLAN_IDS, PLAN_LABEL, PLAN_LIMITS, PLAN_PRICE_USD, TRIAL_PLAN, type PlanId } from "@/lib/billing/plans";
 import { BillingPlans } from "@/features/billing/components/billing-plans";
 
@@ -30,7 +31,14 @@ function featuresFor(plan: PlanId): string[] {
 
 export default async function BillingPage() {
   const { tenantId } = await requireWorkspace();
-  const [user, resolved] = await Promise.all([getCurrentUser(), resolvePlan(tenantId)]);
+  const [user, resolved, usage] = await Promise.all([
+    getCurrentUser(),
+    resolvePlan(tenantId),
+    // The numbers behind the plan cards. Shown ABOVE them: "what am I using" is the
+    // question somebody opens this page with, and the ladder only means something once
+    // they can see which rung they are pressed against.
+    getUsage(tenantId),
+  ]);
 
   // An INTERNAL workspace is not rated against the catalog, so there is no plan to show
   // and nothing to sell. `resolved.plan` is null here, and the old `?? "FREE"` turned
@@ -105,6 +113,8 @@ export default async function BillingPage() {
           </p>
         )}
       </div>
+
+      <UsageMeters usage={usage} />
 
       <BillingPlans
         plans={plans}
