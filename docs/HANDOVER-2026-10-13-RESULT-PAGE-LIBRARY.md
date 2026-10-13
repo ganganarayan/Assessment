@@ -107,3 +107,46 @@ npm run verify:result-pages
 
 Checks the three rules that fail silently: the UNIQUE binding, the publish mirror, and
 the public read path still reading the assessment's own columns.
+
+---
+
+## The platform shelf (same day, follow-up)
+
+The owner can publish a result page or VSL page for every workspace to import, the same
+way the 20 assessment templates work.
+
+Four fields on ResultPageDoc: `shelfListed`, `shelfCategory`, `shelfSummary`,
+`shelfOrder` (migration `20261014000000_result_page_shelf`). `shelfListed` is NOT
+`published` - `published` means "this page has a live snapshot on its funnel", listed
+means "other workspaces may copy it". A shelf page is normally unpublished and bound to
+nothing, because what a tenant imports is the draft.
+
+**Three conditions to list a page**, each one a different way to get it wrong:
+
+1. The caller is the platform owner. Listing puts content on the first screen of every
+   workspace on the install.
+2. The page is platform-owned. A tenant's page is theirs, and publishing it would hand
+   their copy, headline and video to every other customer. The owner's screen hides the
+   controls while they are inside a customer workspace, and the action checks again.
+3. The page is bound to nothing. A template is a starting point; copies of a live page
+   would multiply somebody's booking inbox across the install. Clone the funnel's page
+   and publish the clone.
+
+**Reading the shelf is the one cross-workspace read in the feature.** `listShelfDocs`
+and `shelfDocForImport` are scoped to the platform's own rows (Platform tenant, plus the
+legacy `null` owner), listed only, and unbound only. `includeUnlisted` exists for the
+owner reviewing a page before shelving it, nobody else.
+
+**Import copies, always.** A tenant gets their own doc with their own slug, unpublished
+and unbound, provenance in `sourceSlug`. Nothing ever binds a tenant's funnel to a
+platform row - the binding is 1:1, so crossing a workspace with it would mean the
+owner's edit rewriting a customer's live page. The shelf's own text (category, summary)
+is not carried: it describes the listing, not the page.
+
+**Screens.** /w/result-pages shows "Start from a template" above the workspace's own
+pages, grouped by category, with Import. /admin/result-pages shows the platform library
+with per-row "Publish to shelf" / "Remove from shelf" and "Shelf text", plus a line
+saying how many pages are on the shelf.
+
+After importing, the page is an ordinary free page in that workspace, so it appears in
+the builder's step 12 / 13 dropdown like any other.

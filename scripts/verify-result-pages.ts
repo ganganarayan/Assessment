@@ -165,6 +165,84 @@ expect(
   /cloneDoc\(doc\.id\)[\s\S]*?bindDoc\(created\.id, kind/.test(read("src/features/assessment/actions/assessment.ts")),
 );
 
+/* ---- The platform shelf: who may list, and what a tenant may read ---- */
+
+/**
+ * One exported function's body, so a check reads that function and not the file.
+ * Plain string slicing rather than a regex: these assertions are about which guard
+ * sits inside which action, and a regex spanning the whole file can satisfy itself
+ * from a different function entirely.
+ */
+const fnBody = (src: string, name: string): string => {
+  const start = src.indexOf(`export async function ${name}(`);
+  if (start < 0) return "";
+  const next = src.indexOf("\nexport ", start + 1);
+  return next < 0 ? src.slice(start) : src.slice(start, next);
+};
+
+const setShelf = fnBody(docActions, "setDocShelf");
+expect(
+  "only the platform owner can list a page on the shelf",
+  setShelf.includes("if (!scope.isSuper) return"),
+  "listing puts content on the first screen of every workspace on the install",
+);
+expect(
+  "only a platform-owned page can be listed",
+  setShelf.includes("isPlatformOwned(doc.tenantId)"),
+  "otherwise a tenant's own headline and video could be published to the whole install",
+);
+expect(
+  "a page serving a funnel cannot be listed",
+  setShelf.includes("listed && bound"),
+  "a template is a starting point; copies of a live page would multiply its booking inbox",
+);
+expect(
+  "editing the shelf text is owner-only and platform-only too",
+  fnBody(docActions, "setDocShelfMeta").includes("if (!scope.isSuper) return") &&
+    fnBody(docActions, "setDocShelfMeta").includes("isPlatformOwned(doc.tenantId)"),
+);
+
+const dataSrc = read("src/features/result-pages/data.ts");
+expect(
+  "the shelf read is narrowed to the platform's own rows",
+  dataSrc.includes("const platformWhere = { OR: [{ tenantId: PLATFORM_TENANT_ID }, { tenantId: null }] }"),
+  "this is the one cross-workspace read in the feature, so its filter is the boundary",
+);
+expect(
+  "an unlisted page is invisible unless the owner asks for it",
+  dataSrc.includes("...(opts.includeUnlisted ? {} : { shelfListed: true })"),
+);
+// Every query that offers a page for reuse must exclude a page already in use: the
+// builder's picker, the shelf listing, and the shelf import.
+const excludesBound = (body: string) =>
+  body.includes("resultsOf: { is: null }") && body.includes("vslOf: { is: null }");
+expect(
+  "a bound page never appears on the shelf or in the picker, whatever its flag says",
+  excludesBound(fnBody(dataSrc, "listFreeDocs")) &&
+    excludesBound(fnBody(dataSrc, "listShelfDocs")) &&
+    excludesBound(fnBody(dataSrc, "shelfDocForImport")),
+);
+
+const importShelf = fnBody(docActions, "importShelfDoc");
+expect(
+  "importing from the shelf COPIES into the acting workspace",
+  importShelf.includes("configTenantOf(scope)") && importShelf.includes("prisma.resultPageDoc.create"),
+  "binding a tenant's funnel to a platform row would let the owner's edit rewrite their live page",
+);
+expect(
+  "an import never binds anything",
+  !importShelf.includes("resultsDocId") && !importShelf.includes("vslDocId"),
+);
+expect(
+  "an import does not carry the shelf's own listing or copy",
+  !importShelf.includes("shelfListed") && !importShelf.includes("shelfCategory"),
+  "the shelf text describes the listing, not the page",
+);
+expect(
+  "the owner may import an unlisted page, to review it",
+  importShelf.includes("shelfDocForImport(id, scope.isSuper)"),
+);
+
 /* ---- Plain helpers ---- */
 expect("a title becomes a usable slug", slugifyDocTitle("Clinic VSL - October 2026!") === "clinic-vsl-october-2026");
 expect("an empty title still yields a slug", slugifyDocTitle("   ") === "result-page");

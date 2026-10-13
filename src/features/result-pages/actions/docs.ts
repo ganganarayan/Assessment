@@ -9,6 +9,7 @@ import { readResultPage, EMPTY_RESULT_PAGE } from "@/features/assessment/result-
 import { readPublishedPages } from "@/features/assessment/pages/blocks";
 import { isDocKind, copyTitle, copySlugCandidates, slugifyDocTitle, KIND_LABEL } from "@/features/result-pages/docs";
 import { mirrorPublished, clearMirror, uniqueDocSlug } from "@/features/result-pages/mirror";
+import { isPlatformOwned, shelfDocForImport } from "@/features/result-pages/data";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /**
@@ -305,4 +306,145 @@ export async function createAndBindDoc(
   const bound = await bindDoc(assessmentId, kind, docId);
   if (!bound.ok) return bound;
   return { ok: true, data: { id: docId } };
+}
+
+/**
+ * Put a page on the platform shelf, or take it off.
+ *
+ * Three conditions, each one a different way to get this wrong:
+ *  - the caller is the platform owner. Listing a page puts it on the first screen of
+ *    every workspace on the install, which is closer to shipping than to editing.
+ *  - the page is PLATFORM-owned. A tenant's page is theirs, and "publishing" it would
+ *    hand their copy, their headline and their video to every other customer.
+ *  - the page is bound to nothing. A template is a starting point; a page serving a
+ *    live funnel is not one, and importing copies of it would multiply somebody's
+ *    booking inbox across the install.
+ */
+export async function setDocShelf(id: string, listed: boolean): Promise<ActionResult> {
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
+  if (!scope.isSuper) return { ok: false, error: "Only the platform owner can publish a page to the shelf." };
+
+  const doc = await prisma.resultPageDoc.findUnique({
+    where: { id },
+    select: {
+      tenantId: true,
+      title: true,
+      resultsOf: { select: { title: true } },
+      vslOf: { select: { title: true } },
+    },
+  });
+  if (!doc) return { ok: false, error: "That page no longer exists." };
+  if (!isPlatformOwned(doc.tenantId)) {
+    return { ok: false, error: "Only a page in the platform's own library can go on the shelf." };
+  }
+  const bound = doc.resultsOf ?? doc.vslOf;
+  if (listed && bound) {
+    return {
+      ok: false,
+      error: `${doc.title} is in use by ${bound.title}. Clone it and publish the copy, so the shelf never hands out a page that is serving a funnel.`,
+    };
+  }
+
+  await prisma.resultPageDoc.update({ where: { id }, data: { shelfListed: listed } });
+  refreshLibrary();
+  return { ok: true };
+}
+
+/** The shelf row's own copy: which heading it sits under, what it says, its order. */
+export async function setDocShelfMeta(
+  id: string,
+  meta: { category?: string; summary?: string; order?: number },
+): Promise<ActionResult> {
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
+  if (!scope.isSuper) return { ok: false, error: "Only the platform owner can edit the shelf." };
+
+  const doc = await prisma.resultPageDoc.findUnique({ where: { id }, select: { tenantId: true } });
+  if (!doc) return { ok: false, error: "That page no longer exists." };
+  if (!isPlatformOwned(doc.tenantId)) {
+    return { ok: false, error: "Only a page in the platform's own library can go on the shelf." };
+  }
+
+  await prisma.resultPageDoc.update({
+    where: { id },
+    data: {
+      ...(meta.category !== undefined ? { shelfCategory: meta.category.trim().slice(0, 60) || null } : {}),
+      ...(meta.summary !== undefined ? { shelfSummary: meta.summary.trim().slice(0, 300) || null } : {}),
+      ...(meta.order !== undefined ? { shelfOrder: Math.max(0, Math.min(9999, Math.trunc(meta.order))) } : {}),
+    },
+  });
+  refreshLibrary();
+  return { ok: true };
+}
+
+/**
+ * Import a shelf page into the acting workspace.
+ *
+ * It COPIES, always. Nothing binds a workspace's funnel to a platform row: the binding
+ * is 1:1, so crossing workspaces with it would mean the owner's edit rewriting a
+ * customer's live page. What a tenant gets is their own page, with their own slug,
+ * unpublished and bound to nothing - a draft they can rename, edit and bind.
+ *
+ * The shelf row's own copy (category, summary) is NOT carried: that text describes the
+ * shelf listing, not the page, and leaving it on the import would put the owner's
+ * marketing words inside somebody's workspace.
+ */
+export async function importShelfDoc(id: string): Promise<ActionResult<{ id: string }>> {
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
+
+  // The owner may import an unlisted page: reviewing one before it goes on the shelf
+  // means being able to run it, which is the same rule the template reviewer follows.
+  const src = await shelfDocForImport(id, scope.isSuper);
+  if (!src) return { ok: false, error: "That page is not on the shelf." };
+
+  const tenantId = configTenantOf(scope);
+  const slug = await uniqueDocSlug(tenantId, src.slug);
+
+  const draftPages =
+    src.pages.length > 0
+      ? src.pages.map((p) => ({
+          order: p.order,
+          title: p.title,
+          blocks: p.blocks.map((b) => ({ type: b.type, order: b.order, config: b.config })),
+        }))
+      : readPublishedPages(src.published ?? null).map((p) => ({
+          order: p.order,
+          title: p.title,
+          blocks: p.blocks.map((b) => ({ type: b.type as string, order: b.order, config: b.config })),
+        }));
+
+  const copy = await prisma.resultPageDoc.create({
+    data: {
+      kind: src.kind,
+      title: src.title.slice(0, 160),
+      slug,
+      tenantId,
+      sourceSlug: src.slug,
+      ...(src.kind === "VSL"
+        ? { draft: readResultPage(src.draft ?? src.published ?? null) as unknown as Prisma.InputJsonValue }
+        : {
+            pages: {
+              create: draftPages.map((p) => ({
+                order: p.order,
+                title: p.title,
+                blocks: {
+                  create: p.blocks.map((b) => ({
+                    type: b.type,
+                    order: b.order,
+                    config: (b.config ?? {}) as Prisma.InputJsonValue,
+                  })),
+                },
+              })),
+            },
+          }),
+    },
+    select: { id: true },
+  });
+  refreshLibrary();
+  return { ok: true, data: { id: copy.id } };
 }

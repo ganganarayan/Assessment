@@ -989,6 +989,22 @@ model ResultPageDoc {
   /// The doc this one was cloned from, for provenance only. Never a live link.
   sourceSlug String?
 
+  /// ---- The platform shelf ----------------------------------------------------
+  /// On the shelf = every workspace sees this page and can import a copy of it. Only
+  /// a PLATFORM-owned page can be listed (the actions enforce it), and only one that
+  /// is bound to no funnel: a template is a starting point, not somebody's live page.
+  ///
+  /// Deliberately NOT the same field as `published`, which means "has a live
+  /// snapshot". A page can be on the shelf and never published, which is the normal
+  /// case - what tenants import is the draft.
+  shelfListed   Boolean @default(false)
+  /// Heading the shelf groups it under, e.g. "Coaches", "Clinics". A plain string,
+  /// not an enum: a new audience must not need a migration.
+  shelfCategory String?
+  /// One or two lines: what this page is for. Shown on the shelf row.
+  shelfSummary  String?
+  shelfOrder    Int     @default(0)
+
   /// Owning workspace. Null = the platform's own library (super admin, no workspace
   /// entered). SetNull rather than Cascade: a deleted tenant's assessments survive as
   /// platform-owned, so their pages must survive with them.
@@ -1007,6 +1023,7 @@ model ResultPageDoc {
 
   @@unique([tenantId, slug])
   @@index([tenantId, kind])
+  @@index([shelfListed, kind, shelfOrder])
   @@map("result_page_doc")
 }
 

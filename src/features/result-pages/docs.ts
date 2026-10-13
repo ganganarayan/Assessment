@@ -54,6 +54,12 @@ export interface DocRow {
   boundTo: { id: string; title: string } | null;
   /** The doc it was cloned from, for provenance only. */
   sourceSlug: string | null;
+  /** The platform's own row, so only these can be put on the shelf. */
+  platformOwned: boolean;
+  /** On the shelf = every workspace can import a copy. See the shelf section below. */
+  shelfListed: boolean;
+  shelfCategory: string | null;
+  shelfSummary: string | null;
 }
 
 /**
@@ -83,4 +89,45 @@ export function copySlugCandidates(slug: string): (n: number) => string {
 export function copyTitle(title: string): string {
   const stripped = title.replace(/\s*\(Copy(?: \d+)?\)\s*$/i, "");
   return `${stripped} (Copy)`;
+}
+
+/**
+ * ---- The platform shelf ----------------------------------------------------
+ *
+ * The owner's pages, published once, that every workspace can import a copy of - the
+ * same shape as the assessment Template library, and for the same reason: a tenant's
+ * first funnel should not start from an empty page builder.
+ *
+ * Importing COPIES. It never binds a tenant's funnel to a platform row, because the
+ * binding is 1:1 and crossing workspaces with it would mean one owner's edit changing
+ * somebody else's live page - which is the one thing this whole design refuses.
+ */
+
+/** The heading a shelf page with no category of its own is grouped under. */
+export const SHELF_FALLBACK_CATEGORY = "General";
+
+export interface ShelfRow {
+  id: string;
+  kind: DocKind;
+  title: string;
+  slug: string;
+  summary: string | null;
+  category: string;
+  /** Pages (RESULTS) or blocks (VSL), so the row says how much is in it. */
+  size: number;
+  /** Owner view: whether tenants can see it. Always true in a tenant's view. */
+  listed: boolean;
+  order: number;
+}
+
+/** Group shelf rows by category, keeping the server's ordering within each group. */
+export function groupShelf(rows: ShelfRow[]): { category: string; rows: ShelfRow[] }[] {
+  const out: { category: string; rows: ShelfRow[] }[] = [];
+  for (const r of rows) {
+    const key = r.category || SHELF_FALLBACK_CATEGORY;
+    const last = out[out.length - 1];
+    if (last && last.category === key) last.rows.push(r);
+    else out.push({ category: key, rows: [r] });
+  }
+  return out;
 }

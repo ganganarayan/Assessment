@@ -4,7 +4,13 @@ import { resolveActingScope, tenantScope } from "@/lib/tenant/acting";
 import { readResultPage, type ResultPageData } from "@/features/assessment/result-page/blocks";
 import { readPublishedPages, type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { readExits } from "@/features/assessment/schemas";
-import { type DocKind, type DocRow } from "@/features/result-pages/docs";
+import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
+import {
+  SHELF_FALLBACK_CATEGORY,
+  type DocKind,
+  type DocRow,
+  type ShelfRow,
+} from "@/features/result-pages/docs";
 
 /**
  * Reads for the result-page library.
@@ -66,6 +72,10 @@ export async function listDocs(kind?: DocKind): Promise<DocRow[]> {
       publishedAt: true,
       sourceSlug: true,
       updatedAt: true,
+      tenantId: true,
+      shelfListed: true,
+      shelfCategory: true,
+      shelfSummary: true,
       resultsOf: { select: { id: true, title: true } },
       vslOf: { select: { id: true, title: true } },
       _count: { select: { pages: true } },
@@ -84,6 +94,10 @@ export async function listDocs(kind?: DocKind): Promise<DocRow[]> {
     updatedAt: r.updatedAt.toISOString(),
     boundTo: boundAssessmentOf(r),
     sourceSlug: r.sourceSlug,
+    platformOwned: isPlatformOwned(r.tenantId),
+    shelfListed: r.shelfListed,
+    shelfCategory: r.shelfCategory,
+    shelfSummary: r.shelfSummary,
   }));
 }
 
@@ -177,4 +191,92 @@ export async function editorContextFor(assessmentId: string | null): Promise<{
     bandTitles: Object.fromEntries((a?.resultBands ?? []).map((b) => [b.level, b.title])),
     hasExitRoutes: readExits(a?.disqualifiedContent ?? null).some((e) => e.mode === "CONTINUE"),
   };
+}
+
+/**
+ * Whose rows may go on the shelf.
+ *
+ * The Platform tenant, plus the legacy `null` owner that pre-dates owner stamping -
+ * a page backfilled from an unowned assessment is the platform's in every sense except
+ * the column, and the re-home sweep will stamp it eventually.
+ */
+export function isPlatformOwned(tenantId: string | null): boolean {
+  return tenantId === null || tenantId === PLATFORM_TENANT_ID;
+}
+
+/** Prisma filter for "the platform's own library". */
+const platformWhere = { OR: [{ tenantId: PLATFORM_TENANT_ID }, { tenantId: null }] };
+
+/**
+ * The shelf, as a workspace sees it.
+ *
+ * Deliberately NOT scoped to the acting tenant: this is the one cross-workspace read in
+ * the feature, and it is narrowed to exactly the rows the owner chose to publish. A
+ * bound page is excluded whatever its flag says - a template is a starting point, and a
+ * page serving a live funnel is not one.
+ *
+ * `includeUnlisted` is for the owner reviewing their own shelf, nobody else.
+ */
+export async function listShelfDocs(opts: { includeUnlisted?: boolean; kind?: DocKind } = {}): Promise<ShelfRow[]> {
+  const rows = await prisma.resultPageDoc.findMany({
+    where: {
+      ...platformWhere,
+      ...(opts.includeUnlisted ? {} : { shelfListed: true }),
+      ...(opts.kind ? { kind: opts.kind } : {}),
+      resultsOf: { is: null },
+      vslOf: { is: null },
+    },
+    orderBy: [{ kind: "asc" }, { shelfCategory: "asc" }, { shelfOrder: "asc" }, { title: "asc" }],
+    select: {
+      id: true,
+      kind: true,
+      title: true,
+      slug: true,
+      draft: true,
+      shelfListed: true,
+      shelfCategory: true,
+      shelfSummary: true,
+      shelfOrder: true,
+      _count: { select: { pages: true } },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    title: r.title,
+    slug: r.slug,
+    summary: r.shelfSummary,
+    category: r.shelfCategory || SHELF_FALLBACK_CATEGORY,
+    size: r.kind === "VSL" ? readResultPage(r.draft ?? null).blocks.length : r._count.pages,
+    listed: r.shelfListed,
+    order: r.shelfOrder,
+  }));
+}
+
+/**
+ * One shelf page, for importing.
+ *
+ * The gate is the row's own state, not the caller's scope: it must be platform-owned,
+ * listed, and bound to nothing. `allowUnlisted` is passed only for the owner, whose
+ * job is to read a page before putting it on the shelf.
+ */
+export async function shelfDocForImport(id: string, allowUnlisted: boolean) {
+  return prisma.resultPageDoc.findFirst({
+    where: {
+      id,
+      ...platformWhere,
+      ...(allowUnlisted ? {} : { shelfListed: true }),
+      resultsOf: { is: null },
+      vslOf: { is: null },
+    },
+    select: {
+      id: true,
+      kind: true,
+      title: true,
+      slug: true,
+      draft: true,
+      published: true,
+      pages: { orderBy: { order: "asc" }, include: { blocks: { orderBy: { order: "asc" } } } },
+    },
+  });
 }
