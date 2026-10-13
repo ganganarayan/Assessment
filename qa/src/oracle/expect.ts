@@ -24,6 +24,8 @@ import {
   completionEventName,
   GATE_DISQUALIFIED_EVENT,
   GATE_PASSED_EVENT,
+  ABANDONED_EVENT,
+  GATE_INCOMPLETE_EVENT,
   UNNAMED_EXIT,
 } from "../../../src/features/assessment/schemas.js";
 import { readMetaEvents } from "../../../src/features/assessment/meta-events.js";
@@ -281,9 +283,22 @@ export function expectationFor(
       : null,
     rows,
     events: { fired, never: never.filter((n) => !fired.includes(n)) },
-    optinSeen: !turnedAway && !handsOff && !(blockedAtRequired && row.leadCaptureAfter),
+    // optinSeenAt is stamped on the dedicated opt-in STEP, which only a lead-after
+    // funnel has. A lead-first funnel shows the form on its intro screen, where neither
+    // that stamp nor the departure beacon runs - so it produces no abandonment signal
+    // at all. Worth knowing before building a funnel that depends on one.
+    optinSeen: row.leadCaptureAfter && !turnedAway && !handsOff && !blockedAtRequired,
     abandonsAtOptin,
     blockedAtRequired,
     expectsRetakeLockout,
+    // The clock only starts for somebody who reached the dedicated opt-in step and left
+    // it. Everyone else is either a lead already or never got that far.
+    abandonDue: abandonsAtOptin && row.leadCaptureAfter && !turnedAway && !handsOff,
+    abandonEvent:
+      abandonsAtOptin && !turnedAway && !handsOff
+        ? row.leadCaptureAfter
+          ? ABANDONED_EVENT
+          : GATE_INCOMPLETE_EVENT
+        : null,
   };
 }

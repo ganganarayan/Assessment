@@ -117,4 +117,11 @@ export interface Expectation {
   blockedAtRequired: boolean;
   /** The SECOND attempt by the same identity must be refused by the retake lockout. */
   expectsRetakeLockout: boolean;
+  /** The departure clock should be running: they left the opt-in, so the funnel owes
+   *  them an abandonment verdict ten minutes later. */
+  abandonDue: boolean;
+  /** Which event that verdict should fire, or null when none is owed.
+   *  AssessmentAbandoned once they have SEEN the ask, GateIncomplete when they never
+   *  got that far - two audiences, and an ad written for one is wrong for the other. */
+  abandonEvent: string | null;
 }

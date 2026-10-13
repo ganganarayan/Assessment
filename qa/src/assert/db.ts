@@ -61,6 +61,11 @@ export interface RowObservation {
   /** GateEntry for this visitor: they passed the gate. */
   gateEntry: boolean;
   optinSeenAt: Date | null;
+  /** Set when the visitor was SEEN leaving the opt-in: the verdict is due ten minutes
+   *  later. Null means no departure was seen, and the 24-hour fallback applies. */
+  abandonDueAt: Date | null;
+  /** Set once the verdict has been decided, so it can never fire twice. */
+  abandonedFiredAt: Date | null;
   /** GateDisqualification rows for this visitor. */
   disqualifications: number;
   /** Anything outbound that should NOT have happened on a QA run. */
@@ -113,7 +118,7 @@ export async function readRows(
   const gateEntry = externalId
     ? await db().gateEntry.findFirst({
         where: { assessmentId, visitorId: externalId },
-        select: { id: true, optinSeenAt: true },
+        select: { id: true, optinSeenAt: true, abandonDueAt: true, abandonedFiredAt: true },
       })
     : null;
 
@@ -142,6 +147,8 @@ export async function readRows(
     bandTitle: submission?.resultBand?.title ?? null,
     gateEntry: Boolean(gateEntry),
     optinSeenAt: gateEntry?.optinSeenAt ?? null,
+    abandonDueAt: gateEntry?.abandonDueAt ?? null,
+    abandonedFiredAt: gateEntry?.abandonedFiredAt ?? null,
     disqualifications,
     crmJobs,
     nurtureLogs,

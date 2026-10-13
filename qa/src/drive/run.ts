@@ -60,6 +60,8 @@ export interface Observation {
   /** Browser-side Meta pixel calls, by event name. Empty when no pixel is configured. */
   pixelEvents: string[];
   consoleErrors: string[];
+  /** The departure beacon left the browser (whether or not the server acted on it). */
+  beaconSent: boolean;
   /** The app's own error boundary rendered: the funnel fell over, which is a different
    *  statement from the funnel behaving wrongly, and is usually transient. */
   crashed: boolean;
@@ -124,6 +126,7 @@ export async function driveCase(
     externalId: null,
     pixelEvents: [],
     consoleErrors: [],
+    beaconSent: false,
     crashed: false,
     trail: [],
   };
@@ -133,6 +136,14 @@ export async function driveCase(
   });
   page.on("request", (r) => {
     const url = r.url();
+    // The departure beacon decides whether a walk-away is ever counted. It is sent with
+    // sendBeacon as the page is torn down, so if it does not appear here it never left
+    // the browser - a different problem from the server ignoring it.
+    if (url.includes("/api/track/abandon")) {
+      obs.beaconSent = true;
+      obs.trail.push("the departure beacon left the browser");
+      return;
+    }
     if (!/facebook\.com\/tr|connect\.facebook\.net/.test(url)) return;
     const ev = new URL(url).searchParams.get("ev");
     if (ev) obs.pixelEvents.push(ev);
@@ -221,7 +232,7 @@ export async function driveCase(
       const isOptin = (await attr(page, "[data-qa-step='intro']", "data-qa-optin")) === "first";
       if (isOptin) {
         if (abandons) {
-          obs.trail.push("walked away from the opt-in");
+          await leaveTheOptin(page, obs, opts.baseUrl);
           break;
         }
         await fillLead(page, identity, obs);
@@ -234,7 +245,7 @@ export async function driveCase(
 
     if (step === "leadForm") {
       if (abandons) {
-        obs.trail.push("walked away from the opt-in");
+        await leaveTheOptin(page, obs, opts.baseUrl);
         break;
       }
       await fillLead(page, identity, obs);
@@ -281,15 +292,7 @@ export async function driveCase(
   }
   const cookies = await context.cookies();
   obs.visitorId = cookies.find((c) => c.name === "a360_vid")?.value ?? null;
-  obs.externalId = await page
-    .evaluate(() => {
-      try {
-        return (globalThis as unknown as { localStorage: { getItem(k: string): string | null } }).localStorage.getItem("a360_xid");
-      } catch {
-        return null;
-      }
-    })
-    .catch(() => null);
+  obs.externalId = obs.externalId ?? (await readExternalId(page));
 
   if (plan.behaviours.includes("back-after-exit")) {
     // Pressing back from the exit page leaves the funnel entirely, because the exit is
@@ -446,6 +449,50 @@ async function answerQuestionScreen(
 }
 
 /* ---------- small helpers ------------------------------------------------------- */
+
+/**
+ * Walk away from the opt-in, the way a person does.
+ *
+ * Leaving is not the end of the script, it is an event the funnel listens for:
+ * pagehide, carrying a beacon that starts the ten minute clock before the loss is
+ * called. The event is dispatched here rather than relied upon from a scripted
+ * navigation, because headless Chromium routinely drops a beacon sent while the page
+ * is being torn down - checked against this funnel, where the listener is attached and
+ * the server accepts the call, but a Playwright navigation never delivers it. The page
+ * is given the same event a real departure fires, and then actually left. The funnel's
+ * own guard means one beacon is sent, never two.
+ */
+async function leaveTheOptin(page: Page, obs: Observation, baseUrl: string): Promise<void> {
+  obs.trail.push("walked away from the opt-in");
+  // Stand there a moment first: the listener attaches after the screen renders, and a
+  // departure faster than any human could manage would prove nothing.
+  await page.waitForTimeout(1500);
+  obs.externalId = await readExternalId(page);
+  await page
+    .evaluate(() => {
+      const w = globalThis as unknown as { dispatchEvent(e: unknown): void; Event: new (t: string) => unknown };
+      w.dispatchEvent(new w.Event("pagehide"));
+    })
+    .catch(() => {});
+  await page.waitForTimeout(1200);
+  await page.goto(baseUrl, { waitUntil: "domcontentloaded" }).catch(() => {});
+  await page.waitForTimeout(1200);
+}
+
+/** The browser's own first-party id, which is how a gate PASS is keyed. */
+async function readExternalId(page: Page): Promise<string | null> {
+  return page
+    .evaluate(() => {
+      try {
+        return (globalThis as unknown as { localStorage: { getItem(k: string): string | null } }).localStorage.getItem(
+          "a360_xid",
+        );
+      } catch {
+        return null;
+      }
+    })
+    .catch(() => null);
+}
 
 /** What is on the screen right now, so progress inside one step is visible. */
 async function screenKey(page: Page, step: string): Promise<string> {

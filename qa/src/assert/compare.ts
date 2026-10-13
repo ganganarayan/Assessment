@@ -254,6 +254,37 @@ export function compare(
     }
   }
 
+  /* --- the loss, and which kind of loss it is ----------------------------------- */
+  if (expected.abandonsAtOptin) {
+    checks.push(
+      ok(
+        expected.abandonDue
+          ? "leaving the opt-in starts the ten minute clock"
+          : "this funnel starts no clock, because its opt-in is not a step of its own",
+        expected.abandonDue === (rows.abandonDueAt !== null),
+        expected.abandonDue ? "abandonDueAt set" : "abandonDueAt null",
+        rows.abandonDueAt ? rows.abandonDueAt.toISOString() : "null",
+      ),
+    );
+    checks.push(
+      ok(
+        "and nothing is reported yet, because they may still come back",
+        rows.abandonedFiredAt === null,
+        "no verdict yet",
+        rows.abandonedFiredAt ? rows.abandonedFiredAt.toISOString() : "no verdict yet",
+      ),
+    );
+    if (expected.abandonEvent) {
+      checks.push({
+        verdict: "skip",
+        what: `the verdict owed later is ${expected.abandonEvent}`,
+        observed: rows.abandonDueAt
+          ? `due ${rows.abandonDueAt.toISOString()} - settle it with npm run qa:abandon`
+          : "no departure was seen, so the 24 hour fallback applies",
+      });
+    }
+  }
+
   /* --- what Meta was told ------------------------------------------------------- */
   for (const name of expected.events.fired) {
     checks.push(

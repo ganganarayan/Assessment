@@ -67,7 +67,8 @@
     "templates:unpublish": "tsx --conditions=react-server scripts/unpublish-templates.ts",
     "postinstall": "prisma generate",
     "qa": "tsx qa/src/cli.ts",
-    "qa:seed": "tsx qa/src/fixtures/cli.ts"
+    "qa:seed": "tsx qa/src/fixtures/cli.ts",
+    "qa:abandon": "tsx --conditions=react-server qa/src/abandon.ts"
   },
   "prisma": {
     "seed": "tsx --conditions=react-server prisma/seed.ts"
