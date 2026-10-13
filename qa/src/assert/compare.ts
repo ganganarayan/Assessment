@@ -69,9 +69,15 @@ export function compare(
     if (expected.gate.outcome === "exit") {
       checks.push(
         ok(
-          "the gate routes them out",
-          sawStep("disqualified") || expected.gate.takesAssessment || expected.gate.capturesLead,
-          "the exit page",
+          // Each kind of exit is a different thing to SEE, and the check has to depend
+          // on what happened rather than on what was expected. Written as
+          // "expected || observed" it passed for every opt-in and waitlist route no
+          // matter what the browser did, which is a check that can only ever agree.
+          expected.gate.takesAssessment
+            ? "the waitlist route does not stop them"
+            : "the gate routes them out",
+          expected.gate.takesAssessment ? !sawStep("disqualified") : sawStep("disqualified"),
+          expected.gate.takesAssessment ? "no exit page, they carry on" : "the exit page",
           obs.steps.join(" -> "),
         ),
       );
@@ -134,9 +140,9 @@ export function compare(
     checks.push(
       ok(
         "a required question stops the run",
-        obs.blocked !== null,
-        "a validation message",
-        obs.blocked ?? "(it let them through)",
+        obs.stoppedByValidation,
+        "a validation message, and the same screen still on display",
+        obs.blocked ? (obs.stoppedByValidation ? obs.blocked : `${obs.blocked} but it moved on anyway`) : "(it let them through)",
       ),
     );
   }

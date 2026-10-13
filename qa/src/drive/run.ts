@@ -47,6 +47,8 @@ export interface Observation {
   gateQuestionsSeen: string[];
   /** A validation message the funnel showed instead of advancing. */
   blocked: string | null;
+  /** The funnel refused to advance AND said why - both halves, not just the message. */
+  stoppedByValidation: boolean;
   finalUrl: string;
   band: string | null;
   percent: number | null;
@@ -125,6 +127,7 @@ export async function driveCase(
     questionsSeen: [],
     gateQuestionsSeen: [],
     blocked: null,
+    stoppedByValidation: false,
     finalUrl: "",
     band: null,
     percent: null,
@@ -410,12 +413,47 @@ async function answerQuestionScreen(
 
   if (flags.skipsRequired) {
     // Answer nothing and try to move on: the funnel must stop us.
-    const before = page.url();
-    await click(page, "[data-qa-nav='next'], [data-qa-nav='submit']", obs);
-    await page.waitForTimeout(800);
-    obs.blocked = await text(page, "[data-qa-step='questions'] .text-red-500");
-    obs.trail.push(obs.blocked ? `stopped: ${obs.blocked}` : "was NOT stopped");
-    return before !== page.url() ? true : false;
+    //
+    // The message is read from a PARAGRAPH, not from anything red. The required-field
+    // marker next to a question is also a red element and it sits earlier in the
+    // document, so matching on the colour alone found an asterisk and called it a
+    // validation message - which would have passed this case even if the funnel had
+    // waved an unanswered question through.
+    const beforeUrl = page.url();
+    const beforeQuestions = idsOnScreen.join(",");
+    // Pressed directly rather than through the usual click helper: that one waits up to
+    // twenty five seconds for the screen to change, and here the whole point is that it
+    // must NOT. Waiting for a change that correctly never comes also meant reading the
+    // validation message half a minute after it appeared.
+    // Let the screen settle, then press it the ordinary way. NOT forced: a forced click
+    // skips Playwright's wait for the element to stop moving, and this button has just
+    // been laid out, so the press landed where it used to be and the funnel never heard
+    // it. The harness then reported the funnel as letting an unanswered question
+    // through, which it does not.
+    await page.waitForTimeout(700);
+    const button = page.locator("[data-qa-nav='submit'], [data-qa-nav='next']").first();
+    if (await button.count()) {
+      await button.click({ timeout: 10_000 }).catch((e: unknown) => {
+        const why = e instanceof Error ? e.message.split("\n")[0] : String(e);
+        obs.trail.push(`pressing it failed: ${why}`);
+      });
+    } else {
+      obs.trail.push("no Next or Submit to press");
+    }
+    await page.waitForTimeout(1500);
+    obs.blocked = await text(page, "[data-qa-step='questions'] p.text-red-500");
+    const stillHere = (await screenKey(page, "questions")) === beforeQuestions && page.url() === beforeUrl;
+    obs.trail.push(
+      obs.blocked
+        ? `stopped: ${obs.blocked}${stillHere ? "" : " (but the screen moved on anyway)"}`
+        : stillHere
+          ? "no message, but the screen did not move"
+          : "was NOT stopped",
+    );
+    // Being stopped means BOTH: a message, and the same screen. Either alone is a
+    // different behaviour and should not read as a pass.
+    obs.stoppedByValidation = Boolean(obs.blocked) && stillHere;
+    return false;
   }
 
   for (const qid of idsOnScreen) {
@@ -618,10 +656,20 @@ async function click(page: Page, selector: string, obs: Observation): Promise<vo
     return;
   }
   const before = await fingerprintOf(page);
+  // The ordinary click first, which waits for the element to stop moving. A screen that
+  // has just been laid out is still settling, and a FORCED click skips that wait and can
+  // land where the button used to be - which is a press the funnel never hears, and a
+  // failure that looks like the funnel ignoring it. Forcing is the fallback, for the one
+  // thing the ordinary click cannot handle: a button that disables itself on press.
   try {
-    await el.click({ timeout: 8000, force: true });
-  } catch (e) {
-    obs.trail.push(`click on ${selector} did not settle: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}`);
+    await el.click({ timeout: 6000 });
+  } catch {
+    try {
+      await el.click({ timeout: 6000, force: true });
+    } catch (e) {
+      const why = e instanceof Error ? e.message.split("\n")[0] : String(e);
+      obs.trail.push(`click on ${selector} did not settle: ${why}`);
+    }
   }
   // Then WAIT for the screen to answer. Submitting the opt-in is a server round trip
   // that can take seconds - the retake lockout is decided inside it - and a fixed
@@ -629,7 +677,7 @@ async function click(page: Page, selector: string, obs: Observation): Promise<vo
   const changed = await waitForScreenChange(page, before, 25_000);
   if (!changed) {
     // A screen that refuses to move usually says why, and that sentence is the finding.
-    const shown = await text(page, "[data-qa-step] .text-red-500");
+    const shown = await text(page, "[data-qa-step] p.text-red-500");
     obs.trail.push(`the screen did not change after ${selector}${shown ? `, and it says: ${shown}` : ""}`);
     if (shown) obs.blocked = shown;
   }
