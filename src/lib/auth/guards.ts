@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { isPlatformOwner } from "@/lib/auth/platform";
 import { readActingTenant } from "@/lib/tenant/acting-cookie";
+import { enteredAgencyTenant } from "@/lib/tenant/agency";
 import { SIGN_IN_EXPIRED } from "@/lib/auth/routes";
 
 /** The session user shape we rely on (Better Auth surfaces role + tenantId + staffPermission). */
@@ -127,7 +128,7 @@ export async function requireTenantAdmin(): Promise<{ user: AuthUser; tenantId: 
  *    platform console to pick one.
  * Every /w data query scopes by the returned tenantId.
  */
-export async function requireWorkspace(): Promise<{ user: AuthUser; tenantId: string; impersonating: boolean }> {
+export async function requireWorkspace(): Promise<{ user: AuthUser; tenantId: string; impersonating: boolean; viaAgency: boolean }> {
   const user = await requireUser();
   await enforceAccountState(user.id);
   if (isSuperAdmin(user)) {
@@ -141,7 +142,7 @@ export async function requireWorkspace(): Promise<{ user: AuthUser; tenantId: st
       select: { id: true },
     });
     if (!entered) redirect("/platform");
-    return { user, tenantId: acting, impersonating: true };
+    return { user, tenantId: acting, impersonating: true, viaAgency: false };
   }
   const fresh = await prisma.user.findUnique({
     where: { id: user.id },
@@ -153,5 +154,11 @@ export async function requireWorkspace(): Promise<{ user: AuthUser; tenantId: st
   // tenant-less login already lands, so they see the same "no workspace" state rather
   // than an error.
   if (fresh.tenant?.deletedAt) redirect("/dashboard");
-  return { user, tenantId: fresh.tenantId, impersonating: false };
+  // An AGENCY ADMIN who has entered one of their agency tenants operates that workspace
+  // instead of their own. 🔴 `impersonating` stays FALSE: across /w that flag means
+  // "skip the caps" (see the assertCanCreateAssessment call sites), which is correct for
+  // the platform owner and would hand an agency tenant unlimited everything.
+  const entered = await enteredAgencyTenant(user.id, fresh.tenantId);
+  if (entered) return { user, tenantId: entered, impersonating: false, viaAgency: true };
+  return { user, tenantId: fresh.tenantId, impersonating: false, viaAgency: false };
 }

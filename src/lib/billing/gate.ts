@@ -79,6 +79,73 @@ export async function assertCanCreateAdAccount(tenantId: string | null): Promise
   return used >= limit ? { ok: false, limit, used } : { ok: true };
 }
 
+// --- Agency tenants (hard cap) ---------------------------------------------
+
+export interface AgencyTenantUsage {
+  /** Agency tenants the plan includes (0 = this tier does not resell). */
+  included: number;
+  /** Slots bought beyond the included count, $29/mo each, confirmed paid. */
+  extra: number;
+  /** included + extra - what the gate compares against. */
+  limit: number;
+  /** Active agency tenants. A soft-deleted one frees its slot at once. */
+  used: number;
+}
+
+/**
+ * How many agency tenants this workspace may own, and how many it has.
+ *
+ * Shared by the gate below and by the workspace's own meter, so the number that blocks a
+ * create and the number shown next to it cannot disagree.
+ *
+ * 🔴 The paid extras are only added when the PLAN still entitles reselling. Read on
+ * their own they would survive a lapse or a downgrade: `agencyTenants` goes to 0 when a
+ * subscription parks or moves to Gate, and `extra` sitting on the subscription row would
+ * then be the only number left, keeping five workspaces alive on a cancelled account.
+ */
+export async function agencyTenantUsage(tenantId: string | null): Promise<AgencyTenantUsage> {
+  if (!isBusinessTenant(tenantId)) {
+    // The platform owner creates tenants from /platform, uncapped. Nothing to meter.
+    return { included: Number.MAX_SAFE_INTEGER, extra: 0, limit: Number.MAX_SAFE_INTEGER, used: 0 };
+  }
+  const resolved = await resolvePlan(tenantId);
+  const used = await prisma.tenant.count({ where: { agencyAdminTenantId: tenantId, deletedAt: null } });
+  const included = resolved.agencyTenant ? 0 : resolved.limits.agencyTenants;
+  if (included <= 0) return { included: 0, extra: 0, limit: 0, used };
+  const sub = await prisma.subscription.findUnique({
+    where: { tenantId },
+    select: { extraAgencyTenants: true },
+  });
+  const extra = sub?.extraAgencyTenants ?? 0;
+  return { included, extra, limit: included + extra, used };
+}
+
+export type CreateAgencyTenantGate =
+  | { ok: true }
+  | { ok: false; limit: number; used: number; reason: "notReselling" | "nested" | "cap" };
+
+/**
+ * Whether this workspace may create one more agency tenant. HARD: blocks at the cap.
+ *
+ * Three distinct refusals, because "no" on its own is not actionable:
+ *  - `notReselling`: the plan includes none (Gate, Signal, a parked or lapsed account).
+ *    The answer is an upgrade, or paying what is owed.
+ *  - `nested`: the caller is itself an agency tenant. Depth is one, and no amount of
+ *    paying changes it. resolvePlan already reports 0 for an agency tenant, so this is a
+ *    second statement of the same rule with an error somebody can read.
+ *  - `cap`: at the limit. The answer is $29 for one more slot.
+ */
+export async function assertCanCreateAgencyTenant(tenantId: string | null): Promise<CreateAgencyTenantGate> {
+  if (!isBusinessTenant(tenantId)) return { ok: true };
+  const resolved = await resolvePlan(tenantId);
+  if (resolved.agencyTenant) return { ok: false, limit: 0, used: 0, reason: "nested" };
+  const usage = await agencyTenantUsage(tenantId);
+  if (usage.limit <= 0) return { ok: false, limit: 0, used: usage.used, reason: "notReselling" };
+  return usage.used >= usage.limit
+    ? { ok: false, limit: usage.limit, used: usage.used, reason: "cap" }
+    : { ok: true };
+}
+
 // --- Seats (hard cap) -------------------------------------------------------
 
 export type AddSeatGate =

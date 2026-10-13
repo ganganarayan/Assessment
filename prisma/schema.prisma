@@ -136,6 +136,23 @@ model Tenant {
   acqUtmTerm             String?
   acqUtmContent          String?
 
+  // AGENCY TENANTS (2026-10-13). Set = this workspace belongs to an AGENCY ADMIN, and
+  // the value is the tenant id of that agency admin's own workspace. Null = a tenant
+  // directly under the super admin, which is every existing row - so nothing is
+  // backfilled and nothing changes for anyone already on the install.
+  //
+  // Depth is ONE by design: an agency tenant resolves no agencyTenants allowance of
+  // its own (PLAN_LIMITS + assertCanCreateAgencyTenant), so a workspace under an
+  // agency admin can never resell a workspace under itself.
+  //
+  // 🔴 onDelete: Restrict, deliberately. The platform's permanent delete cascades a
+  // tenant's OWN rows on purpose, but cascading from here would destroy five separate
+  // businesses because one agency account was deleted. Restrict makes the operator
+  // deal with the agency tenants first, with an error instead of silence.
+  agencyAdminTenantId String?
+  agencyAdmin         Tenant?  @relation("AgencyTenants", fields: [agencyAdminTenantId], references: [id], onDelete: Restrict)
+  agencyTenants       Tenant[] @relation("AgencyTenants")
+
   users                User[]
   domains              Domain[]
   theme                Theme?
@@ -163,6 +180,7 @@ model Tenant {
 
   @@index([status])
   @@index([deletedAt])
+  @@index([agencyAdminTenantId])
   @@map("tenant")
 }
 
@@ -294,6 +312,14 @@ model Subscription {
   cancelAtPeriodEnd  Boolean   @default(false)
 
   seats Int @default(1)
+
+  // AGENCY-TENANT SLOTS bought beyond the plan's included count ($29/mo each), and the
+  // SECOND Razorpay subscription that carries them. Two subscriptions rather than a
+  // quantity on the first, because quantity multiplies the BASE price: 249 x 2 is not
+  // 249 + 29. This column is the number CONFIRMED PAID - the webhook writes it, never
+  // the client - and the cap is included + this.
+  extraAgencyTenants         Int     @default(0)
+  razorpaySlotSubscriptionId String? @unique
 
   // Entitlements FROZEN at purchase (a copy of PLAN_LIMITS for `plan`). Resolution
   // reads this first so a later catalog change never re-rates this customer.

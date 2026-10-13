@@ -149,6 +149,16 @@ export interface PlanLimits {
    * somewhere to land when the model exists.
    */
   adAccounts: number;
+  /**
+   * How many AGENCY TENANTS this workspace may own - workspaces that belong to this
+   * tenant as an AGENCY ADMIN rather than to the super admin. 0 on every tier that does
+   * not resell, which is also what an agency tenant itself resolves, so the hierarchy
+   * can never grow a third level.
+   *
+   * The agency admin's OWN workspace is NOT one of these: it is free and uncounted, and
+   * carries the same single-workspace unit every other tenant gets.
+   */
+  agencyTenants: number;
   features: FeatureFlags;
 }
 
@@ -172,6 +182,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxAssessments: 2,
     seats: 1,
     adAccounts: 1,
+    agencyTenants: 0,
     features: { ...PAID_BASE },
   },
   // Signal - brand, domain, AI and the badge removed.
@@ -180,6 +191,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxAssessments: 10,
     seats: 3,
     adAccounts: 2,
+    agencyTenants: 0,
     features: {
       ...PAID_BASE,
       customDomain: true,
@@ -190,29 +202,36 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
       conditionalExit: true,
     },
   },
-  // Agency - unlimited scorecards, ten ad accounts, bulk import, API tokens.
+  // Agency - the agency admin's OWN workspace, plus five agency tenants.
   //
-  // 🟡 NO sub-account flag, and the pricing page stopped claiming one on 2026-10-13.
-  // Client sub-accounts have no code anywhere (docs/FEATURE-GATES.md §8b), and the rest
-  // of that line - custom domain and badge removal, which together ARE white-label - is
-  // Signal's, so the row was selling Signal's features back to Agency buyers. What makes
-  // this a tier is volume, ten separate ad accounts, and bulk import.
+  // 🟢 THE UNIT IS ONE WORKSPACE, set by the owner on 2026-10-13. Every workspace on the
+  // install - a tenant under the super admin, an agency admin's own, an agency tenant -
+  // gets the same thing: 1,000 responses, one ad account and its pixel, one custom
+  // domain, one Razorpay account, ten scorecards, and one user.
+  //
+  // 🟡 A SEAT IS A USER INSIDE ONE WORKSPACE, never a workspace. `seats: 1` here means
+  // the agency admin's own workspace has one login, so the staff helping them share it
+  // rather than each getting their own - the owner's call, 2026-10-13. It says nothing
+  // about how many workspaces anybody has; that is `agencyTenants` below.
+  //
+  // What Agency buys is SIX WORKSPACES for
+  // $249: the agency admin's own workspace, free and uncounted, and five agency tenants.
+  // Beyond five, $29/mo each (Subscription.extraAgencyTenants).
+  //
+  // So the numbers below describe the agency admin's own workspace only, and they are
+  // SMALLER than what this tier published until today (5,000 responses, five ad accounts
+  // and unlimited scorecards, all pooled in one workspace). That was the shape of a tier
+  // sold to one heavy operator; this is the shape of a tier sold to a reseller, and the
+  // total across six workspaces is 6,000 responses and six ad accounts.
+  //
+  // 🟢 Nobody is re-rated by the reduction: no Agency subscription has ever been
+  // charged, and resolvePlan reads the frozen limitsSnapshot for anyone who ever is.
   AGENCY: {
-    responsesPerMonth: 5000,
-    maxAssessments: null,
-    seats: 10,
-    // FIVE, not ten, from 2026-10-13, with the price at $249.
-    //
-    // Ten included was the number that made Agency underpriced: one Agency replaced
-    // about five Signal seats, which is $395 of value sold for $199. Five keeps the
-    // tier comfortably ahead of Signal's two while leaving the heavy users somewhere to
-    // pay, and the price moved at the same time so the change is a repricing rather
-    // than a quiet reduction.
-    //
-    // 🟢 EXISTING SUBSCRIBERS KEEP TEN, with no special case: resolvePlan reads the
-    // frozen limitsSnapshot on their subscription, so this catalog edit cannot reach
-    // anybody who has already bought.
-    adAccounts: 5,
+    responsesPerMonth: 1000,
+    maxAssessments: 10,
+    seats: 1,
+    adAccounts: 1,
+    agencyTenants: 5,
     features: {
       ...PAID_BASE,
       customDomain: true,
@@ -229,10 +248,16 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
   // resolvePlan already applies, because a flat published number would cap the revenue on
   // the biggest accounts while uncapping their cost.
   ENTERPRISE: {
-    responsesPerMonth: null,
-    maxAssessments: null,
-    seats: 25,
-    adAccounts: 25,
+    // The same one-workspace unit as every other tier (see AGENCY), with twenty agency
+    // tenants instead of five. "Unlimited responses" is gone from here for the same
+    // reason it is gone from Agency: the volume lives in the workspaces, not in a pool.
+    // A negotiated deal is expressed as limitOverrides on the subscription, which is
+    // what makes this tier quotable without a second catalog.
+    responsesPerMonth: 1000,
+    maxAssessments: 10,
+    seats: 1,
+    adAccounts: 1,
+    agencyTenants: 20,
     features: {
       ...PAID_BASE,
       customDomain: true,
@@ -246,6 +271,54 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     },
   },
 };
+
+/**
+ * The plan id an AGENCY TENANT reports. SIGNAL, because that is the retail tier an
+ * agency tenant is a discounted copy of ($49.80 inside Agency against $79 retail), so
+ * every receipt, meter and label already knows the word. The LIMITS it resolves are
+ * AGENCY_TENANT_LIMITS below, NOT PLAN_LIMITS.SIGNAL: an agency tenant gets one ad
+ * account and one user, where retail Signal gets two ad accounts and three USERS - three
+ * staff logins inside that one workspace, which is what a seat has always meant here.
+ */
+export const AGENCY_TENANT_PLAN: PlanId = "SIGNAL";
+
+/**
+ * What a workspace under an AGENCY ADMIN resolves to - the one-workspace unit the owner
+ * set on 2026-10-13: 1,000 responses, one ad account and pixel, one custom domain, one
+ * Razorpay account, one login, ten scorecards.
+ *
+ * Features are Signal's plus bulkImport. The import is what makes the tier work at all:
+ * the agency admin builds a scorecard once and lifts it into each agency tenant, so
+ * withholding it here would leave the capability on the one workspace that never needs
+ * it. apiAccess stays OFF, tokens are the agency admin's surface rather than the agency
+ * tenant's.
+ *
+ * 🔴 CUSTOM DOMAIN IS ON, and that is a deliberate cost. Each agency tenant that uses it
+ * spends a custom-hostname slot, so whether an agency gives its agency tenants domains is
+ * the AGENCY's decision, not a platform switch. Beyond three hosts this needs Cloudflare
+ * for SaaS awake (docs/CUSTOM-DOMAINS.md), or the Railway per-service cap returns.
+ *
+ * 🟡 No per-tenant override lands here: limitOverrides lives on a Subscription and an
+ * agency tenant deliberately has none (one subscription per agency admin). To lift a
+ * single agency tenant, use the manual grant (plan + planExpiresAt) or the unlimited flag
+ * on its own row - both resolve AHEAD of this.
+ */
+export const AGENCY_TENANT_LIMITS: PlanLimits = {
+  responsesPerMonth: 1000,
+  maxAssessments: 10,
+  seats: 1,
+  adAccounts: 1,
+  // An agency tenant can never resell: depth is one, stated here and enforced again in
+  // assertCanCreateAgencyTenant.
+  agencyTenants: 0,
+  features: {
+    ...PLAN_LIMITS.SIGNAL.features,
+    bulkImport: true,
+  },
+};
+
+/** Price of one agency tenant beyond the plan's included count, USD / month. */
+export const AGENCY_TENANT_EXTRA_USD = 29;
 
 /** Monthly USD price per plan (machine value; content.ts holds the display string). */
 export const PLAN_PRICE_USD: Record<PlanId, number> = {
@@ -266,6 +339,26 @@ export const PLAN_PRICE_USD_ANNUAL: Record<PlanId, number | null> = {
 /** The plan a trial grants, and how long it runs. */
 export const TRIAL_PLAN: PlanId = "SIGNAL";
 export const TRIAL_DAYS = 14;
+
+/**
+ * Agency tenants a TRIALING workspace may create. One, so somebody evaluating Agency can
+ * see the thing they are being asked to pay for rather than read about it.
+ *
+ * 🟡 Worth knowing before raising it: there is ONE trial and it grants Signal, so this
+ * reaches EVERY trialing workspace, not only the ones that intend to buy Agency. That is
+ * the trade - a nudge toward the tier for everyone, against a tier nobody can evaluate.
+ */
+export const TRIAL_AGENCY_TENANTS = 1;
+
+/**
+ * What a trial actually resolves to: the trial plan's catalog entry, with the one agency
+ * tenant added. Separate constant so the trial's allowance is stated once, instead of
+ * each gate remembering to special-case a trialing caller.
+ */
+export const TRIAL_LIMITS: PlanLimits = {
+  ...PLAN_LIMITS[TRIAL_PLAN],
+  agencyTenants: TRIAL_AGENCY_TENANTS,
+};
 
 /** Human label per plan, for meters/receipts/UI. */
 export const PLAN_LABEL: Record<PlanId, string> = {
@@ -321,6 +414,9 @@ export const planLimitsSchema = z.object({
   // Optional: snapshots frozen before ad accounts existed have no such field, and a
   // strict schema would reject them and silently re-rate that customer to the catalog.
   adAccounts: z.number().int().nonnegative().default(1),
+  // Same reason as adAccounts above: snapshots frozen before agency tenants existed
+  // carry no such field, and rejecting them would re-rate that customer.
+  agencyTenants: z.number().int().nonnegative().default(0),
   features: featureFlagsSchema,
 });
 
@@ -331,6 +427,7 @@ export const planLimitsOverrideSchema = z
     maxAssessments: z.number().int().nonnegative().nullable(),
     seats: z.number().int().positive(),
     adAccounts: z.number().int().nonnegative(),
+    agencyTenants: z.number().int().nonnegative(),
     features: z.record(z.enum(FEATURES), z.boolean()),
   })
   .partial();
@@ -361,6 +458,7 @@ export function applyOverrides(base: PlanLimits, override: unknown): PlanLimits 
     maxAssessments: o.maxAssessments !== undefined ? o.maxAssessments : base.maxAssessments,
     seats: o.seats !== undefined ? o.seats : base.seats,
     adAccounts: o.adAccounts !== undefined ? o.adAccounts : base.adAccounts,
+    agencyTenants: o.agencyTenants !== undefined ? o.agencyTenants : base.agencyTenants,
     features: { ...base.features, ...(o.features ?? {}) },
   };
 }
@@ -405,6 +503,7 @@ export const PARKED_LIMITS: PlanLimits = {
   maxAssessments: 0,
   seats: 1,
   adAccounts: 0,
+  agencyTenants: 0,
   features: { ...NO_FEATURES },
 };
 
@@ -414,6 +513,7 @@ export const UNLIMITED_LIMITS: PlanLimits = {
   maxAssessments: null,
   adAccounts: Number.MAX_SAFE_INTEGER,
   seats: Number.MAX_SAFE_INTEGER,
+  agencyTenants: Number.MAX_SAFE_INTEGER,
   features: Object.fromEntries(FEATURES.map((f) => [f, true])) as FeatureFlags,
 };
 

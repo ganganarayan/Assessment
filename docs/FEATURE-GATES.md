@@ -1,11 +1,18 @@
 # Feature gates - Gate · Signal · Agency · Enterprise
 
 > Status: **Gate, Signal and Agency's real content are BUILT and enforced.** Ad accounts
-> and seats closed on 2026-10-13 (§5), and on the same day the pricing page stopped
-> claiming the two Agency features that have no code: client sub-accounts (none, anywhere)
-> and white-label (custom domain + badge removal, which together ARE white-label, are
-> Signal's). Enterprise stays a sales motion: SSO, SLA and onboarding are stated as
-> negotiated terms rather than shipped capabilities.
+> and seats closed on 2026-10-13 (§5). White-label stays off the page, because custom
+> domain + badge removal together ARE white-label and both are Signal's. **Agency tenants
+> (§8b) became real on 2026-10-13**: the catalog grants them, resolution derives them and
+> the cap enforces them. Enterprise stays a sales motion: SSO, SLA and onboarding are
+> stated as negotiated terms rather than shipped capabilities.
+>
+> **The unit changed with them.** Every workspace on the install - a tenant under the
+> super admin, an agency admin's own, an agency tenant - is 1,000 responses, 10
+> scorecards, 1 user, 1 ad account, 1 domain, 1 Razorpay. Agency is SIX of those for
+> $249 (its own, free and uncounted, plus five), Enterprise twenty-one. Agency used to
+> publish 5,000 responses and five ad accounts pooled in one workspace; nobody was ever
+> charged for that shape, so the correction re-rated nobody.
 
 ## What already exists
 
@@ -203,11 +210,14 @@ the CACHED Plan against the catalog, which is what a price change actually touch
 🟢 Every line above is now enforced in code. What the tier sells is volume, ten SEPARATE
 ad accounts (§5), bulk import, and scoped API tokens.
 
-🔴 **Sub-accounts and white-label do not exist and are no longer advertised** (2026-10-13).
-Sub-accounts have no code anywhere; white-label was Signal's custom domain and badge
-removal sold back at $199. The build is planned in §8b, and it is blocked by something
-outside itself: Railway caps custom domains per service and an agency wants one per
-client, so Cloudflare for SaaS has to be woken first.
+🟢 **Agency tenants are built** (2026-10-13, §8b). 🔴 **White-label is still not sold**:
+it was Signal's custom domain and badge removal offered back at a higher price.
+
+🟡 One dependency is NOT solved by that build: an agency tenant may have a custom domain
+(the capability is on, so an agency can choose per client), but Railway caps custom
+domains per service and we hit it at three. Beyond that, Cloudflare for SaaS has to be
+awake - four variables and the Worker, see docs/CUSTOM-DOMAINS.md. `GET /api/version`
+now reports `provisioning.saasArmed` so that state can be read instead of guessed.
 
 🟡 **Extra ad accounts read "on request", not "$15 each".** The add-on needs an additive
 purchased counter and, more to the point, no real subscription has been put through this
@@ -295,7 +305,8 @@ answers are captured, the leads unlock when the plan is raised, nothing is lost.
 4. 🟢 Badge component (Gate)
 5. 🟢 `AdAccount` model + per-tenant limit + UI + picker - §5 *(built 2026-10-13)*
 6. 🔴 Qualified-response naming + overage billing
-7. 🔴 Agency: sub-accounts / white-label, its own project
+7. 🟡 Agency tenants - §8b. Catalog, resolution and cap *(built 2026-10-13)*; the create
+   and enter surface, and the $29 slot purchase, are the phases after it.
 
 Steps 1, 4 cover Gate and Signal end to end. 5 and 6 are needed before the published
 pricing page is fully true. 7 is a feature build, not a gate.
@@ -358,32 +369,51 @@ left for the pricing phase: no real subscription has been put through this app y
 metered add-on is the worst possible thing to debut on. A comped extra account works today
 by setting the override by hand.
 
-### 8b. Sub-accounts and white-label
+### 8b. Agency tenants - BUILT 2026-10-13 (catalog, resolution, cap)
 
-The larger build, and the real reason Agency is a tier rather than a bigger Signal.
+The real reason Agency is a tier rather than a bigger Signal. Vocabulary, set by the
+owner and used in code as well as in conversation: **super admin** (the platform owner),
+**tenant** (a workspace under the super admin), **agency admin** (the Agency customer who
+resells), **agency tenant** (a workspace under an agency admin). Not "parent", not
+"child", not "sub-account".
 
-**What an agency actually wants:** one login, many client workspaces, switch between them,
-and the client never sees Assess360 branding. That is **not** today's tenant model, a
-user belongs to exactly one tenant.
+**The shape that shipped**, and why each piece is the cheap one:
 
-Two shapes:
+- `Tenant.agencyAdminTenantId`, a nullable self-relation. Null = a tenant directly under
+  the super admin, which is every pre-existing row, so there was no backfill. `ON DELETE
+  RESTRICT`, because cascading from here would destroy several separate businesses when
+  one agency account is deleted.
+- **No `TenantMembership` table.** The app already had a mechanism for one person
+  operating several workspaces: the acting-tenant cookie behind super-admin impersonation.
+  So `enteredAgencyTenant` (src/lib/tenant/agency.ts) widens *who may read that cookie*
+  to the agency admin above the named workspace, re-reading the link from the database on
+  every request. A membership table would have been a second answer to a question the
+  codebase had already answered, and every scope helper would have had to learn it.
+- 🔴 **`impersonating` is NOT reused for it.** Across /w that flag means "skip the caps"
+  (see the `assertCanCreateAssessment` call sites) - right for the platform owner, and a
+  hole for an agency admin, who would have handed each agency tenant unlimited everything.
+  An agency admin inside an agency tenant is reported as `viaAgency`, which no gate reads.
+- **Entitlement is derived, one hop.** An agency tenant has no `Subscription` row and no
+  Razorpay subscription: `resolvePlan` rates the agency admin's workspace and, if that
+  plan still grants `agencyTenants > 0`, returns `AGENCY_TENANT_LIMITS`. Testing "has a
+  subscription" instead would leave five workspaces alive on a $39 downgrade. A lapsed
+  agency parks its agency tenants exactly as a lapsed tenant parks itself.
+- **The agency tenant's own escape hatches win**, because they resolve first: the
+  `unlimited` flag, then a manual grant on fall-through. That is the only way to lift one
+  agency tenant, since `limitOverrides` needs a subscription to live on.
+- **The cap is a count**, `assertCanCreateAgencyTenant`, shaped like
+  `assertCanCreateAdAccount`: active agency tenants against `agencyTenants` +
+  `Subscription.extraAgencyTenants`. The paid extras are only added while the plan still
+  entitles reselling, or they would survive a cancellation on their own.
+- **A trial creates one** (`TRIAL_AGENCY_TENANTS`), so the tier can be evaluated. 🟡 There
+  is one trial and it grants Signal, so this reaches every trialing workspace.
 
-1. **Parent/child tenants** - `Tenant.parentTenantId`. A child is an ordinary tenant in
-   every other respect, so scoping, billing and domains all keep working unchanged. The
-   agency's users get access to children through a membership table. 🟢 Reuses the entire
-   existing tenancy model; the whole system already scopes by `tenantId`.
-2. **A workspaces-within-a-tenant model**, a second hierarchy beneath Tenant. 🔴 Rejected:
-   every scoped query in the app (`whereScope`) would need a second dimension, and that is
-   a rewrite of the thing that currently keeps tenants apart. Not worth it.
-
-Take (1). It also gives sub-account billing for free: a child tenant either rolls up to
-the parent's subscription or carries its own, and `resolvePlan` already resolves per
-tenant.
-
-**The membership gap:** `User.tenantId` is a single column. Access to several tenants
-needs a `TenantMembership` join (userId, tenantId, role) and `resolveActingScope` learning
-to pick among them, which is close to what super-admin impersonation already does, except
-scoped to an agency's own children rather than everything.
+**Still to build, in order:** the create/enter surface at /w/agency-tenants (including
+creation reusing the platform's `createTenant` path, so the two cannot drift), the meter
+on the agency admin's billing page, and the $29 slot purchase - a SECOND Razorpay
+subscription carrying quantity, because quantity on the base plan multiplies $249 rather
+than adding $29. `Subscription.razorpaySlotSubscriptionId` and `extraAgencyTenants` are
+already in the schema for it.
 
 🟡 White-label is bigger than removing a badge: emails, PDF reports, result pages, the
 sender identity and any `assess360` string in a customer-visible surface. Audit the

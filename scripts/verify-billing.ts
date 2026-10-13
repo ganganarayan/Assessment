@@ -12,6 +12,7 @@ import { join } from "path";
 import { type Plan } from "@prisma/client";
 import { grantedPlan } from "../src/lib/billing/plan-resolve";
 import {
+  PLAN_IDS,
   PLAN_LIMITS,
   PLAN_PRICE_USD,
   PAID_BASE_FEATURES,
@@ -30,6 +31,11 @@ import {
   PARKED_LIMITS,
   TRIAL_PLAN,
   TRIAL_DAYS,
+  TRIAL_LIMITS,
+  TRIAL_AGENCY_TENANTS,
+  AGENCY_TENANT_LIMITS,
+  AGENCY_TENANT_PLAN,
+  AGENCY_TENANT_EXTRA_USD,
   type Feature,
   type PlanLimits,
 } from "../src/lib/billing/plans";
@@ -57,11 +63,51 @@ check("Gate = 150 responses / 2 scorecards / 1 seat / 1 ad account",
 check("Signal = 1000 / 10 / 3 / 2",
   PLAN_LIMITS.SIGNAL.responsesPerMonth === 1000 && PLAN_LIMITS.SIGNAL.maxAssessments === 10 &&
   PLAN_LIMITS.SIGNAL.seats === 3 && PLAN_LIMITS.SIGNAL.adAccounts === 2);
-check("Agency = 5000 / unlimited scorecards / 10 seats / 10 ad accounts",
-  PLAN_LIMITS.AGENCY.responsesPerMonth === 5000 && isUnlimited(PLAN_LIMITS.AGENCY.maxAssessments) &&
-  PLAN_LIMITS.AGENCY.seats === 10 && PLAN_LIMITS.AGENCY.adAccounts === 5);
-check("Enterprise = unlimited responses + unlimited scorecards",
-  isUnlimited(PLAN_LIMITS.ENTERPRISE.responsesPerMonth) && isUnlimited(PLAN_LIMITS.ENTERPRISE.maxAssessments));
+check("Agency = the one-workspace unit (1000 / 10 scorecards / 1 user / 1 ad account)",
+  PLAN_LIMITS.AGENCY.responsesPerMonth === 1000 && PLAN_LIMITS.AGENCY.maxAssessments === 10 &&
+  PLAN_LIMITS.AGENCY.seats === 1 && PLAN_LIMITS.AGENCY.adAccounts === 1,
+  "Agency buys SIX workspaces of this unit, not one big workspace. The count is agencyTenants.");
+check("Enterprise = the same unit, twenty agency tenants",
+  PLAN_LIMITS.ENTERPRISE.responsesPerMonth === 1000 && PLAN_LIMITS.ENTERPRISE.maxAssessments === 10 &&
+  PLAN_LIMITS.ENTERPRISE.agencyTenants === 20,
+  "A negotiated deal is limitOverrides on the subscription, not a second catalog.");
+
+console.log("Agency tenants (a workspace under an agency admin)");
+// 🔴 The whole tier rests on these four numbers. Reselling is a COUNT on the agency
+// admin's plan, and anything above zero on a tier that cannot resell hands away free
+// workspaces - which is why Gate and Signal are asserted at zero rather than left alone.
+check("Agency includes 5 agency tenants, Enterprise 20", PLAN_LIMITS.AGENCY.agencyTenants === 5 && PLAN_LIMITS.ENTERPRISE.agencyTenants === 20);
+check("Gate and Signal resell nothing",
+  PLAN_LIMITS.GATE.agencyTenants === 0 && PLAN_LIMITS.SIGNAL.agencyTenants === 0,
+  "A non-zero count here is five free workspaces on a $39 plan.");
+check("an agency tenant is the same one-workspace unit",
+  AGENCY_TENANT_LIMITS.responsesPerMonth === 1000 && AGENCY_TENANT_LIMITS.maxAssessments === 10 &&
+  AGENCY_TENANT_LIMITS.seats === 1 && AGENCY_TENANT_LIMITS.adAccounts === 1);
+check("an agency tenant can never resell (depth is one)",
+  AGENCY_TENANT_LIMITS.agencyTenants === 0,
+  "Non-zero here grows a third level the billing model cannot express.");
+check("an agency tenant keeps the custom domain and the badge off",
+  hasFeature(AGENCY_TENANT_LIMITS, "customDomain") && hasFeature(AGENCY_TENANT_LIMITS, "brandingRemoved"),
+  "Whether an agency gives its agency tenants domains is the AGENCY's call - the capability has to be there to decline.");
+check("an agency tenant can take a finished scorecard (bulkImport)",
+  hasFeature(AGENCY_TENANT_LIMITS, "bulkImport"),
+  "Build once, lift into each workspace. Without it the tier has no agency motion.");
+check("an agency tenant gets no API tokens",
+  !hasFeature(AGENCY_TENANT_LIMITS, "apiAccess"),
+  "Tokens are the agency admin's surface, not the agency tenant's.");
+check("an agency tenant reports a real plan id", PLAN_IDS.includes(AGENCY_TENANT_PLAN));
+check("a trial can create exactly one agency tenant",
+  TRIAL_LIMITS.agencyTenants === TRIAL_AGENCY_TENANTS && TRIAL_AGENCY_TENANTS === 1,
+  "Zero means nobody can evaluate the tier; more than one is a free Agency account.");
+check("the trial changes NOTHING else about the trial plan",
+  TRIAL_LIMITS.responsesPerMonth === PLAN_LIMITS[TRIAL_PLAN].responsesPerMonth &&
+  TRIAL_LIMITS.adAccounts === PLAN_LIMITS[TRIAL_PLAN].adAccounts);
+check("an extra agency tenant has a price", AGENCY_TENANT_EXTRA_USD === 29);
+check("a snapshot without agencyTenants still parses (pre-agency customers)",
+  parseLimitsSnapshot({ responsesPerMonth: 1000, maxAssessments: 10, seats: 3, adAccounts: 2, features: PLAN_LIMITS.SIGNAL.features }, "SIGNAL").agencyTenants === 0,
+  "Rejecting an old snapshot re-rates that customer to the catalog.");
+check("an override can lift the agency-tenant count",
+  applyOverrides(PLAN_LIMITS.AGENCY, { agencyTenants: 40 }).agencyTenants === 40);
 
 console.log("Prices match the published pricing page");
 check("Gate 39 / Signal 79 / Agency 249 / Enterprise 599",
@@ -175,8 +221,23 @@ const claimLines = marketing
   .filter((l) => !l.trim().startsWith("*") && !l.trim().startsWith("//"));
 const claims = claimLines.join("\n");
 
-check("the pricing page does not sell client sub-accounts", !/sub-account/i.test(claims),
-  "No sub-account code exists in the repo. See docs/FEATURE-GATES.md §8b.");
+// Agency tenants ARE built now (2026-10-13), so the prohibition became a TIE: the page
+// may say it only while the catalog grants it and the cap exists in code. The old
+// no-sub-accounts check is kept in spirit under its own name below - the words
+// "sub-account" stay banned, because that is not what this is called.
+check("the page does not call them sub-accounts", !/sub-account/i.test(claims),
+  "The vocabulary is agency admin / agency tenant. One name, in copy and in code.");
+const sellsAgencyTenants = /agency tenant/i.test(claims);
+check("agency tenants are only sold while the catalog grants them",
+  !sellsAgencyTenants || PLAN_LIMITS.AGENCY.agencyTenants > 0,
+  "Copy first, feature later, is how the sub-account claim got onto the page the first time.");
+const gateSrc = readFileSync(join(__dirname, "..", "src/lib/billing/gate.ts"), "utf8");
+check("agency tenants are only sold while something enforces the count",
+  !sellsAgencyTenants || /assertCanCreateAgencyTenant/.test(gateSrc),
+  "A published count nobody checks is a price list that does not describe the product.");
+check("the page does not price the extras before the slot can be bought",
+  !/\$29/.test(claims) || /razorpaySlotSubscriptionId/.test(readFileSync(join(__dirname, "..", "prisma/schema.prisma"), "utf8")),
+  "Naming a price for an extra workspace needs the purchased counter AND the charge path.");
 check("the pricing page does not sell white-label", !/white.?label/i.test(claims),
   "Custom domain + badge removal ARE white-label, and they are Signal's.");
 check("no plan advertises a general API", !/"API access"/.test(claims),
@@ -187,8 +248,8 @@ check("no tier sells per-account overage", !/ad accounts \$15/i.test(claims),
   "The add-on needs an additive purchased counter and a payment that has actually run.");
 // The flag the deleted claim would have needed. If somebody adds it to the catalog
 // without building the feature, this fails before the copy can follow it back.
-check("there is still no subAccounts feature flag", !FEATURES.includes("subAccounts" as never),
-  "A flag with no feature behind it is how the pricing claim came back the first time.");
+check("reselling is a COUNT, not a feature flag", !FEATURES.includes("subAccounts" as never) && !FEATURES.includes("agencyTenants" as never),
+  "It is PlanLimits.agencyTenants - a number the gate counts against, not a boolean.");
 
 const unusedType: PlanLimits = PLAN_LIMITS.GATE;
 void unusedType;
