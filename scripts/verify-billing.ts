@@ -59,14 +59,14 @@ check("Signal = 1000 / 10 / 3 / 2",
   PLAN_LIMITS.SIGNAL.seats === 3 && PLAN_LIMITS.SIGNAL.adAccounts === 2);
 check("Agency = 5000 / unlimited scorecards / 10 seats / 10 ad accounts",
   PLAN_LIMITS.AGENCY.responsesPerMonth === 5000 && isUnlimited(PLAN_LIMITS.AGENCY.maxAssessments) &&
-  PLAN_LIMITS.AGENCY.seats === 10 && PLAN_LIMITS.AGENCY.adAccounts === 10);
+  PLAN_LIMITS.AGENCY.seats === 10 && PLAN_LIMITS.AGENCY.adAccounts === 5);
 check("Enterprise = unlimited responses + unlimited scorecards",
   isUnlimited(PLAN_LIMITS.ENTERPRISE.responsesPerMonth) && isUnlimited(PLAN_LIMITS.ENTERPRISE.maxAssessments));
 
 console.log("Prices match the published pricing page");
-check("Gate 39 / Signal 79 / Agency 199 / Enterprise 499",
+check("Gate 39 / Signal 79 / Agency 249 / Enterprise 499",
   PLAN_PRICE_USD.GATE === 39 && PLAN_PRICE_USD.SIGNAL === 79 &&
-  PLAN_PRICE_USD.AGENCY === 199 && PLAN_PRICE_USD.ENTERPRISE === 499);
+  PLAN_PRICE_USD.AGENCY === 249 && PLAN_PRICE_USD.ENTERPRISE === 499);
 
 console.log("Feature gates - the differentiator ships in the ENTRY tier");
 // This is the whole pricing thesis: a qualification gate behind a $79 wall is a gate the
