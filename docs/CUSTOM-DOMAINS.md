@@ -35,9 +35,18 @@ matches, and falls back to the real Host, which is always truthful.
 **1. Cloudflare dashboard** (zone: the domain you want hostnames registered against)
 
 - SSL/TLS → Custom Hostnames → enable Cloudflare for SaaS.
-- Create the **fallback origin**, e.g. `cname.divineleads.guru`, as a DNS-only CNAME to
-  the Railway host (`assess-production.up.railway.app`). This is what customers point at.
-- Note the **Zone ID** from the zone overview.
+- Create the **fallback origin** - any name you like under the zone, e.g.
+  `fallback.divineleads.guru` - as a CNAME to the Railway host
+  (`assess-production.up.railway.app`). This is what customers point at.
+  🔴 It must be **PROXIED** (orange cloud). Cloudflare's own UI says so: "The Fallback
+  Origin needs to be a proxied DNS record in your zone." An earlier version of this doc
+  said DNS-only, which cannot work - an unproxied record never reaches the Worker, so
+  custom hostnames resolve past the edge and Railway 404s on a host it has never heard
+  of. The customer's own CNAME, pointing AT this name, is the one that stays DNS-only.
+- SSL/TLS → Overview: the zone's encryption mode must be **Full** (or Full strict), since
+  the proxied hop to Railway is HTTPS.
+- Note the **Zone ID** from the zone overview. Whatever you named the fallback goes into
+  `CLOUDFLARE_SAAS_FALLBACK` verbatim; nothing in the code assumes the word "cname".
 
 **2. Worker**, deploy `infra/cloudflare-worker.js`
 
