@@ -314,8 +314,8 @@ export const TIERS: ReadonlyArray<Tier> = [
     amount: 249,
     blurb: "Five ad accounts of your own, and five more workspaces for the people who hire you.",
     features: [
+      "Your own workspace, plus 5 client workspaces",
       "5 ad accounts in your own workspace",
-      "PLUS 5 client workspaces - a different thing",
       "A client workspace is one full workspace for one client",
       "Each client workspace: 1,000 responses / month",
       "Each client workspace: its own login, pixel and custom domain",
@@ -336,8 +336,8 @@ export const TIERS: ReadonlyArray<Tier> = [
     amount: 599,
     blurb: "Negotiated caps and terms - priced to what you actually run.",
     features: [
+      "Your own workspace, plus 20 client workspaces",
       "20 ad accounts in your own workspace",
-      "PLUS 20 client workspaces - a different thing",
       "Everything in Agency, plus:",
       "Extra client workspaces $25 / month each, domain included",
       "Negotiated caps on any workspace",
@@ -373,7 +373,8 @@ export const PLAN_MATRIX: ReadonlyArray<MatrixRow> = [
   // Collapsed into a single row, a buyer reads one entitlement and plans for the other.
   { label: "Ad accounts (your workspace)", cells: ["1", "2", "5", "20"], strong: true },
   { label: "Client workspaces (their own login)", cells: ["-", "-", "5", "20"], strong: true },
-  { label: "Custom domains", cells: ["-", "1", "1 per workspace", "1 per workspace"] },
+  { label: "Custom domains", cells: ["-", "1", "1 per client workspace", "1 per client workspace"] },
+  { label: "Extra custom domains", cells: ["-", "$5 / mo each", "$5 / mo each", "$5 / mo each"] },
   { label: "Qualification gate", cells: ["✓", "✓", "✓", "✓"], strong: true },
   { label: "Meta Pixel + CAPI, dedup", cells: ["✓", "✓", "✓", "✓"], strong: true },
   { label: "Exclusion + retargeting audiences", cells: ["✓", "✓", "✓", "✓"], strong: true },

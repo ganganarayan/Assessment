@@ -252,13 +252,18 @@ const claims = claimLines.join("\n");
 // may say it only while the catalog grants it and the cap exists in code. The old
 // no-sub-accounts check is kept in spirit under its own name below - the words
 // "sub-account" stay banned, because that is not what this is called.
-// 🔴 The extra-domain price must NOT reach the page until a checkout can collect it.
-// This is the annual-pricing defect in miniature: $32 / $69 / $219 have been published
-// for months with no SKU behind them, so the page quotes a price nobody can pay. The
-// counter and the cap ship first; the number goes up the day it is chargeable.
-check("the extra-domain price is not published before it can be charged",
-  !new RegExp(`\$${EXTRA_CUSTOM_DOMAIN_USD}\b`).test(claims),
-  "Add the price to the pricing page only once a checkout collects it.");
+// The extra-domain price IS published (owner, 2026-10-15), so the check becomes the
+// other one worth having: the page and the code must quote the same number.
+//
+// 🟡 No CHECKOUT collects it yet - it is billed by hand through a pay link, which is why
+// publishing it is honest where the annual column ($32 / $69 / $219, no SKU, no way to
+// pay at all) still is not. The day a checkout exists, this check needs no change.
+check("the published extra-domain price matches the code",
+  // A plain includes, not a RegExp: in a template literal `\$` collapses to a bare "$",
+  // which the regex engine then reads as an end-of-string anchor - so the pattern tested
+  // for a price at the end of the file and failed on a page that quoted it correctly.
+  claims.includes(`$${EXTRA_CUSTOM_DOMAIN_USD} / mo`),
+  `The page must quote $${EXTRA_CUSTOM_DOMAIN_USD}, the value of EXTRA_CUSTOM_DOMAIN_USD.`);
 
 check("the page does not call them sub-accounts", !/sub-account/i.test(claims),
   "The vocabulary is agency admin / agency tenant. One name, in copy and in code.");
