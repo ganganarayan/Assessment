@@ -56,7 +56,11 @@ export async function createQuestion(
     data: {
       categoryId,
       text: d.text,
-      weight: d.weight,
+      type: d.type,
+      // A typed answer scores nothing, so its weight is meaningless. Stored as 0 rather
+      // than left as the form's default, so nothing downstream has to special-case it
+      // twice (the scoring engine skips FREE_TEXT anyway).
+      weight: d.type === "FREE_TEXT" ? 0 : d.weight,
       required: d.required,
       scoringRole: cleanRole(d.scoringRole),
       scoringUnit: cleanUnit(d.scoringUnit),
@@ -113,7 +117,13 @@ export async function updateQuestion(
   });
 
   const ops: Prisma.PrismaPromise<unknown>[] = [];
-  d.options.forEach((o, index) => {
+  // A FREE_TEXT question has no options to reconcile, and its existing ones are LEFT
+  // ALONE rather than deleted. Deleting them would cascade away every historical answer
+  // to this question (see the note above), so switching a scored question to typed - or
+  // switching it back - costs no history. The runner renders by type, so the leftover
+  // options are never shown.
+  const reconcileOptions = d.type !== "FREE_TEXT";
+  if (reconcileOptions) d.options.forEach((o, index) => {
     const ex = existing[index];
     if (ex) {
       ops.push(
@@ -131,7 +141,7 @@ export async function updateQuestion(
     }
   });
   // Only remove genuinely surplus options (when the count was reduced).
-  if (existing.length > d.options.length) {
+  if (reconcileOptions && existing.length > d.options.length) {
     const surplus = existing.slice(d.options.length).map((e) => e.id);
     ops.push(prisma.option.deleteMany({ where: { id: { in: surplus } } }));
   }
@@ -140,7 +150,8 @@ export async function updateQuestion(
       where: { id },
       data: {
         text: d.text,
-        weight: d.weight,
+        type: d.type,
+        weight: d.type === "FREE_TEXT" ? 0 : d.weight,
         required: d.required,
         scoringRole: cleanRole(d.scoringRole),
         scoringUnit: cleanUnit(d.scoringUnit),

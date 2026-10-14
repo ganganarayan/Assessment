@@ -34,13 +34,23 @@ export interface RouteSpec {
 export interface SpineQuestion {
   id: string;
   categoryId: string;
+  /**
+   * The question's DEFAULT route: what happens when no option rule applies - the
+   * question was skipped, it is FREE_TEXT (no options at all), or the chosen option
+   * carries no rule of its own. Undefined/null = continue linearly.
+   *
+   * This is the half of branching that brings a branch BACK. An option rule can only
+   * fire when its option is chosen, so without this a branch's optional or typed last
+   * question falls through into the next branch's questions.
+   */
+  defaultRoute?: RouteSpec | null;
 }
 
 /** Category shape needed to build the spine (already ordered by displayOrder). */
 export interface SpineCategory {
   id: string;
   page: number | null;
-  questions: { id: string }[];
+  questions: { id: string; defaultRoute?: RouteSpec | null }[];
 }
 
 /**
@@ -53,31 +63,25 @@ export function buildSpine(categories: SpineCategory[]): SpineQuestion[] {
   for (const page of [1, 2]) {
     for (const c of categories) {
       if ((c.page ?? 1) !== page) continue;
-      for (const q of c.questions) out.push({ id: q.id, categoryId: c.id });
+      for (const q of c.questions) {
+        out.push({ id: q.id, categoryId: c.id, defaultRoute: q.defaultRoute ?? null });
+      }
     }
   }
   return out;
 }
 
 /**
- * Resolve the next spine index from the current one, given the chosen option (if
- * any). Returns a forward index or the sentinel "END". Falls back to a linear
- * step whenever there is no route, the route is NEXT, or the target is missing /
- * not strictly forward.
+ * Resolve one rule to a forward spine index, or null when it does not apply (no rule,
+ * a plain NEXT, or a target that is missing / not strictly forward). "END" means the
+ * rule ends the questions.
  */
-export function nextIndex(
+function applyRoute(
+  route: RouteSpec | null | undefined,
   currentIndex: number,
-  chosenOptionId: string | undefined,
   spine: SpineQuestion[],
-  byOption: Map<string, RouteSpec>,
-): number | "END" {
-  const linear: number | "END" =
-    currentIndex + 1 >= spine.length ? "END" : currentIndex + 1;
-  if (currentIndex < 0 || currentIndex >= spine.length) return "END";
-  if (chosenOptionId === undefined) return linear;
-
-  const route = byOption.get(chosenOptionId);
-  if (!route || route.action === "NEXT") return linear;
+): number | "END" | null {
+  if (!route || route.action === "NEXT") return null;
   if (route.action === "SKIP_TO_END") return "END";
 
   let targetId: string | null = null;
@@ -93,12 +97,73 @@ export function nextIndex(
       }
     }
   }
-  if (!targetId) return linear;
+  if (!targetId) return null;
 
   const targetIndex = spine.findIndex((s) => s.id === targetId);
-  // Forward-only guard: unknown or non-forward target degrades to linear.
-  if (targetIndex <= currentIndex) return linear;
+  // Forward-only guard: unknown or non-forward target does not apply.
+  if (targetIndex <= currentIndex) return null;
   return targetIndex;
+}
+
+/**
+ * Resolve the next spine index from the current one, given the chosen option (if
+ * any). Returns a forward index or the sentinel "END".
+ *
+ * Precedence, and it matters:
+ *  1. the chosen option's own rule,
+ *  2. the question's DEFAULT route - which is why it also covers "they answered, but
+ *     that answer has no rule of its own", not only a skip,
+ *  3. a linear step.
+ *
+ * Anything that does not resolve to a strictly forward target falls through to the
+ * next rung, so a stale route (deleted target, non-forward target) can never loop or
+ * strand a respondent.
+ */
+export function nextIndex(
+  currentIndex: number,
+  chosenOptionId: string | undefined,
+  spine: SpineQuestion[],
+  byOption: Map<string, RouteSpec>,
+): number | "END" {
+  const linear: number | "END" =
+    currentIndex + 1 >= spine.length ? "END" : currentIndex + 1;
+  if (currentIndex < 0 || currentIndex >= spine.length) return "END";
+
+  if (chosenOptionId !== undefined) {
+    const chosen = applyRoute(byOption.get(chosenOptionId), currentIndex, spine);
+    if (chosen !== null) return chosen;
+  }
+  const fallback = applyRoute(spine[currentIndex]!.defaultRoute, currentIndex, spine);
+  if (fallback !== null) return fallback;
+  return linear;
+}
+
+/**
+ * Read a question row's three default-route columns as a RouteSpec. Null when the
+ * question has no default (every question that predates the feature), which the engine
+ * reads as a linear step. Kept here so the public page, the runner, the completion
+ * action and the transfer format all map it identically.
+ */
+export function defaultRouteOf(q: {
+  defaultRouteAction?: RouteActionValue | null;
+  defaultTargetQuestionId?: string | null;
+  defaultTargetCategoryId?: string | null;
+}): RouteSpec | null {
+  if (!q.defaultRouteAction) return null;
+  return {
+    action: q.defaultRouteAction,
+    targetQuestionId: q.defaultTargetQuestionId ?? null,
+    targetCategoryId: q.defaultTargetCategoryId ?? null,
+  };
+}
+
+/** Does this flow have any routing at all - an option rule or a default route? */
+export function hasRouting(
+  spine: SpineQuestion[],
+  byOption: Map<string, RouteSpec>,
+): boolean {
+  if (byOption.size > 0) return true;
+  return spine.some((s) => s.defaultRoute != null && s.defaultRoute.action !== "NEXT");
 }
 
 export interface WalkResult {
@@ -110,7 +175,8 @@ export interface WalkResult {
 
 /**
  * Walk the flow from the first question, following each answered question's route
- * (unanswered questions advance linearly), and return every question REACHED.
+ * (an unanswered or typed question follows its default route, else advances
+ * linearly), and return every question REACHED.
  * Skipped-by-jump questions are never reached, so callers exclude them from
  * required-answer enforcement and from scoring. Terminates because targets are
  * forward-only; a defensive guard breaks any impossible cycle.

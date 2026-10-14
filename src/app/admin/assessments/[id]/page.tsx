@@ -21,7 +21,7 @@ import {
 } from "@/features/admin/components/builder-tab-context";
 import { StartFromTemplate } from "@/features/templates/components/start-from-template";
 import { listTemplatesForTenant } from "@/features/templates/data";
-import { buildSpine } from "@/lib/routing/engine";
+import { buildSpine, defaultRouteOf } from "@/lib/routing/engine";
 import {
   EMPTY_AUDIENCE_GATE,
   EMPTY_QUALIFICATION,
@@ -138,10 +138,13 @@ export default async function EditAssessmentPage({
     questions: c.questions.map((q) => ({
       id: q.id,
       text: q.text,
+      type: q.type,
       weight: q.weight,
       required: q.required,
       scoringRole: q.scoringRole,
       scoringUnit: q.scoringUnit,
+      // The question's own rule: where the flow goes when no option rule applies.
+      defaultRoute: defaultRouteOf(q),
       options: q.options.map((o) => ({
         id: o.id,
         label: o.label,

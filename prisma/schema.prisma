@@ -609,6 +609,11 @@ enum AssessmentStatus {
 
 enum QuestionType {
   SINGLE_SELECT
+  // Typed answer, no options. Scores nothing (excluded from the engine and from the
+  // category maximum) and routes by the question's default route, because there is no
+  // chosen option to hang a rule on. Added for surveys whose value IS the sentence
+  // somebody types, e.g. the cancellation exit assessment.
+  FREE_TEXT
 }
 
 enum BandLevel {
@@ -1178,6 +1183,22 @@ model Question {
   // can never be silently read as a percentage. Null = the role's default
   // (rates → PER_100), which preserves every existing configuration exactly.
   scoringUnit  String?
+  // ---- Default (unconditional) route ----------------------------------------
+  // Where the flow goes from this question when NO option rule applies: the question
+  // was skipped (optional), it is FREE_TEXT so there is no option at all, or the chosen
+  // option simply carries no rule. Null = continue linearly, which is every existing
+  // question.
+  //
+  // This is what lets a branch CONVERGE. Option rules alone can fan a survey out into
+  // per-answer branches but cannot bring them back: a branch whose last question is
+  // optional or typed would fall straight into the NEXT branch's questions. The default
+  // route is the "and then rejoin here" half of branching.
+  //
+  // Same forward-only guarantee as QuestionRoute, validated on save, and the engine
+  // degrades a missing target to a linear step, so a deleted target can never loop.
+  defaultRouteAction      RouteAction?
+  defaultTargetQuestionId String? // scalar ref (no FK), validated forward-only on save
+  defaultTargetCategoryId String? // scalar ref (no FK), validated forward-only on save
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -1706,8 +1727,9 @@ model AiStatement {
 // ---------------------------------------------------------------------------
 
 model SubmissionAnswer {
-  id        String   @id @default(cuid())
-  value     Int
+  id String @id @default(cuid())
+  // The option's score point. 0 for a FREE_TEXT answer, which scores nothing.
+  value     Int      @default(0)
   createdAt DateTime @default(now())
 
   submissionId String
@@ -1716,8 +1738,14 @@ model SubmissionAnswer {
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
-  optionId String
-  option   Option @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  // Null ONLY for a FREE_TEXT answer: there is no option to point at. Every
+  // SINGLE_SELECT answer still carries one, so reads that expect an option must
+  // treat null as "typed answer, read textValue" rather than as missing data.
+  optionId String?
+  option   Option? @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  // What they typed, for a FREE_TEXT question. Null on a chosen-option answer.
+  textValue String? @db.Text
 
   @@unique([submissionId, questionId])
   @@index([submissionId])

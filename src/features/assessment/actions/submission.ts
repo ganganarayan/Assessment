@@ -11,6 +11,7 @@ import {
   qualificationSchema,
   completionEventName,
   readExits,
+  FREE_TEXT_ANSWER_MAX,
   type LeadInput,
   type AnswersInput,
 } from "@/features/assessment/schemas";
@@ -64,7 +65,13 @@ import { paymentsAllowed } from "@/lib/payments/enabled";
 import { createHandoff } from "@/lib/payments/handoff";
 
 const PAYMENT_BUSINESS_NAME = "Assess360";
-import { buildSpine, walk, type RouteSpec } from "@/lib/routing/engine";
+import {
+  buildSpine,
+  defaultRouteOf,
+  hasRouting,
+  walk,
+  type RouteSpec,
+} from "@/lib/routing/engine";
 import { buildResultSnapshot, mapCategoryResult, type ClinicSnapshot } from "@/lib/result/snapshot";
 import { buildCategoryQuestionBreakdown, type ChosenAnswer } from "@/lib/result/questions";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
@@ -250,8 +257,10 @@ export type StartResult =
       resultAvailable: boolean;
     };
 
-/** Load a resuming respondent's prior answers (questionId -> optionId): the live
- *  autosaved draft, else their final answers (a completed-but-unpaid resume). */
+/** Load a resuming respondent's prior answers (questionId -> the chosen option id, or
+ *  the text they typed for a FREE_TEXT question): the live autosaved draft, else their
+ *  final answers (a completed-but-unpaid resume). The runner tells the two apart by the
+ *  question's own type, which is why one flat map carries both. */
 async function loadResumeAnswers(submissionId: string): Promise<Record<string, string>> {
   const s = await prisma.submission.findUnique({ where: { id: submissionId }, select: { draftAnswers: true } });
   const draft = (s?.draftAnswers ?? null) as Record<string, unknown> | null;
@@ -260,9 +269,15 @@ async function loadResumeAnswers(submissionId: string): Promise<Record<string, s
     for (const [q, o] of Object.entries(draft)) if (typeof o === "string") out[q] = o;
     if (Object.keys(out).length) return out;
   }
-  const ans = await prisma.submissionAnswer.findMany({ where: { submissionId }, select: { questionId: true, optionId: true } });
+  const ans = await prisma.submissionAnswer.findMany({
+    where: { submissionId },
+    select: { questionId: true, optionId: true, textValue: true },
+  });
   const out: Record<string, string> = {};
-  for (const a of ans) out[a.questionId] = a.optionId;
+  for (const a of ans) {
+    const v = a.optionId ?? a.textValue ?? "";
+    if (v) out[a.questionId] = v;
+  }
   return out;
 }
 
@@ -270,7 +285,7 @@ async function loadResumeAnswers(submissionId: string): Promise<Record<string, s
  *  they left off. No-op once paid (the submission is frozen). Public (keyed by id). */
 export async function saveDraftAnswers(
   submissionId: string,
-  answers: { questionId: string; optionId: string }[],
+  answers: { questionId: string; optionId?: string; textValue?: string }[],
   editToken?: string,
 ): Promise<ActionResult> {
   const sub = await prisma.submission.findUnique({ where: { id: submissionId }, select: { completedPaidAt: true, editToken: true } });
@@ -280,7 +295,11 @@ export async function saveDraftAnswers(
   if (sub.editToken && sub.editToken !== editToken) return { ok: false, error: "Not authorized." };
   if (sub.completedPaidAt) return { ok: true }; // paid -> frozen
   const map: Record<string, string> = {};
-  for (const a of answers ?? []) if (a?.questionId && a?.optionId) map[a.questionId] = a.optionId;
+  for (const a of answers ?? []) {
+    if (!a?.questionId) continue;
+    const v = a.optionId || a.textValue || "";
+    if (v) map[a.questionId] = v;
+  }
   await prisma.submission.update({ where: { id: submissionId }, data: { draftAnswers: map as unknown as Prisma.InputJsonValue } });
   return { ok: true };
 }
@@ -1152,10 +1171,14 @@ export async function completeSubmission(
             select: {
               id: true,
               text: true,
+              type: true,
               weight: true,
               required: true,
               scoringRole: true,
               scoringUnit: true,
+              defaultRouteAction: true,
+              defaultTargetQuestionId: true,
+              defaultTargetCategoryId: true,
               options: { select: { id: true, value: true, label: true, diagnosisClause: true, isAssumption: true } },
             },
           },
@@ -1201,11 +1224,22 @@ export async function completeSubmission(
   }
 
   // Build answer value map (last answer per question wins).
+  //
+  // Two shapes, decided by the QUESTION's type, not by what the client sent: a
+  // SINGLE_SELECT answer must name an option on that question; a FREE_TEXT answer
+  // carries text and no option, scores nothing, and is only kept when the respondent
+  // actually typed something (an empty box is a skip, not an answer).
   const answerValueByQuestionId = new Map<string, number>();
   const optionByQuestionId = new Map<string, string>();
+  const textByQuestionId = new Map<string, string>();
   for (const a of parsed.data.answers) {
     const q = questionById.get(a.questionId);
     if (!q) return { ok: false, error: "Answer references an unknown question." };
+    if (q.type === "FREE_TEXT") {
+      const typed = (a.textValue ?? "").trim().slice(0, FREE_TEXT_ANSWER_MAX);
+      if (typed) textByQuestionId.set(a.questionId, typed);
+      continue;
+    }
     const option = q.options.find((o) => o.id === a.optionId);
     if (!option) return { ok: false, error: "Answer references an invalid option." };
     answerValueByQuestionId.set(a.questionId, option.value);
@@ -1223,22 +1257,25 @@ export async function completeSubmission(
       where: { question: { category: { assessmentId: assessment.id } } },
       select: { optionId: true, action: true, targetQuestionId: true, targetCategoryId: true },
     });
-    if (routes.length > 0) {
-      const byOption = new Map<string, RouteSpec>();
-      for (const r of routes) {
-        byOption.set(r.optionId, {
-          action: r.action,
-          targetQuestionId: r.targetQuestionId,
-          targetCategoryId: r.targetCategoryId,
-        });
-      }
-      const spine = buildSpine(
-        assessment.categories.map((c) => ({
-          id: c.id,
-          page: c.page,
-          questions: c.questions.map((q) => ({ id: q.id })),
-        })),
-      );
+    const byOption = new Map<string, RouteSpec>();
+    for (const r of routes) {
+      byOption.set(r.optionId, {
+        action: r.action,
+        targetQuestionId: r.targetQuestionId,
+        targetCategoryId: r.targetCategoryId,
+      });
+    }
+    // The spine carries each question's DEFAULT route, so the walk follows a branch's
+    // "and then rejoin here" rule even where nothing was picked (a skipped optional
+    // question, or a typed one, which has no option to carry a rule).
+    const spine = buildSpine(
+      assessment.categories.map((c) => ({
+        id: c.id,
+        page: c.page,
+        questions: c.questions.map((q) => ({ id: q.id, defaultRoute: defaultRouteOf(q) })),
+      })),
+    );
+    if (hasRouting(spine, byOption)) {
       reachedSet = walk(optionByQuestionId, spine, byOption).reachedSet;
       // Drop answers to questions that were NOT reached (a jump skipped them, or a
       // stale/manipulated payload) so scoring + persistence reflect the real path.
@@ -1248,12 +1285,20 @@ export async function completeSubmission(
           optionByQuestionId.delete(qid);
         }
       }
+      for (const qid of [...textByQuestionId.keys()]) {
+        if (!reachedSet.has(qid)) textByQuestionId.delete(qid);
+      }
     }
   }
 
   // Enforce required questions (only those actually reached, when routing applies).
+  // A required FREE_TEXT question is satisfied by text, not by an option.
   const missingRequired = questions.filter(
-    (q) => (reachedSet ? reachedSet.has(q.id) : true) && q.required && !answerValueByQuestionId.has(q.id),
+    (q) =>
+      (reachedSet ? reachedSet.has(q.id) : true) &&
+      q.required &&
+      !answerValueByQuestionId.has(q.id) &&
+      !textByQuestionId.has(q.id),
   );
   if (missingRequired.length > 0) {
     return {
@@ -1262,13 +1307,18 @@ export async function completeSubmission(
     };
   }
 
-  // Score.
-  const scoringQuestions: ScoringQuestion[] = questions.map((q) => ({
-    id: q.id,
-    categoryId: q.categoryId,
-    weight: q.weight,
-    maxValue: q.options.reduce((m, o) => Math.max(m, o.value), 0),
-  }));
+  // Score. FREE_TEXT questions are excluded ENTIRELY, not scored as zero: a typed
+  // answer has no points to earn, so counting it would add to the denominator and drag
+  // every percentage down (and band every respondent lower) for asking an open
+  // question.
+  const scoringQuestions: ScoringQuestion[] = questions
+    .filter((q) => q.type !== "FREE_TEXT")
+    .map((q) => ({
+      id: q.id,
+      categoryId: q.categoryId,
+      weight: q.weight,
+      maxValue: q.options.reduce((m, o) => Math.max(m, o.value), 0),
+    }));
   const { categoryScores, totalScore, maxScore, percentage } = computeScores(
     scoringQuestions,
     answerValueByQuestionId,
@@ -1295,6 +1345,11 @@ export async function completeSubmission(
   const answerForBreakdown = new Map<string, ChosenAnswer>();
   for (const [qid, value] of answerValueByQuestionId) {
     answerForBreakdown.set(qid, { value, optionId: optionByQuestionId.get(qid) as string });
+  }
+  // Typed answers belong in the breakdown too - scoring zero, but they are the whole
+  // point of asking - so the result page, the webhook payload and the AI all see them.
+  for (const [qid, text] of textByQuestionId) {
+    answerForBreakdown.set(qid, { value: 0, optionId: null, text });
   }
   const questionsByCategory = new Map(
     buildCategoryQuestionBreakdown(assessment.categories, answerForBreakdown).map((b) => [
@@ -1456,14 +1511,24 @@ export async function completeSubmission(
     prisma.submissionAnswer.deleteMany({ where: { submissionId } }),
     prisma.submissionCategoryScore.deleteMany({ where: { submissionId } }),
     prisma.submissionAnswer.createMany({
-      data: Array.from(answerValueByQuestionId.entries()).map(
-        ([questionId, value]) => ({
+      data: [
+        ...Array.from(answerValueByQuestionId.entries()).map(
+          ([questionId, value]) => ({
+            submissionId,
+            questionId,
+            optionId: optionByQuestionId.get(questionId) as string,
+            value,
+          }),
+        ),
+        // Typed answers: no option, no points, the sentence itself.
+        ...Array.from(textByQuestionId.entries()).map(([questionId, textValue]) => ({
           submissionId,
           questionId,
-          optionId: optionByQuestionId.get(questionId) as string,
-          value,
-        }),
-      ),
+          optionId: null,
+          value: 0,
+          textValue,
+        })),
+      ],
     }),
     prisma.submissionCategoryScore.createMany({
       data: categoryScores.map((cs) => ({

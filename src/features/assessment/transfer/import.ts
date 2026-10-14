@@ -151,7 +151,10 @@ export function assessmentCreateData(
         questions: {
           create: c.questions.map((q, qi) => ({
             text: q.text,
-            weight: q.weight,
+            type: q.type,
+            // A typed answer scores nothing, so it lands with weight 0 whatever the
+            // file says - the same rule the builder applies when you create one.
+            weight: q.type === "FREE_TEXT" ? 0 : q.weight,
             required: q.required,
             displayOrder: qi,
             scoringRole: q.scoringRole ?? null,

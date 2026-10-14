@@ -8,7 +8,11 @@ import {
   deleteQuestion,
   reorderQuestions,
 } from "@/features/assessment/actions/question";
-import type { QuestionInput, RouteActionValue } from "@/features/assessment/schemas";
+import type {
+  QuestionInput,
+  QuestionTypeValue,
+  RouteActionValue,
+} from "@/features/assessment/schemas";
 import {
   QuestionRoutingEditor,
   type FlowQuestion,
@@ -41,10 +45,18 @@ export interface RoutingContext {
 export interface QuestionData {
   id: string;
   text: string;
+  /** Absent on rows loaded before typed questions existed - read as SINGLE_SELECT. */
+  type?: QuestionTypeValue;
   weight: number;
   required: boolean;
   scoringRole?: string | null;
   scoringUnit?: string | null;
+  /** The question's DEFAULT routing rule (null/absent = continue linearly). */
+  defaultRoute?: {
+    action: RouteActionValue;
+    targetQuestionId: string | null;
+    targetCategoryId: string | null;
+  } | null;
   options: QuestionOptionData[];
 }
 
@@ -173,9 +185,11 @@ export function QuestionsManager({
                 ) : null}
               </span>
               <span className="text-xs text-[var(--muted-foreground)]">
-                {engine === "CLINIC_AUDIT" ? null : <>weight {q.weight} · </>}
+                {q.type === "FREE_TEXT" ? null : engine === "CLINIC_AUDIT" ? null : <>weight {q.weight} · </>}
                 {q.required ? "required" : "optional"} ·{" "}
-                {q.options.map((o) => `${o.label}(${o.value})`).join(", ")}
+                {q.type === "FREE_TEXT"
+                  ? "typed answer"
+                  : q.options.map((o) => `${o.label}(${o.value})`).join(", ")}
               </span>
             </div>
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
@@ -221,7 +235,13 @@ export function QuestionsManager({
           {routing && routingId === q.id ? (
             <QuestionRoutingEditor
               questionId={q.id}
-              options={q.options.map((o) => ({ id: o.id, label: o.label, route: o.route ?? null }))}
+              options={
+                q.type === "FREE_TEXT"
+                  ? []
+                  : q.options.map((o) => ({ id: o.id, label: o.label, route: o.route ?? null }))
+              }
+              defaultRoute={q.defaultRoute ?? null}
+              isFreeText={q.type === "FREE_TEXT"}
               flow={routing.flow}
               categoriesFlow={routing.categoriesFlow}
               displayMode={routing.displayMode}
@@ -276,6 +296,8 @@ function QuestionForm({
 }) {
   const clinic = engine === "CLINIC_AUDIT";
   const [text, setText] = useState(initial?.text ?? "");
+  const [type, setType] = useState<QuestionTypeValue>(initial?.type ?? "SINGLE_SELECT");
+  const freeText = type === "FREE_TEXT";
   const [weight, setWeight] = useState(String(initial?.weight ?? 1));
   const [required, setRequired] = useState(initial?.required ?? true);
   const [role, setRole] = useState(initial?.scoringRole ?? "");
@@ -301,16 +323,21 @@ function QuestionForm({
     setError(null);
     const input: QuestionInput = {
       text,
+      type,
       weight: Number(weight),
       required,
       scoringRole: clinic ? role : "",
       scoringUnit: clinic ? unit : "",
-      options: options.map((o) => ({
-        label: o.label,
-        value: o.value,
-        diagnosisClause: clinic ? o.clause : "",
-        isAssumption: clinic ? o.dontKnow : false,
-      })),
+      // A typed question has no options. The server keeps any it already had rather
+      // than deleting them, so switching the type back loses nothing.
+      options: freeText
+        ? []
+        : options.map((o) => ({
+            label: o.label,
+            value: o.value,
+            diagnosisClause: clinic ? o.clause : "",
+            isAssumption: clinic ? o.dontKnow : false,
+          })),
     };
     start(async () => {
       const res = questionId
@@ -330,6 +357,25 @@ function QuestionForm({
         <Label>Question text</Label>
         <Input value={text} onChange={(e) => setText(e.target.value)} />
       </div>
+
+      {clinic ? null : (
+        <div className="flex flex-col gap-2">
+          <Label>Answer type</Label>
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value as QuestionTypeValue)}
+            className="h-10 max-w-xs rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+          >
+            <option value="SINGLE_SELECT">Choose one option (scored)</option>
+            <option value="FREE_TEXT">Typed answer (not scored)</option>
+          </select>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            A typed answer scores nothing and is left out of the percentage, so asking an
+            open question never drags a respondent&apos;s band down. Where it leads next is
+            set under Routing.
+          </p>
+        </div>
+      )}
 
       {clinic ? (
         <div className="flex flex-col gap-2">
@@ -373,7 +419,7 @@ function QuestionForm({
       ) : null}
 
       <div className="flex flex-wrap items-end gap-4">
-        {clinic ? null : (
+        {clinic || freeText ? null : (
           <div className="flex flex-col gap-2">
             <Label>Weight</Label>
             <Input
@@ -396,7 +442,7 @@ function QuestionForm({
         </label>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className={freeText ? "hidden" : "flex flex-col gap-2"}>
         <Label>{clinic ? "Options (label · number)" : "Options (label · score)"}</Label>
         {options.map((o, i) => (
           <div key={o.uid} className="flex flex-col gap-1">

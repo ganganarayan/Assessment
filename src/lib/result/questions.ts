@@ -14,7 +14,8 @@ const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 export interface QuestionDetail {
   text: string;
-  /** Label of the option the respondent chose (null if not resolvable). */
+  /** Label of the option the respondent chose, or the text they typed on a FREE_TEXT
+   *  question (null if neither is resolvable). */
   answer: string | null;
   /** Weighted points this answer contributed (value * weight). */
   score: number;
@@ -44,10 +45,13 @@ export interface BreakdownCategory {
   name: string;
   questions: BreakdownQuestion[];
 }
-/** The respondent's chosen answer for one question. */
+/** The respondent's chosen answer for one question. A FREE_TEXT answer has no option
+ *  and no points: it carries `text` instead, and shows with a score of zero out of
+ *  zero, because an open question is signal without being a score. */
 export interface ChosenAnswer {
   value: number;
-  optionId: string;
+  optionId: string | null;
+  text?: string | null;
 }
 
 /**
@@ -65,7 +69,9 @@ export function buildCategoryQuestionBreakdown(
       const ans = answerByQuestionId.get(q.id);
       if (!ans) continue; // unanswered -> excluded (matches scoring)
       const maxValue = q.options.reduce((m, o) => Math.max(m, o.value), 0);
-      const label = q.options.find((o) => o.id === ans.optionId)?.label ?? null;
+      const label = ans.optionId
+        ? q.options.find((o) => o.id === ans.optionId)?.label ?? null
+        : (ans.text ?? "").trim() || null;
       questions.push({
         text: q.text,
         answer: label,

@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { tenantCan } from "@/lib/billing/gate";
 import { getAssessmentById, listAssessments } from "@/features/assessment/data";
-import { buildSpine } from "@/lib/routing/engine";
+import { buildSpine, defaultRouteOf } from "@/lib/routing/engine";
 import {
   EMPTY_AUDIENCE_GATE,
   EMPTY_QUALIFICATION,
@@ -149,10 +149,13 @@ export default async function WorkspaceEditAssessmentPage({
     questions: c.questions.map((q) => ({
       id: q.id,
       text: q.text,
+      type: q.type,
       weight: q.weight,
       required: q.required,
       scoringRole: q.scoringRole,
       scoringUnit: q.scoringUnit,
+      // The question's own rule: where the flow goes when no option rule applies.
+      defaultRoute: defaultRouteOf(q),
       options: q.options.map((o) => ({
         id: o.id,
         label: o.label,

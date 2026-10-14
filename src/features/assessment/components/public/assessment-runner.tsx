@@ -16,18 +16,31 @@ import { type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
 import { type PaymentCheckout } from "@/lib/payments/types";
 import { ResultPages } from "@/features/assessment/components/public/result-pages";
-import { type LeadInput, professionOptionsFor, completionEventName, type PreResultField } from "@/features/assessment/schemas";
+import {
+  type LeadInput,
+  professionOptionsFor,
+  completionEventName,
+  FREE_TEXT_ANSWER_MAX,
+  type PreResultField,
+} from "@/features/assessment/schemas";
 import { pixelTrack, pixelTrackCustom } from "@/lib/pixel";
 import { getOrCreateExternalId } from "@/lib/external-id";
 import { currentAdParams } from "@/lib/attribution-client";
 import { appendVidapulseId } from "@/lib/vidapulse";
 import { detectUnitFromQuestion, isClinicRole, type ClinicRole } from "@/lib/scoring/clinic-audit";
-import { buildSpine, nextIndex, walk, type RouteSpec } from "@/lib/routing/engine";
+import {
+  buildSpine,
+  hasRouting,
+  nextIndex,
+  walk,
+  type RouteSpec,
+} from "@/lib/routing/engine";
 import { waitSeconds, terminalStage, type FlowInput } from "@/features/assessment/flow/stages";
 import { STAGE_DEFAULTS, optinCopy } from "@/features/assessment/flow/stage-defaults";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export interface PublicOption {
   id: string;
@@ -39,11 +52,17 @@ export interface PublicOption {
 export interface PublicQuestion {
   id: string;
   text: string;
+  /** SINGLE_SELECT = pick an option (scored). FREE_TEXT = type a sentence: no options,
+   *  no score, and routing falls to the question's default route. */
+  type: "SINGLE_SELECT" | "FREE_TEXT";
   required: boolean;
   /** CLINIC_AUDIT only: the funnel role this question feeds, e.g. "ENQUIRIES". Drives
    *  the optional "know your actual number?" field below the range choice. */
   scoringRole: string | null;
   scoringUnit: string | null;
+  /** Where this question leads when no option rule applies - it was skipped, it is
+   *  typed, or the chosen option carries no rule. Null = continue linearly. */
+  defaultRoute?: RouteSpec | null;
   options: PublicOption[];
 }
 
@@ -366,6 +385,10 @@ export function AssessmentRunner({
     profession: "",
   });
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // FREE_TEXT questions: what the respondent typed, keyed by questionId. Kept apart
+  // from `answers` (which holds option ids) so the routing walk, which reasons about
+  // chosen options, never has to tell a cuid from a sentence.
+  const [textAnswers, setTextAnswers] = useState<Record<string, string>>({});
   // CLINIC_AUDIT only: the respondent's typed exact number per scored question,
   // keyed by questionId (raw digit string; blank = use the range's midpoint).
   const [actualAnswers, setActualAnswers] = useState<Record<string, string>>({});
@@ -568,21 +591,29 @@ export function AssessmentRunner({
   // they left off. Only while answering, only once they've picked something.
   useEffect(() => {
     if (preview || step !== "questions" || !submissionId) return;
-    if (Object.keys(answers).length === 0) return;
+    if (Object.keys(answers).length === 0 && Object.keys(textAnswers).length === 0) return;
     const t = setTimeout(() => {
       void saveDraftAnswers(
         submissionId,
-        Object.entries(answers).map(([questionId, optionId]) => ({ questionId, optionId })),
+        [
+          ...Object.entries(answers).map(([questionId, optionId]) => ({ questionId, optionId })),
+          ...Object.entries(textAnswers)
+            .filter(([, v]) => v.trim().length > 0)
+            .map(([questionId, textValue]) => ({ questionId, textValue })),
+        ],
         editToken ?? undefined,
       ).catch(() => {});
     }, 800);
     return () => clearTimeout(t);
-  }, [answers, submissionId, step, preview, editToken]);
+  }, [answers, textAnswers, submissionId, step, preview, editToken]);
 
   const questions = assessment.categories.flatMap((c) => c.questions);
-  const requiredUnanswered = questions.filter(
-    (q) => q.required && !answers[q.id],
-  ).length;
+  /** Answered means an option for a choice question, or non-blank text for a typed
+   *  one. Every required-answer check goes through this, so a required FREE_TEXT
+   *  question is satisfied by what they wrote rather than by an option it has none of. */
+  const isAnswered = (q: PublicQuestion): boolean =>
+    q.type === "FREE_TEXT" ? (textAnswers[q.id] ?? "").trim().length > 0 : !!answers[q.id];
+  const requiredUnanswered = questions.filter((q) => q.required && !isAnswered(q)).length;
   /** First invalid typed actual number, if any - a wrong unit here silently skews
    *  every figure on the result, so it must be corrected before submitting. */
   const firstActualError = questions.reduce<string | null>((found, q) => {
@@ -602,14 +633,17 @@ export function AssessmentRunner({
     assessment.categories.map((c) => ({
       id: c.id,
       page: c.page,
-      questions: c.questions.map((q) => ({ id: q.id })),
+      questions: c.questions.map((q) => ({ id: q.id, defaultRoute: q.defaultRoute ?? null })),
     })),
   );
   const byOption = new Map<string, RouteSpec>();
   for (const c of assessment.categories)
     for (const q of c.questions)
       for (const o of q.options) if (o.route) byOption.set(o.id, o.route);
-  const routingActive = assessment.questionDisplayMode === "SINGLE" && byOption.size > 0;
+  // Active when at least one option rule OR one default route exists. Default routes
+  // count: a survey can branch on answers and rejoin on defaults alone.
+  const routingActive =
+    assessment.questionDisplayMode === "SINGLE" && hasRouting(spine, byOption);
   // Reached set from the current answers (routing only): questions actually
   // traversed. Required-answer enforcement counts only reached questions, so a
   // question skipped by a jump never blocks submit.
@@ -617,7 +651,7 @@ export function AssessmentRunner({
     ? walk(new Map(Object.entries(answers)), spine, byOption).reachedSet
     : null;
   const requiredUnansweredEffective = routingActive
-    ? questions.filter((q) => reachedSet!.has(q.id) && q.required && !answers[q.id]).length
+    ? questions.filter((q) => reachedSet!.has(q.id) && q.required && !isAnswered(q)).length
     : requiredUnanswered;
 
   // Honeypot input ref - hidden from humans; a filled value marks a bot opt-in.
@@ -716,8 +750,20 @@ export function AssessmentRunner({
       setSubmissionId(newSid);
       setEditToken(newTok);
       // Resume: pre-fill answers they saved/submitted before (editable until paid).
+      // One flat map arrives; the question's own type says whether a value is an
+      // option id or the text they typed.
       if (res.data?.status === "started" && res.data.answers) {
-        setAnswers(res.data.answers);
+        const resumed = res.data.answers;
+        const picks: Record<string, string> = {};
+        const typed: Record<string, string> = {};
+        for (const q of assessment.categories.flatMap((c) => c.questions)) {
+          const v = resumed[q.id];
+          if (v === undefined) continue;
+          if (q.type === "FREE_TEXT") typed[q.id] = v;
+          else picks[q.id] = v;
+        }
+        setAnswers(picks);
+        setTextAnswers(typed);
       }
       // Lead-capture-after: questions are already answered - go straight to the
       // pre-results details (if any) or complete now, using the FRESH ids.
@@ -1003,10 +1049,16 @@ export function AssessmentRunner({
       return;
     }
     const payload = {
-      answers: Object.entries(answers).map(([questionId, optionId]) => ({
-        questionId,
-        optionId,
-      })),
+      answers: [
+        ...Object.entries(answers).map(([questionId, optionId]) => ({
+          questionId,
+          optionId,
+        })),
+        // Typed answers. Blank ones are left out entirely: an empty box is a skip.
+        ...Object.entries(textAnswers)
+          .map(([questionId, textValue]) => ({ questionId, textValue: textValue.trim() }))
+          .filter((a) => a.textValue.length > 0),
+      ],
     };
     const details = preResultAnswers && Object.keys(preResultAnswers).length ? preResultAnswers : undefined;
     const actual = Object.keys(actualAnswers).length ? actualAnswers : undefined;
@@ -1805,7 +1857,10 @@ export function AssessmentRunner({
   const routedNext = routingActive ? nextIndex(idx, currentChosen, spine, byOption) : null;
   const isLast = routingActive ? routedNext === "END" : idx >= lastIdx;
   const current = screens[idx] ?? [];
-  const currentRequiredLeft = current.flatMap((g) => g.qs).filter((q) => q.required && !answers[q.id]).length;
+  const currentRequiredLeft = current.flatMap((g) => g.qs).filter((q) => q.required && !isAnswered(q)).length;
+  const currentQs = current.flatMap((g) => g.qs);
+  const currentOptionalAndEmpty =
+    currentQs.length > 0 && currentQs.every((q) => !q.required && !isAnswered(q));
 
   const goNext = () => {
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
@@ -1877,7 +1932,7 @@ export function AssessmentRunner({
     if (isLast && !assessment.autoAdvanceLastScreen) return;
     const requiredLeft = current
       .flatMap((g) => g.qs)
-      .filter((q) => q.required && !next[q.id]).length;
+      .filter((q) => (q.type === "FREE_TEXT" ? !isAnswered(q) : !next[q.id]) && q.required).length;
     if (requiredLeft > 0) return;
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
     setError(null);
@@ -1928,20 +1983,38 @@ export function AssessmentRunner({
               <legend className="px-1 text-sm font-medium">
                 {q.text} {q.required ? <span className="text-red-500">*</span> : null}
               </legend>
-              <div className="flex flex-col gap-2">
-                {q.options.map((o) => (
-                  <label key={o.id} className="flex items-center gap-3 text-sm">
-                    <input
-                      type="radio"
-                      name={q.id}
-                      data-qa-option={o.id}
-                      checked={answers[q.id] === o.id}
-                      onChange={() => selectAnswer(q.id, o.id)}
-                    />
-                    {o.label}
-                  </label>
-                ))}
-              </div>
+              {q.type === "FREE_TEXT" ? (
+                <div className="flex flex-col gap-1">
+                  <Textarea
+                    data-qa-text={q.id}
+                    rows={4}
+                    maxLength={FREE_TEXT_ANSWER_MAX}
+                    placeholder="Type your answer"
+                    value={textAnswers[q.id] ?? ""}
+                    onChange={(e) => setTextAnswers((t) => ({ ...t, [q.id]: e.target.value }))}
+                  />
+                  {!q.required ? (
+                    <p className="text-xs text-[var(--muted-foreground)]">
+                      Optional. Leave it blank to move on.
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {q.options.map((o) => (
+                    <label key={o.id} className="flex items-center gap-3 text-sm">
+                      <input
+                        type="radio"
+                        name={q.id}
+                        data-qa-option={o.id}
+                        checked={answers[q.id] === o.id}
+                        onChange={() => selectAnswer(q.id, o.id)}
+                      />
+                      {o.label}
+                    </label>
+                  ))}
+                </div>
+              )}
               {(() => {
                 const actualField = q.scoringRole ? CLINIC_ACTUAL_FIELD[q.scoringRole] : undefined;
                 if (!actualField || !q.scoringRole) return null;
@@ -2001,7 +2074,10 @@ export function AssessmentRunner({
           </Button>
         ) : (
           <Button size="lg" onClick={goNext} disabled={pending} style={ctaStyle} data-qa-nav="next">
-            Next
+            {/* An optional screen nobody has answered says Skip, because that is what
+                the button does there. A survey whose follow-ups are optional has to
+                SHOW that they are, or "optional" is only true in the database. */}
+            {currentOptionalAndEmpty ? "Skip" : "Next"}
           </Button>
         )}
       </div>
