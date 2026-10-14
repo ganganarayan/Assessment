@@ -67,6 +67,16 @@ export async function Nav({
           >
             Answers
           </Link>
+          {/* Also a real route. It stays in the nav even with showCta false, i.e. on
+              /offers itself: the bar that announces the current offer is the thing
+              suppressed there, and a visitor who lands on a promotion deep-link still
+              needs to see that offers are a standing part of the site. */}
+          <Link
+            href="/offers"
+            className="text-sm font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
+          >
+            Offers
+          </Link>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
