@@ -34,6 +34,10 @@ const STATIC_PAGES: ReadonlyArray<SitemapEntry> = [
   { path: "/industries/clinics", updated: "2026-10-09", changeFrequency: "monthly", priority: 0.9 },
   { path: "/sign-up", updated: "2026-10-01", changeFrequency: "monthly", priority: 0.6 },
   { path: "/pricing", updated: "2026-10-06", changeFrequency: "monthly", priority: 0.8 },
+  // The offers page. Weekly, because its contents change when an offer opens or closes,
+  // and ranked with /pricing: "<brand> offer" is a query somebody types after seeing an
+  // ad, and the answer should be the page with the terms on it.
+  { path: "/offers", updated: "2026-10-14", changeFrequency: "weekly", priority: 0.8 },
   // The Agency tier advertises API access, so the docs have to be findable without
   // being in the nav - an integration question is a search, not a browse.
   { path: "/api-docs", updated: "2026-10-09", changeFrequency: "monthly", priority: 0.5 },

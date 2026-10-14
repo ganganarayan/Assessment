@@ -11,14 +11,26 @@ import { CtaLink } from "./CtaLink";
  * page. NAV_LINKS are in-page anchors ("#pricing"); on /lead-qualification-software they
  * would scroll to nothing. SEO pages pass "/" so the same links become "/#pricing".
  */
-export async function Nav({ anchorBase = "" }: { anchorBase?: string }) {
+/**
+ * `showCta` exists for /offers, which must not carry the trial link: the offer there is
+ * a supported build with preconditions, and a self-serve trial taken first is the one
+ * order in which it cannot be delivered. It suppresses the offer bar as well as the
+ * button, because both point at the same funnel.
+ */
+export async function Nav({
+  anchorBase = "",
+  showCta = true,
+}: {
+  anchorBase?: string;
+  showCta?: boolean;
+}) {
   const cta = await getCta();
 
   return (
     <header className="sticky top-0 z-40 border-b bg-[var(--background)]">
       {/* Inside the sticky header, above the nav row, so it travels with it rather than
           scrolling away - and so a new public page cannot ship without the offer on it. */}
-      <OfferBar />
+      {showCta ? <OfferBar /> : null}
       <nav
         className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8"
         aria-label="Primary"
@@ -69,9 +81,11 @@ export async function Nav({ anchorBase = "" }: { anchorBase?: string }) {
           >
             Sign in
           </Link>
-          <CtaLink href={cta.href} className={buttonVariants({ size: "sm" })}>
-            {cta.trialLabel}
-          </CtaLink>
+          {showCta ? (
+            <CtaLink href={cta.href} className={buttonVariants({ size: "sm" })}>
+              {cta.trialLabel}
+            </CtaLink>
+          ) : null}
         </div>
       </nav>
     </header>
