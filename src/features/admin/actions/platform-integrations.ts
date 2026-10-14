@@ -229,6 +229,36 @@ export async function updatePasswordResetWebhook(url: string): Promise<ActionRes
   return { ok: true };
 }
 
+/**
+ * The EXIT ASSESSMENT a cancelling customer is sent to - the owner's own scorecard
+ * asking why they left. Owner-authored, platform-level, so it lives on the singleton row.
+ *
+ * Blank means the cancel simply confirms and stops. Deliberately not required: a
+ * cancellation must never fail because a survey link is missing.
+ */
+export async function getCancelExitAssessment(): Promise<{ url: string }> {
+  await requireSuperAdmin();
+  const s = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: { cancelExitAssessmentUrl: true },
+  });
+  return { url: s?.cancelExitAssessmentUrl ?? "" };
+}
+
+export async function updateCancelExitAssessment(url: string): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+  const trimmed = url.trim();
+  if (trimmed && !/^https?:\/\//i.test(trimmed)) return { ok: false, error: "Enter a full https:// URL." };
+  await prisma.appSetting.upsert({
+    where: { id: "singleton" },
+    update: { cancelExitAssessmentUrl: trimmed || null },
+    create: { id: "singleton", cancelExitAssessmentUrl: trimmed || null },
+  });
+  revalidatePath("/admin/settings");
+  return { ok: true };
+}
+
 export interface LegalSettingsView {
   entityName: string;
   address: string;

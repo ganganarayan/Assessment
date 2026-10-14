@@ -79,6 +79,59 @@ export async function assertCanCreateAdAccount(tenantId: string | null): Promise
   return used >= limit ? { ok: false, limit, used } : { ok: true };
 }
 
+// --- Custom domains (hard cap) ---------------------------------------------
+
+export interface CustomDomainUsage {
+  /** Domains the plan includes (one per workspace on every tier). */
+  included: number;
+  /** Domains bought on top, $5/mo each. Not chargeable yet - see EXTRA_CUSTOM_DOMAIN_USD. */
+  extra: number;
+  /** included + extra, what the gate compares against. */
+  limit: number;
+  /** Domains already connected, live or still verifying. */
+  used: number;
+}
+
+/**
+ * How many custom domains this workspace may connect, and how many it has.
+ *
+ * 🔴 THE EXTRAS ARE ONLY ADDED WHILE THE PLAN STILL GRANTS THE FEATURE, the same rule
+ * the agency-tenant extras follow. Read on their own they would survive a lapse: a
+ * parked tenant's `customDomains` is 0, and a purchased counter sitting on the
+ * subscription row would then be the only number left, leaving a cancelled account
+ * entitled to domains it is no longer paying for.
+ *
+ * A verifying domain counts. It has already consumed the external slot - a Railway
+ * custom domain or a Cloudflare custom hostname - which is the resource being rationed,
+ * and that happens at registration rather than at certificate issue.
+ */
+export async function customDomainUsage(tenantId: string | null): Promise<CustomDomainUsage> {
+  if (!isBusinessTenant(tenantId)) {
+    return { included: Number.MAX_SAFE_INTEGER, extra: 0, limit: Number.MAX_SAFE_INTEGER, used: 0 };
+  }
+  const { limits } = await resolvePlan(tenantId);
+  const included = limits.customDomains;
+  let extra = 0;
+  if (included > 0 && limits.features.customDomain) {
+    const sub = await prisma.subscription.findUnique({
+      where: { tenantId: tenantId as string },
+      select: { extraCustomDomains: true },
+    });
+    extra = sub?.extraCustomDomains ?? 0;
+  }
+  const used = await prisma.domain.count({ where: { tenantId } });
+  return { included, extra, limit: included + extra, used };
+}
+
+export type AddDomainGate = { ok: true } | { ok: false; limit: number; used: number };
+
+/** Whether the tenant may connect one more custom domain. HARD: blocks at the cap. */
+export async function assertCanAddDomain(tenantId: string | null): Promise<AddDomainGate> {
+  if (!isBusinessTenant(tenantId)) return { ok: true };
+  const { limit, used } = await customDomainUsage(tenantId);
+  return used >= limit ? { ok: false, limit, used } : { ok: true };
+}
+
 // --- Agency tenants (hard cap) ---------------------------------------------
 
 export interface AgencyTenantUsage {

@@ -36,6 +36,7 @@ import {
   AGENCY_TENANT_LIMITS,
   AGENCY_TENANT_PLAN,
   AGENCY_TENANT_EXTRA_USD,
+  EXTRA_CUSTOM_DOMAIN_USD,
   type Feature,
   type PlanLimits,
 } from "../src/lib/billing/plans";
@@ -63,14 +64,36 @@ check("Gate = 150 responses / 2 scorecards / 1 seat / 1 ad account",
 check("Signal = 1000 / 10 / 3 / 2",
   PLAN_LIMITS.SIGNAL.responsesPerMonth === 1000 && PLAN_LIMITS.SIGNAL.maxAssessments === 10 &&
   PLAN_LIMITS.SIGNAL.seats === 3 && PLAN_LIMITS.SIGNAL.adAccounts === 2);
-check("Agency = the one-workspace unit (1000 / 10 scorecards / 1 user / 1 ad account)",
+// 🔴 FIVE AND FIVE ARE DIFFERENT NUMBERS (owner, 2026-10-14). Agency runs five ad
+// accounts in its OWN workspace and separately resells five client workspaces. They are
+// equal today, which is exactly why this asserts them apart: if a later edit collapsed
+// them into one entitlement, every number here would still read as 5 and nothing would
+// fail. The volume unit (responses, scorecards, users) is unchanged.
+check("Agency = 5 ad accounts in its own workspace",
   PLAN_LIMITS.AGENCY.responsesPerMonth === 1000 && PLAN_LIMITS.AGENCY.maxAssessments === 10 &&
-  PLAN_LIMITS.AGENCY.seats === 1 && PLAN_LIMITS.AGENCY.adAccounts === 1,
-  "Agency buys SIX workspaces of this unit, not one big workspace. The count is agencyTenants.");
-check("Enterprise = the same unit, twenty agency tenants",
+  PLAN_LIMITS.AGENCY.seats === 1 && PLAN_LIMITS.AGENCY.adAccounts === 5,
+  "Ad accounts this workspace runs itself - NOT the client workspaces, which are agencyTenants.");
+check("Agency = 5 client workspaces, counted separately from its ad accounts",
+  PLAN_LIMITS.AGENCY.agencyTenants === 5);
+check("Enterprise = twenty of each, the Agency shape one tier up",
   PLAN_LIMITS.ENTERPRISE.responsesPerMonth === 1000 && PLAN_LIMITS.ENTERPRISE.maxAssessments === 10 &&
-  PLAN_LIMITS.ENTERPRISE.agencyTenants === 20,
+  PLAN_LIMITS.ENTERPRISE.agencyTenants === 20 && PLAN_LIMITS.ENTERPRISE.adAccounts === 20,
   "A negotiated deal is limitOverrides on the subscription, not a second catalog.");
+
+// --- Custom domains: a COUNT, not just a feature flag ---
+check("every tier includes exactly one custom domain",
+  PLAN_LIMITS.GATE.customDomains === 1 && PLAN_LIMITS.SIGNAL.customDomains === 1 &&
+  PLAN_LIMITS.AGENCY.customDomains === 1 && PLAN_LIMITS.ENTERPRISE.customDomains === 1,
+  "One per workspace (owner, 2026-10-14). What withholds Gate's is the customDomain FEATURE, not this count.");
+check("a client workspace carries its own domain",
+  AGENCY_TENANT_LIMITS.customDomains === 1,
+  "The $29 / $25 slot includes the domain, which only holds while this is 1.");
+check("a parked workspace may add no domain",
+  PARKED_LIMITS.customDomains === 0);
+check("a snapshot without customDomains still parses (pre-cap customers)",
+  parseLimitsSnapshot({ responsesPerMonth: 1000, maxAssessments: 10, seats: 3, adAccounts: 2, agencyTenants: 0, features: PLAN_LIMITS.SIGNAL.features }, "SIGNAL").customDomains === 1,
+  "Rejecting an old snapshot re-rates that customer to the catalog.");
+check("the extra-domain price is declared", EXTRA_CUSTOM_DOMAIN_USD === 5);
 
 console.log("Agency tenants (a workspace under an agency admin)");
 // 🔴 The whole tier rests on these four numbers. Reselling is a COUNT on the agency
@@ -102,7 +125,11 @@ check("a trial can create exactly one agency tenant",
 check("the trial changes NOTHING else about the trial plan",
   TRIAL_LIMITS.responsesPerMonth === PLAN_LIMITS[TRIAL_PLAN].responsesPerMonth &&
   TRIAL_LIMITS.adAccounts === PLAN_LIMITS[TRIAL_PLAN].adAccounts);
-check("an extra agency tenant has a price", AGENCY_TENANT_EXTRA_USD === 29);
+check("an extra client workspace has a price on each reselling tier",
+  AGENCY_TENANT_EXTRA_USD.AGENCY === 29 && AGENCY_TENANT_EXTRA_USD.ENTERPRISE === 25);
+check("a tier that cannot resell has no extras price",
+  AGENCY_TENANT_EXTRA_USD.GATE === undefined && AGENCY_TENANT_EXTRA_USD.SIGNAL === undefined,
+  "A price on a tier the gate refuses would offer a slot nobody can use.");
 check("a snapshot without agencyTenants still parses (pre-agency customers)",
   parseLimitsSnapshot({ responsesPerMonth: 1000, maxAssessments: 10, seats: 3, adAccounts: 2, features: PLAN_LIMITS.SIGNAL.features }, "SIGNAL").agencyTenants === 0,
   "Rejecting an old snapshot re-rates that customer to the catalog.");
@@ -225,6 +252,14 @@ const claims = claimLines.join("\n");
 // may say it only while the catalog grants it and the cap exists in code. The old
 // no-sub-accounts check is kept in spirit under its own name below - the words
 // "sub-account" stay banned, because that is not what this is called.
+// 🔴 The extra-domain price must NOT reach the page until a checkout can collect it.
+// This is the annual-pricing defect in miniature: $32 / $69 / $219 have been published
+// for months with no SKU behind them, so the page quotes a price nobody can pay. The
+// counter and the cap ship first; the number goes up the day it is chargeable.
+check("the extra-domain price is not published before it can be charged",
+  !new RegExp(`\$${EXTRA_CUSTOM_DOMAIN_USD}\b`).test(claims),
+  "Add the price to the pricing page only once a checkout collects it.");
+
 check("the page does not call them sub-accounts", !/sub-account/i.test(claims),
   "The vocabulary is agency admin / agency tenant. One name, in copy and in code.");
 const sellsAgencyTenants = /agency tenant/i.test(claims);

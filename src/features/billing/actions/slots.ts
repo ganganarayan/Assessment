@@ -7,7 +7,7 @@ import { requireUser, isSuperAdmin, currentUserCanEdit } from "@/lib/auth/guards
 import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { agencyTenantUsage } from "@/lib/billing/gate";
-import { AGENCY_TENANT_EXTRA_USD } from "@/lib/billing/plans";
+import { agencyTenantExtraUsd } from "@/lib/billing/plans";
 import {
   createSlotSubscription,
   updateSlotQuantity,
@@ -133,9 +133,13 @@ export async function addAgencyTenantSlot(): Promise<ActionResult<SlotPurchase>>
       if (sub.razorpaySlotSubscriptionId) {
         await cancelRazorpaySubscription(sub.razorpaySlotSubscriptionId).catch(() => {});
       }
+      // The TIER sets the price of a slot ($29 Agency, $25 Enterprise), so the plan has
+      // to come from the resolver rather than the subscription row: a manual grant or an
+      // override can put a workspace on Enterprise with no ENTERPRISE row to read.
       const { subscriptionId, shortUrl } = await createSlotSubscription(
         { id: tenant.id, name: tenant.name, razorpayCustomerId: tenant.razorpayCustomerId, ownerEmail: scope.email },
         1,
+        (await resolvePlan(scope.tenantId)).plan ?? "AGENCY",
       );
       return { ok: true, data: { kind: "checkout", subscriptionId, keyId, shortUrl, quantity: 1 } };
     }
@@ -243,7 +247,13 @@ export async function verifySlotPayment(input: VerifySlotInput): Promise<ActionR
   return { ok: true, data: { quantity } };
 }
 
-/** The price shown next to the button, so the number has one source. */
+/**
+ * The price shown next to the button, so the number has one source - and now the tier's
+ * own price, since an Enterprise buyer pays $25 where an Agency buyer pays $29. Showing
+ * one number to both would quote the wrong price to whichever of them read it.
+ */
 export async function agencyTenantExtraPrice(): Promise<number> {
-  return AGENCY_TENANT_EXTRA_USD;
+  const scope = await agencyBillingScope();
+  if (!scope.ok) return agencyTenantExtraUsd(null);
+  return agencyTenantExtraUsd((await resolvePlan(scope.tenantId)).plan);
 }

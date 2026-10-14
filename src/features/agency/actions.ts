@@ -8,7 +8,7 @@ import { formatIST } from "@/lib/date";
 import { provisionWorkspace } from "@/lib/tenant/provision";
 import { assertCanCreateAgencyTenant, agencyTenantUsage, type AgencyTenantUsage } from "@/lib/billing/gate";
 import { resolvePlan } from "@/lib/billing/entitlements";
-import { AGENCY_TENANT_EXTRA_USD, PARKED_MESSAGE } from "@/lib/billing/plans";
+import { agencyTenantExtraUsd, PARKED_MESSAGE } from "@/lib/billing/plans";
 import { isAgencyTenantOf } from "@/lib/tenant/agency";
 import { readActingTenant, writeActingTenant, clearActingTenant } from "@/lib/tenant/acting-cookie";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -149,7 +149,9 @@ export async function getAgencyTenantsView(): Promise<AgencyTenantsView> {
   if (!scope.ok) {
     return {
       tenants: [], removed: [], usage: empty, canEdit: false,
-      blocked: scope.blocked, insideId: null, extraPriceUsd: AGENCY_TENANT_EXTRA_USD,
+      // No workspace resolved here, so no tier to price against: the entry price for
+      // reselling. This branch shows no buy button anyway (canBuySlots is false).
+      blocked: scope.blocked, insideId: null, extraPriceUsd: agencyTenantExtraUsd(null),
       parkedMessage: null, canBuySlots: false,
     };
   }
@@ -175,7 +177,7 @@ export async function getAgencyTenantsView(): Promise<AgencyTenantsView> {
     canEdit: scope.canEdit,
     blocked: usage.limit > 0 ? "no" : "notReselling",
     insideId: inside,
-    extraPriceUsd: AGENCY_TENANT_EXTRA_USD,
+    extraPriceUsd: agencyTenantExtraUsd(resolved.plan),
     parkedMessage: resolved.parked ? PARKED_MESSAGE : null,
     canBuySlots: scope.canEdit && usage.included > 0 && !resolved.parked && !resolved.trialing,
   };
@@ -212,7 +214,9 @@ export async function createAgencyTenant(
     }
     return {
       ok: false,
-      error: `You are using all ${gate.limit} of your client workspaces. Remove one, or add a slot for $${AGENCY_TENANT_EXTRA_USD} a month in Billing.`,
+      // The TIER's price, not a constant: quoting $29 to an Enterprise customer who
+      // pays $25 is a wrong number in the one sentence that asks them to spend.
+      error: `You are using all ${gate.limit} of your client workspaces. Remove one, or add a slot for $${agencyTenantExtraUsd((await resolvePlan(scope.tenantId)).plan)} a month in Billing.`,
     };
   }
 
@@ -299,7 +303,7 @@ export async function restoreAgencyTenant(tenantId: string): Promise<ActionResul
       ok: false,
       error:
         gate.reason === "cap"
-          ? `You are using all ${gate.limit} of your client workspaces. Remove one, or add a slot for $${AGENCY_TENANT_EXTRA_USD} a month, before restoring this.`
+          ? `You are using all ${gate.limit} of your client workspaces. Remove one, or add a slot for $${agencyTenantExtraUsd((await resolvePlan(scope.tenantId)).plan)} a month, before restoring this.`
           : "Your plan includes no client workspaces right now - see Billing.",
     };
   }

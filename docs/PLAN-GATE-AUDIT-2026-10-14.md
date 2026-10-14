@@ -1,5 +1,19 @@
 # Plan gates, count walls, feature readiness, billing and onboarding gaps
 
+> **Status, 2026-10-15.** Fixes 1, 2, 3, 5 and 6 from section 6 are DONE and on staging.
+> Section 2's "custom domains: uncapped" row and section 3's manualReview finding are
+> both closed; section 4's gaps 5 and 6 are closed. What section 2 says about the
+> ad-account ladder is now out of date in one place: the owner set **Agency = 5 ad
+> accounts AND 5 client workspaces, Enterprise = 20 and 20** (2026-10-14), two separate
+> entitlements that happen to carry equal numbers. Still open: **4** (annual, a price
+> nobody can pay), **7** (one real payment), the $5 extra-domain charge (the cap and the
+> counter ship here, the checkout does not), and everything in section 5.
+>
+> Next pass, decided 2026-10-15: ONE checkout route taking a product CODE (never an
+> amount, which a caller could forge) with a registry of purchasable items. It replaces
+> two near-identical Razorpay plan creators, and makes both the $5 domain and annual
+> billing one registry line each instead of a build.
+
 Audit, 2026-10-14. Read from the code, not from the handovers.
 Catalog: src/lib/billing/plans.ts · Enforcement: src/lib/billing/gate.ts ·
 Resolution: src/lib/billing/plan-resolve.ts · Published claims: src/lib/marketing/content.ts

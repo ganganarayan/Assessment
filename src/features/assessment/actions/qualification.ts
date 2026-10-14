@@ -17,6 +17,8 @@ import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 import { assertEdit, resolveActingScope } from "@/lib/tenant/acting";
 import { tenantCan } from "@/lib/billing/entitlements";
+import { resolvePlan } from "@/lib/billing/entitlements";
+import { PARKED_MESSAGE } from "@/lib/billing/plans";
 
 /**
  * The conditional disqualifying route is a Signal-and-up capability: more than one exit,
@@ -78,7 +80,10 @@ export async function saveQualification(
   if (isQualificationActive(parsed.data)) {
     const scope = await resolveActingScope();
     if (!scope.isSuper && !(await tenantCan(scope.tenantId, "qualificationGate"))) {
-      return { ok: false, error: "The qualification gate is available on the Growth plan and up. Upgrade to enable it." };
+      // Parked reads as "every feature off", so the upgrade sentence would tell a
+      // lapsed customer to buy a plan they already bought. Ask the resolver which it is.
+      if ((await resolvePlan(scope.tenantId)).parked) return { ok: false, error: PARKED_MESSAGE };
+      return { ok: false, error: "The qualification gate needs a paid plan. Upgrade to turn it on." };
     }
     // Bands from the entry tier up; ROUTING on top of them is the Signal capability.
     // Each checked only when the saved config actually uses it, so a Gate tenant can

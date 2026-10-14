@@ -115,6 +115,12 @@ const METADATA_BUILDERS: Partial<Record<EventType, MetadataBuilder>> = {
     ...assessmentMetadata(input, baseUrl),
     cta: input.cta ?? null,
   }),
+  // The one event with no assessment behind it. Deliberately NOT spread with
+  // assessmentMetadata: a cancellation has no scorecard, no score and no result page,
+  // and a payload full of nulls invites a CRM mapping that silently never populates.
+  [EventType.SUBSCRIPTION_CANCELLED]: (input) => ({
+    subscription: input.subscription ?? null,
+  }),
 };
 
 /* --------------------------------------------------------- the assembler --- */

@@ -11,6 +11,8 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { assertEdit, resolveActingScope } from "@/lib/tenant/acting";
 import { tenantCan } from "@/lib/billing/entitlements";
+import { resolvePlan } from "@/lib/billing/entitlements";
+import { PARKED_MESSAGE } from "@/lib/billing/plans";
 import { buildSpine } from "@/lib/routing/engine";
 import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 
@@ -99,13 +101,14 @@ export async function setQuestionRoutes(
     }
   }
 
-  // Billing gate: conditional logic & branching is a Growth+ capability. Adding a real
+  // Billing gate: conditional logic & branching is on every paid tier. Adding a real
   // route (a JUMP or SKIP_TO_END) needs the feature; clearing routes back to the linear
   // default is always allowed. The app owner (super admin) is never limited.
   if (upserts.length > 0) {
     const scope = await resolveActingScope();
     if (!scope.isSuper && !(await tenantCan(scope.tenantId, "conditionalRouting"))) {
-      return { ok: false, error: "Conditional logic & branching is available on the Growth plan and up. Upgrade to add routing." };
+      if ((await resolvePlan(scope.tenantId)).parked) return { ok: false, error: PARKED_MESSAGE };
+      return { ok: false, error: "Conditional logic & branching needs a paid plan. Upgrade to add routing." };
     }
   }
 

@@ -6,6 +6,8 @@ import { agencyTenantUsage } from "@/lib/billing/gate";
 import { UsageMeters } from "@/features/billing/components/usage-meters";
 import { PLAN_IDS, PLAN_LABEL, PLAN_LIMITS, PLAN_PRICE_USD, TRIAL_PLAN, type PlanId } from "@/lib/billing/plans";
 import { BillingPlans } from "@/features/billing/components/billing-plans";
+import { CancelPlan } from "@/features/billing/components/cancel-plan";
+import { prisma } from "@/lib/db/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +28,14 @@ function featuresFor(plan: PlanId): string[] {
   // get ON TOP of it, and an agency admin who reads 5 as "including mine" will plan
   // their month wrong.
   if (l.agencyTenants > 0) {
-    out.push(`Plus ${l.agencyTenants} client workspaces, each a full workspace`);
+    // 🔴 Said as "plus", and named separately from the ad accounts above, because the
+    // two numbers are equal on Agency (5 and 5) and mean completely different things:
+    // five ad accounts this workspace runs itself, and five SEPARATE workspaces with
+    // their own logins. A reader who collapses them into one "5" plans their month
+    // wrong. The workspace they are reading this in is free and not counted.
+    out.push(`Plus ${l.agencyTenants} client workspaces, each with its own login, pixel and domain`);
   }
+  out.push(`${l.customDomains} custom domain${l.customDomains === 1 ? "" : "s"}`);
   if (plan === "GATE") out.push("Qualification gate, CAPI, routing · badge shown");
   if (plan === "SIGNAL") out.push("Custom domain, AI reports, heatmap · badge removed");
   // 🔴 Said "sub-accounts, API" until 2026-10-13. Sub-accounts do not exist in the
@@ -52,6 +60,13 @@ export default async function BillingPage() {
     // more, so the count belongs next to the price.
     agencyTenantUsage(tenantId),
   ]);
+
+  // The two facts the cancel control needs, which resolvePlan does not carry: when the
+  // paid period ends, and whether a cancellation is already booked.
+  const subRow = await prisma.subscription.findUnique({
+    where: { tenantId },
+    select: { currentPeriodEnd: true, cancelAtPeriodEnd: true, razorpaySubscriptionId: true, status: true },
+  });
 
   /**
    * AN AGENCY TENANT HAS NO BILLING. The agency admin above it is the customer: one
@@ -186,6 +201,18 @@ export default async function BillingPage() {
         currentRank={RANK[currentPlan]}
         prefill={{ name: user?.name ?? "", email: user?.email ?? "" }}
       />
+
+      {/* Only a live, paid subscription can be cancelled. A trial has nothing to stop
+          (it lapses on its own) and a parked workspace has already stopped - offering
+          the control there would mean a button that can only ever return an error. */}
+      {purchased && subRow?.razorpaySubscriptionId && subRow.status !== "CANCELED" && subRow.status !== "HALTED" ? (
+        <div className="border-t pt-4">
+          <CancelPlan
+            periodEnd={subRow.currentPeriodEnd?.toISOString() ?? null}
+            alreadyCancelling={subRow.cancelAtPeriodEnd}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

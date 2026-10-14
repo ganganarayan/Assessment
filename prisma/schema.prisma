@@ -323,6 +323,12 @@ model Subscription {
   extraAgencyTenants         Int     @default(0)
   razorpaySlotSubscriptionId String? @unique
 
+  // CUSTOM DOMAINS bought beyond the one every workspace includes ($5/mo each). Additive
+  // on top of PlanLimits.customDomains, which is what makes it an add-on rather than a
+  // negotiated deal - limitOverrides REPLACES the plan's number, so it could never
+  // express "one more than whatever they are on".
+  extraCustomDomains         Int     @default(0)
+
   // Entitlements FROZEN at purchase (a copy of PLAN_LIMITS for `plan`). Resolution
   // reads this first so a later catalog change never re-rates this customer.
   limitsSnapshot Json
@@ -1758,6 +1764,7 @@ enum EventType {
   ASSESSMENT_ABANDONED // assessment.abandoned
   RESULT_LINK_REQUESTED // result.link_requested (returning user asks to be emailed their prior result)
   CTA_CLICKED // booking_requested (respondent clicked the result page's booking CTA)
+  SUBSCRIPTION_CANCELLED // subscription.cancelled (a paying customer asked to stop)
 }
 
 // ---------------------------------------------------------------------------
@@ -2457,6 +2464,11 @@ model AppSetting {
   // catches it and emails the user. Platform-level (login is platform-wide), so it
   // lives on the singleton row. Null = fall back to env PASSWORD_RESET_WEBHOOK_URL.
   passwordResetWebhookUrl String?
+
+  // Where a cancelling customer is sent after the cancellation is booked: the owner's
+  // exit assessment, which asks why they left. Platform-level and owner-authored, so it
+  // lives on the singleton row. Null = no exit step, the cancel just confirms.
+  cancelExitAssessmentUrl String?
 
   // Per-tenant booking/calendar link (Calendly/Cal.com/etc). The respondent
   // results page renders a "Book a 1-on-1 call" CTA pointing here; null = hide it.

@@ -10,6 +10,14 @@ import { sendCapiEventVerbose, isCapiConfigured, sendPlatformCapiEvent, isPlatfo
 import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
 import type { CapiEventInput } from "@/lib/meta/capi";
 
+/**
+ * Why nothing reached Meta when the plan does not include CAPI. Named once because it is
+ * BOTH written to the log row and returned to the caller, and two copies of one sentence
+ * drift - as they did while this said "the Growth plan or higher", a tier retired long
+ * before anybody read the log that still named it.
+ */
+const CAPI_UNPAID = "Conversions API needs a paid plan.";
+
 /** Outcome of a logged CAPI send. Returned so a UI that fires one BY HAND can
  *  report what actually happened, instead of claiming success and leaving the
  *  truth only in the log. Auto callers keep ignoring it (`void …catch()`). */
@@ -55,14 +63,14 @@ export async function sendAndLogLifecycleCapi(
     firedAt: new Date(),
   };
 
-  // Billing gate: server-side Conversions API is a Growth+ capability. A tenant without
+  // Billing gate: server-side Conversions API is on every paid tier. A tenant without
   // it never reaches Meta (the browser Pixel stays available - that is analyticsTracking,
   // not gated here). Platform/Gita scope (tenantId null) is unlimited and passes.
   if (!(await tenantCan(ctx.tenantId, "capi"))) {
     await prisma.capiLog
-      .create({ data: { ...base, status: "failed", response: "Conversions API requires the Growth plan or higher." } })
+      .create({ data: { ...base, status: "failed", response: CAPI_UNPAID } })
       .catch(() => {});
-    return { ok: false, error: "Conversions API requires the Growth plan or higher." };
+    return { ok: false, error: CAPI_UNPAID };
   }
 
   if (!(await isCapiConfigured(ctx.tenantId, ctx.adAccountId))) {

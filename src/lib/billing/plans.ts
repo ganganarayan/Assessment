@@ -150,6 +150,20 @@ export interface PlanLimits {
    */
   adAccounts: number;
   /**
+   * Custom domains this workspace may connect. INCLUDED count only - domains bought on
+   * top live on Subscription.extraCustomDomains and are added by the gate, exactly as
+   * agency-tenant slots are.
+   *
+   * 🔴 IT IS A COUNT, NOT A BOOLEAN, AND THE TWO ARE DIFFERENT QUESTIONS. The
+   * `customDomain` FEATURE says whether this tier may connect one at all; this says how
+   * many. Before it existed, addDomain checked the feature and then nothing, so any
+   * Signal-or-above workspace - including a 14-day trial - could add domains without
+   * limit, and each one spends a Railway custom-domain slot (3 per service) or a
+   * Cloudflare for SaaS custom hostname. That is the same scarce resource the whole
+   * Cloudflare for SaaS build exists to ration.
+   */
+  customDomains: number;
+  /**
    * How many AGENCY TENANTS this workspace may own - workspaces that belong to this
    * tenant as an AGENCY ADMIN rather than to the super admin. 0 on every tier that does
    * not resell, which is also what an agency tenant itself resolves, so the hierarchy
@@ -182,6 +196,10 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxAssessments: 2,
     seats: 1,
     adAccounts: 1,
+    // One, like every tier. What withholds a domain from Gate is the customDomain
+    // FEATURE being off, not this number - so comping the feature to a Gate tenant
+    // through limitOverrides gives them a usable domain rather than a cap of zero.
+    customDomains: 1,
     agencyTenants: 0,
     features: { ...PAID_BASE },
   },
@@ -191,6 +209,9 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxAssessments: 10,
     seats: 3,
     adAccounts: 2,
+    // One domain per workspace, and Signal IS one workspace (owner, 2026-10-14). The
+    // second ad account is for a second brand's pixel, not a second public front door.
+    customDomains: 1,
     agencyTenants: 0,
     features: {
       ...PAID_BASE,
@@ -230,7 +251,14 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     responsesPerMonth: 1000,
     maxAssessments: 10,
     seats: 1,
-    adAccounts: 1,
+    // 🔴 FIVE AD ACCOUNTS AND FIVE CLIENT WORKSPACES ARE TWO DIFFERENT THINGS (owner,
+    // 2026-10-14), and the pricing page must name both or a reader takes one "5" for
+    // the other. This is the agency admin's OWN workspace running five ad accounts -
+    // five clients it buys media for without handing any of them a login. The five
+    // client workspaces below are separate businesses with their own logins, pixels and
+    // domains. An agency doing both has ten relationships on one subscription.
+    adAccounts: 5,
+    customDomains: 1,
     agencyTenants: 5,
     features: {
       ...PAID_BASE,
@@ -256,7 +284,11 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     responsesPerMonth: 1000,
     maxAssessments: 10,
     seats: 1,
-    adAccounts: 1,
+    // Twenty, mirroring Agency's five: the same two-entitlement shape one tier up.
+    // 🟡 The owner set twenty CLIENT WORKSPACES explicitly and did not say a number for
+    // ad accounts; this follows the Agency pattern rather than inventing a third shape.
+    adAccounts: 20,
+    customDomains: 1,
     agencyTenants: 20,
     features: {
       ...PAID_BASE,
@@ -308,6 +340,11 @@ export const AGENCY_TENANT_LIMITS: PlanLimits = {
   maxAssessments: 10,
   seats: 1,
   adAccounts: 1,
+  // 🟢 Its own domain, which is what the $29 (Agency) or $25 (Enterprise) slot buys
+  // along with the workspace: the owner's rule is that an extra client workspace
+  // carries its domain, and since each one is capped at one here, that falls out of
+  // the unit rather than needing a second counter.
+  customDomains: 1,
   // An agency tenant can never resell: depth is one, stated here and enforced again in
   // assertCanCreateAgencyTenant.
   agencyTenants: 0,
@@ -317,8 +354,47 @@ export const AGENCY_TENANT_LIMITS: PlanLimits = {
   },
 };
 
-/** Price of one agency tenant beyond the plan's included count, USD / month. */
-export const AGENCY_TENANT_EXTRA_USD = 29;
+/**
+ * Price of one client workspace beyond the plan's included count, USD / month, PER TIER
+ * (owner, 2026-10-14). Enterprise buys in bulk, so each extra is cheaper there.
+ *
+ * The price includes that workspace's own custom domain, because an agency tenant's unit
+ * already carries one (AGENCY_TENANT_LIMITS.customDomains). Nothing extra to charge and
+ * nothing extra to count.
+ *
+ * 🔴 A tier that cannot resell has no price here. Reading a number off this map for a
+ * tier whose `agencyTenants` is 0 would offer a slot to somebody the gate will refuse.
+ */
+export const AGENCY_TENANT_EXTRA_USD: Partial<Record<PlanId, number>> = {
+  AGENCY: 29,
+  ENTERPRISE: 25,
+};
+
+/** The price to show when the tier is not known yet. The entry price for reselling. */
+export const AGENCY_TENANT_EXTRA_DEFAULT_USD = 29;
+
+/**
+ * What ONE extra client workspace costs on a given tier.
+ *
+ * 🔴 ALWAYS GO THROUGH THIS. Reading the map directly gives `number | undefined`, and
+ * the tempting `?? 0` would offer a free workspace on any tier not in it. The fallback
+ * is the entry price for reselling, never zero.
+ */
+export function agencyTenantExtraUsd(plan: PlanId | null): number {
+  return (plan ? AGENCY_TENANT_EXTRA_USD[plan] : undefined) ?? AGENCY_TENANT_EXTRA_DEFAULT_USD;
+}
+
+/**
+ * Price of one custom domain beyond the one every workspace includes, USD / month.
+ *
+ * 🔴 DECLARED, NOT YET CHARGEABLE. The counter it lands on exists
+ * (Subscription.extraCustomDomains) and the gate adds it, but no checkout creates the
+ * Razorpay subscription that would collect it - that is the agency-slot build again, and
+ * it is deliberately a separate pass. Until it exists the pricing page says "on
+ * request", because a published price nobody can pay is the defect this number is
+ * supposed to prevent, not create.
+ */
+export const EXTRA_CUSTOM_DOMAIN_USD = 5;
 
 /** Monthly USD price per plan (machine value; content.ts holds the display string). */
 export const PLAN_PRICE_USD: Record<PlanId, number> = {
@@ -368,6 +444,16 @@ export const PLAN_LABEL: Record<PlanId, string> = {
   ENTERPRISE: "Enterprise",
 };
 
+/**
+ * The paid tiers, named, for a refusal that lists them.
+ *
+ * 🔴 DERIVED, NEVER TYPED OUT. The sentence a customer met when they picked no plan read
+ * "Pick a paid plan (Starter, Growth, or Scale)" for months after those tiers were
+ * retired - three plans that do not exist, shown at the moment somebody was deciding
+ * whether to pay. Hard-coding the names is what let the catalog move without it.
+ */
+export const PAID_PLAN_NAMES: string = PLAN_IDS.map((id) => PLAN_LABEL[id]).join(", ");
+
 // --- Pure helpers -----------------------------------------------------------
 
 /** true when a limit value means "no cap". */
@@ -414,6 +500,9 @@ export const planLimitsSchema = z.object({
   // Optional: snapshots frozen before ad accounts existed have no such field, and a
   // strict schema would reject them and silently re-rate that customer to the catalog.
   adAccounts: z.number().int().nonnegative().default(1),
+  // Same reason as adAccounts: snapshots frozen before domains were counted carry no
+  // such field, and rejecting them would re-rate that customer to the catalog.
+  customDomains: z.number().int().nonnegative().default(1),
   // Same reason as adAccounts above: snapshots frozen before agency tenants existed
   // carry no such field, and rejecting them would re-rate that customer.
   agencyTenants: z.number().int().nonnegative().default(0),
@@ -427,6 +516,7 @@ export const planLimitsOverrideSchema = z
     maxAssessments: z.number().int().nonnegative().nullable(),
     seats: z.number().int().positive(),
     adAccounts: z.number().int().nonnegative(),
+    customDomains: z.number().int().nonnegative(),
     agencyTenants: z.number().int().nonnegative(),
     features: z.record(z.enum(FEATURES), z.boolean()),
   })
@@ -458,6 +548,7 @@ export function applyOverrides(base: PlanLimits, override: unknown): PlanLimits 
     maxAssessments: o.maxAssessments !== undefined ? o.maxAssessments : base.maxAssessments,
     seats: o.seats !== undefined ? o.seats : base.seats,
     adAccounts: o.adAccounts !== undefined ? o.adAccounts : base.adAccounts,
+    customDomains: o.customDomains !== undefined ? o.customDomains : base.customDomains,
     agencyTenants: o.agencyTenants !== undefined ? o.agencyTenants : base.agencyTenants,
     features: { ...base.features, ...(o.features ?? {}) },
   };
@@ -503,6 +594,7 @@ export const PARKED_LIMITS: PlanLimits = {
   maxAssessments: 0,
   seats: 1,
   adAccounts: 0,
+  customDomains: 0,
   agencyTenants: 0,
   features: { ...NO_FEATURES },
 };
@@ -512,6 +604,7 @@ export const UNLIMITED_LIMITS: PlanLimits = {
   responsesPerMonth: null,
   maxAssessments: null,
   adAccounts: Number.MAX_SAFE_INTEGER,
+  customDomains: Number.MAX_SAFE_INTEGER,
   seats: Number.MAX_SAFE_INTEGER,
   agencyTenants: Number.MAX_SAFE_INTEGER,
   features: Object.fromEntries(FEATURES.map((f) => [f, true])) as FeatureFlags,

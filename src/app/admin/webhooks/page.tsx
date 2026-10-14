@@ -2,8 +2,9 @@ import { getWebhooks } from "@/features/events/data";
 import { WebhooksManager } from "@/features/events/components/webhooks-manager";
 import { ACTIVE_EVENT_TYPES, EVENT_LABEL, DEFAULT_EVENT_NAME } from "@/features/events/types";
 import { resolveActingScope } from "@/lib/tenant/acting";
-import { getPasswordResetWebhook } from "@/features/admin/actions/platform-integrations";
+import { getPasswordResetWebhook, getCancelExitAssessment } from "@/features/admin/actions/platform-integrations";
 import { PasswordResetWebhookForm } from "@/features/admin/components/password-reset-webhook-form";
+import { CancelExitAssessmentForm } from "@/features/admin/components/cancel-exit-assessment-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,8 @@ export default async function WebhooksPage() {
   // Password reset is a PLATFORM-level auth webhook (login is platform-wide), so it's
   // shown only in the platform view (not while impersonating a tenant).
   const resetHook = actingId === null ? await getPasswordResetWebhook() : null;
+  // Same reasoning: the exit assessment is the platform's, shown once, not per tenant.
+  const exitAssessment = actingId === null ? await getCancelExitAssessment() : null;
   // Trigger options: every event the app emits, with a friendly label + a suggested
   // default delivered name. Computed server-side so the client never imports the
   // event registry (which pulls @prisma/client). Multiple webhooks may share a
@@ -52,6 +55,25 @@ export default async function WebhooksPage() {
           </CardHeader>
           <CardContent>
             <PasswordResetWebhookForm initialUrl={resetHook.url} />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Beside the webhooks on purpose: cancelling now fires subscription.cancelled,
+          and this is the other half of the same moment - what the customer is asked
+          while the CRM is being told. */}
+      {exitAssessment ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Exit assessment</CardTitle>
+            <CardDescription>
+              Where a customer goes right after they cancel. Cancelling also fires the{" "}
+              <span className="font-mono">subscription.cancelled</span> trigger above, carrying the workspace, the
+              tier and the date access actually ends - so your CRM can run a win-back before they are gone.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CancelExitAssessmentForm initialUrl={exitAssessment.url} />
           </CardContent>
         </Card>
       ) : null}

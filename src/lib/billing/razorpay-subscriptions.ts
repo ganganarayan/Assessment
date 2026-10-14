@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { razorpayRequest, type RazorpayKeys } from "@/lib/payments/razorpay";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
-import { AGENCY_TENANT_EXTRA_USD, PLAN_LABEL, PLAN_PRICE_USD, type PlanId } from "@/lib/billing/plans";
+import { agencyTenantExtraUsd, PLAN_LABEL, PLAN_PRICE_USD, type PlanId } from "@/lib/billing/plans";
 import { snapshotFor } from "@/lib/billing/entitlements";
 
 /**
@@ -160,10 +160,26 @@ export async function createSubscription(tenant: TenantForBilling, plan: PaidPla
   return { subscriptionId: sub.id, shortUrl: sub.short_url };
 }
 
-/** Cancel a Razorpay subscription immediately (used when replacing it on an upgrade). */
-export async function cancelRazorpaySubscription(subscriptionId: string): Promise<void> {
+/**
+ * Cancel a Razorpay subscription.
+ *
+ * `atCycleEnd` false ends it NOW, which is right when one subscription replaces another
+ * on an upgrade - the customer is already paying for the new one.
+ *
+ * `atCycleEnd` true is what a CUSTOMER cancelling means: they keep what they paid for
+ * until the period ends, and Razorpay fires subscription.cancelled when it does. The
+ * refund policy promises exactly this ("cancel before the renewal date and you are not
+ * charged again"), and ending it immediately would take away a period already paid for.
+ *
+ * 🔴 RAZORPAY HAS NO RESUME. A cycle-end cancellation cannot be revoked through the API,
+ * so anything offering this must say so before it is confirmed, not after.
+ */
+export async function cancelRazorpaySubscription(
+  subscriptionId: string,
+  atCycleEnd = false,
+): Promise<void> {
   await razorpayRequest("POST", `/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, await platformKeys(), {
-    cancel_at_cycle_end: 0,
+    cancel_at_cycle_end: atCycleEnd ? 1 : 0,
   });
 }
 
@@ -245,8 +261,18 @@ export async function endSubscription(tenantId: string, status: "CANCELED" | "HA
  * the slot subscription's id and the tier would stop renewing.
  * ------------------------------------------------------------------------- */
 
-/** RazorpayPlan cache key for the slot plan. Not a PlanId - it is not a tier. */
-export const SLOT_PLAN_KEY = "AGENCY_TENANT_SLOT";
+/**
+ * RazorpayPlan cache key for the slot plan, PER TIER - an extra client workspace is $29
+ * on Agency and $25 on Enterprise (owner, 2026-10-14), and Razorpay prices a plan, not a
+ * subscription, so two prices mean two plans.
+ *
+ * Not a PlanId: these are not tiers, they are the add-on sold alongside one.
+ */
+export const slotPlanKey = (plan: PlanId): string => `AGENCY_TENANT_SLOT_${plan}`;
+
+/** The pre-2026-10-14 single-price key. Kept so the old cached row is never reused at
+ *  the wrong price, and so a reader meeting it in the table knows what it was. */
+export const LEGACY_SLOT_PLAN_KEY = "AGENCY_TENANT_SLOT";
 
 /** notes.kind on the slot subscription, so the webhook can tell the two apart. */
 export const SLOT_NOTE_KIND = "agency_tenant_slots";
@@ -254,12 +280,13 @@ export const SLOT_NOTE_KIND = "agency_tenant_slots";
 /**
  * Get or create the $29 monthly Razorpay Plan the slots are charged against. Same
  * cache-and-invalidate-on-price-change shape as getOrCreatePlan: change
- * AGENCY_TENANT_EXTRA_USD and the next purchase creates a plan at the new price, leaving
- * the subscribers already on the old one where they are.
+ * the tier's price in AGENCY_TENANT_EXTRA_USD and the next purchase creates a plan at
+ * the new price, leaving the subscribers already on the old one where they are.
  */
-export async function getOrCreateSlotPlan(): Promise<string> {
-  const amountCents = AGENCY_TENANT_EXTRA_USD * 100;
-  const cached = await prisma.razorpayPlan.findUnique({ where: { planKey: SLOT_PLAN_KEY } });
+export async function getOrCreateSlotPlan(plan: PlanId): Promise<string> {
+  const amountCents = agencyTenantExtraUsd(plan) * 100;
+  const planKey = slotPlanKey(plan);
+  const cached = await prisma.razorpayPlan.findUnique({ where: { planKey } });
   if (cached && cached.amountCents === amountCents && cached.currency === "USD") {
     return cached.razorpayPlanId;
   }
@@ -267,14 +294,14 @@ export async function getOrCreateSlotPlan(): Promise<string> {
     period: "monthly",
     interval: 1,
     item: {
-      name: "Assess360 client workspace",
+      name: `Assess360 client workspace (${PLAN_LABEL[plan]})`,
       amount: amountCents,
       currency: "USD",
     },
   });
   await prisma.razorpayPlan.upsert({
-    where: { planKey: SLOT_PLAN_KEY },
-    create: { planKey: SLOT_PLAN_KEY, razorpayPlanId: created.id, amountCents, currency: "USD" },
+    where: { planKey },
+    create: { planKey, razorpayPlanId: created.id, amountCents, currency: "USD" },
     update: { razorpayPlanId: created.id, amountCents, currency: "USD" },
   });
   return created.id;
@@ -289,8 +316,10 @@ export async function getOrCreateSlotPlan(): Promise<string> {
 export async function createSlotSubscription(
   tenant: TenantForBilling,
   quantity: number,
+  /** The buyer's TIER, which sets the price of a slot. */
+  plan: PlanId,
 ): Promise<CreatedCheckout> {
-  const [customerId, planId] = await Promise.all([getOrCreateCustomer(tenant), getOrCreateSlotPlan()]);
+  const [customerId, planId] = await Promise.all([getOrCreateCustomer(tenant), getOrCreateSlotPlan(plan)]);
   const sub = await razorpayRequest<RazorpaySubscriptionCreated>("POST", "/subscriptions", await platformKeys(), {
     plan_id: planId,
     customer_id: customerId,
