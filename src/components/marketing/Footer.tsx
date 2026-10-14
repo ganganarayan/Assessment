@@ -164,6 +164,12 @@ export function Footer() {
             <Link href="/contact" className="transition-colors hover:text-[var(--foreground)]">
               Contact
             </Link>
+            {/* The only link to /offers in the site chrome. The offer bar above the nav
+                announces the current offer and goes straight to the funnel; this is the
+                route for somebody who wants to read the terms first. */}
+            <Link href="/offers" className="transition-colors hover:text-[var(--foreground)]">
+              Offers
+            </Link>
           </div>
         </div>
       </div>
