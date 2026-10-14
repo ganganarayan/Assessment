@@ -25,6 +25,16 @@
  *        PROXY_SECRET  = <same value as Railway's CLOUDFLARE_PROXY_SECRET>  (ENCRYPT)
  *   3. Settings → Domains & Routes → add route:  *\/*  on the zone that owns the
  *      custom hostnames, so every custom hostname request passes through here.
+ *
+ * 🔴 ZONE_HOST IS NOT OPTIONAL WHEN THE ZONE HOSTS ANYTHING ELSE.
+ * The route has to be *\/* because customer hostnames are not known in advance, and
+ * that pattern also matches every PROXIED record in your own zone. On divineleads.guru
+ * that is four other live apps (avr, cosmetic, powertools, paymentz), each with its own
+ * origin - all of which this Worker would otherwise rewrite to ORIGIN_HOST and break.
+ * So anything inside ZONE_HOST is passed straight through to the origin its DNS record
+ * already names, and only genuine customer hostnames are rewritten.
+ *        ZONE_HOST     = divineleads.guru   (plaintext)
+ * Grey-cloud records and MX/TXT never reach a Worker at all, so email is unaffected.
  */
 
 export default {
@@ -35,6 +45,13 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const customerHost = url.hostname;
+
+    // Our own zone keeps its own origins. A customer hostname is by definition outside
+    // it, so this is the whole test - no list to maintain as apps are added.
+    const zone = (env.ZONE_HOST || "").toLowerCase();
+    if (zone && (customerHost === zone || customerHost.endsWith("." + zone))) {
+      return fetch(request);
+    }
 
     // Send it to the host Railway routes; keep path, query and method untouched.
     url.hostname = env.ORIGIN_HOST;
