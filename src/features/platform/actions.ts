@@ -5,7 +5,14 @@ import { redirect } from "next/navigation";
 import { Role, Prisma, type Plan } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin, isStaff } from "@/lib/auth/guards";
-import { PLAN_IDS } from "@/lib/billing/plans";
+import { PLAN_IDS, PLAN_LIMITS, parseLimitsSnapshot, type PlanId, type PlanLimits } from "@/lib/billing/plans";
+import { resolvePlan } from "@/lib/billing/plan-resolve";
+import {
+  draftFromOverride,
+  draftToOverride,
+  summariseOverride,
+  type LimitsDraft,
+} from "@/features/platform/limits-override";
 import { formatIST } from "@/lib/date";
 
 /** Tenant/user management is OWNER-only - never a staff member (even EDIT). */
@@ -315,6 +322,189 @@ export async function setTenantPlanGrant(
     ok: true,
     data: { summary, planExpiresAt: expiresAt?.toISOString() ?? null },
   };
+}
+
+/**
+ * What the limits panel shows for one tenant: the limits the plan gives, the override
+ * stored on top, and what the resolver actually hands the gates.
+ */
+export interface TenantLimitsView {
+  tenantId: string;
+  tenantName: string;
+  /** Why an override cannot be stored here, or null when it can. */
+  blockedReason: string | null;
+  /** True when Unlimited is on, so the panel can say the override is not what entitles. */
+  unlimited: boolean;
+  /** Where `base` came from: the subscription's frozen snapshot, or the code catalog. */
+  baseSource: "snapshot" | "catalog";
+  /** The limits the override is applied ON TOP OF. */
+  base: PlanLimits;
+  /**
+   * What `resolvePlan` returns right now - the numbers the gates will actually use.
+   * Read from the resolver itself rather than recomputed here, so the panel can never
+   * show a limit the app does not enforce.
+   */
+  resolved: PlanLimits;
+  draft: LimitsDraft;
+}
+
+/** The columns the limits panel needs. */
+type LimitsTarget = {
+  id: string;
+  unlimited: boolean;
+  agencyAdminTenantId: string | null;
+  plan: Plan;
+  subscription: { plan: Plan; limitsSnapshot: Prisma.JsonValue; limitOverrides: Prisma.JsonValue } | null;
+};
+
+/**
+ * Why an override would not be read for this tenant, in the resolver's own order.
+ *
+ * 🔴 THE ANSWER IS NEVER "CREATE A SUBSCRIPTION ROW TO PUT IT ON". `entitledPlan` reads
+ * a subscription as what entitles the tenant, so a row fabricated to hold an override
+ * would hand them a paid plan nobody is paying for, and the renewal plumbing would then
+ * own a subscription Razorpay has never heard of. Comping is what the grant and the
+ * Unlimited flag are for; this function says so instead.
+ */
+function overrideBlockedReason(t: LimitsTarget): string | null {
+  if (t.id === PLATFORM_TENANT_ID) {
+    return "The platform is never rated against a plan, so an override stored here would never be read.";
+  }
+  if (t.agencyAdminTenantId) {
+    return (
+      "A client workspace resolves through its agency admin to the client-workspace unit and carries no " +
+      "subscription of its own, so an override here would never be read. To lift just this one, use the " +
+      "grant or Unlimited on this row - both resolve ahead of the agency."
+    );
+  }
+  if (!t.subscription) {
+    return (
+      "An override is stored on the subscription, and this workspace has none. Comp it with the grant or " +
+      "Unlimited instead, or wait until it subscribes."
+    );
+  }
+  return null;
+}
+
+/** The limits of the plan this row names, with legacy plan values falling back to Gate. */
+function catalogBase(plan: Plan): PlanLimits {
+  const id = plan as PlanId;
+  return PLAN_LIMITS[id] ? PLAN_LIMITS[id] : PLAN_LIMITS.GATE;
+}
+
+/**
+ * Load one tenant's limits for the panel. Read-only, so any super admin may see it; the
+ * write below is owner-only.
+ *
+ * Deliberately NOT folded into listTenants: it costs a resolver call per tenant, and the
+ * list renders every workspace on the install.
+ */
+export async function readTenantLimits(tenantId: string): Promise<ActionResult<TenantLimitsView>> {
+  await requireSuperAdmin();
+  try {
+    const t = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        id: true,
+        name: true,
+        unlimited: true,
+        agencyAdminTenantId: true,
+        plan: true,
+        subscription: { select: { plan: true, limitsSnapshot: true, limitOverrides: true } },
+      },
+    });
+    if (!t) return { ok: false, error: "Tenant not found." };
+
+    const base = t.subscription
+      ? parseLimitsSnapshot(t.subscription.limitsSnapshot, t.subscription.plan as PlanId)
+      : catalogBase(t.plan);
+
+    return {
+      ok: true,
+      data: {
+        tenantId: t.id,
+        tenantName: t.name,
+        blockedReason: overrideBlockedReason(t),
+        unlimited: t.unlimited,
+        baseSource: t.subscription ? "snapshot" : "catalog",
+        base,
+        resolved: (await resolvePlan(t.id)).limits,
+        draft: draftFromOverride(t.subscription?.limitOverrides ?? null),
+      },
+    };
+  } catch (e) {
+    console.error("[platform] readTenantLimits failed:", e instanceof Error ? e.message : String(e));
+    return { ok: false, error: "Couldn't load this tenant's limits (a temporary database error). Try again." };
+  }
+}
+
+/**
+ * Store (or clear) one tenant's limits override.
+ *
+ * The guards run again here rather than trusting that the panel disabled its button: a
+ * server action is a public endpoint, and "the UI would not have let you" is not a check.
+ *
+ * Returns the sentence the panel shows, which states WHAT CHANGED against the plan rather
+ * than that a write happened - an override that restates the plan's own numbers says so,
+ * instead of looking like it did something.
+ */
+export async function setTenantLimitOverrides(
+  tenantId: string,
+  draft: LimitsDraft,
+): Promise<ActionResult<{ summary: string }>> {
+  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+
+  const t = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: {
+      id: true,
+      unlimited: true,
+      agencyAdminTenantId: true,
+      plan: true,
+      subscription: { select: { plan: true, limitsSnapshot: true, limitOverrides: true } },
+    },
+  });
+  if (!t) return { ok: false, error: "Tenant not found." };
+
+  const blocked = overrideBlockedReason(t);
+  if (blocked) return { ok: false, error: blocked };
+  if (!t.subscription) return { ok: false, error: "This workspace has no subscription to store an override on." };
+
+  const parsed = draftToOverride(draft);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+
+  const r = await softFail(
+    "setTenantLimitOverrides",
+    "Couldn't save those limits (a temporary database error). Try again.",
+    async () => {
+      await prisma.subscription.update({
+        where: { tenantId },
+        data: {
+          // SQL NULL, not JSON null: an empty object would read as "this tenant has a
+          // deal" forever, and resolution would keep applying an override of nothing.
+          limitOverrides:
+            parsed.value === null ? Prisma.DbNull : (parsed.value as Prisma.InputJsonValue),
+        },
+      });
+    },
+  );
+  if (!r.ok) return r;
+  revalidatePath("/platform");
+
+  const base = parseLimitsSnapshot(t.subscription.limitsSnapshot, t.subscription.plan as PlanId);
+  const changes = summariseOverride(base, parsed.value);
+  const unlimitedNote = t.unlimited
+    ? " This tenant is Unlimited, so the override is not what entitles it."
+    : "";
+
+  const summary =
+    parsed.value === null
+      ? "Override cleared. Limits follow the plan again."
+      : changes.length === 0
+        ? `Saved, but nothing changes: every value matches the plan already.${unlimitedNote}`
+        : `Saved. ${changes.join("; ")}.${unlimitedNote}`;
+
+  return { ok: true, data: { summary } };
 }
 
 /** Platform-owner (super-admin) tenant + user management. Stage 1: create tenants,
