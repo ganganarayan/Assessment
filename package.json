@@ -70,7 +70,8 @@
     "qa:seed": "tsx qa/src/fixtures/cli.ts",
     "qa:abandon": "tsx --conditions=react-server qa/src/abandon.ts",
     "qa:all": "tsx qa/src/all.ts",
-    "verify:result-pages": "tsx scripts/verify-result-pages.ts"
+    "verify:result-pages": "tsx scripts/verify-result-pages.ts",
+    "verify:zone": "tsx scripts/verify-zone.ts"
   },
   "prisma": {
     "seed": "tsx --conditions=react-server prisma/seed.ts"

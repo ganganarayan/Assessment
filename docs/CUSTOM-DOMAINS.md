@@ -51,8 +51,27 @@ matches, and falls back to the real Host, which is always truthful.
 **2. Worker**, deploy `infra/cloudflare-worker.js`
 
 - Variables: `ORIGIN_HOST` = the Railway host (plaintext);
-  `PROXY_SECRET` = a long random string (**encrypted**).
+  `PROXY_SECRET` = a long random string (**encrypted**);
+  `ZONE_HOST` = the zone itself, e.g. `divineleads.guru` (plaintext).
 - Route: `*/*` on that zone, so every custom hostname passes through it.
+
+🔴 **THE FILE IN THIS REPO IS NOT THE DEPLOYED ARTIFACT.** The Worker script is pasted
+into the Cloudflare dashboard by hand, so committing a fix here changes nothing live.
+Deploy it: Workers & Pages → the Worker → Edit code → select all → paste → Deploy.
+
+🔴 **A variable edit is not a code deploy.** On 2026-10-14 `ZONE_HOST` was set correctly
+for four hours while the deployed script had no zone pass-through at all, and the
+dashboard read as configured the whole time. The Deployments tab tells them apart: a row
+named "Updated variable: ZONE_HOST" did not change the code. The cost was four unrelated
+apps in the zone - avr, cosmetic, powertools, paymentz - serving the Assess360 marketing
+page, because the `*/*` route matches every proxied record in your own zone and the
+script was rewriting all of them to `ORIGIN_HOST`.
+
+🟡 **The structural fix** is to put Cloudflare for SaaS on a zone that hosts nothing
+else. The route has to be `*/*` (client hostnames are unknown in advance), so on a shared
+zone one pasted script is a single point of failure for every app on it. The free Workers
+plan compounds it: past 100,000 requests in a UTC day the Worker stops (error 1027) and
+every proxied host in the zone fails together. Workers Paid is $5/month.
 
 **3. Railway variables** (the app service)
 
@@ -75,6 +94,13 @@ resolves, issues the certificate, and "Check status" turns it live.
 
 ## Verifying
 
+- **`npm run verify:zone`, after every Worker deploy.** It asks which app answers each
+  host in the zone - title plus the shape of `/api/version` - and fails when Assess360 is
+  answering a host it does not own. 🔴 Never verify this with a status code: a rewritten
+  request returns a healthy 200 from the wrong app, which is how "verified, all five
+  return 200" was recorded on a zone that was already broken. Add new hosts to `FOREIGN`
+  in `scripts/verify-zone.ts` as apps join the zone; a host nobody listed is a host the
+  check cannot protect.
 - `scripts/domain-doctor.ts`, what the app considers served, and why.
 - Sign-in on the tenant's host proves the Worker secret is wired: if the header were
   being ignored, the host would resolve to the platform instead of the tenant.
