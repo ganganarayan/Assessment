@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { tenantOnly } from "@/lib/tenant/scope";
 import { readMetaEvents } from "@/features/assessment/meta-events";
 import { metaPublishBlock } from "@/lib/meta/publish-lock";
+import { normalizeCustomFields } from "@/features/assessment/custom-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -77,8 +78,10 @@ export default async function WorkspaceEditAssessmentPage({
     heatmapCode: a.heatmapCode ?? "",
     preResultHeading: a.preResultHeading ?? "",
     preResultSubtext: a.preResultSubtext ?? "",
-    preResultFields: (a.preResultFields as AssessmentFormValues["preResultFields"] | null) ?? [],
-    optinFields: (a.optinFields as AssessmentFormValues["optinFields"] | null) ?? [],
+    // Normalized on the way in: a field stored in a shape this editor cannot render took
+    // the whole page down, and blocked every save of the assessment until it was gone.
+    preResultFields: normalizeCustomFields(a.preResultFields),
+    optinFields: normalizeCustomFields(a.optinFields),
     coverImageUrl: a.coverImageUrl ?? "",
     estimatedMinutes: a.estimatedMinutes ?? undefined,
     thankYouMessage: a.thankYouMessage ?? "",

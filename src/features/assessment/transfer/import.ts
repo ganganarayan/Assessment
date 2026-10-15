@@ -5,6 +5,7 @@ import { type AssessmentBodyExport, type CategoryExport } from "./schema";
 import { buildSpine } from "@/lib/routing/engine";
 import { parseDocument, type ParseResult } from "./format";
 import { importedGate } from "./gate";
+import { normalizeCustomFields } from "@/features/assessment/custom-fields";
 
 export type { ParseResult };
 
@@ -89,8 +90,11 @@ export function assessmentCreateData(
     leadCaptureAfter: body.leadCaptureAfter ?? false,
     preResultHeading: body.preResultHeading ?? null,
     preResultSubtext: body.preResultSubtext ?? null,
-    preResultFields: asJson(body.preResultFields),
-    optinFields: asJson(body.optinFields),
+    // Normalized, never stored as the file wrote them: a foreign file can name a field
+    // type this app cannot render, and an unrenderable field reaches the owner as a
+    // crashed editor rather than as a complaint about the import.
+    preResultFields: asJson(normalizeCustomFields(body.preResultFields)),
+    optinFields: asJson(normalizeCustomFields(body.optinFields)),
     introNotice: body.introNotice ?? null,
     startButtonLabel: body.startButtonLabel ?? null,
     resultsButtonLabel: body.resultsButtonLabel ?? null,

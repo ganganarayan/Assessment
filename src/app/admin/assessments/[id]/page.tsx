@@ -36,6 +36,7 @@ import { listFreeDocs } from "@/features/result-pages/data";
 import { Badge } from "@/components/ui/badge";
 import { ownerScopeOf } from "@/lib/tenant/scope";
 import { readMetaEvents } from "@/features/assessment/meta-events";
+import { normalizeCustomFields } from "@/features/assessment/custom-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -66,8 +67,11 @@ export default async function EditAssessmentPage({
     heatmapCode: a.heatmapCode ?? "",
     preResultHeading: a.preResultHeading ?? "",
     preResultSubtext: a.preResultSubtext ?? "",
-    preResultFields: (a.preResultFields as AssessmentFormValues["preResultFields"] | null) ?? [],
-    optinFields: (a.optinFields as AssessmentFormValues["optinFields"] | null) ?? [],
+    // Normalized on the way in, for the same reason the gate below is merged onto its
+    // defaults: a field stored in a shape this editor cannot render took the whole page
+    // down, and blocked every save of the assessment until it was gone.
+    preResultFields: normalizeCustomFields(a.preResultFields),
+    optinFields: normalizeCustomFields(a.optinFields),
     coverImageUrl: a.coverImageUrl ?? "",
     estimatedMinutes: a.estimatedMinutes ?? undefined,
     thankYouMessage: a.thankYouMessage ?? "",

@@ -73,7 +73,8 @@
     "qa:all": "tsx qa/src/all.ts",
     "verify:result-pages": "tsx scripts/verify-result-pages.ts",
     "verify:zone": "tsx scripts/verify-zone.ts",
-    "qa:ui": "tsx qa/src/ui/server.ts"
+    "qa:ui": "tsx qa/src/ui/server.ts",
+    "verify:custom-fields": "tsx scripts/verify-custom-fields.ts"
   },
   "prisma": {
     "seed": "tsx --conditions=react-server prisma/seed.ts"
