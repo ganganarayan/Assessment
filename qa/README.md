@@ -20,6 +20,23 @@ cd qa && npm install && npx playwright install chromium
 Then either copy `.env.qa.example` to `.env.qa` and fill it in, or run the harness under
 `railway run`, which injects the database URLs itself.
 
+## The control panel
+
+If you would rather click than type:
+
+```bash
+railway run npm run qa:ui
+```
+
+It opens a page on localhost with a button per step, the funnel list read from your
+database, the output streaming as it runs, a link to the report, and a Windows balloon
+when a sweep finishes. Each button also prints the command it is equivalent to, so the
+terminal stays available and nothing here is a black box. A watched run floats the test
+browser above your other windows while it drives, and drops it afterwards.
+
+The panel refuses to drive anything that is not staging, and it only runs the jobs it
+knows by name - it never takes a command from the page.
+
 ## Running it
 
 ```bash
