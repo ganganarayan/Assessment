@@ -68,6 +68,9 @@ export interface RowObservation {
   abandonedFiredAt: Date | null;
   /** GateDisqualification rows for this visitor. */
   disqualifications: number;
+  /** The sentences stored for FREE_TEXT questions, by question id. A typed answer
+    *  that is not here was asked for and thrown away. */
+  typedAnswers: Record<string, string>;
   /** Anything outbound that should NOT have happened on a QA run. */
   crmJobs: number;
   nurtureLogs: number;
@@ -143,6 +146,15 @@ async function readRowsOnce(
     ? await db().gateDisqualification.count({ where: { assessmentId, visitorId } })
     : 0;
 
+  const typedRows = submission
+    ? await db().submissionAnswer.findMany({
+        where: { submissionId: submission.id, textValue: { not: null } },
+        select: { questionId: true, textValue: true },
+      })
+    : [];
+  const typedAnswers: Record<string, string> = {};
+  for (const r of typedRows) typedAnswers[r.questionId] = r.textValue ?? "";
+
   const crmJobs = submission ? await db().crmSendQueue.count({ where: { submissionId: submission.id } }) : 0;
   const nurtureLogs = submission ? await db().nurtureLog.count({ where: { submissionId: submission.id } }) : 0;
   const webhookDeliveries = submission
@@ -162,6 +174,7 @@ async function readRowsOnce(
     totalScore: submission?.totalScore ?? null,
     maxScore: submission?.maxScore ?? null,
     bandTitle: submission?.resultBand?.title ?? null,
+    typedAnswers,
     gateEntry: Boolean(gateEntry),
     optinSeenAt: gateEntry?.optinSeenAt ?? null,
     abandonDueAt: gateEntry?.abandonDueAt ?? null,

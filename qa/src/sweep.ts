@@ -55,6 +55,38 @@ export interface SweepResult {
   admin?: AdminPassResult;
 }
 
+/**
+ * Read the rows back, giving the server a moment to finish writing them.
+ *
+ * A rejection is recorded, and its event counted, by a server action that runs AFTER
+ * the exit page is already on screen - so the browser is done before the database is.
+ * A fixed pause either waits too long for every case or occasionally too little for
+ * one, which showed up as a rejection case failing on its own and passing on a rerun.
+ *
+ * So the wait is only as long as it needs to be: poll until the rows this case is
+ * supposed to have ARE there, then stop. Absence is never hurried - a case expecting
+ * no row waits out the whole budget before saying so.
+ */
+async function settleRows(
+  funnel: Funnel,
+  identity: ReturnType<typeof identityFor>,
+  observation: Observation | undefined,
+  expectation: Expectation,
+): Promise<RowObservation> {
+  const deadline = Date.now() + 12_000;
+  let rows = await readRows(funnel, identity, observation?.visitorId ?? null, observation?.externalId ?? null);
+  const satisfied = (r: RowObservation): boolean =>
+    (!expectation.rows.submission || r.submissionId !== null) &&
+    (!expectation.rows.completed || r.status === "COMPLETED") &&
+    (!expectation.rows.gateEntry || r.gateEntry) &&
+    (!expectation.rows.disqualification || r.disqualifications > 0);
+  while (!satisfied(rows) && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 1500));
+    rows = await readRows(funnel, identity, observation?.visitorId ?? null, observation?.externalId ?? null);
+  }
+  return rows;
+}
+
 export async function sweep(
   funnel: Funnel,
   cases: GeneratedCase[],
@@ -148,7 +180,7 @@ export async function sweep(
       let rows: RowObservation;
       let events: EventCounts;
       try {
-        rows = await readRows(funnel, identity, observation?.visitorId ?? null, observation?.externalId ?? null);
+        rows = await settleRows(funnel, identity, observation, expectation);
         events = eventDelta(before, await eventSnapshot(funnel.row.id));
       } catch (err) {
         // The reads have their own retry; if they still fail, this case is unjudged and

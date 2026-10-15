@@ -31,7 +31,7 @@ import {
 import { readMetaEvents } from "../../../src/features/assessment/meta-events.js";
 import { readPublishedPages } from "../../../src/features/assessment/pages/blocks.js";
 import { computeScores, pickResultBand, type ScoringQuestion } from "../../../src/features/assessment/scoring.js";
-import { buildSpine, walk, type RouteSpec } from "../../../src/lib/routing/engine.js";
+import { walk } from "../../../src/lib/routing/engine.js";
 import type { Funnel } from "../config/read.js";
 import type { CasePlan, Expectation, ExpectedGate } from "./types.js";
 
@@ -124,23 +124,12 @@ export function expectationFor(
   const stopsAtThankYou = gate?.outcome === "exit" && gate.capturesLead && !gate.takesAssessment;
 
   // --- the questions --------------------------------------------------------------
-  const spine = buildSpine(
-    row.categories.map((c) => ({ id: c.id, page: c.page, questions: c.questions.map((q) => ({ id: q.id })) })),
-  );
-  const byOption = new Map<string, RouteSpec>();
-  for (const c of row.categories) {
-    for (const q of c.questions) {
-      for (const o of q.options) {
-        if (o.route) {
-          byOption.set(o.id, {
-            action: o.route.action,
-            targetQuestionId: o.route.targetQuestionId,
-            targetCategoryId: o.route.targetCategoryId,
-          });
-        }
-      }
-    }
-  }
+  // The spine and the rules come from the funnel, built once, so the path this
+  // predicts is walked with the same default routes the runner uses.
+  const { spine, byOption } = funnel;
+  // A typed answer is an answer: it decides nothing by itself (there is no option to
+  // hang a rule on) but it counts as answered, and the question's default route is
+  // what carries the flow on from it.
   const answersByQuestion = new Map(Object.entries(plan.answers));
   const reached = funnel.routingActive
     ? walk(answersByQuestion, spine, byOption).reached
@@ -152,8 +141,11 @@ export function expectationFor(
   const allQuestions = row.categories.flatMap((c) => c.questions.map((q) => ({ q, categoryId: c.id })));
   const optionById = new Map(allQuestions.flatMap(({ q }) => q.options.map((o) => [o.id, o] as const)));
   const reachedSet = new Set(questionPath);
+  // FREE_TEXT questions are excluded ENTIRELY from scoring, not scored as zero: a
+  // typed sentence is worth reading, not worth points, and counting it in the ceiling
+  // would make every respondent's percentage lower for having been asked.
   const scoringQuestions: ScoringQuestion[] = allQuestions
-    .filter(({ q }) => reachedSet.has(q.id))
+    .filter(({ q }) => reachedSet.has(q.id) && q.type !== "FREE_TEXT")
     .map(({ q, categoryId }) => ({
       id: q.id,
       categoryId,

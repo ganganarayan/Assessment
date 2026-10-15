@@ -35,6 +35,15 @@ interface QuestionSpec {
   text: string;
   required?: boolean;
   weight?: number;
+  /** FREE_TEXT: a sentence rather than a pick. Scores nothing and carries no option,
+   *  so the flow leaves it by the question's default route. */
+  typed?: boolean;
+  /** Where the flow goes when NO option rule fires - a skipped question, a typed one,
+   *  or an answer with no rule of its own. This is what brings a branch back. */
+  defaultRoute?: {
+    action: "JUMP_TO_QUESTION" | "JUMP_TO_CATEGORY" | "SKIP_TO_END" | "NEXT";
+    target?: string;
+  };
   options: OptionSpec[];
 }
 interface CategorySpec {
@@ -270,10 +279,24 @@ const FIXTURES: FixtureSpec[] = [
             key: "r-q3",
             text: "The jump target",
             required: true,
+            // Deliberately NO default route: it falls through to the typed question
+            // below, which is the one that has to be reachable for the convergence
+            // rule to be worth anything. The generator said so out loud the first time
+            // this fixture put the jump here instead.
             options: [
               { key: "a", label: "Fine", value: 5 },
               { key: "b", label: "Not fine", value: 1 },
             ],
+          },
+          {
+            key: "r-q-typed",
+            text: "In your own words, what would make this worth doing?",
+            required: true,
+            typed: true,
+            // A typed answer carries no rule at all, which is exactly the case the
+            // default route exists for.
+            defaultRoute: { action: "JUMP_TO_CATEGORY", target: "r-c2" },
+            options: [],
           },
         ],
       },
@@ -389,7 +412,19 @@ async function seedOne(spec: FixtureSpec): Promise<string> {
             create: c.questions.map((q, qi) => ({
               id: id(spec.slug, q.key),
               text: q.text,
-              type: "SINGLE_SELECT" as const,
+              type: (q.typed ? "FREE_TEXT" : "SINGLE_SELECT") as "FREE_TEXT" | "SINGLE_SELECT",
+              // The default route: where the flow goes when no option rule fires, which
+              // for a typed question is always, because there is no option to hang a
+              // rule on. Forward-only, same as every other target.
+              defaultRouteAction: q.defaultRoute?.action ?? null,
+              defaultTargetQuestionId:
+                q.defaultRoute?.action === "JUMP_TO_QUESTION" && q.defaultRoute.target
+                  ? id(spec.slug, q.defaultRoute.target)
+                  : null,
+              defaultTargetCategoryId:
+                q.defaultRoute?.action === "JUMP_TO_CATEGORY" && q.defaultRoute.target
+                  ? id(spec.slug, q.defaultRoute.target)
+                  : null,
               weight: q.weight ?? 1,
               required: q.required ?? true,
               displayOrder: qi,

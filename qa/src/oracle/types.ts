@@ -43,6 +43,9 @@ export interface CasePlan {
   gateTexts: Record<string, string>;
   /** Scored questions: questionId -> optionId. */
   answers: Record<string, string>;
+  /** FREE_TEXT questions: questionId -> the sentence to type. They score nothing and
+   *  carry no option, so they are kept apart from the picks. */
+  texts: Record<string, string>;
   behaviours: Behaviour[];
 }
 

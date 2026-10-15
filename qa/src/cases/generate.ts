@@ -14,7 +14,7 @@
 import { gateIsLive } from "../../../src/features/assessment/flow/entry.js";
 import { gateVerdict, gateTotals } from "../../../src/features/assessment/gate-verdict.js";
 import { computeScores, pickResultBand, type ScoringQuestion } from "../../../src/features/assessment/scoring.js";
-import { buildSpine, walk, nextIndex, type RouteSpec, type SpineQuestion } from "../../../src/lib/routing/engine.js";
+import { walk, nextIndex, type RouteSpec, type SpineQuestion } from "../../../src/lib/routing/engine.js";
 import type { Funnel } from "../config/read.js";
 import type { CasePlan, CaseKind } from "../oracle/types.js";
 
@@ -138,6 +138,8 @@ interface ScoredQ {
   categoryId: string;
   weight: number;
   required: boolean;
+  /** FREE_TEXT: a sentence, no options, scores nothing, routes by its default rule. */
+  typed: boolean;
   options: { id: string; value: number }[];
 }
 
@@ -148,36 +150,34 @@ function scoredQuestions(funnel: Funnel): ScoredQ[] {
       categoryId: c.id,
       weight: q.weight,
       required: q.required,
+      typed: q.type === "FREE_TEXT",
       options: q.options.map((o) => ({ id: o.id, value: o.value })),
     })),
   );
 }
 
+/** What the harness types into a FREE_TEXT question. Recognisable in the row later. */
+const TYPED_ANSWER = "QA harness: a sentence typed where a sentence was asked for.";
+
+/** Every typed question gets something, so a required one never blocks the run. */
+function textsFor(qs: ScoredQ[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const q of qs) if (q.typed) out[q.id] = TYPED_ANSWER;
+  return out;
+}
+
+// The spine and the option rules are built once, by the config reader, so the cases
+// are generated against the same flow the oracle predicts and the respondent walks.
 function routeMap(funnel: Funnel): Map<string, RouteSpec> {
-  const m = new Map<string, RouteSpec>();
-  for (const c of funnel.row.categories) {
-    for (const q of c.questions) {
-      for (const o of q.options) {
-        if (o.route) {
-          m.set(o.id, {
-            action: o.route.action,
-            targetQuestionId: o.route.targetQuestionId,
-            targetCategoryId: o.route.targetCategoryId,
-          });
-        }
-      }
-    }
-  }
-  return m;
+  return funnel.byOption;
 }
 
 function spineOf(funnel: Funnel): SpineQuestion[] {
-  return buildSpine(
-    funnel.row.categories.map((c) => ({ id: c.id, page: c.page, questions: c.questions.map((q) => ({ id: q.id })) })),
-  );
+  return funnel.spine;
 }
 
-/** Answer every question with the option nearest `fraction` of its own best value. */
+/** Answer every question with the option nearest `fraction` of its own best value.
+ *  Typed questions have no options and are answered with text instead. */
 function answersAtFraction(qs: ScoredQ[], fraction: number): Record<string, string> {
   const out: Record<string, string> = {};
   for (const q of qs) {
@@ -201,6 +201,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
   const texts = gateTextsFor(qs);
   const gateLive = gateIsLive(funnel.entry);
   const sq = scoredQuestions(funnel);
+  const typedAnswers = textsFor(sq);
   const spine = spineOf(funnel);
   const byOption = routeMap(funnel);
 
@@ -230,6 +231,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
         ...baselineAudience,
         gateChoices: baselineGate,
         gateTexts: texts,
+        texts: typedAnswers,
         answers: baselineAnswers,
         behaviours: [],
       },
@@ -248,6 +250,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
             audienceRoleId: role.id,
             gateChoices: baselineGate,
             gateTexts: texts,
+          texts: typedAnswers,
             answers: baselineAnswers,
             behaviours: [],
           },
@@ -263,6 +266,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
           audienceText: suggestion || "Founder",
           gateChoices: baselineGate,
           gateTexts: texts,
+          texts: typedAnswers,
           answers: baselineAnswers,
           behaviours: [],
         },
@@ -275,6 +279,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
           audienceText: "Kite repairer",
           gateChoices: baselineGate,
           gateTexts: texts,
+          texts: typedAnswers,
           answers: baselineAnswers,
           behaviours: [],
         },
@@ -288,6 +293,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
             audienceText: "",
             gateChoices: baselineGate,
             gateTexts: texts,
+          texts: typedAnswers,
             answers: baselineAnswers,
             behaviours: [],
           },
@@ -311,6 +317,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
             ...baselineAudience,
             gateChoices: choices,
             gateTexts: texts,
+          texts: typedAnswers,
             answers: baselineAnswers,
             behaviours: [],
           },
@@ -336,13 +343,13 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
             : gatePicksForScore(funnel, qs, w.min, w.max);
         if (!picks) {
           out.push({
-            plan: { id: w.id, kind: "gate", title: w.title, gateChoices: {}, gateTexts: texts, answers: baselineAnswers, behaviours: [] },
+            plan: { id: w.id, kind: "gate", title: w.title, gateChoices: {}, gateTexts: texts, texts: typedAnswers, answers: baselineAnswers, behaviours: [] },
             unreachable: `no combination of non-disqualifying answers scores in ${w.min === Number.NEGATIVE_INFINITY ? `under ${w.max + 1}` : `${w.min} to ${w.max}`} (the gate can award ${gateTotals(funnel.qualification, lowestSafePicks(qs)).score} to ${ceiling})`,
           });
           continue;
         }
         out.push({
-          plan: { id: w.id, kind: "gate", title: w.title, ...baselineAudience, gateChoices: picks, gateTexts: texts, answers: baselineAnswers, behaviours: [] },
+          plan: { id: w.id, kind: "gate", title: w.title, ...baselineAudience, gateChoices: picks, gateTexts: texts, texts: typedAnswers, answers: baselineAnswers, behaviours: [] },
         });
       }
     } else {
@@ -354,6 +361,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
           ...baselineAudience,
           gateChoices: safePicks(qs),
           gateTexts: texts,
+          texts: typedAnswers,
           answers: baselineAnswers,
           behaviours: [],
         },
@@ -370,7 +378,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
       const reachPath = answersToReach(owner.id, optionId, spine, byOption, sq);
       if (!reachPath) {
         out.push({
-          plan: { id: `route-${optionId}`, kind: "routes", title: `takes the route on one answer of question ${owner.id}`, gateChoices: baselineGate, gateTexts: texts, answers: {}, behaviours: [] },
+          plan: { id: `route-${optionId}`, kind: "routes", title: `takes the route on one answer of question ${owner.id}`, gateChoices: baselineGate, gateTexts: texts, texts: typedAnswers, answers: {}, behaviours: [] },
           unreachable: "no run of answers reaches that question, so its route can never fire",
         });
         continue;
@@ -384,7 +392,57 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
           ...baselineAudience,
           gateChoices: baselineGate,
           gateTexts: texts,
+          texts: typedAnswers,
           answers: reachPath,
+          behaviours: [],
+        },
+      });
+    }
+
+    // The other half of branching: a question's DEFAULT route, which fires when no
+    // option rule does - a skipped question, a typed one, or an answer with no rule of
+    // its own. It is what brings a branch BACK, so a case that only ever triggers
+    // option rules would never once prove that a branch rejoins where it should.
+    for (const entry of spine) {
+      const fallback = entry.defaultRoute;
+      if (!fallback || fallback.action === "NEXT") continue;
+      const owner = sq.find((q) => q.id === entry.id);
+      if (!owner) continue;
+      const reachPath = answersToReachQuestion(entry.id, spine, byOption, sq);
+      if (!reachPath) {
+        out.push({
+          plan: {
+            id: `default-route-${entry.id}`,
+            kind: "routes",
+            title: `reaches question ${entry.id} and leaves by its default route`,
+            gateChoices: baselineGate,
+            gateTexts: texts,
+            texts: typedAnswers,
+            answers: {},
+            behaviours: [],
+          },
+          unreachable: "no run of answers reaches that question, so its default route can never fire",
+        });
+        continue;
+      }
+      // The question itself is left to its default: a typed answer for FREE_TEXT, and
+      // nothing picked otherwise, which is exactly when the default is what decides.
+      const partial = { ...reachPath };
+      delete partial[entry.id];
+      const answers = fillDownstream(partial, spine, byOption, sq);
+      const after = walk(new Map(Object.entries(answers)), spine, byOption).reached;
+      out.push({
+        plan: {
+          id: `default-route-${entry.id}`,
+          kind: "routes",
+          title: owner.typed
+            ? `types an answer and the flow should rejoin by the default route, seeing ${after.length} question(s)`
+            : `leaves that question to its default route, seeing ${after.length} question(s)`,
+          ...baselineAudience,
+          gateChoices: baselineGate,
+          gateTexts: texts,
+          texts: typedAnswers,
+          answers,
           behaviours: [],
         },
       });
@@ -418,7 +476,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
       }
       if (!found) {
         out.push({
-          plan: { id: `band-${band.id}`, kind: "bands", title: `lands in "${band.title}" (${band.minScore} to ${band.maxScore})`, gateChoices: baselineGate, gateTexts: texts, answers: {}, behaviours: [] },
+          plan: { id: `band-${band.id}`, kind: "bands", title: `lands in "${band.title}" (${band.minScore} to ${band.maxScore})`, gateChoices: baselineGate, gateTexts: texts, texts: typedAnswers, answers: {}, behaviours: [] },
           unreachable: "no answer set lands in this band, so nobody can ever see it",
         });
         continue;
@@ -431,6 +489,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
           ...baselineAudience,
           gateChoices: withGate,
           gateTexts: texts,
+          texts: typedAnswers,
           answers: found,
           behaviours: [],
         },
@@ -448,6 +507,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
         ...baselineAudience,
         gateChoices: baselineGate,
         gateTexts: texts,
+        texts: typedAnswers,
         answers: baselineAnswers,
         behaviours: ["reload-mid-flow"],
       },
@@ -460,6 +520,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
         ...baselineAudience,
         gateChoices: baselineGate,
         gateTexts: texts,
+        texts: typedAnswers,
         answers: baselineAnswers,
         behaviours: ["abandon-at-optin"],
       },
@@ -472,6 +533,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
           title: "tries to continue with a required question unanswered and must be stopped",
           gateChoices: baselineGate,
           gateTexts: texts,
+          texts: typedAnswers,
           answers: baselineAnswers,
           behaviours: ["skip-required"],
         },
@@ -485,6 +547,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
           title: `finishes, comes back as the same person, and should hit the ${funnel.row.retakePolicy} lockout`,
           gateChoices: baselineGate,
           gateTexts: texts,
+          texts: typedAnswers,
           answers: baselineAnswers,
           behaviours: ["retake"],
         },
@@ -502,6 +565,7 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
             ...baselineAudience,
             gateChoices: { ...safePicks(qs), [dq.q.id]: dq.o.id },
             gateTexts: texts,
+          texts: typedAnswers,
             answers: baselineAnswers,
             behaviours: ["back-after-exit"],
           },
@@ -511,6 +575,95 @@ export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedC
   }
 
   return out;
+}
+
+/**
+ * Answer everything still on the path, so the run can actually finish.
+ *
+ * Reaching a question is not the same as completing the assessment: whatever the flow
+ * leads to AFTER it still has required questions, and leaving them empty means the
+ * funnel refuses to submit - correctly - and the case fails for a reason that has
+ * nothing to do with what it was testing.
+ *
+ * Options that carry a rule of their own are avoided where possible, so filling the
+ * tail does not quietly re-route the very path the case was built to walk.
+ */
+function fillDownstream(
+  answers: Record<string, string>,
+  spine: SpineQuestion[],
+  byOption: Map<string, RouteSpec>,
+  sq: ScoredQ[],
+): Record<string, string> {
+  const out = { ...answers };
+  for (let pass = 0; pass < spine.length + 1; pass++) {
+    const reached = walk(new Map(Object.entries(out)), spine, byOption).reached;
+    const next = reached.find((qid) => {
+      const q = sq.find((x) => x.id === qid);
+      return q && !q.typed && q.options.length > 0 && !out[qid];
+    });
+    if (!next) break;
+    const q = sq.find((x) => x.id === next)!;
+    const quiet = q.options.find((o) => !byOption.has(o.id)) ?? q.options[0]!;
+    out[next] = quiet.id;
+  }
+  return out;
+}
+
+/**
+ * Answers that simply REACH a question, without deciding what happens at it.
+ *
+ * Used for the default-route cases, where the point is what the flow does when no
+ * option rule fires: the question is left unanswered (or, for a typed one, answered
+ * with a sentence that carries no rule), and its own default route decides.
+ */
+function answersToReachQuestion(
+  questionId: string,
+  spine: SpineQuestion[],
+  byOption: Map<string, RouteSpec>,
+  sq: ScoredQ[],
+): Record<string, string> | null {
+  const owner = sq.find((q) => q.id === questionId);
+  const firstOption = owner?.options[0]?.id;
+  // A typed question has no option to pick, so reaching it is the whole request.
+  const reached = firstOption
+    ? answersToReach(questionId, firstOption, spine, byOption, sq)
+    : answersToReachTyped(questionId, spine, byOption, sq);
+  return reached;
+}
+
+/** Breadth-first to a question that cannot be "picked" at all (FREE_TEXT). */
+function answersToReachTyped(
+  questionId: string,
+  spine: SpineQuestion[],
+  byOption: Map<string, RouteSpec>,
+  sq: ScoredQ[],
+): Record<string, string> | null {
+  const targetIndex = spine.findIndex((s) => s.id === questionId);
+  if (targetIndex < 0) return null;
+  const optionsOf = new Map(sq.map((q) => [q.id, q.options.map((o) => o.id)]));
+  const queue: { index: number; answers: Record<string, string> }[] = [{ index: 0, answers: {} }];
+  let guard = 0;
+  while (queue.length > 0 && guard < 5000) {
+    guard++;
+    const st = queue.shift();
+    if (!st) break;
+    if (st.index === targetIndex) return { ...st.answers };
+    const qid = spine[st.index]?.id;
+    if (!qid) continue;
+    const options = optionsOf.get(qid) ?? [];
+    if (options.length === 0) {
+      // Another typed question on the way: nothing to pick, so follow its default.
+      const nxt = nextIndex(st.index, undefined, spine, byOption);
+      if (nxt !== "END" && nxt <= targetIndex) queue.push({ index: nxt, answers: { ...st.answers } });
+      continue;
+    }
+    for (const oid of options) {
+      const nxt = nextIndex(st.index, oid, spine, byOption);
+      if (nxt === "END" || nxt > targetIndex) continue;
+      queue.push({ index: nxt, answers: { ...st.answers, [qid]: oid } });
+    }
+  }
+  return null;
 }
 
 /**

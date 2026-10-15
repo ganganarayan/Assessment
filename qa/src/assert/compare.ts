@@ -210,6 +210,21 @@ export function compare(
     }
   }
 
+  /* --- the sentences somebody typed --------------------------------------------- */
+  if (obs.typedQuestions.length > 0 && expected.rows.completed) {
+    const missing = obs.typedQuestions.filter((q) => !(rows.typedAnswers[q] ?? "").trim());
+    checks.push(
+      ok(
+        "what they typed is stored, not just collected",
+        missing.length === 0,
+        `${obs.typedQuestions.length} sentence(s) on the row`,
+        missing.length === 0
+          ? `${Object.keys(rows.typedAnswers).length} stored`
+          : `missing for ${missing.join(", ")}`,
+      ),
+    );
+  }
+
   /* --- what the funnel wrote ---------------------------------------------------- */
   checks.push(
     ok(

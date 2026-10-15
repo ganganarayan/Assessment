@@ -24,6 +24,13 @@ import {
   type GateExitInput,
 } from "../../../src/features/assessment/schemas.js";
 import type { EntryInput } from "../../../src/features/assessment/flow/entry.js";
+import {
+  buildSpine,
+  defaultRouteOf,
+  hasRouting,
+  type RouteSpec,
+  type SpineQuestion,
+} from "../../../src/lib/routing/engine.js";
 
 export async function readFunnelRow(slug: string) {
   return withDbRetry(
@@ -68,8 +75,19 @@ export interface Funnel {
   exits: GateExitInput[];
   /** True when the opt-in form comes AFTER the questions. */
   optinAfter: boolean;
-  /** True when conditional routing can fire: SINGLE mode with at least one route. */
+  /** True when conditional routing can fire. The app's own test: SINGLE mode and at
+   *  least one rule anywhere, an option's or a question's DEFAULT route. */
   routingActive: boolean;
+  /**
+   * The traversal spine and the option rules, built ONCE and shared.
+   *
+   * They used to be rebuilt separately by the case generator and by the oracle, and
+   * when questions gained a default route - the rule that brings a branch back - both
+   * copies would have had to learn about it independently. A spine missing that is a
+   * spine that quietly walks a different funnel from the one the respondent sees.
+   */
+  spine: SpineQuestion[];
+  byOption: Map<string, RouteSpec>;
 }
 
 export async function readFunnel(slug: string): Promise<Funnel> {
@@ -88,9 +106,29 @@ export async function readFunnel(slug: string): Promise<Funnel> {
   const audienceActive = audience.mode === "FREETEXT" || audience.roles.length > 0;
   const scoredQuestions = row.categories.reduce((n, c) => n + c.questions.length, 0);
 
-  const hasRoute = row.categories.some((c) =>
-    c.questions.some((q) => q.options.some((o) => o.route !== null)),
+  // The spine carries each question's default route, because that is half of branching:
+  // an option rule can fan a survey out but only a default route brings it back.
+  const spine = buildSpine(
+    row.categories.map((c) => ({
+      id: c.id,
+      page: c.page,
+      questions: c.questions.map((q) => ({ id: q.id, defaultRoute: defaultRouteOf(q) })),
+    })),
   );
+  const byOption = new Map<string, RouteSpec>();
+  for (const c of row.categories) {
+    for (const q of c.questions) {
+      for (const o of q.options) {
+        if (o.route) {
+          byOption.set(o.id, {
+            action: o.route.action,
+            targetQuestionId: o.route.targetQuestionId,
+            targetCategoryId: o.route.targetCategoryId,
+          });
+        }
+      }
+    }
+  }
 
   return {
     row,
@@ -110,7 +148,10 @@ export async function readFunnel(slug: string): Promise<Funnel> {
     exits: readExits(row.disqualifiedContent),
     optinAfter: row.leadCaptureAfter,
     // Routing only fires in SINGLE mode: the other display modes put several questions
-    // on one screen, where "jump to question 7" has no meaning.
-    routingActive: row.questionDisplayMode === "SINGLE" && hasRoute,
+    // on one screen, where "jump to question 7" has no meaning. The second half is the
+    // app's own hasRouting, so an option rule and a default route both count.
+    routingActive: row.questionDisplayMode === "SINGLE" && hasRouting(spine, byOption),
+    spine,
+    byOption,
   };
 }

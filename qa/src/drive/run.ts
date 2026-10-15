@@ -43,6 +43,8 @@ export interface Observation {
   exitButtonUrl: string | null;
   /** Scored question ids in the order they were shown. */
   questionsSeen: string[];
+  /** Questions answered by typing a sentence rather than picking. */
+  typedQuestions: string[];
   /** Gate question ids in the order they were asked. */
   gateQuestionsSeen: string[];
   /** A validation message the funnel showed instead of advancing. */
@@ -125,6 +127,7 @@ export async function driveCase(
     exitButtonLabel: null,
     exitButtonUrl: null,
     questionsSeen: [],
+    typedQuestions: [],
     gateQuestionsSeen: [],
     blocked: null,
     stoppedByValidation: false,
@@ -463,6 +466,19 @@ async function answerQuestionScreen(
   }
 
   for (const qid of idsOnScreen) {
+    // A FREE_TEXT question is a sentence, not a pick: it carries no options, scores
+    // nothing, and the flow leaves it by the question's own default route. Typing into
+    // it is how it gets answered, and a required one blocks the screen until it is.
+    const sentence = plan.texts[qid];
+    if (sentence !== undefined) {
+      const box = page.locator(`[data-qa-text='${qid}']`);
+      if (await box.count()) {
+        const typed = await safeFill(page, `[data-qa-text='${qid}']`, sentence);
+        obs.trail.push(typed ? `question ${qid}: typed an answer` : `question ${qid}: could not type`);
+        if (typed) obs.typedQuestions.push(qid);
+        continue;
+      }
+    }
     const optionId = plan.answers[qid];
     if (!optionId) continue;
     const radio = page.locator(`[data-qa-question='${qid}'] [data-qa-option='${optionId}']`);

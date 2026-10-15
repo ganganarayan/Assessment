@@ -43,6 +43,8 @@ export interface HandWrittenCase {
   audienceText?: string;
   gate?: Record<string, string>;
   answers?: Record<string, string>;
+  /** FREE_TEXT questions: what to type, keyed by question id or by its text. */
+  texts?: Record<string, string>;
   behaviours?: Behaviour[];
   expect?: ExpectOverride;
 }
@@ -164,6 +166,19 @@ export function applyOverrides(funnel: Funnel, generated: GeneratedCase[], ov: O
       }
       answers[pair[0]] = pair[1];
     }
+    // Typed answers resolve by question, and the sentence is taken as written.
+    const texts: Record<string, string> = {};
+    for (const [qRef, sentence] of Object.entries(hand.texts ?? {})) {
+      const question = funnel.row.categories
+        .flatMap((c) => c.questions)
+        .find((q) => q.id === qRef || q.text.trim().toLowerCase() === qRef.trim().toLowerCase());
+      if (!question) {
+        problems.push(`${hand.id}: typed answer for "${qRef}" does not resolve`);
+        continue;
+      }
+      texts[question.id] = sentence;
+    }
+
     const roleId = hand.audienceRole ? resolveRole(funnel, hand.audienceRole) : undefined;
     if (hand.audienceRole && !roleId) problems.push(`${hand.id}: audience role "${hand.audienceRole}" does not resolve`);
 
@@ -176,6 +191,7 @@ export function applyOverrides(funnel: Funnel, generated: GeneratedCase[], ov: O
       gateChoices,
       gateTexts: {},
       answers,
+      texts,
       behaviours: hand.behaviours ?? [],
     };
     cases.push({ plan });
