@@ -2,6 +2,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
+  applyImportedRoutes,
   assessmentCreateData,
   createResultDocsForImport,
   generateCopySlug,
@@ -146,6 +147,12 @@ export async function importTemplateForTenant(args: {
         tenantId: args.tenantId,
         body,
       });
+
+      // Its branching. Second pass by necessity: a route points at a question that had
+      // no id until the create above ran. Throws (and rolls the import back) on a
+      // template whose keys do not resolve, because a branched survey that imports with
+      // its branches silently missing is the one failure nobody can see.
+      await applyImportedRoutes(tx, created.id, body);
 
       return { assessmentId: created.id, slug: created.slug, promptVersionLabel };
     },

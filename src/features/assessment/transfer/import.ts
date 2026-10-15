@@ -1,7 +1,8 @@
 import "server-only";
-import { Prisma } from "@prisma/client";
+import { Prisma, RouteAction } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { type AssessmentBodyExport } from "./schema";
+import { type AssessmentBodyExport, type CategoryExport } from "./schema";
+import { buildSpine } from "@/lib/routing/engine";
 import { parseDocument, type ParseResult } from "./format";
 import { importedGate } from "./gate";
 
@@ -185,6 +186,150 @@ export function assessmentCreateData(
   };
 }
 
+/**
+ * Write the imported assessment's conditional routing.
+ *
+ * WHY THIS IS A SECOND PASS. A route points at another question or category, and those
+ * rows do not have ids until the nested create has run. So the create carries the
+ * questions and this carries the rules, keyed by the authored `key` fields, resolved
+ * against the rows that were just written.
+ *
+ * WHY POSITION, NOT NAME, MATCHES THE BODY TO THE ROWS. The create wrote categories and
+ * questions in array order with displayOrder set from that order, so reading them back
+ * in displayOrder gives the same sequence the file declared. Matching on text would
+ * break on the duplicate question text the format explicitly allows.
+ *
+ * 🔴 IT THROWS. A key that resolves to nothing, or a target that is not strictly
+ * forward, means the document is wrong - and because this runs inside the import
+ * transaction, throwing rolls the whole assessment back. The alternative, importing the
+ * questions and silently dropping the branches, is the one outcome nobody can debug:
+ * every screen looks right and a tenth of the respondents see the wrong follow-ups.
+ */
+export async function applyImportedRoutes(
+  tx: ImportTx,
+  assessmentId: string,
+  body: AssessmentBodyExport,
+): Promise<void> {
+  const hasAny = body.categories.some((c) =>
+    c.questions.some((q) => q.defaultRoute != null || q.options.some((o) => o.route != null)),
+  );
+  if (!hasAny) return;
+
+  const created = await tx.category.findMany({
+    where: { assessmentId },
+    orderBy: { displayOrder: "asc" },
+    select: {
+      id: true,
+      page: true,
+      questions: {
+        orderBy: { displayOrder: "asc" },
+        select: { id: true, options: { orderBy: { displayOrder: "asc" }, select: { id: true } } },
+      },
+    },
+  });
+
+  // key -> created id. The fallback keys mirror the ones export synthesises, so a file
+  // that routes without naming its own keys still resolves.
+  const catIdByKey = new Map<string, string>();
+  const qIdByKey = new Map<string, string>();
+  body.categories.forEach((c, ci) => {
+    const row = created[ci];
+    if (!row) return;
+    catIdByKey.set(c.key ?? `c${ci + 1}`, row.id);
+    c.questions.forEach((q, qi) => {
+      const qRow = row.questions[qi];
+      if (!qRow) return;
+      qIdByKey.set(q.key ?? `c${ci + 1}q${qi + 1}`, qRow.id);
+    });
+  });
+
+  // The traversal spine of the rows as written, so "strictly forward" means here what
+  // it means everywhere else - the same page-1-then-page-2 order the runner paginates in.
+  const spine = buildSpine(
+    created.map((c) => ({ id: c.id, page: c.page, questions: c.questions.map((q) => ({ id: q.id })) })),
+  );
+  const indexOfQuestion = new Map(spine.map((sq, i) => [sq.id, i] as const));
+  const firstIndexOfCategory = new Map<string, number>();
+  spine.forEach((sq, i) => {
+    if (!firstIndexOfCategory.has(sq.categoryId)) firstIndexOfCategory.set(sq.categoryId, i);
+  });
+
+  /** Resolve one authored rule against the created rows, or throw saying which one. */
+  const resolve = (
+    rule: NonNullable<CategoryExport["questions"][number]["defaultRoute"]>,
+    fromIndex: number,
+    where: string,
+  ): { action: RouteAction; targetQuestionId: string | null; targetCategoryId: string | null } | null => {
+    if (rule.action === "NEXT") return null;
+    if (rule.action === "SKIP_TO_END") {
+      return { action: RouteAction.SKIP_TO_END, targetQuestionId: null, targetCategoryId: null };
+    }
+    if (rule.action === "JUMP_TO_QUESTION") {
+      const id = rule.targetQuestionKey ? qIdByKey.get(rule.targetQuestionKey) : undefined;
+      if (!id) throw new Error(`${where}: no question with key "${rule.targetQuestionKey ?? ""}".`);
+      const ti = indexOfQuestion.get(id);
+      if (ti === undefined || ti <= fromIndex) {
+        throw new Error(`${where}: "${rule.targetQuestionKey}" is not a LATER question.`);
+      }
+      return { action: RouteAction.JUMP_TO_QUESTION, targetQuestionId: id, targetCategoryId: null };
+    }
+    const id = rule.targetCategoryKey ? catIdByKey.get(rule.targetCategoryKey) : undefined;
+    if (!id) throw new Error(`${where}: no category with key "${rule.targetCategoryKey ?? ""}".`);
+    const ci = firstIndexOfCategory.get(id);
+    if (ci === undefined || ci <= fromIndex) {
+      throw new Error(`${where}: "${rule.targetCategoryKey}" is not a LATER category.`);
+    }
+    return { action: RouteAction.JUMP_TO_CATEGORY, targetQuestionId: null, targetCategoryId: id };
+  };
+
+  const optionRules: {
+    questionId: string;
+    optionId: string;
+    action: RouteAction;
+    targetQuestionId: string | null;
+    targetCategoryId: string | null;
+  }[] = [];
+  const defaults: { id: string; data: Record<string, unknown> }[] = [];
+
+  body.categories.forEach((c, ci) => {
+    const row = created[ci];
+    if (!row) return;
+    c.questions.forEach((q, qi) => {
+      const qRow = row.questions[qi];
+      if (!qRow) return;
+      const fromIndex = indexOfQuestion.get(qRow.id) ?? -1;
+      const label = `Question "${q.text.slice(0, 40)}"`;
+
+      q.options.forEach((o, oi) => {
+        if (!o.route) return;
+        const oRow = qRow.options[oi];
+        if (!oRow) return;
+        const r = resolve(o.route, fromIndex, `${label}, answer "${o.label.slice(0, 30)}"`);
+        if (r) optionRules.push({ questionId: qRow.id, optionId: oRow.id, ...r });
+      });
+
+      if (q.defaultRoute) {
+        const r = resolve(q.defaultRoute, fromIndex, `${label}, default route`);
+        if (r) {
+          defaults.push({
+            id: qRow.id,
+            data: {
+              defaultRouteAction: r.action,
+              defaultTargetQuestionId: r.targetQuestionId,
+              defaultTargetCategoryId: r.targetCategoryId,
+            },
+          });
+        }
+      }
+    });
+  });
+
+  if (optionRules.length > 0) await tx.questionRoute.createMany({ data: optionRules });
+  for (const d of defaults) {
+    await tx.question.update({ where: { id: d.id }, data: d.data });
+  }
+}
+
 export interface ImportItem {
   body: AssessmentBodyExport;
   finalSlug: string;
@@ -257,6 +402,7 @@ export async function performImportAll(
           tenantId,
           body: item.body,
         });
+        await applyImportedRoutes(tx, createdRow.id, item.body);
       }
       return { count: items.length, renamed };
     },

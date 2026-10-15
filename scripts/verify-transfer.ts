@@ -221,6 +221,103 @@ roundTrip("single adversarial", [adversarial]);
 roundTrip("multi-assessment", [adversarial, second]);
 roundTrip("clinic-audit (v2 fields)", [clinic]);
 
+/**
+ * A ROUTED body: keys, a per-option rule, and a question default route.
+ *
+ * JSON only, deliberately. The CSV shape is one flat row per question and carries no
+ * routing; the JSON document is the authoritative format and the one a template is
+ * stored in. Round-tripping this through CSV would therefore and correctly lose the
+ * branches, so this case asserts the JSON path alone rather than pretending otherwise.
+ */
+const routed: AssessmentBodyExport = {
+  title: "Routed",
+  slug: "routed",
+  collectFirstName: true,
+  firstNameRequired: false,
+  collectLastName: false,
+  lastNameRequired: false,
+  collectEmail: true,
+  emailRequired: false,
+  collectMobile: false,
+  mobileRequired: false,
+  collectProfession: false,
+  professionRequired: false,
+  questionDisplayMode: "SINGLE",
+  categories: [
+    {
+      key: "ask",
+      name: "Ask",
+      displayOrder: 0,
+      questions: [
+        {
+          key: "q-why",
+          text: "Which one?",
+          type: "SINGLE_SELECT",
+          weight: 0,
+          required: true,
+          displayOrder: 0,
+          options: [
+            {
+              label: "The first",
+              value: 0,
+              displayOrder: 0,
+              route: { action: "JUMP_TO_CATEGORY", targetQuestionKey: null, targetCategoryKey: "branch" },
+            },
+            {
+              label: "The second",
+              value: 0,
+              displayOrder: 1,
+              route: { action: "JUMP_TO_QUESTION", targetQuestionKey: "q-tail", targetCategoryKey: null },
+            },
+          ],
+          defaultRoute: { action: "JUMP_TO_CATEGORY", targetQuestionKey: null, targetCategoryKey: "tail" },
+        },
+      ],
+    },
+    {
+      key: "branch",
+      name: "Branch",
+      displayOrder: 1,
+      questions: [
+        {
+          key: "q-branch",
+          text: "Say more",
+          type: "FREE_TEXT",
+          weight: 0,
+          required: false,
+          displayOrder: 0,
+          options: [],
+          defaultRoute: { action: "JUMP_TO_CATEGORY", targetQuestionKey: null, targetCategoryKey: "tail" },
+        },
+      ],
+    },
+    {
+      key: "tail",
+      name: "Tail",
+      displayOrder: 2,
+      questions: [
+        {
+          key: "q-tail",
+          text: "Anything else",
+          type: "FREE_TEXT",
+          weight: 0,
+          required: false,
+          displayOrder: 0,
+          options: [],
+        },
+      ],
+    },
+  ],
+  resultBands: [],
+};
+
+{
+  const res = parseDocument(bodiesToJson([routed], "2026-06-10T00:00:00.000Z"), "json");
+  if (!res.ok) fail("routed · JSON", res.errors.join("; "));
+  else eq("routed · JSON", res.data.assessments, [routed]);
+}
+
+
 // BOM tolerance (Excel / Windows re-save)
 {
   const r = parseDocument("﻿" + bodiesToJson([second]), "json");

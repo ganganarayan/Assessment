@@ -24,7 +24,12 @@ export async function buildAssessmentBody(
           bands: { orderBy: { displayOrder: "asc" } },
           questions: {
             orderBy: { displayOrder: "asc" },
-            include: { options: { orderBy: { displayOrder: "asc" } } },
+            include: {
+              options: {
+                orderBy: { displayOrder: "asc" },
+                include: { route: true },
+              },
+            },
           },
         },
       },
@@ -32,6 +37,47 @@ export async function buildAssessmentBody(
     },
   });
   if (!a) return null;
+
+  // ---- Conditional routing -------------------------------------------------
+  // Keys are synthesised ONLY when this assessment actually routes. An assessment
+  // without routing exports exactly the bytes it did before this existed, which is
+  // what keeps the round-trip check honest and old files comparable.
+  const routes = a.categories.some((c) =>
+    c.questions.some(
+      (q) => q.defaultRouteAction != null || q.options.some((o) => o.route != null),
+    ),
+  );
+  const catKey = new Map<string, string>();
+  const qKey = new Map<string, string>();
+  a.categories.forEach((c, ci) => {
+    catKey.set(c.id, `c${ci + 1}`);
+    c.questions.forEach((q, qi) => qKey.set(q.id, `c${ci + 1}q${qi + 1}`));
+  });
+  /** One rule -> the portable shape, with ids swapped for keys. A target that no
+   *  longer exists is dropped to a plain NEXT rather than exported as a dangling
+   *  key that would fail somebody else's import. */
+  const ruleOut = (r: {
+    action: string;
+    targetQuestionId: string | null;
+    targetCategoryId: string | null;
+  }) => {
+    if (r.action === "JUMP_TO_QUESTION") {
+      const k = r.targetQuestionId ? qKey.get(r.targetQuestionId) : undefined;
+      return k
+        ? { action: "JUMP_TO_QUESTION" as const, targetQuestionKey: k, targetCategoryKey: null }
+        : { action: "NEXT" as const, targetQuestionKey: null, targetCategoryKey: null };
+    }
+    if (r.action === "JUMP_TO_CATEGORY") {
+      const k = r.targetCategoryId ? catKey.get(r.targetCategoryId) : undefined;
+      return k
+        ? { action: "JUMP_TO_CATEGORY" as const, targetQuestionKey: null, targetCategoryKey: k }
+        : { action: "NEXT" as const, targetQuestionKey: null, targetCategoryKey: null };
+    }
+    if (r.action === "SKIP_TO_END") {
+      return { action: "SKIP_TO_END" as const, targetQuestionKey: null, targetCategoryKey: null };
+    }
+    return { action: "NEXT" as const, targetQuestionKey: null, targetCategoryKey: null };
+  };
 
   return {
     title: a.title,
@@ -112,6 +158,7 @@ export async function buildAssessmentBody(
     paymentEventName: a.paymentEventName,
     paymentIntroText: a.paymentIntroText,
     categories: a.categories.map((c, ci) => ({
+      ...(routes ? { key: catKey.get(c.id) } : {}),
       name: c.name,
       description: c.description,
       displayOrder: ci,
@@ -132,6 +179,7 @@ export async function buildAssessmentBody(
           }
         : {}),
       questions: c.questions.map((q, qi) => ({
+        ...(routes ? { key: qKey.get(q.id) } : {}),
         text: q.text,
         type: q.type,
         weight: q.weight,
@@ -145,7 +193,17 @@ export async function buildAssessmentBody(
           displayOrder: oi,
           diagnosisClause: o.diagnosisClause,
           isAssumption: o.isAssumption,
+          ...(routes && o.route ? { route: ruleOut(o.route) } : {}),
         })),
+        ...(routes && q.defaultRouteAction
+          ? {
+              defaultRoute: ruleOut({
+                action: q.defaultRouteAction,
+                targetQuestionId: q.defaultTargetQuestionId,
+                targetCategoryId: q.defaultTargetCategoryId,
+              }),
+            }
+          : {}),
       })),
     })),
     resultBands: a.resultBands.map((b, bi) => ({

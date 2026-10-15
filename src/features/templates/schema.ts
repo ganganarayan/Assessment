@@ -55,6 +55,9 @@ export const TEMPLATE_CATEGORIES = [
   "Insurance brokers",
   "Webinars",
   "Recruiters",
+  // Not an audience: the platform owner's own funnels, which no tenant should be
+  // reading as a template for their business. Last on the shelf, deliberately.
+  "Platform",
 ] as const;
 
 export const templateDocSchema = z.object({

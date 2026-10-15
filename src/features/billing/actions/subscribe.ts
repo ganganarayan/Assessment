@@ -21,6 +21,7 @@ import { EventType } from "@prisma/client";
 import { emitEvent } from "@/lib/events/emit";
 import { formatIST } from "@/lib/date";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { buildExitLink } from "@/lib/billing/exit-link";
 
 /**
  * The owner's exit assessment, read WITHOUT a super-admin guard - the person reading it
@@ -276,7 +277,16 @@ export async function cancelSubscription(): Promise<ActionResult<CancelResult>> 
     data: { cancelAtPeriodEnd: true },
   });
 
-  const exitAssessmentUrl = await cancelExitAssessmentUrl();
+  // The exit survey, with the cancelling customer's own identity signed into the link.
+  // Without it they land on a cold opt-in form and are asked to type the email the
+  // product has had on file for months, which is where somebody who has just quit
+  // closes the tab.
+  const exitAssessmentUrl = buildExitLink(await cancelExitAssessmentUrl(), {
+    tenantId: tenant.id,
+    tenantSlug: tenant.slug,
+    firstName: scope.user.name ?? null,
+    email: scope.user.email ?? null,
+  });
   const endsAt = sub.currentPeriodEnd ?? null;
 
   // The owner's CRM hears this, not the workspace's: a tenant has no use for a webhook

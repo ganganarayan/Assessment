@@ -1,0 +1,1541 @@
+{
+ "slug": "cancellation-exit-why-you-left",
+ "title": "Why you left (cancellation exit)",
+ "category": "Platform",
+ "summary": "The exit survey a cancelling customer sees once the cancellation is already booked. One required question, a branch per reason, all of it taps, and one open box on the last screen.",
+ "shape": "UNGATED_ASSESSMENT",
+ "aiInstructions": null,
+ "body": {
+  "title": "Why you left",
+  "slug": "why-you-left",
+  "description": null,
+  "coverImageUrl": null,
+  "estimatedMinutes": 1,
+  "thankYouMessage": "Thank you. This is the only way we find out what to fix.",
+  "collectFirstName": false,
+  "firstNameRequired": false,
+  "collectLastName": false,
+  "lastNameRequired": false,
+  "collectEmail": false,
+  "emailRequired": false,
+  "collectMobile": false,
+  "mobileRequired": false,
+  "collectProfession": false,
+  "professionRequired": false,
+  "engine": "GENERIC",
+  "engineConfig": null,
+  "eyebrow": "One question, then taps",
+  "subheadline": "Your cancellation is already done. Nothing on these screens changes it, we already know who you are, and every question after the first is optional.",
+  "qualifiedNote": null,
+  "introNotice": "Your plan is already cancelled and you will not be charged again. We are asking why so we can fix it, not to talk you out of it. One question is required, the rest are taps you can skip, and closing this page does not affect the cancellation.",
+  "leadCaptureAfter": true,
+  "startButtonLabel": "Start",
+  "resultsButtonLabel": "Done",
+  "useAiStatement": false,
+  "nextStep": "NO_RESULT",
+  "questionDisplayMode": "SINGLE",
+  "qualification": null,
+  "disqualifiedContent": null,
+  "fireMetaCapi": false,
+  "platformSignup": false,
+  "retakePolicy": "UNLIMITED",
+  "retakeDays": 15,
+  "uniqueIdentifier": "EMAIL",
+  "categories": [
+   {
+    "key": "why",
+    "name": "Why you are leaving",
+    "description": "The only question we ask you to answer. Everything after it is optional.",
+    "displayOrder": 0,
+    "page": 1,
+    "bands": [],
+    "questions": [
+     {
+      "key": "q-why",
+      "text": "Why are you cancelling? Pick the closest one.",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": true,
+      "displayOrder": 0,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "I never got it set up",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false,
+        "route": {
+         "action": "JUMP_TO_CATEGORY",
+         "targetQuestionKey": null,
+         "targetCategoryKey": "b-setup"
+        }
+       },
+       {
+        "label": "I set it up, but my lead quality did not change",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false,
+        "route": {
+         "action": "JUMP_TO_CATEGORY",
+         "targetQuestionKey": null,
+         "targetCategoryKey": "b-quality"
+        }
+       },
+       {
+        "label": "It worked, but it is not worth the price to me",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false,
+        "route": {
+         "action": "JUMP_TO_CATEGORY",
+         "targetQuestionKey": null,
+         "targetCategoryKey": "b-price"
+        }
+       },
+       {
+        "label": "Too complicated to use",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false,
+        "route": {
+         "action": "JUMP_TO_CATEGORY",
+         "targetQuestionKey": null,
+         "targetCategoryKey": "b-complex"
+        }
+       },
+       {
+        "label": "It was missing something I needed",
+        "value": 0,
+        "displayOrder": 4,
+        "diagnosisClause": null,
+        "isAssumption": false,
+        "route": {
+         "action": "JUMP_TO_CATEGORY",
+         "targetQuestionKey": null,
+         "targetCategoryKey": "b-missing"
+        }
+       },
+       {
+        "label": "I moved to a different tool",
+        "value": 0,
+        "displayOrder": 5,
+        "diagnosisClause": null,
+        "isAssumption": false,
+        "route": {
+         "action": "JUMP_TO_CATEGORY",
+         "targetQuestionKey": null,
+         "targetCategoryKey": "b-switch"
+        }
+       },
+       {
+        "label": "I stopped or paused running ads",
+        "value": 0,
+        "displayOrder": 6,
+        "diagnosisClause": null,
+        "isAssumption": false,
+        "route": {
+         "action": "JUMP_TO_CATEGORY",
+         "targetQuestionKey": null,
+         "targetCategoryKey": "b-pause"
+        }
+       },
+       {
+        "label": "I only needed it for one campaign, and that is done",
+        "value": 0,
+        "displayOrder": 7,
+        "diagnosisClause": null,
+        "isAssumption": false,
+        "route": {
+         "action": "JUMP_TO_CATEGORY",
+         "targetQuestionKey": null,
+         "targetCategoryKey": "b-pause"
+        }
+       },
+       {
+        "label": "Technical problems",
+        "value": 0,
+        "displayOrder": 8,
+        "diagnosisClause": null,
+        "isAssumption": false,
+        "route": {
+         "action": "JUMP_TO_CATEGORY",
+         "targetQuestionKey": null,
+         "targetCategoryKey": "b-tech"
+        }
+       },
+       {
+        "label": "Something else",
+        "value": 0,
+        "displayOrder": 9,
+        "diagnosisClause": null,
+        "isAssumption": false,
+        "route": {
+         "action": "JUMP_TO_CATEGORY",
+         "targetQuestionKey": null,
+         "targetCategoryKey": "b-else"
+        }
+       }
+      ],
+      "defaultRoute": {
+       "action": "JUMP_TO_CATEGORY",
+       "targetQuestionKey": null,
+       "targetCategoryKey": "everyone"
+      }
+     }
+    ]
+   },
+   {
+    "key": "b-setup",
+    "name": "Getting set up",
+    "description": "What stopped the setup.",
+    "displayOrder": 1,
+    "page": 1,
+    "bands": [],
+    "questions": [
+     {
+      "key": "setup-stop",
+      "text": "Where did you stop?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 0,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "I never started",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Writing the gate questions",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Connecting the Meta pixel",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Building the audiences",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Publishing it to a live campaign",
+        "value": 0,
+        "displayOrder": 4,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Somewhere else",
+        "value": 0,
+        "displayOrder": 5,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "setup-call",
+      "text": "Did you book the 30 minute build call?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 1,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Yes, and it helped",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Yes, but it did not get me there",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "No, I never got round to it",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "No, I did not know it existed",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "setup-why",
+      "text": "Was it unclear, or was it time?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 2,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "It was unclear",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "I ran out of time",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Both",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Neither, something else came up",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ],
+      "defaultRoute": {
+       "action": "JUMP_TO_CATEGORY",
+       "targetQuestionKey": null,
+       "targetCategoryKey": "everyone"
+      }
+     }
+    ]
+   },
+   {
+    "key": "b-quality",
+    "name": "Lead quality",
+    "description": "What the gate did and did not catch.",
+    "displayOrder": 2,
+    "page": 1,
+    "bands": [],
+    "questions": [
+     {
+      "key": "quality-days",
+      "text": "How many days did the gate run live on a real campaign?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 0,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "It never went live",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Under 7 days",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "7 to 30 days",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "More than 30 days",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "quality-cpl",
+      "text": "Did your cost per qualified lead move?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 1,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "It came down",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "No change",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "It went up",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "I could not tell",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "quality-missed",
+      "text": "What should the gate have caught and did not?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 2,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "People with no budget",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "People not ready to buy yet",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "The wrong city or area",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "The wrong service or product",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Curious people with no intent",
+        "value": 0,
+        "displayOrder": 4,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Nothing, the leads were fine",
+        "value": 0,
+        "displayOrder": 5,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ],
+      "defaultRoute": {
+       "action": "JUMP_TO_CATEGORY",
+       "targetQuestionKey": null,
+       "targetCategoryKey": "everyone"
+      }
+     }
+    ]
+   },
+   {
+    "key": "b-price",
+    "name": "Price",
+    "description": "What it would have had to be worth.",
+    "displayOrder": 3,
+    "page": 1,
+    "bands": [],
+    "questions": [
+     {
+      "key": "price-worth",
+      "text": "What would have made the price feel right?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 0,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "More qualified leads",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "A lower price for the same thing",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "More responses included",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "More workspaces or ad accounts",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Someone setting it up for me",
+        "value": 0,
+        "displayOrder": 4,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Nothing, it was the wrong fit",
+        "value": 0,
+        "displayOrder": 5,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "price-limit",
+      "text": "Did you hit a limit on your plan?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 1,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Yes, on responses",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Yes, on workspaces or ad accounts",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Yes, on something else",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "No",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "price-smaller",
+      "text": "Would a smaller plan have kept you?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 2,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Yes",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Maybe",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "No",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ],
+      "defaultRoute": {
+       "action": "JUMP_TO_CATEGORY",
+       "targetQuestionKey": null,
+       "targetCategoryKey": "everyone"
+      }
+     }
+    ]
+   },
+   {
+    "key": "b-complex",
+    "name": "Where it got complicated",
+    "description": "Which screen lost you.",
+    "displayOrder": 4,
+    "page": 1,
+    "bands": [],
+    "questions": [
+     {
+      "key": "complex-screen",
+      "text": "Which screen lost you?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 0,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "The assessment builder",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "The result page",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "The Meta or pixel setup",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Custom domains",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Settings",
+        "value": 0,
+        "displayOrder": 4,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "All of it, not one screen",
+        "value": 0,
+        "displayOrder": 5,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "complex-who",
+      "text": "Were you setting it up yourself?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 1,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Yes, myself",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Someone on my team was",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "An agency or freelancer was",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "complex-help",
+      "text": "What would have helped most?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 2,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Someone doing it for me",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "A shorter setup",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "A video walkthrough",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Clearer wording on the screens",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Help on chat while I did it",
+        "value": 0,
+        "displayOrder": 4,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ],
+      "defaultRoute": {
+       "action": "JUMP_TO_CATEGORY",
+       "targetQuestionKey": null,
+       "targetCategoryKey": "everyone"
+      }
+     }
+    ]
+   },
+   {
+    "key": "b-missing",
+    "name": "What was missing",
+    "description": "The thing it could not do.",
+    "displayOrder": 5,
+    "page": 1,
+    "bands": [],
+    "questions": [
+     {
+      "key": "missing-what",
+      "text": "What did you need that was not there?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 0,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "A connection to my CRM",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "WhatsApp or SMS follow-up",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "A question type you do not have",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Booking or calendar",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Team or client access",
+        "value": 0,
+        "displayOrder": 4,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Deeper reporting",
+        "value": 0,
+        "displayOrder": 5,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Something else",
+        "value": 0,
+        "displayOrder": 6,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "missing-workaround",
+      "text": "Did you find a workaround?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 1,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Yes, outside this tool",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Yes, inside it, but it was awkward",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "No",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ],
+      "defaultRoute": {
+       "action": "JUMP_TO_CATEGORY",
+       "targetQuestionKey": null,
+       "targetCategoryKey": "everyone"
+      }
+     }
+    ]
+   },
+   {
+    "key": "b-switch",
+    "name": "The other tool",
+    "description": "What it does better.",
+    "displayOrder": 6,
+    "page": 1,
+    "bands": [],
+    "questions": [
+     {
+      "key": "switch-better",
+      "text": "What does it do better?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 0,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "It is cheaper",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "It was easier to set up",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Better reporting",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "More question types",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "It does the follow-up too",
+        "value": 0,
+        "displayOrder": 4,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "It was already in my stack",
+        "value": 0,
+        "displayOrder": 5,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "switch-decider",
+      "text": "Was it one thing that decided it, or the whole package?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 1,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "One thing",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "The whole package",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Price alone",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Somebody recommended it",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ],
+      "defaultRoute": {
+       "action": "JUMP_TO_CATEGORY",
+       "targetQuestionKey": null,
+       "targetCategoryKey": "everyone"
+      }
+     }
+    ]
+   },
+   {
+    "key": "b-pause",
+    "name": "Pause or stop",
+    "description": "Whether this is goodbye or see you later.",
+    "displayOrder": 7,
+    "page": 1,
+    "bands": [],
+    "questions": [
+     {
+      "key": "pause-kind",
+      "text": "Is this a pause or a stop?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 0,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "A pause, I expect to be back",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "A stop for now",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "I do not know yet",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "pause-when",
+      "text": "When would you expect to be running ads again?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 1,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Within a month",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "One to three months",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Later than that",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Not sure",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Not coming back to ads",
+        "value": 0,
+        "displayOrder": 4,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ],
+      "defaultRoute": {
+       "action": "JUMP_TO_CATEGORY",
+       "targetQuestionKey": null,
+       "targetCategoryKey": "everyone"
+      }
+     }
+    ]
+   },
+   {
+    "key": "b-tech",
+    "name": "What broke",
+    "description": "The failure, and what happened when you said so.",
+    "displayOrder": 8,
+    "page": 1,
+    "bands": [],
+    "questions": [
+     {
+      "key": "tech-what",
+      "text": "What broke?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 0,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Leads did not arrive",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Meta events did not fire",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "The result page",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "A custom domain or login",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "The builder would not save",
+        "value": 0,
+        "displayOrder": 4,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Something else",
+        "value": 0,
+        "displayOrder": 5,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "tech-reported",
+      "text": "Did you report it?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 1,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Yes, and it was fixed",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Yes, and it was not",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "No, I did not know how",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "No, I did not have time",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ],
+      "defaultRoute": {
+       "action": "JUMP_TO_CATEGORY",
+       "targetQuestionKey": null,
+       "targetCategoryKey": "everyone"
+      }
+     }
+    ]
+   },
+   {
+    "key": "b-else",
+    "name": "Something else",
+    "description": "The closest thing to it.",
+    "displayOrder": 9,
+    "page": 1,
+    "bands": [],
+    "questions": [
+     {
+      "key": "else-what",
+      "text": "Which is closest?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 0,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "My business changed direction",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "I left the business or the role",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Budget was cut",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "I never really started",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Personal reasons",
+        "value": 0,
+        "displayOrder": 4,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "I would rather not say",
+        "value": 0,
+        "displayOrder": 5,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ],
+      "defaultRoute": {
+       "action": "JUMP_TO_CATEGORY",
+       "targetQuestionKey": null,
+       "targetCategoryKey": "everyone"
+      }
+     }
+    ]
+   },
+   {
+    "key": "everyone",
+    "name": "Three questions for everyone",
+    "description": "These compare what you expected against what you got, which is the part that changes the product.",
+    "displayOrder": 10,
+    "page": 1,
+    "bands": [],
+    "questions": [
+     {
+      "key": "all-expected",
+      "text": "When you signed up, what did you expect that did not happen?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 0,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "More qualified leads",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Fewer time-wasters to talk to",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Less manual work",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Better reporting",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Someone to set it up with me",
+        "value": 0,
+        "displayOrder": 4,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "It did what I expected, the fit was wrong",
+        "value": 0,
+        "displayOrder": 5,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "all-instead",
+      "text": "What are you doing instead now?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 1,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Another tool",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Plain forms",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "My own calls or DMs",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "An agency or an in-house team",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "I stopped running ads",
+        "value": 0,
+        "displayOrder": 4,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Nothing for now",
+        "value": 0,
+        "displayOrder": 5,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "all-saved",
+      "text": "Was there a moment where we could have saved this?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 2,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Yes, in the first week",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Yes, when it went live",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "Yes, when I asked for help",
+        "value": 0,
+        "displayOrder": 2,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "No, nothing would have changed it",
+        "value": 0,
+        "displayOrder": 3,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "key": "before-you-go",
+    "name": "Before you go",
+    "description": "Three taps, and one box if you feel like using it.",
+    "displayOrder": 11,
+    "page": 1,
+    "bands": [],
+    "questions": [
+     {
+      "key": "go-call",
+      "text": "Would you take 15 minutes with the founder? Not a retention call, and nobody will pitch you.",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 0,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Yes",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "No",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "go-keep",
+      "text": "Keep my scorecard and settings in case I come back.",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 1,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Yes, keep them",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "No, remove them",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "go-followup",
+      "text": "May we come back to you if we fix the thing you named?",
+      "type": "SINGLE_SELECT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 2,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": [
+       {
+        "label": "Yes",
+        "value": 0,
+        "displayOrder": 0,
+        "diagnosisClause": null,
+        "isAssumption": false
+       },
+       {
+        "label": "No",
+        "value": 0,
+        "displayOrder": 1,
+        "diagnosisClause": null,
+        "isAssumption": false
+       }
+      ]
+     },
+     {
+      "key": "go-anything",
+      "text": "Anything you want to say before you leave? Feedback, a strong recommendation, or whatever is on your mind.",
+      "type": "FREE_TEXT",
+      "weight": 0,
+      "required": false,
+      "displayOrder": 3,
+      "scoringRole": null,
+      "scoringUnit": null,
+      "options": []
+     }
+    ]
+   }
+  ],
+  "resultBands": [
+   {
+    "level": "LOW",
+    "title": "Thank you. That is genuinely useful.",
+    "description": "Nothing is scored here and there is no result to read. If you asked for the call, or said we may come back to you, we will be in touch; otherwise this is the end of it. Your data stays where it is.",
+    "minScore": 0,
+    "maxScore": 100,
+    "displayOrder": 0
+   }
+  ]
+ }
+}

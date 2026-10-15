@@ -18,6 +18,159 @@
 import { templateDocSchema, TEMPLATE_CATEGORIES } from "../src/features/templates/schema";
 import { qualificationSchema } from "../src/features/assessment/schemas";
 import { BUILTIN_TEMPLATE_DOCS } from "../src/features/templates/builtin";
+import { buildSpine, walk, type RouteSpec, type SpineQuestion } from "../src/lib/routing/engine";
+import type { TemplateDoc } from "../src/features/templates/schema";
+
+/**
+ * Branching checks for a template that routes - run against the pure engine, with the
+ * document's own keys standing in for the ids an import will create.
+ *
+ * Three things are proved, and the third is the one that matters:
+ *  1. every target key resolves to something in this document,
+ *  2. every jump is strictly forward (the import refuses a backward one, so a template
+ *     carrying one would fail the moment a tenant pressed Import),
+ *  3. a respondent who picks one branch NEVER sees another branch's questions, and
+ *     still reaches the shared tail.
+ *
+ * Point 3 cannot be eyeballed. A ten-branch survey has ten paths and the failure is
+ * silent: every question is present, in the right order, and a tenth of the respondents
+ * answer somebody else's follow-ups.
+ */
+function routingProblems(d: TemplateDoc): string[] {
+  const out: string[] = [];
+  const cats = d.body.categories;
+  const keyOfCat = (ci: number) => cats[ci]!.key ?? `c${ci + 1}`;
+  const keyOfQ = (ci: number, qi: number) => cats[ci]!.questions[qi]!.key ?? `c${ci + 1}q${qi + 1}`;
+
+  const anyRoute = cats.some((c) =>
+    c.questions.some((q) => q.defaultRoute != null || q.options.some((o) => o.route != null)),
+  );
+  if (!anyRoute) return out;
+
+  // SINGLE is the only mode that honors routing, so a routed template in another mode
+  // is a template whose branches silently do nothing.
+  if (d.body.questionDisplayMode !== "SINGLE") {
+    out.push(
+      `routes but questionDisplayMode is ${d.body.questionDisplayMode ?? "unset"}, so they never fire`,
+    );
+  }
+
+  const catKeys = new Set(cats.map((_, ci) => keyOfCat(ci)));
+  const qKeys = new Set(cats.flatMap((c, ci) => c.questions.map((_, qi) => keyOfQ(ci, qi))));
+
+  // The spine, ordered exactly as the import will order the rows it creates.
+  const spine: SpineQuestion[] = buildSpine(
+    cats.map((c, ci) => ({
+      id: keyOfCat(ci),
+      page: c.page ?? 1,
+      questions: c.questions.map((q, qi) => ({
+        id: keyOfQ(ci, qi),
+        defaultRoute: q.defaultRoute
+          ? {
+              action: q.defaultRoute.action,
+              targetQuestionId: q.defaultRoute.targetQuestionKey ?? null,
+              targetCategoryId: q.defaultRoute.targetCategoryKey ?? null,
+            }
+          : null,
+      })),
+    })),
+  );
+  const indexOfQ = new Map(spine.map((sq, i) => [sq.id, i] as const));
+  const firstIndexOfCat = new Map<string, number>();
+  spine.forEach((sq, i) => {
+    if (!firstIndexOfCat.has(sq.categoryId)) firstIndexOfCat.set(sq.categoryId, i);
+  });
+  const catOfQ = new Map(spine.map((sq) => [sq.id, sq.categoryId] as const));
+
+  const optionId = (qKey: string, oi: number) => `${qKey}#${oi}`;
+  const byOption = new Map<string, RouteSpec>();
+  cats.forEach((c, ci) =>
+    c.questions.forEach((q, qi) =>
+      q.options.forEach((o, oi) => {
+        if (!o.route) return;
+        byOption.set(optionId(keyOfQ(ci, qi), oi), {
+          action: o.route.action,
+          targetQuestionId: o.route.targetQuestionKey ?? null,
+          targetCategoryId: o.route.targetCategoryKey ?? null,
+        });
+      }),
+    ),
+  );
+
+  /** The target resolves, and is strictly forward of `from`. */
+  const checkRule = (
+    rule: { action: string; targetQuestionKey?: string | null; targetCategoryKey?: string | null },
+    from: number,
+    where: string,
+  ) => {
+    if (rule.action === "JUMP_TO_QUESTION") {
+      const k = rule.targetQuestionKey ?? "";
+      if (!qKeys.has(k)) {
+        out.push(`${where}: no question with key "${k}"`);
+        return;
+      }
+      if (indexOfQ.get(k)! <= from) out.push(`${where}: "${k}" is not a later question`);
+      return;
+    }
+    if (rule.action === "JUMP_TO_CATEGORY") {
+      const k = rule.targetCategoryKey ?? "";
+      if (!catKeys.has(k)) {
+        out.push(`${where}: no category with key "${k}"`);
+        return;
+      }
+      const ci = firstIndexOfCat.get(k);
+      if (ci === undefined || ci <= from) out.push(`${where}: "${k}" is not a later category`);
+    }
+  };
+
+  cats.forEach((c, ci) =>
+    c.questions.forEach((q, qi) => {
+      const qk = keyOfQ(ci, qi);
+      const from = indexOfQ.get(qk)!;
+      q.options.forEach((o) => {
+        if (o.route) checkRule(o.route, from, `"${o.label.slice(0, 24)}" on ${qk}`);
+      });
+      if (q.defaultRoute) checkRule(q.defaultRoute, from, `default route on ${qk}`);
+    }),
+  );
+
+  // ---- No branch leaks into a sibling branch, and all of them rejoin -------
+  const lastCat = keyOfCat(cats.length - 1);
+  cats.forEach((c, ci) =>
+    c.questions.forEach((q, qi) => {
+      const qk = keyOfQ(ci, qi);
+      const siblings = new Set(
+        q.options
+          .filter((o) => o.route?.action === "JUMP_TO_CATEGORY" && o.route.targetCategoryKey)
+          .map((o) => o.route!.targetCategoryKey as string),
+      );
+      if (siblings.size < 2) return;
+
+      q.options.forEach((o, oi) => {
+        const target = o.route?.action === "JUMP_TO_CATEGORY" ? o.route.targetCategoryKey : null;
+        if (!target) return;
+        // Answer THIS option and nothing else: the respondent who skips every optional
+        // follow-up, which is the path that used to fall through into the next branch.
+        const reached = walk(new Map([[qk, optionId(qk, oi)]]), spine, byOption).reached;
+        const strayed = [
+          ...new Set(
+            reached.map((id) => catOfQ.get(id)!).filter((cat) => cat !== target && siblings.has(cat)),
+          ),
+        ];
+        if (strayed.length > 0) {
+          out.push(
+            `"${o.label.slice(0, 24)}" routes to ${target} but the path also enters ${strayed.join(", ")}`,
+          );
+        }
+        if (!reached.some((id) => catOfQ.get(id) === lastCat)) {
+          out.push(`"${o.label.slice(0, 24)}" routes to ${target} and never reaches ${lastCat}`);
+        }
+      });
+    }),
+  );
+
+  return out;
+}
 
 let failures = 0;
 const ok = (name: string) => console.log(`  PASS  ${name}`);
@@ -114,9 +267,18 @@ for (const raw of BUILTIN_TEMPLATE_DOCS) {
     const cc = bandCoverage(c.bands ?? []);
     if (cc) problems.push(`category "${c.name}" bands: ${cc}`);
     for (const qq of c.questions) {
-      if (qq.options.length < 2) problems.push(`question "${qq.text.slice(0, 30)}" has under 2 options`);
+      // A FREE_TEXT question has no options by definition, and an UNSCORED question
+      // (every option worth zero, as in a survey that only collects answers) has no
+      // points to duplicate. Both rules below are about a SCORED choice question - the
+      // case where two options worth the same number means somebody fat-fingered a
+      // scale - so neither applies to those.
+      const typed = qq.type === "FREE_TEXT";
+      const scored = qq.options.some((o) => o.value !== 0);
+      if (!typed && qq.options.length < 2) {
+        problems.push(`question "${qq.text.slice(0, 30)}" has under 2 options`);
+      }
       const values = qq.options.map((o) => o.value);
-      if (new Set(values).size !== values.length) {
+      if (!typed && scored && new Set(values).size !== values.length) {
         problems.push(`question "${qq.text.slice(0, 30)}" repeats an option value`);
       }
     }
@@ -133,6 +295,8 @@ for (const raw of BUILTIN_TEMPLATE_DOCS) {
   // A gate-only funnel has no categories to interpret, so an AI statement has nothing
   // to write about.
   if (d.shape === "GATE_ONLY" && b.useAiStatement) problems.push("GATE_ONLY with an AI statement");
+
+  problems.push(...routingProblems(d));
 
   if (problems.length) fail(d.slug, problems.join("\n        "));
   else ok(`${d.slug}  [${d.shape}] gate=${gateQuestions.length} questions=${questions} ai=${d.aiInstructions ? "yes" : "no"}`);

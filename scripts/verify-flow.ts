@@ -27,6 +27,30 @@ const base: FlowInput = {
 
 const cases: { name: string; input: FlowInput; stage: TerminalStage; wait: number }[] = [
   {
+    name: "no-result funnel ends on the thank-you message, with no countdown",
+    input: { ...base, noResult: true },
+    stage: "NO_RESULT",
+    wait: 0,
+  },
+  {
+    name: "no-result beats a leftover result page",
+    input: { ...base, noResult: true, pageCount: 2 },
+    stage: "NO_RESULT",
+    wait: 0,
+  },
+  {
+    name: "no-result beats payment",
+    input: { ...base, noResult: true, paidMode: true },
+    stage: "NO_RESULT",
+    wait: 0,
+  },
+  {
+    name: "a signup funnel still wins over no-result",
+    input: { ...base, noResult: true, platformSignup: true },
+    stage: "SIGNUP",
+    wait: 0,
+  },
+  {
     name: "plain funnel ends at the destination and keeps its countdown",
     input: { ...base },
     stage: "DESTINATION",

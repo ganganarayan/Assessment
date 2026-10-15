@@ -425,10 +425,17 @@ export const assessmentSchema = z.object({
   resultsButtonLabel: z.string().max(120).optional().or(z.literal("")),
   // Retake lockout config.
   retakePolicy: z.enum(["DELAYED", "NEVER", "UNLIMITED"]).default("DELAYED"),
+  // The lock period. Floor is ZERO here, not one, and the "at least 1" rule lives in
+  // the refine below where it can see the policy.
+  //
+  // The field is only RENDERED when the policy is DELAYED, so a funnel that arrived
+  // with 0 and a policy of NEVER or UNLIMITED - an import, say - failed validation on
+  // every save, on every step, pointing at a field the form had no reason to show. The
+  // owner was told to fix a number that was not on screen and did not matter.
   retakeDays: z.coerce
     .number()
     .int("Lock days must be a whole number.")
-    .min(1, "Lock days must be at least 1.")
+    .min(0, "Lock days cannot be negative.")
     .max(3650, "Lock days can be at most 3650.")
     .default(15),
   uniqueIdentifier: z.enum(["EMAIL", "MOBILE"]).default("EMAIL"),
@@ -478,7 +485,7 @@ export const assessmentSchema = z.object({
   // Explicit next step after the Results page. PAYMENT => take payment then go to
   // the destination; DESTINATION => straight to the destination/VSL. The save
   // action derives the legacy paidMode boolean from this.
-  nextStep: z.enum(["PAYMENT", "DESTINATION", "RESULTS"]).default("DESTINATION"),
+  nextStep: z.enum(["PAYMENT", "DESTINATION", "RESULTS", "NO_RESULT"]).default("DESTINATION"),
   paymentUrl: z.string().url("Enter a valid payment URL.").optional().or(z.literal("")),
   // The query parameter an EXTERNAL gateway appends to its success redirect. A bare
   // parameter name, so it can be read off the URL without guessing.
@@ -540,13 +547,22 @@ export const assessmentSchema = z.object({
   }
   // Destination + Training/VSL links are required ONLY when the flow lands on an
   // external destination. "Show results on assess360" (RESULTS) needs neither.
-  if (d.nextStep !== "RESULTS") {
+  // NO_RESULT goes nowhere by definition, so neither link is required there either.
+  if (d.nextStep !== "RESULTS" && d.nextStep !== "NO_RESULT") {
     if (!d.targetUrl) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["targetUrl"], message: "Destination page URL is required for this next step." });
     }
     if (!d.trainingUrl) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["trainingUrl"], message: "Training / VSL link is required for this next step." });
     }
+  }
+  // The lock period only means something when the policy actually delays a retake.
+  if (d.retakePolicy === "DELAYED" && d.retakeDays < 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["retakeDays"],
+      message: "Lock days must be at least 1.",
+    });
   }
   // A lockout can only be enforced if the identifying field is always captured.
   if (d.retakePolicy === "UNLIMITED") return;

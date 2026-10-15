@@ -9,6 +9,7 @@ import {
 } from "@/features/assessment/components/public/assessment-runner";
 import { readPublishedPages } from "@/features/assessment/pages/blocks";
 import { defaultRouteOf } from "@/lib/routing/engine";
+import { readExitToken } from "@/lib/billing/exit-link";
 import { resolveAudienceList } from "@/lib/settings/config";
 import { cache } from "react";
 import { resolvePlan } from "@/lib/billing/entitlements";
@@ -97,6 +98,11 @@ export default async function PublicAssessmentPage({
     return Array.isArray(v) ? v[0] : v;
   });
   const preview = sp.preview === "1"; // admin-only bypass; verified server-side
+  // A signed hand-off (today: somebody who has just cancelled a plan). It prefills the
+  // name and email this product already has, so an exit survey does not open by asking
+  // a leaving customer to introduce themselves. Unsigned, tampered or expired reads as
+  // no prefill at all, which is simply the ordinary public page.
+  const handoff = readExitToken(Array.isArray(sp.x) ? sp.x[0] : sp.x);
   // A preview is someone checking their own funnel, usually seconds after saving it, so
   // it reads the live row rather than the cached funnel payload. Ad traffic keeps the
   // cache.
@@ -259,6 +265,8 @@ export default async function PublicAssessmentPage({
       buttonUrl: e.buttonUrl,
     })),
     // Public renders ONLY the published snapshot (never the draft rows).
+    nextStep: a.nextStep,
+    thankYouMessage: a.thankYouMessage,
     pages: readPublishedPages(a.publishedPages),
     categories: a.categories.map((c) => ({
       id: c.id,
@@ -298,7 +306,14 @@ export default async function PublicAssessmentPage({
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
-      <AssessmentRunner assessment={assessment} attribution={attribution} preview={preview} />
+      <AssessmentRunner
+        assessment={assessment}
+        attribution={attribution}
+        preview={preview}
+        prefill={
+          handoff ? { firstName: handoff.firstName ?? "", email: handoff.email ?? "" } : undefined
+        }
+      />
       <AssessBadge show={!brandingRemoved} />
     </main>
   );

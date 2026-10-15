@@ -10,7 +10,7 @@
  * One function, one precedence order, checkable by scripts/verify-flow.ts.
  */
 
-export type TerminalStage = "SIGNUP" | "RESULT_PAGES" | "PAYMENT" | "DESTINATION";
+export type TerminalStage = "SIGNUP" | "RESULT_PAGES" | "PAYMENT" | "DESTINATION" | "NO_RESULT";
 
 /** The only configuration the ending depends on. Structural, so this file never
  *  imports from the runner (which would be a cycle) and stays unit-testable. */
@@ -23,6 +23,8 @@ export interface FlowInput {
   paidMode: boolean;
   /** The owner's configured anticipation countdown, in seconds. */
   vslCountdownSeconds: number;
+  /** nextStep NO_RESULT: the run ends on the thank-you message and shows nothing back. */
+  noResult?: boolean;
 }
 
 /**
@@ -32,6 +34,10 @@ export interface FlowInput {
  */
 export function terminalStage(a: FlowInput): TerminalStage {
   if (a.platformSignup) return "SIGNUP";
+  // Before the page builder and before payment, deliberately: "show nothing back" is a
+  // decision about the whole ending, so a result page left over from an earlier
+  // configuration must not quietly reinstate itself.
+  if (a.noResult) return "NO_RESULT";
   if (a.pageCount > 0) return "RESULT_PAGES";
   if (a.paidMode) return "PAYMENT";
   return "DESTINATION";
