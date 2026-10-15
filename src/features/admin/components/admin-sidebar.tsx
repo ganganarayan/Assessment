@@ -53,8 +53,9 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/assessment-builder", label: "Assessment Builder" },
       { href: "/admin/assessments", label: "Assessments", exact: true },
-      { href: "/admin/templates", label: "Templates" },
-      { href: "/admin/import", label: "Import" },
+      { href: "/admin/result-pages", label: "Result pages" },
+      { href: "/admin/templates", label: "Templates (Assessment)" },
+      { href: "/admin/import", label: "Import assessment" },
     ],
   },
   {

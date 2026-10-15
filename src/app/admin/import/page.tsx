@@ -12,7 +12,8 @@ export default function ImportAssessmentPage() {
         <h1 className="mt-2 text-2xl font-bold tracking-tight">Import assessment</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
           Two ways in: a JSON or CSV file taken out of another tool, or plain text / Markdown you write
-          yourself. Both are validated and previewed before anything is written.
+          yourself. Both are validated and previewed before anything is written. Assessments only - a result
+          page rides along inside an exported assessment, and ready-made pages live under Result pages.
         </p>
       </div>
 

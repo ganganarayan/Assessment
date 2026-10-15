@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setQuestionRoutes } from "@/features/assessment/actions/routing";
 import type {
+  DefaultRouteInput,
   QuestionRouteInput,
   RouteActionValue,
 } from "@/features/assessment/schemas";
@@ -23,18 +24,19 @@ export interface FlowCategory {
   firstIndex: number;
 }
 
+export interface RoutingRule {
+  action: RouteActionValue;
+  targetQuestionId: string | null;
+  targetCategoryId: string | null;
+}
 export interface RoutingOption {
   id: string;
   label: string;
-  route: {
-    action: RouteActionValue;
-    targetQuestionId: string | null;
-    targetCategoryId: string | null;
-  } | null;
+  route: RoutingRule | null;
 }
 
 /** Encode a route as a single <select> value; decode on save. */
-function encode(route: RoutingOption["route"]): string {
+function encode(route: RoutingRule | null): string {
   if (!route || route.action === "NEXT") return "next";
   if (route.action === "SKIP_TO_END") return "end";
   if (route.action === "JUMP_TO_QUESTION" && route.targetQuestionId) return `q:${route.targetQuestionId}`;
@@ -42,7 +44,7 @@ function encode(route: RoutingOption["route"]): string {
   return "next";
 }
 
-function decode(value: string): Omit<QuestionRouteInput, "optionId"> {
+function decode(value: string): Omit<QuestionRouteInput, "optionId"> & DefaultRouteInput {
   if (value === "end") return { action: "SKIP_TO_END", targetQuestionId: "", targetCategoryId: "" };
   if (value.startsWith("q:")) return { action: "JUMP_TO_QUESTION", targetQuestionId: value.slice(2), targetCategoryId: "" };
   if (value.startsWith("c:")) return { action: "JUMP_TO_CATEGORY", targetQuestionId: "", targetCategoryId: value.slice(2) };
@@ -58,6 +60,8 @@ function decode(value: string): Omit<QuestionRouteInput, "optionId"> {
 export function QuestionRoutingEditor({
   questionId,
   options,
+  defaultRoute,
+  isFreeText,
   flow,
   categoriesFlow,
   displayMode,
@@ -65,6 +69,10 @@ export function QuestionRoutingEditor({
 }: {
   questionId: string;
   options: RoutingOption[];
+  /** The question's current DEFAULT rule (null = continue linearly). */
+  defaultRoute: RoutingRule | null;
+  /** A typed question has no options, so the default rule is its only rule. */
+  isFreeText: boolean;
   flow: FlowQuestion[];
   categoriesFlow: FlowCategory[];
   displayMode: "ALL" | "CATEGORY" | "SINGLE";
@@ -78,6 +86,7 @@ export function QuestionRoutingEditor({
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(options.map((o) => [o.id, encode(o.route)])),
   );
+  const [defaultValue, setDefaultValue] = useState<string>(() => encode(defaultRoute));
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -88,7 +97,10 @@ export function QuestionRoutingEditor({
       ...decode(values[o.id] ?? "next"),
     }));
     start(async () => {
-      const res = await setQuestionRoutes(questionId, { routes });
+      const res = await setQuestionRoutes(questionId, {
+        routes,
+        defaultRoute: decode(defaultValue),
+      });
       if (!res.ok) {
         setError(res.error);
         return;
@@ -154,6 +166,39 @@ export function QuestionRoutingEditor({
           </div>
         ))}
       </div>
+
+      <div className="flex flex-col gap-1 border-t pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <span className="text-sm font-medium">
+          {isFreeText ? "After this question" : "Any other answer, or skipped"}
+        </span>
+        <select
+          value={defaultValue}
+          onChange={(e) => setDefaultValue(e.target.value)}
+          className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm sm:max-w-xs"
+        >
+          <option value="next">Continue to next question</option>
+          {laterQuestions.length > 0 ? (
+            <optgroup label="Jump to question">
+              {laterQuestions.map((q) => (
+                <option key={q.id} value={`q:${q.id}`}>{q.label}</option>
+              ))}
+            </optgroup>
+          ) : null}
+          {laterCategories.length > 0 ? (
+            <optgroup label="Jump to category">
+              {laterCategories.map((c) => (
+                <option key={c.id} value={`c:${c.id}`}>{c.name}</option>
+              ))}
+            </optgroup>
+          ) : null}
+          <option value="end">Skip to results (end)</option>
+        </select>
+      </div>
+      <p className="text-xs text-[var(--muted-foreground)]">
+        {isFreeText
+          ? "A typed answer has no option to attach a rule to, so this is where the flow goes once it is answered or skipped."
+          : "This is how a branch rejoins the main flow: it applies when the question is skipped, or when the chosen answer has no rule of its own."}
+      </p>
 
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex gap-2">

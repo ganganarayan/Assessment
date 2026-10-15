@@ -25,7 +25,7 @@ export async function getSubmissionQuestionBreakdown(
   const [answers, categories] = await Promise.all([
     prisma.submissionAnswer.findMany({
       where: { submissionId },
-      select: { questionId: true, value: true, optionId: true },
+      select: { questionId: true, value: true, optionId: true, textValue: true },
     }),
     prisma.category.findMany({
       where: { assessmentId: sub.assessmentId },
@@ -46,7 +46,10 @@ export async function getSubmissionQuestionBreakdown(
   ]);
 
   const answerByQuestionId = new Map<string, ChosenAnswer>(
-    answers.map((a) => [a.questionId, { value: a.value, optionId: a.optionId }]),
+    answers.map((a) => [
+      a.questionId,
+      { value: a.value, optionId: a.optionId, text: a.textValue },
+    ]),
   );
   return buildCategoryQuestionBreakdown(categories, answerByQuestionId);
 }

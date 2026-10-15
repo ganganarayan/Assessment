@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,7 @@ import {
 import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { PLAN_IDS } from "@/lib/billing/plans";
 import { effectiveAccess } from "@/features/platform/effective-plan";
+import { LimitsEditor } from "@/features/platform/components/limits-editor";
 
 /** A saved-state line for ONE tenant's access grant, shown under that row's date. */
 type GrantMsg = { tone: "ok" | "warn" | "error"; text: string };
@@ -140,6 +141,9 @@ export function PlatformConsole({
   const [slug, setSlug] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [grantMsg, setGrantMsg] = useState<Record<string, GrantMsg | null>>({});
+  /** The one tenant whose limits panel is open. One at a time: the panel is a full-width
+   *  row, and several open at once turns the table into a list of forms. */
+  const [limitsFor, setLimitsFor] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const refresh = async () => {
@@ -351,8 +355,25 @@ export function PlatformConsole({
                 <tr><td colSpan={10} className="px-3 py-4 text-center text-[var(--muted-foreground)]">No tenants yet.</td></tr>
               ) : (
                 tenants.map((t) => (
-                  <tr key={t.id}>
-                    <td className="px-3 py-2 font-medium">{t.name}</td>
+                  <Fragment key={t.id}>
+                  <tr>
+                    <td className="px-3 py-2 font-medium">
+                      {t.name}
+                      {/* Whose workspace this is, when it is not its own. Five client
+                          workspaces under one agency are ONE subscription, so reading
+                          them as five trials to chase would be wrong. */}
+                      {t.agencyAdminName ? (
+                        <span className="block text-xs font-normal text-[var(--muted-foreground)]">
+                          under {t.agencyAdminName}
+                        </span>
+                      ) : null}
+                      {t.agencyTenantCount > 0 ? (
+                        <span className="block text-xs font-normal text-[var(--muted-foreground)]">
+                          agency · {t.agencyTenantCount} client workspace
+                          {t.agencyTenantCount === 1 ? "" : "s"}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2 font-mono text-xs">{t.slug}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.adminCount}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.assessmentCount}</td>
@@ -392,6 +413,8 @@ export function PlatformConsole({
                           pending={pending}
                           grantMsg={grantMsg[t.id] ?? null}
                           onSaveGrant={saveGrant}
+                          limitsOpen={limitsFor === t.id}
+                          onToggleLimits={() => setLimitsFor((id) => (id === t.id ? null : t.id))}
                         />
                       )}
                     </td>
@@ -458,6 +481,17 @@ export function PlatformConsole({
                       </div>
                     </td>
                   </tr>
+                  {/* The limits panel, as a full-width row under the tenant it belongs
+                      to. Mounted only while open, so opening it is what costs the
+                      resolver call rather than rendering the list. */}
+                  {limitsFor === t.id ? (
+                    <tr>
+                      <td colSpan={11} className="bg-[var(--muted)]/20 px-3 py-3">
+                        <LimitsEditor tenantId={t.id} onClose={() => setLimitsFor(null)} />
+                      </td>
+                    </tr>
+                  ) : null}
+                  </Fragment>
                 ))
               )}
             </tbody>
@@ -561,7 +595,23 @@ export function PlatformConsole({
               <tbody className="divide-y">
                 {deletedTenants.map((t) => (
                   <tr key={t.id} className="text-[var(--muted-foreground)]">
-                    <td className="px-3 py-2 font-medium">{t.name}</td>
+                    <td className="px-3 py-2 font-medium">
+                      {t.name}
+                      {/* Whose workspace this is, when it is not its own. Five client
+                          workspaces under one agency are ONE subscription, so reading
+                          them as five trials to chase would be wrong. */}
+                      {t.agencyAdminName ? (
+                        <span className="block text-xs font-normal text-[var(--muted-foreground)]">
+                          under {t.agencyAdminName}
+                        </span>
+                      ) : null}
+                      {t.agencyTenantCount > 0 ? (
+                        <span className="block text-xs font-normal text-[var(--muted-foreground)]">
+                          agency · {t.agencyTenantCount} client workspace
+                          {t.agencyTenantCount === 1 ? "" : "s"}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2 font-mono text-xs">{t.slug}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.assessmentCount}</td>
                     <td className="px-3 py-2 text-center tabular-nums">{t.submissionCount}</td>
@@ -640,11 +690,15 @@ function PlanAndAccess({
   pending,
   grantMsg,
   onSaveGrant,
+  limitsOpen,
+  onToggleLimits,
 }: {
   t: TenantRow;
   pending: boolean;
   grantMsg: { tone: string; text: string } | null;
   onSaveGrant: (t: TenantRow, plan: string, untilDate: string) => void;
+  limitsOpen: boolean;
+  onToggleLimits: () => void;
 }) {
   const acc = effectiveAccess(t);
   const liveGrant = grantLive(t.planExpiresAt);
@@ -684,6 +738,16 @@ function PlanAndAccess({
           onChange={(e) => onSaveGrant(t, t.plan, e.target.value)}
           title="Access runs to the end of this day (IST). Clear it to remove the grant."
         />
+        {/* The grant decides WHICH PLAN; this decides the NUMBERS inside it. Two
+            different negotiations, so two controls rather than one overloaded one. */}
+        <button
+          type="button"
+          onClick={onToggleLimits}
+          className="h-8 rounded-md border px-2 text-[11px] text-[var(--muted-foreground)] hover:bg-[var(--muted)]"
+          title="Per-tenant limit overrides: responses, scorecards, seats, ad accounts, client workspaces and the feature flags"
+        >
+          {limitsOpen ? "Limits ▴" : "Limits ▾"}
+        </button>
       </div>
 
       {/* Why the controls above are doing nothing, when they are doing nothing. Without

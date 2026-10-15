@@ -243,7 +243,7 @@ export function ClinicAuditResult({ inputs, config, original, prose, bookingUrl,
     });
 
   return (
-    <div className="dl">
+    <div className="dl" data-qa-step="clinicResult">
       <style dangerouslySetInnerHTML={{ __html: BRAND_CSS }} />
       <p className="eyebrow">{title}</p>
 

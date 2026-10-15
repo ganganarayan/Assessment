@@ -45,7 +45,7 @@ export function VslResultPage({
 }) {
   const t = themeOf(page.theme);
   return (
-    <main style={{ minHeight: "100vh", background: t.bg, color: t.text }}>
+    <main data-qa-step="vslResult" style={{ minHeight: "100vh", background: t.bg, color: t.text }}>
       {/* Fluid container: fills the available width with responsive left/right gutters
           (16px on a phone → up to ~64px on a wide screen), capped so text stays
           readable on very large monitors instead of being a narrow fixed column. */}

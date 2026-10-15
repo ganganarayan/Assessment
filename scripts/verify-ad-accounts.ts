@@ -37,7 +37,18 @@ function check(name: string, ok: boolean, detail?: string): void {
 check("Gate includes 1 ad account", PLAN_LIMITS.GATE.adAccounts === 1);
 check("Signal includes 2 ad accounts", PLAN_LIMITS.SIGNAL.adAccounts === 2);
 check("Agency includes 5 ad accounts", PLAN_LIMITS.AGENCY.adAccounts === 5);
-check("Enterprise includes 25 ad accounts", PLAN_LIMITS.ENTERPRISE.adAccounts === 25);
+check("Enterprise includes 20 ad accounts", PLAN_LIMITS.ENTERPRISE.adAccounts === 20);
+
+// 🔴 THE TWO NUMBERS THAT LOOK LIKE ONE. On Agency both are 5, on Enterprise both are
+// 20, and they entitle completely different things: ad accounts this workspace runs
+// itself, and separate client workspaces with their own logins. Asserted together here
+// so that collapsing them into a single entitlement fails LOUDLY - with equal numbers,
+// a merge would leave every individual assertion above still passing.
+check("Ad accounts and client workspaces are separate entitlements",
+  PLAN_LIMITS.AGENCY.adAccounts === PLAN_LIMITS.AGENCY.agencyTenants &&
+  PLAN_LIMITS.ENTERPRISE.adAccounts === PLAN_LIMITS.ENTERPRISE.agencyTenants &&
+  PLAN_LIMITS.SIGNAL.agencyTenants === 0 && PLAN_LIMITS.SIGNAL.adAccounts === 2,
+  "Signal is the proof they are different: 2 ad accounts and zero client workspaces.");
 check("Every plan includes at least one", Object.values(PLAN_LIMITS).every((l) => l.adAccounts >= 1),
   "A plan with zero would make the Ad accounts screen unusable on a tier that is paying.");
 
@@ -46,9 +57,22 @@ check("Parked adds no ad accounts", PARKED_LIMITS.adAccounts === 0);
 check("The platform scope is uncapped", UNLIMITED_LIMITS.adAccounts > 1000);
 
 // Seats, the other limit that was published and enforced nowhere until this phase.
-check("Seat ladder is 1 / 3 / 10 / 25",
+//
+// 🔴 A SEAT IS A USER INSIDE ONE WORKSPACE, never a workspace (owner, 2026-10-13). This
+// asserted 1 / 3 / 10 / 25 for a day after that decision, failing red - and the obvious
+// way to make it green was to edit the catalog back, which would have silently handed
+// every Agency customer ten logins. A wrong self-check is more dangerous than no check.
+check("Seat ladder is 1 / 3 / 1 / 1",
   PLAN_LIMITS.GATE.seats === 1 && PLAN_LIMITS.SIGNAL.seats === 3 &&
-  PLAN_LIMITS.AGENCY.seats === 10 && PLAN_LIMITS.ENTERPRISE.seats === 25);
+  PLAN_LIMITS.AGENCY.seats === 1 && PLAN_LIMITS.ENTERPRISE.seats === 1,
+  "Agency and Enterprise buy WORKSPACES, each with its own login - not seats in one.");
+
+// --- Custom domains, the wall that had no number until 2026-10-14 ------------
+check("Every tier includes one custom domain",
+  Object.values(PLAN_LIMITS).every((l) => l.customDomains === 1),
+  "Gate's is withheld by the customDomain FEATURE, not by this count.");
+check("Parked adds no custom domain", PARKED_LIMITS.customDomains === 0);
+check("The platform scope is uncapped on domains", UNLIMITED_LIMITS.customDomains > 1000);
 
 // A snapshot frozen before ad accounts existed must still parse, or every customer
 // rated before the column lands silently re-rates to the catalog.

@@ -1,0 +1,307 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  createDoc,
+  cloneDoc,
+  renameDoc,
+  deleteDoc,
+  setDocShelf,
+  setDocShelfMeta,
+} from "@/features/result-pages/actions/docs";
+import { KIND_LABEL, KIND_BLURB, RESULT_PAGE_KINDS, type DocKind, type DocRow } from "@/features/result-pages/docs";
+
+/**
+ * The result-page shelf.
+ *
+ * One list for both kinds, because they answer the same question in the same place:
+ * which pages do I have, which funnel is each one on, and which are free to use. The
+ * row states it in those words - "Free to use" or "Used by <funnel>" - since that is
+ * the only thing that decides whether you can bind it or have to clone it.
+ *
+ * Clone is the headline action, not an afterthought. The binding is 1:1 on purpose, so
+ * cloning is not a workaround for a missing feature; it IS how the same page reaches a
+ * second funnel, and it is the reason an edit here can never touch somebody else's
+ * live traffic.
+ */
+
+interface Props {
+  rows: DocRow[];
+  /** "/admin/result-pages" or "/w/result-pages" - the editor lives under it. */
+  basePath: string;
+  canEdit: boolean;
+  /**
+   * The platform owner, looking at the platform's own library. Only then does each row
+   * get its shelf controls: listing a page puts it on the first screen of every
+   * workspace on the install, so the control belongs on exactly one screen.
+   */
+  canManageShelf?: boolean;
+}
+
+export function DocLibrary({ rows, basePath, canEdit, canManageShelf = false }: Props) {
+  const router = useRouter();
+  const [, start] = useTransition();
+  const [busy, setBusy] = useState<string | null>(null);
+  /**
+   * A message, and the row it belongs to.
+   *
+   * It used to render only at the top of the list. Refusing to shelf a bound page then
+   * looked like nothing happening at all: the button is beside the row, the reason was
+   * two screens up, and the page does not scroll itself. A message about a row belongs
+   * on that row.
+   */
+  const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string; rowId?: string } | null>(null);
+  const [newFor, setNewFor] = useState<DocKind | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+
+  function doCreate(kind: DocKind) {
+    const title = newTitle.trim();
+    if (!title) return;
+    setBusy("new");
+    setMsg(null);
+    start(async () => {
+      const r = await createDoc(kind, title);
+      setBusy(null);
+      if (!r.ok) {
+        setMsg({ tone: "bad", text: r.error });
+        return;
+      }
+      setNewTitle("");
+      setNewFor(null);
+      if (r.data) router.push(`${basePath}/${r.data.id}`);
+      else router.refresh();
+    });
+  }
+
+  function doClone(row: DocRow) {
+    setBusy(row.id);
+    setMsg(null);
+    start(async () => {
+      const r = await cloneDoc(row.id);
+      const rowId = row.id;
+      setBusy(null);
+      if (!r.ok) {
+        setMsg({ tone: "bad", text: r.error, rowId });
+        return;
+      }
+      setMsg({ tone: "ok", text: "Copied. The copy is free to use on any funnel - change what differs, then bind it." });
+      if (r.data) router.push(`${basePath}/${r.data.id}`);
+      else router.refresh();
+    });
+  }
+
+  function doRename(row: DocRow) {
+    const next = window.prompt("Name this page", row.title);
+    if (next === null) return;
+    setBusy(row.id);
+    setMsg(null);
+    start(async () => {
+      const r = await renameDoc(row.id, next);
+      setBusy(null);
+      if (!r.ok) setMsg({ tone: "bad", text: r.error, rowId: row.id });
+      else router.refresh();
+    });
+  }
+
+  function doShelf(row: DocRow, listed: boolean) {
+    setBusy(row.id);
+    setMsg(null);
+    start(async () => {
+      const r = await setDocShelf(row.id, listed);
+      setBusy(null);
+      if (!r.ok) {
+        setMsg({ tone: "bad", text: r.error, rowId: row.id });
+        return;
+      }
+      setMsg({
+        rowId: row.id,
+        tone: "ok",
+        text: listed
+          ? `"${row.title}" is on the shelf. Every workspace can now import a copy of it.`
+          : `"${row.title}" is off the shelf. Copies already imported are unaffected - they are their own pages.`,
+      });
+      router.refresh();
+    });
+  }
+
+  function doShelfMeta(row: DocRow) {
+    const category = window.prompt(
+      "Which heading should this sit under on the shelf? (e.g. Coaches, Clinics)",
+      row.shelfCategory ?? "",
+    );
+    if (category === null) return;
+    const summary = window.prompt("One or two lines: what is this page for?", row.shelfSummary ?? "");
+    if (summary === null) return;
+    setBusy(row.id);
+    setMsg(null);
+    start(async () => {
+      const r = await setDocShelfMeta(row.id, { category, summary });
+      setBusy(null);
+      if (!r.ok) setMsg({ tone: "bad", text: r.error, rowId: row.id });
+      else router.refresh();
+    });
+  }
+
+  function doDelete(row: DocRow) {
+    if (!window.confirm(`Delete "${row.title}"? This cannot be undone.`)) return;
+    setBusy(row.id);
+    setMsg(null);
+    start(async () => {
+      const r = await deleteDoc(row.id);
+      setBusy(null);
+      if (!r.ok) setMsg({ tone: "bad", text: r.error, rowId: row.id });
+      else router.refresh();
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      {msg && !msg.rowId ? (
+        <p className={msg.tone === "ok" ? "text-sm text-green-700" : "text-sm text-amber-700"}>{msg.text}</p>
+      ) : null}
+
+      {RESULT_PAGE_KINDS.map((kind) => {
+        const mine = rows.filter((r) => r.kind === kind);
+        return (
+          <Card key={kind}>
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <CardTitle className="text-lg">{KIND_LABEL[kind]}s</CardTitle>
+                  <p className="mt-1 text-sm text-[var(--muted-foreground)]">{KIND_BLURB[kind]}</p>
+                </div>
+                {canEdit ? (
+                  <Button size="sm" onClick={() => setNewFor(newFor === kind ? null : kind)}>
+                    {newFor === kind ? "Cancel" : "New page"}
+                  </Button>
+                ) : null}
+              </div>
+            </CardHeader>
+
+            <CardContent className="flex flex-col gap-3">
+              {newFor === kind ? (
+                <div className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center">
+                  <Input
+                    autoFocus
+                    value={newTitle}
+                    placeholder={kind === "VSL" ? "e.g. Clinic VSL - October" : "e.g. Clinic results - October"}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") doCreate(kind);
+                    }}
+                  />
+                  <Button disabled={busy !== null || !newTitle.trim()} onClick={() => doCreate(kind)}>
+                    {busy === "new" ? "Creating..." : "Create"}
+                  </Button>
+                </div>
+              ) : null}
+
+              {mine.length === 0 ? (
+                <p className="rounded-lg border p-4 text-sm text-[var(--muted-foreground)]">
+                  No {KIND_LABEL[kind].toLowerCase()}s yet. Create one here, or open a funnel that already has one -
+                  its page is in this library too, and you can clone it from the row below once it appears.
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {mine.map((row) => (
+                    <li
+                      key={row.id}
+                      className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-start sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link href={`${basePath}/${row.id}`} className="font-medium underline-offset-2 hover:underline">
+                            {row.title}
+                          </Link>
+                          {row.boundTo ? (
+                            <Badge variant="muted">Used by {row.boundTo.title}</Badge>
+                          ) : (
+                            <Badge variant="outline">Free to use</Badge>
+                          )}
+                          {row.published ? (
+                            <Badge variant="success">Published</Badge>
+                          ) : (
+                            <Badge variant="outline">Draft</Badge>
+                          )}
+                          {row.shelfListed ? <Badge variant="success">On the shelf</Badge> : null}
+                        </div>
+                        <p className="mt-1 font-mono text-xs text-[var(--muted-foreground)]">{row.slug}</p>
+                        <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                          {row.kind === "VSL"
+                            ? `${row.size} block${row.size === 1 ? "" : "s"}`
+                            : `${row.size} page${row.size === 1 ? "" : "s"}`}
+                          {row.sourceSlug ? ` · copied from ${row.sourceSlug}` : ""}
+                        </p>
+                        {canManageShelf && row.shelfListed ? (
+                          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                            Shelf: {row.shelfCategory || "General"}
+                            {row.shelfSummary ? ` · ${row.shelfSummary}` : " · no description yet"}
+                          </p>
+                        ) : null}
+                        {/* The answer where the question was asked. A refusal rendered
+                            at the top of a long list reads as the button doing nothing. */}
+                        {msg?.rowId === row.id ? (
+                          <p className={msg.tone === "ok" ? "mt-2 text-sm text-green-700" : "mt-2 text-sm text-amber-700"}>
+                            {msg.text}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex shrink-0 flex-wrap items-center gap-2">
+                        <Link
+                          href={`${basePath}/${row.id}`}
+                          className={buttonVariants({ size: "sm", variant: "outline" })}
+                        >
+                          Edit
+                        </Link>
+                        {canEdit ? (
+                          <>
+                            <Button size="sm" variant="outline" disabled={busy !== null} onClick={() => doClone(row)}>
+                              {busy === row.id ? "Working..." : "Clone"}
+                            </Button>
+                            <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => doRename(row)}>
+                              Rename
+                            </Button>
+                            <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => doDelete(row)}>
+                              Delete
+                            </Button>
+                          </>
+                        ) : null}
+                        {/* The shelf. Only the owner's own library gets these, and a
+                            page in use by a funnel cannot be listed - the action says
+                            so rather than the button hiding, because "why can't I
+                            publish this one" deserves an answer. */}
+                        {canEdit && canManageShelf && row.platformOwned ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant={row.shelfListed ? "ghost" : "outline"}
+                              disabled={busy !== null}
+                              onClick={() => doShelf(row, !row.shelfListed)}
+                            >
+                              {row.shelfListed ? "Remove from shelf" : "Publish to shelf"}
+                            </Button>
+                            {row.shelfListed ? (
+                              <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => doShelfMeta(row)}>
+                                Shelf text
+                              </Button>
+                            ) : null}
+                          </>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}

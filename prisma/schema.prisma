@@ -136,6 +136,23 @@ model Tenant {
   acqUtmTerm             String?
   acqUtmContent          String?
 
+  // AGENCY TENANTS (2026-10-13). Set = this workspace belongs to an AGENCY ADMIN, and
+  // the value is the tenant id of that agency admin's own workspace. Null = a tenant
+  // directly under the super admin, which is every existing row - so nothing is
+  // backfilled and nothing changes for anyone already on the install.
+  //
+  // Depth is ONE by design: an agency tenant resolves no agencyTenants allowance of
+  // its own (PLAN_LIMITS + assertCanCreateAgencyTenant), so a workspace under an
+  // agency admin can never resell a workspace under itself.
+  //
+  // 🔴 onDelete: Restrict, deliberately. The platform's permanent delete cascades a
+  // tenant's OWN rows on purpose, but cascading from here would destroy five separate
+  // businesses because one agency account was deleted. Restrict makes the operator
+  // deal with the agency tenants first, with an error instead of silence.
+  agencyAdminTenantId String?
+  agencyAdmin         Tenant?  @relation("AgencyTenants", fields: [agencyAdminTenantId], references: [id], onDelete: Restrict)
+  agencyTenants       Tenant[] @relation("AgencyTenants")
+
   users                User[]
   domains              Domain[]
   theme                Theme?
@@ -160,9 +177,12 @@ model Tenant {
   adAccounts           AdAccount[]
   supportRequests      SupportRequest[]
   audienceLists        AudienceList[]
+  /// Result pages (RESULTS + VSL) in this workspace's library.
+  resultPageDocs       ResultPageDoc[]
 
   @@index([status])
   @@index([deletedAt])
+  @@index([agencyAdminTenantId])
   @@map("tenant")
 }
 
@@ -294,6 +314,20 @@ model Subscription {
   cancelAtPeriodEnd  Boolean   @default(false)
 
   seats Int @default(1)
+
+  // AGENCY-TENANT SLOTS bought beyond the plan's included count ($29/mo each), and the
+  // SECOND Razorpay subscription that carries them. Two subscriptions rather than a
+  // quantity on the first, because quantity multiplies the BASE price: 249 x 2 is not
+  // 249 + 29. This column is the number CONFIRMED PAID - the webhook writes it, never
+  // the client - and the cap is included + this.
+  extraAgencyTenants         Int     @default(0)
+  razorpaySlotSubscriptionId String? @unique
+
+  // CUSTOM DOMAINS bought beyond the one every workspace includes ($5/mo each). Additive
+  // on top of PlanLimits.customDomains, which is what makes it an add-on rather than a
+  // negotiated deal - limitOverrides REPLACES the plan's number, so it could never
+  // express "one more than whatever they are on".
+  extraCustomDomains         Int     @default(0)
 
   // Entitlements FROZEN at purchase (a copy of PLAN_LIMITS for `plan`). Resolution
   // reads this first so a later catalog change never re-rates this customer.
@@ -575,6 +609,11 @@ enum AssessmentStatus {
 
 enum QuestionType {
   SINGLE_SELECT
+  // Typed answer, no options. Scores nothing (excluded from the engine and from the
+  // category maximum) and routes by the question's default route, because there is no
+  // chosen option to hang a rule on. Added for surveys whose value IS the sentence
+  // somebody types, e.g. the cancellation exit assessment.
+  FREE_TEXT
 }
 
 enum BandLevel {
@@ -871,6 +910,18 @@ model Assessment {
   resultPagePublished   Json?
   resultPagePublishedAt DateTime?
 
+  // The two result pages this assessment uses, each a ResultPageDoc bound 1:1. The
+  // UNIQUE on each id is the whole rule: a doc can be used by at most one assessment,
+  // enforced by the database rather than by whichever action happens to check. Need the
+  // same page on a second funnel? Clone it - that is a different doc with its own slug.
+  //
+  // SetNull on delete: deleting an assessment frees its pages back into the library
+  // rather than destroying work that is still worth cloning.
+  resultsDocId String?        @unique
+  resultsDoc   ResultPageDoc? @relation("AssessmentResultsDoc", fields: [resultsDocId], references: [id], onDelete: SetNull)
+  vslDocId     String?        @unique
+  vslDoc       ResultPageDoc? @relation("AssessmentVslDoc", fields: [vslDocId], references: [id], onDelete: SetNull)
+
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -888,13 +939,103 @@ model Assessment {
   pageViews             PageView[]
   gateDisqualifications GateDisqualification[]
   ctaClicks             CtaClick[]
-  pages                 AssessmentPage[]
   gateEntries           GateEntry[]
   eventCounts           FunnelEventCount[]
 
   @@index([tenantId])
   @@index([status])
   @@map("assessment")
+}
+
+// ---------------------------------------------------------------------------
+// ResultPageDoc - a result page as a record of its own.
+//
+// WHY A SEPARATE TABLE
+// Both result pages used to live on the assessment: the post-questions page as
+// AssessmentPage rows plus a published snapshot, the VSL page as two JSON columns.
+// That made every page a child of one funnel, so building the next funnel meant
+// rebuilding the same eyebrow, headline, video and footer by hand.
+//
+// A doc is the same content with its own name, slug, editor and Publish button. You
+// clone one, change the video link, bind it to a funnel, publish. The binding is
+// strictly 1:1 (see the UNIQUE columns on Assessment): no two funnels ever share a
+// page, so editing one can never reword a page somebody else's ad traffic is landing
+// on, and a per-funnel value (a booking inbox, a calendar link, an exit-route block)
+// is always correct for the one funnel it serves.
+//
+// WHAT IS LIVE
+// Publishing a doc writes this row's snapshot AND mirrors it onto the bound
+// assessment's own column, which is what the public still renders. The live read path
+// is therefore unchanged by this table existing, and a doc that is bound to nothing
+// is simply a draft in the library.
+//
+// Each kind keeps the storage it already had: VSL in `draft` (theme + blocks),
+// RESULTS in AssessmentPage rows pointing here. Asymmetric on purpose - it is what
+// made this a re-parent instead of a rewrite of two working builders.
+// ---------------------------------------------------------------------------
+
+enum ResultPageKind {
+  RESULTS // the page shown after the questions (bands, category teaser, pay button)
+  VSL // the marketing page on the token link (headline, video, booking CTA)
+}
+
+model ResultPageDoc {
+  id    String         @id @default(cuid())
+  kind  ResultPageKind
+  title String
+  /// Library identifier, unique within the workspace. Not a public URL - a respondent
+  /// always arrives at /a/<assessment-slug>/r/<id>?t=... - so there is no reason to
+  /// make one workspace's naming collide with another's.
+  slug  String
+
+  /// VSL only: the editable draft (theme + ordered blocks). RESULTS keeps its draft in
+  /// the AssessmentPage rows below.
+  draft Json?
+
+  /// The published snapshot, in the shape that kind already published: ResultPageData
+  /// for VSL, AssessmentPageData[] for RESULTS. Mirrored onto the bound assessment.
+  published   Json?
+  publishedAt DateTime?
+
+  /// The doc this one was cloned from, for provenance only. Never a live link.
+  sourceSlug String?
+
+  /// ---- The platform shelf ----------------------------------------------------
+  /// On the shelf = every workspace sees this page and can import a copy of it. Only
+  /// a PLATFORM-owned page can be listed (the actions enforce it), and only one that
+  /// is bound to no funnel: a template is a starting point, not somebody's live page.
+  ///
+  /// Deliberately NOT the same field as `published`, which means "has a live
+  /// snapshot". A page can be on the shelf and never published, which is the normal
+  /// case - what tenants import is the draft.
+  shelfListed   Boolean @default(false)
+  /// Heading the shelf groups it under, e.g. "Coaches", "Clinics". A plain string,
+  /// not an enum: a new audience must not need a migration.
+  shelfCategory String?
+  /// One or two lines: what this page is for. Shown on the shelf row.
+  shelfSummary  String?
+  shelfOrder    Int     @default(0)
+
+  /// Owning workspace. Null = the platform's own library (super admin, no workspace
+  /// entered). SetNull rather than Cascade: a deleted tenant's assessments survive as
+  /// platform-owned, so their pages must survive with them.
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  /// RESULTS only: the editable draft.
+  pages AssessmentPage[]
+
+  /// The 1:1 binding, seen from this side. Both null = a free page in the library.
+  resultsOf Assessment? @relation("AssessmentResultsDoc")
+  vslOf     Assessment? @relation("AssessmentVslDoc")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, kind])
+  @@index([shelfListed, kind, shelfOrder])
+  @@map("result_page_doc")
 }
 
 // ---------------------------------------------------------------------------
@@ -905,17 +1046,20 @@ model Assessment {
 // ---------------------------------------------------------------------------
 
 model AssessmentPage {
-  id           String   @id @default(cuid())
-  assessmentId String
-  order        Int      @default(0)
-  title        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(cuid())
+  /// The result page this draft page belongs to. A page is owned by a DOC, not by an
+  /// assessment: the same content can be cloned into a new doc and bound elsewhere,
+  /// and a doc that is bound to nothing is still editable.
+  docId     String
+  order     Int      @default(0)
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  assessment Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  blocks     PageBlock[]
+  doc    ResultPageDoc @relation(fields: [docId], references: [id], onDelete: Cascade)
+  blocks PageBlock[]
 
-  @@index([assessmentId, order])
+  @@index([docId, order])
   @@map("assessment_page")
 }
 
@@ -1039,6 +1183,22 @@ model Question {
   // can never be silently read as a percentage. Null = the role's default
   // (rates → PER_100), which preserves every existing configuration exactly.
   scoringUnit  String?
+  // ---- Default (unconditional) route ----------------------------------------
+  // Where the flow goes from this question when NO option rule applies: the question
+  // was skipped (optional), it is FREE_TEXT so there is no option at all, or the chosen
+  // option simply carries no rule. Null = continue linearly, which is every existing
+  // question.
+  //
+  // This is what lets a branch CONVERGE. Option rules alone can fan a survey out into
+  // per-answer branches but cannot bring them back: a branch whose last question is
+  // optional or typed would fall straight into the NEXT branch's questions. The default
+  // route is the "and then rejoin here" half of branching.
+  //
+  // Same forward-only guarantee as QuestionRoute, validated on save, and the engine
+  // degrades a missing target to a linear step, so a deleted target can never loop.
+  defaultRouteAction      RouteAction?
+  defaultTargetQuestionId String? // scalar ref (no FK), validated forward-only on save
+  defaultTargetCategoryId String? // scalar ref (no FK), validated forward-only on save
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -1567,8 +1727,9 @@ model AiStatement {
 // ---------------------------------------------------------------------------
 
 model SubmissionAnswer {
-  id        String   @id @default(cuid())
-  value     Int
+  id String @id @default(cuid())
+  // The option's score point. 0 for a FREE_TEXT answer, which scores nothing.
+  value     Int      @default(0)
   createdAt DateTime @default(now())
 
   submissionId String
@@ -1577,8 +1738,14 @@ model SubmissionAnswer {
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
-  optionId String
-  option   Option @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  // Null ONLY for a FREE_TEXT answer: there is no option to point at. Every
+  // SINGLE_SELECT answer still carries one, so reads that expect an option must
+  // treat null as "typed answer, read textValue" rather than as missing data.
+  optionId String?
+  option   Option? @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  // What they typed, for a FREE_TEXT question. Null on a chosen-option answer.
+  textValue String? @db.Text
 
   @@unique([submissionId, questionId])
   @@index([submissionId])
@@ -1625,6 +1792,7 @@ enum EventType {
   ASSESSMENT_ABANDONED // assessment.abandoned
   RESULT_LINK_REQUESTED // result.link_requested (returning user asks to be emailed their prior result)
   CTA_CLICKED // booking_requested (respondent clicked the result page's booking CTA)
+  SUBSCRIPTION_CANCELLED // subscription.cancelled (a paying customer asked to stop)
 }
 
 // ---------------------------------------------------------------------------
@@ -2324,6 +2492,11 @@ model AppSetting {
   // catches it and emails the user. Platform-level (login is platform-wide), so it
   // lives on the singleton row. Null = fall back to env PASSWORD_RESET_WEBHOOK_URL.
   passwordResetWebhookUrl String?
+
+  // Where a cancelling customer is sent after the cancellation is booked: the owner's
+  // exit assessment, which asks why they left. Platform-level and owner-authored, so it
+  // lives on the singleton row. Null = no exit step, the cancel just confirms.
+  cancelExitAssessmentUrl String?
 
   // Per-tenant booking/calendar link (Calendly/Cal.com/etc). The respondent
   // results page renders a "Book a 1-on-1 call" CTA pointing here; null = hide it.

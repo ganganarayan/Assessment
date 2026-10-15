@@ -23,18 +23,25 @@ const optionExport = z.object({
   isAssumption: z.boolean().optional(),
 });
 
-const questionExport = z.object({
-  text: z.string().min(1),
-  type: z.literal("SINGLE_SELECT").default("SINGLE_SELECT"),
-  weight: z.number().min(0),
-  required: z.boolean(),
-  displayOrder: z.number().int().nonnegative(),
-  // CLINIC_AUDIT funnel role (added v2).
-  scoringRole: z.string().nullable().optional(),
-  // CLINIC_AUDIT unit for this question's numbers (PER_10/PER_100/RUPEES/COUNT/POINTS).
-  scoringUnit: z.string().nullable().optional(),
-  options: z.array(optionExport).min(2),
-});
+const questionExport = z
+  .object({
+    text: z.string().min(1),
+    // FREE_TEXT added later: a typed, unscored answer with no options. Defaulted, so
+    // every file written before it existed still reads as a choice question.
+    type: z.enum(["SINGLE_SELECT", "FREE_TEXT"]).default("SINGLE_SELECT"),
+    weight: z.number().min(0),
+    required: z.boolean(),
+    displayOrder: z.number().int().nonnegative(),
+    // CLINIC_AUDIT funnel role (added v2).
+    scoringRole: z.string().nullable().optional(),
+    // CLINIC_AUDIT unit for this question's numbers (PER_10/PER_100/RUPEES/COUNT/POINTS).
+    scoringUnit: z.string().nullable().optional(),
+    options: z.array(optionExport).default([]),
+  })
+  .refine((q) => q.type === "FREE_TEXT" || q.options.length >= 2, {
+    message: "A choice question needs at least two options.",
+    path: ["options"],
+  });
 
 /**
  * A per-category band: what a score in this range MEANS for this category.

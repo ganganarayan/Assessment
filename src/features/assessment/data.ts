@@ -53,7 +53,10 @@ export async function getAssessmentById(id: string) {
         },
       },
       resultBands: { orderBy: { displayOrder: "asc" } },
-      pages: { orderBy: { order: "asc" }, include: { blocks: { orderBy: { order: "asc" } } } },
+      // The two result pages this funnel is bound to. Their DRAFT content lives on the
+      // doc in the library, so the builder step needs the binding, not the blocks.
+      resultsDoc: { select: { id: true, title: true, slug: true, published: true, publishedAt: true } },
+      vslDoc: { select: { id: true, title: true, slug: true, published: true, publishedAt: true } },
       _count: { select: { submissions: true } },
     },
   });

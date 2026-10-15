@@ -133,7 +133,7 @@ export async function buildAssessmentBody(
         : {}),
       questions: c.questions.map((q, qi) => ({
         text: q.text,
-        type: "SINGLE_SELECT" as const,
+        type: q.type,
         weight: q.weight,
         required: q.required,
         displayOrder: qi,

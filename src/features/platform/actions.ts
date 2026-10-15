@@ -5,7 +5,14 @@ import { redirect } from "next/navigation";
 import { Role, Prisma, type Plan } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin, isStaff } from "@/lib/auth/guards";
-import { PLAN_IDS } from "@/lib/billing/plans";
+import { PLAN_IDS, PLAN_LIMITS, parseLimitsSnapshot, type PlanId, type PlanLimits } from "@/lib/billing/plans";
+import { resolvePlan } from "@/lib/billing/plan-resolve";
+import {
+  draftFromOverride,
+  draftToOverride,
+  summariseOverride,
+  type LimitsDraft,
+} from "@/features/platform/limits-override";
 import { formatIST } from "@/lib/date";
 
 /** Tenant/user management is OWNER-only - never a staff member (even EDIT). */
@@ -46,11 +53,10 @@ async function softFail(
   }
 }
 import { isPlatformOwner } from "@/lib/auth/platform";
-import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { auth } from "@/lib/auth/auth";
 import { readActingTenant, writeActingTenant, clearActingTenant } from "@/lib/tenant/acting-cookie";
-import { slugSchema } from "@/features/assessment/schemas";
+import { provisionWorkspace } from "@/lib/tenant/provision";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /** Super admin "enters" a tenant to operate its workspace as that tenant. */
@@ -161,6 +167,22 @@ export async function purgeTenant(tenantId: string, confirmSlug: string): Promis
   }
   if ((confirmSlug ?? "").trim().toLowerCase() !== t.slug.toLowerCase()) {
     return { ok: false, error: `Type the slug "${t.slug}" exactly to confirm.` };
+  }
+  // 🔴 AGENCY TENANTS BLOCK THE PURGE, and they are checked here so the operator reads a
+  // sentence instead of a database error. Tenant.agencyAdminTenantId is ON DELETE
+  // RESTRICT on purpose: cascading from an agency admin would destroy several unrelated
+  // businesses in one click. Without this check the FK refusal lands in softFail and is
+  // reported as "a temporary database error", which is both untrue and unactionable -
+  // the operator would retry it forever.
+  //
+  // Soft-deleted agency tenants count too: the row still exists, so the constraint still
+  // fires, and they are exactly the ones nobody remembers.
+  const under = await prisma.tenant.count({ where: { agencyAdminTenantId: tenantId } });
+  if (under > 0) {
+    return {
+      ok: false,
+      error: `This workspace still has ${under} client workspace${under === 1 ? "" : "s"} under it. Delete those permanently first - deleting this one would destroy them with it.`,
+    };
   }
   if ((await readActingTenant(me.id)) === tenantId) {
     await clearActingTenant();
@@ -302,6 +324,189 @@ export async function setTenantPlanGrant(
   };
 }
 
+/**
+ * What the limits panel shows for one tenant: the limits the plan gives, the override
+ * stored on top, and what the resolver actually hands the gates.
+ */
+export interface TenantLimitsView {
+  tenantId: string;
+  tenantName: string;
+  /** Why an override cannot be stored here, or null when it can. */
+  blockedReason: string | null;
+  /** True when Unlimited is on, so the panel can say the override is not what entitles. */
+  unlimited: boolean;
+  /** Where `base` came from: the subscription's frozen snapshot, or the code catalog. */
+  baseSource: "snapshot" | "catalog";
+  /** The limits the override is applied ON TOP OF. */
+  base: PlanLimits;
+  /**
+   * What `resolvePlan` returns right now - the numbers the gates will actually use.
+   * Read from the resolver itself rather than recomputed here, so the panel can never
+   * show a limit the app does not enforce.
+   */
+  resolved: PlanLimits;
+  draft: LimitsDraft;
+}
+
+/** The columns the limits panel needs. */
+type LimitsTarget = {
+  id: string;
+  unlimited: boolean;
+  agencyAdminTenantId: string | null;
+  plan: Plan;
+  subscription: { plan: Plan; limitsSnapshot: Prisma.JsonValue; limitOverrides: Prisma.JsonValue } | null;
+};
+
+/**
+ * Why an override would not be read for this tenant, in the resolver's own order.
+ *
+ * 🔴 THE ANSWER IS NEVER "CREATE A SUBSCRIPTION ROW TO PUT IT ON". `entitledPlan` reads
+ * a subscription as what entitles the tenant, so a row fabricated to hold an override
+ * would hand them a paid plan nobody is paying for, and the renewal plumbing would then
+ * own a subscription Razorpay has never heard of. Comping is what the grant and the
+ * Unlimited flag are for; this function says so instead.
+ */
+function overrideBlockedReason(t: LimitsTarget): string | null {
+  if (t.id === PLATFORM_TENANT_ID) {
+    return "The platform is never rated against a plan, so an override stored here would never be read.";
+  }
+  if (t.agencyAdminTenantId) {
+    return (
+      "A client workspace resolves through its agency admin to the client-workspace unit and carries no " +
+      "subscription of its own, so an override here would never be read. To lift just this one, use the " +
+      "grant or Unlimited on this row - both resolve ahead of the agency."
+    );
+  }
+  if (!t.subscription) {
+    return (
+      "An override is stored on the subscription, and this workspace has none. Comp it with the grant or " +
+      "Unlimited instead, or wait until it subscribes."
+    );
+  }
+  return null;
+}
+
+/** The limits of the plan this row names, with legacy plan values falling back to Gate. */
+function catalogBase(plan: Plan): PlanLimits {
+  const id = plan as PlanId;
+  return PLAN_LIMITS[id] ? PLAN_LIMITS[id] : PLAN_LIMITS.GATE;
+}
+
+/**
+ * Load one tenant's limits for the panel. Read-only, so any super admin may see it; the
+ * write below is owner-only.
+ *
+ * Deliberately NOT folded into listTenants: it costs a resolver call per tenant, and the
+ * list renders every workspace on the install.
+ */
+export async function readTenantLimits(tenantId: string): Promise<ActionResult<TenantLimitsView>> {
+  await requireSuperAdmin();
+  try {
+    const t = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        id: true,
+        name: true,
+        unlimited: true,
+        agencyAdminTenantId: true,
+        plan: true,
+        subscription: { select: { plan: true, limitsSnapshot: true, limitOverrides: true } },
+      },
+    });
+    if (!t) return { ok: false, error: "Tenant not found." };
+
+    const base = t.subscription
+      ? parseLimitsSnapshot(t.subscription.limitsSnapshot, t.subscription.plan as PlanId)
+      : catalogBase(t.plan);
+
+    return {
+      ok: true,
+      data: {
+        tenantId: t.id,
+        tenantName: t.name,
+        blockedReason: overrideBlockedReason(t),
+        unlimited: t.unlimited,
+        baseSource: t.subscription ? "snapshot" : "catalog",
+        base,
+        resolved: (await resolvePlan(t.id)).limits,
+        draft: draftFromOverride(t.subscription?.limitOverrides ?? null),
+      },
+    };
+  } catch (e) {
+    console.error("[platform] readTenantLimits failed:", e instanceof Error ? e.message : String(e));
+    return { ok: false, error: "Couldn't load this tenant's limits (a temporary database error). Try again." };
+  }
+}
+
+/**
+ * Store (or clear) one tenant's limits override.
+ *
+ * The guards run again here rather than trusting that the panel disabled its button: a
+ * server action is a public endpoint, and "the UI would not have let you" is not a check.
+ *
+ * Returns the sentence the panel shows, which states WHAT CHANGED against the plan rather
+ * than that a write happened - an override that restates the plan's own numbers says so,
+ * instead of looking like it did something.
+ */
+export async function setTenantLimitOverrides(
+  tenantId: string,
+  draft: LimitsDraft,
+): Promise<ActionResult<{ summary: string }>> {
+  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+
+  const t = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: {
+      id: true,
+      unlimited: true,
+      agencyAdminTenantId: true,
+      plan: true,
+      subscription: { select: { plan: true, limitsSnapshot: true, limitOverrides: true } },
+    },
+  });
+  if (!t) return { ok: false, error: "Tenant not found." };
+
+  const blocked = overrideBlockedReason(t);
+  if (blocked) return { ok: false, error: blocked };
+  if (!t.subscription) return { ok: false, error: "This workspace has no subscription to store an override on." };
+
+  const parsed = draftToOverride(draft);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+
+  const r = await softFail(
+    "setTenantLimitOverrides",
+    "Couldn't save those limits (a temporary database error). Try again.",
+    async () => {
+      await prisma.subscription.update({
+        where: { tenantId },
+        data: {
+          // SQL NULL, not JSON null: an empty object would read as "this tenant has a
+          // deal" forever, and resolution would keep applying an override of nothing.
+          limitOverrides:
+            parsed.value === null ? Prisma.DbNull : (parsed.value as Prisma.InputJsonValue),
+        },
+      });
+    },
+  );
+  if (!r.ok) return r;
+  revalidatePath("/platform");
+
+  const base = parseLimitsSnapshot(t.subscription.limitsSnapshot, t.subscription.plan as PlanId);
+  const changes = summariseOverride(base, parsed.value);
+  const unlimitedNote = t.unlimited
+    ? " This tenant is Unlimited, so the override is not what entitles it."
+    : "";
+
+  const summary =
+    parsed.value === null
+      ? "Override cleared. Limits follow the plan again."
+      : changes.length === 0
+        ? `Saved, but nothing changes: every value matches the plan already.${unlimitedNote}`
+        : `Saved. ${changes.join("; ")}.${unlimitedNote}`;
+
+  return { ok: true, data: { summary } };
+}
+
 /** Platform-owner (super-admin) tenant + user management. Stage 1: create tenants,
  *  assign existing logins to a tenant as its admin, promote/demote super admins.
  *  Creating the login itself is self-serve (/sign-up), then assigned here. */
@@ -341,6 +546,17 @@ export interface TenantRow {
   /** Total sign-ins across this workspace's logins. A floor, not a lifetime total -
    *  it was backfilled from surviving sessions, and expired ones were already gone. */
   loginCount: number;
+  /**
+   * The AGENCY ADMIN this workspace belongs to, when it is an agency tenant. Null for a
+   * tenant directly under the super admin.
+   *
+   * Carried because the console is where the owner finds out why there are suddenly six
+   * workspaces for one customer: five of them are somebody's clients, entitled through
+   * one subscription, and reading them as six trials to chase would be wrong.
+   */
+  agencyAdminName: string | null;
+  /** Agency tenants under this workspace. Non-zero = this is an agency admin. */
+  agencyTenantCount: number;
 }
 
 /**
@@ -353,9 +569,10 @@ export interface TenantRow {
  */
 type TenantWithCounts = Prisma.TenantGetPayload<{
   include: {
-    _count: { select: { users: true; assessments: true; submissions: true } };
+    _count: { select: { users: true; assessments: true; submissions: true; agencyTenants: true } };
     subscription: { select: { status: true; plan: true; currentPeriodEnd: true } };
     users: { select: { lastLoginAt: true; loginCount: true } };
+    agencyAdmin: { select: { name: true } };
   };
 }>;
 
@@ -382,6 +599,8 @@ function toTenantRow(t: TenantWithCounts): TenantRow {
     plan: t.plan,
     planExpiresAt: t.planExpiresAt?.toISOString() ?? null,
     trialEndsAt: t.trialEndsAt?.toISOString() ?? null,
+    agencyAdminName: t.agencyAdmin?.name ?? null,
+    agencyTenantCount: t._count.agencyTenants,
     subStatus: t.subscription?.status ?? null,
     subPlan: t.subscription?.plan ?? null,
     subPeriodEnd: t.subscription?.currentPeriodEnd?.toISOString() ?? null,
@@ -392,7 +611,10 @@ function toTenantRow(t: TenantWithCounts): TenantRow {
 
 /** What both tenant lists load. Shared so the two can never select different columns. */
 const TENANT_INCLUDE = {
-  _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true } },
+  _count: { select: { users: { where: { deletedAt: null } }, assessments: true, submissions: true, agencyTenants: true } },
+  // The workspace above this one, when there is one. A name, not an id: the console
+  // reads it, it never acts on it.
+  agencyAdmin: { select: { name: true } },
   subscription: { select: { status: true, plan: true, currentPeriodEnd: true } },
   // Only the one field the row needs. A deleted login's last sign-in is not this
   // workspace's activity any more, so they are excluded exactly as the count is.
@@ -452,47 +674,14 @@ export async function createTenant(
   slug?: string,
 ): Promise<ActionResult<{ id: string }>> {
   if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
-  const nm = name.trim();
-  if (nm.length < 2) return { ok: false, error: "Name is required." };
-  const em = email.trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return { ok: false, error: "Enter a valid admin email." };
-  const pw = (password ?? "").trim();
-  if (pw.length < 8) return { ok: false, error: "Password must be at least 8 characters." };
-
-  const rawSlug = slug && slug.trim()
-    ? slug.trim().toLowerCase()
-    : nm.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32);
-  const s = slugSchema.safeParse(rawSlug);
-  if (!s.success) return { ok: false, error: s.error.issues[0]?.message ?? "Invalid slug." };
-  const clash = await prisma.tenant.findUnique({
-    where: { slug: s.data },
-    select: { id: true, deletedAt: true },
-  });
-  if (clash) {
-    return {
-      ok: false,
-      error: clash.deletedAt
-        ? `A deleted tenant still holds the slug "${s.data}". Restore it, or delete it permanently from the deleted list, to free the name.`
-        : "That tenant slug is already in use.",
-    };
-  }
-  if (await prisma.user.findUnique({ where: { email: em }, select: { id: true } })) {
-    return { ok: false, error: "A login with that email already exists." };
-  }
-
-  const ctx = await auth.$context;
-  const hashed = await ctx.password.hash(pw);
-  // Same 14-day trial as a self-signup. Without it the tenant is born with no trial and
-  // no subscription, which resolves as PARKED - an owner-created workspace that is
-  // read-only from its first second.
-  const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-  const t = await prisma.tenant.create({ data: { slug: s.data, name: nm, trialEndsAt } });
-  const u = await prisma.user.create({
-    data: { name: nm, email: em, role: Role.ADMIN, tenantId: t.id, emailVerified: true },
-  });
-  await prisma.account.create({ data: { accountId: u.id, providerId: "credential", password: hashed, userId: u.id } });
+  // The steps themselves live in provisionWorkspace, shared with createAgencyTenant, so
+  // the owner's create screen and an agency admin's cannot drift apart. The trial is
+  // stamped here because a tenant under the super admin has no other entitlement: born
+  // without it, it resolves as PARKED and is read-only from its first second.
+  const done = await provisionWorkspace({ name, email, password, slug, trial: true });
+  if (!done.ok) return { ok: false, error: done.error };
   revalidatePath("/platform");
-  return { ok: true, data: { id: t.id } };
+  return { ok: true, data: { id: done.tenantId } };
 }
 
 export interface PlatformUserRow {

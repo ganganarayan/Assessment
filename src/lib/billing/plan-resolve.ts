@@ -1,4 +1,4 @@
-import { type Subscription, type SubscriptionStatus } from "@prisma/client";
+import { type Plan, type Subscription, type SubscriptionStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
   PLAN_LIMITS,
@@ -12,6 +12,9 @@ import {
   TRIAL_PLAN,
   PARKED_LIMITS,
   trialDaysLeft,
+  AGENCY_TENANT_LIMITS,
+  AGENCY_TENANT_PLAN,
+  TRIAL_LIMITS,
 } from "@/lib/billing/plans";
 import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
 
@@ -84,6 +87,14 @@ export interface ResolvedPlan {
    * as Free - the opposite of what the flag means. Read this instead of inferring.
    */
   unlimited: boolean;
+  /**
+   * Entitled THROUGH AN AGENCY ADMIN: this workspace is an agency tenant, and what pays
+   * for it is somebody else's subscription. `plan` reads SIGNAL (the retail tier it is a
+   * discounted copy of) and `status` is the agency admin's, so without this flag a caller
+   * cannot tell an agency tenant from a retail Signal customer - which matters, because
+   * an agency tenant has no billing surface of its own to send anybody to.
+   */
+  agencyTenant: boolean;
 }
 
 /**
@@ -101,51 +112,31 @@ function lastEntitledResponseLimit(sub: Subscription | null): number | null {
   return withOverrides.responsesPerMonth;
 }
 
+/** The tenant columns plan rating needs. Shared by the tenant and its agency admin. */
+interface PlanRow {
+  plan: Plan;
+  planExpiresAt: Date | null;
+  trialEndsAt: Date | null;
+  unlimited: boolean;
+  subscription: Subscription | null;
+}
+
 /**
- * Resolve a tenant's effective plan + limits. Order of precedence for limits:
- * per-tenant overrides > frozen snapshot (subscription) > code default (PLAN_LIMITS).
- * Never throws - a corrupt snapshot degrades to the catalog value.
+ * Rate ONE workspace against the catalog: subscription, then manual grant, then trial,
+ * then parked. Pure - no queries - and it knows nothing about agency tenants, which is
+ * what keeps the hierarchy one level deep. resolvePlan below is the only caller, and it
+ * uses this twice: once for the workspace asked about, once for its agency admin.
  */
-export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan> {
-  // The platform is never rated against a plan - not even the SCALE value its Tenant
-  // row carries. Short-circuiting here (rather than reading the row) keeps the owner's
-  // own funnel unmetered and un-gateable no matter what the column says, and means the
-  // hot path costs a string compare instead of a query.
-  if (!isBusinessTenant(tenantId)) {
-    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: true, unlimited: true, trialing: false, trialDaysLeft: 0, parked: false, readResponseLimit: null };
-  }
-
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { plan: true, subscription: true, unlimited: true, trialEndsAt: true, planExpiresAt: true },
-  });
-
-  // Unknown tenant → parked. Safest: a gate denies extras, never a respondent already
-  // mid-assessment, and an id with no row is a bug rather than a customer to serve.
-  if (!tenant) {
-    return {
-      plan: null,
-      status: null,
-      limits: PARKED_LIMITS,
-      isPlatform: false,
-      unlimited: false,
-      trialing: false,
-      trialDaysLeft: 0,
-      parked: true,
-      // An id with no row owns no submissions, so there is nothing to keep readable.
-      readResponseLimit: 0,
-    };
-  }
-
+function ratePlanRow(row: PlanRow): ResolvedPlan {
   // An INTERNAL tenant the owner runs themselves: unlimited and un-gated, like the
   // platform. Checked before the subscription so a lapsed or absent subscription can
-  // never quietly drop it to FREE - which would take Meta CAPI down on a tenant that
+  // never quietly drop it to parked - which would take Meta CAPI down on a tenant that
   // is spending on ads, with nothing surfacing the change.
-  if (tenant.unlimited) {
-    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: false, unlimited: true, trialing: false, trialDaysLeft: 0, parked: false, readResponseLimit: null };
+  if (row.unlimited) {
+    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: false, unlimited: true, trialing: false, trialDaysLeft: 0, parked: false, readResponseLimit: null, agencyTenant: false };
   }
 
-  const sub = tenant.subscription;
+  const sub = row.subscription;
   const effective = sub ? entitledPlan(sub.plan, sub.status) : null;
 
   // No entitling subscription: a MANUAL GRANT decides next, then the trial.
@@ -159,7 +150,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
   // pay for, and a stale date must never downgrade them) and above the trial, so
   // "give this one ten more days" is a date rather than an edit to the trial.
   if (effective === null) {
-    const granted = grantedPlan(tenant.plan, tenant.planExpiresAt);
+    const granted = grantedPlan(row.plan, row.planExpiresAt);
     if (granted) {
       return {
         plan: granted,
@@ -171,17 +162,20 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
         trialDaysLeft: 0,
         parked: false,
         readResponseLimit: PLAN_LIMITS[granted].responsesPerMonth,
+        agencyTenant: false,
       };
     }
-    const trialing = tenant.trialEndsAt != null && tenant.trialEndsAt.getTime() > Date.now();
+    const trialing = row.trialEndsAt != null && row.trialEndsAt.getTime() > Date.now();
     return {
       plan: trialing ? TRIAL_PLAN : null,
       status: sub?.status ?? null,
-      limits: trialing ? PLAN_LIMITS[TRIAL_PLAN] : PARKED_LIMITS,
+      // TRIAL_LIMITS, not PLAN_LIMITS[TRIAL_PLAN]: a trial carries one agency tenant on
+      // top of the trial plan, and the catalog states that once.
+      limits: trialing ? TRIAL_LIMITS : PARKED_LIMITS,
       isPlatform: false,
       unlimited: false,
       trialing,
-      trialDaysLeft: trialing ? trialDaysLeft(tenant.trialEndsAt) : 0,
+      trialDaysLeft: trialing ? trialDaysLeft(row.trialEndsAt) : 0,
       parked: !trialing,
       // Parked: freeze the read limit at the last plan that entitled them - the lapsed
       // subscription's own frozen snapshot, or (no subscription at all) the trial's
@@ -189,6 +183,7 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
       readResponseLimit: trialing
         ? PLAN_LIMITS[TRIAL_PLAN].responsesPerMonth
         : lastEntitledResponseLimit(sub),
+      agencyTenant: false,
     };
   }
 
@@ -205,7 +200,98 @@ export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan
     trialDaysLeft: 0,
     parked: false,
     readResponseLimit: limits.responsesPerMonth,
+    agencyTenant: false,
   };
+}
+
+/**
+ * Resolve a tenant's effective plan + limits. Order of precedence for limits:
+ * per-tenant overrides > frozen snapshot (subscription) > code default (PLAN_LIMITS).
+ * Never throws - a corrupt snapshot degrades to the catalog value.
+ *
+ * AGENCY TENANTS resolve through their agency admin, ONE hop and no further: an agency
+ * tenant carries no Subscription row and no Razorpay subscription of its own, because the
+ * agency admin pays one subscription for all of them. Three consequences, each deliberate:
+ *
+ *  - The agency admin must be entitled TO RESELL, not merely be paying. A downgrade from
+ *    Agency to Gate takes `agencyTenants` to 0 and every workspace under it parks at the
+ *    next request. Checking "has a subscription" instead would leave five workspaces
+ *    running on a $39 plan.
+ *  - A lapsed agency parks its agency tenants exactly as a lapsed tenant parks itself:
+ *    read-only, funnel paused, nothing deleted.
+ *  - The agency tenant's OWN escape hatches still win, because they are checked first:
+ *    the `unlimited` flag, then, on fall-through, a manual grant. That is the only way to
+ *    lift a single agency tenant, since limitOverrides needs a subscription to live on.
+ */
+export async function resolvePlan(tenantId: string | null): Promise<ResolvedPlan> {
+  // The platform is never rated against a plan - not even the value its Tenant row
+  // carries. Short-circuiting here (rather than reading the row) keeps the owner's own
+  // funnel unmetered and un-gateable no matter what the column says, and means the hot
+  // path costs a string compare instead of a query.
+  if (!isBusinessTenant(tenantId)) {
+    return { plan: null, status: null, limits: UNLIMITED_LIMITS, isPlatform: true, unlimited: true, trialing: false, trialDaysLeft: 0, parked: false, readResponseLimit: null, agencyTenant: false };
+  }
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { plan: true, subscription: true, unlimited: true, trialEndsAt: true, planExpiresAt: true, agencyAdminTenantId: true },
+  });
+
+  // Unknown tenant → parked. Safest: a gate denies extras, never a respondent already
+  // mid-assessment, and an id with no row is a bug rather than a customer to serve.
+  if (!tenant) {
+    return {
+      plan: null,
+      status: null,
+      limits: PARKED_LIMITS,
+      isPlatform: false,
+      unlimited: false,
+      trialing: false,
+      trialDaysLeft: 0,
+      parked: true,
+      // An id with no row owns no submissions, so there is nothing to keep readable.
+      readResponseLimit: 0,
+      agencyTenant: false,
+    };
+  }
+
+  // The agency tenant's own unlimited flag wins over everything, its agency admin
+  // included: an internal workspace the owner happens to have parked under an agency
+  // must not lose CAPI the day that agency's card fails.
+  if (tenant.unlimited) return ratePlanRow(tenant);
+
+  if (tenant.agencyAdminTenantId) {
+    const agency = await prisma.tenant.findUnique({
+      where: { id: tenant.agencyAdminTenantId },
+      select: { plan: true, subscription: true, unlimited: true, trialEndsAt: true, planExpiresAt: true, deletedAt: true, agencyAdminTenantId: true },
+    });
+    // A deleted agency admin entitles nobody, and one that is ITSELF an agency tenant
+    // entitles nobody either - that second check is the depth limit, enforced here as
+    // well as at creation, so a hand-written row cannot grow a third level.
+    const rated = agency && !agency.deletedAt && !agency.agencyAdminTenantId ? ratePlanRow(agency) : null;
+    if (rated && !rated.parked && rated.limits.agencyTenants > 0) {
+      return {
+        plan: AGENCY_TENANT_PLAN,
+        // The agency admin's status, because that is the subscription paying for this
+        // workspace. There is no other truthful answer: this tenant has none.
+        status: rated.status,
+        limits: AGENCY_TENANT_LIMITS,
+        isPlatform: false,
+        unlimited: rated.unlimited,
+        trialing: rated.trialing,
+        trialDaysLeft: rated.trialDaysLeft,
+        parked: false,
+        readResponseLimit: AGENCY_TENANT_LIMITS.responsesPerMonth,
+        agencyTenant: true,
+      };
+    }
+    // Agency admin lapsed, downgraded below reselling, or gone: fall through to this
+    // workspace's own grant or trial, and to parked if it has neither. Falling through
+    // rather than returning parked here is what lets the owner comp a single agency
+    // tenant whose agency has stopped paying.
+  }
+
+  return ratePlanRow(tenant);
 }
 
 /** Whether a tenant is entitled to a feature. The platform's own scope → always true. */

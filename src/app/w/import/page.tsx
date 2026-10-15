@@ -52,7 +52,8 @@ export default async function WorkspaceImportPage() {
         <h1 className="mt-2 text-2xl font-bold tracking-tight">Import assessment</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
           Plain text / Markdown you write yourself, or a JSON or CSV file taken out of another tool. Both are validated and previewed
-          before anything is written - into this workspace.
+          before anything is written - into this workspace. Assessments only - a result page rides along inside an exported
+          assessment, and ready-made pages live under Result pages.
         </p>
       </div>
 

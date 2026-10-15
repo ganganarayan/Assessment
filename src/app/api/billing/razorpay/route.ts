@@ -8,6 +8,9 @@ import {
   markPastDue,
   endSubscription,
   isPaidPlan,
+  setPaidSlots,
+  clearPaidSlots,
+  SLOT_NOTE_KIND,
   type PaidPlanId,
 } from "@/lib/billing/razorpay-subscriptions";
 import { firePlatformPurchase } from "@/lib/billing/platform-events";
@@ -46,6 +49,9 @@ function asStr(v: unknown): string | null {
 }
 function asDateFromUnix(v: unknown): Date | null {
   return typeof v === "number" && Number.isFinite(v) ? new Date(v * 1000) : null;
+}
+function asCount(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.trunc(v) : null;
 }
 function toPaidPlan(v: unknown): PaidPlanId | null {
   const s = asStr(v);
@@ -95,14 +101,60 @@ export async function POST(req: Request) {
   // Resolve the tenant: prefer the notes we set at creation, else our stored row.
   let tenantId = asStr(notes.tenantId);
   if (!tenantId && razorpaySubscriptionId) {
+    // Either of the two subscriptions a tenant can hold: the tier, or the client-workspace
+    // slots. Looking only at the tier column used to be enough; a slot event would have
+    // resolved no tenant and been dropped as a warning.
     const row = await prisma.subscription.findFirst({
-      where: { razorpaySubscriptionId },
+      where: {
+        OR: [
+          { razorpaySubscriptionId },
+          { razorpaySlotSubscriptionId: razorpaySubscriptionId },
+        ],
+      },
       select: { tenantId: true },
     });
     tenantId = row?.tenantId ?? null;
   }
   if (!tenantId) {
     return NextResponse.json({ ok: true, warning: "tenant not resolved" });
+  }
+
+  /**
+   * CLIENT-WORKSPACE SLOTS, handled before anything else.
+   *
+   * 🔴 A slot event must NEVER reach activateSubscription below. That function writes
+   * `razorpaySubscriptionId` - the TIER's subscription - so routing a slot charge into it
+   * would overwrite the tier's id with the slot subscription's, and the tier would stop
+   * renewing while the app went on believing it was active. The two are told apart by the
+   * note set at creation, with the stored column as the fallback for an event whose notes
+   * are missing.
+   */
+  const slotNote = asStr(notes.kind) === SLOT_NOTE_KIND;
+  const slotRow = slotNote
+    ? null
+    : razorpaySubscriptionId
+      ? await prisma.subscription.findFirst({
+          where: { tenantId, razorpaySlotSubscriptionId: razorpaySubscriptionId },
+          select: { tenantId: true },
+        })
+      : null;
+  if (slotNote || slotRow) {
+    if (event === "subscription.activated" || event === "subscription.charged") {
+      // The quantity Razorpay charged for is the number of slots that are paid. Reading
+      // the charge rather than our own column is what makes a change made in the Razorpay
+      // dashboard converge here instead of drifting.
+      await setPaidSlots(tenantId, asCount(subEntity.quantity) ?? 1);
+      return NextResponse.json({ ok: true, slots: true });
+    }
+    if (event === "subscription.pending") {
+      // A failed slot charge keeps the workspaces running while Razorpay retries, exactly
+      // as a failed tier charge keeps the plan. Pulling a client's workspace offline on the
+      // first retry would punish the agency's customer for the agency's card.
+      return NextResponse.json({ ok: true, slotsPastDue: true });
+    }
+    // cancelled | halted | completed: the extras are gone.
+    await clearPaidSlots(tenantId);
+    return NextResponse.json({ ok: true, slotsEnded: true });
   }
 
   if (event === "subscription.activated" || event === "subscription.charged") {

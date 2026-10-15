@@ -3,14 +3,13 @@ import { notFound, redirect } from "next/navigation";
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { tenantCan } from "@/lib/billing/gate";
 import { getAssessmentById, listAssessments } from "@/features/assessment/data";
-import { buildSpine } from "@/lib/routing/engine";
+import { buildSpine, defaultRouteOf } from "@/lib/routing/engine";
 import {
   EMPTY_AUDIENCE_GATE,
   EMPTY_QUALIFICATION,
   EMPTY_DISQUALIFIED,
   qualificationSchema,
   disqualifiedContentSchema,
-  readExits,
   type AudienceGateInput,
 } from "@/features/assessment/schemas";
 import { QualificationManager } from "@/features/assessment/components/admin/qualification-manager";
@@ -23,8 +22,6 @@ import { CategoriesManager } from "@/features/assessment/components/admin/catego
 import { env } from "@/lib/env";
 import { ResultBandsManager } from "@/features/assessment/components/admin/result-bands-manager";
 import { CategoryBandsManager } from "@/features/assessment/components/admin/category-bands-manager";
-import { PagesBuilder } from "@/features/assessment/components/admin/pages-builder";
-import { ResultPageBuilder } from "@/features/assessment/components/admin/result-page-builder";
 import {
   BuilderStep,
   BuilderStepReset,
@@ -32,9 +29,9 @@ import {
 } from "@/features/admin/components/builder-tab-context";
 import { StartFromTemplate } from "@/features/templates/components/start-from-template";
 import { listTemplatesForTenant } from "@/features/templates/data";
-import { readResultPage } from "@/features/assessment/result-page/blocks";
 import { WorkspaceAssessmentActions } from "@/features/workspace/components/workspace-assessment-actions";
-import { type BlockType, normalizePages, readPublishedPages } from "@/features/assessment/pages/blocks";
+import { DocBinder } from "@/features/result-pages/components/doc-binder";
+import { listFreeDocs } from "@/features/result-pages/data";
 import { Badge } from "@/components/ui/badge";
 import { tenantOnly } from "@/lib/tenant/scope";
 import { readMetaEvents } from "@/features/assessment/meta-events";
@@ -152,10 +149,13 @@ export default async function WorkspaceEditAssessmentPage({
     questions: c.questions.map((q) => ({
       id: q.id,
       text: q.text,
+      type: q.type,
       weight: q.weight,
       required: q.required,
       scoringRole: q.scoringRole,
       scoringUnit: q.scoringUnit,
+      // The question's own rule: where the flow goes when no option rule applies.
+      defaultRoute: defaultRouteOf(q),
       options: q.options.map((o) => ({
         id: o.id,
         label: o.label,
@@ -205,20 +205,28 @@ export default async function WorkspaceEditAssessmentPage({
     a.resultBands.map((b) => [b.level, b.title]),
   );
 
-  const initialPages = a.pages.map((p) => ({
-    id: p.id,
-    order: p.order,
-    title: p.title,
-    blocks: p.blocks.map((b) => ({
-      id: b.id,
-      type: b.type as BlockType,
-      order: b.order,
-      config: (b.config ?? {}) as Record<string, unknown>,
-    })),
-  }));
-
-  const publishedPages = readPublishedPages(a.publishedPages);
-  const initialDirty = normalizePages(initialPages) !== normalizePages(publishedPages);
+  // The result pages this funnel can be bound to: its own, plus every page of that
+  // kind that is bound to nothing. A page already on another funnel is absent by
+  // design - the binding is 1:1, and Clone (in the library) is how it gets here.
+  const [freeResultsDocs, freeVslDocs] = await Promise.all([listFreeDocs("RESULTS"), listFreeDocs("VSL")]);
+  const boundResultsDoc = a.resultsDoc
+    ? {
+        id: a.resultsDoc.id,
+        title: a.resultsDoc.title,
+        slug: a.resultsDoc.slug,
+        published: a.resultsDoc.published != null,
+        publishedAt: a.resultsDoc.publishedAt ? a.resultsDoc.publishedAt.toISOString() : null,
+      }
+    : null;
+  const boundVslDoc = a.vslDoc
+    ? {
+        id: a.vslDoc.id,
+        title: a.vslDoc.title,
+        slug: a.vslDoc.slug,
+        published: a.vslDoc.published != null,
+        publishedAt: a.vslDoc.publishedAt ? a.vslDoc.publishedAt.toISOString() : null,
+      }
+    : null;
 
   const categoryOptions = a.categories.map((c) => ({ id: c.id, name: c.name }));
   const categoryBands = a.categories.flatMap((c) =>
@@ -358,17 +366,20 @@ export default async function WorkspaceEditAssessmentPage({
     <section className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold">Results page</h2>
       <p className="text-xs text-[var(--muted-foreground)]">
-        The single page shown after the questions. Add blocks, then click{" "}
-        <strong>Publish</strong> to make them live. The step after this page (Payment or
-        Destination) is set under <em>Assessment → Next step after results</em>.
+        The page shown straight after the questions - write-up, video, payment button, and the
+        dynamic blocks (overall band, a per-band sentence, the category breakdown with
+        <strong> scores blurred</strong> until payment). The page itself is built in
+        <strong> Result pages</strong>, so it can be cloned for the next funnel; this step decides
+        which one this funnel uses. The step AFTER the page (Payment or Destination) is set under
+        <em> Assessment → Next step after results</em>.
       </p>
-      <PagesBuilder
+      <DocBinder
         assessmentId={a.id}
-        initialPages={initialPages}
-        bandTitles={bandWords}
-        initialDirty={initialDirty}
-        initialPublished={publishedPages.length > 0}
-        lastPublishedAt={a.pagesPublishedAt ? a.pagesPublishedAt.toISOString() : null}
+        kind="RESULTS"
+        bound={boundResultsDoc}
+        free={freeResultsDocs}
+        basePath="/w/result-pages"
+        canEdit
       />
     </section>
   );
@@ -377,18 +388,19 @@ export default async function WorkspaceEditAssessmentPage({
     <section className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold">VSL Result Page</h2>
       <p className="text-xs text-[var(--muted-foreground)]">
-        The marketing page shown when <em>Next step</em> is <strong>Show results on assess360</strong>
-        - eyebrow, headline, the respondent&apos;s AI statement, your VSL video (embed code), buttons
-        and YouTube testimonials. Publish to make it live; unpublished falls back to the score cards.
+        The marketing page shown to the respondent when <em>Next step</em> is
+        <strong> Show results on assess360</strong> - eyebrow, headline, the respondent&apos;s AI
+        statement, your video, styled buttons, testimonials, footer. Delivered on the token link
+        (opens in the Instagram in-app browser, no sign-in). Built in <strong>Result pages</strong>
+        and bound here; unpublished or unbound falls back to the score cards.
       </p>
-      <ResultPageBuilder
+      <DocBinder
         assessmentId={a.id}
-        initial={readResultPage(a.resultPage ?? null)}
-        initialPublished={!!a.resultPagePublished}
-        lastPublishedAt={a.resultPagePublishedAt ? a.resultPagePublishedAt.toISOString() : null}
-        // Only a gate route that carries people on through the assessment makes "who is
-        // this block for" a real question.
-        hasExitRoutes={readExits(a.disqualifiedContent).some((e) => e.mode === "CONTINUE")}
+        kind="VSL"
+        bound={boundVslDoc}
+        free={freeVslDocs}
+        basePath="/w/result-pages"
+        canEdit
       />
     </section>
   );

@@ -6,11 +6,14 @@ import { prisma } from "@/lib/db/prisma";
 import {
   questionRoutesInputSchema,
   type QuestionRoutesInput,
+  type RouteActionValue,
 } from "@/features/assessment/schemas";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { assertEdit, resolveActingScope } from "@/lib/tenant/acting";
 import { tenantCan } from "@/lib/billing/entitlements";
+import { resolvePlan } from "@/lib/billing/entitlements";
+import { PARKED_MESSAGE } from "@/lib/billing/plans";
 import { buildSpine } from "@/lib/routing/engine";
 import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 
@@ -64,48 +67,71 @@ export async function setQuestionRoutes(
   });
   const optionIds = new Set(question.options.map((o) => o.id));
 
-  type Upsert = {
-    optionId: string;
+  type Rule = {
     action: RouteAction;
     targetQuestionId: string | null;
     targetCategoryId: string | null;
   };
-  const upserts: Upsert[] = [];
-  for (const r of parsed.data.routes) {
-    if (!optionIds.has(r.optionId)) {
-      return { ok: false, error: "Route references an option not on this question." };
-    }
-    if (r.action === "NEXT") continue; // no row = default linear flow
-
+  /**
+   * Validate ONE rule - an option's, or the question's default - into the triple that
+   * gets stored. null = "no rule": for an option that is the absence of a row, for the
+   * default that is three null columns, and both mean linear flow.
+   *
+   * Forward-only is enforced here because this is the only place a loop could be
+   * created. The engine stays defensive about it anyway.
+   */
+  const resolveRule = (r: {
+    action: RouteActionValue;
+    targetQuestionId?: string;
+    targetCategoryId?: string;
+  }): Rule | null | { error: string } => {
+    if (r.action === "NEXT") return null;
     if (r.action === "SKIP_TO_END") {
-      upserts.push({ optionId: r.optionId, action: RouteAction.SKIP_TO_END, targetQuestionId: null, targetCategoryId: null });
-      continue;
+      return { action: RouteAction.SKIP_TO_END, targetQuestionId: null, targetCategoryId: null };
     }
     if (r.action === "JUMP_TO_QUESTION") {
       const t = (r.targetQuestionId ?? "").trim();
       const ti = t ? indexById.get(t) : undefined;
-      if (ti === undefined) return { ok: false, error: "Jump target question not found in this assessment." };
-      if (ti <= currentIndex) return { ok: false, error: "You can only jump to a LATER question." };
-      upserts.push({ optionId: r.optionId, action: RouteAction.JUMP_TO_QUESTION, targetQuestionId: t, targetCategoryId: null });
-      continue;
+      if (ti === undefined) return { error: "Jump target question not found in this assessment." };
+      if (ti <= currentIndex) return { error: "You can only jump to a LATER question." };
+      return { action: RouteAction.JUMP_TO_QUESTION, targetQuestionId: t, targetCategoryId: null };
     }
-    if (r.action === "JUMP_TO_CATEGORY") {
-      const t = (r.targetCategoryId ?? "").trim();
-      const ci = t ? categoryFirstIndex.get(t) : undefined;
-      if (ci === undefined) return { ok: false, error: "Jump target category not found." };
-      if (ci <= currentIndex) return { ok: false, error: "You can only jump to a LATER category." };
-      upserts.push({ optionId: r.optionId, action: RouteAction.JUMP_TO_CATEGORY, targetQuestionId: null, targetCategoryId: t });
-      continue;
+    const t = (r.targetCategoryId ?? "").trim();
+    const ci = t ? categoryFirstIndex.get(t) : undefined;
+    if (ci === undefined) return { error: "Jump target category not found." };
+    if (ci <= currentIndex) return { error: "You can only jump to a LATER category." };
+    return { action: RouteAction.JUMP_TO_CATEGORY, targetQuestionId: null, targetCategoryId: t };
+  };
+
+  const upserts: (Rule & { optionId: string })[] = [];
+  for (const r of parsed.data.routes) {
+    if (!optionIds.has(r.optionId)) {
+      return { ok: false, error: "Route references an option not on this question." };
     }
+    const rule = resolveRule(r);
+    if (rule && "error" in rule) return { ok: false, error: rule.error };
+    if (!rule) continue; // no row = default linear flow
+    upserts.push({ optionId: r.optionId, ...rule });
   }
 
-  // Billing gate: conditional logic & branching is a Growth+ capability. Adding a real
+  // The question's DEFAULT rule - what happens when no option rule applies (skipped,
+  // typed, or an answer with no rule of its own). Absent or NEXT clears it to linear.
+  const defaultRule = parsed.data.defaultRoute ? resolveRule(parsed.data.defaultRoute) : null;
+  if (defaultRule && "error" in defaultRule) return { ok: false, error: defaultRule.error };
+  const defaultData = {
+    defaultRouteAction: defaultRule ? defaultRule.action : null,
+    defaultTargetQuestionId: defaultRule ? defaultRule.targetQuestionId : null,
+    defaultTargetCategoryId: defaultRule ? defaultRule.targetCategoryId : null,
+  };
+
+  // Billing gate: conditional logic & branching is on every paid tier. Adding a real
   // route (a JUMP or SKIP_TO_END) needs the feature; clearing routes back to the linear
   // default is always allowed. The app owner (super admin) is never limited.
-  if (upserts.length > 0) {
+  if (upserts.length > 0 || defaultRule) {
     const scope = await resolveActingScope();
     if (!scope.isSuper && !(await tenantCan(scope.tenantId, "conditionalRouting"))) {
-      return { ok: false, error: "Conditional logic & branching is available on the Growth plan and up. Upgrade to add routing." };
+      if ((await resolvePlan(scope.tenantId)).parked) return { ok: false, error: PARKED_MESSAGE };
+      return { ok: false, error: "Conditional logic & branching needs a paid plan. Upgrade to add routing." };
     }
   }
 
@@ -132,6 +158,7 @@ export async function setQuestionRoutes(
         },
       }),
     ),
+    prisma.question.update({ where: { id: questionId }, data: defaultData }),
   ]);
 
   await invalidatePublicAssessmentById(assessmentId);

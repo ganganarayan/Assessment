@@ -1,7 +1,12 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { assessmentCreateData, generateCopySlug, slugExists } from "@/features/assessment/transfer/import";
+import {
+  assessmentCreateData,
+  createResultDocsForImport,
+  generateCopySlug,
+  slugExists,
+} from "@/features/assessment/transfer/import";
 import { nextVersionNumber } from "@/lib/ai/versions";
 import { parseTemplateBody } from "@/features/templates/schema";
 
@@ -130,7 +135,16 @@ export async function importTemplateForTenant(args: {
           // the workspace default happens to be.
           ...(instructions ? {} : { useAiStatement: false }),
         },
-        select: { id: true, slug: true },
+        select: { id: true, slug: true, title: true },
+      });
+
+      // Its result pages, as editable docs in this workspace's library.
+      await createResultDocsForImport(tx, {
+        assessmentId: created.id,
+        assessmentSlug: created.slug,
+        assessmentTitle: created.title,
+        tenantId: args.tenantId,
+        body,
       });
 
       return { assessmentId: created.id, slug: created.slug, promptVersionLabel };

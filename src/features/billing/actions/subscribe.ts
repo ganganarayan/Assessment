@@ -8,15 +8,33 @@ import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { firePlatformPurchase } from "@/lib/billing/platform-events";
-import { PLAN_IDS, PLAN_LABEL, PLAN_PRICE_USD, type PlanId } from "@/lib/billing/plans";
+import { PLAN_IDS, PLAN_LABEL, PLAN_PRICE_USD, PAID_PLAN_NAMES, type PlanId } from "@/lib/billing/plans";
 import {
   createSubscription,
   activateSubscription,
+  cancelRazorpaySubscription,
   isPaidPlan,
   platformKeyId,
   type PaidPlanId,
 } from "@/lib/billing/razorpay-subscriptions";
+import { EventType } from "@prisma/client";
+import { emitEvent } from "@/lib/events/emit";
+import { formatIST } from "@/lib/date";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+
+/**
+ * The owner's exit assessment, read WITHOUT a super-admin guard - the person reading it
+ * is the customer cancelling, not the owner. Local because it is one column and giving
+ * it a home in the platform settings module would mean exporting a reader that skips
+ * that module's guard.
+ */
+async function cancelExitAssessmentUrl(): Promise<string | null> {
+  const row = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: { cancelExitAssessmentUrl: true },
+  });
+  return row?.cancelExitAssessmentUrl ?? null;
+}
 
 /** Tier rank for the upgrade-only guard (no same-tier or downgrade purchases). */
 const PLAN_ORDER: Record<PlanId, number> = { GATE: 1, SIGNAL: 2, AGENCY: 3, ENTERPRISE: 4 };
@@ -48,7 +66,7 @@ export async function startSubscriptionCheckout(planInput: string): Promise<Acti
   }
 
   const plan = toPlanId(planInput);
-  if (!plan || !isPaidPlan(plan)) return { ok: false, error: "Pick a paid plan (Starter, Growth, or Scale)." };
+  if (!plan || !isPaidPlan(plan)) return { ok: false, error: `Pick a paid plan (${PAID_PLAN_NAMES}).` };
 
   const keyId = await platformKeyId();
   if (!keyId) return { ok: false, error: "Payments are not configured. Add Razorpay keys in Settings first." };
@@ -169,4 +187,127 @@ export async function verifySubscriptionPayment(input: VerifyInput): Promise<Act
 
   revalidatePath("/w/billing");
   return { ok: true, data: { purchase: { eventId: input.razorpay_payment_id, value, pixelId } } };
+}
+
+export interface CancelResult {
+  /** ISO instant access actually stops - the end of the period already paid for. */
+  endsAt: string | null;
+  /** The owner's exit assessment, when one is configured. The caller sends them here. */
+  exitAssessmentUrl: string | null;
+  /** The sentence to show, which states the date rather than that a write happened. */
+  summary: string;
+}
+
+/**
+ * Cancel the acting workspace's subscription AT THE END OF THE PERIOD IT HAS PAID FOR.
+ *
+ * 🔴 WHY THIS EXISTS. /refund says "You can cancel at any time from your account" and
+ * "cancel before the renewal date and you are not charged again". Neither was true:
+ * there was no cancel action, route or button anywhere, and `cancelAtPeriodEnd` was a
+ * column nothing ever wrote. A customer who wanted out had to email and wait. A
+ * published policy the product does not implement is the one billing defect that is
+ * also a promise.
+ *
+ * Cycle-end, never immediate: they keep what they bought until the renewal date, and
+ * Razorpay fires subscription.cancelled when it arrives, which the existing webhook
+ * already turns into endSubscription. Nothing here parks the tenant - doing that now
+ * would take away a period they paid for.
+ *
+ * 🔴 IT CANNOT BE UNDONE. Razorpay has no resume for a cycle-end cancellation, so the
+ * caller must say so BEFORE confirming.
+ *
+ * The exit assessment is returned rather than redirected to: the cancellation is already
+ * booked by then, and a survey must never be able to fail the thing it comes after.
+ */
+export async function cancelSubscription(): Promise<ActionResult<CancelResult>> {
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
+  if (!scope.tenantId) {
+    return { ok: false, error: "Select a workspace first. The platform owner has no subscription to cancel." };
+  }
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: scope.tenantId },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      agencyAdminTenantId: true,
+      subscription: {
+        select: { plan: true, status: true, razorpaySubscriptionId: true, currentPeriodEnd: true, cancelAtPeriodEnd: true },
+      },
+    },
+  });
+  if (!tenant) return { ok: false, error: "Workspace not found." };
+
+  // A client workspace is paid for by its agency admin and has no subscription of its
+  // own. Letting this run would report success having cancelled nothing.
+  if (tenant.agencyAdminTenantId) {
+    return {
+      ok: false,
+      error: "This client workspace is billed to the agency that created it. Ask them to make the change.",
+    };
+  }
+
+  const sub = tenant.subscription;
+  if (!sub || !sub.razorpaySubscriptionId) {
+    return { ok: false, error: "There is no paid subscription on this workspace to cancel." };
+  }
+  if (sub.status === "CANCELED" || sub.status === "HALTED") {
+    return { ok: false, error: "This subscription has already ended." };
+  }
+  if (sub.cancelAtPeriodEnd) {
+    return { ok: false, error: "This subscription is already set to stop at the end of the period." };
+  }
+
+  try {
+    await cancelRazorpaySubscription(sub.razorpaySubscriptionId, true);
+  } catch (e) {
+    console.error("[billing] cancel failed:", e instanceof Error ? e.message : String(e));
+    return { ok: false, error: "Razorpay would not accept the cancellation. Nothing has changed - try again, or contact support." };
+  }
+
+  // Only after Razorpay has accepted it. Writing first would leave the workspace
+  // believing it had cancelled while the card kept being charged, which is the one
+  // direction this must never fail in.
+  await prisma.subscription.update({
+    where: { tenantId: tenant.id },
+    data: { cancelAtPeriodEnd: true },
+  });
+
+  const exitAssessmentUrl = await cancelExitAssessmentUrl();
+  const endsAt = sub.currentPeriodEnd ?? null;
+
+  // The owner's CRM hears this, not the workspace's: a tenant has no use for a webhook
+  // about its own cancellation. Platform scope (no tenant) is what routes it there.
+  await emitEvent(EventType.SUBSCRIPTION_CANCELLED, {
+    lead: { email: scope.user.email, firstName: scope.user.name ?? null },
+    subscription: {
+      tenantId: tenant.id,
+      tenantSlug: tenant.slug,
+      tenantName: tenant.name,
+      plan: sub.plan,
+      planLabel: PLAN_LABEL[sub.plan as PlanId] ?? sub.plan,
+      endsAt: endsAt?.toISOString() ?? null,
+      exitAssessmentUrl,
+    },
+  }).catch((e: unknown) => {
+    // The cancellation is already booked with Razorpay and written here. A webhook that
+    // did not go out is a notification problem, never a reason to tell somebody their
+    // cancellation failed.
+    console.error("[billing] cancel event failed:", e instanceof Error ? e.message : String(e));
+  });
+
+  revalidatePath("/w/billing");
+  return {
+    ok: true,
+    data: {
+      endsAt: endsAt?.toISOString() ?? null,
+      exitAssessmentUrl,
+      summary: endsAt
+        ? `Cancelled. Your plan stays active until ${formatIST(endsAt).split(",")[0]}, and you will not be charged again.`
+        : "Cancelled. You will not be charged again.",
+    },
+  };
 }

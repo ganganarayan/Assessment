@@ -25,6 +25,7 @@ export const EVENT_NAME: Record<EventType, string> = {
   [EventType.ASSESSMENT_ABANDONED]: "assessment.abandoned",
   [EventType.RESULT_LINK_REQUESTED]: "result.link_requested",
   [EventType.CTA_CLICKED]: "booking_requested", // result-page booking CTA clicked
+  [EventType.SUBSCRIPTION_CANCELLED]: "subscription.cancelled", // a customer asked to stop
 };
 
 /** Reverse of EVENT_NAME: dotted name -> enum value. */
@@ -45,6 +46,7 @@ export const ALL_EVENT_TYPES: EventType[] = [
   EventType.ASSESSMENT_ABANDONED,
   EventType.RESULT_LINK_REQUESTED,
   EventType.CTA_CLICKED,
+  EventType.SUBSCRIPTION_CANCELLED,
 ];
 
 /**
@@ -64,6 +66,11 @@ export const ACTIVE_EVENT_TYPES: EventType[] = [
   EventType.ASSESSMENT_ABANDONED,
   EventType.RESULT_LINK_REQUESTED,
   EventType.CTA_CLICKED, // booking CTA on the result page
+  // 🔴 THE ONLY EVENT THAT IS NOT ABOUT A RESPONDENT. It fires on the PLATFORM scope,
+  // not the cancelling workspace: a tenant has no use for a webhook announcing its own
+  // cancellation, and the person who needs to hear it is the owner, whose webhooks are
+  // the platform-scoped ones. Who cancelled is in metadata.subscription.
+  EventType.SUBSCRIPTION_CANCELLED,
 ];
 
 /**
@@ -84,6 +91,7 @@ export const EVENT_LABEL: Partial<Record<EventType, string>> = {
   [EventType.ASSESSMENT_ABANDONED]: "Abandoned",
   [EventType.RESULT_LINK_REQUESTED]: "Result link requested",
   [EventType.CTA_CLICKED]: "Booking requested (result-page CTA)",
+  [EventType.SUBSCRIPTION_CANCELLED]: "Subscription cancelled (a customer left)",
 };
 
 /** Suggested default delivered name per trigger (the canonical event name). */
@@ -131,6 +139,25 @@ export interface PayloadGate {
   /** Set when they came in through an OPTIN exit route (the waitlist case). */
   exitKey: string | null;
   exitName: string | null;
+}
+
+/**
+ * The cancellation, for the owner's CRM: which workspace, what they were paying for, and
+ * when access actually stops - which is the END OF THE PAID PERIOD, not now. A win-back
+ * sequence that treats the cancel date as the leave date writes to somebody still using
+ * the product.
+ */
+export interface PayloadSubscription {
+  tenantId: string;
+  tenantSlug: string;
+  tenantName: string;
+  /** The tier they were on, e.g. SIGNAL. */
+  plan: string;
+  planLabel: string;
+  /** ISO instant access ends; null when the period end was never recorded. */
+  endsAt: string | null;
+  /** The exit assessment they were sent to, when the owner has configured one. */
+  exitAssessmentUrl: string | null;
 }
 
 export interface PayloadScore {
@@ -244,6 +271,8 @@ export interface EmitInput {
   attribution?: Partial<PayloadAttribution> | null;
   /** Which result-page CTA was clicked (CTA_CLICKED only). */
   cta?: PayloadCta | null;
+  /** The cancelled subscription (SUBSCRIPTION_CANCELLED only). */
+  subscription?: PayloadSubscription | null;
   /** Override the event timestamp (defaults to now). Used for deterministic samples. */
   timestamp?: string;
 }

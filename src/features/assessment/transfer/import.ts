@@ -151,7 +151,10 @@ export function assessmentCreateData(
         questions: {
           create: c.questions.map((q, qi) => ({
             text: q.text,
-            weight: q.weight,
+            type: q.type,
+            // A typed answer scores nothing, so it lands with weight 0 whatever the
+            // file says - the same rule the builder applies when you create one.
+            weight: q.type === "FREE_TEXT" ? 0 : q.weight,
             required: q.required,
             displayOrder: qi,
             scoringRole: q.scoringRole ?? null,
@@ -243,10 +246,127 @@ export async function performImportAll(
           }
         }
 
-        await tx.assessment.create({ data: assessmentCreateData(item.body, slug, userId, tenantId) });
+        const createdRow = await tx.assessment.create({
+          data: assessmentCreateData(item.body, slug, userId, tenantId),
+          select: { id: true, slug: true, title: true },
+        });
+        await createResultDocsForImport(tx, {
+          assessmentId: createdRow.id,
+          assessmentSlug: createdRow.slug,
+          assessmentTitle: createdRow.title,
+          tenantId,
+          body: item.body,
+        });
       }
       return { count: items.length, renamed };
     },
     { timeout: 120_000, maxWait: 15_000 },
   );
+}
+
+/**
+ * The transaction client as THIS prisma instance hands it over.
+ *
+ * Not `Prisma.TransactionClient`: the shared client is `$extends`-ed
+ * (lib/db/prisma.ts), so its transaction callback receives the extended client, which
+ * is a different type and is rejected on assignment. Derived from the real
+ * `$transaction` signature, the same way scripts/adopt-assessment.ts does it, so it
+ * cannot drift from whatever the extensions make it.
+ */
+type ImportTx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/**
+ * Give an imported assessment its own result pages, in the library.
+ *
+ * The transfer shape carries page CONTENT (resultPage, resultPagePublished,
+ * publishedPages) inside the body, deliberately: a template has to be self-contained,
+ * so exporting a reference to a library row would import as a dangling link into a
+ * workspace that has never seen it.
+ *
+ * So the content arrives by value and is turned into docs HERE, bound 1:1 to the new
+ * assessment. That also fixes a quirk this inherits: an imported funnel used to arrive
+ * with a published results page and no draft rows at all, which rendered fine and could
+ * not be edited.
+ *
+ * The assessment's own columns are left exactly as the import wrote them, so what the
+ * public renders is unchanged by this - the docs are the editable copy of the same
+ * content.
+ */
+export async function createResultDocsForImport(
+  tx: ImportTx,
+  args: {
+    assessmentId: string;
+    assessmentSlug: string;
+    assessmentTitle: string;
+    tenantId: string | null;
+    body: AssessmentBodyExport;
+  },
+): Promise<void> {
+  const { body } = args;
+
+  const freeSlug = async (base: string): Promise<string> => {
+    let candidate = base;
+    for (let n = 2; n < 100; n++) {
+      const taken = await tx.resultPageDoc.findFirst({
+        where: { tenantId: args.tenantId, slug: candidate },
+        select: { id: true },
+      });
+      if (!taken) return candidate;
+      candidate = `${base}-${n}`;
+    }
+    return `${base}-${Date.now()}`;
+  };
+
+  // The results page. Its draft rows are rebuilt from the published snapshot, which is
+  // the only shape the transfer format carries.
+  const publishedPages = Array.isArray(body.publishedPages)
+    ? (body.publishedPages as Array<{ order?: number; title?: string | null; blocks?: Array<{ type?: string; order?: number; config?: unknown }> }>)
+    : [];
+  if (publishedPages.length > 0) {
+    const doc = await tx.resultPageDoc.create({
+      data: {
+        kind: "RESULTS",
+        title: `${args.assessmentTitle} - results page`.slice(0, 160),
+        slug: await freeSlug(`${args.assessmentSlug}-results`),
+        tenantId: args.tenantId,
+        published: body.publishedPages as Prisma.InputJsonValue,
+        publishedAt: new Date(),
+        pages: {
+          create: publishedPages.map((p, i) => ({
+            order: p.order ?? i,
+            title: p.title ?? null,
+            blocks: {
+              create: (p.blocks ?? []).map((b, j) => ({
+                type: String(b.type ?? "text"),
+                order: b.order ?? j,
+                config: (b.config ?? {}) as Prisma.InputJsonValue,
+              })),
+            },
+          })),
+        },
+      },
+      select: { id: true },
+    });
+    await tx.assessment.update({ where: { id: args.assessmentId }, data: { resultsDocId: doc.id } });
+  }
+
+  // The VSL page. Draft falls back to the published blob, so a page that was exported
+  // live and never re-drafted opens with its own content.
+  const vslDraft = body.resultPage ?? body.resultPagePublished ?? null;
+  if (vslDraft != null) {
+    const doc = await tx.resultPageDoc.create({
+      data: {
+        kind: "VSL",
+        title: `${args.assessmentTitle} - VSL page`.slice(0, 160),
+        slug: await freeSlug(`${args.assessmentSlug}-vsl`),
+        tenantId: args.tenantId,
+        draft: vslDraft as Prisma.InputJsonValue,
+        ...(body.resultPagePublished != null
+          ? { published: body.resultPagePublished as Prisma.InputJsonValue, publishedAt: new Date() }
+          : {}),
+      },
+      select: { id: true },
+    });
+    await tx.assessment.update({ where: { id: args.assessmentId }, data: { vslDocId: doc.id } });
+  }
 }

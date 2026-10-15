@@ -55,6 +55,7 @@ const NULLABLE_TENANT_TABLES = [
   "webhookDelivery",
   "apiToken",
   "aiPromptVersion",
+  "resultPageDoc",
   "user",
   "appSetting",
 ] as const;

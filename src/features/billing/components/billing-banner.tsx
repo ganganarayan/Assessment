@@ -21,7 +21,8 @@ interface Notice {
   tone: "neutral" | "warn" | "blocked";
   headline: string;
   detail: string;
-  cta: string;
+  /** The primary button's label, or null when there is nothing for this reader to do. */
+  cta: string | null;
   /** Where the primary button goes. Defaults to the billing page. */
   href?: string;
   /** An optional second, quieter link. The trial needs one: "what you get" and "help
@@ -47,6 +48,21 @@ function billingNotice(
   // there is no trial to count down and nothing to park. Checked first: both carry
   // plan: null, which every other branch here would misread as "no plan".
   if (resolved.isPlatform || resolved.unlimited) return null;
+
+  // AN AGENCY TENANT HAS NO PLAN OF ITS OWN, so neither of the two notices below fits
+  // it: the parked one would send a client to a billing page they must not act on (the
+  // agency is the customer), and the trial countdown would tell them a trial they never
+  // started is running out. The only honest version is who to ask.
+  if (resolved.agencyTenant) {
+    if (!resolved.parked) return null;
+    return {
+      tone: "blocked",
+      headline: "This workspace is paused",
+      detail:
+        "It is managed by the agency that set it up, and their plan has lapsed. Nothing has been deleted - every lead and setting is exactly where it was. Ask them to restore it.",
+      cta: null,
+    };
+  }
 
   if (resolved.parked) {
     return {
@@ -163,12 +179,14 @@ export function BillingBanner({
             {notice.secondary.label}
           </Link>
         ) : null}
-        <Link
-          href={notice.href ?? "/w/billing"}
-          className="rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-1 text-xs font-medium hover:bg-[var(--muted)]"
-        >
-          {notice.cta}
-        </Link>
+        {notice.cta ? (
+          <Link
+            href={notice.href ?? "/w/billing"}
+            className="rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-1 text-xs font-medium hover:bg-[var(--muted)]"
+          >
+            {notice.cta}
+          </Link>
+        ) : null}
       </span>
     </div>
   );

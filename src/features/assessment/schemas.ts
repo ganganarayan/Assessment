@@ -587,8 +587,15 @@ export const optionSchema = z.object({
   isAssumption: z.boolean().default(false),
 });
 
-export const questionSchema = z.object({
+export const questionTypeSchema = z.enum(["SINGLE_SELECT", "FREE_TEXT"]);
+export type QuestionTypeValue = z.infer<typeof questionTypeSchema>;
+
+export const questionSchema = z
+  .object({
   text: z.string().min(1, "Question text is required.").max(500),
+  // SINGLE_SELECT = pick one option (scored). FREE_TEXT = type a sentence: no options,
+  // no score, routes by the question's default route.
+  type: questionTypeSchema.default("SINGLE_SELECT"),
   weight: z.coerce.number().min(0).max(100).default(1),
   required: z.boolean().default(true),
   // CLINIC_AUDIT only: the funnel role this question feeds (blank = not scored).
@@ -597,11 +604,13 @@ export const questionSchema = z.object({
   // CLINIC_AUDIT only: the unit the option numbers + typed actual number are in
   // (PER_10 / PER_100 / RUPEES / COUNT / POINTS). Blank = the role's default.
   scoringUnit: z.string().max(20).optional().or(z.literal("")),
-  options: z
-    .array(optionSchema)
-    .min(2, "Provide at least two options.")
-    .max(10),
-});
+    // A FREE_TEXT question has none; the refine below enforces two for a choice.
+    options: z.array(optionSchema).max(10).default([]),
+  })
+  .refine((q) => q.type === "FREE_TEXT" || q.options.length >= 2, {
+    message: "Provide at least two options.",
+    path: ["options"],
+  });
 export type QuestionInput = z.infer<typeof questionSchema>;
 
 export const bandLevelSchema = z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
@@ -665,9 +674,19 @@ export const questionRouteInputSchema = z.object({
 });
 export type QuestionRouteInput = z.infer<typeof questionRouteInputSchema>;
 
-/** All routes for ONE question (its options' rules), saved together. */
+/** The question's DEFAULT rule: used when no option rule applies - it was skipped,
+ *  it is FREE_TEXT, or the chosen option carries no rule. Omitted = linear. */
+export const defaultRouteInputSchema = z.object({
+  action: routeActionSchema,
+  targetQuestionId: z.string().max(60).optional().or(z.literal("")),
+  targetCategoryId: z.string().max(60).optional().or(z.literal("")),
+});
+export type DefaultRouteInput = z.infer<typeof defaultRouteInputSchema>;
+
+/** All routes for ONE question (its options' rules + its default), saved together. */
 export const questionRoutesInputSchema = z.object({
   routes: z.array(questionRouteInputSchema).max(20),
+  defaultRoute: defaultRouteInputSchema.optional(),
 });
 export type QuestionRoutesInput = z.infer<typeof questionRoutesInputSchema>;
 
@@ -711,13 +730,20 @@ export const leadSchema = z.object({
 });
 export type LeadInput = z.infer<typeof leadSchema>;
 
-/** Answers submitted by a respondent: one option per question. */
+/** How long a typed (FREE_TEXT) answer may be. Generous enough for the paragraph
+ *  somebody writes when they are annoyed, short enough not to be a payload. */
+export const FREE_TEXT_ANSWER_MAX = 2000;
+
+/** Answers submitted by a respondent: one option per question, or - for a FREE_TEXT
+ *  question - the text they typed and no option. The server decides which shape each
+ *  question requires, since only it knows the question's type. */
 export const answersSchema = z.object({
   answers: z
     .array(
       z.object({
         questionId: z.string().min(1),
-        optionId: z.string().min(1),
+        optionId: z.string().min(1).optional(),
+        textValue: z.string().max(FREE_TEXT_ANSWER_MAX).optional(),
       }),
     )
     // NOT .min(1). A funnel can be built entirely from qualification gate questions, with

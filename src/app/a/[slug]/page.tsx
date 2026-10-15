@@ -8,6 +8,7 @@ import {
   type PublicAssessment,
 } from "@/features/assessment/components/public/assessment-runner";
 import { readPublishedPages } from "@/features/assessment/pages/blocks";
+import { defaultRouteOf } from "@/lib/routing/engine";
 import { resolveAudienceList } from "@/lib/settings/config";
 import { cache } from "react";
 import { resolvePlan } from "@/lib/billing/entitlements";
@@ -267,9 +268,13 @@ export default async function PublicAssessmentPage({
       questions: c.questions.map((q) => ({
         id: q.id,
         text: q.text,
+        type: q.type,
         required: q.required,
         scoringRole: q.scoringRole,
         scoringUnit: q.scoringUnit,
+        // Where this question leads when no option rule applies (skipped, typed, or an
+        // answer with no rule of its own). This is what rejoins a branch to the tail.
+        defaultRoute: defaultRouteOf(q),
         options: q.options.map((o) => ({
           id: o.id,
           label: o.label,

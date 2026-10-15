@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { assertCanCreateAssessment } from "@/lib/billing/gate";
 import { listTemplatesForTenant } from "@/features/templates/data";
@@ -32,9 +33,14 @@ export default async function WorkspaceTemplatesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Templates</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Templates (Assessment)</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Working funnels you can import and edit. Nothing you import is live until you publish it.
+          Working funnels you can import and edit. Nothing you import is live until you publish it. These are whole
+          funnels; ready-made result pages and VSL pages are under{" "}
+          <Link href="/w/result-pages" className="underline">
+            Result pages
+          </Link>
+          .
         </p>
       </div>
 

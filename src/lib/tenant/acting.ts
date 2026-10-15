@@ -5,6 +5,7 @@ import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
 import { readActingTenant } from "@/lib/tenant/acting-cookie";
 import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { tenantOnly, whereScope, type Scope } from "@/lib/tenant/scope";
+import { enteredAgencyTenant } from "@/lib/tenant/agency";
 
 /**
  * The "acting tenant" - the tenant whose workspace the current user is operating in.
@@ -17,20 +18,34 @@ export { ACTING_TENANT_COOKIE };
 export interface ActingTenant {
   user: AuthUser;
   tenantId: string | null;
+  /**
+   * The SUPER ADMIN is acting as a tenant. Treated across /w as "bypass the caps and
+   * gates", so it means the platform owner and nobody else.
+   */
   impersonating: boolean;
+  /**
+   * An AGENCY ADMIN is acting as one of their own agency tenants. Deliberately a
+   * separate flag from `impersonating`: the workspace is still rated, metered and gated
+   * as the agency tenant it is, and only the banner and the Exit button care.
+   */
+  viaAgency: boolean;
 }
 
 export async function resolveActingTenant(): Promise<ActingTenant> {
   const user = await requireUser();
   if (isSuperAdmin(user)) {
     const acting = await readActingTenant(user.id);
-    return { user, tenantId: acting, impersonating: !!acting };
+    return { user, tenantId: acting, impersonating: !!acting, viaAgency: false };
   }
   // Read the tenant id FRESH from the DB: right after a tenant self-provisions, the
   // session copy can still be null/stale, which would silently scope their /w pages
   // to the wrong tenant (or none). Mirror resolveActingScope.
   const fresh = await prisma.user.findUnique({ where: { id: user.id }, select: { tenantId: true } });
-  return { user, tenantId: fresh?.tenantId ?? user.tenantId ?? null, impersonating: false };
+  const own = fresh?.tenantId ?? user.tenantId ?? null;
+  // An agency admin inside one of their agency tenants. Verified against the parent
+  // link on every request, never taken from the cookie alone.
+  const entered = own ? await enteredAgencyTenant(user.id, own) : null;
+  return { user, tenantId: entered ?? own, impersonating: false, viaAgency: entered != null };
 }
 
 /**
@@ -54,6 +69,12 @@ export interface ActingScope {
   isSuper: boolean;
   /** False for VIEW-only staff - mutation actions must bail (assertScopeCanEdit). */
   canEdit: boolean;
+  /**
+   * An agency admin acting as one of their own agency tenants. `tenantId` is already
+   * that agency tenant, so every existing scope helper is correct without reading this;
+   * it exists so a surface can say whose workspace this is.
+   */
+  viaAgency: boolean;
 }
 
 /** For a mutation action using resolveActingScope(): returns an error result to
@@ -80,13 +101,15 @@ export async function resolveActingScope(): Promise<ActingScope> {
   const user = await requireUser();
   if (isSuperAdmin(user)) {
     const acting = await readActingTenant(user.id);
-    return { user, tenantId: acting, isSuper: true, canEdit: canEdit(user) };
+    return { user, tenantId: acting, isSuper: true, canEdit: canEdit(user), viaAgency: false };
   }
   const fresh = await prisma.user.findUnique({
     where: { id: user.id },
     select: { tenantId: true },
   });
-  return { user, tenantId: fresh?.tenantId ?? null, isSuper: false, canEdit: canEdit(user) };
+  const own = fresh?.tenantId ?? null;
+  const entered = own ? await enteredAgencyTenant(user.id, own) : null;
+  return { user, tenantId: entered ?? own, isSuper: false, canEdit: canEdit(user), viaAgency: entered != null };
 }
 
 /** Prisma where-fragment for a scope: filter by tenant, or {} for super-global.

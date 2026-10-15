@@ -6,7 +6,9 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireWorkspace, editDenied } from "@/lib/auth/guards";
-import { tenantCan } from "@/lib/billing/gate";
+import { tenantCan, assertCanAddDomain, customDomainUsage } from "@/lib/billing/gate";
+import { resolvePlan } from "@/lib/billing/plan-resolve";
+import { PARKED_MESSAGE } from "@/lib/billing/plans";
 import { env } from "@/lib/env";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import {
@@ -211,6 +213,10 @@ export interface DomainSettingsView {
   /** FALSE on Free: the add form is replaced by an upgrade note. Existing domains
    *  still render and keep working - only adding a new one is gated. */
   canAdd: boolean;
+  /** Domains this plan allows (included + purchased), and how many are in use. Shown
+   *  beside the form so the wall is visible before it is met. */
+  domainLimit: number;
+  domainsUsed: number;
 }
 
 const hostnameSchema = z
@@ -231,6 +237,7 @@ export async function getDomainSettings(): Promise<DomainSettingsView> {
   // CNAME and waits rather than being told to configure anything themselves.
   const managed = autoDns || cloudflareSaasConfigured() || railwayConfigured();
   const fallback = appHost();
+  const usage = await customDomainUsage(tenantId);
   const rows = await prisma.domain.findMany({
     where: { tenantId },
     orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
@@ -276,7 +283,9 @@ export async function getDomainSettings(): Promise<DomainSettingsView> {
     rootDomain: env.NEXT_PUBLIC_ROOT_DOMAIN.toLowerCase(),
     railwayManaged: managed,
     autoDns,
-    canAdd: await tenantCan(tenantId, "customDomain"),
+    canAdd: (await tenantCan(tenantId, "customDomain")) && usage.used < usage.limit,
+    domainLimit: usage.limit,
+    domainsUsed: usage.used,
   };
 }
 
@@ -297,6 +306,19 @@ export async function addDomain(rawHostname: string): Promise<ActionResult> {
     return {
       ok: false,
       error: "Custom domains are available on the paid plans. Upgrade to connect your own domain.",
+    };
+  }
+
+  // Count wall, on top of the feature. Each domain spends a Railway custom-domain slot
+  // or a Cloudflare custom hostname, so an uncapped plan quietly rations a resource the
+  // app does not own. Parked reads as a limit of 0, which would otherwise be reported as
+  // "your plan includes 0 domains" - true, and indistinguishable from a bug.
+  const cap = await assertCanAddDomain(tenantId);
+  if (!cap.ok) {
+    if ((await resolvePlan(tenantId)).parked) return { ok: false, error: PARKED_MESSAGE };
+    return {
+      ok: false,
+      error: `Your plan includes ${cap.limit} custom domain${cap.limit === 1 ? "" : "s"} and you are using ${cap.used}. Ask us for another, or remove one first.`,
     };
   }
 

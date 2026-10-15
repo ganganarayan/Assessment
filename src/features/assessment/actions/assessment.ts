@@ -7,10 +7,11 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, tenantScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
 import { assertCanCreateAssessment } from "@/lib/billing/gate";
-import { resolvePlan } from "@/lib/billing/entitlements";
+import { resolvePlan, tenantCan } from "@/lib/billing/entitlements";
 import { PARKED_MESSAGE } from "@/lib/billing/plans";
 import { metaPublishBlock } from "@/lib/meta/publish-lock";
 import { getAssessmentById } from "@/features/assessment/data";
+import { cloneDoc, bindDoc } from "@/features/result-pages/actions/docs";
 import { assessmentSchema, type AssessmentInput, type AudienceGateInput } from "@/features/assessment/schemas";
 import { originOf } from "@/lib/result/cors";
 import { type ActionResult, nullifyEmpty } from "@/features/assessment/actions/shared";
@@ -148,6 +149,9 @@ export async function createAssessment(
     }
   }
 
+  const manual = await manualReviewDenied(scope, d);
+  if (manual) return manual;
+
   const gateErr = await validateGate(null, d.audienceGate, scope);
   if (gateErr) return { ok: false, error: gateErr };
   d.audienceGate.listId = await sanitizeGateListId(d.audienceGate, configTenantOf(scope));
@@ -237,6 +241,51 @@ export async function createAssessment(
   return { ok: true, data: { id: created.id } };
 }
 
+/**
+ * Does this assessment carry MANUAL-REVIEW SCREENING FIELDS - free-text questions
+ * (company name, website, what the business does) captured with each qualified lead?
+ *
+ * A "select" custom field is a dropdown and is not screening: the owner already knows
+ * every answer it can give. Only `type: "text"` produces prose somebody has to read,
+ * which is the capability the pricing matrix sells as "Manual-review screening fields"
+ * on Signal and up.
+ */
+function usesManualReview(d: AssessmentInput): boolean {
+  const fields = [...(d.preResultFields ?? []), ...(d.optinFields ?? [])];
+  return fields.some((f) => f.type === "text");
+}
+
+/**
+ * The manualReview wall.
+ *
+ * 🔴 WHY IT EXISTS. The flag was in the catalog, Signal and up switched it on, the
+ * pricing matrix sold it as - / ✓ / ✓ / ✓ - and nothing anywhere read it. A Gate tenant
+ * had free-text screening in full, and verify:billing passed throughout, because it
+ * audits the catalog against the pricing page and on that pair the two agreed.
+ *
+ * Gated ON CONTENT, not on editing, exactly as the qualification gate is: an assessment
+ * that carries no text field never meets this, so a Gate tenant can keep working on
+ * everything else, and REMOVING the fields is always allowed. The consequence worth
+ * knowing: a Gate tenant who already has text fields saved cannot save any edit until
+ * they take them out. That is the same bargain every content gate here makes, and the
+ * alternative - gating only new fields - would leave the sold capability running free
+ * for everyone who got there first.
+ */
+async function manualReviewDenied(
+  scope: Awaited<ReturnType<typeof resolveActingScope>>,
+  d: AssessmentInput,
+): Promise<{ ok: false; error: string } | null> {
+  if (!usesManualReview(d)) return null;
+  if (scope.isSuper) return null;
+  if (await tenantCan(scope.tenantId, "manualReview")) return null;
+  if ((await resolvePlan(scope.tenantId)).parked) return { ok: false, error: PARKED_MESSAGE };
+  return {
+    ok: false,
+    error:
+      "Free-text screening fields are a Signal feature. Upgrade to capture them, or switch those fields to a dropdown.",
+  };
+}
+
 export async function updateAssessment(
   id: string,
   input: AssessmentInput,
@@ -257,6 +306,9 @@ export async function updateAssessment(
   if (slugOwner && slugOwner.id !== id) {
     return { ok: false, error: "That slug is already in use." };
   }
+
+  const manual = await manualReviewDenied(scope, d);
+  if (manual) return manual;
 
   const gateErr = await validateGate(id, d.audienceGate, scope);
   if (gateErr) return { ok: false, error: gateErr };
@@ -451,8 +503,8 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
       slug,
       status: "DRAFT",
       publishedAt: null,
-      // The copy is a draft - nothing is live yet. The draft page ROWS are copied
-      // below so it can be edited + published; the live snapshot starts empty.
+      // The copy is a draft - nothing is live yet. Its result pages are cloned below
+      // (each its own doc), and the live snapshot starts empty until one is published.
       publishedPages: Prisma.DbNull,
       pagesPublishedAt: null,
       eyebrow: src.eyebrow,
@@ -576,22 +628,25 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
           displayOrder: b.displayOrder,
         })),
       },
-      pages: {
-        create: src.pages.map((p) => ({
-          order: p.order,
-          title: p.title,
-          blocks: {
-            create: p.blocks.map((bl) => ({
-              type: bl.type,
-              order: bl.order,
-              config: (bl.config ?? {}) as Prisma.InputJsonValue,
-            })),
-          },
-        })),
-      },
     },
     select: { id: true },
   });
+
+  // The result pages. A page is bound 1:1, so the copy cannot share the original's -
+  // it gets its own clone of each, which is also what keeps the duplicate's booking
+  // inbox, calendar link and video from being the same row as the original's.
+  //
+  // The copy's pages start UNPUBLISHED (cloneDoc's rule), which matches the copy
+  // itself being a draft: duplicating a funnel must not put a second live page on the
+  // internet without a decision.
+  for (const [kind, doc] of [
+    ["RESULTS", src.resultsDoc],
+    ["VSL", src.vslDoc],
+  ] as const) {
+    if (!doc) continue;
+    const copy = await cloneDoc(doc.id);
+    if (copy.ok && copy.data) await bindDoc(created.id, kind, copy.data.id);
+  }
 
   revalidatePath("/admin/assessment-builder");
   revalidatePath("/admin/assessments");
