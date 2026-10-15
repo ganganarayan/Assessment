@@ -12,7 +12,10 @@
  * is excluded from the funnel's own numbers - so the harness would be testing a path
  * real traffic never takes.
  */
+import { spawn } from "node:child_process";
+import { join } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { QA_ROOT } from "../env.js";
 import type { CasePlan } from "../oracle/types.js";
 import type { Funnel } from "../config/read.js";
 import { identityFor, type Identity } from "./identity.js";
@@ -94,7 +97,35 @@ export interface DriveOptions {
 }
 
 export async function openBrowser(opts: DriveOptions): Promise<Browser> {
-  return chromium.launch({ headless: !opts.headed, slowMo: opts.slowMo });
+  const browser = await chromium.launch({ headless: !opts.headed, slowMo: opts.slowMo });
+  // Watched runs are meant to be watched: the window is raised above whatever else is
+  // on screen for as long as it drives. Always-on-top rather than stealing focus,
+  // because Windows deliberately refuses the second one to background processes - and
+  // a test that grabs your keyboard mid-sentence is worse than one you have to look at.
+  if (opts.headed && process.env.QA_TOPMOST === "1") setTopmost(browser, true);
+  return browser;
+}
+
+/** Ask Windows to float (or release) the test browser's own window. Never anybody else's:
+ *  the window is found by this browser's process id. A no-op everywhere else. */
+export function setTopmost(browser: Browser, on: boolean): void {
+  if (process.platform !== "win32") return;
+  // process() exists on a browser this harness LAUNCHED (it is not on a connected one),
+  // which is always the case here; the type is the general one, so it is narrowed.
+  const launched = browser as Browser & { process?: () => { pid?: number } | null };
+  const pid = launched.process?.()?.pid;
+  if (!pid) return;
+  const script = join(QA_ROOT, "scripts", "topmost.ps1");
+  const args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-ProcessId", String(pid)];
+  if (!on) args.push("-Release");
+  // A beat first: the window does not exist the instant the process does.
+  setTimeout(() => {
+    try {
+      spawn("powershell.exe", args, { stdio: "ignore", detached: true }).unref();
+    } catch {
+      /* a window that will not float is not a reason to fail a run */
+    }
+  }, on ? 1500 : 0);
 }
 
 export async function newCaseContext(browser: Browser, opts: DriveOptions): Promise<BrowserContext> {
