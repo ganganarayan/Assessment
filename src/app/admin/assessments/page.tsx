@@ -4,6 +4,7 @@ import { actingDataScope } from "@/lib/tenant/acting";
 import { CopyPublicLink } from "@/features/assessment/components/admin/copy-public-link";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { formatIST } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,8 @@ export default async function AssessmentsPage() {
                   <Badge variant="success">LIVE</Badge>
                 </div>
                 <p className="text-xs text-[var(--muted-foreground)]">
-                  /a/{a.slug} · {a._count.categories} categories · {a._count.submissions} submissions
+                  /a/{a.slug} · {a._count.categories} categories · {a._count.submissions} submissions ·{" "}
+                  <span className="whitespace-nowrap">Created {formatIST(a.createdAt)}</span>
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">

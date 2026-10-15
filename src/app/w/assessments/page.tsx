@@ -6,6 +6,7 @@ import { CopyPublicLink } from "@/features/assessment/components/admin/copy-publ
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { tenantOnly } from "@/lib/tenant/scope";
+import { formatIST } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +86,7 @@ export default async function WorkspaceAssessmentsPage() {
                 <th className="px-3 py-2">Title</th>
                 <th className="px-3 py-2">Slug</th>
                 <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Created</th>
                 <th className="px-3 py-2 text-center">Categories</th>
                 <th className="px-3 py-2 text-center">Submissions</th>
                 <th className="px-3 py-2"></th>
@@ -96,6 +98,13 @@ export default async function WorkspaceAssessmentsPage() {
                   <td className="px-3 py-2 font-medium">{a.title}</td>
                   <td className="px-3 py-2 font-mono text-xs">{a.slug}</td>
                   <td className="px-3 py-2">{a.status}</td>
+                  {/* An import creates a fresh row, so createdAt is the import time -
+                      one column answers both "when did I build this" and "when did I
+                      bring it in". Rendered in IST off a fixed offset, because the
+                      server itself runs UTC. */}
+                  <td className="whitespace-nowrap px-3 py-2 text-xs text-[var(--muted-foreground)]">
+                    {formatIST(a.createdAt)}
+                  </td>
                   <td className="px-3 py-2 text-center tabular-nums">{a._count.categories}</td>
                   <td className="px-3 py-2 text-center tabular-nums">{a._count.submissions}</td>
                   <td className="px-3 py-2">

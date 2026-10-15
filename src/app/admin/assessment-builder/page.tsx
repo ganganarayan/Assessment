@@ -6,6 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AssessmentRowActions } from "@/features/assessment/components/admin/assessment-row-actions";
+import { formatIST } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +63,8 @@ export default async function AssessmentBuilderPage() {
                   <Badge variant={a.status === "PUBLISHED" ? "success" : "muted"}>{a.status}</Badge>
                 </div>
                 <p className="text-xs text-[var(--muted-foreground)]">
-                  /a/{a.slug} · {a._count.categories} categories · {a._count.submissions} submissions
+                  /a/{a.slug} · {a._count.categories} categories · {a._count.submissions} submissions ·{" "}
+                  <span className="whitespace-nowrap">Created {formatIST(a.createdAt)}</span>
                 </p>
               </div>
               <AssessmentRowActions id={a.id} slug={a.slug} published={a.status === "PUBLISHED"} canEdit={canEdit} />
