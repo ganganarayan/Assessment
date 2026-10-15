@@ -169,6 +169,10 @@ export interface PublicAssessment {
   qualifiedNote: string | null;
   resultsButtonLabel: string | null;
   paidMode: boolean;
+  /** Where the run ends. NO_RESULT shows the thank-you message and nothing else. */
+  nextStep: "PAYMENT" | "DESTINATION" | "RESULTS" | "NO_RESULT";
+  /** The closing line for an ending that shows nothing back. */
+  thankYouMessage: string | null;
   /** Finish -> /sign-up prefilled, instead of a result page (platform funnel). */
   platformSignup: boolean;
   /** Anticipation countdown (seconds) after Submit before the destination/VSL loads. */
@@ -226,7 +230,7 @@ export interface PublicAssessment {
   pages: AssessmentPageData[];
 }
 
-type Step = "qualify" | "disqualified" | "gate" | "intro" | "questions" | "leadForm" | "details" | "locked" | "capLocked" | "evaluating" | "resultPages";
+type Step = "qualify" | "disqualified" | "gate" | "intro" | "questions" | "leadForm" | "details" | "locked" | "capLocked" | "evaluating" | "resultPages" | "thanks";
 
 /** Anticipation countdown shown after Submit before the VSL/destination loads.
  *  Single source of truth; promote to a per-assessment field if it needs to vary. */
@@ -273,6 +277,7 @@ export function AssessmentRunner({
     platformSignup: assessment.platformSignup,
     pageCount: assessment.pages.length,
     paidMode: assessment.paidMode,
+    noResult: assessment.nextStep === "NO_RESULT",
     vslCountdownSeconds: assessment.vslCountdownSeconds,
   };
   // The opt-in heading and sub-line. Terminal-aware: a signup funnel has no results to
@@ -614,6 +619,19 @@ export function AssessmentRunner({
     return () => clearTimeout(t);
   }, [answers, textAnswers, submissionId, step, preview, editToken]);
 
+  /**
+   * Does this funnel ask the respondent for anything about themselves? Lead fields,
+   * profession (unless the audience gate replaced it) or extra opt-in fields. False
+   * means the opt-in screen has nothing on it and is skipped entirely.
+   */
+  const collectsAnything =
+    assessment.collectFirstName ||
+    assessment.collectLastName ||
+    assessment.collectEmail ||
+    assessment.collectMobile ||
+    (assessment.collectProfession && !gated) ||
+    assessment.optinFields.length > 0;
+
   const questions = assessment.categories.flatMap((c) => c.questions);
   /** Answered means an option for a choice question, or non-blank text for a typed
    *  one. Every required-answer check goes through this, so a required FREE_TEXT
@@ -693,8 +711,13 @@ export function AssessmentRunner({
     window.location.href = qs ? `/sign-up?${qs}` : "/sign-up";
   }
 
-  function submitLead(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  /**
+   * Start the submission from the opt-in form - or, when there IS no form, from
+   * nothing. `e` is optional for exactly that: a funnel that asks for no contact
+   * details calls this directly instead of rendering an empty screen with a button.
+   */
+  function submitLead(e?: React.FormEvent<HTMLFormElement>) {
+    e?.preventDefault();
     setError(null);
     // Required extra opt-in fields must be filled before we start.
     const missingOptin = assessment.optinFields.find((f) => f.required && !(optinAnswers[f.id] ?? "").trim());
@@ -1017,8 +1040,19 @@ export function AssessmentRunner({
     }
     // Lead-capture-after: the questions ran anonymously; now collect the lead (which
     // creates the submission), then complete.
+    //
+    // UNLESS there is nothing to collect. A funnel that asks for no contact details -
+    // an exit survey sent to somebody whose email we have had for months - would
+    // otherwise show a form with no fields and a button, which is a screen asking a
+    // leaving customer to confirm that we have nothing to ask them. It starts the
+    // submission itself instead, carrying whatever the signed hand-off already told
+    // us about them.
     if (assessment.leadCaptureAfter && !submissionId) {
       setError(null);
+      if (!collectsAnything) {
+        submitLead();
+        return;
+      }
       setStep("leadForm");
       return;
     }
@@ -1133,6 +1167,13 @@ export function AssessmentRunner({
         setStep("resultPages");
         return;
       }
+      // NO_RESULT: the answers are stored and the webhook has fired. Nothing is shown
+      // back, so there is no url to hand the countdown and nothing to redirect to -
+      // the thank-you line IS the last screen.
+      if (assessment.nextStep === "NO_RESULT") {
+        setStep("thanks");
+        return;
+      }
       // Paid mode: take payment instead of going to the VSL/result (results are
       // already stored; after paying, the user lands on the VSL with the token).
       // Razorpay Checkout opens with the lead's details prefilled - no form to fill;
@@ -1206,6 +1247,16 @@ export function AssessmentRunner({
       const u = dest + (dest.includes("?") ? "&" : "?") + "event=1";
       window.location.replace(u);
     }
+  }
+
+  if (step === "thanks") {
+    return (
+      <div className="flex flex-col gap-4 text-center" data-qa-step="thanks">
+        <h2 className="text-2xl font-bold tracking-tight">
+          {assessment.thankYouMessage?.trim() || "Thank you. Your answers are recorded."}
+        </h2>
+      </div>
+    );
   }
 
   if (step === "resultPages") {
@@ -1619,6 +1670,27 @@ export function AssessmentRunner({
               }
               setStep("questions");
             }}
+            data-qa-nav="start"
+          >
+            {assessment.startButtonLabel?.trim() || "Start"}
+          </Button>
+        </div>
+      );
+    }
+
+    // Lead-FIRST with nothing to ask: the landing and a Start button that begins the
+    // submission straight away. Same reason as above - an empty form is not a screen.
+    if (!collectsAnything) {
+      return (
+        <div className="flex flex-col gap-6" data-qa-step="intro" data-qa-optin="none">
+          {landing}
+          {error ? <p className="text-sm text-red-500">{error}</p> : null}
+          <Button
+            size="lg"
+            type="button"
+            disabled={pending}
+            style={ctaStyle}
+            onClick={() => submitLead()}
             data-qa-nav="start"
           >
             {assessment.startButtonLabel?.trim() || "Start"}

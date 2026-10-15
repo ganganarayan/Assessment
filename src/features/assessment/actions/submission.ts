@@ -1484,8 +1484,12 @@ export async function completeSubmission(
       : null;
   }
   // "Show results on assess360" (nextStep RESULTS): never redirect to an external VSL -
-  // force our own internal result page.
-  const vslTarget = assessment.nextStep === "RESULTS" ? null : assessment.targetUrl;
+  // force our own internal result page. NO_RESULT shows nothing back at all, so it must
+  // not carry a destination either: the answers are stored and the run ends.
+  const vslTarget =
+    assessment.nextStep === "RESULTS" || assessment.nextStep === "NO_RESULT"
+      ? null
+      : assessment.targetUrl;
 
   const snapshot = buildResultSnapshot({
     customerId,

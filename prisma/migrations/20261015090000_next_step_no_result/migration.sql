@@ -1,0 +1,11 @@
+-- A fourth ending: show the respondent nothing back.
+--
+-- The three endings all assumed the run produces something FOR the respondent - a
+-- score, a page, a destination, a payment. A survey does not. Its value is the answers,
+-- and handing somebody a scorecard they did not ask for is noise at best; on a
+-- cancellation exit survey it is worse than noise.
+--
+-- 🔴 ITS OWN MIGRATION ON PURPOSE. Postgres forbids USING a new enum value in the same
+-- transaction that adds it, and Prisma runs each migration file in one transaction.
+-- Nothing here reads the label.
+ALTER TYPE "NextStep" ADD VALUE 'NO_RESULT';

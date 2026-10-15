@@ -155,7 +155,7 @@ export const assessmentBodyExport = z.object({
   startButtonLabel: z.string().nullable().optional(),
   resultsButtonLabel: z.string().nullable().optional(),
   useAiStatement: z.boolean().optional(),
-  nextStep: z.enum(["PAYMENT", "DESTINATION", "RESULTS"]).optional(),
+  nextStep: z.enum(["PAYMENT", "DESTINATION", "RESULTS", "NO_RESULT"]).optional(),
   questionDisplayMode: z.enum(["ALL", "CATEGORY", "SINGLE"]).optional(),
   vslCountdownSeconds: z.number().int().optional(),
 

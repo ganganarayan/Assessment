@@ -1354,6 +1354,24 @@ export function AssessmentForm({
                   <span className="block text-xs text-[var(--muted-foreground)]">Take payment (Razorpay or your static link), then the destination page.</span>
                 </span>
               </label>
+              <label className="flex items-start gap-2">
+                <input
+                  type="radio"
+                  name="nextStep"
+                  className="mt-1"
+                  checked={values.nextStep === "NO_RESULT"}
+                  onChange={() => set("nextStep", "NO_RESULT")}
+                />
+                <span>
+                  <span className="font-medium">Do not show results</span>
+                  <span className="block text-xs text-[var(--muted-foreground)]">
+                    Ends on your thank-you message. No score, no result page, no redirect -
+                    the answers are stored and the webhook fires exactly as always. For a
+                    survey, a feedback form or an exit questionnaire, where the value is what
+                    they told you and a scorecard is something nobody asked for.
+                  </span>
+                </span>
+              </label>
             </div>
             {values.nextStep === "PAYMENT" ? (
               <div className="flex flex-col gap-3 border-l-2 pl-4">
@@ -1457,7 +1475,7 @@ export function AssessmentForm({
 
           {/* Destination + Training/VSL: only relevant when the flow lands on an
               external page. Hidden (and not required) for "Show results on assess360". */}
-          {values.nextStep !== "RESULTS" ? (
+          {values.nextStep !== "RESULTS" && values.nextStep !== "NO_RESULT" ? (
             <>
               <div className="flex flex-col gap-3 rounded-lg border p-4">
                 <p className="text-sm font-medium">Destination page</p>

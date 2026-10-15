@@ -265,6 +265,8 @@ export default async function PublicAssessmentPage({
       buttonUrl: e.buttonUrl,
     })),
     // Public renders ONLY the published snapshot (never the draft rows).
+    nextStep: a.nextStep,
+    thankYouMessage: a.thankYouMessage,
     pages: readPublishedPages(a.publishedPages),
     categories: a.categories.map((c) => ({
       id: c.id,

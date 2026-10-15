@@ -485,7 +485,7 @@ export const assessmentSchema = z.object({
   // Explicit next step after the Results page. PAYMENT => take payment then go to
   // the destination; DESTINATION => straight to the destination/VSL. The save
   // action derives the legacy paidMode boolean from this.
-  nextStep: z.enum(["PAYMENT", "DESTINATION", "RESULTS"]).default("DESTINATION"),
+  nextStep: z.enum(["PAYMENT", "DESTINATION", "RESULTS", "NO_RESULT"]).default("DESTINATION"),
   paymentUrl: z.string().url("Enter a valid payment URL.").optional().or(z.literal("")),
   // The query parameter an EXTERNAL gateway appends to its success redirect. A bare
   // parameter name, so it can be read off the URL without guessing.
@@ -547,7 +547,8 @@ export const assessmentSchema = z.object({
   }
   // Destination + Training/VSL links are required ONLY when the flow lands on an
   // external destination. "Show results on assess360" (RESULTS) needs neither.
-  if (d.nextStep !== "RESULTS") {
+  // NO_RESULT goes nowhere by definition, so neither link is required there either.
+  if (d.nextStep !== "RESULTS" && d.nextStep !== "NO_RESULT") {
     if (!d.targetUrl) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["targetUrl"], message: "Destination page URL is required for this next step." });
     }

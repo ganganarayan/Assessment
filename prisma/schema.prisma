@@ -661,6 +661,11 @@ enum NextStep {
   PAYMENT // take payment (Razorpay), then the destination
   DESTINATION // go straight to the destination/VSL (no payment)
   RESULTS // show the results on assess360's own result page (no external VSL redirect)
+  // Nothing is shown back. The run ends on the thank-you message: answers are stored,
+  // the webhook fires, no score, no page, no redirect. For a funnel whose value is the
+  // ANSWERS rather than the result - a survey, a feedback form, the cancellation exit -
+  // where a scorecard is at best noise and at worst insulting.
+  NO_RESULT
 }
 
 // ---------------------------------------------------------------------------
