@@ -134,6 +134,9 @@ export default async function SettingsPage() {
             // second field here is how the same id came to be entered twice, which made
             // two senders fire one event name for one person with different event ids.
             showMeta={impersonating}
+            // Platform-only copy (the subscription note) hides itself inside a
+            // workspace, where the reader is a customer rather than us.
+            isPlatform={!impersonating}
             banner={
               impersonating
                 ? "Live for this tenant: its funnel fires this pixel, CAPI sends with this token, and payments run on this Razorpay account. Secrets are encrypted and never shown again."

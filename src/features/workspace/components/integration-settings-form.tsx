@@ -29,6 +29,7 @@ export function IntegrationSettingsForm({
   saveMetaNotUsedAction,
   banner,
   showMeta = true,
+  isPlatform = false,
 }: {
   initial: IntegrationSettingsView;
   saveMetaAction: SaveMeta;
@@ -49,6 +50,14 @@ export function IntegrationSettingsForm({
    * same pixel be entered twice and fire one event from two senders.
    */
   showMeta?: boolean;
+  /**
+   * TRUE only for the platform's own keys (super admin, not inside a workspace).
+   * Copy about the Assess360 subscription belongs here and ONLY here: a tenant
+   * reading their own settings is a customer, and telling them which of THEIR
+   * Razorpay accounts bills the subscription is both wrong - we bill it on ours -
+   * and none of their business to begin with.
+   */
+  isPlatform?: boolean;
 }) {
   const [pixelId, setPixelId] = useState(initial.metaPixelId);
   const [capiToken, setCapiToken] = useState("");
@@ -248,9 +257,14 @@ export function IntegrationSettingsForm({
         <p className="text-sm font-medium">Razorpay - Non-GST account</p>
         <p className="text-xs text-[var(--muted-foreground)]">
           A second account for clients who will not pay GST on top. Optional, and it is chosen per
-          payment link, so nothing moves to it by itself.{" "}
-          <strong>Never used for your Assess360 subscription</strong> - that is always billed on the
-          account above.
+          payment link, so nothing moves to it by itself.
+          {isPlatform ? (
+            <>
+              {" "}
+              <strong>Never used for an Assess360 subscription</strong> - that is always billed on the
+              account above.
+            </>
+          ) : null}
         </p>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Key ID</Label>
