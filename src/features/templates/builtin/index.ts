@@ -31,6 +31,8 @@ import homeServicesJobFit from "./home-services-job-fit.json";
 import cohortReadiness from "./cohort-readiness.json";
 import insuranceEligibilityFit from "./insurance-eligibility-fit.json";
 import webinarAttendeeFit from "./webinar-attendee-fit.json";
+// Platform-owned, not an audience template: the survey a cancelling customer sees.
+import cancellationExitWhyYouLeft from "./cancellation-exit-why-you-left.json";
 import candidateRoleFit from "./candidate-role-fit.json";
 
 export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
@@ -54,4 +56,5 @@ export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   insuranceEligibilityFit,
   webinarAttendeeFit,
   candidateRoleFit,
+  cancellationExitWhyYouLeft,
 ];

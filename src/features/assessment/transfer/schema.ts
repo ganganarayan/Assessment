@@ -14,6 +14,24 @@ import { slugSchema } from "@/features/assessment/schemas";
  */
 export const EXPORT_SCHEMA_VERSION = 1 as const;
 
+/**
+ * A routing rule inside the portable format.
+ *
+ * Targets travel as the AUTHORED KEYS below, never as database ids: an exported id
+ * means nothing in the workspace that imports it, and a template's whole job is to be
+ * imported somewhere else. Import resolves each key to the row it created, and fails
+ * loudly on a key that resolves to nothing rather than quietly importing a branch that
+ * goes to the wrong place.
+ *
+ * The shape mirrors QuestionRoute's own triple (action + one target), so a per-option
+ * rule and a question's default rule serialise through exactly this.
+ */
+const routeExport = z.object({
+  action: z.enum(["NEXT", "JUMP_TO_QUESTION", "JUMP_TO_CATEGORY", "SKIP_TO_END"]),
+  targetQuestionKey: z.string().max(60).nullable().optional(),
+  targetCategoryKey: z.string().max(60).nullable().optional(),
+});
+
 const optionExport = z.object({
   label: z.string().min(1),
   value: z.number().int(),
@@ -21,10 +39,19 @@ const optionExport = z.object({
   // CLINIC_AUDIT extras (added v2; optional so v1 files still import).
   diagnosisClause: z.string().nullable().optional(),
   isAssumption: z.boolean().optional(),
+  /** Conditional-routing rule that fires when THIS option is chosen. */
+  route: routeExport.nullable().optional(),
 });
 
 const questionExport = z
   .object({
+    /**
+     * Stable key for THIS question inside this document, so routes can point at it.
+     * Hand-authored in a template; synthesised on export when the assessment has any
+     * routing. Absent on every file written before routes were carried, and absent
+     * again on an assessment with no routing, which keeps those exports unchanged.
+     */
+    key: z.string().max(60).optional(),
     text: z.string().min(1),
     // FREE_TEXT added later: a typed, unscored answer with no options. Defaulted, so
     // every file written before it existed still reads as a choice question.
@@ -37,6 +64,9 @@ const questionExport = z
     // CLINIC_AUDIT unit for this question's numbers (PER_10/PER_100/RUPEES/COUNT/POINTS).
     scoringUnit: z.string().nullable().optional(),
     options: z.array(optionExport).default([]),
+    /** Where the flow goes when no option rule applies - skipped, typed, or an answer
+     *  with no rule of its own. This is what rejoins a branch to the main flow. */
+    defaultRoute: routeExport.nullable().optional(),
   })
   .refine((q) => q.type === "FREE_TEXT" || q.options.length >= 2, {
     message: "A choice question needs at least two options.",
@@ -60,6 +90,8 @@ const categoryBandExport = z.object({
 });
 
 const categoryExport = z.object({
+  /** Stable key for THIS category, so a JUMP_TO_CATEGORY route can point at it. */
+  key: z.string().max(60).optional(),
   name: z.string().min(1),
   description: z.string().nullable().optional(),
   displayOrder: z.number().int().nonnegative(),
@@ -171,6 +203,7 @@ export const assessmentExportSchema = z.object({
   assessments: z.array(assessmentBodyExport).min(1, "No assessments in file."),
 });
 
+export type RouteExport = z.infer<typeof routeExport>;
 export type OptionExport = z.infer<typeof optionExport>;
 export type QuestionExport = z.infer<typeof questionExport>;
 export type CategoryExport = z.infer<typeof categoryExport>;
