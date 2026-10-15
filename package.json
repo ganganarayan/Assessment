@@ -52,6 +52,7 @@
     "verify:payments": "tsx --conditions=react-server scripts/verify-payments.ts",
     "verify:pay-links": "tsx --conditions=react-server scripts/verify-pay-links.ts",
     "verify:routing": "tsx scripts/verify-routing.ts",
+    "verify:exit-link": "tsx --env-file=.env --conditions=react-server scripts/verify-exit-link.ts",
     "verify:flow": "tsx scripts/verify-flow.ts",
     "verify:gate-flag": "tsx scripts/verify-gate-flag.ts",
     "verify:gate": "tsx scripts/verify-gate.ts",

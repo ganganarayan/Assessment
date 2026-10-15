@@ -253,12 +253,19 @@ export function AssessmentRunner({
   assessment,
   attribution,
   preview,
+  prefill,
 }: {
   assessment: PublicAssessment;
   /** UTM + click-id params from the landing URL; forwarded to startSubmission. */
   attribution?: Record<string, string>;
   /** Admin preview flag (?preview=1); server verifies the caller before bypassing. */
   preview?: boolean;
+  /**
+   * Name and email already known about this visitor, from a signed hand-off the server
+   * verified (today: somebody arriving from a cancellation). Seeds the opt-in form and
+   * stays EDITABLE - it is a courtesy, not an assertion about who is holding the phone.
+   */
+  prefill?: { firstName?: string; email?: string };
 }) {
   // The configuration that decides where this run ends (and therefore whether the
   // post-Submit screen counts down at all). Derived once, in one place.
@@ -378,9 +385,9 @@ export function AssessmentRunner({
   // writes can't be driven by guessing the submission id.
   const [editToken, setEditToken] = useState<string | null>(null);
   const [lead, setLead] = useState<LeadInput>({
-    firstName: "",
+    firstName: prefill?.firstName ?? "",
     lastName: "",
-    email: "",
+    email: prefill?.email ?? "",
     mobile: "",
     profession: "",
   });
