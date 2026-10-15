@@ -5,6 +5,10 @@ import { assertCanCreateAssessment } from "@/lib/billing/gate";
 import { tenantCan } from "@/lib/billing/entitlements";
 import { ImportWizard } from "@/features/assessment/components/admin/import-wizard";
 import { TextImport } from "@/features/assessment/components/admin/text-import";
+import {
+  previewTenantImport,
+  importTenantAssessments,
+} from "@/features/assessment/actions/transfer";
 import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
@@ -68,8 +72,17 @@ export default async function WorkspaceImportPage() {
         <p className="mb-3 text-xs text-[var(--muted-foreground)]">
           Moving to Assess360 from another tool? Take the file out of that tool and load it here.
         </p>
+        {/* The WORKSPACE pair below. This page used to pass only doneHref and inherit the
+            super-admin actions, whose requireSuperAdmin guard bounced every tenant admin
+            before a row was written - an import that reported nothing and created
+            nothing. These two scope to the acting tenant, charge the plan cap, and
+            enforce the Agency entitlement in the action as well as here. */}
         {canBulkImport ? (
-          <ImportWizard doneHref="/w/assessments" />
+          <ImportWizard
+            previewAction={previewTenantImport}
+            importAction={importTenantAssessments}
+            doneHref="/w/assessments"
+          />
         ) : (
           <div className="flex flex-col items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--muted)] px-4 py-4 text-sm">
             <p>
