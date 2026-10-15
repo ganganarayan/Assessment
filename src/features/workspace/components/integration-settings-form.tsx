@@ -29,6 +29,7 @@ export function IntegrationSettingsForm({
   saveMetaNotUsedAction,
   banner,
   showMeta = true,
+  isPlatform = false,
 }: {
   initial: IntegrationSettingsView;
   saveMetaAction: SaveMeta;
@@ -49,6 +50,14 @@ export function IntegrationSettingsForm({
    * same pixel be entered twice and fire one event from two senders.
    */
   showMeta?: boolean;
+  /**
+   * TRUE only for the platform's own keys (super admin, not inside a workspace).
+   * Copy about the Assess360 subscription belongs here and ONLY here: a tenant
+   * reading their own settings is a customer, and telling them which of THEIR
+   * Razorpay accounts bills the subscription is both wrong - we bill it on ours -
+   * and none of their business to begin with.
+   */
+  isPlatform?: boolean;
 }) {
   const [pixelId, setPixelId] = useState(initial.metaPixelId);
   const [capiToken, setCapiToken] = useState("");
@@ -232,7 +241,10 @@ export function IntegrationSettingsForm({
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Webhook URL (point Razorpay → Settings → Webhooks here)</Label>
           <Input readOnly value={initial.webhookUrl} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
-          <p className="text-xs text-[var(--muted-foreground)]">Events: payment.captured and payment_link.paid.</p>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Events: payment.captured and payment_link.paid. The non-GST account below points at this
+            same address - one URL serves both, and the signature tells us which account sent it.
+          </p>
         </div>
         <div>
           <Button size="sm" onClick={saveRazorpay} disabled={pending}>Save GST Razorpay settings</Button>
@@ -245,9 +257,14 @@ export function IntegrationSettingsForm({
         <p className="text-sm font-medium">Razorpay - Non-GST account</p>
         <p className="text-xs text-[var(--muted-foreground)]">
           A second account for clients who will not pay GST on top. Optional, and it is chosen per
-          payment link, so nothing moves to it by itself.{" "}
-          <strong>Never used for your Assess360 subscription</strong> - that is always billed on the
-          account above.
+          payment link, so nothing moves to it by itself.
+          {isPlatform ? (
+            <>
+              {" "}
+              <strong>Never used for an Assess360 subscription</strong> - that is always billed on the
+              account above.
+            </>
+          ) : null}
         </p>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Key ID</Label>
@@ -276,8 +293,20 @@ export function IntegrationSettingsForm({
             placeholder={initial.hasRazorpayNonGstWebhookSecret ? "••••••••" : "Webhook signing secret"}
           />
           <p className="text-xs text-[var(--muted-foreground)]">
-            Point this account&apos;s webhook at the SAME URL as the one above - we check the signature
-            against both accounts and record which one took the money.
+            The secret THIS account&apos;s webhook generates, not the GST one. The two differ, and the
+            difference is the whole mechanism below.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Webhook URL (point Razorpay &rarr; Settings &rarr; Webhooks here)</Label>
+          <Input readOnly value={initial.webhookUrl} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Events: payment.captured and payment_link.paid. The same address as the GST account above,
+            on purpose - there is no second URL to create. Add a webhook in THIS account&apos;s Razorpay
+            dashboard too, pointing here, and paste the secret it generates into the field above. We
+            try both accounts&apos; secrets against the signature and record whichever one matched, so
+            the secret is what names the account, never the address. Leave this account&apos;s webhook
+            out and its payments arrive unverifiable: nothing is recorded and nothing is reported.
           </p>
         </div>
         <div>
@@ -292,6 +321,11 @@ export function IntegrationSettingsForm({
         <p className="text-xs text-[var(--muted-foreground)]">
           Shown on every payment link you send and on the client&apos;s Razorpay receipt. Blank uses the
           assessment&apos;s name.
+        </p>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          It sits below both accounts because it belongs to both: one description for this workspace,
+          used whichever account takes the money. That is why it is not repeated inside the GST and
+          non-GST blocks - two fields writing one value would only disagree.
         </p>
         <div className="flex flex-col gap-1">
           <Input
@@ -315,6 +349,12 @@ export function IntegrationSettingsForm({
           If you collect payment with your own payment link somewhere else, paste the address
           below as the <strong>success</strong> or <strong>redirect</strong> URL on that link.
           Respondents come back here and we take them straight to their results.
+        </p>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          This is not Razorpay, which is why it is outside both accounts above rather than inside one
+          of them. It carries no key and no webhook because nothing is verified here - the address
+          only walks the respondent back to their results after they have paid elsewhere. If you use
+          the Razorpay accounts above, you never need it.
         </p>
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Return URL (paste into your payment link&apos;s success redirect)</Label>
