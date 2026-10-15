@@ -2,10 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  previewImport,
-  importAssessments,
-} from "@/features/assessment/actions/transfer";
 import type {
   ImportMode,
   ImportPreviewItem,
@@ -24,15 +20,26 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+/**
+ * 🔴 The two actions are REQUIRED, and defaulting them is what this signature exists to
+ * prevent. They used to default to the super-admin pair, so the workspace page - which
+ * passed only `doneHref` - asked a `requireSuperAdmin` action to do a tenant's work. For
+ * a tenant admin that guard redirects, so the import was refused before it wrote
+ * anything: no row, no error on screen, and a tenant-scoped action sitting in the
+ * codebase that nothing called.
+ *
+ * A default here is a scope chosen by whoever forgot to choose one. Every call site now
+ * names the pair it means, and a new one cannot inherit the wrong half of the console.
+ */
 export function ImportWizard({
-  previewAction = previewImport,
-  importAction = importAssessments,
-  doneHref = "/admin/assessments",
+  previewAction,
+  importAction,
+  doneHref,
 }: {
-  previewAction?: PreviewAction;
-  importAction?: ImportAction;
-  doneHref?: string;
-} = {}) {
+  previewAction: PreviewAction;
+  importAction: ImportAction;
+  doneHref: string;
+}) {
   const router = useRouter();
   const [raw, setRaw] = useState<string | null>(null);
   const [format, setFormat] = useState<"json" | "csv">("json");

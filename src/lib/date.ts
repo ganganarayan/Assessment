@@ -14,6 +14,19 @@ export function formatIST(d: Date | string, withSeconds = false): string {
   return `${day}-${m}-${y} ${time}`;
 }
 
+/**
+ * The same instant as "DD-MM-YYYY", for the places where a time says nothing - a renewal
+ * date, a retake date, the day a comparison was checked.
+ *
+ * It exists so those places have somewhere to go other than `toLocaleDateString`. A
+ * locale-less call renders in the runtime's locale, which on a UTC Railway box is US
+ * order, and a date that reads 10-15-2026 to its owner is a defect whatever else is
+ * right about the page.
+ */
+export function formatISTDate(d: Date | string): string {
+  return formatIST(d).slice(0, 10);
+}
+
 const DATE_RE = /^(\d{2})-(\d{2})-(\d{4})$/;
 
 /**

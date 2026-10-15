@@ -18,6 +18,7 @@ import {
 } from "@/features/assessment/result-page/blocks";
 import { saveResultPage, publishResultPage, unpublishResultPage } from "@/features/assessment/actions/result-page";
 import { VslResultPage } from "@/features/assessment/components/public/vsl-result-page";
+import { formatIST } from "@/lib/date";
 
 /**
  * Basic VSL result-page builder. The whole page (theme + ordered blocks) is one JSON
@@ -131,7 +132,7 @@ export function ResultPageBuilder({
           </span>
           <span className="text-xs text-[var(--muted-foreground)]">
             {pending ? "Saving draft…" : "Edits auto-save as a draft. Click Publish to make them live."}
-            {publishedAt ? ` · Last published ${new Date(publishedAt).toLocaleString()}` : " · Not live"}
+            {publishedAt ? ` · Last published ${formatIST(publishedAt)}` : " · Not live"}
           </span>
         </div>
         <div className="ml-auto flex items-center gap-2">

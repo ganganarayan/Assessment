@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatISTDate } from "@/lib/date";
 
 export interface PublicOption {
   id: string;
@@ -248,9 +249,9 @@ interface Lockout {
 function fmtDate(iso: string | null): string | null {
   if (!iso) return null;
   const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? null
-    : d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  // DD-MM-YYYY, never the browser's locale: this renders for the respondent, and on a
+  // US-locale phone a locale-less call puts the month first.
+  return Number.isNaN(d.getTime()) ? null : formatISTDate(d);
 }
 
 export function AssessmentRunner({

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { listApiTokens, mintApiToken, revokeApiToken } from "@/features/api-tokens/actions";
 import { API_TOKEN_SCOPES, SCOPE_ENDPOINTS, type ApiTokenRow } from "@/features/api-tokens/scopes";
+import { formatIST } from "@/lib/date";
 
 /**
  * Super-admin manager for scoped external API tokens. Mint shows the plaintext
@@ -156,7 +157,7 @@ export function ApiTokensManager({
                   <td className="px-3 py-2">{t.scope}</td>
                   <td className="px-3 py-2 text-[var(--muted-foreground)]">{t.label ?? "-"}</td>
                   <td className="px-3 py-2 text-[var(--muted-foreground)]">
-                    {t.lastUsedAt ? new Date(t.lastUsedAt).toLocaleString() : "-"}
+                    {t.lastUsedAt ? formatIST(t.lastUsedAt) : "-"}
                   </td>
                   <td className="px-3 py-2">
                     {t.revokedAt ? (

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ImportWizard } from "@/features/assessment/components/admin/import-wizard";
 import { TextImport } from "@/features/assessment/components/admin/text-import";
+import { previewImport, importAssessments } from "@/features/assessment/actions/transfer";
 
 export default function ImportAssessmentPage() {
   return (
@@ -24,7 +25,12 @@ export default function ImportAssessmentPage() {
         <p className="mb-3 text-xs text-[var(--muted-foreground)]">
           Moving to Assess360 from another tool? Take the file out of that tool and load it here.
         </p>
-        <ImportWizard />
+        {/* The platform console's own import: super-admin scoped, by name. */}
+        <ImportWizard
+          previewAction={previewImport}
+          importAction={importAssessments}
+          doneHref="/admin/assessments"
+        />
       </div>
     </div>
   );

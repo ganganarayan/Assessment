@@ -82,6 +82,10 @@ export async function buildAssessmentBody(
   return {
     title: a.title,
     slug: a.slug,
+    // Carried so the export reads like the screen it came from: an import creates a
+    // fresh row, so this is equally "built on" and "imported on". Ignored by the
+    // importer (assessmentCreateData maps field by field and never takes it).
+    createdAt: a.createdAt.toISOString(),
     description: a.description,
     coverImageUrl: a.coverImageUrl,
     estimatedMinutes: a.estimatedMinutes,

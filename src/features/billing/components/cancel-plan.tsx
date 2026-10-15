@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { cancelSubscription } from "@/features/billing/actions/subscribe";
+import { formatISTDate } from "@/lib/date";
 
 /**
  * The cancel control, and the reason it exists: /refund tells every customer "you can
@@ -62,7 +63,7 @@ export function CancelPlan({
   }, [countdown, done]);
 
   const endLabel = periodEnd
-    ? new Date(periodEnd).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+    ? formatISTDate(periodEnd)
     : null;
 
   if (alreadyCancelling && !done) {

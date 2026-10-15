@@ -24,6 +24,7 @@ import { getClinicAnswers, getClinicRawAnswers } from "@/features/admin/data/cli
 import { AiStatementManager } from "@/features/admin/components/ai-statement-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatIST } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
@@ -374,7 +375,7 @@ export default async function ResultPage({
                 <Field label="Phone">{submission.leadMobile?.trim() || "-"}</Field>
                 <Field label="Email">{submission.leadEmail?.trim() || "-"}</Field>
                 <Field label={submission.assessment.professionLabel?.trim() || "Profession"}>{submission.leadProfession?.trim() || "-"}</Field>
-                <Field label="Completed">{submission.completedAt ? new Date(submission.completedAt).toLocaleString() : "-"}</Field>
+                <Field label="Completed">{submission.completedAt ? formatIST(submission.completedAt) : "-"}</Field>
                 <Field label="Internal band">{original.band}{original.notViable ? " · not viable" : ""}{original.capacityBlocked ? " · capacity-blocked" : ""}</Field>
               </div>
               {/* Always visible (not a <details>) - collapsed content is invisible
