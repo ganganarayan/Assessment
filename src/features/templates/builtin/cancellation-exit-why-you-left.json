@@ -39,7 +39,7 @@
   "fireMetaCapi": false,
   "platformSignup": false,
   "retakePolicy": "UNLIMITED",
-  "retakeDays": 0,
+  "retakeDays": 15,
   "uniqueIdentifier": "EMAIL",
   "categories": [
    {

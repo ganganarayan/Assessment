@@ -425,10 +425,17 @@ export const assessmentSchema = z.object({
   resultsButtonLabel: z.string().max(120).optional().or(z.literal("")),
   // Retake lockout config.
   retakePolicy: z.enum(["DELAYED", "NEVER", "UNLIMITED"]).default("DELAYED"),
+  // The lock period. Floor is ZERO here, not one, and the "at least 1" rule lives in
+  // the refine below where it can see the policy.
+  //
+  // The field is only RENDERED when the policy is DELAYED, so a funnel that arrived
+  // with 0 and a policy of NEVER or UNLIMITED - an import, say - failed validation on
+  // every save, on every step, pointing at a field the form had no reason to show. The
+  // owner was told to fix a number that was not on screen and did not matter.
   retakeDays: z.coerce
     .number()
     .int("Lock days must be a whole number.")
-    .min(1, "Lock days must be at least 1.")
+    .min(0, "Lock days cannot be negative.")
     .max(3650, "Lock days can be at most 3650.")
     .default(15),
   uniqueIdentifier: z.enum(["EMAIL", "MOBILE"]).default("EMAIL"),
@@ -547,6 +554,14 @@ export const assessmentSchema = z.object({
     if (!d.trainingUrl) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["trainingUrl"], message: "Training / VSL link is required for this next step." });
     }
+  }
+  // The lock period only means something when the policy actually delays a retake.
+  if (d.retakePolicy === "DELAYED" && d.retakeDays < 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["retakeDays"],
+      message: "Lock days must be at least 1.",
+    });
   }
   // A lockout can only be enforced if the identifying field is always captured.
   if (d.retakePolicy === "UNLIMITED") return;
