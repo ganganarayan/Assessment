@@ -290,24 +290,56 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   send(res, 404, "text/plain", "not here");
 }
 
-const server = createServer((req, res) => {
-  handle(req, res).catch((err: unknown) => {
-    send(res, 500, "text/plain", err instanceof Error ? err.message : String(err));
-  });
-});
+/**
+ * Listen on BOTH loopback addresses.
+ *
+ * Bound to 127.0.0.1 alone, the panel answered curl and refused the browser: Windows
+ * resolves localhost to ::1 first, so the tab opened, tried IPv6, found nothing
+ * listening and sat there forever. Two listeners over one handler keeps it
+ * loopback-only - never reachable from the network - while working whichever address
+ * the browser picks.
+ */
+const HOSTS = ["127.0.0.1", "::1"];
+let announced = false;
 
-server.listen(PORT, "127.0.0.1", () => {
+function announce(): void {
+  if (announced) return;
+  announced = true;
   const env = loadQaEnv();
-  console.log(`\nControl panel: http://localhost:${PORT}`);
+  console.log(`\nControl panel: http://127.0.0.1:${PORT}   (localhost works too)`);
   console.log(`Target: ${env.baseUrl}${env.looksLikeProd ? "  (NOT staging - runs are blocked)" : ""}`);
   console.log(`Database: ${env.databaseUrl ? "configured" : "MISSING - start this under `railway run`"}`);
   console.log("Leave this running; close it with Ctrl+C.\n");
   if (process.platform === "win32") {
-    spawn("cmd", ["/c", "start", "", `http://localhost:${PORT}`], { stdio: "ignore", detached: true }).unref();
+    // 127.0.0.1 rather than localhost: one address, no name resolution, no chance of
+    // the browser choosing a family nothing is listening on.
+    spawn("cmd", ["/c", "start", "", `http://127.0.0.1:${PORT}`], { stdio: "ignore", detached: true }).unref();
   }
+}
+
+const servers = HOSTS.map((host) => {
+  const server = createServer((req, res) => {
+    handle(req, res).catch((err: unknown) => {
+      send(res, 500, "text/plain", err instanceof Error ? err.message : String(err));
+    });
+  });
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(`\nPort ${PORT} is already in use - a panel is probably open already.`);
+      console.error("Close that one, or start this with QA_UI_PORT=5176.\n");
+      process.exit(1);
+    }
+    // A machine with IPv6 switched off simply gets one listener, which is not a failure.
+    if (host === "::1") return;
+    console.error(`\nCould not listen on ${host}: ${err.message}\n`);
+    process.exit(1);
+  });
+  server.listen(PORT, host, announce);
+  return server;
 });
 
 process.on("SIGINT", () => {
   running?.child.kill();
+  for (const s of servers) s.close();
   void closeDb().finally(() => process.exit(0));
 });
