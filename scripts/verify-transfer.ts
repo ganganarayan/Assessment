@@ -14,6 +14,7 @@ import {
   parseDocument,
 } from "../src/features/assessment/transfer/format";
 import type { AssessmentBodyExport } from "../src/features/assessment/transfer/schema";
+import { formatIST } from "../src/lib/date";
 
 let failures = 0;
 const ok = (name: string) => console.log(`  PASS  ${name}`);
@@ -423,8 +424,9 @@ const routed: AssessmentBodyExport = {
   const rows = csv.split(/\r?\n/);
   const col = (rows[0] ?? "").split(",").indexOf("created_at");
   const cell = (rows[1] ?? "").split(",")[col];
-  if (col >= 0 && cell === dated.createdAt) ok("created_at · own CSV column");
-  else fail("created_at · own CSV column", `column ${col}, cell ${String(cell)}`);
+  // The column a person reads is DD-MM-YYYY HH:MM in IST, not the ISO instant.
+  if (col >= 0 && cell === formatIST(dated.createdAt!)) ok("created_at · own CSV column, read as IST");
+  else fail("created_at · own CSV column, read as IST", `column ${col}, cell ${String(cell)}`);
 
   const back = parseDocument(csv, "csv");
   if (back.ok && back.data.assessments[0]?.createdAt === dated.createdAt) ok("created_at · survives CSV round trip");

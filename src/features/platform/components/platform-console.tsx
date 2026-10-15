@@ -29,6 +29,7 @@ import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { PLAN_IDS } from "@/lib/billing/plans";
 import { effectiveAccess } from "@/features/platform/effective-plan";
 import { LimitsEditor } from "@/features/platform/components/limits-editor";
+import { formatIST, formatISTDate } from "@/lib/date";
 
 /** A saved-state line for ONE tenant's access grant, shown under that row's date. */
 type GrantMsg = { tone: "ok" | "warn" | "error"; text: string };
@@ -44,13 +45,11 @@ function istDateInputValue(iso: string | null): string {
   return ist.toISOString().slice(0, 10);
 }
 
-/** "12 Nov 2026" for the one-line "runs to <date>" notes, where a time means nothing. */
+/** "12-11-2026" for the one-line "runs to <date>" notes, where a time means nothing. */
 function shortIST(iso: string | null): string {
   if (!iso) return "-";
   const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? "-"
-    : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+  return Number.isNaN(d.getTime()) ? "-" : formatISTDate(d);
 }
 
 /**
@@ -67,10 +66,10 @@ function stampIST(iso: string | null): { date: string; time: string } | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return {
-    date: d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }),
-    time: d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" }),
-  };
+  // Split out of the one house format rather than formatted twice, so the date in this
+  // cell can never drift from the date anywhere else on the page.
+  const stamp = formatIST(d);
+  return { date: stamp.slice(0, 10), time: stamp.slice(11) };
 }
 
 /**

@@ -26,6 +26,7 @@ import { SHAPE_LABELS, TEMPLATE_CATEGORIES } from "@/features/templates/schema";
 import { repairJson, locateJsonError } from "@/features/templates/json-repair";
 import { type TemplateListItem } from "@/features/templates/data";
 import { type ContributionRewardView, type TemplateDocumentView } from "@/features/templates/types";
+import { formatIST } from "@/lib/date";
 
 /**
  * The platform owner's Template Library console.
@@ -172,7 +173,7 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
                   </p>
                   <p className="mt-1 text-xs text-[var(--muted-foreground)]">
                     From {t.contributorName ?? "an unnamed workspace"}
-                    {t.submittedAt ? ` on ${new Date(t.submittedAt).toLocaleDateString("en-GB")}` : ""}
+                    {t.submittedAt ? ` on ${formatIST(t.submittedAt)}` : ""}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

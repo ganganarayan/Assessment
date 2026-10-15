@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { setDfyRequestStatus } from "@/features/admin/actions/dfy-requests";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatIST } from "@/lib/date";
 
 export type DfyRow = {
   id: string;
@@ -78,7 +79,7 @@ export function DfyRequests({ rows }: { rows: DfyRow[] }) {
               <p className="mt-1 text-xs text-[var(--muted-foreground)]">
                 {r.email} · {r.whatsapp}
                 {r.website ? ` · ${r.website}` : ""} ·{" "}
-                {new Date(r.createdAt).toLocaleDateString("en-GB")}
+                {formatIST(r.createdAt)}
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">

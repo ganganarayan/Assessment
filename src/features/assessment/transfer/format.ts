@@ -7,6 +7,9 @@
  * directly: see scripts/verify-transfer.ts.
  */
 import { toCsv, parseCsv } from "./csv";
+// Relative on purpose: this module is run directly by scripts/verify-transfer.ts, which
+// does not resolve the "@/" alias.
+import { formatIST } from "../../../lib/date";
 import {
   assessmentExportSchema,
   EXPORT_SCHEMA_VERSION,
@@ -133,7 +136,10 @@ export function bodiesToCsv(bodies: AssessmentBodyExport[]): string {
         collect_profession: a.collectProfession,
         profession_required: a.professionRequired,
         engine: a.engine ?? "GENERIC",
-        created_at: a.createdAt ?? "",
+        // DD-MM-YYYY HH:MM, because this column is read by a person in a spreadsheet.
+        // The machine copy stays ISO-8601 inside assessment_json, which is what the
+        // importer reads, so the round trip is unaffected by how this reads.
+        created_at: a.createdAt ? formatIST(a.createdAt) : "",
         // Categories, questions, options and bands are expressed as their own rows, so
         // they are stripped here rather than duplicated.
         assessment_json: JSON.stringify({ ...a, categories: undefined, resultBands: undefined }),

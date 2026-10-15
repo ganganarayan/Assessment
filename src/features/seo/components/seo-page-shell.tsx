@@ -10,6 +10,7 @@ import { ComparisonTable, MigrationBlock, BetterWhen, PageFaqs } from "./compari
 import { DfyOffer } from "./dfy-offer";
 import type { Answer, SeoPage } from "@/lib/seo/types";
 import { seoPath } from "@/lib/seo/urls";
+import { formatISTDate } from "@/lib/date";
 
 /**
  * The one renderer every composed page uses - pillars today, use-case and comparison
@@ -49,12 +50,7 @@ export function SeoPageShell({
         {page.factsCheckedOn ? (
           <p className="mt-5 rounded-md border border-[var(--border)] bg-[var(--muted)] px-4 py-3 text-sm text-[var(--muted-foreground)]">
             Compared on{" "}
-            {new Date(`${page.factsCheckedOn}T00:00:00Z`).toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-              timeZone: "UTC",
-            })}
+            {formatISTDate(`${page.factsCheckedOn}T00:00:00Z`)}
             . Other products change their features and pricing without notice, so treat this as
             what was true on that date and check their current site before you decide.
           </p>

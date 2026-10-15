@@ -445,7 +445,7 @@ export function SubmissionsTable({
                 </span>
                 <span className="text-xs text-[var(--muted-foreground)]">
                   {xHit.status}
-                  {xHit.completedAt ? ` · completed ${new Date(xHit.completedAt).toLocaleString()}` : ""}
+                  {xHit.completedAt ? ` · completed ${formatIST(xHit.completedAt)}` : ""}
                 </span>
               </div>
               <div className="text-xs text-[var(--muted-foreground)]">

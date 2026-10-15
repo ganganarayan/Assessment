@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatIST } from "@/lib/date";
 import {
   BLOCK_TYPES,
   BAND_LEVELS,
@@ -129,7 +130,7 @@ export function PagesBuilder({
           </span>
           <span className="text-xs text-[var(--muted-foreground)]">
             {pending ? "Saving draft…" : "Edits auto-save as a draft. Click Publish to make them live."}
-            {publishedAt ? ` · Last published ${new Date(publishedAt).toLocaleString()}` : " · Not live"}
+            {publishedAt ? ` · Last published ${formatIST(publishedAt)}` : " · Not live"}
           </span>
         </div>
         <div className="ml-auto flex items-center gap-2">
