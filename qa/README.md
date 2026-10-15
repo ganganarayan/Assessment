@@ -89,6 +89,15 @@ opt-in was marked as seen, the GateDisqualification, and that nothing outbound w
 pixel configured, because a failed send still counts: the question is what the funnel
 decided to report, not what Meta received.
 
+## Branching, both halves of it
+
+An option rule fans a survey out; a question's DEFAULT route brings it back. The
+generator makes a case for each: one that triggers the option rule, and one that reaches
+the question and leaves it to its own rule - which is the only way a convergence is ever
+proved. A FREE_TEXT question is answered by typing, scores nothing at all rather than
+scoring zero, counts as answered where a required question is concerned, and the
+sentence is read back off the submission row: collected but not stored is a failure.
+
 ## The loss that happens ten minutes later
 
 Walking away from the opt-in fires nothing straight away. It starts a clock, because the
