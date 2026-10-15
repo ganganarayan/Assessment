@@ -251,7 +251,7 @@ export async function driveCase(
         const btn = page.locator("[data-qa-step='disqualified'] a, [data-qa-step='disqualified'] button").first();
         if (await btn.count()) {
           obs.exitButtonLabel = (await btn.textContent())?.trim() ?? null;
-          obs.exitButtonUrl = await btn.getAttribute("href");
+          obs.exitButtonUrl = await btn.getAttribute("href", { timeout: 5000 }).catch(() => null);
         }
       }
       if (step === "resultPages") {
@@ -336,10 +336,11 @@ export async function driveCase(
   if (obs.submissionId) {
     const overall = page.locator("[data-qa-result='overall']").first();
     if (await overall.count()) {
-      obs.band = await overall.getAttribute("data-qa-band");
-      obs.percent = num(await overall.getAttribute("data-qa-percent"));
-      obs.score = num(await overall.getAttribute("data-qa-score"));
-      obs.max = num(await overall.getAttribute("data-qa-max"));
+      const read = (name: string) => overall.getAttribute(name, { timeout: 5000 }).catch(() => null);
+      obs.band = await read("data-qa-band");
+      obs.percent = num(await read("data-qa-percent"));
+      obs.score = num(await read("data-qa-score"));
+      obs.max = num(await read("data-qa-max"));
     }
   }
   const cookies = await context.cookies();
@@ -377,7 +378,7 @@ async function answerGateScreen(
     obs.trail.push("gate screen with no question on it");
     return false;
   }
-  const qid = (await block.getAttribute("data-qa-qual-question")) ?? "";
+  const qid = (await block.getAttribute("data-qa-qual-question", { timeout: 5000 }).catch(() => null)) ?? "";
   if (obs.gateQuestionsSeen[obs.gateQuestionsSeen.length - 1] !== qid) obs.gateQuestionsSeen.push(qid);
 
   const wantedOption = plan.gateChoices[qid];
@@ -446,7 +447,7 @@ async function answerQuestionScreen(
 
   const idsOnScreen: string[] = [];
   for (let i = 0; i < count; i++) {
-    const qid = (await blocks.nth(i).getAttribute("data-qa-question")) ?? "";
+    const qid = (await blocks.nth(i).getAttribute("data-qa-question", { timeout: 5000 }).catch(() => null)) ?? "";
     if (qid) idsOnScreen.push(qid);
   }
   for (const qid of idsOnScreen) if (!obs.questionsSeen.includes(qid)) obs.questionsSeen.push(qid);
@@ -600,10 +601,13 @@ async function screenKey(page: Page, step: string): Promise<string> {
     return (await attr(page, "[data-qa-qual-question]", "data-qa-qual-question")) ?? "";
   }
   if (step === "questions") {
-    const ids = await page.locator("[data-qa-question]").evaluateAll((els) =>
-      els.map((e) => e.getAttribute("data-qa-question") ?? "").join(","),
-    );
-    return ids;
+    // Reading the screen must never be the thing that fails a case: the funnel
+    // re-renders constantly, and an element that goes away mid-read is the funnel
+    // working, not breaking.
+    return page
+      .locator("[data-qa-question]")
+      .evaluateAll((els) => els.map((e) => e.getAttribute("data-qa-question") ?? "").join(","))
+      .catch(() => "");
   }
   return "";
 }
@@ -615,7 +619,11 @@ async function currentStep(page: Page): Promise<string | null> {
   } catch {
     return null;
   }
-  return el.getAttribute("data-qa-step");
+  // Short, and never throwing. The default is thirty seconds and an exception, which
+  // on a screen that re-rendered between the wait and the read used to end the whole
+  // case with "it could not be driven at all" - a sentence about the harness dressed
+  // up as a verdict on the funnel.
+  return el.getAttribute("data-qa-step", { timeout: 5000 }).catch(() => null);
 }
 
 /**
@@ -667,7 +675,7 @@ async function fillLead(page: Page, identity: Identity, obs: Observation): Promi
   for (let i = 0; i < sn; i++) {
     const select = selects.nth(i);
     const choices = await select.locator("option:not([disabled])").count();
-    const required = (await select.getAttribute("required")) !== null;
+    const required = (await select.getAttribute("required", { timeout: 5000 }).catch(() => null)) !== null;
     if (choices === 0) {
       obs.trail.push(
         required
@@ -754,8 +762,8 @@ async function waitForScreenChange(page: Page, before: string, timeoutMs: number
 
 async function attr(page: Page, selector: string, name: string): Promise<string | null> {
   const el = page.locator(selector).first();
-  if (!(await el.count())) return null;
-  return el.getAttribute(name);
+  if (!(await el.count().catch(() => 0))) return null;
+  return el.getAttribute(name, { timeout: 5000 }).catch(() => null);
 }
 
 async function text(page: Page, selector: string): Promise<string | null> {
