@@ -15,6 +15,7 @@
  */
 import { db } from "./db.js";
 import { isPlatformScope } from "../../src/lib/tenant/platform-tenant.js";
+import { PLAN_LIMITS, type PlanId } from "../../src/lib/billing/plans.js";
 import type { Funnel } from "./config/read.js";
 
 export interface GuardFinding {
@@ -126,6 +127,61 @@ export async function preflight(
   }
   if (platform?.wabaEnabledGlobal) {
     f.push({ level: "warn", what: "WhatsApp", detail: "WABA is enabled globally, so opt-in paths may message the number supplied" });
+  }
+
+  // --- the result pages this funnel is bound to -----------------------------------
+  //
+  // A result page is its own record now, bound to the funnel and published separately.
+  // A funnel bound to a page nobody has published ends somewhere other than where its
+  // owner thinks, and a sweep would report that as a funnel fault rather than as an
+  // unpublished draft.
+  const docIds = [row.resultsDocId, row.vslDocId].filter((v): v is string => Boolean(v));
+  if (docIds.length > 0) {
+    const docs = await db().resultPageDoc.findMany({
+      where: { id: { in: docIds } },
+      select: { id: true, kind: true, title: true, publishedAt: true },
+    });
+    const drafts = docs.filter((d) => d.publishedAt === null);
+    if (drafts.length > 0) {
+      const names = drafts.map((d) => `${d.kind} "${d.title}"`).join(", ");
+      f.push({
+        level: "warn",
+        what: "result page",
+        detail: `${names} is bound to this funnel and has never been published, so respondents get whatever is already live instead - the generic result page, or an older snapshot`,
+      });
+    }
+  }
+
+  // --- the workspace's own ceiling ------------------------------------------------
+  //
+  // Responses are metered. A sweep that runs a tenant past its cap meets the over-cap
+  // screen instead of a result, which is the product working - and reads like a broken
+  // funnel unless somebody says so first.
+  if (!isPlatformScope(tenantId) && tenantId) {
+    const tenant = await db().tenant.findUnique({ where: { id: tenantId }, select: { plan: true } });
+    const cap = PLAN_LIMITS[(tenant?.plan ?? "FREE") as PlanId]?.responsesPerMonth ?? null;
+    if (cap !== null) {
+      const counter = await db().usageCounter.findFirst({
+        where: { tenantId, metric: "RESPONSES" },
+        orderBy: { updatedAt: "desc" },
+        select: { count: true },
+      });
+      const used = counter?.count ?? 0;
+      const room = cap - used;
+      if (room <= 0) {
+        f.push({
+          level: opts.allowLiveIntegrations ? "warn" : "block",
+          what: "response cap",
+          detail: `this workspace has used ${used} of ${cap} responses this period, so a sweep would meet the over-cap screen rather than a result. Pass --force-live to run anyway.`,
+        });
+      } else if (room < 25) {
+        f.push({
+          level: "warn",
+          what: "response cap",
+          detail: `${room} response(s) left of ${cap} this period, and a sweep spends one per completed case`,
+        });
+      }
+    }
   }
 
   const hooks = await db().webhook.count({
