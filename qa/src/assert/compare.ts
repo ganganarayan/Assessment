@@ -1,0 +1,418 @@
+/**
+ * Expected against observed, one statement at a time.
+ *
+ * Each check is a sentence somebody would say out loud about the funnel, so a failure
+ * reads as a fact rather than a diff: "turned away at the gate" / expected exit1,
+ * observed exit2. The harness is only useful if its output is the finding.
+ *
+ * Checks are skipped, never faked, when a case cannot reach them: a run that was
+ * turned away has no band to compare, and pretending otherwise would bury the one
+ * thing that did go wrong.
+ */
+import type { Expectation, CasePlan } from "../oracle/types.js";
+import type { Observation } from "../drive/run.js";
+import type { EventCounts, RowObservation } from "./db.js";
+import type { Funnel } from "../config/read.js";
+
+export type Verdict = "pass" | "fail" | "warn" | "skip";
+
+export interface Check {
+  verdict: Verdict;
+  what: string;
+  expected?: string;
+  observed?: string;
+}
+
+const eq = (what: string, expected: unknown, observed: unknown): Check => ({
+  verdict: String(expected) === String(observed) ? "pass" : "fail",
+  what,
+  expected: String(expected),
+  observed: String(observed),
+});
+
+const ok = (what: string, condition: boolean, expected: string, observed: string): Check => ({
+  verdict: condition ? "pass" : "fail",
+  what,
+  expected,
+  observed,
+});
+
+export function compare(
+  funnel: Funnel,
+  plan: CasePlan,
+  expected: Expectation,
+  obs: Observation,
+  rows: RowObservation,
+  events: EventCounts,
+  retakeObs?: Observation,
+): Check[] {
+  const checks: Check[] = [];
+  const sawStep = (s: string) => obs.steps.includes(s);
+
+  // The funnel falling over is a different statement from the funnel behaving wrongly,
+  // and reporting it as seven failed expectations buries it. It leads, alone.
+  if (obs.crashed) {
+    return [
+      {
+        verdict: "fail",
+        what: "the funnel renders without falling over",
+        expected: "the next screen",
+        observed: "the app's error boundary, twice in a row",
+      },
+    ];
+  }
+
+  /* --- the screens -------------------------------------------------------------- */
+  checks.push(eq("the run opens on the right screen", expected.firstStep, obs.steps[0] ?? "(nothing)"));
+
+  if (expected.gate) {
+    if (expected.gate.outcome === "exit") {
+      checks.push(
+        ok(
+          // Each kind of exit is a different thing to SEE, and the check has to depend
+          // on what happened rather than on what was expected. Written as
+          // "expected || observed" it passed for every opt-in and waitlist route no
+          // matter what the browser did, which is a check that can only ever agree.
+          expected.gate.takesAssessment
+            ? "the waitlist route does not stop them"
+            : "the gate routes them out",
+          expected.gate.takesAssessment ? !sawStep("disqualified") : sawStep("disqualified"),
+          expected.gate.takesAssessment ? "no exit page, they carry on" : "the exit page",
+          obs.steps.join(" -> "),
+        ),
+      );
+      if (expected.gate.turnedAway) {
+        checks.push(eq("out through the right exit", expected.gate.exitKey, obs.exitKey ?? "(none)"));
+        if (expected.gate.exitHeading) {
+          checks.push(eq("showing that exit's own heading", expected.gate.exitHeading, obs.exitHeading ?? "(none)"));
+        }
+        if (expected.gate.exitButtonLabel) {
+          checks.push(eq("and that exit's own button", expected.gate.exitButtonLabel, obs.exitButtonLabel ?? "(none)"));
+        }
+        if (expected.gate.exitButtonUrl) {
+          checks.push(eq("pointing where the owner sent them", expected.gate.exitButtonUrl, obs.exitButtonUrl ?? "(none)"));
+        }
+      }
+    } else {
+      checks.push(ok("the gate lets them through", !sawStep("disqualified"), "no exit page", obs.steps.join(" -> ")));
+    }
+  }
+
+  if (expected.redirectToSlug) {
+    checks.push(
+      ok(
+        "the audience role hands them to the other assessment",
+        obs.finalUrl.includes(`/a/${expected.redirectToSlug}`),
+        `/a/${expected.redirectToSlug}`,
+        obs.finalUrl || "(nowhere)",
+      ),
+    );
+  }
+
+  /* --- the questions ------------------------------------------------------------ */
+  if (expected.questionPath.length > 0 && !expected.abandonsAtOptin && !expected.blockedAtRequired) {
+    const seen = obs.questionsSeen;
+    checks.push(
+      ok(
+        "every question on the path is asked",
+        expected.questionPath.every((q) => seen.includes(q)),
+        `${expected.questionPath.length} question(s)`,
+        `${seen.length} seen`,
+      ),
+    );
+    if (funnel.routingActive) {
+      checks.push(
+        ok(
+          "in the order the routing says",
+          seen.join(",") === expected.questionPath.filter((q) => seen.includes(q)).join(","),
+          expected.questionPath.join(","),
+          seen.join(","),
+        ),
+      );
+      const leaked = expected.skipped.filter((q) => seen.includes(q));
+      checks.push(
+        ok("and nothing it should have skipped", leaked.length === 0, "no skipped question shown", leaked.join(",") || "none"),
+      );
+    }
+  }
+
+  if (expected.blockedAtRequired) {
+    checks.push(
+      ok(
+        "a required question stops the run",
+        obs.stoppedByValidation,
+        "a validation message, and the same screen still on display",
+        obs.blocked ? (obs.stoppedByValidation ? obs.blocked : `${obs.blocked} but it moved on anyway`) : "(it let them through)",
+      ),
+    );
+  }
+
+  /* --- the result --------------------------------------------------------------- */
+  const reachedResult = obs.submissionId !== null || obs.band !== null;
+  if (expected.terminal && !expected.abandonsAtOptin && !expected.blockedAtRequired) {
+    // Where a run ENDS depends on the funnel, not on the case: a signup funnel hands
+    // off to /sign-up and has no result page at all, a result-page funnel shows its
+    // pages, and everything else lands on the result link or the owner's destination.
+    const url = obs.finalUrl || "";
+    if (expected.terminal === "SIGNUP") {
+      checks.push(ok("the run hands off to signup", url.includes("/sign-up"), "/sign-up", url || "(nowhere)"));
+    } else if (expected.terminal === "RESULT_PAGES") {
+      checks.push(ok("the result pages are shown", obs.steps.includes("resultPages"), "the resultPages screen", obs.steps.join(" -> ")));
+    } else if (expected.terminal === "PAYMENT") {
+      checks.push({ verdict: "skip", what: "the payment screen", observed: url || "(nowhere)" });
+    } else if (funnel.row.nextStep === "RESULTS") {
+      checks.push(ok("the run ends on their own result page", /\/r\//.test(url), `/a/${funnel.row.slug}/r/<id>`, url || "(nowhere)"));
+    } else if (funnel.row.targetUrl) {
+      checks.push(
+        ok("the run ends at the destination the owner set", url.startsWith(funnel.row.targetUrl), funnel.row.targetUrl, url || "(nowhere)"),
+      );
+    }
+  }
+  if (expected.score && expected.terminal && !expected.abandonsAtOptin && !expected.blockedAtRequired) {
+    if (!reachedResult) {
+      // No result page to read: a signup handoff and a destination redirect both end
+      // somewhere the score is not shown, and that is not a failure.
+      checks.push({
+        verdict: expected.terminal === "SIGNUP" || expected.terminal === "DESTINATION" ? "skip" : "fail",
+        what: "the score is shown to the respondent",
+        expected: `ends at ${expected.terminal}`,
+        observed: obs.finalUrl || "(nowhere)",
+      });
+    } else {
+      if (obs.percent !== null) {
+        // The page shows a whole number, because that is what a respondent should read.
+        // The exact figure is checked against the row instead.
+        checks.push(
+          eq("the percentage on the result page", Math.round(expected.score.percentage), Math.round(obs.percent)),
+        );
+      }
+      if (obs.score !== null) checks.push(eq("the score on the result page", expected.score.total, obs.score));
+      if (obs.max !== null) checks.push(eq("out of the achievable total", expected.score.max, obs.max));
+      // The VSL result page and the clinic page are different animals: the first shows
+      // no score at all, deliberately (it is marketing, not a scorecard), and the second
+      // reports in its own shape. Only a page that is supposed to carry a score is held
+      // to carrying one.
+      const scorelessByDesign = obs.steps.includes("vslResult") || obs.steps.includes("clinicResult");
+      if (!scorelessByDesign && obs.percent === null && obs.score === null && obs.band === null) {
+        // Reaching the result and reading nothing from it is not a pass. It means the
+        // page this funnel ends on carries no score handles - a different renderer, or
+        // one that lost them - and silently skipping three checks would hide that.
+        checks.push({
+          verdict: "warn",
+          what: "the result page exposes its score to the harness",
+          expected: "a band, a percentage and a score",
+          observed: "the page was reached but carried none of them",
+        });
+      }
+      if (expected.score.bandTitle) {
+        checks.push(eq("and the band it falls in", expected.score.bandTitle, obs.band ?? "(none)"));
+      }
+    }
+  }
+
+  /* --- the sentences somebody typed --------------------------------------------- */
+  if (obs.typedQuestions.length > 0 && expected.rows.completed) {
+    const missing = obs.typedQuestions.filter((q) => !(rows.typedAnswers[q] ?? "").trim());
+    checks.push(
+      ok(
+        "what they typed is stored, not just collected",
+        missing.length === 0,
+        `${obs.typedQuestions.length} sentence(s) on the row`,
+        missing.length === 0
+          ? `${Object.keys(rows.typedAnswers).length} stored`
+          : `missing for ${missing.join(", ")}`,
+      ),
+    );
+  }
+
+  /* --- what the funnel wrote ---------------------------------------------------- */
+  checks.push(
+    ok(
+      expected.rows.submission ? "a submission row exists" : "NO submission row is created",
+      expected.rows.submission === (rows.submissionId !== null),
+      expected.rows.submission ? "one row" : "no row",
+      rows.submissionId ? `row ${rows.submissionId}` : "no row",
+    ),
+  );
+  if (expected.rows.submission) {
+    checks.push(
+      ok(
+        expected.rows.lead ? "carrying their details" : "carrying no details",
+        expected.rows.lead === rows.hasLead,
+        expected.rows.lead ? "lead fields set" : "no lead fields",
+        rows.hasLead ? `email ${rows.leadEmail ?? "(none)"}` : "no lead fields",
+      ),
+    );
+    checks.push(
+      ok(
+        expected.rows.completed ? "and reaching COMPLETED" : "and NOT reaching COMPLETED",
+        expected.rows.completed === (rows.status === "COMPLETED"),
+        expected.rows.completed ? "COMPLETED" : "not COMPLETED",
+        rows.status ?? "(no row)",
+      ),
+    );
+  }
+
+  if (expected.gate) {
+    // The gate's own arithmetic, as stamped on the row: this is the copy anybody reads
+    // later, so it is checked against the gate rather than against the browser.
+    if (expected.gate.max > 0 && rows.submissionId) {
+      checks.push(eq("the gate score on the row", expected.gate.score, rows.gateScore ?? "(null)"));
+      checks.push(eq("the gate ceiling on the row", expected.gate.max, rows.gateMax ?? "(null)"));
+      checks.push(eq("the gate band on the row", expected.gate.band ?? "(null)", rows.gateBand ?? "(null)"));
+    }
+    checks.push(
+      ok(
+        expected.rows.gateEntry ? "the pass is recorded against the visitor" : "no gate pass is recorded",
+        expected.rows.gateEntry === rows.gateEntry,
+        expected.rows.gateEntry ? "a GateEntry row" : "no GateEntry row",
+        rows.gateEntry ? "a GateEntry row" : "no GateEntry row",
+      ),
+    );
+    checks.push(
+      ok(
+        expected.rows.disqualification ? "the rejection is recorded" : "no rejection is recorded",
+        expected.rows.disqualification === rows.disqualifications > 0,
+        expected.rows.disqualification ? "at least one row" : "no rows",
+        `${rows.disqualifications} row(s)`,
+      ),
+    );
+    if (expected.rows.gateEntry) {
+      checks.push(
+        ok(
+          expected.optinSeen
+            ? "and the opt-in is marked as seen, which is what separates the two abandonment audiences"
+            : "and the opt-in is not marked as seen",
+          expected.optinSeen === (rows.optinSeenAt !== null),
+          expected.optinSeen ? "optinSeenAt set" : "optinSeenAt null",
+          rows.optinSeenAt ? rows.optinSeenAt.toISOString() : "null",
+        ),
+      );
+    }
+  }
+
+  /* --- the loss, and which kind of loss it is ----------------------------------- */
+  if (expected.abandonsAtOptin) {
+    checks.push(
+      ok(
+        expected.abandonDue
+          ? "leaving the opt-in starts the ten minute clock"
+          : "this funnel starts no clock, because its opt-in is not a step of its own",
+        expected.abandonDue === (rows.abandonDueAt !== null),
+        expected.abandonDue ? "abandonDueAt set" : "abandonDueAt null",
+        rows.abandonDueAt ? rows.abandonDueAt.toISOString() : "null",
+      ),
+    );
+    checks.push(
+      ok(
+        "and nothing is reported yet, because they may still come back",
+        rows.abandonedFiredAt === null,
+        "no verdict yet",
+        rows.abandonedFiredAt ? rows.abandonedFiredAt.toISOString() : "no verdict yet",
+      ),
+    );
+    if (expected.abandonEvent) {
+      checks.push({
+        verdict: "skip",
+        what: `the verdict owed later is ${expected.abandonEvent}`,
+        observed: rows.abandonDueAt
+          ? `due ${rows.abandonDueAt.toISOString()} - settle it with npm run qa:abandon`
+          : "no departure was seen, so the 24 hour fallback applies",
+      });
+    }
+  }
+
+  /* --- what Meta was told ------------------------------------------------------- */
+  for (const name of expected.events.fired) {
+    checks.push(
+      ok(`${name} is reported`, (events.get(name) ?? 0) > 0, "at least one firing", `${events.get(name) ?? 0}`),
+    );
+  }
+  for (const name of expected.events.never) {
+    checks.push(
+      ok(`${name} is NEVER reported`, (events.get(name) ?? 0) === 0, "no firing", `${events.get(name) ?? 0}`),
+    );
+  }
+
+  /* --- nothing outbound on a test run ------------------------------------------- */
+  if (rows.crmJobs > 0 || rows.nurtureLogs > 0 || rows.webhookDeliveries > 0) {
+    checks.push({
+      verdict: "warn",
+      what: "the run sent something outbound",
+      expected: "nothing queued",
+      observed: `${rows.crmJobs} CRM job(s), ${rows.nurtureLogs} nurture log(s), ${rows.webhookDeliveries} webhook delivery/ies`,
+    });
+  }
+
+  /* --- the awkward behaviours --------------------------------------------------- */
+  if (plan.behaviours.includes("back-after-exit")) {
+    const after = obs.steps.find((s) => s.startsWith("back:"));
+    checks.push(
+      ok(
+        "coming back to the funnel does not get them in",
+        after === "back:disqualified",
+        "the exit page again",
+        after?.replace("back:", "") ?? "(no funnel screen)",
+      ),
+    );
+  }
+
+  if (expected.expectsRetakeLockout) {
+    if (!retakeObs) {
+      checks.push({
+        verdict: "skip",
+        what: "the same person is locked out on the second attempt",
+        observed: "the second run was not driven",
+      });
+    } else if (expected.terminal === "SIGNUP") {
+      // A signup funnel has no result to withhold and no second run to sell, so a
+      // locked retake is deliberately sent to /sign-up rather than to a dead end
+      // telling them to come back in fifteen days. The lock still did its job; what
+      // changed is what that job MEANS on this ending.
+      checks.push(
+        ok(
+          "the locked retake is sent on to signup rather than a dead end",
+          retakeObs.finalUrl.includes("/sign-up"),
+          "/sign-up",
+          retakeObs.finalUrl || "(nowhere)",
+        ),
+      );
+    } else {
+      checks.push(
+        ok(
+          "the same person meets the lockout screen on the second attempt",
+          retakeObs.steps.includes("locked"),
+          "the lockout screen",
+          retakeObs.steps.join(" -> ") || "(nothing)",
+        ),
+      );
+    }
+    // Whatever the screen says, the row count is the fact that matters: a blocked
+    // second attempt must not leave a second submission behind.
+    checks.push(
+      ok(
+        "and the second attempt leaves no second row",
+        rows.submissionCount === 1,
+        "exactly one submission for this person",
+        `${rows.submissionCount}`,
+      ),
+    );
+  }
+
+  if (obs.consoleErrors.length > 0) {
+    checks.push({
+      verdict: "warn",
+      what: "the browser logged errors",
+      observed: obs.consoleErrors.slice(0, 3).join(" | "),
+    });
+  }
+
+  return checks;
+}
+
+export function worst(checks: Check[]): Verdict {
+  if (checks.some((c) => c.verdict === "fail")) return "fail";
+  if (checks.some((c) => c.verdict === "warn")) return "warn";
+  if (checks.every((c) => c.verdict === "skip")) return "skip";
+  return "pass";
+}

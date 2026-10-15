@@ -1,0 +1,300 @@
+/**
+ * What the funnel MUST do, given a plan.
+ *
+ * Every decision here is delegated to a module the app itself runs: firstStep and
+ * afterGateStep for the opening screens, gateVerdict / gateTotals / gateBandOf for the
+ * gate, buildSpine and walk for conditional routing, computeScores and pickResultBand
+ * for the result, terminalStage for the ending, readMetaEvents for what is reported.
+ *
+ * Nothing is reimplemented. That is the whole design: when the owner changes a rule,
+ * the expectation changes with it, and a case that then fails is a real regression
+ * rather than a stale copy of last month's behaviour.
+ */
+import {
+  firstStep,
+  afterGateStep,
+  gateIsLive,
+} from "../../../src/features/assessment/flow/entry.js";
+import { terminalStage } from "../../../src/features/assessment/flow/stages.js";
+import { gateVerdict, gateTotals, gateBandOf } from "../../../src/features/assessment/gate-verdict.js";
+import {
+  resolveExit,
+  exitTakesAssessment,
+  exitCapturesLead,
+  completionEventName,
+  GATE_DISQUALIFIED_EVENT,
+  GATE_PASSED_EVENT,
+  ABANDONED_EVENT,
+  GATE_INCOMPLETE_EVENT,
+  UNNAMED_EXIT,
+} from "../../../src/features/assessment/schemas.js";
+import { readMetaEvents } from "../../../src/features/assessment/meta-events.js";
+import { readPublishedPages } from "../../../src/features/assessment/pages/blocks.js";
+import { computeScores, pickResultBand, type ScoringQuestion } from "../../../src/features/assessment/scoring.js";
+import { walk } from "../../../src/lib/routing/engine.js";
+import type { Funnel } from "../config/read.js";
+import type { CasePlan, Expectation, ExpectedGate } from "./types.js";
+
+/** The opt-in event Meta is told about, by its real name. */
+const REGISTRATION_EVENT = "CompleteRegistration";
+
+/**
+ * The gate answers the browser actually submits.
+ *
+ * The runner routes a disqualifying answer out the instant it is clicked, without
+ * adding it to the answer map, so everything from that question on never reaches the
+ * server. Expecting the full set made the gate score read two points high on a
+ * waitlist route, which is the kind of quiet difference this harness exists to catch.
+ */
+function submittedGateChoices(funnel: Funnel, choices: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const question of funnel.qualification.questions) {
+    if (question.type !== "choice") continue;
+    const pickedId = choices[question.id];
+    if (!pickedId) continue;
+    const picked = question.options.find((o) => o.id === pickedId);
+    if (picked?.disqualifies) break;
+    out[question.id] = pickedId;
+  }
+  return out;
+}
+
+export function expectationFor(
+  funnel: Funnel,
+  plan: CasePlan,
+  ctx: { capiAllowed: boolean; redirectSlugByAssessmentId: Map<string, string> },
+): Expectation {
+  const row = funnel.row;
+  const entry = funnel.entry;
+  const events = readMetaEvents(row.metaEvents);
+  const eventOn = (key: keyof typeof events): boolean => row.fireMetaCapi && events[key] && ctx.capiAllowed;
+
+  // --- the gate -------------------------------------------------------------------
+  let gate: ExpectedGate | null = null;
+  if (gateIsLive(entry)) {
+    const verdict = gateVerdict(funnel.qualification, plan.gateChoices);
+    // What the browser actually SENDS. A disqualifying answer routes them out from the
+    // click, and that pick is never added to the answers - so the gate's score is the
+    // questions answered BEFORE it, not every answer the case had lined up. (The
+    // ceiling still counts every question, exactly as the completion action does.)
+    const totals = gateTotals(funnel.qualification, submittedGateChoices(funnel, plan.gateChoices));
+    const exit = verdict.outcome === "exit" ? resolveExit(funnel.exits, verdict.exitKey) : null;
+    gate = {
+      outcome: verdict.outcome,
+      exitKey: exit?.key ?? null,
+      exitName: exit ? exit.name.trim() || UNNAMED_EXIT : null,
+      exitMode: exit?.mode ?? null,
+      exitHeading: exit ? exit.heading.trim() || null : null,
+      // The exit page renders its button only when a URL is set - a label saved without
+      // one is dropped, so expecting it would be expecting something the funnel has
+      // never shown anybody. The default label is the app's own fallback.
+      exitButtonUrl: exit ? exit.buttonUrl.trim() || null : null,
+      exitButtonLabel: exit && exit.buttonUrl.trim() ? exit.buttonLabel.trim() || "Continue" : null,
+      score: totals.score,
+      max: totals.max,
+      band: gateBandOf(funnel.qualification, totals.score, totals.max),
+      // A PAGE exit is the only ending that takes nothing: no lead, no submission.
+      turnedAway: verdict.outcome === "exit" && !exitCapturesLead(exit),
+      capturesLead: verdict.outcome !== "exit" || exitCapturesLead(exit),
+      takesAssessment: verdict.outcome !== "exit" || exitTakesAssessment(exit),
+    };
+  }
+
+  // An audience role can send the respondent to a DIFFERENT assessment. When it does,
+  // this funnel is not where the run happens: no questions here, no row here, nothing
+  // reported here. Whatever the other funnel then does is that funnel's sweep to make.
+  const redirectToSlug = (() => {
+    if (!plan.audienceRoleId) return null;
+    const role = funnel.audience.roles.find((r) => r.id === plan.audienceRoleId);
+    if (!role || !role.target) return null;
+    return ctx.redirectSlugByAssessmentId.get(role.target) ?? null;
+  })();
+  const handsOff = redirectToSlug !== null;
+
+  // The awkward things a respondent does, which change what should EXIST rather than
+  // what should be shown. Folded in here so one place answers "what rows and events
+  // does this run owe", instead of each assertion guessing.
+  const abandonsAtOptin = plan.behaviours.includes("abandon-at-optin");
+  const blockedAtRequired = plan.behaviours.includes("skip-required");
+  const expectsRetakeLockout = plan.behaviours.includes("retake");
+
+  const turnedAway = gate?.turnedAway === true;
+  // An OPTIN exit takes their details and stops at its own thank-you; a CONTINUE exit
+  // carries on into the assessment like anybody who passed.
+  const stopsAtThankYou = gate?.outcome === "exit" && gate.capturesLead && !gate.takesAssessment;
+
+  // --- the questions --------------------------------------------------------------
+  // The spine and the rules come from the funnel, built once, so the path this
+  // predicts is walked with the same default routes the runner uses.
+  const { spine, byOption } = funnel;
+  // A typed answer is an answer: it decides nothing by itself (there is no option to
+  // hang a rule on) but it counts as answered, and the question's default route is
+  // what carries the flow on from it.
+  const answersByQuestion = new Map(Object.entries(plan.answers));
+  const reached = funnel.routingActive
+    ? walk(answersByQuestion, spine, byOption).reached
+    : spine.map((s) => s.id);
+  const questionPath = turnedAway || stopsAtThankYou || handsOff ? [] : reached;
+  const skipped = spine.map((s) => s.id).filter((id) => !reached.includes(id));
+
+  // --- the score ------------------------------------------------------------------
+  const allQuestions = row.categories.flatMap((c) => c.questions.map((q) => ({ q, categoryId: c.id })));
+  const optionById = new Map(allQuestions.flatMap(({ q }) => q.options.map((o) => [o.id, o] as const)));
+  const reachedSet = new Set(questionPath);
+  // FREE_TEXT questions are excluded ENTIRELY from scoring, not scored as zero: a
+  // typed sentence is worth reading, not worth points, and counting it in the ceiling
+  // would make every respondent's percentage lower for having been asked.
+  const scoringQuestions: ScoringQuestion[] = allQuestions
+    .filter(({ q }) => reachedSet.has(q.id) && q.type !== "FREE_TEXT")
+    .map(({ q, categoryId }) => ({
+      id: q.id,
+      categoryId,
+      weight: q.weight,
+      maxValue: q.options.reduce((m, o) => Math.max(m, o.value), 0),
+    }));
+  const answerValues = new Map<string, number>();
+  for (const [qid, oid] of answersByQuestion) {
+    if (!reachedSet.has(qid)) continue;
+    const opt = optionById.get(oid);
+    if (opt) answerValues.set(qid, opt.value);
+  }
+
+  const gateScore = gate && gate.max > 0 ? gate.score : 0;
+  const gateMax = gate && gate.max > 0 ? gate.max : 0;
+  const scored =
+    turnedAway || stopsAtThankYou || handsOff
+      ? null
+      : computeScores(
+          scoringQuestions,
+          answerValues,
+          gateMax > 0 ? { score: gateScore, max: gateMax } : undefined,
+        );
+  // Bands are matched against the PERCENTAGE, exactly as the completion action does.
+  const band = scored ? pickResultBand(row.resultBands, scored.percentage) : null;
+
+  // --- the ending -----------------------------------------------------------------
+  const terminal =
+    turnedAway || stopsAtThankYou || handsOff
+      ? null
+      : terminalStage({
+          platformSignup: row.platformSignup,
+          pageCount: readPublishedPages(row.publishedPages).length,
+          paidMode: row.paidMode,
+          vslCountdownSeconds: row.vslCountdownSeconds,
+        });
+
+  // --- what Meta is told ----------------------------------------------------------
+  const fired: string[] = [];
+  const never: string[] = [];
+
+  if (gate) {
+    if (gate.outcome === "exit") {
+      // Per EXIT, never per funnel: a waitlist route reporting GateDisqualified would
+      // poison the exclusion audience it shares with the real rejections.
+      const exit = resolveExit(funnel.exits, gate.exitKey);
+      if (eventOn("gateDisqualified") && exit?.fireDisqualifiedEvent) {
+        fired.push(exit.eventName.trim() || GATE_DISQUALIFIED_EVENT);
+      } else {
+        never.push(GATE_DISQUALIFIED_EVENT);
+      }
+    } else if (eventOn("gatePassed")) {
+      fired.push(GATE_PASSED_EVENT);
+    } else {
+      never.push(GATE_PASSED_EVENT);
+    }
+  }
+
+  // Somebody who walked away from the opt-in, or who was stopped before reaching it,
+  // produces no lead - so nothing that only a lead produces may be reported.
+  const noOptin = abandonsAtOptin || handsOff || (blockedAtRequired && row.leadCaptureAfter);
+
+  if (turnedAway || noOptin) {
+    // Nothing a lead would ever produce may appear for somebody who never opted in.
+    never.push(REGISTRATION_EVENT, completionEventName(funnel.gateActive));
+  } else {
+    // A lead-capturing exit route files the opt-in under the ROUTE's own event, never
+    // under CompleteRegistration: a waitlist sign-up counted as a registration teaches
+    // the ad account to find more people who cannot buy, and that is the one mistake
+    // this whole exit-route feature exists to prevent.
+    const exitTookTheLead = gate?.outcome === "exit" && gate.capturesLead;
+    if (exitTookTheLead) {
+      never.push(REGISTRATION_EVENT);
+    } else if (eventOn("registration")) {
+      fired.push(REGISTRATION_EVENT);
+    } else {
+      never.push(REGISTRATION_EVENT);
+    }
+    if (!stopsAtThankYou && !blockedAtRequired && eventOn("completion")) {
+      // A CONTINUE route's completion is reported under its OWN name, and a blank name
+      // means silence: the ad account must not learn to find people who cannot buy.
+      const exit = gate?.outcome === "exit" ? resolveExit(funnel.exits, gate.exitKey) : null;
+      if (exit && exitTakesAssessment(exit)) {
+        const named = exit.completionEventName.trim();
+        if (named) fired.push(named);
+        else never.push(completionEventName(funnel.gateActive));
+      } else {
+        fired.push(completionEventName(funnel.gateActive));
+      }
+    }
+  }
+
+  // --- what should exist in the database ------------------------------------------
+  //
+  // The row is created when the opt-in is SUBMITTED, not when it is reached: somebody
+  // who walks away from the form leaves a GateEntry and nothing else, and that is the
+  // difference the abandonment sweep reads. A required question stops the run where it
+  // stands, which only costs the submission when the opt-in was still ahead of them.
+  const opted = !turnedAway && !noOptin;
+  const rows = {
+    submission: opted,
+    lead: opted,
+    gateEntry: gate !== null && gate.outcome !== "exit",
+    disqualification: gate?.outcome === "exit",
+    completed: opted && !stopsAtThankYou && !blockedAtRequired,
+  };
+
+  return {
+    firstStep: firstStep(entry),
+    afterGate: afterGateStep(entry),
+    gate,
+    questionPath,
+    skipped,
+    terminal,
+    redirectToSlug,
+    score: scored
+      ? {
+          total: scored.totalScore,
+          max: scored.maxScore,
+          percentage: scored.percentage,
+          gateScore,
+          gateMax,
+          bandId: band?.id ?? null,
+          bandTitle: band?.title ?? null,
+          bandLevel: band?.level ?? null,
+        }
+      : null,
+    rows,
+    events: { fired, never: never.filter((n) => !fired.includes(n)) },
+    // optinSeenAt is stamped on the dedicated opt-in STEP, which only a lead-after
+    // funnel has. A lead-first funnel shows the form on its intro screen, where neither
+    // that stamp nor the departure beacon runs - so it produces no abandonment signal
+    // at all. Worth knowing before building a funnel that depends on one.
+    // Same reason: the stamp lives on the GateEntry, which only a page-1 gate creates.
+    optinSeen: gate !== null && row.leadCaptureAfter && !turnedAway && !handsOff && !blockedAtRequired,
+    abandonsAtOptin,
+    blockedAtRequired,
+    expectsRetakeLockout,
+    // The whole abandonment machinery hangs off a GateEntry, and a GateEntry is only
+    // ever written when somebody CLEARS THE PAGE-1 GATE. A funnel without one records
+    // no pass, so it has no optinSeenAt, no clock and no retargeting event - however
+    // many people walk away from its opt-in. Worth knowing before building a funnel
+    // whose ads depend on that audience.
+    abandonDue: abandonsAtOptin && gate !== null && row.leadCaptureAfter && !turnedAway && !handsOff,
+    abandonEvent:
+      abandonsAtOptin && gate !== null && !turnedAway && !handsOff
+        ? row.leadCaptureAfter
+          ? ABANDONED_EVENT
+          : GATE_INCOMPLETE_EVENT
+        : null,
+  };
+}
