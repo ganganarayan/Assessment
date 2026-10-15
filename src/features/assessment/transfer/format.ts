@@ -64,6 +64,9 @@ export const CSV_COLUMNS = [
   "collect_profession",
   "profession_required",
   "engine",
+  // Informational, ASSESSMENT rows only: when the source assessment was created,
+  // which for an imported one is when it landed. Never read back on import.
+  "created_at",
   "category_index",
   "category_name",
   "category_description",
@@ -130,6 +133,7 @@ export function bodiesToCsv(bodies: AssessmentBodyExport[]): string {
         collect_profession: a.collectProfession,
         profession_required: a.professionRequired,
         engine: a.engine ?? "GENERIC",
+        created_at: a.createdAt ?? "",
         // Categories, questions, options and bands are expressed as their own rows, so
         // they are stripped here rather than duplicated.
         assessment_json: JSON.stringify({ ...a, categories: undefined, resultBands: undefined }),
@@ -282,6 +286,17 @@ interface Acc {
   mobileRequired: boolean;
   collectProfession: boolean;
   professionRequired: boolean;
+  /**
+   * Everything the ASSESSMENT row's `assessment_json` carried that has no flat
+   * column of its own: the gate, the exit page, the result page, the ad and payment
+   * configuration, createdAt.
+   *
+   * It has to be kept aside like this because the body below is assembled field by
+   * field. Merging the blob onto this accumulator alone looked like it worked and
+   * did nothing: the assembler never read those keys, so a CSV exported with a gate
+   * imported without one, silently, while the file on disk plainly contained it.
+   */
+  extra: Record<string, unknown>;
   categories: AccCategory[];
   bands: AccBand[];
 }
@@ -330,6 +345,7 @@ export function csvToDocument(
         mobileRequired: false,
         collectProfession: true,
         professionRequired: true,
+        extra: {},
         categories: [],
         bands: [],
       };
@@ -387,8 +403,10 @@ export function csvToDocument(
         try {
           const parsed = JSON.parse(blob) as Record<string, unknown>;
           for (const [k, v] of Object.entries(parsed)) {
-            if (k === "categories" || k === "resultBands" || v === undefined) continue;
+            if (k === "categories" || k === "resultBands" || k === "extra" || v === undefined) continue;
             (acc as unknown as Record<string, unknown>)[k] = v;
+            // ...and again where the assembler will actually look. See Acc.extra.
+            acc.extra[k] = v;
           }
         } catch {
           /* keep the flat-column values */
@@ -468,6 +486,10 @@ export function csvToDocument(
     // Only emit the v2 fields when non-default, so a GENERIC assessment round-trips
     // identically to one exported before these columns existed (omitted == default).
     ...(acc.engine === "CLINIC_AUDIT" ? { engine: "CLINIC_AUDIT" as const } : {}),
+    // Last, so the file's own body wins over a flat column that defaulted. Structure
+    // (categories, resultBands) is never taken from here - those are rows, and the
+    // merge above refuses both keys.
+    ...acc.extra,
     categories: compact(acc.categories).map((c, ci) => ({
       name: c.name,
       description: c.description,

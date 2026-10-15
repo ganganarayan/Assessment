@@ -145,6 +145,9 @@ export async function saveAsTemplate(
 
   const body = await buildAssessmentBody(assessmentId);
   if (!body) return { ok: false, error: "Couldn't read that assessment." };
+  // A template is a blueprint, not a copy of one workspace's history: the date the
+  // contributor first built it says nothing to whoever imports it next year.
+  delete body.createdAt;
   if (body.categories.length === 0 && !body.qualification) {
     return { ok: false, error: "There is nothing in this assessment to save yet." };
   }

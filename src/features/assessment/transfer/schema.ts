@@ -6,8 +6,14 @@ import { slugSchema } from "@/features/assessment/schemas";
  *
  * JSON is the AUTHORITATIVE, lossless format - it captures everything needed to
  * recreate an assessment in another environment (staging -> production). No
- * database ids, tenant, owner, submissions, or timestamps are included; those
- * are environment-specific and regenerated on import.
+ * database ids, tenant, owner or submissions are included; those are
+ * environment-specific and regenerated on import.
+ *
+ * The one timestamp it carries, `createdAt`, is a READING, not an instruction:
+ * the file says when the source assessment came into being, and the importer
+ * ignores it, because the row it writes is new HERE and dates from now. It is
+ * there so an exported list answers "when did this arrive" in the spreadsheet,
+ * the same question the Assessments screen answers on-screen.
  *
  * `schemaVersion` is validated on import so future format changes can be
  * detected and migrated rather than silently mis-imported.
@@ -128,6 +134,10 @@ export const assessmentBodyExport = z.object({
   // Added later; default true so pre-existing export files still import cleanly.
   collectProfession: z.boolean().default(true),
   professionRequired: z.boolean().default(true),
+  /** When the SOURCE assessment was created (ISO-8601). Informational only -
+   *  see the note at the top of this file. Optional, so every file written
+   *  before it existed still imports. */
+  createdAt: z.string().optional(),
   // ---- Added v2 (all optional so v1 files still import) --------------------
   // Scoring engine + its parameter overrides.
   engine: z.enum(["GENERIC", "CLINIC_AUDIT"]).optional(),

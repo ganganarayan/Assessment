@@ -385,5 +385,57 @@ const routed: AssessmentBodyExport = {
   else fail("invalid JSON · error", "unexpectedly ok");
 }
 
+// A CSV must carry the fields that have no column of their own - the gate, the ending,
+// the payment configuration - through assessment_json. They were being merged into the
+// parser's accumulator and then dropped by the assembler, so a CSV exported WITH a gate
+// imported WITHOUT one and said nothing. Guarded here because the loss was invisible:
+// the file was right, the import was wrong, and only running the funnel showed it.
+{
+  const gated = {
+    ...second,
+    qualification: { enabled: true, note: "gate" },
+    nextStep: "RESULTS",
+    paymentAmount: 499,
+  } as unknown as AssessmentBodyExport;
+  const r = parseDocument(bodiesToCsv([gated]), "csv");
+  const got = r.ok ? r.data.assessments[0] : undefined;
+  if (
+    got &&
+    JSON.stringify(got.qualification) === JSON.stringify(gated.qualification) &&
+    got.nextStep === "RESULTS" &&
+    got.paymentAmount === 499
+  )
+    ok("CSV · columnless fields survive via assessment_json");
+  else
+    fail(
+      "CSV · columnless fields survive via assessment_json",
+      r.ok ? JSON.stringify({ q: got?.qualification, n: got?.nextStep, p: got?.paymentAmount }) : r.errors.join("; "),
+    );
+}
+
+// created_at: the one timestamp the format carries. It must reach the spreadsheet as
+// its own readable column AND survive the round trip, while staying something the
+// importer merely reads - assessmentCreateData never maps it, so an imported row
+// dates from its own arrival rather than from the file.
+{
+  const dated: AssessmentBodyExport = { ...second, createdAt: "2026-10-15T11:41:00.000Z" };
+  const csv = bodiesToCsv([dated]);
+  const rows = csv.split(/\r?\n/);
+  const col = (rows[0] ?? "").split(",").indexOf("created_at");
+  const cell = (rows[1] ?? "").split(",")[col];
+  if (col >= 0 && cell === dated.createdAt) ok("created_at · own CSV column");
+  else fail("created_at · own CSV column", `column ${col}, cell ${String(cell)}`);
+
+  const back = parseDocument(csv, "csv");
+  if (back.ok && back.data.assessments[0]?.createdAt === dated.createdAt) ok("created_at · survives CSV round trip");
+  else fail("created_at · survives CSV round trip", back.ok ? String(back.data.assessments[0]?.createdAt) : back.errors.join("; "));
+
+  // A file written before the field existed must still parse to no date at all,
+  // rather than to a date invented at import time.
+  const older = parseDocument(bodiesToJson([second]), "json");
+  if (older.ok && older.data.assessments[0]?.createdAt === undefined) ok("created_at · absent when the file has none");
+  else fail("created_at · absent when the file has none", older.ok ? String(older.data.assessments[0]?.createdAt) : older.errors.join("; "));
+}
+
 console.log(`\n${failures === 0 ? "ALL PASSED" : `${failures} FAILED`}\n`);
 process.exit(failures === 0 ? 0 : 1);
