@@ -203,6 +203,7 @@ export default async function PublicAssessmentPage({
     professionLabel: a.professionLabel,
     professionPlaceholder: a.professionPlaceholder,
     leadCaptureAfter: a.leadCaptureAfter,
+    leadCaptureMode: a.leadCaptureMode,
     optinFields: normalizeCustomFields(a.optinFields),
     introNotice: a.introNotice,
     startButtonLabel: a.startButtonLabel,

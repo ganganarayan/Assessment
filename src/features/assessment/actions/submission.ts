@@ -448,6 +448,23 @@ async function readAttributionCookie() {
   }
 }
 
+/**
+ * Bind a SPLIT lead row to the submission it became.
+ *
+ * Fail-soft: the submission is already written and the respondent is waiting on it, so
+ * a failure here must not take the run down. The cost of a missed link is a Gate
+ * qualified row that still reads "qualified" after the person completed - visible and
+ * fixable - against losing a registration outright.
+ */
+async function linkSplitLead(gateEntryId: string | null, submissionId: string): Promise<void> {
+  if (!gateEntryId) return;
+  try {
+    await prisma.gateEntry.update({ where: { id: gateEntryId }, data: { submissionId } });
+  } catch {
+    /* already linked, or the row is gone - neither is worth failing a lead over */
+  }
+}
+
 export async function startSubmission(
   slug: string,
   lead: LeadInput,
@@ -470,6 +487,10 @@ export async function startSubmission(
    *  the exit's key. Validated against the assessment's own exits; anything else is
    *  dropped, and the submission is then an ordinary one. */
   exitKey?: string,
+  /** SPLIT mode only: the lead row written at the email screen, which this call is
+   *  now turning into a submission. Everything except the phone number is read back
+   *  from that row rather than from this request - see the block below. */
+  splitLead?: { customerId: string; leadToken: string; visitorId: string },
 ): Promise<ActionResult<StartResult>> {
   // Bot guard #1 - honeypot: a hidden form field no human fills. If it carries a
   // value, silently refuse (no submission created) so bot opt-ins never pollute the
@@ -499,6 +520,7 @@ export async function startSubmission(
       collectProfession: true,
       professionRequired: true,
       professionOptions: true,
+      leadCaptureMode: true,
       retakePolicy: true,
       retakeDays: true,
       uniqueIdentifier: true,
@@ -531,6 +553,91 @@ export async function startSubmission(
     return { ok: false, error: "This assessment isn't accepting responses right now." };
   }
 
+  // -------------------------------------------------------------------------
+  // SPLIT mode: this call is the PHONE screen, and everything except the phone
+  // number was captured minutes ago at the email screen.
+  //
+  // 🔴 The identity is read back from that row, NOT from this request. If the browser
+  // could send a different email here than the one that passed the retake lock at the
+  // email screen, the lock would be one edited payload away from meaningless - and so
+  // would the gate answers that decided this person was worth talking to. The phone
+  // number is the only field this screen is allowed to introduce.
+  //
+  // Everything below this block then runs exactly as it does for a single-screen
+  // opt-in: same validation, same lockout, same registration event. The mode changes
+  // where the values came from, not what happens to them.
+  // -------------------------------------------------------------------------
+  let leadInput = lead;
+  let roleInput = audienceRole;
+  let qualAnswersInput = qualAnswers;
+  let qualChoicesInput = qualChoices;
+  let optinAnswersInput = optinAnswers;
+  let splitCustomerId: string | null = null;
+  let splitGateEntryId: string | null = null;
+  let splitGate: { score: number | null; max: number | null; breakdown: unknown } | null = null;
+
+  if (assessment.leadCaptureMode === "SPLIT") {
+    if (!splitLead?.customerId || !splitLead?.leadToken) {
+      return { ok: false, error: "Something went wrong. Please start again." };
+    }
+    const row = await prisma.gateEntry.findUnique({
+      where: { customerId: splitLead.customerId },
+      select: {
+        id: true,
+        assessmentId: true,
+        visitorId: true,
+        leadToken: true,
+        submissionId: true,
+        leadFirstName: true,
+        leadLastName: true,
+        leadEmail: true,
+        leadProfession: true,
+        audienceRole: true,
+        optinAnswers: true,
+        qualificationAnswers: true,
+        gateScore: true,
+        gateMax: true,
+        gateBreakdown: true,
+      },
+    });
+    // A missing or mismatched row is a dead end rather than a fallback: falling back
+    // to whatever the browser sent is precisely the hole this block exists to close.
+    // The email is already captured, so the lead itself is not lost either way.
+    if (
+      !row ||
+      row.assessmentId !== assessment.id ||
+      row.leadToken !== splitLead.leadToken ||
+      row.visitorId !== splitLead.visitorId.trim().slice(0, 64)
+    ) {
+      return { ok: false, error: "Something went wrong. Please start again." };
+    }
+    if (row.submissionId) {
+      return { ok: false, error: "This assessment has already been submitted." };
+    }
+    const parsedMobile = leadSchema.safeParse(lead);
+    leadInput = {
+      firstName: row.leadFirstName ?? "",
+      lastName: row.leadLastName ?? "",
+      email: row.leadEmail ?? "",
+      profession: row.leadProfession ?? "",
+      // The one field this screen owns.
+      mobile: parsedMobile.success ? (parsedMobile.data.mobile ?? "") : "",
+    };
+    roleInput = row.audienceRole ?? undefined;
+    optinAnswersInput = (row.optinAnswers ?? undefined) as Record<string, string> | undefined;
+    // The gate answers were already resolved against the stored gate and written to
+    // the row. Re-resolving the browser's copy here could only disagree with it.
+    qualAnswersInput = (row.qualificationAnswers ?? undefined) as Record<string, string> | undefined;
+    qualChoicesInput = undefined;
+    splitCustomerId = splitLead.customerId;
+    splitGateEntryId = row.id;
+    splitGate = {
+      score: row.gateScore,
+      max: row.gateMax,
+      breakdown: row.gateBreakdown,
+    };
+  }
+
   // Audience-gate role. In DROPDOWN mode, keep it only if it's one of THIS
   // assessment's gate roles (guards against a tampered client). In FREETEXT mode the
   // respondent types their own value, so accept any non-empty input (trimmed, capped)
@@ -541,7 +648,7 @@ export async function startSubmission(
   const gateRoleLabels = new Set(
     (gateCfg?.roles ?? []).map((r) => (r?.label ?? "").trim()).filter(Boolean),
   );
-  const trimmedRole = audienceRole?.trim() ?? "";
+  const trimmedRole = roleInput?.trim() ?? "";
   const cleanRole =
     gateCfg?.mode === "FREETEXT"
       ? trimmedRole.slice(0, 120) || null
@@ -554,7 +661,7 @@ export async function startSubmission(
   // gated assessments hard-block.
   const gated = gateCfg?.mode === "FREETEXT" || gateRoleLabels.size > 0;
 
-  const parsed = leadSchema.safeParse(lead);
+  const parsed = leadSchema.safeParse(leadInput);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid details." };
   }
@@ -606,7 +713,9 @@ export async function startSubmission(
   const identifierValue = normalizeIdentifier(assessment.uniqueIdentifier, { email, mobile });
   const leadFields = { firstName, lastName, email, mobile, profession };
   // Mint the customerId once (8 chars; the @unique index is the collision backstop).
-  const newCustomerId = generateCustomerId();
+  // SPLIT reuses the cid minted when the lead was written, so one person has ONE id
+  // across the Gate qualified menu and Submissions.
+  const newCustomerId = splitCustomerId ?? generateCustomerId();
   // Unguessable edit token - returned at Start, required to save drafts / complete.
   const newEditToken = generateToken();
 
@@ -619,9 +728,9 @@ export async function startSubmission(
   }
 
   // Extra opt-in field answers - sanitized + capped (untrusted client input).
-  const cleanOptin = optinAnswers && typeof optinAnswers === "object"
+  const cleanOptin = optinAnswersInput && typeof optinAnswersInput === "object"
     ? Object.fromEntries(
-        Object.entries(optinAnswers)
+        Object.entries(optinAnswersInput)
           .filter(([, v]) => typeof v === "string" && v.trim())
           .slice(0, 50)
           .map(([k, v]) => [String(k).slice(0, 60), String(v).slice(0, 500)]),
@@ -631,9 +740,9 @@ export async function startSubmission(
 
   // Qualification gate TEXT answers (manual-review) - sanitized + capped, keyed by
   // question id. Never gates; stored for the owner to read in Custom details.
-  const cleanQual = qualAnswers && typeof qualAnswers === "object"
+  const cleanQual = qualAnswersInput && typeof qualAnswersInput === "object"
     ? Object.fromEntries(
-        Object.entries(qualAnswers)
+        Object.entries(qualAnswersInput)
           .filter(([, v]) => typeof v === "string" && v.trim())
           .slice(0, 30)
           .map(([k, v]) => [String(k).slice(0, 60), String(v).slice(0, 1000)]),
@@ -665,19 +774,29 @@ export async function startSubmission(
   // what the gate decided.
   const totals = gateTotals(
     gate.success ? gate.data : null,
-    qualChoices && typeof qualChoices === "object" ? qualChoices : null,
+    qualChoicesInput && typeof qualChoicesInput === "object" ? qualChoicesInput : null,
   );
-  const gateScore = totals.score;
-  const gateMax = totals.max;
+  let gateScore = totals.score;
+  let gateMax = totals.max;
   const cleanChoices: Record<string, string> = Object.fromEntries(
     Object.entries(totals.picks).map(([k, v]) => [k, v.slice(0, 1000)]),
   );
-  const gateRows: GateAnswer[] = totals.rows.map((r) => ({
+  let gateRows: GateAnswer[] = totals.rows.map((r) => ({
     q: r.q.slice(0, 1000),
     a: r.a.slice(0, 1000),
     points: r.points,
     max: r.max,
   }));
+  // SPLIT: the gate was scored at the EMAIL screen, seconds after it was answered,
+  // and written to the lead row. That copy wins over anything re-derived here - the
+  // owner may have edited the gate in the meantime, and a score that moves under a
+  // respondent who has already been told they qualified is worse than a stale one.
+  if (splitGate) {
+    gateScore = splitGate.score ?? 0;
+    gateMax = splitGate.max ?? 0;
+    if (Array.isArray(splitGate.breakdown)) gateRows = splitGate.breakdown as GateAnswer[];
+  }
+
   const storedQual = { ...cleanQual, ...cleanChoices };
   const qualData = Object.keys(storedQual).length ? { qualificationAnswers: storedQual as unknown as Prisma.InputJsonValue } : {};
 
@@ -840,6 +959,7 @@ export async function startSubmission(
         },
       };
     }
+    await linkSplitLead(splitGateEntryId, outcome.submissionId);
     let eventId: string | undefined;
     if (outcome.kind === "created") {
       eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid, gatePayload, exitRoute);
@@ -864,6 +984,7 @@ export async function startSubmission(
     data: { ...submissionData, customerId: newCustomerId },
     select: { id: true },
   });
+  await linkSplitLead(splitGateEntryId, created.id);
   const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid, gatePayload, exitRoute);
   // Nurture now fires on COMPLETION (see completeSubmission) so {{resultUrl}} resolves.
   return { ok: true, data: { status: "started", submissionId: created.id, editToken: newEditToken, ...(eventId ? { eventId } : {}) } };

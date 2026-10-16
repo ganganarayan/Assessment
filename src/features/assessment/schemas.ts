@@ -203,8 +203,15 @@ export const GATE_DISQUALIFIED_EVENT = "GateDisqualified";
 /** Passed the gate and was let through to the assessment. OFF unless an assessment
  *  asks for it (metaEvents.gatePassed === true), because every gated funnel on the
  *  install would otherwise start firing a new event on the next deploy - a change to
- *  live event volume nobody asked for. */
-export const GATE_PASSED_EVENT = "GatePassed";
+ *  live event volume nobody asked for.
+ *
+ *  🔴 RENAMED from "GatePassed" on 16-10-2026. Anyone the gate lets through IS
+ *  qualified, and the name should carry that weight where it is read - in the ad
+ *  account, next to QualifiedCompletion. Meta treats this as a NEW custom event:
+ *  volume on the old name stops, any audience or campaign built on GatePassed must be
+ *  re-pointed at GateQualified, and the new one starts accumulating from zero. The
+ *  stored config key stays `gatePassed`, so no assessment's switch is disturbed. */
+export const GATE_PASSED_EVENT = "GateQualified";
 export const ABANDONED_EVENT = "AssessmentAbandoned";
 /** Passed the gate but never reached the opt-in form. A different audience from
  *  ABANDONED_EVENT: these people never saw the ask, so there is nothing for them to
@@ -391,6 +398,10 @@ export const assessmentSchema = z.object({
   estimatedMinutes: z.coerce.number().int().min(0).max(600).optional(),
   thankYouMessage: z.string().max(2000).optional().or(z.literal("")),
   // Lead-capture config.
+  /** ALL_AT_ONCE = one opt-in screen, positioned by leadCaptureAfter (every funnel
+   *  built so far). SPLIT = name, gate, email, assessment, phone. Both read the same
+   *  collect/*Required/*Label fields below, so switching modes loses no configuration. */
+  leadCaptureMode: z.enum(["ALL_AT_ONCE", "SPLIT"]).default("ALL_AT_ONCE"),
   collectFirstName: z.boolean().default(true),
   firstNameRequired: z.boolean().default(false),
   collectLastName: z.boolean().default(true),
@@ -562,6 +573,19 @@ export const assessmentSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ["retakeDays"],
       message: "Lock days must be at least 1.",
+    });
+  }
+  // 🔴 SPLIT has nothing to write a lead against without an email.
+  //
+  // The email screen is where the lead row is created and emailCapturedAt stamped, so
+  // a split funnel that does not collect one has no moment at which anybody becomes a
+  // lead - it would run the three screens and produce nothing. Blocked on save with a
+  // plain sentence rather than discovered live.
+  if (d.leadCaptureMode === "SPLIT" && !d.collectEmail) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["collectEmail"],
+      message: "Split lead capture needs Email collected: it is the step that records the lead.",
     });
   }
   // A lockout can only be enforced if the identifying field is always captured.

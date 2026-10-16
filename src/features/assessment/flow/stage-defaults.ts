@@ -32,6 +32,22 @@ export const STAGE_DEFAULTS = {
   evaluating: {
     label: "Analyzing your results…",
   },
+  /**
+   * SPLIT lead capture: the heading on each of the three staged screens.
+   *
+   * Here rather than inline in the runner for the reason the whole file exists: this
+   * copy renders on other people's customers. It is also deliberately product-neutral
+   * and short - these screens are meant to read as part of the series of questions, so
+   * a heading that announces itself as a form breaks the one thing the mode is for.
+   *
+   * DEFAULTS. Per-assessment overrides land on top of this when they are built, which
+   * is why the screens get one home now rather than after they are editable.
+   */
+  split: {
+    nameHeading: "First, what should we call you?",
+    emailHeading: "Where should we send your result?",
+    phoneHeading: "Last step",
+  },
   /** The opt-in form's own heading. Terminal-aware, see optinHeading below. */
   optin: {
     heading: "Almost done",

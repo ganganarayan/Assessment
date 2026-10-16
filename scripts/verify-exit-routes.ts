@@ -96,7 +96,11 @@ expect(
 expect("the default rejection event name is unchanged", GATE_DISQUALIFIED_EVENT === "GateDisqualified");
 
 // --- New Meta events stay off until asked for --------------------------------------
-expect("GatePassed exists", GATE_PASSED_EVENT === "GatePassed");
+// Renamed from GatePassed on 16-10-2026: anyone the gate lets through IS qualified,
+// and the name is read in the ad account next to QualifiedCompletion. Pinned because
+// Meta treats a renamed event as a brand new one, so this string moving is an audience
+// quietly ceasing to fill.
+expect("the gate-pass event is named GateQualified", GATE_PASSED_EVENT === "GateQualified");
 expect(
   "and is OFF for a funnel saved before it existed",
   readMetaEvents(null).gatePassed === false,

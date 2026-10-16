@@ -139,6 +139,7 @@ export async function sweepGateAbandoned(): Promise<{ fired: number; scanned: nu
       assessmentId: true,
       visitorId: true,
       optinSeenAt: true,
+      emailCapturedAt: true,
       clientIp: true,
       userAgent: true,
       fbp: true,
@@ -170,6 +171,7 @@ export type AbandonCandidate = {
   assessmentId: string;
   visitorId: string;
   optinSeenAt: Date | null;
+  emailCapturedAt: Date | null;
   clientIp: string | null;
   userAgent: string | null;
   fbp: string | null;
@@ -225,7 +227,14 @@ export async function fireAbandonedForEntry(g: AbandonCandidate): Promise<boolea
   // Which loss was this? Reaching the opt-in form and leaving is a refusal of the ask;
   // never reaching it is not. Separate events because they are separate audiences, and
   // an ad written for one is wrong for the other.
-  const sawOptin = g.optinSeenAt !== null;
+  // 🔴 EITHER stamp counts, and which one is set says which mode the funnel runs.
+  //
+  // ALL_AT_ONCE stamps optinSeenAt when the opt-in form is reached. SPLIT never reaches
+  // that form: it stamps emailCapturedAt when an email is actually SUBMITTED, which is
+  // the better line of the two - "we have an address and can write to them" is
+  // actionable in a way that "looked at a form" is not. emailCapturedAt is null on
+  // every ALL_AT_ONCE row, so this reads exactly as it did before for those.
+  const sawOptin = g.optinSeenAt !== null || g.emailCapturedAt !== null;
   const eventName = sawOptin ? ABANDONED_EVENT : GATE_INCOMPLETE_EVENT;
   const flag = sawOptin ? "abandoned" : "gateIncomplete";
   // The assessment may have been switched to routed (no Meta) after the pass.

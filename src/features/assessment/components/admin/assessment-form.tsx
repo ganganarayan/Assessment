@@ -29,6 +29,8 @@ import {
   STEP_KEYS,
   STEP_HEADINGS,
 } from "@/features/admin/components/builder-tab-context";
+import { splitPreviewLabels } from "@/features/assessment/flow/lead-split";
+import { audienceGateRenders } from "@/features/assessment/audience-gate";
 
 export type AssessmentFormValues = AssessmentInput;
 
@@ -177,6 +179,7 @@ const DEFAULTS: AssessmentFormValues = {
   professionLabel: "",
   professionPlaceholder: "",
   leadCaptureAfter: false,
+  leadCaptureMode: "ALL_AT_ONCE",
   platformSignup: false,
   optinFields: [],
   introNotice: "",
@@ -221,6 +224,7 @@ export function AssessmentForm({
   audienceLists = [],
   adAccounts = [],
   canPlatformSignup = false,
+  qualificationLive,
 }: {
   /** True only in the PLATFORM scope. The server forces the flag false anywhere else,
    *  so showing the control there would offer a switch that silently does nothing. */
@@ -243,6 +247,10 @@ export function AssessmentForm({
   /** The workspace's ad accounts, for the Meta tracking picker. Maintained on the Ad
    *  accounts screen; this form only chooses between them. */
   adAccounts?: { id: string; label: string; isDefault: boolean }[];
+  /** Is the page-1 qualification gate actually live (enabled AND holding questions)?
+   *  The gate is edited by its own manager rather than by this form, so the split
+   *  preview cannot work it out from these values and is told instead. */
+  qualificationLive?: boolean;
 }) {
   const router = useRouter();
   const [values, setValues] = useState<AssessmentFormValues>(
@@ -541,6 +549,81 @@ export function AssessmentForm({
           <FormStep step="optin">
           <div className="flex flex-col gap-3 rounded-lg border p-4">
             <p className="text-sm font-medium">Lead capture</p>
+
+            {/* WHEN the fields are asked for. Two options, not a per-field matrix: a
+                field pointing at a screen that does not render is the one bug in this
+                area that costs real money, and with two shapes it cannot happen.
+
+                Both modes read the SAME fields below - collect, label, the custom
+                opt-in fields. Switching mode changes where a field is asked, never
+                what was configured, so nothing an import populated is lost either
+                way. */}
+            <div className="flex flex-col gap-2">
+              {([
+                [
+                  "ALL_AT_ONCE",
+                  "All at once",
+                  "One opt-in screen holding every field, before or after the questions. This is how every funnel works today.",
+                ],
+                [
+                  "SPLIT",
+                  "Split across the funnel",
+                  "Name, then the qualification gate, then email the moment they qualify, then the assessment, then phone just before the result. Somebody who abandons half way through has still left you a name and an email.",
+                ],
+              ] as const).map(([m, title, desc]) => (
+                <label
+                  key={m}
+                  className={`flex cursor-pointer gap-3 rounded-md border p-3 text-sm ${
+                    values.leadCaptureMode === m ? "border-green-600 bg-green-600/10" : ""
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="leadCaptureMode"
+                    className="mt-1"
+                    checked={values.leadCaptureMode === m}
+                    onChange={() => set("leadCaptureMode", m)}
+                  />
+                  <span className="flex flex-col gap-0.5">
+                    <span className="font-medium">{title}</span>
+                    <span className="text-xs text-[var(--muted-foreground)]">{desc}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            {values.leadCaptureMode === "SPLIT" ? (
+              <div className="flex flex-col gap-1 rounded-md border border-green-600/40 bg-green-600/10 p-3 text-xs">
+                <span className="font-medium">The order respondents will see</span>
+                <ol className="list-decimal pl-4">
+                  {splitPreviewLabels({
+                    splitMode: true,
+                    collectFirstName: values.collectFirstName,
+                    collectLastName: values.collectLastName,
+                    collectEmail: values.collectEmail,
+                    collectMobile: values.collectMobile,
+                    collectProfession: values.collectProfession,
+                    audienceGate: audienceGateRenders(values.audienceGate),
+                    qualificationLive: qualificationLive === true,
+                    scoredQuestions: 1,
+                    optinFieldCount: values.optinFields.length,
+                    preResultFieldCount: values.preResultFields.length,
+                  }).map((label, i) => (
+                    <li key={`${label}-${i}`}>{label}</li>
+                  ))}
+                </ol>
+                {!values.collectEmail ? (
+                  <span className="pt-1 font-medium text-red-500">
+                    Split capture needs Email collected: it is the step that records the lead.
+                  </span>
+                ) : null}
+                <span className="pt-1 text-[var(--muted-foreground)]">
+                  Every field you collect is mandatory in this mode, which is why there is no
+                  Required column below. Turn a field off to stop asking for it.
+                </span>
+              </div>
+            ) : null}
+
             <div className="flex flex-col gap-2">
               {LEAD_FIELDS.map((f) => (
                 <div key={f.collect} className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
@@ -553,15 +636,20 @@ export function AssessmentForm({
                     />
                     Collect
                   </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={values[f.required]}
-                      disabled={!values[f.collect]}
-                      onChange={(e) => set(f.required, e.target.checked)}
-                    />
-                    Required
-                  </label>
+                  {/* Hidden in SPLIT rather than disabled: there is no choice to show.
+                      A greyed-out checkbox reads as "not available yet", which invites
+                      somebody to go looking for how to enable it. */}
+                  {values.leadCaptureMode === "SPLIT" ? null : (
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={values[f.required]}
+                        disabled={!values[f.collect]}
+                        onChange={(e) => set(f.required, e.target.checked)}
+                      />
+                      Required
+                    </label>
+                  )}
                   <Input
                     className="h-8 max-w-[13rem] flex-1 text-sm"
                     placeholder={`Label (default: ${f.label})`}

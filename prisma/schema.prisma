@@ -655,6 +655,21 @@ enum AssessmentEngine {
   CLINIC_AUDIT
 }
 
+// WHEN the lead fields are asked for.
+//
+// ALL_AT_ONCE is every funnel that exists today: one opt-in screen holding every
+// field, placed before or after the questions by leadCaptureAfter.
+//
+// SPLIT asks in stages - name, then the gate, then email the moment they qualify,
+// then the assessment, then phone one tap before the result. It exists because a
+// fifteen-minute application loses people half way through, and today an abandoner
+// leaves no contact at all. The two modes run through different code in the runner,
+// so choosing ALL_AT_ONCE is not a configuration that behaves like today: it IS today.
+enum LeadCaptureMode {
+  ALL_AT_ONCE
+  SPLIT
+}
+
 // The step the flow moves to after the Results page. Explicit binding - every
 // flow must resolve to one. paidMode is kept in sync (PAYMENT => paidMode on).
 enum NextStep {
@@ -741,6 +756,17 @@ model Assessment {
   // true = show a landing (headline + Start) first, ask the questions, THEN collect
   // the lead on an opt-in form before results.
   leadCaptureAfter Boolean @default(false)
+
+  // Whether the lead fields are asked all on one screen (every funnel built so far)
+  // or in stages across the run. Defaults to ALL_AT_ONCE, so nothing already live
+  // changes, and leadCaptureAfter keeps deciding the position in that mode.
+  //
+  // 🔴 SPLIT reads the SAME lead columns as ALL_AT_ONCE - collect*, *Required,
+  // *Label, optinFields, every one of them. It changes WHERE a field is asked, never
+  // what was configured, so switching modes loses nothing and an imported assessment
+  // populates both. The only thing SPLIT overrides is requiredness: in that mode
+  // every collected field is mandatory (see the builder, which hides those toggles).
+  leadCaptureMode LeadCaptureMode @default(ALL_AT_ONCE)
 
   // Extra custom fields on the OPT-IN form (beyond the built-in lead fields), same
   // shape as preResultFields: [{ id, label, type: "text"|"select", options[], required }].
@@ -1622,6 +1648,65 @@ model GateEntry {
   // reads through the same tenant + date scope as every other funnel number.
   tenantId String?
 
+  // -------------------------------------------------------------------------
+  // SPLIT lead capture (leadCaptureMode = SPLIT). Everything below is null on a
+  // row from an ALL_AT_ONCE funnel, which is every row that existed before this.
+  //
+  // WHY HERE AND NOT ON Submission. In split mode the contact details arrive before
+  // the assessment is answered, so there is a real person with a real email and no
+  // submission to hang them on for the next fifteen minutes. This row is already
+  // "qualified, not a submission yet" - it has the visitor id, the Meta signals and
+  // one row per visitor per assessment - so it is where they belong. A Submission is
+  // created later, at the phone screen, which keeps the two menus meaning exactly
+  // one thing each: Gate qualified = gave an email, Submissions = registered.
+  // -------------------------------------------------------------------------
+
+  /// The public customer id, minted when the gate starts and persisted when the email
+  /// arrives. Carried onto the Submission unchanged, so one person has ONE cid across
+  /// both menus and the two rows can always be told apart from two people.
+  customerId String? @unique
+
+  /// Unguessable capability returned when the lead row is written. The later screens
+  /// must present it, so the phone screen cannot be driven by guessing a visitor id.
+  leadToken String?
+
+  leadFirstName  String?
+  leadLastName   String?
+  leadEmail      String?
+  leadProfession String?
+  /// The audience/role picked on the gate screen, mirrored the same way Submission
+  /// does it so the two rows describe the person identically.
+  audienceRole   String?
+
+  /// 🔴 When an email was actually SUBMITTED - not when the screen was reached.
+  ///
+  /// This is what separates the two ways of losing someone who qualified, replacing
+  /// optinSeenAt for split funnels: set means we have an address and can mail them
+  /// (AssessmentAbandoned), null means we never got one (GateIncomplete). "Has an
+  /// email" is actionable in a way that "looked at a form" is not.
+  emailCapturedAt DateTime?
+
+  /// Normalized dedup key (lowercased email / 10-digit mobile) per the assessment's
+  /// uniqueIdentifier. Lets the retake lock run at the EMAIL screen, which in split
+  /// mode is far earlier than it can run today, and lets a returning respondent
+  /// re-attach to their own partial row instead of starting a second one.
+  identifierValue String?
+
+  /// The gate as answered, so the Gate qualified menu can show the owner WHY this
+  /// person got through. Same shapes as the Submission columns of the same names, so
+  /// nothing downstream has to learn a second format.
+  gateScore            Int?
+  gateMax              Int?
+  gateBand             String?
+  gateBreakdown        Json?
+  qualificationAnswers Json?
+  /// Custom opt-in field answers, which ride with the email screen.
+  optinAnswers         Json?
+
+  /// The Submission this lead became, once they reached the phone screen. Scalar, no
+  /// FK, matching tenantId above. Null = still only a qualified lead.
+  submissionId String? @unique
+
   // One row per visitor per assessment - a re-entry updates the existing row
   // rather than queueing a second abandonment event for the same person.
   @@unique([assessmentId, visitorId])
@@ -1629,6 +1714,9 @@ model GateEntry {
   @@index([abandonedFiredAt, abandonDueAt]) // the due-abandon scan
   @@index([assessmentId, passedAt]) // the Stats "Qualified" count
   @@index([tenantId, passedAt])
+  @@index([assessmentId, emailCapturedAt]) // the Gate qualified menu
+  @@index([tenantId, emailCapturedAt]) // the same, tenant-scoped
+  @@index([assessmentId, identifierValue]) // retake lock + re-attach at the email screen
   @@map("gate_entry")
 }
 

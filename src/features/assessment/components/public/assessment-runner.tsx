@@ -11,6 +11,17 @@ import { recordOptinView, recordGatePass, recordGateDisqualification, recordOpti
 import { evaluateGate } from "@/features/assessment/actions/gate-route";
 import { gateFlagKey, readGateRejection, writeGateRejection } from "@/lib/gate-flag";
 import { firstStep, afterGateStep, type EntryInput } from "@/features/assessment/flow/entry";
+import {
+  splitIsActive,
+  splitFirstStep,
+  splitNextStep,
+  nameScreenFields,
+  type LeadSplitInput,
+  type SplitStep,
+} from "@/features/assessment/flow/lead-split";
+import { type SplitLeadHandle } from "@/features/assessment/flow/lead-split-io";
+import { captureSplitLead } from "@/features/assessment/actions/lead-split";
+import { normalizePhone, isValidEmail, EMAIL_ERROR } from "@/lib/lead-format";
 import { getResultForPages, type PageResultData } from "@/features/assessment/actions/pages";
 import { type AssessmentPageData } from "@/features/assessment/pages/blocks";
 import { openRazorpayCheckout } from "@/lib/payments/checkout-client";
@@ -163,6 +174,9 @@ export interface PublicAssessment {
   professionLabel: string | null;
   professionPlaceholder: string | null;
   leadCaptureAfter: boolean;
+  /** ALL_AT_ONCE = one opt-in screen (every funnel built so far). SPLIT = name, then
+   *  the gate, then email, then the assessment, then phone before the result. */
+  leadCaptureMode: "ALL_AT_ONCE" | "SPLIT";
   optinFields: PreResultField[];
   introNotice: string | null;
   startButtonLabel: string | null;
@@ -231,7 +245,9 @@ export interface PublicAssessment {
   pages: AssessmentPageData[];
 }
 
-type Step = "qualify" | "disqualified" | "gate" | "intro" | "questions" | "leadForm" | "details" | "locked" | "capLocked" | "evaluating" | "resultPages" | "thanks";
+type Step = "qualify" | "disqualified" | "gate" | "intro" | "questions" | "leadForm" | "details" | "locked" | "capLocked" | "evaluating" | "resultPages" | "thanks"
+  // SPLIT lead capture only - the three staged lead screens.
+  | "leadName" | "leadEmail" | "leadPhone";
 
 /** Anticipation countdown shown after Submit before the VSL/destination loads.
  *  Single source of truth; promote to a per-assessment field if it needs to vary. */
@@ -336,9 +352,39 @@ export function AssessmentRunner({
     scoredQuestions: scoredQuestionCount,
     leadCaptureAfter: assessment.leadCaptureAfter,
   };
+  /**
+   * SPLIT lead capture: the same structural facts, read by the other order.
+   *
+   * The two modes genuinely run different screens in a different sequence, so they read
+   * different modules rather than sharing one with a flag in it. Everything the fields
+   * themselves are configured with - collect, labels, the custom opt-in fields - is the
+   * same data in both, which is why switching modes loses nothing.
+   */
+  const splitInput: LeadSplitInput = {
+    splitMode: assessment.leadCaptureMode === "SPLIT",
+    collectFirstName: assessment.collectFirstName,
+    collectLastName: assessment.collectLastName,
+    collectEmail: assessment.collectEmail,
+    collectMobile: assessment.collectMobile,
+    collectProfession: assessment.collectProfession,
+    audienceGate: gated,
+    qualificationLive: qual !== null,
+    scoredQuestions: scoredQuestionCount,
+    optinFieldCount: assessment.optinFields.length,
+    preResultFieldCount: assessment.preResultFields.length,
+  };
+  const splitActive = splitIsActive(splitInput);
+
   // The first screen. The gate decides whether this person is worth a lead row, so
-  // nothing that creates one may precede it.
-  const [step, setStep] = useState<Step>(() => firstStep(entry));
+  // nothing that creates one may precede it. In SPLIT the name screen comes before the
+  // gate, which is safe only because what is typed there is written nowhere until the
+  // email arrives - after the verdict.
+  const [step, setStep] = useState<Step>(() =>
+    splitActive ? ((splitFirstStep(splitInput) ?? "leadEmail") as Step) : firstStep(entry),
+  );
+  /** The lead row written at the email screen: the cid that joins it to the submission,
+   *  and the token the phone screen must present to complete it. */
+  const [splitHandle, setSplitHandle] = useState<SplitLeadHandle | null>(null);
   // Current qualification question index (one at a time, auto-advance).
   const [qualIndex, setQualIndex] = useState(0);
   // Answers to qualification TEXT questions (keyed by question id) - manual review.
@@ -546,12 +592,16 @@ export function AssessmentRunner({
   // exist to make.
   const optinSeenRef = useRef(false);
   useEffect(() => {
+    // SPLIT never renders this form. It stamps emailCapturedAt server-side instead,
+    // when an email is actually submitted, and the sweep reads either stamp - see
+    // lib/events/abandoned.ts.
+    if (splitActive) return;
     if (preview || step !== "leadForm" || optinSeenRef.current) return;
     optinSeenRef.current = true;
     const vid = getOrCreateExternalId();
     if (!vid) return;
     void recordOptinSeen(assessment.slug, vid).catch(() => {});
-  }, [preview, step, assessment.slug]);
+  }, [preview, step, assessment.slug, splitActive]);
 
   // Leaving the opt-in page without opting in → fire AssessmentAbandoned NOW.
   //
@@ -573,9 +623,14 @@ export function AssessmentRunner({
   // then pagehide) send one beacon.
   const abandonBeaconRef = useRef(false);
   useEffect(() => {
-    // Only on the opt-in step, only before a submission exists (that IS the opt-in),
-    // and never in the builder preview.
-    if (preview || step !== "leadForm" || submissionId) return;
+    // Only on a screen that is ASKING for contact details, only before a submission
+    // exists (creating one IS the opt-in), and never in the builder preview.
+    //
+    // In SPLIT that is the email and phone screens. Not the name screen: nothing has
+    // been asked of them yet that they could be said to have refused, and on a gated
+    // funnel there is not even a row to hang the verdict on.
+    const asking = splitActive ? step === "leadEmail" || step === "leadPhone" : step === "leadForm";
+    if (preview || !asking || submissionId) return;
 
     const send = () => {
       if (abandonBeaconRef.current) return;
@@ -599,7 +654,7 @@ export function AssessmentRunner({
       window.removeEventListener("pagehide", send);
       document.removeEventListener("visibilitychange", onHide);
     };
-  }, [preview, step, submissionId, assessment.slug]);
+  }, [preview, step, submissionId, assessment.slug, splitActive]);
   // Autosave progress (debounced) so a returning unpaid respondent resumes where
   // they left off. Only while answering, only once they've picked something.
   useEffect(() => {
@@ -877,6 +932,10 @@ export function AssessmentRunner({
         // respondent takes the same path as somebody who passed, which is the whole
         // point of this mode - only what they are told at the end differs.
         setExitContinues(true);
+        if (splitActive) {
+          splitAdvance("qualify");
+          return;
+        }
         setStep(gated ? "gate" : afterIntroStep());
         return;
       }
@@ -910,6 +969,12 @@ export function AssessmentRunner({
   function finishGate(choices: Record<string, string>) {
     const enter = () => {
       markGatePassed(); // cleared the whole gate - they are now in the funnel
+      // SPLIT runs the audience gate BEFORE the gate, so clearing the gate never
+      // sends anyone back to it: the email screen is what comes next.
+      if (splitActive) {
+        splitAdvance("qualify");
+        return;
+      }
       setStep(gated ? "gate" : afterIntroStep());
     };
     if (!qual?.bandsEnabled || preview) {
@@ -989,6 +1054,10 @@ export function AssessmentRunner({
       }
       setError(null);
       setSelectedRole(typed || null);
+      if (splitActive) {
+        splitAdvance("gate");
+        return;
+      }
       setStep(afterIntroStep());
       return;
     }
@@ -1003,6 +1072,10 @@ export function AssessmentRunner({
       return;
     }
     setSelectedRole(opt.label); // continue in this assessment
+    if (splitActive) {
+      splitAdvance("gate");
+      return;
+    }
     setStep(afterIntroStep());
   }
 
@@ -1029,6 +1102,196 @@ export function AssessmentRunner({
     });
   }
 
+  /**
+   * The next screen in a SPLIT run.
+   *
+   * One ordered sequence, resolved in flow/lead-split.ts and pinned by
+   * verify:lead-split, rather than a ladder of ifs here. Null means the sequence is
+   * finished and the run completes instead of moving on.
+   */
+  function splitAdvance(from: SplitStep): void {
+    const next = splitNextStep(splitInput, from);
+    if (next === "questions") {
+      setScreenIndex(0);
+      setPathStack([0]);
+    }
+    if (next) {
+      setStep(next as Step);
+      return;
+    }
+    // Nothing further to ask: the phone screen is the only place that can finish a
+    // split run, so reaching here without one means the configuration has no phone
+    // and the email screen was the last lead field.
+    submitSplitPhone();
+  }
+
+  /** Name screen: nothing is sent anywhere. What is typed here is held in the browser
+   *  until the email screen posts it, AFTER the gate verdict - which is what lets a
+   *  name be asked for before the gate without a rejected visitor leaving a lead. */
+  function submitSplitName() {
+    setError(null);
+    const f = nameScreenFields(splitInput);
+    if (f.firstName && !(lead.firstName ?? "").trim()) {
+      setError("Please enter your first name.");
+      return;
+    }
+    if (f.lastName && !(lead.lastName ?? "").trim()) {
+      setError("Please enter your last name.");
+      return;
+    }
+    if (f.profession && !(lead.profession ?? "").trim()) {
+      setError("Please choose an option to continue.");
+      return;
+    }
+    splitAdvance("leadName");
+  }
+
+  /** Email screen: the moment somebody becomes a lead. */
+  function submitSplitEmail() {
+    setError(null);
+    const email = (lead.email ?? "").trim();
+    if (!isValidEmail(email)) {
+      setError(EMAIL_ERROR);
+      return;
+    }
+    const missingOptin = assessment.optinFields.find(
+      (f) => f.required && !(optinAnswers[f.id] ?? "").trim(),
+    );
+    if (missingOptin) {
+      setError(`Please fill in "${missingOptin.label}".`);
+      return;
+    }
+    if (preview) {
+      // The builder preview writes nothing, exactly as it writes no submission.
+      splitAdvance("leadEmail");
+      return;
+    }
+    const vid = getOrCreateExternalId();
+    if (!vid) {
+      setError("Please enable cookies for this site and try again.");
+      return;
+    }
+    start(async () => {
+      const res = await captureSplitLead(assessment.slug, {
+        visitorId: vid,
+        firstName: lead.firstName ?? "",
+        lastName: lead.lastName ?? "",
+        profession: lead.profession ?? "",
+        email,
+        audienceRole: selectedRole ?? undefined,
+        optinAnswers: Object.keys(optinAnswers).length ? optinAnswers : undefined,
+        qualAnswers: Object.keys(qualTextAnswers).length ? qualTextAnswers : undefined,
+        qualChoices: Object.keys(qualChoices).length ? qualChoices : undefined,
+        honeypot: hpRef.current?.value ?? "",
+        attribution,
+      });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      // The retake lock runs HERE in split mode, which is far earlier than a
+      // single-screen funnel can run it: a locked-out retaker is turned away now
+      // rather than after answering the whole assessment.
+      if (res.data?.status === "locked") {
+        if (terminalStage(flowInput) === "SIGNUP") {
+          goToSignup();
+          return;
+        }
+        setLockout({
+          policy: res.data.policy,
+          lastCompletedAt: res.data.lastCompletedAt,
+          nextAvailableAt: res.data.nextAvailableAt,
+          resultAvailable: res.data.resultAvailable,
+        });
+        setStep("locked");
+        return;
+      }
+      if (res.data?.status === "captured") {
+        setSplitHandle({ customerId: res.data.customerId, leadToken: res.data.leadToken });
+      }
+      splitAdvance("leadEmail");
+    });
+  }
+
+  /**
+   * Phone screen: the last lead field, and therefore where the submission is created
+   * and CompleteRegistration fires.
+   *
+   * 🔴 Never earlier. Firing on the first screen would report a lead that is a name
+   * with no way to reach it, and teach the ad account to find more of those.
+   */
+  function submitSplitPhone() {
+    setError(null);
+    const mobile = (lead.mobile ?? "").trim();
+    let normalized = mobile;
+    if (assessment.collectMobile) {
+      const phone = normalizePhone(mobile);
+      if (!phone.ok) {
+        setError(phone.error);
+        return;
+      }
+      // The CLEANED number is what gets stored, so the retake key, the CRM and the
+      // WhatsApp sender all see the same ten digits however it happened to be typed.
+      normalized = phone.value;
+      if (normalized !== mobile) setLead((l) => ({ ...l, mobile: normalized }));
+    }
+    if (preview) {
+      runCompletion(
+        assessment.preResultFields.length > 0 ? detailAnswers : undefined,
+      );
+      return;
+    }
+    if (!splitHandle) {
+      setError("Session expired. Please start again.");
+      return;
+    }
+    const vid = getOrCreateExternalId();
+    start(async () => {
+      const res = await startSubmission(
+        assessment.slug,
+        // Only the phone number travels from this screen: the identity is read back
+        // from the lead row written at the email screen.
+        { mobile: normalized },
+        attribution,
+        preview,
+        hpRef.current?.value ?? "",
+        undefined,
+        undefined,
+        vid ?? undefined,
+        undefined,
+        undefined,
+        undefined,
+        { ...splitHandle, visitorId: vid ?? "" },
+      );
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      if (res.data?.status === "locked") {
+        setLockout({
+          policy: res.data.policy,
+          lastCompletedAt: res.data.lastCompletedAt,
+          nextAvailableAt: res.data.nextAvailableAt,
+          resultAvailable: res.data.resultAvailable,
+        });
+        setStep("locked");
+        return;
+      }
+      if (res.data?.status === "started" && res.data.eventId) {
+        pixelTrack("CompleteRegistration", { content_name: assessment.title }, res.data.eventId);
+      }
+      const newSid = res.data?.submissionId ?? null;
+      const newTok = res.data?.status === "started" ? res.data.editToken : null;
+      setSubmissionId(newSid);
+      setEditToken(newTok);
+      runCompletion(
+        assessment.preResultFields.length > 0 ? detailAnswers : undefined,
+        newSid ?? undefined,
+        newTok ?? undefined,
+      );
+    });
+  }
+
   function submitAnswers() {
     setError(null);
     if (requiredUnansweredEffective > 0) {
@@ -1037,6 +1300,12 @@ export function AssessmentRunner({
     }
     if (firstActualError) {
       setError(firstActualError);
+      return;
+    }
+    // SPLIT: the lead is already half captured, and what follows the questions is the
+    // pre-result page or the phone screen - never the single opt-in form.
+    if (splitActive) {
+      splitAdvance("questions");
       return;
     }
     // Lead-capture-after: the questions ran anonymously; now collect the lead (which
@@ -1075,6 +1344,11 @@ export function AssessmentRunner({
     const missing = assessment.preResultFields.find((f) => f.required && !(detailAnswers[f.id] ?? "").trim());
     if (missing) {
       setError(`Please fill in "${missing.label}".`);
+      return;
+    }
+    // SPLIT: the phone screen still has to run before anything completes.
+    if (splitActive) {
+      splitAdvance("details");
       return;
     }
     runCompletion(detailAnswers);
@@ -1334,6 +1608,157 @@ export function AssessmentRunner({
   );
 
   // Lead-capture-AFTER: the opt-in form on its own step, shown after the questions.
+  // -------------------------------------------------------------------------
+  // SPLIT lead capture: the three staged screens.
+  //
+  // Deliberately shaped like the question screens rather than like an opt-in form -
+  // no "Almost done" heading, no sub-line promising results, one ask and a button.
+  // To the respondent this is a series of questions that happens to include their
+  // name, which is the whole reason the split is tolerable at all.
+  // -------------------------------------------------------------------------
+  if (step === "leadName") {
+    const f = nameScreenFields(splitInput);
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submitSplitName();
+        }}
+        className="flex flex-col gap-6"
+        data-qa-step="leadName"
+      >
+        {honeypotInput}
+        <h2 className="text-2xl font-bold tracking-tight">
+          {STAGE_DEFAULTS.split.nameHeading}
+        </h2>
+        <div className="flex flex-col gap-4">
+          {f.firstName ? (
+            <Field
+              qa="firstName"
+              label={assessment.firstNameLabel?.trim() || "First name"}
+              required
+              value={lead.firstName ?? ""}
+              onChange={(v) => setLead((l) => ({ ...l, firstName: v }))}
+            />
+          ) : null}
+          {f.lastName ? (
+            <Field
+              qa="lastName"
+              label={assessment.lastNameLabel?.trim() || "Last name"}
+              required
+              value={lead.lastName ?? ""}
+              onChange={(v) => setLead((l) => ({ ...l, lastName: v }))}
+            />
+          ) : null}
+          {f.profession ? (
+            <SelectField
+              label={assessment.professionLabel?.trim() || "Profession"}
+              required
+              value={lead.profession ?? ""}
+              options={professionOptionsFor(assessment.professionOptions)}
+              placeholder={assessment.professionPlaceholder?.trim() || "Select your profession"}
+              onChange={(v) => setLead((l) => ({ ...l, profession: v }))}
+            />
+          ) : null}
+        </div>
+        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+        <Button size="lg" type="submit" disabled={pending} style={ctaStyle} data-qa-nav="split-name">
+          {pending ? "Please wait…" : assessment.startButtonLabel?.trim() || "Continue"}
+        </Button>
+      </form>
+    );
+  }
+
+  if (step === "leadEmail") {
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submitSplitEmail();
+        }}
+        className="flex flex-col gap-6"
+        data-qa-step="leadEmail"
+      >
+        {honeypotInput}
+        <h2 className="text-2xl font-bold tracking-tight">
+          {STAGE_DEFAULTS.split.emailHeading}
+        </h2>
+        {/* The one sentence a qualified respondent reads at the moment of most
+            investment in the whole funnel. Same copy the opt-in uses. */}
+        {qualifiedNote}
+        <div className="flex flex-col gap-4">
+          <Field
+            qa="email"
+            label={assessment.emailLabel?.trim() || "Email"}
+            type="email"
+            required
+            value={lead.email ?? ""}
+            onChange={(v) => setLead((l) => ({ ...l, email: v }))}
+          />
+          {assessment.optinFields.map((f) =>
+            f.type === "select" ? (
+              <SelectField
+                key={f.id}
+                label={f.label}
+                required={f.required}
+                value={optinAnswers[f.id] ?? ""}
+                options={f.options}
+                placeholder="Select…"
+                onChange={(v) => setOptinAnswers((prev) => ({ ...prev, [f.id]: v }))}
+              />
+            ) : (
+              <Field
+                key={f.id}
+                qa={`optin:${f.id}`}
+                label={f.label}
+                required={f.required}
+                value={optinAnswers[f.id] ?? ""}
+                onChange={(v) => setOptinAnswers((prev) => ({ ...prev, [f.id]: v }))}
+              />
+            ),
+          )}
+        </div>
+        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+        <Button size="lg" type="submit" disabled={pending} style={ctaStyle} data-qa-nav="split-email">
+          {pending ? "Please wait…" : assessment.startButtonLabel?.trim() || "Continue"}
+        </Button>
+      </form>
+    );
+  }
+
+  if (step === "leadPhone") {
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submitSplitPhone();
+        }}
+        className="flex flex-col gap-6"
+        data-qa-step="leadPhone"
+      >
+        {honeypotInput}
+        <h2 className="text-2xl font-bold tracking-tight">
+          {STAGE_DEFAULTS.split.phoneHeading}
+        </h2>
+        {/* One field, on purpose: this is the screen between a finished assessment and
+            the result, and anything extra here is friction at the worst moment. */}
+        <div className="flex flex-col gap-4">
+          <Field
+            qa="mobile"
+            label={assessment.mobileLabel?.trim() || "Phone (WhatsApp)"}
+            required
+            value={lead.mobile ?? ""}
+            onChange={(v) => setLead((l) => ({ ...l, mobile: v }))}
+          />
+        </div>
+        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+        <Button size="lg" type="submit" disabled={pending} style={ctaStyle} data-qa-nav="split-phone">
+          {pending ? "Please wait…" : assessment.resultsButtonLabel?.trim() || "Show my results"}
+        </Button>
+      </form>
+    );
+  }
+
   if (step === "leadForm") {
     return (
       <form onSubmit={submitLead} className="flex flex-col gap-6" data-qa-step="leadForm">
