@@ -39,6 +39,7 @@ const SECTIONS: NavSection[] = [
     title: "Leads",
     items: [
       { href: "/w/submissions", label: "Submissions" },
+      { href: "/w/gate-qualified", label: "Gate qualified" },
       { href: "/w/audiences", label: "Audiences" },
       { href: "/w/conversions", label: "Conversions" },
     ],

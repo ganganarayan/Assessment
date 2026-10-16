@@ -117,6 +117,7 @@ export async function buildAssessmentBody(
     professionPlaceholder: a.professionPlaceholder,
     professionOptions: a.professionOptions,
     leadCaptureAfter: a.leadCaptureAfter,
+    leadCaptureMode: a.leadCaptureMode,
     preResultHeading: a.preResultHeading,
     preResultSubtext: a.preResultSubtext,
     preResultFields: a.preResultFields ?? null,

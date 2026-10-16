@@ -54,6 +54,15 @@ export function assessmentCreateData(
   tenantId: string | null = null,
 ): Prisma.AssessmentCreateInput {
   const nextStep = body.nextStep ?? "DESTINATION";
+  // An older file has no mode, and those assessments asked for everything on one
+  // screen - so absent means ALL_AT_ONCE rather than a default anybody has to guess.
+  //
+  // 🔴 SPLIT needs an email to exist at all: it is the step that writes the lead. A
+  // file asking for SPLIT without one would import a funnel that runs three screens and
+  // produces nothing, so it lands as ALL_AT_ONCE instead of as a broken funnel.
+  const leadMode =
+    body.leadCaptureMode === "SPLIT" && body.collectEmail ? ("SPLIT" as const) : ("ALL_AT_ONCE" as const);
+  const splitRequired = leadMode === "SPLIT";
   return {
     title: body.title,
     slug: finalSlug,
@@ -62,15 +71,19 @@ export function assessmentCreateData(
     estimatedMinutes: body.estimatedMinutes ?? null,
     thankYouMessage: body.thankYouMessage ?? null,
     collectFirstName: body.collectFirstName,
-    firstNameRequired: body.firstNameRequired,
+    // 🔴 SPLIT makes every collected field mandatory, and an import writes straight to
+    // the row rather than going through the save action that normally applies that
+    // rule. Without this an imported split funnel would render screens whose fields
+    // can be skipped, which produces a half-captured lead and no way to reach them.
+    firstNameRequired: splitRequired ? body.collectFirstName : body.firstNameRequired,
     collectLastName: body.collectLastName,
-    lastNameRequired: body.lastNameRequired,
+    lastNameRequired: splitRequired ? body.collectLastName : body.lastNameRequired,
     collectEmail: body.collectEmail,
-    emailRequired: body.emailRequired,
+    emailRequired: splitRequired ? body.collectEmail : body.emailRequired,
     collectMobile: body.collectMobile,
-    mobileRequired: body.mobileRequired,
+    mobileRequired: splitRequired ? body.collectMobile : body.mobileRequired,
     collectProfession: body.collectProfession,
-    professionRequired: body.professionRequired,
+    professionRequired: splitRequired ? body.collectProfession : body.professionRequired,
     // v2 fields (default when importing an older/CSV file that omits them).
     engine: body.engine ?? "GENERIC",
     engineConfig: asJson(body.engineConfig),
@@ -88,6 +101,7 @@ export function assessmentCreateData(
     professionPlaceholder: body.professionPlaceholder ?? null,
     professionOptions: body.professionOptions ?? [],
     leadCaptureAfter: body.leadCaptureAfter ?? false,
+    leadCaptureMode: leadMode,
     preResultHeading: body.preResultHeading ?? null,
     preResultSubtext: body.preResultSubtext ?? null,
     // Normalized, never stored as the file wrote them: a foreign file can name a field

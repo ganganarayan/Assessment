@@ -25,7 +25,7 @@
     "cron:abandoned": "tsx scripts/sweep-abandoned.ts",
     "cron:webhooks": "tsx scripts/retry-webhooks.ts",
     "verify:events": "tsx --conditions=react-server scripts/verify-events.ts",
-    "verify:transfer": "tsx scripts/verify-transfer.ts",
+    "verify:transfer": "tsx --conditions=react-server scripts/verify-transfer.ts",
     "verify:webhook-payload": "tsx scripts/verify-webhook-payload.ts",
     "verify:retake": "tsx scripts/verify-retake.ts",
     "verify:result": "tsx scripts/verify-result.ts",

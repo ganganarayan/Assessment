@@ -249,3 +249,100 @@ export async function getDashboardCounts(scope: Scope = ALL_TENANTS) {
   ]);
   return { assessments, published, submissions };
 }
+
+
+/**
+ * SPLIT lead capture: the people who gave an email at the gate.
+ *
+ * WHY THIS IS NOT THE SUBMISSIONS LIST. In split mode the contact details arrive
+ * before the assessment is answered, so for the next fifteen minutes there is a real
+ * person with a real email and no submission. Those rows live on GateEntry, and this
+ * is the read for them. Keeping them out of Submissions is what stops one person being
+ * counted twice in the lead numbers the ad spend is judged on: qualified means gave an
+ * email, Submissions means registered, and `submissionId` joins the two.
+ *
+ * 🔴 `emailCapturedAt: not null` is the whole filter. A GateEntry row with no email is
+ * somebody who passed the gate and left - that is the Qualified count on Stats, not a
+ * lead, and listing them here would turn an abandonment into a contact.
+ */
+export async function listGateQualified(
+  take = 500,
+  scope: Scope = ALL_TENANTS,
+  opts?: { assessmentId?: string | null; floor?: Date | null; from?: string; to?: string },
+) {
+  const floor = opts && "floor" in opts ? opts.floor ?? null : await statsFloorFor(scope);
+  const { gte: rangeGte, lte: rangeLte } = istDateRangeToUtc(opts?.from, opts?.to);
+  const lowerBounds = [floor, rangeGte].filter((d): d is Date => d instanceof Date);
+  const gte = lowerBounds.length
+    ? new Date(Math.max(...lowerBounds.map((d) => d.getTime())))
+    : null;
+  const emailCapturedAt =
+    gte || rangeLte
+      ? { not: null, ...(gte ? { gte } : {}), ...(rangeLte ? { lte: rangeLte } : {}) }
+      : { not: null };
+  return prisma.gateEntry.findMany({
+    where: {
+      emailCapturedAt,
+      ...whereScope(scope),
+      ...(opts?.assessmentId ? { assessmentId: opts.assessmentId } : {}),
+    },
+    orderBy: { emailCapturedAt: "desc" },
+    take,
+    select: {
+      id: true,
+      customerId: true,
+      leadFirstName: true,
+      leadLastName: true,
+      leadEmail: true,
+      leadProfession: true,
+      audienceRole: true,
+      emailCapturedAt: true,
+      gateScore: true,
+      gateMax: true,
+      gateBand: true,
+      gateBreakdown: true,
+      qualificationAnswers: true,
+      optinAnswers: true,
+      submissionId: true,
+      attribution: true,
+      country: true,
+      city: true,
+      assessment: { select: { title: true, slug: true, optinFields: true } },
+    },
+  });
+}
+
+/**
+ * Which of these leads went on to register, and what happened to them.
+ *
+ * A second query rather than a relation: GateEntry carries `submissionId` as a scalar
+ * with no foreign key, matching how it already carries tenantId. That is deliberate -
+ * the row has to survive its assessment being edited underneath it - but it means the
+ * join is made here instead of by Prisma.
+ */
+export async function submissionsForGateLeads(ids: string[]) {
+  if (ids.length === 0) return new Map<string, { status: string; completedAt: Date | null; totalScore: number | null; maxScore: number | null; bandTitle: string | null }>();
+  const rows = await prisma.submission.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      status: true,
+      completedAt: true,
+      totalScore: true,
+      maxScore: true,
+      resultBand: { select: { title: true } },
+    },
+  });
+  return new Map(
+    rows.map((r) => [
+      r.id,
+      {
+        status: r.status as string,
+        completedAt: r.completedAt,
+        totalScore: r.totalScore,
+        maxScore: r.maxScore,
+        bandTitle: r.resultBand?.title ?? null,
+      },
+    ]),
+  );
+}

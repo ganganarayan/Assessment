@@ -75,6 +75,11 @@ export interface Funnel {
   exits: GateExitInput[];
   /** True when the opt-in form comes AFTER the questions. */
   optinAfter: boolean;
+  /** How the lead is asked for. ALL_AT_ONCE is the only shape the oracle models. */
+  leadCaptureMode: "ALL_AT_ONCE" | "SPLIT";
+  /** SPLIT, and usable (an email is collected). The case generator REFUSES these -
+   *  every expectation downstream assumes one opt-in screen. */
+  splitLeadCapture: boolean;
   /** True when conditional routing can fire. The app's own test: SINGLE mode and at
    *  least one rule anywhere, an option's or a question's DEFAULT route. */
   routingActive: boolean;
@@ -147,6 +152,12 @@ export async function readFunnel(slug: string): Promise<Funnel> {
     audienceActive,
     exits: readExits(row.disqualifiedContent),
     optinAfter: row.leadCaptureAfter,
+    // SPLIT asks for the lead across three screens in a different order (name, gate,
+    // email, assessment, phone). The oracle below is written entirely around the
+    // single-screen model, so this flag exists to REFUSE those funnels rather than to
+    // branch on them - see generateCases.
+    leadCaptureMode: row.leadCaptureMode,
+    splitLeadCapture: row.leadCaptureMode === "SPLIT" && row.collectEmail,
     // Routing only fires in SINGLE mode: the other display modes put several questions
     // on one screen, where "jump to question 7" has no meaning. The second half is the
     // app's own hasRouting, so an option rule and a default route both count.

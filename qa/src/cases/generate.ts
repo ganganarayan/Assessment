@@ -195,6 +195,27 @@ function answersAtFraction(qs: ScoredQ[], fraction: number): Record<string, stri
 /* ---------- the generator ------------------------------------------------------ */
 
 export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedCase[] {
+  // 🔴 SPLIT lead capture is NOT covered yet, and this refuses rather than guesses.
+  //
+  // Every expectation in oracle/expect.ts is built on the single-screen model: one
+  // opt-in, positioned by leadCaptureAfter, creating the submission when it is
+  // submitted. A split funnel asks for the name before the gate, writes the lead at
+  // the email screen, and does not create a submission until the phone screen - so
+  // the derived cases would be confidently wrong about which screens appear, which
+  // rows exist and which events fire.
+  //
+  // A harness that reports PASS against the wrong model is worse than one that says it
+  // does not cover something: the first costs you an ad budget, the second costs you a
+  // sentence. Covering split means teaching the oracle the second order, which is its
+  // own piece of work.
+  if (funnel.splitLeadCapture) {
+    throw new Error(
+      "This funnel uses SPLIT lead capture, which the case generator does not model yet.\n" +
+        "Its expectations assume one opt-in screen, so every case it derived here would be\n" +
+        "judged against the wrong flow. Walk this funnel by hand for now, and check the\n" +
+        "lead row under Gate qualified.",
+    );
+  }
   const wanted = (k: CaseKind) => only.length === 0 || only.includes(k);
   const out: GeneratedCase[] = [];
   const qs = gateQuestions(funnel);
