@@ -1235,13 +1235,9 @@ export function AssessmentRunner({
       normalized = phone.value;
       if (normalized !== mobile) setLead((l) => ({ ...l, mobile: normalized }));
     }
-    if (preview) {
-      runCompletion(
-        assessment.preResultFields.length > 0 ? detailAnswers : undefined,
-      );
-      return;
-    }
-    if (!splitHandle) {
+    // Preview has no lead row behind it (the email screen writes none), so it goes
+    // through without a handle and startSubmission treats it as an ordinary preview.
+    if (!preview && !splitHandle) {
       setError("Session expired. Please start again.");
       return;
     }
@@ -1250,8 +1246,9 @@ export function AssessmentRunner({
       const res = await startSubmission(
         assessment.slug,
         // Only the phone number travels from this screen: the identity is read back
-        // from the lead row written at the email screen.
-        { mobile: normalized },
+        // from the lead row written at the email screen. Except in preview, which has
+        // no row, so what the preview form holds is all there is.
+        preview ? { ...lead, mobile: normalized } : { mobile: normalized },
         attribution,
         preview,
         hpRef.current?.value ?? "",
@@ -1261,7 +1258,7 @@ export function AssessmentRunner({
         undefined,
         undefined,
         undefined,
-        { ...splitHandle, visitorId: vid ?? "" },
+        splitHandle ? { ...splitHandle, visitorId: vid ?? "" } : undefined,
       );
       if (!res.ok) {
         setError(res.error);

@@ -576,7 +576,10 @@ export async function startSubmission(
   let splitGateEntryId: string | null = null;
   let splitGate: { score: number | null; max: number | null; breakdown: unknown } | null = null;
 
-  if (assessment.leadCaptureMode === "SPLIT") {
+  // The builder PREVIEW walks the same screens but writes no lead row at the email
+  // step, so there is no handle to present here. It falls through to the ordinary
+  // path with whatever the preview form holds, which is the point of a preview.
+  if (assessment.leadCaptureMode === "SPLIT" && !preview) {
     if (!splitLead?.customerId || !splitLead?.leadToken) {
       return { ok: false, error: "Something went wrong. Please start again." };
     }
