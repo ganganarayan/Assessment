@@ -13,7 +13,7 @@ import { closeDb } from "./db.js";
 import { readFunnel, type Funnel } from "./config/read.js";
 import { preflight, renderGuard } from "./guard.js";
 import { exitLabel } from "../../src/features/assessment/schemas.js";
-import { generateCases } from "./cases/generate.js";
+import { generateCases, UnsupportedFunnel } from "./cases/generate.js";
 import { expectationFor } from "./oracle/expect.js";
 import { oracleContext } from "./oracle/context.js";
 import type { CaseKind } from "./oracle/types.js";
@@ -167,7 +167,21 @@ Seed the fixtures with: npm run qa:seed   (and -- --rm to remove them)`);
   const only = args.only.filter((k): k is CaseKind =>
     ["entry", "audience", "gate", "routes", "bands", "edge"].includes(k),
   );
-  const generated = generateCases(funnel, only);
+  let generated;
+  try {
+    generated = generateCases(funnel, only);
+  } catch (e) {
+    // A funnel shape the harness knows about and knows it cannot judge. Printed as a
+    // refusal, not a crash: a stack trace reads as "the harness is broken", which sends
+    // somebody debugging the wrong thing.
+    if (e instanceof UnsupportedFunnel) {
+      console.log("\nNot covered yet\n");
+      console.log(e.message);
+      console.log("");
+      return 2;
+    }
+    throw e;
+  }
 
   // The owner's file gets the last word: cases to skip, expectations to pin, and runs
   // of answers written by hand. Absent, the generated set stands as it is.
