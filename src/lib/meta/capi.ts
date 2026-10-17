@@ -41,6 +41,19 @@ export interface CapiEventInput {
   eventSourceUrl?: string | null;
   user: CapiUserData;
   customData?: Record<string, string | number> | null;
+  /**
+   * This event belongs to an owner PREVIEWING their own funnel (?preview=1).
+   *
+   * 🔴 The one thing a preview must never do. Everything else about a preview run is
+   * real on purpose - the submission, the browser pixel, the page view, the webhook -
+   * because the owner is testing whether those work and watches them in Pixel Helper.
+   * But a server-side conversion is not a test: Meta cannot tell it from a customer,
+   * and it teaches a live ad account that the owner's own walkthroughs are the people
+   * to find more of.
+   *
+   * Set here rather than guarded at each call site so a sender added later inherits it.
+   */
+  preview?: boolean;
 }
 
 /** Meta `user_data`: hashed PII as arrays + plaintext request-context signals. */

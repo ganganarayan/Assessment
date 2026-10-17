@@ -1546,6 +1546,14 @@ model Submission {
   // Autosaved in-progress answers (questionId -> optionId) so a returning unpaid
   // respondent resumes + edits where they left off, until they pay.
   draftAnswers       Json?
+  /// This run was an owner PREVIEWING their own funnel (?preview=1).
+  ///
+  /// Everything about a preview is real except the server-side Meta conversion: the
+  /// row, the browser pixel, the webhook. The owner is testing whether those work.
+  /// Stored rather than passed around because events fire LATER too - the abandon
+  /// sweep and the CRM drip run hours afterwards, long after the flag has gone, and
+  /// without this they would report the owner's own walkthrough to a live ad account.
+  isPreview          Boolean   @default(false)
   /// How much of the result page's VSL this person has watched, per VidaPulse session:
   /// { [sessionId]: { pct, secs, at } }. Null = nothing reported.
   ///
@@ -1718,6 +1726,10 @@ model GateEntry {
   qualificationAnswers Json?
   /// Custom opt-in field answers, which ride with the email screen.
   optinAnswers         Json?
+
+  /// Written by an owner previewing their own funnel. The abandon sweep reads this
+  /// before sending anything to Meta - see Submission.isPreview.
+  isPreview Boolean @default(false)
 
   /// The Submission this lead became, once they reached the phone screen. Scalar, no
   /// FK, matching tenantId above. Null = still only a qualified lead.

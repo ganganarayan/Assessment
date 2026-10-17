@@ -360,6 +360,8 @@ async function fireRegistration(
   /** Set when this opt-in came in through an OPTIN EXIT ROUTE. Changes what Meta is
    *  told: an exit reports under its OWN event name, never CompleteRegistration. */
   exitRoute?: { key: string; name: string; fireDisqualifiedEvent: boolean; eventName: string; contentCategory: string } | null,
+  /** Owner previewing their own funnel: everything runs, nothing reaches Meta. */
+  preview?: boolean,
 ): Promise<string | undefined> {
   const eventId = randomUUID();
   // The submission is ALREADY persisted before this runs, so no CRM/CAPI side-effect
@@ -385,6 +387,7 @@ async function fireRegistration(
         {
           eventName: metaEventName,
           eventId,
+          preview,
           eventTimeMs: Date.now(),
           eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
           user: {
@@ -810,6 +813,9 @@ export async function startSubmission(
     assessmentId: assessment.id,
     tenantId: assessment.tenantId,
     status: "STARTED" as const,
+    // Carried on the row because the completion event, the sweep and the CRM drip all
+    // fire later, when this flag is long gone.
+    isPreview: !!preview,
     // Null, not 0, when the gate awards nothing: "this funnel has no gate scoring" and
     // "they scored zero at the gate" are different facts, and only one of them should
     // read as a deliberate zero later.
@@ -965,7 +971,7 @@ export async function startSubmission(
     await linkSplitLead(splitGateEntryId, outcome.submissionId);
     let eventId: string | undefined;
     if (outcome.kind === "created") {
-      eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid, gatePayload, exitRoute);
+      eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid, gatePayload, exitRoute, preview);
     }
     // Nurture (one-shot Email + WhatsApp) now fires on COMPLETION, not here, so the
     // {{resultUrl}} placeholder resolves to the finished result - see completeSubmission.
@@ -988,7 +994,7 @@ export async function startSubmission(
     select: { id: true },
   });
   await linkSplitLead(splitGateEntryId, created.id);
-  const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid, gatePayload, exitRoute);
+  const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid, gatePayload, exitRoute, preview);
   // Nurture now fires on COMPLETION (see completeSubmission) so {{resultUrl}} resolves.
   return { ok: true, data: { status: "started", submissionId: created.id, editToken: newEditToken, ...(eventId ? { eventId } : {}) } };
 }
@@ -1119,6 +1125,7 @@ export async function completeSubmission(
     where: { id: submissionId },
     select: {
       id: true,
+      isPreview: true,
       status: true,
       gateScore: true,
       gateMax: true,
@@ -1729,7 +1736,10 @@ export async function completeSubmission(
   // support" screen (see the runner + result page). Raising the plan later unlocks
   // these leads, because the lock is `periodSeq > CURRENT limit`, compared live.
   let effectiveSeq = submission.periodSeq;
-  if (effectiveSeq == null) {
+  // 🔴 A preview is NOT a response. Everything else about it is real, but metering the
+  // owner's own walkthrough would spend the quota their customers are supposed to get
+  // - and they will walk it many times while building the funnel.
+  if (effectiveSeq == null && !submission.isPreview) {
     const meter = await meterResponse(gateTenantId);
     if (meter.metered) {
       effectiveSeq = meter.seq;
@@ -1759,6 +1769,9 @@ export async function completeSubmission(
   const full = await prisma.submission.findUnique({
     where: { id: submissionId },
     select: {
+      // Stamped at Start. The completion event fires HERE, long after the request flag
+      // is gone, so the row is the only thing that still knows this was a preview.
+      isPreview: true,
       leadFirstName: true,
       leadLastName: true,
       leadEmail: true,
@@ -1870,6 +1883,7 @@ export async function completeSubmission(
       {
         eventName: completionEvent,
         eventId,
+        preview: full?.isPreview === true,
         eventTimeMs: Date.now(),
         eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${assessment.slug}`,
         user: {

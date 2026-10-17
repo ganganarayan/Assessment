@@ -140,6 +140,7 @@ export async function sweepGateAbandoned(): Promise<{ fired: number; scanned: nu
       visitorId: true,
       optinSeenAt: true,
       emailCapturedAt: true,
+      isPreview: true,
       clientIp: true,
       userAgent: true,
       fbp: true,
@@ -172,6 +173,7 @@ export type AbandonCandidate = {
   visitorId: string;
   optinSeenAt: Date | null;
   emailCapturedAt: Date | null;
+  isPreview: boolean;
   clientIp: string | null;
   userAgent: string | null;
   fbp: string | null;
@@ -244,6 +246,9 @@ export async function fireAbandonedForEntry(g: AbandonCandidate): Promise<boolea
     {
       eventName,
       eventId: `${eventName}:${g.id}`, // stable: a retry can never double-count
+      // This sweep runs hours later, which is exactly why the flag is on the row:
+      // an owner's preview must not become a retargeting signal overnight.
+      preview: g.isPreview === true,
       eventTimeMs: Date.now(),
       eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${g.assessment.slug}`,
       user: {

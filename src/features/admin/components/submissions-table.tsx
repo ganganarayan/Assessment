@@ -181,6 +181,10 @@ export interface SubmissionRow {
   productPaidAt?: string | null;
   /** Links generated for this lead, newest first. */
   paymentLinks?: PaymentLinkView[];
+  /** This row came from the owner previewing their own funnel. Never reported to
+   *  Meta and never metered, but it IS a row - so it has to be visibly different or
+   *  it reads as a real lead. */
+  isPreview: boolean;
   vslLoads: number;
   /** How much of the result page's VSL they have watched, across every visit.
    *  Null when the player has never reported - which is every row until the VidaPulse
@@ -596,6 +600,17 @@ export function SubmissionsTable({
                       <div className="flex flex-col">
                         <span className="font-medium">
                           {[s.firstName, s.lastName].filter(Boolean).join(" ") || "-"}
+                          {/* Your own walkthrough. It is a real row - the preview runs
+                              everything except the Meta conversion - so it has to be
+                              visibly different or it reads as a lead you can call. */}
+                          {s.isPreview ? (
+                            <span
+                              className="ml-2 rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600 dark:text-sky-400"
+                              title="Created while previewing the funnel. Not reported to Meta, not counted against your plan."
+                            >
+                              PREVIEW
+                            </span>
+                          ) : null}
                           {/* The gate's verdict, for you only - the respondent never
                               saw a band or a number. REVIEW means "through, but read
                               this one before the call". */}

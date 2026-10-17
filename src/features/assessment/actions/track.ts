@@ -160,6 +160,10 @@ export async function recordGatePass(
   slug: string,
   visitorId: string,
   attribution?: Record<string, string>,
+  /** Owner previewing their own funnel. The ROW is still written - the preview has to
+   *  behave like the real thing - but nothing is reported to Meta, now or by the sweep
+   *  later, which is why it is stored on the row as well. */
+  preview?: boolean,
 ): Promise<void> {
   try {
     const vid = visitorId.trim().slice(0, 64);
@@ -211,8 +215,8 @@ export async function recordGatePass(
       // A returning visitor restarts the clock: they are in the funnel again, so
       // "abandoned" should be judged from this visit, not their first one. Clearing
       // the fired stamp lets a second abandonment fire for a genuine second attempt.
-      update: { ...signals, tenantId: a.tenantId, passedAt: new Date(), abandonedFiredAt: null },
-      create: { assessmentId: a.id, tenantId: a.tenantId, visitorId: vid, ...signals },
+      update: { ...signals, tenantId: a.tenantId, passedAt: new Date(), abandonedFiredAt: null, isPreview: !!preview },
+      create: { assessmentId: a.id, tenantId: a.tenantId, visitorId: vid, ...signals, isPreview: !!preview },
     });
 
     // GatePassed - the seed for a lookalike built on people who QUALIFY rather than on
@@ -224,6 +228,7 @@ export async function recordGatePass(
         {
           eventName: GATE_PASSED_EVENT,
           eventId: randomUUID(),
+          preview,
           eventTimeMs: Date.now(),
           eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${a.slug}`,
           user: {
@@ -282,6 +287,9 @@ export async function recordGateDisqualification(
   slug: string,
   input: GateDisqualificationInput,
   attribution?: Record<string, string>,
+  /** Owner previewing their own funnel: the rejection is still RECORDED, so the
+   *  preview behaves like the real thing, but nothing is reported to Meta. */
+  preview?: boolean,
 ): Promise<void> {
   try {
     if (!rateLimit("gdq:global", 5000)) return;
@@ -419,7 +427,7 @@ export async function recordGateDisqualification(
     });
 
     // The exclusion audience is fed from HERE now (server CAPI), not the browser.
-    await fireGateDisqualified(a, vid, row.id, meta.isBot, externalId ?? null, exit);
+    await fireGateDisqualified(a, vid, row.id, meta.isBot, externalId ?? null, exit, preview);
   } catch {
     // never surface analytics failures to the visitor
   }
@@ -461,6 +469,7 @@ async function fireGateDisqualified(
   /** The route they were sent out through. Each exit carries its own event name and
    *  content_category, because they are not all the same kind of "no". */
   exit: GateExitInput | null,
+  preview?: boolean,
 ): Promise<void> {
   try {
     // A crawler executing the page's JS must never enter the exclusion audience.
@@ -491,6 +500,7 @@ async function fireGateDisqualified(
     const res = await sendCapiEventVerbose(
       {
         eventName,
+        preview,
         eventId: randomUUID(),
         eventTimeMs: Date.now(),
         eventSourceUrl: `${env.NEXT_PUBLIC_APP_URL}/a/${a.slug}`,

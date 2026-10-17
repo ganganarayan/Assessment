@@ -127,6 +127,9 @@ export async function sendCapiEventVerbose(input: CapiEventInput, tenantId: stri
   response?: string;
   error?: string;
 }> {
+  // An owner previewing their own funnel. Everything else about the run is real;
+  // this is the single thing that must not reach Meta. See CapiEventInput.preview.
+  if (input.preview) return { ok: true, response: "skipped: preview" };
   const cfg = await getConfig(tenantId, adAccountId);
   if (!cfg) {
     return { ok: false, error: "No Meta pixel id + Conversions API token for this scope. Set them in Settings; environment variables are no longer read." };
@@ -158,6 +161,9 @@ export async function sendPlatformCapiEvent(input: CapiEventInput): Promise<{
   response?: string;
   error?: string;
 }> {
+  // An owner previewing their own funnel. Everything else about the run is real;
+  // this is the single thing that must not reach Meta. See CapiEventInput.preview.
+  if (input.preview) return { ok: true, response: "skipped: preview" };
   const m = await resolvePlatformMetaConfig();
   const cfg = resolveCapiConfig({
     accessToken: m.capiToken,
@@ -189,6 +195,9 @@ export async function isPlatformCapiConfigured(): Promise<boolean> {
 }
 
 export async function sendCapiEvent(input: CapiEventInput, tenantId: string | null, adAccountId: string | null): Promise<void> {
+  // An owner previewing their own funnel. Everything else about the run is real;
+  // this is the single thing that must not reach Meta. See CapiEventInput.preview.
+  if (input.preview) return undefined;
   const cfg = await getConfig(tenantId, adAccountId);
   if (!cfg) return; // inert until configured
 

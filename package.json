@@ -59,6 +59,7 @@
     "verify:lead-split": "tsx scripts/verify-lead-split.ts",
     "verify:import-sample": "tsx scripts/verify-import-sample.ts",
     "verify:watch": "tsx scripts/verify-watch.ts",
+    "verify:preview-capi": "tsx scripts/verify-preview-capi.ts",
     "replay:billing": "tsx scripts/replay-billing-webhook.ts",
     "verify:platform-capi": "tsx scripts/verify-platform-capi.ts",
     "verify:cta-click": "tsx scripts/verify-cta-click.ts",

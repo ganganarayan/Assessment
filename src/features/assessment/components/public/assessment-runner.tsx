@@ -478,7 +478,9 @@ export function AssessmentRunner({
 
   // Record the opt-in page view once per load (skip admin preview).
   useEffect(() => {
-    if (!preview) void recordOptinView(assessment.slug, attribution).catch(() => {});
+    // Recorded in preview too: the owner is testing whether the funnel works, and a
+    // page view that only happens for strangers is a thing they cannot check.
+    void recordOptinView(assessment.slug, attribution).catch(() => {});
     // Fire once per page load. attribution is read at mount (the URL is fixed for
     // the load); it's intentionally NOT a dep so a new object reference from a
     // re-render can't re-fire and double-count the view.
@@ -540,7 +542,8 @@ export function AssessmentRunner({
   useEffect(() => {
     if (step !== "disqualified" || dqFiredRef.current) return;
     dqFiredRef.current = true;
-    if (preview) return; // previewing the exit page is not a rejection
+    // Previewing the exit page IS recorded now, so the owner can see the rejection
+    // land; `preview` below keeps it from reaching Meta.
     // An OPTIN exit reaches this screen as a THANK-YOU, after the lead was captured.
     // Nobody was rejected, so nothing is reported here: the server already fired that
     // exit's own event when it wrote the lead.
@@ -557,6 +560,7 @@ export function AssessmentRunner({
         externalId: getOrCreateExternalId() ?? undefined,
       },
       attribution,
+      preview,
     ).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
@@ -572,7 +576,7 @@ export function AssessmentRunner({
   // respondent never waits on it, and a failure never blocks entry.
   const gatePassFiredRef = useRef(false);
   function markGatePassed() {
-    if (preview || gatePassFiredRef.current) return;
+    if (gatePassFiredRef.current) return;
     gatePassFiredRef.current = true;
     try {
       if (localStorage.getItem(`gate_pass:${assessment.slug}`) === "1") return;
@@ -582,7 +586,10 @@ export function AssessmentRunner({
     }
     const vid = getOrCreateExternalId();
     if (!vid) return; // no first-party id → nothing Meta could match on later
-    void recordGatePass(assessment.slug, vid, attribution).catch(() => {});
+    // `preview` travels with it: the GateEntry row is written either way, so the
+    // preview behaves like a real run, but the server withholds the Meta event - now
+    // and when the abandon sweep reads that row hours later.
+    void recordGatePass(assessment.slug, vid, attribution, preview).catch(() => {});
   }
 
   // Reaching the opt-in form is recorded while the page is alive and well, not
@@ -596,7 +603,7 @@ export function AssessmentRunner({
     // when an email is actually submitted, and the sweep reads either stamp - see
     // lib/events/abandoned.ts.
     if (splitActive) return;
-    if (preview || step !== "leadForm" || optinSeenRef.current) return;
+    if (step !== "leadForm" || optinSeenRef.current) return;
     optinSeenRef.current = true;
     const vid = getOrCreateExternalId();
     if (!vid) return;
@@ -630,7 +637,7 @@ export function AssessmentRunner({
     // been asked of them yet that they could be said to have refused, and on a gated
     // funnel there is not even a row to hang the verdict on.
     const asking = splitActive ? step === "leadEmail" || step === "leadPhone" : step === "leadForm";
-    if (preview || !asking || submissionId) return;
+    if (!asking || submissionId) return;
 
     const send = () => {
       if (abandonBeaconRef.current) return;
@@ -658,7 +665,9 @@ export function AssessmentRunner({
   // Autosave progress (debounced) so a returning unpaid respondent resumes where
   // they left off. Only while answering, only once they've picked something.
   useEffect(() => {
-    if (preview || step !== "questions" || !submissionId) return;
+    // Autosaves in preview too - a preview now has a real submission behind it, and
+    // resume is one of the things an owner wants to be able to test.
+    if (step !== "questions" || !submissionId) return;
     if (Object.keys(answers).length === 0 && Object.keys(textAnswers).length === 0) return;
     const t = setTimeout(() => {
       void saveDraftAnswers(
@@ -927,19 +936,18 @@ export function AssessmentRunner({
       // trace at all. Taking the route IS the fact worth recording, and it needs no
       // lead data: the server sends it with ip / user agent / fbp / external_id, the
       // same match keys a rejection uses. Nothing else fires for these people afterwards.
-      if (!preview) {
-        void recordGateDisqualification(
-          assessment.slug,
-          {
-            questionId: cause.questionId,
-            optionId: cause.optionId,
-            exitKey: resolved,
-            repeat: false,
-            externalId: getOrCreateExternalId() ?? undefined,
-          },
-          attribution,
-        ).catch(() => {});
-      }
+      void recordGateDisqualification(
+        assessment.slug,
+        {
+          questionId: cause.questionId,
+          optionId: cause.optionId,
+          exitKey: resolved,
+          repeat: false,
+          externalId: getOrCreateExternalId() ?? undefined,
+        },
+        attribution,
+        preview,
+      ).catch(() => {});
 
       if (exit.mode === "CONTINUE") {
         // 🔴 The funnel's OWN ordering, not a hardcoded lead form.
@@ -995,7 +1003,7 @@ export function AssessmentRunner({
       }
       setStep(gated ? "gate" : afterIntroStep());
     };
-    if (!qual?.bandsEnabled || preview) {
+    if (!qual?.bandsEnabled) {
       enter();
       return;
     }
