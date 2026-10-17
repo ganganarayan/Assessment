@@ -50,6 +50,24 @@ export interface WatchTotals {
  */
 export const MAX_WATCH_SESSIONS = 50;
 
+/**
+ * The key a LIFETIME report is stored under.
+ *
+ * 🔴 Why the receiver tolerates two shapes at all. Assess360 and VidaPulse were built
+ * in separate sessions against a written contract, and that contract says the figures
+ * are per-session. If the other side instead sends a lifetime total - a perfectly
+ * reasonable reading, since it holds every session keyed by cid - then summing the
+ * reports would DOUBLE-COUNT: 720 on the first visit, 740 cumulative on the second,
+ * stored as 1460. That is worse than the regression this file exists to prevent,
+ * because it is silently plausible rather than visibly wrong.
+ *
+ * So a report may declare its scope. A lifetime report replaces the lot and lives
+ * under this one key; per-session reports keep their own. Absent scope means session,
+ * which is what the contract specifies, so a side that follows it needs to send
+ * nothing extra.
+ */
+const LIFETIME_KEY = "__lifetime";
+
 function clampPct(n: unknown): number {
   const v = typeof n === "number" && Number.isFinite(n) ? n : 0;
   return Math.min(100, Math.max(0, Math.round(v * 10) / 10));
@@ -82,11 +100,36 @@ export function readWatchSessions(value: unknown): WatchSessions {
  */
 export function mergeWatch(
   existing: unknown,
-  report: { sessionId: string; pct: number; secs: number; at?: string },
+  report: {
+    sessionId: string;
+    pct: number;
+    secs: number;
+    at?: string;
+    /** "session" (the contract, and the default) = this visit only, so reports add up.
+     *  "lifetime" = already totalled across visits, so this report REPLACES. */
+    scope?: "session" | "lifetime";
+  },
 ): WatchSessions {
   const sessions = readWatchSessions(existing);
+
+  if (report.scope === "lifetime") {
+    // Still monotonic: a lifetime total that arrives smaller than one already stored
+    // is a stale or partial read, and must not pull the figure down.
+    const prev = sessions[LIFETIME_KEY];
+    return {
+      [LIFETIME_KEY]: {
+        pct: Math.max(prev?.pct ?? 0, clampPct(report.pct)),
+        secs: Math.max(prev?.secs ?? 0, clampSecs(report.secs)),
+        at: report.at ?? new Date().toISOString(),
+      },
+    };
+  }
+
   const id = (report.sessionId ?? "").trim().slice(0, 64);
   if (!id) return sessions;
+  // A side that switched to per-session reporting must not keep adding to an old
+  // lifetime figure, or the two shapes would stack.
+  delete sessions[LIFETIME_KEY];
 
   const prev = sessions[id];
   const next: WatchSession = {
@@ -109,6 +152,12 @@ export function mergeWatch(
 
 /** The two numbers anybody actually reads, derived rather than stored independently. */
 export function watchTotals(sessions: WatchSessions): WatchTotals {
+  // A lifetime report is already the answer; summing it with anything would be
+  // counting the same seconds twice.
+  const lifetime = sessions[LIFETIME_KEY];
+  if (lifetime) {
+    return { maxPct: lifetime.pct, watchSeconds: lifetime.secs, sessions: 1 };
+  }
   const values = Object.values(sessions);
   return {
     maxPct: values.reduce((m, s) => Math.max(m, s.pct), 0),

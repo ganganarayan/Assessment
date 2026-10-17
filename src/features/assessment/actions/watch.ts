@@ -29,6 +29,8 @@ export async function recordVslProgress(input: {
   maxPct: number;
   watchedSeconds: number;
   duration?: number | null;
+  /** What the figures describe. Absent = this visit, which is what the contract says. */
+  scope?: "session" | "lifetime";
 }): Promise<void> {
   try {
     const submissionId = (input.submissionId ?? "").trim().slice(0, 64);
@@ -53,6 +55,7 @@ export async function recordVslProgress(input: {
       sessionId,
       pct: input.maxPct,
       secs: input.watchedSeconds,
+      scope: input.scope === "lifetime" ? "lifetime" : "session",
     });
     const totals = watchTotals(sessions);
 

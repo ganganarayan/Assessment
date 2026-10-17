@@ -112,6 +112,40 @@ console.log("VSL watch merge verification\n");
   eq("the session just reported is never the one dropped", watchTotals(after).maxPct, 99);
 }
 
+// --- 🔴 the OTHER half might send lifetime totals instead ----------------------------
+//
+// Assess360 and VidaPulse were built in separate sessions. The contract says
+// per-session, but a lifetime total is a reasonable misreading - VidaPulse holds every
+// session keyed by cid - and summing those would double-count silently.
+{
+  let s = mergeWatch(null, { sessionId: "v1", pct: 80, secs: 720, scope: "lifetime" });
+  s = mergeWatch(s, { sessionId: "v2", pct: 82, secs: 740, scope: "lifetime" });
+  const t = watchTotals(s);
+  eq("a lifetime report REPLACES rather than adding", t.watchSeconds, 740);
+  eq("and carries its own furthest point", t.maxPct, 82);
+
+  // A stale or partial lifetime read must still not pull the figure down.
+  s = mergeWatch(s, { sessionId: "v3", pct: 5, secs: 30, scope: "lifetime" });
+  eq("a smaller lifetime total cannot lower the seconds", watchTotals(s).watchSeconds, 740);
+  eq("nor the percentage", watchTotals(s).maxPct, 82);
+}
+
+// Switching shapes mid-flight (the other side ships a change) must not stack the two.
+{
+  let s = mergeWatch(null, { sessionId: "v1", pct: 80, secs: 720, scope: "lifetime" });
+  s = mergeWatch(s, { sessionId: "sess-a", pct: 10, secs: 60 });
+  const t = watchTotals(s);
+  eq("a per-session report after a lifetime one does not add to it", t.watchSeconds, 60);
+  eq("and the stale lifetime figure is gone", t.sessions, 1);
+}
+
+// Absent scope means per-session, so a side that follows the contract sends nothing extra.
+{
+  let s = mergeWatch(null, { sessionId: "a", pct: 10, secs: 100 });
+  s = mergeWatch(s, { sessionId: "b", pct: 20, secs: 200 });
+  eq("no scope field behaves exactly as before", watchTotals(s).watchSeconds, 300);
+}
+
 // --- the clock a person reads ---------------------------------------------------------
 eq("309 seconds reads as 5:09", formatWatchClock(309), "5:09");
 eq("910 seconds reads as 15:10", formatWatchClock(910), "15:10");

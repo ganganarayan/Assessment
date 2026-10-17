@@ -30,8 +30,27 @@ window.parent.postMessage({
   watched_seconds: number,                // seconds actually watched in THIS session
   duration       : number | null,         // total length of the video, seconds
   cid            : CID || null,           // the Assess360 customerId that rode in
+  scope          : 'session',             // optional; see below. Absent = 'session'.
 }, '*');
 ```
+
+### 🔴 `scope` - read this before writing the emit
+
+`'session'` (the default, and what the player naturally has) means **this page load
+only**. The player's counters are declared `maxP=0, secs=0` at embed.js:1306 and reset
+on every load, and it never reads prior sessions back - so this is already what it holds.
+Assess360 adds these up across visits.
+
+`'lifetime'` means **already totalled across every visit** - e.g. looked up by `cid`.
+Assess360 then REPLACES rather than adding.
+
+Sending lifetime figures WITHOUT the flag is the one way to produce a silently wrong
+number: 720 on the first visit, 740 cumulative on the second, stored as 1460. Both
+shapes are handled and pinned in `npm run verify:watch`, including switching from one
+to the other mid-flight - but only if the flag tells the truth.
+
+Identity is not the question here. The token and `cid` on the result URL identify the
+person perfectly; `scope` is about what the NUMBER counts, which is a separate thing.
 
 ### When to send
 

@@ -64,6 +64,8 @@ export function VslWatchListener({
         maxPct,
         watchedSeconds,
         duration: typeof d.duration === "number" ? d.duration : null,
+        // Honoured if the player declares it; absent means per-visit, per the contract.
+        scope: d.scope === "lifetime" ? "lifetime" : "session",
       }).catch(() => {
         /* the respondent is watching a video; a failed write is not their problem */
       });
