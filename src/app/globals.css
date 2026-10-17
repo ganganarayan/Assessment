@@ -176,9 +176,22 @@ input[type="radio"] {
  * Keyed on the wrapper that nearly every field here already uses (a flex column
  * holding a label and its input), because CSS cannot look backwards from an input to
  * its label. A field not in that shape simply does not get the marker; it never gets
- * a WRONG one. */
-div:focus-within > label::after,
-div:focus-within > .field-label::after {
+ * a WRONG one.
+ *
+ * 🔴 SCOPED TO THE SIGNED-IN SHELLS (.app-shell), and the scoping is the whole point.
+ *
+ * Unscoped, this rule also ran on the PUBLIC funnel, where it is not merely useless
+ * but wrong twice over. A funnel field already renders its own red asterisk for
+ * "required", so focusing one showed a respondent TWO asterisks in two colours. And a
+ * radio group is a column of <label> elements inside one focused wrapper, so choosing
+ * an answer sprouted an amber star against EVERY option - the app appearing to mark
+ * four answers as mandatory when one was being chosen.
+ *
+ * It is an authoring affordance about autosave. Nothing on the public side autosaves,
+ * so nothing on the public side should wear it. Scoped POSITIVELY rather than by
+ * excluding /a/*, so a new public surface cannot inherit it by being forgotten. */
+.app-shell div:focus-within > label::after,
+.app-shell div:focus-within > .field-label::after {
   content: " *";
   color: #f59e0b;
   font-weight: 700;
@@ -186,6 +199,6 @@ div:focus-within > .field-label::after {
 
 /* A label wrapping its own control - a checkbox row - must not sprout an asterisk
  * just because the box inside it has focus. */
-label:focus-within::after {
+.app-shell label:focus-within::after {
   content: none;
 }

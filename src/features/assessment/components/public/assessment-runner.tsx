@@ -695,6 +695,24 @@ export function AssessmentRunner({
   const isAnswered = (q: PublicQuestion): boolean =>
     q.type === "FREE_TEXT" ? (textAnswers[q.id] ?? "").trim().length > 0 : !!answers[q.id];
   const requiredUnanswered = questions.filter((q) => q.required && !isAnswered(q)).length;
+  /**
+   * How many required questions are still unanswered, given a specific answer map.
+   *
+   * 🔴 Takes the map rather than reading state, because the one caller that matters
+   * cannot wait for state. Auto-advance on the LAST screen schedules a submit from
+   * inside the handler that just recorded the answer, and the callback it schedules
+   * closes over the render BEFORE that answer landed - so the submit saw one fewer
+   * answer than the respondent had given.
+   */
+  const unansweredIn = (map: Record<string, string>): number => {
+    const answeredBy = (q: PublicQuestion): boolean =>
+      q.type === "FREE_TEXT" ? (textAnswers[q.id] ?? "").trim().length > 0 : !!map[q.id];
+    if (routingActive) {
+      const reached = walk(new Map(Object.entries(map)), spine, byOption).reachedSet;
+      return questions.filter((q) => reached.has(q.id) && q.required && !answeredBy(q)).length;
+    }
+    return questions.filter((q) => q.required && !answeredBy(q)).length;
+  };
   /** First invalid typed actual number, if any - a wrong unit here silently skews
    *  every figure on the result, so it must be corrected before submitting. */
   const firstActualError = questions.reduce<string | null>((found, q) => {
@@ -1289,10 +1307,17 @@ export function AssessmentRunner({
     });
   }
 
-  function submitAnswers() {
+  /**
+   * `answersOverride` is the answer map as it is RIGHT NOW, for the auto-advance path
+   * that submits from inside the handler which recorded the final answer. Everything
+   * else calls this with no argument and reads state, which by then is current.
+   */
+  function submitAnswers(answersOverride?: Record<string, string>) {
     setError(null);
-    if (requiredUnansweredEffective > 0) {
-      setError(`Please answer all required questions (${requiredUnansweredEffective} left).`);
+    const live = answersOverride ?? answers;
+    const left = answersOverride ? unansweredIn(live) : requiredUnansweredEffective;
+    if (left > 0) {
+      setError(`Please answer all required questions (${left} left).`);
       return;
     }
     if (firstActualError) {
@@ -1333,7 +1358,7 @@ export function AssessmentRunner({
       setStep("details");
       return;
     }
-    runCompletion();
+    runCompletion(undefined, undefined, undefined, answersOverride);
   }
 
   function submitDetails() {
@@ -1351,7 +1376,15 @@ export function AssessmentRunner({
     runCompletion(detailAnswers);
   }
 
-  function runCompletion(preResultAnswers?: Record<string, string>, sidArg?: string, tokArg?: string) {
+  function runCompletion(
+    preResultAnswers?: Record<string, string>,
+    sidArg?: string,
+    tokArg?: string,
+    /** The answers as they are right now. Same reason as sidArg/tokArg below: a caller
+     *  that is mid-handler has them before React does, and submitting without them
+     *  would score the respondent on one fewer answer than they gave - silently. */
+    answersOverride?: Record<string, string>,
+  ) {
     // In lead-capture-after mode the submission is created moments earlier, so the
     // caller passes the fresh id/token (React state isn't updated synchronously).
     const sid = sidArg ?? submissionId;
@@ -1363,7 +1396,7 @@ export function AssessmentRunner({
     }
     const payload = {
       answers: [
-        ...Object.entries(answers).map(([questionId, optionId]) => ({
+        ...Object.entries(answersOverride ?? answers).map(([questionId, optionId]) => ({
           questionId,
           optionId,
         })),
@@ -2441,7 +2474,7 @@ export function AssessmentRunner({
     autoAdvanceRef.current = setTimeout(() => {
       // On the last screen there is nowhere further to page to, so advancing means
       // submitting - the same thing the button does, without the tap.
-      if (isLast) submitAnswers();
+      if (isLast) submitAnswers(next);
       else setScreenIndex((i) => Math.min(i + 1, lastIdx));
     }, 250);
   };
@@ -2567,7 +2600,7 @@ export function AssessmentRunner({
           <span />
         )}
         {isLast ? (
-          <Button size="lg" onClick={submitAnswers} disabled={pending} style={ctaStyle} data-qa-nav="submit">
+          <Button size="lg" onClick={() => submitAnswers()} disabled={pending} style={ctaStyle} data-qa-nav="submit">
             {pending
               ? "Submitting…"
               : assessment.pages.length === 0 && assessment.paidMode && assessment.paymentButtonLabel

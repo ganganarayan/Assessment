@@ -77,12 +77,26 @@ export function buildStatementMessages(
 }
 
 /**
+ * Replace em and en dashes with commas.
+ *
+ * Split out from humanizeStatement because this one rule applies to EVERY statement,
+ * including the instruction (V3+) versions that otherwise keep the owner's style
+ * verbatim. A long dash is the single most recognisable sign that a machine wrote the
+ * sentence, and it was reaching respondents on live funnels.
+ *
+ * 🔴 The character class is the DETECTOR and must never include the plain hyphen, or
+ * "lead-qualification" becomes "lead, qualification".
+ */
+export function stripLongDashes(text: string): string {
+  return text.replace(/\s*[–—]\s*/g, ", ").replace(/,\s*,/g, ", ");
+}
+
+/**
  * Strip the AI "tells" from a statement: replace em/en dashes with commas and
  * tidy spacing, so the copy reads human-written. Pure (testable).
  */
 export function humanizeStatement(text: string): string {
-  return text
-    .replace(/\s*[–—]\s*/g, ", ") // long dash -> comma; the class is the DETECTOR, and it must not include the plain hyphen or "lead-qualification" becomes "lead, qualification"
+  return stripLongDashes(text)
     .replace(/,\s*,/g, ", ") // collapse accidental double commas
     .replace(/\s+([,.;:!?])/g, "$1") // no space before punctuation
     .replace(/ {2,}/g, " ") // collapse runs of spaces

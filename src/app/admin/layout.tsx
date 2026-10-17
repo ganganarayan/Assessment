@@ -25,7 +25,7 @@ export default async function AdminLayout({
 
   return (
     <BuilderTabProvider>
-      <div className="md:flex md:min-h-screen">
+      <div className="app-shell md:flex md:min-h-screen">
         <AdminSidebar
           user={{ name: user.name, email: user.email }}
           tenantName={tenantName}

@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { decryptWithSecret } from "@/lib/crypto";
-import { buildStatementMessages, humanizeStatement } from "@/lib/ai/prompt";
+import { buildStatementMessages, humanizeStatement, stripLongDashes } from "@/lib/ai/prompt";
 import { applyCrisisLine } from "@/lib/ai/crisis";
 import { PREVIEW_SAMPLE, NEUTRAL_SAMPLE } from "@/lib/ai/prompt-versions";
 import { resolvePromptVersion, getWordWindow } from "@/lib/ai/versions";
@@ -175,10 +175,12 @@ export async function generatePersonalStatementResult(
     const { system, user } = buildStatementMessages(merged, version, words);
     const raw = await callProvider(cfg, system, user);
     if (!raw) return { text: null, error: `The ${cfg.provider} model (${cfg.model}) returned an empty response.` };
-    // Instruction versions own their style verbatim (keep em dashes etc.); only the
-    // built-in code versions get the dash-stripping humanizer. Crisis line is applied
-    // AFTER so its em dash + phone number stay intact.
-    const styled = version.minimal ? raw : humanizeStatement(raw);
+    // Instruction (V3+) versions own their style verbatim, with ONE exception: a long
+    // dash. That rule is not a style preference, it is the house standard, and the
+    // owner met one in a live result on 17-10-2026. So those versions get the dash
+    // strip and nothing else; the built-in code versions get the full humanizer.
+    // The crisis line is applied AFTER either way, and uses a plain hyphen.
+    const styled = version.minimal ? stripLongDashes(raw) : humanizeStatement(raw);
     return { text: applyCrisisLine(styled, merged.bandLevel, merged.percentage), error: null };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

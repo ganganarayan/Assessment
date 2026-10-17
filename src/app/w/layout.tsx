@@ -147,7 +147,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     // silently shows only its first panel - which is why Results and VSL Result Page
     // existed in the workspace but could not be reached.
     <BuilderTabProvider>
-    <div className="md:flex md:min-h-screen">
+    <div className="app-shell md:flex md:min-h-screen">
       <PlatformPixel pixelId={platformMeta.pixelId} />
       <StartTrialReporter />
       <aside className="shrink-0 border-b md:sticky md:top-0 md:h-screen md:w-56 md:border-b-0 md:border-r">
