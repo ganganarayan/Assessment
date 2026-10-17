@@ -1,4 +1,7 @@
 import { z } from "zod";
+// Type-only in the other direction (custom-fields imports `type PreResultField`),
+// so this pair is erased at compile time and forms no runtime cycle.
+import { normalizeCustomFields } from "@/features/assessment/custom-fields";
 
 /** Validation schemas for the Assessment Engine (admin CRUD + public flow). */
 
@@ -393,7 +396,20 @@ export const assessmentSchema = z.object({
   // Optional pre-results data-capture page.
   preResultHeading: z.string().max(200).optional().or(z.literal("")),
   preResultSubtext: z.string().max(1000).optional().or(z.literal("")),
-  preResultFields: z.array(preResultFieldSchema).max(30).default([]),
+  // 🔴 NORMALIZED BEFORE VALIDATION, not validated raw.
+  //
+  // These two are opaque JSON on the row, so a value this app cannot render can be
+  // sitting in one already - a "textarea" from a hand-written import did exactly that.
+  // Validating it raw made the WHOLE assessment uneditable: every save failed with
+  // "Expected 'text' | 'select', received 'textarea'", reported against a field on a
+  // step the owner was not even looking at, and the only way out was a field they
+  // could not reach. One bad value in a blob must never cost an owner their editor.
+  //
+  // normalizeCustomFields maps each field to the nearest thing that works, so the save
+  // succeeds and the row heals itself on the way through. The editor and the public
+  // page already did this on the way OUT; this is the boundary that was missing, which
+  // is what made that function's "applied at every boundary" comment untrue.
+  preResultFields: z.preprocess(normalizeCustomFields, z.array(preResultFieldSchema).max(30)),
   coverImageUrl: z.string().url("Must be a valid URL.").optional().or(z.literal("")),
   estimatedMinutes: z.coerce.number().int().min(0).max(600).optional(),
   thankYouMessage: z.string().max(2000).optional().or(z.literal("")),
@@ -429,7 +445,8 @@ export const assessmentSchema = z.object({
   // cannot turn their funnel into a signup path for the SaaS itself.
   platformSignup: z.boolean().default(false),
   // Extra custom fields on the opt-in form (same shape as pre-results fields).
-  optinFields: z.array(preResultFieldSchema).max(30).default([]),
+  // Same treatment, same reason - see preResultFields above.
+  optinFields: z.preprocess(normalizeCustomFields, z.array(preResultFieldSchema).max(30)),
   // Editable opt-in copy. Blank = default behavior.
   introNotice: z.string().max(2000).optional().or(z.literal("")),
   startButtonLabel: z.string().max(120).optional().or(z.literal("")),

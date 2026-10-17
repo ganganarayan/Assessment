@@ -15,7 +15,7 @@
  *   npx tsx scripts/verify-custom-fields.ts
  */
 import { normalizeCustomFields } from "../src/features/assessment/custom-fields";
-import { preResultFieldSchema } from "../src/features/assessment/schemas";
+import { preResultFieldSchema, assessmentSchema } from "../src/features/assessment/schemas";
 
 let failures = 0;
 const ok = (n: string) => console.log(`  PASS  ${n}`);
@@ -71,6 +71,44 @@ for (const junk of [null, undefined, "", 0, {}, [null], ["a string"], [[]]]) {
 const mine = [{ id: "a1", label: "Company size", type: "select", options: ["1-10", "11-50"], required: true }];
 const same = normalizeCustomFields(mine);
 expect("a field this app wrote is unchanged", JSON.stringify(same) === JSON.stringify(mine), JSON.stringify(same));
+
+// --- the SAVE boundary, which is the one that was missing --------------------------
+//
+// 🔴 The failure this pins, met on prod 17-10-2026. A hand-written import put a
+// "textarea" into preResultFields. The editor normalized it on the way OUT, so the
+// screen looked fine - but assessmentSchema validated the posted array RAW, so every
+// save of that assessment died with "Expected 'text' | 'select', received 'textarea'",
+// reported against a field on a step the owner was not even looking at. The whole
+// assessment was uneditable, and the only way out was a field they could not reach.
+//
+// One bad value in an opaque blob must never cost somebody their editor.
+{
+  const dirty = {
+    title: "Business Heads",
+    slug: "business-heads",
+    nextStep: "RESULTS",
+    preResultFields: [
+      { id: "pr1", label: "Write what your life looks like in three years.", type: "textarea", options: [], required: true },
+    ],
+    optinFields: [
+      { id: "o1", label: "Which best describes you?", type: "choice", options: [{ label: "Owner", points: 3 }], required: false },
+    ],
+  };
+  const parsed = assessmentSchema.safeParse(dirty);
+  const issues = parsed.success ? [] : parsed.error.issues;
+  const blocked = issues.some((i) => /Expected 'text' \| 'select'/.test(i.message));
+  expect(
+    "a save carrying an unrenderable field type is NOT blocked by it",
+    !blocked,
+    issues.map((i) => i.message).join(" | "),
+  );
+  if (parsed.success) {
+    expect("the long-answer field heals to a text box", parsed.data.preResultFields[0]?.type === "text", parsed.data.preResultFields[0]?.type);
+    expect("and its question survives the save", parsed.data.preResultFields[0]?.label.startsWith("Write what your life") === true, parsed.data.preResultFields[0]?.label);
+    expect("the choice field heals to a dropdown", parsed.data.optinFields[0]?.type === "select", parsed.data.optinFields[0]?.type);
+    expect("with its options reduced to their labels", JSON.stringify(parsed.data.optinFields[0]?.options) === JSON.stringify(["Owner"]), JSON.stringify(parsed.data.optinFields[0]?.options));
+  }
+}
 
 console.log(failures === 0 ? "\nAll checks passed." : `\n${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);
