@@ -37,6 +37,17 @@ browser above your other windows while it drives, and drops it afterwards.
 The panel refuses to drive anything that is not staging, and it only runs the jobs it
 knows by name - it never takes a command from the page.
 
+## What it does not cover yet
+
+**Split lead capture.** A funnel whose Lead capture step is set to *Split across the
+funnel* asks for the name before the gate, writes the lead at the email screen, and does
+not create a submission until the phone screen. Every expectation in `oracle/expect.ts`
+is built on the single-screen model, so the harness **refuses** such a funnel with a
+message rather than deriving cases it would then judge against the wrong flow.
+
+Walk those funnels by hand for now, and check the captured lead under **Gate qualified**
+in the admin. Teaching the oracle the second order is its own piece of work.
+
 ## Running it
 
 ```bash

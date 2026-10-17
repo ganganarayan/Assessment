@@ -194,7 +194,44 @@ function answersAtFraction(qs: ScoredQ[], fraction: number): Record<string, stri
 
 /* ---------- the generator ------------------------------------------------------ */
 
+/**
+ * The harness knows this funnel shape exists and knows it cannot judge it.
+ *
+ * Its own class so the CLI can print it as a refusal rather than as a crash: a stack
+ * trace reads as "the harness is broken", which is the wrong conclusion and sends
+ * somebody debugging the wrong thing.
+ */
+export class UnsupportedFunnel extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnsupportedFunnel";
+  }
+}
+
 export function generateCases(funnel: Funnel, only: CaseKind[] = []): GeneratedCase[] {
+  // 🔴 SPLIT lead capture is NOT covered yet, and this refuses rather than guesses.
+  //
+  // Every expectation in oracle/expect.ts is built on the single-screen model: one
+  // opt-in, positioned by leadCaptureAfter, creating the submission when it is
+  // submitted. A split funnel asks for the name before the gate, writes the lead at
+  // the email screen, and does not create a submission until the phone screen - so
+  // the derived cases would be confidently wrong about which screens appear, which
+  // rows exist and which events fire.
+  //
+  // A harness that reports PASS against the wrong model is worse than one that says it
+  // does not cover something: the first costs you an ad budget, the second costs you a
+  // sentence. Covering split means teaching the oracle the second order, which is its
+  // own piece of work.
+  if (funnel.splitLeadCapture) {
+    throw new UnsupportedFunnel(
+      "This funnel uses SPLIT lead capture, which the case generator does not model yet.\n" +
+        "Its expectations assume ONE opt-in screen positioned by leadCaptureAfter, so every\n" +
+        "case derived here would be judged against the wrong flow: wrong screens, wrong rows,\n" +
+        "wrong events - and it would report PASS.\n\n" +
+        "Walk this funnel by hand for now. The lead appears under Gate qualified the moment\n" +
+        "the email screen is submitted, and flips to Registered after the phone screen.",
+    );
+  }
   const wanted = (k: CaseKind) => only.length === 0 || only.includes(k);
   const out: GeneratedCase[] = [];
   const qs = gateQuestions(funnel);

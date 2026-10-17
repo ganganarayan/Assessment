@@ -17,10 +17,10 @@ import { hasFeature } from "@/lib/billing/plans";
 import { AssessBadge } from "@/features/assessment/components/public/assess-badge";
 import { FunnelPaused } from "@/features/assessment/components/public/funnel-paused";
 import {
-  type PreResultField,
   qualificationSchema,
   readExits,
 } from "@/features/assessment/schemas";
+import { normalizeCustomFields } from "@/features/assessment/custom-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -179,7 +179,7 @@ export default async function PublicAssessmentPage({
     buttonTextColor: a.buttonTextColor,
     preResultHeading: a.preResultHeading,
     preResultSubtext: a.preResultSubtext,
-    preResultFields: ((a.preResultFields as PreResultField[] | null) ?? []).filter((f) => f && f.label),
+    preResultFields: normalizeCustomFields(a.preResultFields),
     coverImageUrl: a.coverImageUrl,
     estimatedMinutes: a.estimatedMinutes,
     trainingUrl: a.trainingUrl,
@@ -203,7 +203,8 @@ export default async function PublicAssessmentPage({
     professionLabel: a.professionLabel,
     professionPlaceholder: a.professionPlaceholder,
     leadCaptureAfter: a.leadCaptureAfter,
-    optinFields: ((a.optinFields as PreResultField[] | null) ?? []).filter((f) => f && f.label),
+    leadCaptureMode: a.leadCaptureMode,
+    optinFields: normalizeCustomFields(a.optinFields),
     introNotice: a.introNotice,
     startButtonLabel: a.startButtonLabel,
     resultsButtonLabel: a.resultsButtonLabel,

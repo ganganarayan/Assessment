@@ -128,6 +128,7 @@ export async function createAssessment(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
   const d = parsed.data;
+  const splitRequired = d.leadCaptureMode === "SPLIT";
 
   const existing = await prisma.assessment.findUnique({ where: { slug: d.slug } });
   if (existing) return { ok: false, error: "That slug is already in use." };
@@ -175,16 +176,21 @@ export async function createAssessment(
       coverImageUrl: nullifyEmpty(d.coverImageUrl),
       estimatedMinutes: d.estimatedMinutes ?? null,
       thankYouMessage: nullifyEmpty(d.thankYouMessage),
+      leadCaptureMode: d.leadCaptureMode,
+      // 🔴 SPLIT makes every collected field mandatory, which is the point of the mode:
+      // a staged capture whose middle step can be skipped produces a half lead and no
+      // way to reach them. The builder hides the Required toggles to say so; this is
+      // where the rule is actually applied, because a hidden control is not a rule.
       collectFirstName: d.collectFirstName,
-      firstNameRequired: d.firstNameRequired,
+      firstNameRequired: splitRequired ? d.collectFirstName : d.firstNameRequired,
       collectLastName: d.collectLastName,
-      lastNameRequired: d.lastNameRequired,
+      lastNameRequired: splitRequired ? d.collectLastName : d.lastNameRequired,
       collectEmail: d.collectEmail,
-      emailRequired: d.emailRequired,
+      emailRequired: splitRequired ? d.collectEmail : d.emailRequired,
       collectMobile: d.collectMobile,
-      mobileRequired: d.mobileRequired,
+      mobileRequired: splitRequired ? d.collectMobile : d.mobileRequired,
       collectProfession: d.collectProfession,
-      professionRequired: d.professionRequired,
+      professionRequired: splitRequired ? d.collectProfession : d.professionRequired,
       professionOptions: d.professionOptions,
       firstNameLabel: nullifyEmpty(d.firstNameLabel),
       lastNameLabel: nullifyEmpty(d.lastNameLabel),
@@ -301,6 +307,7 @@ export async function updateAssessment(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
   const d = parsed.data;
+  const splitRequired = d.leadCaptureMode === "SPLIT";
 
   const slugOwner = await prisma.assessment.findUnique({ where: { slug: d.slug } });
   if (slugOwner && slugOwner.id !== id) {
@@ -334,16 +341,21 @@ export async function updateAssessment(
       coverImageUrl: nullifyEmpty(d.coverImageUrl),
       estimatedMinutes: d.estimatedMinutes ?? null,
       thankYouMessage: nullifyEmpty(d.thankYouMessage),
+      leadCaptureMode: d.leadCaptureMode,
+      // 🔴 SPLIT makes every collected field mandatory, which is the point of the mode:
+      // a staged capture whose middle step can be skipped produces a half lead and no
+      // way to reach them. The builder hides the Required toggles to say so; this is
+      // where the rule is actually applied, because a hidden control is not a rule.
       collectFirstName: d.collectFirstName,
-      firstNameRequired: d.firstNameRequired,
+      firstNameRequired: splitRequired ? d.collectFirstName : d.firstNameRequired,
       collectLastName: d.collectLastName,
-      lastNameRequired: d.lastNameRequired,
+      lastNameRequired: splitRequired ? d.collectLastName : d.lastNameRequired,
       collectEmail: d.collectEmail,
-      emailRequired: d.emailRequired,
+      emailRequired: splitRequired ? d.collectEmail : d.emailRequired,
       collectMobile: d.collectMobile,
-      mobileRequired: d.mobileRequired,
+      mobileRequired: splitRequired ? d.collectMobile : d.mobileRequired,
       collectProfession: d.collectProfession,
-      professionRequired: d.professionRequired,
+      professionRequired: splitRequired ? d.collectProfession : d.professionRequired,
       professionOptions: d.professionOptions,
       firstNameLabel: nullifyEmpty(d.firstNameLabel),
       lastNameLabel: nullifyEmpty(d.lastNameLabel),

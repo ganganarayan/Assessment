@@ -13,6 +13,7 @@ import {
   bodiesToCsv,
   parseDocument,
 } from "../src/features/assessment/transfer/format";
+import { assessmentCreateData } from "../src/features/assessment/transfer/import";
 import type { AssessmentBodyExport } from "../src/features/assessment/transfer/schema";
 import { formatIST } from "../src/lib/date";
 
@@ -437,6 +438,61 @@ const routed: AssessmentBodyExport = {
   const older = parseDocument(bodiesToJson([second]), "json");
   if (older.ok && older.data.assessments[0]?.createdAt === undefined) ok("created_at · absent when the file has none");
   else fail("created_at · absent when the file has none", older.ok ? String(older.data.assessments[0]?.createdAt) : older.errors.join("; "));
+}
+
+// --- SPLIT lead capture survives a round trip ---------------------------------------
+//
+// The mode decides the whole respondent order, so a file that loses it imports a
+// funnel that looks right in the builder and runs differently. Three cases, and the
+// last two are the ones that bite.
+{
+  const split: AssessmentBodyExport = {
+    ...adversarial,
+    slug: "split-mode",
+    collectEmail: true,
+    emailRequired: true,
+    leadCaptureMode: "SPLIT",
+  };
+  const back = parseDocument(bodiesToJson([split]), "json");
+  const got = back.ok ? back.data.assessments[0]?.leadCaptureMode : "PARSE_FAILED";
+  eq("leadCaptureMode · SPLIT survives JSON round trip", got, "SPLIT");
+
+  // A file written before the mode existed is not a file asking for a default to be
+  // guessed: those assessments asked for everything on one screen.
+  const older = parseDocument(bodiesToJson([second]), "json");
+  const olderMode = older.ok ? older.data.assessments[0]?.leadCaptureMode : "PARSE_FAILED";
+  eq("leadCaptureMode · absent in an older file", olderMode, undefined);
+  eq(
+    "leadCaptureMode · an older file imports as ALL_AT_ONCE",
+    assessmentCreateData(second, second.slug, null).leadCaptureMode,
+    "ALL_AT_ONCE",
+  );
+
+  eq(
+    "leadCaptureMode · SPLIT imports as SPLIT",
+    assessmentCreateData(split, split.slug, null).leadCaptureMode,
+    "SPLIT",
+  );
+
+  // 🔴 SPLIT without an email would import a funnel that runs three screens and
+  // records nobody - the email step IS the one that writes the lead.
+  const splitNoEmail: AssessmentBodyExport = { ...split, collectEmail: false, emailRequired: false };
+  eq(
+    "leadCaptureMode · SPLIT without an email falls back rather than importing broken",
+    assessmentCreateData(splitNoEmail, splitNoEmail.slug, null).leadCaptureMode,
+    "ALL_AT_ONCE",
+  );
+
+  // Every collected field is mandatory in SPLIT, and an import writes straight to the
+  // row without passing the save action that normally applies that.
+  const imported = assessmentCreateData(split, split.slug, null);
+  eq("SPLIT import · email is required", imported.emailRequired, true);
+  eq("SPLIT import · a collected name is required", imported.firstNameRequired, true);
+  eq(
+    "SPLIT import · a field that is NOT collected stays not-required",
+    imported.lastNameRequired,
+    false,
+  );
 }
 
 console.log(`\n${failures === 0 ? "ALL PASSED" : `${failures} FAILED`}\n`);

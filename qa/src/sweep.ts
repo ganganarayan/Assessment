@@ -158,6 +158,24 @@ export async function sweep(
         await context.close();
       }
 
+      // A case that threw gets the same second chance as one that fell over. The
+      // reasons are the same kind of thing - a screen that re-rendered under a read, a
+      // page that took too long once - and a single unlucky moment should not be
+      // reported as "this case cannot be driven at all", which is a sentence about the
+      // harness wearing the clothes of a verdict about the funnel.
+      if (crash && !observation) {
+        process.stdout.write(`(it threw: ${crash}; retrying) `);
+        const retryContext = await newCaseContext(browser, opts);
+        try {
+          observation = await driveCase(retryContext, funnel, c.plan, opts);
+          crash = undefined;
+        } catch (err) {
+          crash = err instanceof Error ? err.message.split("\n")[0] : String(err);
+        } finally {
+          await retryContext.close();
+        }
+      }
+
       // The app's error boundary is transient by nature (staging Postgres restarts,
       // a cold lambda). One retry, then it is reported as what it is.
       if (observation?.crashed) {

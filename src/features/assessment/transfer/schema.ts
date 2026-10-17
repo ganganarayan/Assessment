@@ -157,6 +157,9 @@ export const assessmentBodyExport = z.object({
   professionPlaceholder: z.string().nullable().optional(),
   professionOptions: z.array(z.string()).optional(),
   leadCaptureAfter: z.boolean().optional(),
+  /** Optional, and absent from every file written before split capture existed. A file
+   *  without it imports as ALL_AT_ONCE, which is what those assessments were. */
+  leadCaptureMode: z.enum(["ALL_AT_ONCE", "SPLIT"]).optional(),
   preResultHeading: z.string().nullable().optional(),
   preResultSubtext: z.string().nullable().optional(),
   preResultFields: z.unknown().nullable().optional(),

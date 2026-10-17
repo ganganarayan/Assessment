@@ -123,7 +123,7 @@ export async function getAnalyticsStats(
     // never reached the form" on a funnel where 6 people had filled it in.
     prisma.gateEntry.findMany({
       where: rekeyScope(scope, "passedAt"),
-      select: { visitorId: true, optinSeenAt: true },
+      select: { visitorId: true, optinSeenAt: true, emailCapturedAt: true },
     }),
     // The first-party ids that DID opt in, to match gate passers against. Same
     // in-memory shape as the unique-visitor count above rather than raw SQL.
@@ -154,7 +154,9 @@ export async function getAnalyticsStats(
   const gateLosses = gatePassers.reduce(
     (acc, g) => {
       if (optedInVisitorIds.has(g.visitorId)) return acc; // became a lead, not a loss
-      if (g.optinSeenAt) acc.leftOptin += 1;
+      // Split funnels stamp emailCapturedAt instead of optinSeenAt - see
+      // lib/events/abandoned.ts for why the two count as the same thing here.
+      if (g.optinSeenAt || g.emailCapturedAt) acc.leftOptin += 1;
       else acc.gateIncomplete += 1;
       return acc;
     },

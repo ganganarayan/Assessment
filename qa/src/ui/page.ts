@@ -29,6 +29,8 @@ export function page(): string {
            border-radius:8px; padding:8px 14px; cursor:pointer; }
   button:hover:not(:disabled) { border-color:var(--accent); }
   button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  button.small { padding:4px 10px; font-size:13px; }
+  .status { width:100%; }
   button:disabled { opacity:.45; cursor:not-allowed; }
   select { font:inherit; padding:8px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--fg); min-width:260px; }
   code { font-size:12px; color:var(--muted); }
@@ -78,7 +80,12 @@ export function page(): string {
   </div>
 
   <div class="card">
-    <div class="status"><span id="dot" class="dot"></span><span id="state">idle</span></div>
+    <div class="status">
+      <span id="dot" class="dot"></span><span id="state">idle</span>
+      <span style="flex:1"></span>
+      <button id="copy" class="small">Copy log</button>
+      <button id="clear" class="small">Clear</button>
+    </div>
     <div id="log"></div>
   </div>
 </div>
@@ -165,6 +172,30 @@ export function page(): string {
   });
 
   $("stop").addEventListener("click", () => fetch("/api/stop").then(() => setBusy(false, "stopped")));
+
+  // Copy the whole log, so a failure can be pasted somewhere useful without selecting
+  // half a screen of it by hand. Falls back to a hidden textarea where the clipboard
+  // API is unavailable.
+  $("copy").addEventListener("click", async () => {
+    const text = log.textContent ?? "";
+    const done = () => { $("copy").textContent = "Copied"; setTimeout(() => ($("copy").textContent = "Copy log"), 1400); };
+    try {
+      await navigator.clipboard.writeText(text);
+      done();
+    } catch {
+      const box = document.createElement("textarea");
+      box.value = text;
+      box.style.position = "fixed";
+      box.style.opacity = "0";
+      document.body.appendChild(box);
+      box.select();
+      document.execCommand("copy");
+      box.remove();
+      done();
+    }
+  });
+
+  $("clear").addEventListener("click", () => { log.textContent = ""; });
   refresh();
 </script>
 </body></html>`;

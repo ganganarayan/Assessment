@@ -77,9 +77,9 @@ export const META_EVENT_META: Record<MetaEventKey, { label: string; event: strin
     help: "Fires ten minutes after someone who passed the gate reached the opt-in form and left without opting in. They saw the ask and refused it, so they are worth showing the ad again.",
   },
   gatePassed: {
-    label: "Passed the gate",
-    event: "GatePassed",
-    help: "Fires the moment someone clears page 1 and is let through, before they give you anything. The seed for a lookalike built on people who qualify rather than on people who merely clicked. Off until you turn it on.",
+    label: "Qualified at the gate",
+    event: "GateQualified",
+    help: "Fires the moment someone clears page 1 and is let through, before they give you anything. The seed for a lookalike built on people who qualify rather than on people who merely clicked. Off until you turn it on. Renamed from GatePassed on 16-10-2026: Meta sees this as a new event, so re-point any audience built on the old name.",
   },
   gateIncomplete: {
     label: "Never reached the opt-in",

@@ -36,6 +36,7 @@ import { listFreeDocs } from "@/features/result-pages/data";
 import { Badge } from "@/components/ui/badge";
 import { ownerScopeOf } from "@/lib/tenant/scope";
 import { readMetaEvents } from "@/features/assessment/meta-events";
+import { normalizeCustomFields } from "@/features/assessment/custom-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -66,8 +67,11 @@ export default async function EditAssessmentPage({
     heatmapCode: a.heatmapCode ?? "",
     preResultHeading: a.preResultHeading ?? "",
     preResultSubtext: a.preResultSubtext ?? "",
-    preResultFields: (a.preResultFields as AssessmentFormValues["preResultFields"] | null) ?? [],
-    optinFields: (a.optinFields as AssessmentFormValues["optinFields"] | null) ?? [],
+    // Normalized on the way in, for the same reason the gate below is merged onto its
+    // defaults: a field stored in a shape this editor cannot render took the whole page
+    // down, and blocked every save of the assessment until it was gone.
+    preResultFields: normalizeCustomFields(a.preResultFields),
+    optinFields: normalizeCustomFields(a.optinFields),
     coverImageUrl: a.coverImageUrl ?? "",
     estimatedMinutes: a.estimatedMinutes ?? undefined,
     thankYouMessage: a.thankYouMessage ?? "",
@@ -89,6 +93,7 @@ export default async function EditAssessmentPage({
     professionLabel: a.professionLabel ?? "",
     professionPlaceholder: a.professionPlaceholder ?? "",
     leadCaptureAfter: a.leadCaptureAfter,
+    leadCaptureMode: a.leadCaptureMode,
     platformSignup: a.platformSignup,
     introNotice: a.introNotice ?? "",
     startButtonLabel: a.startButtonLabel ?? "",
@@ -247,6 +252,10 @@ export default async function EditAssessmentPage({
 
   const qualParsed = qualificationSchema.safeParse(a.qualification);
   const qualification = qualParsed.success ? qualParsed.data : EMPTY_QUALIFICATION;
+  // Live means enabled AND holding questions - the one definition the funnel itself
+  // uses (flow/entry.ts). The split preview needs it because the gate is edited by its
+  // own manager and never passes through the settings form.
+  const gateIsLiveForPreview = qualification.enabled && qualification.questions.length > 0;
   // A stored config that will not parse is dropped by the funnel too, so the editor
   // says so rather than showing a blank gate that looks like one was never built.
   const qualUnreadable = a.qualification != null && !qualParsed.success;
@@ -281,7 +290,7 @@ export default async function EditAssessmentPage({
         />
       </BuilderStep>
 
-      <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} audienceLists={audienceLists} adAccounts={adAccounts} canPlatformSignup={canPlatformSignup} />
+      <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} audienceLists={audienceLists} adAccounts={adAccounts} canPlatformSignup={canPlatformSignup} qualificationLive={gateIsLiveForPreview} />
 
       <BuilderStep step="gate">
       <section className="flex flex-col gap-3">
