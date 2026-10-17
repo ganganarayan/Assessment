@@ -1059,21 +1059,43 @@ export function AssessmentForm({
               </div>
             ) : null}
 
-            <div className="flex flex-col gap-1 border-t pt-3">
+            {/* 🔴 Inert in SPLIT, and SAID so rather than hidden.
+                Split defines its own order (name, gate, email, assessment, phone), so
+                nothing reads this setting - flow/lead-split.ts never looks at it, and
+                every path that would is behind a split guard. Hiding the control would
+                leave an owner who had switched it on wondering where it went, and
+                worse, believing it still applied. Disabled with the reason beside it
+                answers the question before it is asked. */}
+            <div
+              className={`flex flex-col gap-1 border-t pt-3 ${
+                values.leadCaptureMode === "SPLIT" ? "opacity-60" : ""
+              }`}
+            >
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   checked={values.leadCaptureAfter}
+                  disabled={values.leadCaptureMode === "SPLIT"}
                   onChange={(e) => set("leadCaptureAfter", e.target.checked)}
                 />
                 Collect the lead AFTER the assessment
               </label>
+              {values.leadCaptureMode === "SPLIT" ? (
+                <p className="text-xs font-medium text-amber-500">
+                  Not used while lead capture is split. Split sets its own order, shown above, and
+                  this setting changes nothing either way. Switch back to &quot;All at once&quot; to
+                  use it.
+                </p>
+              ) : null}
               <p className="text-xs text-[var(--muted-foreground)]">
                 Off (default): the opt-in form is the first screen. On: show a landing (headline +
                 Start), ask the questions (page 1 → page 2), THEN show the opt-in form, then results.
               </p>
 
-              {values.leadCaptureAfter ? (
+              {/* The button text below is NOT inert in split - it is the label on the
+                  phone screen, the last tap before the result. Shown whenever either
+                  mode actually renders that button. */}
+              {values.leadCaptureAfter || values.leadCaptureMode === "SPLIT" ? (
                 <div className="mt-3 flex flex-col gap-2">
                   <Label htmlFor="resultsButtonLabel">Post-assessment button text</Label>
                   <Input
@@ -1084,8 +1106,9 @@ export function AssessmentForm({
                     onChange={(e) => set("resultsButtonLabel", e.target.value)}
                   />
                   <p className="text-xs text-[var(--muted-foreground)]">
-                    The opt-in button shown AFTER the questions. Distinct from the Start button
-                    text above. Blank = &quot;Show my results&quot;.
+                    The button shown AFTER the questions - in split capture that is the phone
+                    screen, the last tap before the result. Distinct from the Start button text
+                    above. Blank = &quot;Show my results&quot;.
                   </p>
                 </div>
               ) : null}
