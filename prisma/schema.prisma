@@ -1546,6 +1546,22 @@ model Submission {
   // Autosaved in-progress answers (questionId -> optionId) so a returning unpaid
   // respondent resumes + edits where they left off, until they pay.
   draftAnswers       Json?
+  /// How much of the result page's VSL this person has watched, per VidaPulse session:
+  /// { [sessionId]: { pct, secs, at } }. Null = nothing reported.
+  ///
+  /// 🔴 Per SESSION on purpose. VidaPulse counts per session (a new one starts at zero
+  /// on every page load), so a single stored number would FALL when somebody reopens
+  /// the emailed link and leaves after twenty seconds. Kept apart and folded in
+  /// features/assessment/watch/merge.ts, where furthest-reached is the max across
+  /// sessions and can only rise, and watch time is the sum and cannot double-count.
+  vslWatchSessions   Json?
+  /// Derived from vslWatchSessions on every write, so the Submissions table can sort
+  /// and filter without unpacking the JSON. Never written independently of the map.
+  vslMaxPct          Float?
+  vslWatchSeconds    Float?
+  /// The video's full length in seconds, as last reported. Lets "5:09 of 15:10" be
+  /// shown without asking VidaPulse anything.
+  vslDuration        Float?
   resultViewedAt     DateTime? // set once when the internal result page is first viewed
   resultFetchedAt    DateTime? // set on first /api/r read = the VSL page pulled the result
   resultFetchCount   Int       @default(0) // total /api/r reads = how many times the VSL loaded

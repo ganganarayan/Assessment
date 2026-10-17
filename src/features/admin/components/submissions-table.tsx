@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatIST } from "@/lib/date";
+import { formatWatchClock } from "@/features/assessment/watch/merge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { rollbackReport } from "@/features/admin/actions/report-rollback";
@@ -181,6 +182,10 @@ export interface SubmissionRow {
   /** Links generated for this lead, newest first. */
   paymentLinks?: PaymentLinkView[];
   vslLoads: number;
+  /** How much of the result page's VSL they have watched, across every visit.
+   *  Null when the player has never reported - which is every row until the VidaPulse
+   *  side ships, and every funnel whose result page has no VidaPulse video. */
+  vslWatched: { seconds: number; pct: number; duration: number | null } | null;
   /** First click on a result-page booking CTA (ISO), null = never asked for a call.
    *  The thank-you page lives in the CRM, so this stamp is the only in-app record
    *  that this person requested a 1:1. */
@@ -545,6 +550,7 @@ export function SubmissionsTable({
                   </th>
                   <th className="px-3 py-2 text-center">Booking</th>
                   <th className="px-3 py-2 text-center">VSL</th>
+                  <th className="px-3 py-2 text-center">Watched</th>
                   <th className="px-3 py-2">
                     <div>Result</div>
                     <div className="opacity-70">PDF</div>
@@ -722,6 +728,21 @@ export function SubmissionsTable({
                     </td>
                     {/* VSL */}
                     <td className="px-3 py-2 text-center tabular-nums">{s.vslLoads}</td>
+                    {/* How much of it they actually watched, as opposed to how many
+                        times the page loaded. The one that says whether a booked call
+                        has already heard the video. */}
+                    <td className="whitespace-nowrap px-3 py-2 text-center tabular-nums">
+                      {s.vslWatched ? (
+                        <span title={`${s.vslWatched.pct}% of the video`}>
+                          {formatWatchClock(s.vslWatched.seconds)}
+                          {s.vslWatched.duration
+                            ? ` / ${formatWatchClock(s.vslWatched.duration)}`
+                            : ""}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--muted-foreground)]">-</span>
+                      )}
+                    </td>
                     {/* Result over PDF */}
                     <td className="px-3 py-2">
                       {s.status === "COMPLETED" ? (

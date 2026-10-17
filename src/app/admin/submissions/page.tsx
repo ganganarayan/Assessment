@@ -132,6 +132,16 @@ export default async function SubmissionsPage({
       productPaidAt: productSales.get(s.id)?.at ?? null,
       paymentLinks: payLinks.get(s.id) ?? [],
       vslLoads: s.resultFetchCount,
+      // Derived on write from the per-session map, so this is already the
+      // across-every-visit figure and cannot have fallen - see watch/merge.ts.
+      vslWatched:
+        s.vslWatchSeconds !== null && s.vslWatchSeconds !== undefined
+          ? {
+              seconds: s.vslWatchSeconds,
+              pct: Math.round(s.vslMaxPct ?? 0),
+              duration: s.vslDuration ?? null,
+            }
+          : null,
       ctaClickedAt: s.ctaClickedAt?.toISOString() ?? null,
       metaQualifiedAt: s.metaQualifiedAt?.toISOString() ?? null,
       metaStartTrialAt: s.metaStartTrialAt?.toISOString() ?? null,

@@ -1,4 +1,5 @@
 import { appendVidapulseId, stampVidapulseCtaUrl } from "@/lib/vidapulse";
+import { VslWatchListener } from "@/features/assessment/components/public/vsl-watch-listener";
 import {
   themeOf,
   extractEmbedSrc,
@@ -46,6 +47,13 @@ export function VslResultPage({
   const t = themeOf(page.theme);
   return (
     <main data-qa-step="vslResult" style={{ minHeight: "100vh", background: t.bg, color: t.text }}>
+      {/* Records how much of the VSL this person watches, from the player's own
+          messages. Mounted only when there IS a submission and a token: the token is
+          what authorises the write, and submissionId is null in an admin preview - so
+          previewing your own page never writes watch time onto somebody's lead. */}
+      {submissionId && resultToken ? (
+        <VslWatchListener submissionId={submissionId} resultToken={resultToken} />
+      ) : null}
       {/* Fluid container: fills the available width with responsive left/right gutters
           (16px on a phone → up to ~64px on a wide screen), capped so text stays
           readable on very large monitors instead of being a narrow fixed column. */}
