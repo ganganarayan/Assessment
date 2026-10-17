@@ -52,17 +52,22 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    // Everything that points at Meta. The ad account comes first because setting a
+    // pixel is the first thing a new workspace does, and the tester is how you check
+    // it. Same split as /admin: Automation was carrying seven unrelated items.
+    title: "Ads",
+    items: [
+      { href: "/w/ad-accounts", label: "Ad accounts" },
+      { href: "/w/pixel-test", label: "Pixel Tester" },
+    ],
+  },
+  {
+    // What fires on its own after a lead arrives, and nothing else.
     title: "Automation",
     items: [
-      // Above the testers: setting a pixel is the first thing a new workspace does, and
-      // every other item in this group is for checking something that is already wired.
-      { href: "/w/ad-accounts", label: "Ad accounts" },
+      { href: "/w/nurture", label: "Nurture" },
       { href: "/w/webhooks", label: "Webhooks", exact: true },
       { href: "/w/webhooks/logs", label: "Webhook Logs" },
-      { href: "/w/nurture", label: "Nurture" },
-      { href: "/w/pixel-test", label: "Pixel Tester" },
-      { href: "/w/api", label: "API tokens" },
-      { href: "/w/ai", label: "AI" },
     ],
   },
   {
@@ -78,12 +83,17 @@ const SECTIONS: NavSection[] = [
   {
     title: "Account",
     items: [
+      // Which provider and key this workspace generates with - a credential, like the
+      // API tokens below. /admin has always kept AI here; this is the rail catching up.
+      { href: "/w/ai", label: "AI" },
       // Shown only when the plan includes client workspaces (the layout hides it
       // otherwise). It lives in Account rather than Build because it is about who you
       // are running the tool for, not about the scorecards inside any one workspace.
       { href: "/w/agency-tenants", label: "Client workspaces" },
       { href: "/w/operations", label: "Operations" },
       { href: "/w/staff", label: "Staff" },
+      // Who you are to our API. Not something that runs by itself.
+      { href: "/w/api", label: "API tokens" },
       { href: "/w/billing", label: "Billing" },
       { href: "/w/settings", label: "Settings" },
     ],

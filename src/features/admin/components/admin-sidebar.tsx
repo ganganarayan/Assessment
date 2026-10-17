@@ -74,14 +74,25 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Automation",
+    // Everything that points at Meta, in the order a workspace needs it: the ad
+    // account holds the pixel and the CAPI token, the tester proves they fire.
+    //
+    // Split out of Automation because Automation had become the drawer for anything
+    // with an API in it - six items covering ads, email, WhatsApp, webhooks and
+    // machine tokens, which is a pile rather than a group.
+    title: "Ads",
     items: [
       { href: "/admin/ad-accounts", label: "Ad accounts" },
+      { href: "/admin/pixel-test", label: "Pixel Tester" },
+    ],
+  },
+  {
+    // What fires on its own after a lead arrives, and nothing else.
+    title: "Automation",
+    items: [
       { href: "/admin/nurture", label: "Nurture" },
       { href: "/admin/webhooks", label: "Webhooks", exact: true },
       { href: "/admin/webhook-logs", label: "Webhook Logs" },
-      { href: "/admin/pixel-test", label: "Pixel Tester" },
-      { href: "/admin/api-tokens", label: "API Tokens" },
     ],
   },
   {
@@ -100,6 +111,9 @@ const SECTIONS: NavSection[] = [
       { href: "/admin/ai", label: "AI" },
       { href: "/admin/operations", label: "Operations" },
       { href: "/admin/staff", label: "Staff" },
+      // A machine credential is who you are to the API, not a thing that runs by
+      // itself, so it belongs with the rest of the account rather than in Automation.
+      { href: "/admin/api-tokens", label: "API Tokens" },
       { href: "/admin/settings", label: "Settings" },
     ],
   },

@@ -2575,6 +2575,24 @@ model AppSetting {
   // (Tenant.unlimited) always see it regardless, because they are already using it.
   wabaEnabledGlobal Boolean @default(false)
 
+  // THE META APP behind one-click WhatsApp onboarding. Singleton row ONLY: there is one
+  // developer app (ours) and every tenant connects their own WABA through it, which is
+  // what being a Tech Provider means. A tenant never sees or sets these.
+  //
+  // Not env vars, deliberately. Settings over env is the rule here, and these change
+  // when the app is re-created or the secret is rotated - neither should need a deploy.
+  //
+  // metaEsConfigId is the Facebook Login for Business CONFIGURATION id, and it is also
+  // what pins the flow to Embedded Signup v4: the version is chosen by which products
+  // that configuration selects, not by anything we send. v2 was deprecated on
+  // 15-10-2026, so a configuration made before that is not safe to reuse.
+  metaAppId                 String?
+  metaAppSecretEnc          String?
+  metaEsConfigId            String?
+  // Shared secret echoed back to Meta on webhook verification (GET hub.challenge).
+  // Ours to invent; stored encrypted because it is a bearer-ish secret.
+  metaWebhookVerifyTokenEnc String?
+
   // PLATFORM MASTER SWITCH for respondent payments, meaningful ONLY on the singleton
   // row. False = no tenant funnel can take money, whatever its own switch or its
   // assessments say. The owner is not in the business of underwriting how other
@@ -2674,6 +2692,24 @@ model AppSetting {
   wabaAccessTokenEnc     String?
   wabaApiVersion         String? // e.g. "v21.0"
   wabaDefaultCountryCode String? // e.g. "91" - prepended to bare local mobiles for E.164
+  // ---- Coexistence onboarding (Embedded Signup) ------------------------------
+  // Filled by the one-click connect, never typed. The TOKEN still lands in
+  // wabaAccessTokenEnc above, so the sender and resolveWabaConfig are untouched: this
+  // block is only the provenance and the identity of what got connected.
+  //
+  // Coexistence means the number stays on the WhatsApp Business app on a phone AND
+  // answers the Cloud API at the same time. The one call that would break that is POST /{number}/register,
+  // which takes the number off the phone - so the connect flow never makes it, and
+  // wabaIsOnBizApp records what Meta said the number actually is.
+  wabaBusinessId         String? // Meta business portfolio id of the connected customer
+  wabaDisplayPhone       String? // e.g. "+91 98765 43210", for showing what is connected
+  wabaVerifiedName       String? // the display name Meta approved for the number
+  wabaIsOnBizApp         Boolean @default(false)
+  wabaOnboardedAt        DateTime?
+  // Last failure, shown verbatim on the settings card. A connect that half-finishes is
+  // the dangerous state, so the reason is kept rather than swallowed into a log nobody
+  // reads. Cleared on the next success.
+  wabaOnboardError       String?
   // The Nurture messages + on/off toggles, as JSON:
   //   { email: { enabled, subject, body }, waba: { enabled, template, lang, vars: string[] } }
   nurtureConfig          Json?

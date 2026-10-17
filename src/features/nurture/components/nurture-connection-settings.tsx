@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updateSmtpSettings, updateWabaSettings, sendSmtpTest, type NurtureSettingsView } from "@/features/nurture/actions";
+import { WhatsAppConnect } from "@/features/whatsapp/components/whatsapp-connect";
+import { type WhatsAppConnectView } from "@/features/whatsapp/types";
 
 /**
  * SMTP + WhatsApp (Meta Cloud API) connection settings for the acting scope. Secrets
@@ -13,17 +15,29 @@ import { updateSmtpSettings, updateWabaSettings, sendSmtpTest, type NurtureSetti
 export function NurtureConnectionSettings({
   initial,
   showWaba = true,
+  whatsapp = null,
 }: {
   initial: NurtureSettingsView;
   /** False while WhatsApp is parked - saved credentials stay in the row, unread. */
   showWaba?: boolean;
+  /**
+   * One-click connect state for this scope. Null renders the manual fields alone,
+   * which is the right fallback: a scope with no platform Meta app behind it must not
+   * be shown a button that can only dead-end.
+   */
+  whatsapp?: WhatsAppConnectView | null;
 }) {
   return (
     <div className="flex flex-col gap-6">
       <SmtpForm initial={initial.smtp} />
       {showWaba ? (
-        <div className="border-t pt-6">
-          <WabaForm initial={initial.waba} />
+        <div className="flex flex-col gap-4 border-t pt-6">
+          {/* The button first, because for anyone starting out it is the whole job.
+              The five fields stay underneath for a number that was connected by hand
+              before this existed, and as the way through when Meta is having a bad
+              day. */}
+          {whatsapp ? <WhatsAppConnect initial={whatsapp} /> : null}
+          <WabaForm initial={initial.waba} collapsed={!!whatsapp?.connected} />
         </div>
       ) : null}
     </div>
@@ -115,12 +129,29 @@ function SmtpForm({ initial }: { initial: NurtureSettingsView["smtp"] }) {
   );
 }
 
-function WabaForm({ initial }: { initial: NurtureSettingsView["waba"] }) {
+/**
+ * The manual five fields.
+ *
+ * Still here on purpose. One-click covers everybody starting from scratch, but a
+ * number connected by hand before this existed keeps working through exactly these
+ * columns, and when Meta's popup refuses to finish, a pasted token is the way through.
+ *
+ * `collapsed` folds it away once a connection exists, because five empty credential
+ * boxes underneath the word "Connected" read as if something is still missing.
+ */
+function WabaForm({
+  initial,
+  collapsed = false,
+}: {
+  initial: NurtureSettingsView["waba"];
+  collapsed?: boolean;
+}) {
   const [v, setV] = useState({
     phoneNumberId: initial.phoneNumberId, businessAccountId: initial.businessAccountId, accessToken: "",
     apiVersion: initial.apiVersion || "v21.0", defaultCountryCode: initial.defaultCountryCode || "91",
   });
   const [msg, setMsg] = useState<string | null>(null);
+  const [open, setOpen] = useState(!collapsed);
   const [pending, start] = useTransition();
   const save = () =>
     start(async () => {
@@ -130,25 +161,36 @@ function WabaForm({ initial }: { initial: NurtureSettingsView["waba"] }) {
     });
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm font-medium">WhatsApp - Meta Cloud API</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Phone number ID"><Input value={v.phoneNumberId} onChange={(e) => setV({ ...v, phoneNumberId: e.target.value })} /></Field>
-        <Field label="Business Account ID (for templates)"><Input value={v.businessAccountId} placeholder="WABA id from WhatsApp Manager" onChange={(e) => setV({ ...v, businessAccountId: e.target.value })} /></Field>
-        <Field label={`Access token ${initial.hasToken ? "(saved - leave blank to keep)" : ""}`}>
-          <Input type="password" value={v.accessToken} placeholder={initial.hasToken ? "••••••••" : ""} onChange={(e) => setV({ ...v, accessToken: e.target.value })} />
-        </Field>
-        <Field label="API version"><Input value={v.apiVersion} placeholder="v21.0" onChange={(e) => setV({ ...v, apiVersion: e.target.value })} /></Field>
-        <Field label="Default country code"><Input value={v.defaultCountryCode} placeholder="91" onChange={(e) => setV({ ...v, defaultCountryCode: e.target.value })} /></Field>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium">WhatsApp - Meta Cloud API</p>
+        {collapsed ? (
+          <Button size="sm" variant="ghost" onClick={() => setOpen((o) => !o)}>
+            {open ? "Hide these fields" : "Enter details by hand"}
+          </Button>
+        ) : null}
       </div>
-      <p className="text-xs text-[var(--muted-foreground)]">
-        The token is a permanent WhatsApp Cloud API access token. Default country code is prepended to
-        local mobiles (e.g. a 10-digit Indian number) so WhatsApp gets a full international number. The
-        <strong> Business Account ID</strong> (WABA id, from Meta WhatsApp Manager) is only needed to load
-        your approved templates on the Nurture page - the token must have <strong>whatsapp_business_management</strong>.
-      </p>
-      <div>
-        <Button size="sm" onClick={save} disabled={pending}>Save WhatsApp settings</Button>
-      </div>
+      {open ? (
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Phone number ID"><Input value={v.phoneNumberId} onChange={(e) => setV({ ...v, phoneNumberId: e.target.value })} /></Field>
+            <Field label="Business Account ID (for templates)"><Input value={v.businessAccountId} placeholder="WABA id from WhatsApp Manager" onChange={(e) => setV({ ...v, businessAccountId: e.target.value })} /></Field>
+            <Field label={`Access token ${initial.hasToken ? "(saved - leave blank to keep)" : ""}`}>
+              <Input type="password" value={v.accessToken} placeholder={initial.hasToken ? "••••••••" : ""} onChange={(e) => setV({ ...v, accessToken: e.target.value })} />
+            </Field>
+            <Field label="API version"><Input value={v.apiVersion} placeholder="v21.0" onChange={(e) => setV({ ...v, apiVersion: e.target.value })} /></Field>
+            <Field label="Default country code"><Input value={v.defaultCountryCode} placeholder="91" onChange={(e) => setV({ ...v, defaultCountryCode: e.target.value })} /></Field>
+          </div>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            The token is a permanent WhatsApp Cloud API access token. Default country code is prepended to
+            local mobiles (e.g. a 10-digit Indian number) so WhatsApp gets a full international number. The
+            <strong> Business Account ID</strong> (WABA id, from Meta WhatsApp Manager) is only needed to load
+            your approved templates on the Nurture page - the token must have <strong>whatsapp_business_management</strong>.
+          </p>
+          <div>
+            <Button size="sm" onClick={save} disabled={pending}>Save WhatsApp settings</Button>
+          </div>
+        </div>
+      ) : null}
       {msg ? <p className="text-sm text-[var(--muted-foreground)]">{msg}</p> : null}
     </div>
   );

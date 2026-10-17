@@ -12,6 +12,10 @@ import { IntegrationSettingsForm } from "@/features/workspace/components/integra
 import { DomainSettings } from "@/features/workspace/components/domain-settings";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
 import { SupportWhatsappForm } from "@/features/support/components/whatsapp-form";
+import { NurtureConnectionSettings } from "@/features/nurture/components/nurture-connection-settings";
+import { getNurtureSettings } from "@/features/nurture/actions";
+import { getWhatsAppConnectInfo } from "@/features/whatsapp/actions";
+import { wabaVisible } from "@/lib/nurture/waba-visible";
 import { prisma } from "@/lib/db/prisma";
 import { isStaff } from "@/lib/auth/guards";
 import { WorkspaceLogins } from "@/features/workspace/components/workspace-logins";
@@ -34,12 +38,23 @@ export const dynamic = "force-dynamic";
  * singleton. An unconfigured tenant simply has no AI (it never borrows Gita's key).
  */
 export default async function WorkspaceSettingsPage() {
-  const { user, impersonating } = await requireWorkspace();
+  const { user, tenantId, impersonating } = await requireWorkspace();
   const integrations = await getIntegrationSettings();
   const domains = await getDomainSettings();
   const bookingUrl = await getBookingUrl();
   const supportEmail = await getSupportEmail();
   const themeColors = await getThemeColors();
+  /**
+   * Sender credentials for this workspace.
+   *
+   * These had no tenant-facing screen at all: SMTP and WhatsApp could only be set from
+   * /admin, which meant a customer could never connect their own number and the
+   * one-click button had nowhere to live for them. The actions were always acting-scoped,
+   * so this is a missing card rather than a missing feature.
+   */
+  const nurtureSettings = await getNurtureSettings();
+  const showWaba = await wabaVisible(tenantId);
+  const whatsapp = showWaba ? await getWhatsAppConnectInfo() : null;
   // Same trap as /admin: impersonating, "your own password" is the operator's, not
   // this tenant's. Inside someone else's workspace, show THEIR logins instead.
   const logins = impersonating ? await listWorkspaceLogins() : null;
@@ -136,6 +151,20 @@ export default async function WorkspaceSettingsPage() {
         </CardHeader>
         <CardContent>
           <SupportSettingsForm initial={supportEmail} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sender connection</CardTitle>
+          <CardDescription>
+            The email and WhatsApp accounts your one-shot opt-in message is sent FROM. Yours alone,
+            and never shared with any other workspace. Secrets are encrypted and never shown again.
+            The messages themselves are set under <Link className="underline" href="/w/nurture">Nurture</Link>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <NurtureConnectionSettings initial={nurtureSettings} showWaba={showWaba} whatsapp={whatsapp} />
         </CardContent>
       </Card>
 

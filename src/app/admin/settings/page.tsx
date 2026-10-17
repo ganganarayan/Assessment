@@ -42,6 +42,9 @@ import { SupportSettingsForm } from "@/features/support/components/support-setti
 import { getSupportSettings } from "@/features/support/actions/settings";
 import { NurtureConnectionSettings } from "@/features/nurture/components/nurture-connection-settings";
 import { getNurtureSettings } from "@/features/nurture/actions";
+import { getWhatsAppConnectInfo } from "@/features/whatsapp/actions";
+import { getMetaAppSettings } from "@/features/admin/actions/meta-app";
+import { MetaAppForm } from "@/features/admin/components/meta-app-form";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
 import { WorkspaceLogins } from "@/features/workspace/components/workspace-logins";
 import { listWorkspaceLogins } from "@/features/workspace/actions/logins";
@@ -83,6 +86,14 @@ export default async function SettingsPage() {
     impersonating ? Promise.resolve([]) : resolveOnboardingSteps(),
     impersonating ? Promise.resolve(null) : resolveDfyScarcity(),
     impersonating ? Promise.resolve(null) : resolveDfyWabaTemplate(),
+  ]);
+
+  // One-click WhatsApp: the connect card follows the ACTING scope (platform row, or
+  // the tenant being operated), while the Meta app behind every tenant button is
+  // platform-only and therefore not read while operating a workspace.
+  const [whatsapp, metaApp] = await Promise.all([
+    showWaba ? getWhatsAppConnectInfo() : Promise.resolve(null),
+    impersonating ? Promise.resolve(null) : getMetaAppSettings(),
   ]);
 
   // Platform-wide, so it is not read at all while operating a tenant's workspace: how
@@ -304,9 +315,26 @@ export default async function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NurtureConnectionSettings initial={nurtureSettings} showWaba={showWaba} />
+          <NurtureConnectionSettings initial={nurtureSettings} showWaba={showWaba} whatsapp={whatsapp} />
         </CardContent>
       </Card>
+
+      {metaApp ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>WhatsApp app (platform)</CardTitle>
+            <CardDescription>
+              The Meta developer app that every workspace connects THROUGH, so no customer ever
+              creates an app, generates a token, or waits for another admin in their own business to
+              approve anything. Set once. All four values come from developers.facebook.com, none
+              from Business settings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MetaAppForm initial={metaApp} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {!impersonating && legal ? (
         <Card>
