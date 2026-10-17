@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ImportWizard } from "@/features/assessment/components/admin/import-wizard";
 import { TextImport } from "@/features/assessment/components/admin/text-import";
 import { previewImport, importAssessments } from "@/features/assessment/actions/transfer";
+import { ImportSampleLink } from "@/features/assessment/components/admin/import-sample-link";
 
 export default function ImportAssessmentPage() {
   return (
@@ -22,6 +23,9 @@ export default function ImportAssessmentPage() {
 
       <div className="border-t pt-6">
         <h2 className="mb-3 text-lg font-semibold">From a JSON or CSV file</h2>
+        <div className="mb-4">
+          <ImportSampleLink />
+        </div>
         <p className="mb-3 text-xs text-[var(--muted-foreground)]">
           Moving to Assess360 from another tool? Take the file out of that tool and load it here.
         </p>

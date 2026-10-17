@@ -10,6 +10,7 @@ import {
   importTenantAssessments,
 } from "@/features/assessment/actions/transfer";
 import { buttonVariants } from "@/components/ui/button";
+import { ImportSampleLink } from "@/features/assessment/components/admin/import-sample-link";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,9 @@ export default async function WorkspaceImportPage() {
           never gated - a customer's own data must always come out. */}
       <div className="border-t pt-6">
         <h2 className="mb-3 text-lg font-semibold">From a JSON or CSV file</h2>
+        <div className="mb-4">
+          <ImportSampleLink />
+        </div>
         <p className="mb-3 text-xs text-[var(--muted-foreground)]">
           Moving to Assess360 from another tool? Take the file out of that tool and load it here.
         </p>
