@@ -1074,7 +1074,12 @@ export function AssessmentForm({
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={values.leadCaptureAfter}
+                  // Shown UNTICKED in split, whatever is stored, because unticked is
+                  // what is actually happening. A ticked box that does nothing reads as
+                  // "this is on" no matter what the note beside it says. The stored
+                  // value is left alone and comes back on switching modes, which the
+                  // note says out loud so it is not a surprise.
+                  checked={values.leadCaptureMode === "SPLIT" ? false : values.leadCaptureAfter}
                   disabled={values.leadCaptureMode === "SPLIT"}
                   onChange={(e) => set("leadCaptureAfter", e.target.checked)}
                 />
@@ -1082,9 +1087,9 @@ export function AssessmentForm({
               </label>
               {values.leadCaptureMode === "SPLIT" ? (
                 <p className="text-xs font-medium text-amber-500">
-                  Not used while lead capture is split. Split sets its own order, shown above, and
-                  this setting changes nothing either way. Switch back to &quot;All at once&quot; to
-                  use it.
+                  Not used while lead capture is split. Split sets its own order, shown above, so
+                  this is shown off because off is what is happening. Your saved setting is kept and
+                  comes back if you switch to &quot;All at once&quot;.
                 </p>
               ) : null}
               <p className="text-xs text-[var(--muted-foreground)]">
