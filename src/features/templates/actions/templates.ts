@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin, isStaff } from "@/lib/auth/guards";
+import { resolveActingScope, configTenantOf } from "@/lib/tenant/acting";
+import { PLATFORM_TENANT_ID, ownedWhere } from "@/lib/tenant/platform-tenant";
+import { buildAssessmentBody } from "@/features/assessment/transfer/export";
+import { shapeOf, freeTemplateSlug } from "@/features/templates/library-row";
 import { istMonthStart } from "@/lib/date";
 import { seedBuiltinTemplates, reseedOneBuiltin } from "@/features/templates/seed";
 import { templateDocSchema, tidyGateDefaults } from "@/features/templates/schema";
@@ -342,4 +346,95 @@ export async function reseedBuiltinTemplates(): Promise<ActionResult<ReseedResul
   const r = await seedBuiltinTemplates();
   bump();
   return { ok: true, data: r };
+}
+
+/**
+ * Put one of the PLATFORM's own assessments on the master library shelf.
+ *
+ * The missing half of the library. "Save as template" has always existed, but only in
+ * the workspace: a funnel built on /admin - the platform's own gate, the application,
+ * anything the owner authors to hand to customers - had no way into the library at all.
+ * Used from super-admin scope the tenant path would have written it as a PENDING
+ * CONTRIBUTION from the Platform tenant and then asked the owner to review his own
+ * submission, or as a PRIVATE row that can never be published. Neither is the thing
+ * that was wanted, so this writes the row the shelf actually holds: owned by nobody,
+ * approved from birth, built-in false because it came out of the app rather than the
+ * repo.
+ *
+ * 🔴 PLATFORM SCOPE ONLY. Refused while a workspace is entered, and the assessment must
+ * be the platform's own. A super admin standing inside a customer's workspace pressing
+ * this would hand that customer's questions to every other tenant on the install, and
+ * no screen anywhere says that is what the button does.
+ *
+ * 🔴 THE PROMPT IS NOT CARRIED unless the owner types one here. The tenant path resolves
+ * the assessment's own prompt version so nobody has to retype their instructions; doing
+ * that here would copy the PLATFORM's result-statement instructions into a template
+ * every workspace can import, which is the one piece of the product that is not for
+ * sale. Blank therefore means no prompt, not "use mine".
+ *
+ * Publishing is a separate tick by default, exactly as a seeded built-in is: a template
+ * reaches the first screen of every workspace on the install, and that should be a
+ * decision taken on the Templates screen with the content in front of you. `publish`
+ * is here for the case where it already was.
+ */
+export async function promoteAssessmentToLibrary(
+  assessmentId: string,
+  input: { title: string; category: string; summary: string; aiInstructions: string; publish: boolean },
+): Promise<ActionResult<{ templateId: string; published: boolean }>> {
+  const denied = await requireOwner();
+  if (denied) return denied;
+
+  const scope = await resolveActingScope();
+  if (configTenantOf(scope) !== PLATFORM_TENANT_ID) {
+    return {
+      ok: false,
+      error:
+        "You are inside a workspace. Leave it to promote a platform funnel, or use Save as template in the workspace to keep it theirs.",
+    };
+  }
+
+  const title = input.title.trim();
+  if (!title) return { ok: false, error: "A title is required - it is what people read on the shelf." };
+  const category = input.category.trim();
+  if (!category) return { ok: false, error: "Pick a category - it is how people find it." };
+
+  // Both spellings of the platform's own rows: everything written since the re-home
+  // carries the Platform tenant, everything before it carries null.
+  const owned = await prisma.assessment.findFirst({
+    where: { id: assessmentId, ...ownedWhere(PLATFORM_TENANT_ID) },
+    select: { id: true, slug: true, title: true },
+  });
+  if (!owned) return { ok: false, error: "That assessment is not one of the platform's own." };
+
+  const body = await buildAssessmentBody(assessmentId);
+  if (!body) return { ok: false, error: "Couldn't read that assessment." };
+  // A template is a blueprint, not a copy of one funnel's history.
+  delete body.createdAt;
+  if (body.categories.length === 0 && !body.qualification) {
+    return { ok: false, error: "There is nothing in this assessment to put on the shelf yet." };
+  }
+
+  const row = await prisma.template.create({
+    data: {
+      slug: await freeTemplateSlug(owned.slug),
+      title: title.slice(0, 160),
+      category: category.slice(0, 80),
+      summary: input.summary.trim().slice(0, 500) || null,
+      shape: shapeOf(body),
+      body: body as object,
+      aiInstructions: input.aiInstructions.trim().slice(0, 20000) || null,
+      // Authored in the app, not seeded from a file. The content is versioned the
+      // moment its JSON is downloaded into src/features/templates/builtin and listed
+      // in the index: the seeder upserts by slug, so this same row is adopted and
+      // keeps its place on the shelf.
+      builtin: false,
+      ownerTenantId: null,
+      reviewStatus: "APPROVED",
+      published: input.publish,
+    },
+    select: { id: true, published: true },
+  });
+
+  bump();
+  return { ok: true, data: { templateId: row.id, published: row.published } };
 }

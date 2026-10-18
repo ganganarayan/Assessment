@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { listAssessments } from "@/features/assessment/data";
-import { actingDataScope } from "@/lib/tenant/acting";
-import { currentUserCanEdit } from "@/lib/auth/guards";
+import { actingDataScope, actingTenantId } from "@/lib/tenant/acting";
+import { currentUserCanEdit, requireSuperAdmin, isStaff } from "@/lib/auth/guards";
+import { PromoteToLibraryButton } from "@/features/templates/components/promote-to-library";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -13,10 +14,17 @@ export const dynamic = "force-dynamic";
 /** Assessment Builder: every assessment (draft + published). Click one to open it
  *  in the builder (Assessment + Results pages). Create / import / export live here. */
 export default async function AssessmentBuilderPage() {
-  const [assessments, canEdit] = await Promise.all([
+  const [assessments, canEdit, user, entered] = await Promise.all([
     listAssessments(await actingDataScope()),
     currentUserCanEdit(),
+    requireSuperAdmin(),
+    // Null = standing on the platform's own scope. Inside a workspace these are the
+    // TENANT's funnels, and promoting one would hand their questions to every other
+    // workspace - the action refuses it, so the button is not offered either.
+    actingTenantId(),
   ]);
+  /** Owner only, like every other library mutation: staff may read the shelf, never stock it. */
+  const canPromote = !isStaff(user) && entered === null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -50,24 +58,29 @@ export default async function AssessmentBuilderPage() {
       ) : (
         <div className="flex flex-col divide-y rounded-lg border">
           {assessments.map((a) => (
-            <div key={a.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  {canEdit ? (
-                    <Link href={`/admin/assessments/${a.id}`} className="font-medium hover:underline">
-                      {a.title}
-                    </Link>
-                  ) : (
-                    <span className="font-medium">{a.title}</span>
-                  )}
-                  <Badge variant={a.status === "PUBLISHED" ? "success" : "muted"}>{a.status}</Badge>
+            <div key={a.id} className="flex flex-col gap-3 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    {canEdit ? (
+                      <Link href={`/admin/assessments/${a.id}`} className="font-medium hover:underline">
+                        {a.title}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">{a.title}</span>
+                    )}
+                    <Badge variant={a.status === "PUBLISHED" ? "success" : "muted"}>{a.status}</Badge>
+                  </div>
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    /a/{a.slug} · {a._count.categories} categories · {a._count.submissions} submissions ·{" "}
+                    <span className="whitespace-nowrap">Created {formatIST(a.createdAt)}</span>
+                  </p>
                 </div>
-                <p className="text-xs text-[var(--muted-foreground)]">
-                  /a/{a.slug} · {a._count.categories} categories · {a._count.submissions} submissions ·{" "}
-                  <span className="whitespace-nowrap">Created {formatIST(a.createdAt)}</span>
-                </p>
+                <AssessmentRowActions id={a.id} slug={a.slug} published={a.status === "PUBLISHED"} canEdit={canEdit} />
               </div>
-              <AssessmentRowActions id={a.id} slug={a.slug} published={a.status === "PUBLISHED"} canEdit={canEdit} />
+              {/* Its own line: open, this is a panel rather than a button, and the
+                  actions above it are already a wrapping row on a phone. */}
+              {canPromote ? <PromoteToLibraryButton assessmentId={a.id} defaultTitle={a.title} /> : null}
             </div>
           ))}
         </div>

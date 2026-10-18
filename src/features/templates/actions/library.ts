@@ -10,6 +10,7 @@ import { buildAssessmentBody } from "@/features/assessment/transfer/export";
 import { importTemplateForTenant } from "@/features/templates/import";
 import { assessmentCreateData, createResultDocsForImport } from "@/features/assessment/transfer/import";
 import { parseTemplateBody } from "@/features/templates/schema";
+import { shapeOf, freeTemplateSlug } from "@/features/templates/library-row";
 import { nextVersionNumber } from "@/lib/ai/versions";
 import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -75,33 +76,6 @@ export async function importTemplate(templateId: string): Promise<ActionResult<T
   revalidatePath("/admin");
   revalidatePath("/admin/assessments");
   return { ok: true, data: r.data };
-}
-
-/** Work out which shape a funnel actually IS, rather than asking the tenant to classify
- *  their own assessment and getting it wrong. */
-function shapeOf(body: { qualification?: unknown; categories: Array<{ questions: unknown[] }> }):
-  | "GATE_ONLY"
-  | "GATED_ASSESSMENT"
-  | "UNGATED_ASSESSMENT" {
-  const q = body.qualification as { enabled?: boolean; questions?: unknown[] } | null | undefined;
-  const gated = q?.enabled === true && (q.questions?.length ?? 0) > 0;
-  const questions = body.categories.reduce((n, c) => n + c.questions.length, 0);
-  if (gated && questions === 0) return "GATE_ONLY";
-  return gated ? "GATED_ASSESSMENT" : "UNGATED_ASSESSMENT";
-}
-
-/** A free template slug derived from the assessment's own. The library slug is separate
- *  from any assessment slug, so collisions here only ever involve other templates. */
-async function freeTemplateSlug(base: string): Promise<string> {
-  const stem = (base || "template").slice(0, 60);
-  let candidate = stem;
-  let n = 1;
-  while (await prisma.template.findUnique({ where: { slug: candidate }, select: { id: true } })) {
-    n += 1;
-    candidate = `${stem}-${n}`;
-    if (n > 200) return `${stem}-${Date.now()}`;
-  }
-  return candidate;
 }
 
 /**
