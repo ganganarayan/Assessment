@@ -1056,6 +1056,27 @@ export function AssessmentRunner({
       setError("Please fill this in to continue.");
       return;
     }
+    // 🔴 TWO, and the number is the whole argument.
+    //
+    // This catches the SLIP - a stray keystroke and a tap on Continue, which is how a
+    // single "s" reached a Company name field - and nothing else. It cannot catch
+    // somebody typing junk, because "abc" clears any floor low enough to admit 3M, HP,
+    // GE, BP and LG, which are real companies and real employers of the people this
+    // gate is for. Rejecting a real answer costs a lead that was paid for; letting a
+    // scruffy one through costs one click in Submissions.
+    //
+    // No letter or repeated-character rule on purpose: a company really can be AA.
+    //
+    // Client-side only, deliberately. A gate TEXT answer never qualifies or
+    // disqualifies anybody - it is stored for the owner to read - so this is a guard
+    // against a mistake, not a boundary anything depends on, and the server has no
+    // reason to re-litigate it.
+    if (required && v.length < 2) {
+      // The threshold is never stated: "minimum 2 characters" tells somebody exactly
+      // how much padding to type.
+      setError("That looks too short. Please write it in full.");
+      return;
+    }
     setError(null);
     if (!qual) return;
     if (qualIndex < qual.questions.length - 1) setQualIndex((i) => i + 1);
