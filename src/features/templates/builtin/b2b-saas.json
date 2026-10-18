@@ -1,0 +1,890 @@
+{
+  "slug": "b2b-saas",
+  "title": "B2B SaaS",
+  "category": "B2B SaaS",
+  "summary": "Screens out the companies that cannot buy yet, then scores the rest on what the problem costs them, whether a decision can be made and whether they can implement. Ships with both result pages.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "Write three or four short sentences to one person about their own answers.\n\nName the single weakest of the three areas and what it will cost them in the first ninety days if it is not dealt with first. Be specific about what their answers showed. Do not list the other two areas and do not give the fix: say what is at stake, and that the order of the work is the thing worth deciding together. No greeting, no sign-off, no exclamation marks and no bullet points. British spelling. Never promise an outcome and never mention a price.",
+  "body": {
+    "title": "B2B SaaS",
+    "slug": "b2b-saas",
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 4,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": false,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "17 questions, 4 minutes",
+    "subheadline": "An honest read on whether your company can buy and implement this quarter, or whether the timing is the real problem.",
+    "qualifiedNote": "You qualify for a working conversation. Where should we send the scorecard?",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "How many people would use this day to day?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "A hundred or more",
+              "points": 0
+            },
+            {
+              "id": "g1b",
+              "label": "Twenty to ninety-nine",
+              "points": 0
+            },
+            {
+              "id": "g1c",
+              "label": "Five to nineteen",
+              "points": 0
+            },
+            {
+              "id": "g1d",
+              "label": "Just me",
+              "points": 0,
+              "disqualifies": true
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "Where would the budget for this come from?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "An approved line for this year",
+              "points": 0
+            },
+            {
+              "id": "g2b",
+              "label": "A line I control, not yet allocated",
+              "points": 0
+            },
+            {
+              "id": "g2c",
+              "label": "It would need a business case first",
+              "points": 0
+            },
+            {
+              "id": "g2d",
+              "label": "There is no budget for software at all",
+              "points": 0,
+              "disqualifies": true
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "Who signs this off?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "I do",
+              "points": 0
+            },
+            {
+              "id": "g3b",
+              "label": "I recommend it, one other person signs",
+              "points": 0
+            },
+            {
+              "id": "g3c",
+              "label": "A committee decides",
+              "points": 0
+            },
+            {
+              "id": "g3d",
+              "label": "Nobody has been identified yet",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "When would you want this working?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "This quarter",
+              "points": 0
+            },
+            {
+              "id": "g4b",
+              "label": "Next quarter",
+              "points": 0
+            },
+            {
+              "id": "g4c",
+              "label": "Some time this year",
+              "points": 0
+            },
+            {
+              "id": "g4d",
+              "label": "No date in mind, I am reading",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "What are you using for this today?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "A competing tool we pay for",
+              "points": 0
+            },
+            {
+              "id": "g5b",
+              "label": "Spreadsheets and email",
+              "points": 0
+            },
+            {
+              "id": "g5c",
+              "label": "Something built in-house",
+              "points": 0
+            },
+            {
+              "id": "g5d",
+              "label": "Nothing at all",
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thanks for being straight about it.",
+      "subtext": "On your answers this is not the right time, so we will not take up more of yours. Come back when the budget or the team changes and the picture will be different.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "key": "cost",
+        "name": "What the problem costs",
+        "description": "Whether this is an irritation or a number somebody is already losing.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. Nothing else here pays off until this moves.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and already costing something. A focused month here changes the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest is repaired.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How often does this problem actually bite?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Once or twice a year",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Monthly",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Weekly",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Every single day",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What does one occurrence cost you, in money or hours?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "We have never worked it out",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A few hours of somebody's time",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A day of work, or a small refund",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Real revenue, every time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Who feels it when it goes wrong?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "One person, quietly",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "One team",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Several teams",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Our customers",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What have you already tried?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Nothing yet",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "We talked about it",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "We changed the process and it drifted back",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "We built or bought something and it did not hold",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "act",
+        "name": "Ability to act",
+        "description": "Whether a decision can actually be made, and how long it takes.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. Nothing else here pays off until this moves.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and already costing something. A focused month here changes the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest is repaired.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "How far has the budget conversation gone?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not started",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Mentioned in passing",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A number has been discussed",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "It is approved and waiting",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How many people have to agree before you can sign?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "More than four, or we do not know",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Three or four",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Two of us",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Just me",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What does your security or procurement review involve?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "A long review we have not scoped",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A questionnaire and a few weeks",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A light check",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Nothing beyond my own sign-off",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "What happens if this is still unsolved in six months?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Nothing much changes",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "It stays annoying",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "We miss a target",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Somebody is answering for it",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "implement",
+        "name": "Implementation reality",
+        "description": "Whether what you buy can survive contact with how you work.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "The weakest part of the picture. Nothing else here pays off until this moves.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Workable, and already costing something. A focused month here changes the whole score.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "A genuine strength. Lean on it while the rest is repaired.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "Where does the data this would need live today?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "In people's heads and inboxes",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Spreadsheets, maintained by hand",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A system, partly complete",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A system, complete and current",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Is the process this touches written down anywhere?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "No, everyone does it their own way",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Roughly, and it is out of date",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Yes, and most people follow it",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Yes, and it is enforced",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Who would own this internally once it is live?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Nobody, we would need to hire",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A team, with no single owner",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A named person, part time",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A named person, as their job",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "How much of that person's time is free in the next month?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "None at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "An hour here and there",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A few hours a week",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Whatever this needs",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Not a buyer this quarter",
+        "minScore": 0,
+        "maxScore": 40,
+        "displayOrder": 0,
+        "description": "The problem is real enough to read about and not yet expensive enough to act on. Nothing here is wrong; the timing is."
+      },
+      {
+        "level": "MEDIUM",
+        "title": "A real problem with no path to act",
+        "minScore": 41,
+        "maxScore": 59,
+        "displayOrder": 1,
+        "description": "The cost is there. What is missing is the route to a decision, and that is usually one conversation with one person rather than a better product."
+      },
+      {
+        "level": "HIGH",
+        "title": "Worth a conversation now",
+        "minScore": 60,
+        "maxScore": 75,
+        "displayOrder": 2,
+        "description": "A genuine problem, a way to pay for it and somebody to own it. One of the three areas below is still soft, and that is what a short call should be spent on."
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Ready, and the clock is running",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3,
+        "description": "Everything an implementation needs is already in place, and the cost of waiting is being paid every week. The only question left is when you start."
+      }
+    ],
+    "publishedPages": [
+      {
+        "id": "p1",
+        "order": 0,
+        "title": null,
+        "blocks": [
+          {
+            "id": "b1",
+            "type": "text",
+            "order": 0,
+            "config": {
+              "heading": "What your answers say about your buying window",
+              "content": "This is scored on the three things that decide whether software ever lands: what the problem costs you, whether a decision can be made, and whether your data and your people can carry it."
+            }
+          },
+          {
+            "id": "b2",
+            "type": "overall_band",
+            "order": 1,
+            "config": {
+              "prefix": "Your readiness:"
+            }
+          },
+          {
+            "id": "b3",
+            "type": "band_sentence",
+            "order": 2,
+            "config": {
+              "byBand": {
+                "LOW": "The honest read: this is not the quarter. Keep the problem measured and the case will write itself when the cost rises.",
+                "MEDIUM": "You have the problem and not the path. The shortest route is naming who signs, before anything else.",
+                "HIGH": "You are close. One of the three areas below is soft enough to sink the first month, and it is the thing worth half an hour.",
+                "CRITICAL": "You are ready, and waiting is now the expensive option. The breakdown below says where to start in week one."
+              }
+            }
+          },
+          {
+            "id": "b4",
+            "type": "category_scores",
+            "order": 3,
+            "config": {
+              "heading": "Where the friction actually is"
+            }
+          },
+          {
+            "id": "b5",
+            "type": "text",
+            "order": 4,
+            "config": {
+              "heading": "What this does not tell you",
+              "content": "A score says where you stand. It does not say which of these to fix first, in what order, or what it costs to get that order wrong. That depends on your numbers, and it takes a conversation rather than a form."
+            }
+          }
+        ]
+      }
+    ],
+    "resultPage": {
+      "theme": "light_green",
+      "blocks": [
+        {
+          "id": "v1",
+          "type": "eyebrow",
+          "config": {
+            "text": "Your readiness scorecard"
+          }
+        },
+        {
+          "id": "v2",
+          "type": "headline",
+          "config": {
+            "text": "Here is the part of this that decides your first ninety days"
+          }
+        },
+        {
+          "id": "v3",
+          "type": "subhead",
+          "config": {
+            "text": "Read the summary below, then watch the short walkthrough. It is the same thing we would say on a call, minus your numbers."
+          }
+        },
+        {
+          "id": "v4",
+          "type": "ai_statement",
+          "config": {
+            "fallback": "Your answers put the pressure in one of three places: what the problem costs, whether a decision can be made, or whether your data and people can carry it. Which one it is changes what you should do first."
+          }
+        },
+        {
+          "id": "v5",
+          "type": "video",
+          "config": {
+            "embedCode": ""
+          }
+        },
+        {
+          "id": "v6",
+          "type": "button",
+          "config": {
+            "label": "Book the 30 minutes",
+            "url": "",
+            "fontSize": 18,
+            "align": "center",
+            "bookingCta": false
+          }
+        },
+        {
+          "id": "v7",
+          "type": "text",
+          "config": {
+            "text": "Thirty minutes, your numbers, and a straight answer on whether this is worth doing now or in six months.",
+            "align": "center"
+          }
+        },
+        {
+          "id": "v8",
+          "type": "testimonials",
+          "config": {
+            "heading": "What it looked like for them",
+            "items": []
+          }
+        },
+        {
+          "id": "v9",
+          "type": "footer",
+          "config": {
+            "links": [],
+            "disclaimer": "",
+            "copyright": ""
+          }
+        }
+      ]
+    },
+    "resultPagePublished": {
+      "theme": "light_green",
+      "blocks": [
+        {
+          "id": "v1",
+          "type": "eyebrow",
+          "config": {
+            "text": "Your readiness scorecard"
+          }
+        },
+        {
+          "id": "v2",
+          "type": "headline",
+          "config": {
+            "text": "Here is the part of this that decides your first ninety days"
+          }
+        },
+        {
+          "id": "v3",
+          "type": "subhead",
+          "config": {
+            "text": "Read the summary below, then watch the short walkthrough. It is the same thing we would say on a call, minus your numbers."
+          }
+        },
+        {
+          "id": "v4",
+          "type": "ai_statement",
+          "config": {
+            "fallback": "Your answers put the pressure in one of three places: what the problem costs, whether a decision can be made, or whether your data and people can carry it. Which one it is changes what you should do first."
+          }
+        },
+        {
+          "id": "v5",
+          "type": "video",
+          "config": {
+            "embedCode": ""
+          }
+        },
+        {
+          "id": "v6",
+          "type": "button",
+          "config": {
+            "label": "Book the 30 minutes",
+            "url": "",
+            "fontSize": 18,
+            "align": "center",
+            "bookingCta": false
+          }
+        },
+        {
+          "id": "v7",
+          "type": "text",
+          "config": {
+            "text": "Thirty minutes, your numbers, and a straight answer on whether this is worth doing now or in six months.",
+            "align": "center"
+          }
+        },
+        {
+          "id": "v8",
+          "type": "testimonials",
+          "config": {
+            "heading": "What it looked like for them",
+            "items": []
+          }
+        },
+        {
+          "id": "v9",
+          "type": "footer",
+          "config": {
+            "links": [],
+            "disclaimer": "",
+            "copyright": ""
+          }
+        }
+      ]
+    }
+  }
+}

@@ -34,6 +34,9 @@ import webinarAttendeeFit from "./webinar-attendee-fit.json";
 // Platform-owned, not an audience template: the survey a cancelling customer sees.
 import cancellationExitWhyYouLeft from "./cancellation-exit-why-you-left.json";
 import candidateRoleFit from "./candidate-role-fit.json";
+// Authored with BOTH result pages in it, which is what lets the import ask which one a
+// workspace wants. The other twenty carry neither.
+import b2bSaas from "./b2b-saas.json";
 
 export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   coachClientFit,
@@ -56,5 +59,6 @@ export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   insuranceEligibilityFit,
   webinarAttendeeFit,
   candidateRoleFit,
+  b2bSaas,
   cancellationExitWhyYouLeft,
 ];
