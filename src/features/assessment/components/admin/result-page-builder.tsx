@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { VideoSourceHint } from "@/features/assessment/components/admin/video-source-hint";
 import {
   RESULT_BLOCK_TYPES,
   type BlockAudience,
@@ -403,8 +404,8 @@ function BlockEditor({
 
       {block.type === "video" ? (
         <>
-          <p className="text-xs text-[var(--muted-foreground)]">Paste the VSL video embed code (e.g. from VidaPulse). Only the iframe is used.</p>
-          <Textarea rows={3} placeholder='<iframe src="…"></iframe>' value={str(c.embedCode)} onChange={(e) => set({ embedCode: e.target.value })} onBlur={onBlur} spellCheck={false} />
+          <VideoSourceHint />
+          <Textarea rows={3} placeholder="https://your-bucket/video.mp4 or an embed code" value={str(c.embedCode)} onChange={(e) => set({ embedCode: e.target.value })} onBlur={onBlur} spellCheck={false} />
         </>
       ) : null}
 

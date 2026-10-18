@@ -12,8 +12,7 @@ import { resolvePlan } from "@/lib/billing/entitlements";
 import { getSetupProgress } from "@/features/workspace/data/setup-progress";
 import { SetupProgressPanel } from "@/features/workspace/components/setup-progress-panel";
 import { TrialFocus } from "@/features/billing/components/trial-focus";
-import { getOnboardingView, getStarterTemplates } from "@/features/onboarding/data";
-import { OnboardingDialog } from "@/features/onboarding/components/onboarding-dialog";
+import { getOnboardingView } from "@/features/onboarding/data";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -70,17 +69,14 @@ export default async function WorkspaceDashboardPage() {
   ]);
 
   /**
-   * THE GUIDED SETUP, which opens over this page until it is finished.
+   * THE GUIDED SETUP's position, for the way back into it.
    *
-   * Not while a super admin is operating the workspace: the questions are the customer's
-   * to answer, and an owner who entered a tenant to fix something must not be asked for
-   * their WhatsApp number on the customer's behalf.
-   *
-   * Closed, the same component renders as a Resume button, so the way back in is on the
-   * screen they land on rather than in a menu.
+   * The dialog itself is mounted in the workspace shell, because it has to be able to
+   * appear in the builder the moment a funnel is published. What belongs HERE is the
+   * line that says where they are, for somebody who closed it: without that, a
+   * workspace that dismissed the sequence has no visible way back to it.
    */
   const onboarding = impersonating || !canEdit ? null : await getOnboardingView(tenantId, user.id);
-  const starters = onboarding && !onboarding.complete ? await getStarterTemplates(tenantId) : [];
 
   const capReason = cap.ok
     ? null
@@ -97,14 +93,10 @@ export default async function WorkspaceDashboardPage() {
 
       <TrialFocus resolved={resolved} />
 
-      {/* 🟡 OPENS BY ITSELF ONLY WHILE THERE IS NO FUNNEL YET. That is what tells a
-          workspace being set up apart from one that has been working for months: the
-          second kind has answered most of this already, by hand, and an established
-          customer does not want a dialog in front of their dashboard to confirm their
-          own business name. They get the Resume button instead, which is the same
-          component closed. */}
       {onboarding && !onboarding.complete ? (
-        <OnboardingDialog initial={onboarding} templates={starters} openOnLoad={counts.assessments === 0} />
+        <Link href="/w/start" className={buttonVariants({ variant: "outline", size: "sm" })}>
+          Resume setup (step {onboarding.currentNumber} of {onboarding.total})
+        </Link>
       ) : null}
 
       <SetupProgressPanel progress={setup} />

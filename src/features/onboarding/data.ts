@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { resolveMetaConfig } from "@/lib/settings/config";
 import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
 import { listTemplatesForTenant } from "@/features/templates/data";
+import { wabaVisible } from "@/lib/nurture/waba-visible";
 import {
   ONBOARDING_STEPS,
   visibleSteps,
@@ -17,7 +18,7 @@ import {
  *
  * 1. The journal (onboarding_answer): the questions they have answered or skipped.
  * 2. THE FACTS: the pixel that resolves, the sender that is configured, the colour that
- *    exists, the funnel they already built.
+ *    exists, the funnel they built, the preview they ran, the funnel they published.
  *
  * The facts are read first and they are why this can be switched on for an install that
  * already has customers: a workspace that configured everything by hand months ago is
@@ -25,6 +26,10 @@ import {
  * tell us". It is also what makes a stored answer impossible to lie with - a journal row
  * claiming the pixel is done cannot survive a pixel that does not resolve, since the
  * fact is merged over it.
+ *
+ * Two of those facts are what turn this from a form into something that follows them:
+ * the preview run and the first publish are both discovered, so publishing a funnel in
+ * the builder is what moves the sequence on to the link for their ad.
  *
  * The POSITION is the first visible step with neither. Recomputed on every load, so the
  * same person resumes in the same place on another device, after a reorder, and after a
@@ -42,21 +47,49 @@ export interface OnboardingStepView {
   choices?: StepChoice[];
   skippable?: boolean;
   cta?: string;
+  link?: { href: string; label: string };
   /** What is on record. Null for a secret, which never comes back. */
   value: string | null;
   answered: boolean;
   skipped: boolean;
 }
 
+/**
+ * The few live details the copy cannot carry: which funnel to preview, which to open,
+ * which slug goes in the ad. Slugs rather than URLs, because the absolute link is built
+ * from the origin the operator is actually browsing - the same rule the Copy link button
+ * on the Assessments screen follows, and the reason it is right on a custom domain.
+ */
+export interface OnboardingContext {
+  hasFunnel: boolean;
+  /** The newest funnel in this workspace, for the builder link. */
+  assessmentId: string | null;
+  /** Its slug, for the preview run. */
+  previewSlug: string | null;
+  /** The published funnel's slug, for the ad. Null until something is published. */
+  publishedSlug: string | null;
+}
+
 export interface OnboardingView {
   steps: OnboardingStepView[];
   /** The step to ask now. Null when there is nothing left. */
   currentKey: string | null;
-  /** 1-based, for "step 4 of 16". 0 when complete. */
+  /** 1-based, for "step 4 of 24". 0 when complete. */
   currentNumber: number;
   doneCount: number;
   total: number;
   complete: boolean;
+  /**
+   * They have answered at least one question, so this workspace is being set up through
+   * the sequence and the dialog may keep showing itself as they go.
+   *
+   * 🟡 THIS IS THE WHOLE "DO NOT HARASS AN EXISTING CUSTOMER" RULE. A workspace that has
+   * been running for months has no journal rows and plenty of unanswered steps, and
+   * being interrupted to confirm its own business name is exactly what must not happen.
+   * No rows and a funnel already built means the sequence waits to be opened.
+   */
+  started: boolean;
+  context: OnboardingContext;
 }
 
 /**
@@ -69,7 +102,7 @@ export async function getOnboardingView(
 ): Promise<OnboardingView | null> {
   if (!isBusinessTenant(tenantId)) return null;
 
-  const [rows, meta, settings, theme, me, assessments] = await Promise.all([
+  const [rows, meta, settings, theme, me, newest, published, previews, resultDoc, wabaOffered] = await Promise.all([
     prisma.onboardingAnswer.findMany({
       where: { tenantId },
       select: { stepKey: true, value: true, skipped: true },
@@ -84,11 +117,15 @@ export async function getOnboardingView(
         razorpayKeyId: true,
         razorpayKeySecretEnc: true,
         razorpayWebhookSecretEnc: true,
+        razorpayNonGstKeyId: true,
+        razorpayNonGstKeySecretEnc: true,
+        razorpayNonGstWebhookSecretEnc: true,
         smtpHost: true,
         smtpPort: true,
         smtpUser: true,
         smtpFromEmail: true,
         smtpPassEnc: true,
+        wabaPhoneNumberId: true,
         bookingUrl: true,
         supportEmail: true,
       },
@@ -97,39 +134,90 @@ export async function getOnboardingView(
     // row, and a default is not a colour anybody chose.
     prisma.theme.findUnique({ where: { tenantId }, select: { primaryColor: true } }),
     prisma.user.findUnique({ where: { id: userId }, select: { whatsapp: true } }),
-    prisma.assessment.count({ where: { tenantId } }),
+    prisma.assessment.findFirst({
+      where: { tenantId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, slug: true },
+    }),
+    prisma.assessment.findFirst({
+      where: { tenantId, status: "PUBLISHED" },
+      orderBy: { createdAt: "asc" },
+      select: { slug: true },
+    }),
+    // A preview run is a real row carrying isPreview, which is also what keeps it out
+    // of the plan's response count and away from the Conversions API.
+    prisma.submission.count({ where: { tenantId, isPreview: true } }),
+    prisma.resultPageDoc.findFirst({
+      where: { tenantId },
+      orderBy: { updatedAt: "desc" },
+      select: { kind: true },
+    }),
+    // Whether the one-click connect can work at all on this install.
+    wabaVisible(tenantId),
   ]);
 
   const journal = new Map(rows.map((r) => [r.stepKey, r]));
 
   /**
+   * Which Razorpay account this workspace is being asked about. Their own answer first;
+   * failing that, whichever one already carries a key - a workspace that configured the
+   * non-GST account by hand must not be asked for the GST one.
+   */
+  const account =
+    journal.get("razorpayAccount")?.value ??
+    (settings?.razorpayKeyId ? "gst" : settings?.razorpayNonGstKeyId ? "nongst" : null);
+  const rzp =
+    account === "nongst"
+      ? {
+          keyId: settings?.razorpayNonGstKeyId ?? null,
+          secret: settings?.razorpayNonGstKeySecretEnc ?? null,
+          webhook: settings?.razorpayNonGstWebhookSecretEnc ?? null,
+        }
+      : {
+          keyId: settings?.razorpayKeyId ?? null,
+          secret: settings?.razorpayKeySecretEnc ?? null,
+          webhook: settings?.razorpayWebhookSecretEnc ?? null,
+        };
+
+  /**
    * What the app can see for itself. A value means the step is already satisfied; null
    * means it has nothing to say and the journal decides.
    *
-   * `metaUse` and `paymentsUse` are inferred rather than asked twice: a workspace with a
-   * pixel saved plainly runs Meta ads, and being asked whether they do would read as the
-   * product having forgotten.
+   * `metaUse` and `razorpayAccount` are inferred rather than asked twice: a workspace
+   * with a pixel saved plainly runs Meta ads, and being asked whether they do would read
+   * as the product having forgotten.
    */
   const facts: OnboardingAnswers = {
     whatsapp: me?.whatsapp ?? null,
     metaUse: settings?.metaNotUsed ? "no" : meta.pixelId ? "yes" : null,
     metaPixel: meta.pixelId ?? null,
     metaCapiToken: meta.capiToken ? "saved" : null,
-    paymentsUse: settings?.razorpayKeyId ? "yes" : null,
-    razorpayKeyId: settings?.razorpayKeyId ?? null,
-    razorpayKeySecret: settings?.razorpayKeySecretEnc ? "saved" : null,
-    razorpayWebhookSecret: settings?.razorpayWebhookSecretEnc ? "saved" : null,
+    razorpayAccount: account,
+    razorpayKeyId: rzp.keyId,
+    razorpayKeySecret: rzp.secret ? "saved" : null,
+    razorpayWebhookSecret: rzp.webhook ? "saved" : null,
     emailProvider: providerFromHost(settings?.smtpHost ?? null),
     smtpHost: settings?.smtpHost ?? null,
     smtpPort: settings?.smtpPort != null ? String(settings.smtpPort) : null,
     smtpUser: settings?.smtpUser ?? null,
     emailFrom: settings?.smtpFromEmail ?? null,
     emailToken: settings?.smtpPassEnc ? "saved" : null,
+    /**
+     * Already connected, or impossible to connect on this install: either way there is
+     * nothing to ask. An install with no Meta app configured cannot run the one-click
+     * flow at all, and offering a button that opens a broken popup is worse than
+     * leaving the number to Settings.
+     */
+    whatsappConnect: settings?.wabaPhoneNumberId ? "connected" : wabaOffered ? null : "unavailable",
     brandColor: theme?.primaryColor ?? null,
     bookingUrl: settings?.bookingUrl ?? null,
     supportEmail: settings?.supportEmail ?? null,
+    // They already have a page, so the import knows which one to bring.
+    resultPageKind: resultDoc?.kind ?? null,
     // They already have a funnel, so the hand-off has nothing to hand over.
-    starterTemplate: assessments > 0 ? "done" : null,
+    starterTemplate: newest ? "done" : null,
+    previewTest: previews > 0 ? "done" : null,
+    publishFunnel: published ? "done" : null,
   };
 
   /**
@@ -144,6 +232,7 @@ export async function getOnboardingView(
     const row = journal.get(step.key);
     answers[step.key] = row?.skipped ? null : row?.value ?? facts[step.key] ?? null;
   }
+
   const visible = visibleSteps(answers);
   const steps: OnboardingStepView[] = visible.map((step) => {
     const row = journal.get(step.key);
@@ -172,6 +261,13 @@ export async function getOnboardingView(
     // Skipped counts as settled: the sequence is a sequence, not a wall, and somebody
     // who said "later" twice should not be shown an unfinished dialog forever.
     complete: steps.every((s) => s.answered || s.skipped),
+    started: rows.length > 0,
+    context: {
+      hasFunnel: !!newest,
+      assessmentId: newest?.id ?? null,
+      previewSlug: newest?.slug ?? null,
+      publishedSlug: published?.slug ?? null,
+    },
   };
 }
 
@@ -194,6 +290,7 @@ function flatten(step: OnboardingStepDef) {
     ...(step.choices ? { choices: step.choices } : {}),
     ...(step.skippable ? { skippable: step.skippable } : {}),
     ...(step.cta ? { cta: step.cta } : {}),
+    ...(step.link ? { link: step.link } : {}),
   };
 }
 
@@ -207,7 +304,16 @@ function flatten(step: OnboardingStepDef) {
  * and a list you have to scroll is a decision nobody wanted.
  */
 export async function getStarterTemplates(tenantId: string): Promise<
-  Array<{ id: string; title: string; category: string; summary: string | null; questions: number; gateQuestions: number }>
+  Array<{
+    id: string;
+    title: string;
+    category: string;
+    summary: string | null;
+    questions: number;
+    gateQuestions: number;
+    hasResultsPage: boolean;
+    hasVslPage: boolean;
+  }>
 > {
   const items = await listTemplatesForTenant(tenantId);
   return items
@@ -221,5 +327,7 @@ export async function getStarterTemplates(tenantId: string): Promise<
       summary: t.summary,
       questions: t.questions,
       gateQuestions: t.gateQuestions,
+      hasResultsPage: t.hasResultsPage,
+      hasVslPage: t.hasVslPage,
     }));
 }

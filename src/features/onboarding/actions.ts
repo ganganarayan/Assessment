@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireWorkspace, editDenied } from "@/lib/auth/guards";
+import { resolveActingScope } from "@/lib/tenant/acting";
+import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
 import { resolveMetaConfig } from "@/lib/settings/config";
 import { sendSmtpTest } from "@/features/nurture/actions";
 import { importTemplate } from "@/features/templates/actions/library";
@@ -120,12 +122,17 @@ export async function runOnboardingCheck(key: string): Promise<ActionResult<{ vi
  * The plan cap, the parked check and the ownership of the new assessment are all the
  * existing import action's job, so the sequence cannot become a way around any of them.
  */
-export async function importStarterTemplate(templateId: string): Promise<ActionResult<{ assessmentId: string }>> {
+export async function importStarterTemplate(
+  templateId: string,
+  /** RESULTS or VSL, as chosen two steps earlier. Anything else brings both pages. */
+  resultPageKind?: string,
+): Promise<ActionResult<{ assessmentId: string }>> {
   const { user, tenantId } = await requireWorkspace();
   const denied = editDenied(user);
   if (denied) return denied;
 
-  const r = await importTemplate(templateId);
+  const kind = resultPageKind === "RESULTS" || resultPageKind === "VSL" ? resultPageKind : null;
+  const r = await importTemplate(templateId, kind);
   if (!r.ok) return r;
   if (!r.data) return { ok: false, error: "The template imported but returned nothing to open." };
 
@@ -157,4 +164,43 @@ async function view(tenantId: string, userId: string): Promise<ActionResult<Onbo
   // are now one answer out of date.
   revalidatePath("/w/dashboard");
   return { ok: true, data: v };
+}
+
+/**
+ * The ad link has been taken, recorded from the BUILDER's publish dialog.
+ *
+ * Publishing a funnel pops up both links, and that dialog is the one interruption worth
+ * making at that moment - so the setup sequence must not open a second one behind it
+ * saying the same thing. Acknowledging there is therefore the same acknowledgement as
+ * answering the sequence's own step, and this is what joins the two.
+ *
+ * 🔴 NEVER requireWorkspace HERE. The same dialog appears on /admin, where a super admin
+ * who has not entered a workspace would be REDIRECTED by that guard - and a redirect
+ * thrown out of an OK button is a dialog that cannot be closed. This resolves the acting
+ * scope instead and quietly does nothing when there is no workspace being onboarded.
+ *
+ * Returns whether the sequence still has something to say, which is how the publish
+ * dialog knows to hand them on to the three "where to look" screens rather than just
+ * closing.
+ */
+export async function acknowledgeAdLink(): Promise<{ resume: boolean }> {
+  try {
+    const scope = await resolveActingScope();
+    const tenantId = scope.tenantId;
+    if (!isBusinessTenant(tenantId) || !scope.canEdit) return { resume: false };
+
+    const view = await getOnboardingView(tenantId, scope.user.id);
+    // Nothing to join: this workspace has never started the sequence, so it is not
+    // waiting on anything and does not want to be sent into it now.
+    if (!view || !view.started) return { resume: false };
+
+    await journal(tenantId, "copyAdLink", "ok");
+    const after = await getOnboardingView(tenantId, scope.user.id);
+    revalidatePath("/w/dashboard");
+    return { resume: !!after && !after.complete };
+  } catch {
+    // This runs off a button whose only job is to close a dialog. Whatever went wrong
+    // here, the dialog closes.
+    return { resume: false };
+  }
 }

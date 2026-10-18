@@ -1,7 +1,12 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { resolveMetaConfig } from "@/lib/settings/config";
-import { updateMetaSettings, updateMetaNotUsed, updateRazorpaySettings } from "@/features/workspace/actions/integrations";
+import {
+  updateMetaSettings,
+  updateMetaNotUsed,
+  updateRazorpaySettings,
+  updateRazorpayNonGstSettings,
+} from "@/features/workspace/actions/integrations";
 import { updateSmtpSettings } from "@/features/nurture/actions";
 import { updateThemeColors } from "@/features/workspace/actions/theme";
 import { updateBookingUrl } from "@/features/workspace/actions/booking";
@@ -26,8 +31,10 @@ import { EMAIL_PRESETS } from "@/features/onboarding/steps";
  * secrets are the exception and are safe: those actions only overwrite a secret when
  * they are handed a non-blank one, so passing "" keeps what is stored.
  *
- * Steps with nothing to save here - the website, the two routing choices, the checks,
- * the hand-off - fall through to `ok` and are recorded in the journal by the caller.
+ * Steps with nothing to save here fall through to `ok` and are recorded in the journal
+ * by the caller: the website, the routing choices, the checks, the one-click WhatsApp
+ * connect (the provider's own flow writes those columns), the hand-off, and every
+ * acknowledgement at the end of the sequence.
  */
 
 export type SaveResult = { ok: true } | { ok: false; error: string };
@@ -73,18 +80,33 @@ export async function persistStep(args: {
       return updateMetaSettings(meta.pixelId ?? "", value);
     }
 
+    /**
+     * The three Razorpay fields, written to WHICHEVER ACCOUNT they named.
+     *
+     * The two accounts are separate columns and separate actions, and the sequence asks
+     * which one once rather than walking everybody through six fields. The other account
+     * is a Settings screen later, by the owner's decision: onboarding connects the one
+     * they actually collect on.
+     */
     case "razorpayKeyId": {
-      return updateRazorpaySettings(value, "", "");
+      const nonGst = await onNonGstAccount(tenantId);
+      return nonGst ? updateRazorpayNonGstSettings(value, "", "") : updateRazorpaySettings(value, "", "");
     }
 
     case "razorpayKeySecret": {
-      const keyId = await razorpayKeyId(tenantId);
-      return updateRazorpaySettings(keyId, value, "");
+      const nonGst = await onNonGstAccount(tenantId);
+      const keyId = await razorpayKeyId(tenantId, nonGst);
+      return nonGst
+        ? updateRazorpayNonGstSettings(keyId, value, "")
+        : updateRazorpaySettings(keyId, value, "");
     }
 
     case "razorpayWebhookSecret": {
-      const keyId = await razorpayKeyId(tenantId);
-      return updateRazorpaySettings(keyId, "", value);
+      const nonGst = await onNonGstAccount(tenantId);
+      const keyId = await razorpayKeyId(tenantId, nonGst);
+      return nonGst
+        ? updateRazorpayNonGstSettings(keyId, "", value)
+        : updateRazorpaySettings(keyId, "", value);
     }
 
     case "emailProvider": {
@@ -159,10 +181,23 @@ export async function persistStep(args: {
   }
 }
 
+/** Which account they named, from the journal. Defaults to the GST one, which is what
+ *  the great majority of workspaces collect on. */
+async function onNonGstAccount(tenantId: string): Promise<boolean> {
+  const row = await prisma.onboardingAnswer.findUnique({
+    where: { tenantId_stepKey: { tenantId, stepKey: "razorpayAccount" } },
+    select: { value: true },
+  });
+  return row?.value === "nongst";
+}
+
 /** The Key ID as stored, so saving a secret cannot null it. */
-async function razorpayKeyId(tenantId: string): Promise<string> {
-  const s = await prisma.appSetting.findUnique({ where: { tenantId }, select: { razorpayKeyId: true } });
-  return s?.razorpayKeyId ?? "";
+async function razorpayKeyId(tenantId: string, nonGst: boolean): Promise<string> {
+  const s = await prisma.appSetting.findUnique({
+    where: { tenantId },
+    select: { razorpayKeyId: true, razorpayNonGstKeyId: true },
+  });
+  return (nonGst ? s?.razorpayNonGstKeyId : s?.razorpayKeyId) ?? "";
 }
 
 /** The sender as stored, in the shape updateSmtpSettings takes. `pass` is blank, which

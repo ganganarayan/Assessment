@@ -295,3 +295,68 @@ export function normalizeHref(url: string | null | undefined): string | null {
   if (/^(https?:|mailto:|tel:|#|\/)/i.test(u)) return u;
   return `https://${u}`;
 }
+
+// ---- Any video, not only an embed ------------------------------------------
+
+export type VideoSourceKind = "iframe" | "file" | "hls";
+
+export interface VideoSource {
+  kind: VideoSourceKind;
+  src: string;
+}
+
+/**
+ * WHAT WAS PASTED, AND HOW IT HAS TO BE PLAYED.
+ *
+ * The video block used to accept one thing: an iframe embed, in practice VidaPulse's.
+ * That is a host decision baked into the product - somebody with an mp4 in R2, a
+ * YouTube link or an HLS stream from their own encoder had nowhere to put it. So the
+ * field now takes a URL or an embed code, and this decides what the renderer does with
+ * it:
+ *
+ *   iframe  an embed snippet, or a URL from a player that expects to be framed
+ *           (YouTube and Vimeo are rewritten to their embed form)
+ *   file    a progressive file the browser plays itself: mp4, webm, ogg, mov, m4v
+ *   hls     an .m3u8 playlist, which needs hls.js everywhere except Safari
+ *
+ * 🔴 NEVER THE RAW PASTED MARKUP. An embed is reduced to its src and re-emitted as a
+ * controlled iframe, exactly as before, which is what makes pasting one safe. Anything
+ * that is not an http(s) URL after that is nothing at all.
+ *
+ * The fallback for an unrecognised URL is `iframe`, because that is what this block did
+ * for its whole life and a tenant whose player is not in the list above is relying on it.
+ */
+export function resolveVideoSource(input: string | null | undefined): VideoSource | null {
+  const raw = (input ?? "").trim();
+  if (!raw) return null;
+
+  // An embed snippet: take its src and nothing else.
+  if (/<\s*iframe/i.test(raw)) {
+    const src = extractEmbedSrc(raw);
+    return src ? { kind: "iframe", src } : null;
+  }
+
+  const url = raw.startsWith("//") ? `https:${raw}` : raw;
+  if (!/^https?:\/\//i.test(url)) return null;
+
+  const yt = youtubeEmbedUrl(url);
+  if (yt) return { kind: "iframe", src: yt };
+
+  const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d{6,})/i)?.[1];
+  if (vimeo) return { kind: "iframe", src: `https://player.vimeo.com/video/${vimeo}` };
+
+  // The path decides, not the query: a signed URL carries a token after the ? and the
+  // extension is still what the browser has to play.
+  const path = (() => {
+    try {
+      return new URL(url).pathname.toLowerCase();
+    } catch {
+      return url.toLowerCase();
+    }
+  })();
+
+  if (path.endsWith(".m3u8")) return { kind: "hls", src: url };
+  if (/\.(mp4|webm|ogg|ogv|mov|m4v)$/.test(path)) return { kind: "file", src: url };
+
+  return { kind: "iframe", src: url };
+}

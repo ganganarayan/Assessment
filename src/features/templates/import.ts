@@ -57,6 +57,13 @@ export async function importTemplateForTenant(args: {
    * visibility rule above, which is what keeps unreviewed content off customer funnels.
    */
   allowUnpublished?: boolean;
+  /**
+   * Which result page the importer wants out of this template. A template carries
+   * whichever pages its source funnel had, and the person importing has usually just
+   * been asked which one their funnel should end on. Absent brings everything the
+   * template has, which is what the library did before the question existed.
+   */
+  resultPageKind?: "RESULTS" | "VSL" | null;
 }): Promise<{ ok: true; data: TemplateImportResult } | { ok: false; error: string }> {
   const t = await prisma.template.findFirst({
     where: args.allowUnpublished
@@ -146,6 +153,7 @@ export async function importTemplateForTenant(args: {
         assessmentTitle: created.title,
         tenantId: args.tenantId,
         body,
+        only: args.resultPageKind ?? null,
       });
 
       // Its branching. Second pass by necessity: a route points at a question that had

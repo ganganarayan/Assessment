@@ -464,6 +464,17 @@ export async function createResultDocsForImport(
     assessmentTitle: string;
     tenantId: string | null;
     body: AssessmentBodyExport;
+    /**
+     * Create ONLY this kind of page, when the caller has asked for one.
+     *
+     * A funnel exported with both pages carries both, and for a file import that is
+     * right: it is a copy, and a copy keeps everything. For a TEMPLATE it is not - the
+     * person importing has just said which page they want their funnel to end on, and
+     * creating the other one as well leaves an unbound page in their library that they
+     * never asked for and will not recognise. Absent means both, which is what every
+     * existing caller gets.
+     */
+    only?: "RESULTS" | "VSL" | null;
   },
 ): Promise<void> {
   const { body } = args;
@@ -486,7 +497,7 @@ export async function createResultDocsForImport(
   const publishedPages = Array.isArray(body.publishedPages)
     ? (body.publishedPages as Array<{ order?: number; title?: string | null; blocks?: Array<{ type?: string; order?: number; config?: unknown }> }>)
     : [];
-  if (publishedPages.length > 0) {
+  if (publishedPages.length > 0 && args.only !== "VSL") {
     const doc = await tx.resultPageDoc.create({
       data: {
         kind: "RESULTS",
@@ -517,7 +528,7 @@ export async function createResultDocsForImport(
   // The VSL page. Draft falls back to the published blob, so a page that was exported
   // live and never re-drafted opens with its own content.
   const vslDraft = body.resultPage ?? body.resultPagePublished ?? null;
-  if (vslDraft != null) {
+  if (vslDraft != null && args.only !== "RESULTS") {
     const doc = await tx.resultPageDoc.create({
       data: {
         kind: "VSL",

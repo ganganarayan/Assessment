@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -9,6 +9,7 @@ import {
   duplicateAssessment,
 } from "@/features/assessment/actions/assessment";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { PublishedDialog } from "@/features/assessment/components/published-dialog";
 import { cn } from "@/lib/utils";
 
 export function AssessmentRowActions({
@@ -25,10 +26,15 @@ export function AssessmentRowActions({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [justPublished, setJustPublished] = useState(false);
 
   function toggle() {
+    const publishing = !published;
     start(async () => {
-      await setAssessmentStatus(id, !published);
+      await setAssessmentStatus(id, publishing);
+      // Publishing is the one half worth saying something about: it is the moment the
+      // links exist. Unpublishing is just a badge going quiet.
+      if (publishing) setJustPublished(true);
       router.refresh();
     });
   }
@@ -105,6 +111,7 @@ export function AssessmentRowActions({
           </Button>
         </>
       ) : null}
+      {justPublished ? <PublishedDialog slug={slug} onClose={() => setJustPublished(false)} /> : null}
     </div>
   );
 }

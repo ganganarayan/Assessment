@@ -41,7 +41,11 @@ import { type TemplateImportResult } from "@/features/templates/import";
  * rated against a plan at all - on the platform scope or inside a workspace - exactly
  * as the Assessments screen already treats them.
  */
-export async function importTemplate(templateId: string): Promise<ActionResult<TemplateImportResult>> {
+export async function importTemplate(
+  templateId: string,
+  /** Which result page to bring, when the template carries both and somebody chose. */
+  resultPageKind?: "RESULTS" | "VSL" | null,
+): Promise<ActionResult<TemplateImportResult>> {
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
@@ -68,6 +72,7 @@ export async function importTemplate(templateId: string): Promise<ActionResult<T
     // Only the owner may run an unreviewed template, and only because reviewing it is
     // the job. A tenant importing is still bound by published + approved.
     allowUnpublished: scope.isSuper,
+    resultPageKind: resultPageKind ?? null,
   });
   if (!r.ok) return r;
 

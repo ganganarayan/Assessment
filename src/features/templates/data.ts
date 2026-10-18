@@ -49,6 +49,9 @@ export interface TemplateListItem {
   hasAiPrompt: boolean;
   gateQuestions: number;
   questions: number;
+  /** Whether importing this brings a results page, a VSL page, or both. */
+  hasResultsPage: boolean;
+  hasVslPage: boolean;
   reviewStatus: "PENDING" | "APPROVED" | "REJECTED";
   reviewNote: string | null;
   contributorName: string | null;
@@ -103,9 +106,22 @@ type RawRow = {
  * number shown next to it, which a denormalized column would do the first time someone
  * edited the JSON and forgot.
  */
-function countOf(body: unknown): { gateQuestions: number; questions: number } {
+/**
+ * What is in a template, read from its body.
+ *
+ * The RESULT PAGES are part of the answer because the import brings them: the transfer
+ * shape carries the published results pages and the VSL blob, so a template is a gate, a
+ * scorecard AND whichever pages its source funnel had. The flags are what let the import
+ * ASK which one is wanted instead of silently creating both.
+ */
+function countOf(body: unknown): {
+  gateQuestions: number;
+  questions: number;
+  hasResultsPage: boolean;
+  hasVslPage: boolean;
+} {
   const parsed = parseTemplateBody(body);
-  if (!parsed.success) return { gateQuestions: 0, questions: 0 };
+  if (!parsed.success) return { gateQuestions: 0, questions: 0, hasResultsPage: false, hasVslPage: false };
   const b = parsed.data;
   const questions = b.categories.reduce((n, c) => n + c.questions.length, 0);
   // The gate lives in the `qualification` JSON blob, whose shape belongs to the gate
@@ -113,11 +129,13 @@ function countOf(body: unknown): { gateQuestions: number; questions: number } {
   // rather than throwing inside a list query.
   const q = b.qualification as { questions?: unknown[] } | null | undefined;
   const gateQuestions = Array.isArray(q?.questions) ? q.questions.length : 0;
-  return { gateQuestions, questions };
+  const hasResultsPage = Array.isArray(b.publishedPages) && b.publishedPages.length > 0;
+  const hasVslPage = b.resultPage != null || b.resultPagePublished != null;
+  return { gateQuestions, questions, hasResultsPage, hasVslPage };
 }
 
 function toItem(r: RawRow, askingTenantId: string | null): TemplateListItem {
-  const { gateQuestions, questions } = countOf(r.body);
+  const { gateQuestions, questions, hasResultsPage, hasVslPage } = countOf(r.body);
   const owns = !!r.ownerTenantId && r.ownerTenantId === askingTenantId;
   const contributed = !!r.contributorTenantId && r.contributorTenantId === askingTenantId;
   return {
@@ -136,6 +154,8 @@ function toItem(r: RawRow, askingTenantId: string | null): TemplateListItem {
     hasAiPrompt: !!r.aiInstructions?.trim(),
     gateQuestions,
     questions,
+    hasResultsPage,
+    hasVslPage,
     reviewStatus: r.reviewStatus as TemplateListItem["reviewStatus"],
     reviewNote: r.reviewNote,
     contributorName: r.contributorName,

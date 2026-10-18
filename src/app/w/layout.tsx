@@ -16,6 +16,9 @@ import { supportEmailFor } from "@/lib/billing/gate";
 import { BillingBanner } from "@/features/billing/components/billing-banner";
 import { WorkspaceLocked } from "@/features/billing/components/workspace-locked";
 import { TrialWelcomeModal } from "@/features/billing/components/trial-welcome-modal";
+import { OnboardingDialog } from "@/features/onboarding/components/onboarding-dialog";
+import { getOnboardingView, getStarterTemplates } from "@/features/onboarding/data";
+import { getWhatsAppConnectInfo } from "@/features/whatsapp/actions";
 import { SupportStrip } from "@/features/billing/components/support-strip";
 import { headers } from "next/headers";
 import { isStaff } from "@/lib/auth/guards";
@@ -140,6 +143,30 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   const loginCount = me?.loginCount ?? 1;
   const showWelcome = onTrial && loginCount <= 5;
 
+  /**
+   * THE GUIDED SETUP, resolved in the SHELL rather than on the dashboard.
+   *
+   * It has to be here because of one step: publishing happens in the builder, and the
+   * link for the ad is worth putting in front of somebody the moment their funnel goes
+   * live. A dialog mounted on the dashboard could only tell them about it on their next
+   * visit there, by which time they have gone to find it themselves.
+   *
+   * It does not follow anyone around: the component opens itself only while a workspace
+   * has no funnel, or on a step marked as worth interrupting for, and it remembers which
+   * step was dismissed. On every other page load it renders nothing.
+   *
+   * Never for an operator (a super admin inside a customer's workspace), never for
+   * view-only staff, and never while the workspace is locked - the questions are the
+   * customer's to answer, and a parked account has a plan to pick first.
+   */
+  const onboarding =
+    impersonating || staff || locked ? null : await getOnboardingView(tenantId, user.id);
+  const starters = onboarding && !onboarding.complete ? await getStarterTemplates(tenantId) : [];
+  // Fetched only for the step that needs it: the one-click connect reads the install's
+  // Meta app config, and no other step has any use for it.
+  const whatsappConnect =
+    onboarding?.currentKey === "whatsappConnect" ? await getWhatsAppConnectInfo() : null;
+
   return (
     // The provider is what lets the sidebar switch the builder panels: the nav holds the
     // tabs, the editor page renders them, and both read the same React state so an
@@ -182,6 +209,11 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
             clickable while it is up, which is the point of it. */}
         {showWelcome ? (
           <TrialWelcomeModal loginCount={loginCount} trialDaysLeft={resolved.trialDaysLeft} />
+        ) : null}
+        {/* Under the welcome dialog at z-100, so that one is read first and this is
+            waiting behind it. */}
+        {onboarding && !onboarding.complete ? (
+          <OnboardingDialog initial={onboarding} templates={starters} whatsapp={whatsappConnect} />
         ) : null}
         <div className="flex justify-end px-4 pt-4 md:px-8">
           <ThemeToggle />

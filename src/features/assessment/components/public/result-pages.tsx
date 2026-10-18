@@ -6,7 +6,7 @@ import {
   type PageBlockData,
   type BandLevel,
 } from "@/features/assessment/pages/blocks";
-import { appendVidapulseId } from "@/lib/vidapulse";
+import { VideoPlayer } from "@/features/assessment/components/public/video-player";
 
 export interface ResultForPages {
   overallBandTitle: string | null;
@@ -18,7 +18,6 @@ export interface ResultForPages {
 }
 
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
-const isHttp = (u: string) => /^https?:\/\//i.test(u);
 
 /**
  * Renders the configured post-assessment pages + blocks. Static blocks (text /
@@ -79,19 +78,15 @@ function Block({
       );
     }
     case "video": {
-      const url = str(c.embedUrl);
-      if (!isHttp(url)) return null;
-      // Carry the opaque customerId into the (VidaPulse) embed so it can bind its
-      // own customer record to ours. No-op for any player that ignores the param.
-      const src = appendVidapulseId(url, result.vidapulseParam, result.customerId);
+      // A URL or an embed code, played as whatever it actually is. This block used to
+      // assume an embeddable URL and frame it, so an mp4 or an HLS playlist pasted here
+      // was a grey box.
       return (
-        <div className="aspect-video w-full overflow-hidden rounded-lg border">
-          <iframe
-            src={src}
-            className="h-full w-full"
-            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-            allowFullScreen
-            title="Video"
+        <div className="w-full">
+          <VideoPlayer
+            source={str(c.embedUrl)}
+            vidapulseParam={result.vidapulseParam}
+            customerId={result.customerId}
           />
         </div>
       );

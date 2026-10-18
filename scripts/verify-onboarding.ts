@@ -40,6 +40,14 @@ check(
   "every check and hand-off can be left for later",
   ONBOARDING_STEPS.filter((s) => s.kind === "check" || s.kind === "handoff").every((s) => s.skippable === true),
 );
+check(
+  "every info and link step has something to press",
+  ONBOARDING_STEPS.filter((s) => s.kind === "info" || s.kind === "link").every((s) => !!s.cta || !!s.link),
+);
+check(
+  "the ad link step is the one that shows both links",
+  STEP_BY_KEY.copyAdLink?.kind === "link" && ONBOARDING_STEPS.filter((s) => s.kind === "link").length === 1,
+);
 check("STEP_BY_KEY covers the list", keys.every((k) => STEP_BY_KEY[k]?.key === k));
 
 /**
@@ -63,15 +71,34 @@ for (const [i, step] of ONBOARDING_STEPS.entries()) {
 }
 
 console.log("\nThe paths somebody actually walks");
-const metaAndZepto = visibleSteps({ metaUse: "yes", paymentsUse: "no", emailProvider: "zeptomail-in" }).map((s) => s.key);
-check("Meta ads, no payments, ZeptoMail asks the pixel", metaAndZepto.includes("metaPixel"));
+const metaAndZepto = visibleSteps({ metaUse: "yes", razorpayAccount: "none", emailProvider: "zeptomail-in" }).map((s) => s.key);
+check("Meta ads, nobody paying, ZeptoMail asks the pixel", metaAndZepto.includes("metaPixel"));
 check("that path never asks for an SMTP host", !metaAndZepto.includes("smtpHost"));
 check("that path never asks for a Razorpay key", !metaAndZepto.includes("razorpayKeyId"));
-check("that path ends at the hand-off", metaAndZepto[metaAndZepto.length - 1] === "starterTemplate");
+check("that path ends where the numbers are", metaAndZepto[metaAndZepto.length - 1] === "whereDataWindow");
+check(
+  "the funnel comes after the plumbing and before the ad link",
+  metaAndZepto.indexOf("starterTemplate") > metaAndZepto.indexOf("emailCheck") &&
+    metaAndZepto.indexOf("starterTemplate") < metaAndZepto.indexOf("copyAdLink"),
+);
+check(
+  "the page is chosen before the funnel is imported",
+  metaAndZepto.indexOf("resultPageKind") < metaAndZepto.indexOf("starterTemplate"),
+);
+check(
+  "the preview comes before the link goes in an ad",
+  metaAndZepto.indexOf("previewTest") < metaAndZepto.indexOf("copyAdLink"),
+);
 
-const noMeta = visibleSteps({ metaUse: "no", paymentsUse: "yes", emailProvider: "other" }).map((s) => s.key);
+const noMeta = visibleSteps({ metaUse: "no", razorpayAccount: "gst", emailProvider: "other" }).map((s) => s.key);
 check("no Meta means no pixel and no pixel check", !noMeta.includes("metaPixel") && !noMeta.includes("metaCheck"));
-check("taking payments asks all three Razorpay fields", ["razorpayKeyId", "razorpayKeySecret", "razorpayWebhookSecret"].every((k) => noMeta.includes(k)));
+check("naming an account asks all three Razorpay fields", ["razorpayKeyId", "razorpayKeySecret", "razorpayWebhookSecret"].every((k) => noMeta.includes(k)));
+check(
+  "the non-GST account asks the same three",
+  ["razorpayKeyId", "razorpayKeySecret", "razorpayWebhookSecret"].every((k) =>
+    visibleSteps({ razorpayAccount: "nongst" }).some((s) => s.key === k),
+  ),
+);
 check("another provider asks host, port and user", ["smtpHost", "smtpPort", "smtpUser"].every((k) => noMeta.includes(k)));
 
 const unanswered = visibleSteps({}).map((s) => s.key);
@@ -92,6 +119,10 @@ const cases: Array<[string, string, boolean]> = [
   ["metaCapiToken", "short", false],
   ["metaUse", "yes", true],
   ["metaUse", "maybe", false],
+  ["razorpayAccount", "nongst", true],
+  ["razorpayAccount", "both", false],
+  ["resultPageKind", "VSL", true],
+  ["resultPageKind", "pdf", false],
   ["businessName", "", false],
 ];
 for (const [key, value, expected] of cases) {

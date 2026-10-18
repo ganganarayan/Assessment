@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireWorkspace } from "@/lib/auth/guards";
 import { getOnboardingView, getStarterTemplates } from "@/features/onboarding/data";
+import { getWhatsAppConnectInfo } from "@/features/whatsapp/actions";
 import { OnboardingDialog } from "@/features/onboarding/components/onboarding-dialog";
 
 /**
@@ -24,5 +25,6 @@ export default async function WorkspaceStartPage() {
   if (!view || view.complete) redirect("/w/dashboard");
 
   const starters = await getStarterTemplates(tenantId);
-  return <OnboardingDialog initial={view} templates={starters} />;
+  const whatsapp = view.currentKey === "whatsappConnect" ? await getWhatsAppConnectInfo() : null;
+  return <OnboardingDialog initial={view} templates={starters} whatsapp={whatsapp} alwaysOpen />;
 }

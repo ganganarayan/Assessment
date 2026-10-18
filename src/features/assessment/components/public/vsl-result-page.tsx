@@ -1,8 +1,8 @@
-import { appendVidapulseId, stampVidapulseCtaUrl } from "@/lib/vidapulse";
+import { stampVidapulseCtaUrl } from "@/lib/vidapulse";
+import { VideoPlayer } from "@/features/assessment/components/public/video-player";
 import { VslWatchListener } from "@/features/assessment/components/public/vsl-watch-listener";
 import {
   themeOf,
-  extractEmbedSrc,
   youtubeEmbedUrl,
   normalizeHref,
   blockVisibleFor,
@@ -162,7 +162,15 @@ function Block({
         />
       );
     case "video":
-      return <VideoBlock code={str("embedCode")} customerId={customerId} vidapulseParam={vidapulseParam} />;
+      return (
+        <VideoBlock
+          code={str("embedCode")}
+          customerId={customerId}
+          vidapulseParam={vidapulseParam}
+          submissionId={submissionId}
+          resultToken={resultToken}
+        />
+      );
     case "testimonials":
       return <TestimonialsBlock config={c as TestimonialsConfig} theme={theme} />;
     case "footer":
@@ -236,27 +244,27 @@ function VideoBlock({
   code,
   customerId,
   vidapulseParam,
+  submissionId,
+  resultToken,
 }: {
   code: string;
   customerId: string | null;
   vidapulseParam: string | null;
+  submissionId: string | null;
+  resultToken: string | null;
 }) {
-  const src = extractEmbedSrc(code);
-  if (!src) return null;
-  // Carry the opaque VidaPulse id into the embed (identity bridge) - no-op for a
-  // non-absolute src or when tracking is off / no customerId.
-  const finalSrc = appendVidapulseId(src, vidapulseParam, customerId);
+  // An embed, a YouTube link, an mp4 or an HLS playlist: the player works out which.
+  // The VidaPulse identity bridge and the postMessage watch listener are unchanged for
+  // an embed; a file or a stream reports its own progress through the same endpoint.
   return (
     <div style={{ width: "100%", maxWidth: 820, margin: "0 auto" }}>
-      <div style={{ position: "relative", width: "100%", paddingTop: "56.25%", borderRadius: 12, overflow: "hidden" }}>
-        <iframe
-          src={finalSrc}
-          title="Video"
-          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-          allowFullScreen
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
-        />
-      </div>
+      <VideoPlayer
+        source={code}
+        customerId={customerId}
+        vidapulseParam={vidapulseParam}
+        submissionId={submissionId}
+        resultToken={resultToken}
+      />
     </div>
   );
 }

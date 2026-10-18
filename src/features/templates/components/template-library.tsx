@@ -65,12 +65,27 @@ export function TemplateLibrary({
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, start] = useTransition();
   const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string; href?: string } | null>(null);
+  /** The template whose page choice is being asked for, if any. */
+  const [asking, setAsking] = useState<string | null>(null);
 
-  function doImport(t: TemplateListItem) {
+  /**
+   * Import, and WHICH PAGE to bring.
+   *
+   * A template carries whichever result pages its source funnel had, and a funnel ends
+   * on one of them, not both. So a template with both asks first: creating the other
+   * page as well would leave an unbound page in the library that nobody asked for and
+   * nobody recognises later. One page, or none, imports without a question.
+   */
+  function doImport(t: TemplateListItem, resultPageKind?: "RESULTS" | "VSL") {
+    if (t.hasResultsPage && t.hasVslPage && !resultPageKind) {
+      setAsking(t.id);
+      return;
+    }
+    setAsking(null);
     setMsg(null);
     setPendingId(t.id);
     start(async () => {
-      const r = await importTemplate(t.id);
+      const r = await importTemplate(t.id, resultPageKind ?? null);
       setPendingId(null);
       if (!r.ok) {
         setMsg({ tone: "bad", text: r.error });
@@ -181,20 +196,44 @@ export function TemplateLibrary({
                         {t.gateQuestions > 0 ? `${t.gateQuestions} gate question${t.gateQuestions === 1 ? "" : "s"}` : "No gate"}
                         {t.questions > 0 ? ` · ${t.questions} scored question${t.questions === 1 ? "" : "s"}` : ""}
                         {t.hasAiPrompt ? " · includes AI instructions" : " · no AI statement"}
+                        {t.hasResultsPage && t.hasVslPage
+                          ? " · both result pages"
+                          : t.hasResultsPage
+                          ? " · with its results page"
+                          : t.hasVslPage
+                          ? " · with its VSL page"
+                          : ""}
                       </p>
                       {t.reviewNote ? (
                         <p className="mt-1 text-xs text-amber-700">Reviewer: {t.reviewNote}</p>
                       ) : null}
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 flex-col items-end gap-2">
                       {canEdit && t.importable ? (
-                        <Button
-                          size="sm"
-                          onClick={() => doImport(t)}
-                          disabled={pendingId !== null || !!capReason}
-                        >
-                          {pendingId === t.id ? "Importing..." : "Import"}
-                        </Button>
+                        asking === t.id ? (
+                          <div className="flex flex-col items-end gap-1">
+                            <p className="text-xs text-[var(--muted-foreground)]">Which page should it end on?</p>
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" onClick={() => doImport(t, "RESULTS")} disabled={pendingId !== null}>
+                                Results page
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => doImport(t, "VSL")} disabled={pendingId !== null}>
+                                VSL page
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => setAsking(null)}>
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => doImport(t)}
+                            disabled={pendingId !== null || !!capReason}
+                          >
+                            {pendingId === t.id ? "Importing..." : "Import"}
+                          </Button>
+                        )
                       ) : null}
                       {canEdit && t.canRemove ? (
                         <Button size="sm" variant="ghost" onClick={() => doDelete(t)} disabled={pendingId !== null}>

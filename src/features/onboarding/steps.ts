@@ -7,16 +7,21 @@ import { z } from "zod";
  * logic, no prisma, no server imports. The dialog renders from this and the server
  * validates against it, which is the only way both can agree on what step 7 is.
  *
- * WHAT IS AND IS NOT IN HERE. These are the things a workspace cannot operate without:
- * who they are, Meta, payments, the sender, the colour, the call link, support. The
- * assessment is NOT a step - it is the hand-off at the end, because a funnel is the
- * work the product exists for and asking somebody to build one before their pixel
- * resolves is how a funnel goes live reporting to nobody.
+ * WHAT IT COVERS. The plumbing a workspace cannot operate without, then the first
+ * funnel, then the three places they will look afterwards. It ends where the money
+ * starts: the link in their ad.
  *
- * ORDER IS NOT ARBITRARY. Identity first, because the sender's display name and the
- * emails are written from it. Meta second, because it is the one that silently costs
- * money when it is missing. The sender before the colour, because a test email proves
- * a live credential and a colour proves nothing.
+ * WHAT IT DELIBERATELY LEAVES OUT. A custom domain (this is a trial, not a migration),
+ * the AI provider (the included model is the default and bringing a key is the upgrade
+ * argument, not a setup question), the second Razorpay account, the heatmap snippet and
+ * the VidaPulse parameter. Each of those is a Settings screen somebody visits once they
+ * have a reason to.
+ *
+ * ORDER IS NOT ARBITRARY. Identity first, because the sender's display name is written
+ * from it. Meta second, because it is the one that silently costs money when it is
+ * missing. The sender before the colour, because a test email proves a live credential
+ * and a colour proves nothing. The funnel last, because a funnel published before the
+ * pixel resolves goes live reporting to nobody.
  *
  * ADDING A STEP is one entry here plus one case in save.ts. Position and completion are
  * computed from this list against what the workspace has answered, so inserting a step
@@ -36,7 +41,13 @@ export type StepKind =
   | "color"
   /** Not a question: the app checks what was just configured and reports. */
   | "check"
-  /** The last one: import a template and leave for the builder. */
+  /** An embedded one-click connection, run by the provider rather than typed. */
+  | "connect"
+  /** Something to read, with somewhere to go. Acknowledging it is the answer. */
+  | "info"
+  /** A link to copy, and the confirmation that it has been used. */
+  | "link"
+  /** Import a template and leave for the builder. */
   | "handoff";
 
 export interface StepChoice {
@@ -62,12 +73,15 @@ export interface OnboardingStepDef {
   /** Asked only when this is true of the answers so far. Pure, so the dialog and the
    *  server reach the same conclusion without asking each other. */
   when?: (a: OnboardingAnswers) => boolean;
-  /** The button on a check or hand-off step, where "Next" would be wrong. */
+  /** The button, where "Save and continue" would be the wrong words. */
   cta?: string;
+  /** A fixed destination for an info step. The dynamic ones (the preview, the public
+   *  link, the builder) come from the view's context instead. */
+  link?: { href: string; label: string };
 }
 
 const runsMeta = (a: OnboardingAnswers) => a.metaUse === "yes";
-const takesPayments = (a: OnboardingAnswers) => a.paymentsUse === "yes";
+const takesPayments = (a: OnboardingAnswers) => a.razorpayAccount === "gst" || a.razorpayAccount === "nongst";
 const ownSmtp = (a: OnboardingAnswers) => a.emailProvider === "other";
 
 export const ONBOARDING_STEPS: readonly OnboardingStepDef[] = [
@@ -127,18 +141,21 @@ export const ONBOARDING_STEPS: readonly OnboardingStepDef[] = [
     when: runsMeta,
   },
   {
-    key: "paymentsUse",
+    key: "razorpayAccount",
     kind: "choice",
-    question: "Will people pay you inside the funnel?",
+    question: "Which Razorpay account will your respondents pay into?",
+    hint: "Connect the one you have. The second one, if you run both, is a Settings screen later.",
     choices: [
-      { value: "yes", label: "Yes, I take payments", hint: "Three Razorpay fields." },
-      { value: "no", label: "Not now", hint: "Your funnel runs free until you turn it on." },
+      { value: "gst", label: "My GST account" },
+      { value: "nongst", label: "My non-GST account" },
+      { value: "none", label: "Nobody pays inside the funnel yet", hint: "Your funnel runs free until you turn it on." },
     ],
+    skippable: true,
   },
   {
     key: "razorpayKeyId",
     kind: "text",
-    question: "What is your Razorpay Key ID?",
+    question: "What is that account's Razorpay Key ID?",
     hint: "Razorpay dashboard, Account and settings, API keys.",
     placeholder: "rzp_live_...",
     when: takesPayments,
@@ -146,14 +163,14 @@ export const ONBOARDING_STEPS: readonly OnboardingStepDef[] = [
   {
     key: "razorpayKeySecret",
     kind: "secret",
-    question: "Paste your Razorpay Key Secret.",
-    hint: "Shown once, when the key is generated. Stored encrypted and used only for your workspace.",
+    question: "Paste the Key Secret.",
+    hint: "Shown once, when the key is generated. Stored encrypted and scoped to your workspace.",
     when: takesPayments,
   },
   {
     key: "razorpayWebhookSecret",
     kind: "secret",
-    question: "Paste your Razorpay webhook secret.",
+    question: "Paste the webhook secret.",
     hint: "Create the webhook in Razorpay first. The URL to paste there is on your Settings screen, and without this secret a successful payment never reaches your funnel.",
     when: takesPayments,
   },
@@ -212,6 +229,13 @@ export const ONBOARDING_STEPS: readonly OnboardingStepDef[] = [
     skippable: true,
   },
   {
+    key: "whatsappConnect",
+    kind: "connect",
+    question: "Connect your WhatsApp number.",
+    hint: "One click through Meta. Your number keeps working in the WhatsApp app on your phone, and your funnel can message a lead the moment they opt in.",
+    skippable: true,
+  },
+  {
     key: "brandColor",
     kind: "color",
     question: "What is your brand colour?",
@@ -233,13 +257,78 @@ export const ONBOARDING_STEPS: readonly OnboardingStepDef[] = [
     hint: "Shown to the people taking your assessment when something goes wrong.",
   },
   {
+    key: "resultPageKind",
+    kind: "choice",
+    question: "What should a qualified lead see at the end?",
+    hint: "This decides which page your funnel is built with, so it is asked before anything is imported.",
+    choices: [
+      {
+        value: "RESULTS",
+        label: "A results page",
+        hint: "Their band and a blurred category breakdown, straight after the questions. The short route to a booking.",
+      },
+      {
+        value: "VSL",
+        label: "A VSL result page",
+        hint: "A marketing page on their own link: headline, their AI statement, your video, booking buttons, testimonials.",
+      },
+    ],
+  },
+  {
     key: "starterTemplate",
     kind: "handoff",
-    question: "Last one. Import your first funnel.",
-    hint: "A working gate and scorecard, not a blank page. It opens in the builder and everything in it is yours to edit.",
+    question: "Last of the setup. Import your first funnel.",
+    hint: "The gate, the scored assessment and the page you just chose, all in one. It opens in the builder and everything in it is yours to edit.",
     cta: "Import it",
-    // Somebody who would rather build their own must not be held on the last question.
+    // Somebody who would rather build their own must not be held here.
     skippable: true,
+  },
+  {
+    key: "previewTest",
+    kind: "info",
+    question: "Test it yourself before anyone else does.",
+    hint: "A preview run does not count against your plan's responses and fires no Meta events, so test as often as you like. You will come out on the result page you picked, which is exactly what a real lead sees. The same link is on every row of the Assessment Builder, under Preview.",
+    cta: "Open the preview",
+    skippable: true,
+  },
+  {
+    key: "publishFunnel",
+    kind: "info",
+    question: "Publish it when you are happy with it.",
+    hint: "A draft has no public link. Publishing is what gives you the URL to put in an ad, and this step ticks itself the moment you do it.",
+    cta: "Open the builder",
+    skippable: true,
+  },
+  {
+    key: "copyAdLink",
+    kind: "link",
+    question: "Your funnel is live. This is the link for your ad.",
+    hint: "Put it in the ad itself, not on a landing page in front of it. Optimise the ad on GatePassed, which fires the instant somebody clears your gate.",
+    cta: "Yes, I have copied it to my ad",
+  },
+  {
+    key: "whereStats",
+    kind: "info",
+    question: "Where your numbers are.",
+    hint: "Stats shows views, starts, gate passes and completions per funnel, so you can see which step people leave on.",
+    link: { href: "/w/stats", label: "Open Stats" },
+    cta: "Got it",
+  },
+  {
+    key: "whereSubmissions",
+    kind: "info",
+    question: "Where your leads are.",
+    hint: "Submissions is every person who answered, with their score, their band, their answers and their contact details. Export it any time.",
+    link: { href: "/w/submissions", label: "Open Submissions" },
+    cta: "Got it",
+  },
+  {
+    key: "whereDataWindow",
+    kind: "info",
+    question: "Where you set how long you keep it.",
+    hint: "The data window is how long a respondent's answers are kept before they are cleared. Yours to set, per funnel.",
+    link: { href: "/w/data-window", label: "Open the data window" },
+    cta: "Got it",
   },
 ];
 
@@ -290,6 +379,12 @@ export function schemaFor(step: OnboardingStepDef): z.ZodType<string> {
       return z.enum((step.choices ?? []).map((c) => c.value) as [string, ...string[]]);
     case "secret":
       return z.string().trim().min(8, "That looks too short to be a token.");
+    // An acknowledgement, not a value: the dialog sends a marker and the row is what
+    // matters. Validated all the same, so an empty post is not an answer.
+    case "info":
+    case "link":
+    case "connect":
+      return z.string().trim().min(1);
     default:
       return z.string().trim().min(1, "This one cannot be blank.");
   }
