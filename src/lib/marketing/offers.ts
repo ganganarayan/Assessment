@@ -110,6 +110,21 @@ export type Offer = {
   };
   /** What the support actually does, in prose. */
   paras: readonly string[];
+  /**
+   * Where our work stops and theirs starts.
+   *
+   * Written down because the expensive misunderstanding on a done-with-you offer is
+   * always the same one: somebody reads "we build your funnel with you" as "somebody
+   * else runs my ads and works my leads". Finding that out on day 11 costs the whole
+   * cohort. Two columns, both explicit, and the second one is not an apology.
+   */
+  scope?: {
+    heading: string;
+    oursTitle: string;
+    ours: readonly string[];
+    yoursTitle: string;
+    yours: readonly string[];
+  };
   /** What it costs and what it does not. Early, because it is the first question. */
   cost?: { heading: string; items: readonly OfferCostItem[] };
   /** Null until the real person's details exist. See OfferBuilder. */
@@ -118,6 +133,14 @@ export type Offer = {
   timeCommitment?: { heading: string; body: string };
   /** The plan both sides work to. */
   stages: readonly OfferStage[];
+  /**
+   * How the clock behaves, under the plan.
+   *
+   * The days are calendar days from day 1, not working days and not days we were
+   * busy. A reader who assumes the clock pauses while they find their Pixel ID will
+   * feel cheated at day 21, and they will be right to, unless it said so here.
+   */
+  clockNote?: string;
   /** Eligibility, then preparation. Rendered ABOVE the plan: it decides whether to read on. */
   entry?: readonly OfferGroup[];
   /** What is asked in return. Not a review, and not a condition of the build. */
@@ -243,7 +266,7 @@ const FOUNDERS: Offer = {
   promise:
     "The first 20 get it built inside the trial, over 21 days, in your own workspace and your own ad account. You keep spending what you already spend on ads. We do not touch that money.",
   fallbackNote:
-    "If nobody bought your product or service by day 21, the funnel is still yours and still live, and we stay on it with you until your first paying client, up to 30 days from the day you onboard. Your ads keep running while we change the creative or the messaging, and changing either takes about a day.",
+    "If nobody bought your product or service by day 21, and you are willing to keep the ad spend running, we carry on with you to day 30. Day 30 is the hard stop: the support ends there from our side, whatever has happened by then. Your ads keep running while we change the creative or the messaging, and changing either takes about a day.",
 
   mechanism: {
     eyebrow: "Negative lead generation",
@@ -258,6 +281,22 @@ const FOUNDERS: Offer = {
     ],
     kicker:
       "Every other tool is paid to bring you more leads. This one is paid to bring you fewer, but qualified.",
+  },
+
+  scope: {
+    heading: "What we do, and what stays yours",
+    oursTitle: "Ours, for the whole 30 days",
+    ours: [
+      "The app. The assessment, the gate, the scoring, the bands and the result page. If starting from a template does not fit what you sell, we write them with you.",
+      "The ad manager. Pixel and Conversions API, the events, the exclusion and retargeting audiences, and the campaign setup.",
+      "Anything inside the app or the ad account it is connected to, for as long as the build runs.",
+    ],
+    yoursTitle: "Yours, and we do not take it over",
+    yours: [
+      "Running the ads. We set them up with you and we stay in the account, but it is your account and your budget, and we never touch the money.",
+      "Calling your leads.",
+      "Taking the sales calls, and closing them.",
+    ],
   },
 
   paras: [
@@ -278,7 +317,7 @@ const FOUNDERS: Offer = {
       },
       {
         title: "What happens when the build is done",
-        body: "No card is taken for the trial, so nothing charges automatically and there is nothing to cancel. When the funnel is live you are handed to the support team, who stay on your account from then on. If you want to keep it running, you pick a plan.",
+        body: "No card is taken for the trial, so nothing charges automatically and there is nothing to cancel. Your trial stays open for as long as the build is running and you are keeping up your end of it. When the funnel is live you are handed to the support team, who stay on your account from then on. If you want to keep it running, you pick a plan.",
       },
     ],
   },
@@ -356,9 +395,12 @@ const FOUNDERS: Offer = {
     {
       days: "Days 15 to 21",
       title: "Sales calls, and your first close",
-      body: "You run the calls. We look at how the people who booked and bought actually answered, and feed that back into the scoring. Then we keep going, because an ad account needs about a month before a before and after comparison means anything.",
+      body: "You run the calls. We look at how the people who booked and bought actually answered, and feed that back into the scoring. If you keep the spend running we carry on to day 30, which is both where it stops and roughly where an ad account has learned enough for a before and after comparison to mean anything.",
     },
   ],
+
+  clockNote:
+    "The clock is calendar days from day 1 and it does not pause. A day spent waiting on something at your end is a day gone from the 21, and from the 30 if we get that far. It is the one part of this we cannot give back.",
 
   askInReturn: {
     heading: "What we ask in return",

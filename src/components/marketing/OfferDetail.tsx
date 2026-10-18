@@ -134,6 +134,50 @@ export function OfferDetail({
           </p>
         ))}
 
+        {offer.scope && open ? (
+          <>
+            <h3 className="mt-12 text-lg font-semibold">{offer.scope.heading}</h3>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border p-5">
+                <h4 className="font-semibold text-green-700 dark:text-green-400">
+                  {offer.scope.oursTitle}
+                </h4>
+                <ul className="mt-3 flex flex-col gap-3">
+                  {offer.scope.ours.map((t) => (
+                    <li
+                      key={t}
+                      className="flex gap-3 text-sm leading-relaxed text-[var(--muted-foreground)]"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-green-600"
+                      />
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-xl border bg-[var(--muted)] p-5">
+                <h4 className="font-semibold">{offer.scope.yoursTitle}</h4>
+                <ul className="mt-3 flex flex-col gap-3">
+                  {offer.scope.yours.map((t) => (
+                    <li
+                      key={t}
+                      className="flex gap-3 text-sm leading-relaxed text-[var(--muted-foreground)]"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--muted-foreground)]"
+                      />
+                      <span>{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </>
+        ) : null}
+
         {/* 3. The money, early. */}
         {offer.cost && open ? (
           <>
@@ -248,6 +292,9 @@ export function OfferDetail({
         ) : null}
 
         <h3 className="mt-12 text-lg font-semibold">The 21 days</h3>
+        {offer.clockNote && open ? (
+          <p className="mt-3 leading-relaxed text-[var(--muted-foreground)]">{offer.clockNote}</p>
+        ) : null}
         <ol className="mt-6 flex flex-col gap-4">
           {offer.stages.map((s) => (
             <li key={s.days} className="rounded-xl border p-5 sm:p-6">
