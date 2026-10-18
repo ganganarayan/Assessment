@@ -367,6 +367,14 @@ export function OfferDetail({
                 {offer.applyFollowUp}
               </p>
             ) : null}
+            {/* The terms, after the decision point. text-xs is the smallest size used
+                anywhere on these pages and it is still read at arm's length: quiet is
+                the point, unreadable is not. See `finePrint` in lib/marketing/offers. */}
+            {offer.finePrint ? (
+              <p className="mt-6 border-t pt-4 text-xs leading-relaxed text-[var(--muted-foreground)]">
+                {offer.finePrint}
+              </p>
+            ) : null}
           </div>
         ) : null}
       </div>

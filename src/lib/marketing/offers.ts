@@ -174,6 +174,20 @@ export type Offer = {
   /** What happens after they send it. */
   applyFollowUp?: string;
   /**
+   * The terms line, under the call to action.
+   *
+   * 🟡 LOW ON THE PAGE, AND STILL LEGIBLE. The limits of the support belong in the
+   * offer, but not beside the promise: a reader deciding whether this is for them is
+   * answering a different question from the one this answers, and a scope limit in
+   * the hero reads as the offer being hedged before it has been made. It sits after
+   * the decision point instead, in the place terms are looked for.
+   *
+   * It is small, not hidden. Nothing here is shrunk past reading, moved behind a
+   * toggle or written to be skimmed over, because a term nobody can find is a term we
+   * could not rely on the day it matters.
+   */
+  finePrint?: string;
+  /**
    * Whether the live remaining-slots counter belongs on this offer.
    *
    * Only true for offers whose cap is the same cap the counter tracks (the
@@ -266,7 +280,7 @@ const FOUNDERS: Offer = {
   promise:
     "The first 20 get it built inside the trial, over 21 days, in your own workspace and your own ad account. You keep spending what you already spend on ads. We do not touch that money.",
   fallbackNote:
-    "If nobody bought your product or service by day 21, and you are willing to keep the ad spend running, we carry on with you to day 30. Day 30 is the hard stop: the support ends there from our side, whatever has happened by then. Your ads keep running while we change the creative or the messaging, and changing either takes about a day.",
+    "If nobody bought your product or service by day 21, and you are willing to keep the ad spend running, we carry on with you from there. Your ads keep running while we change the creative or the messaging, and changing either takes about a day.",
 
   mechanism: {
     eyebrow: "Negative lead generation",
@@ -395,7 +409,7 @@ const FOUNDERS: Offer = {
     {
       days: "Days 15 to 21",
       title: "Sales calls, and your first close",
-      body: "You run the calls. We look at how the people who booked and bought actually answered, and feed that back into the scoring. If you keep the spend running we carry on to day 30, which is both where it stops and roughly where an ad account has learned enough for a before and after comparison to mean anything.",
+      body: "You run the calls. We look at how the people who booked and bought actually answered, and feed that back into the scoring. If you keep the spend running we carry on with you past day 21, because an ad account needs about a month before a before and after comparison means anything.",
     },
   ],
 
@@ -418,6 +432,8 @@ const FOUNDERS: Offer = {
     "One question first, one tap, and nothing you have to look up. The numbers come after that, and you can finish them with your ad account open in front of you. About five minutes.",
   applyFollowUp:
     "We read every one and come back on whether the fit is there and which slot you are in.",
+  finePrint:
+    "Support on the build runs to day 30 from the day you onboard and ends there. Everything built stays in your own workspace and your own ad account.",
   countsSlots: true,
   slotCounterThreshold: 12,
   closesOn: CLOSES_ON,
