@@ -168,9 +168,9 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
                   <p className="font-medium">{t.title}</p>
                   <p className="text-sm text-[var(--muted-foreground)]">{t.summary ?? "No summary."}</p>
                   <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                    {t.category} · {SHAPE_LABELS[t.shape]} · {t.gateQuestions} gate · {t.questions} scored
-                    {t.hasAiPrompt ? " · AI instructions" : ""}
+                    {t.category} · {SHAPE_LABELS[t.shape]}
                   </p>
+                  <Contents t={t} />
                   <p className="mt-1 text-xs text-[var(--muted-foreground)]">
                     From {t.contributorName ?? "an unnamed workspace"}
                     {t.submittedAt ? ` on ${formatIST(t.submittedAt)}` : ""}
@@ -258,9 +258,9 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
                   </div>
                   <p className="text-sm text-[var(--muted-foreground)]">{t.summary ?? "No summary."}</p>
                   <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                    {SHAPE_LABELS[t.shape]} · {t.gateQuestions} gate · {t.questions} scored
-                    {t.hasAiPrompt ? " · AI instructions" : " · no AI"} · {t.slug}
+                    {SHAPE_LABELS[t.shape]} · {t.slug}
                   </p>
+                  <Contents t={t} />
                 </div>
                 {canEdit ? (
                   <div className="flex shrink-0 flex-wrap items-center gap-3">
@@ -704,4 +704,48 @@ function TemplateEditor({ id, title, onChanged }: { id: string; title: string; o
       ) : null}
     </div>
   );
+}
+
+/**
+ * WHAT IS ACTUALLY IN A TEMPLATE, as five plain facts.
+ *
+ * This replaces a sentence - "5 gate · 10 scored · AI instructions" - that could not say
+ * the thing the owner most needs to know before putting a template on every workspace's
+ * dashboard: whether it brings a RESULT PAGE. The import creates whichever pages the
+ * template carries, so a template with neither hands somebody a funnel that ends on the
+ * built-in score cards, and no screen said so.
+ *
+ * The colours are judgements, not decoration. A missing gate on an ungated template and
+ * no scored questions on a gate-only one are both BY DESIGN, so they read as neutral;
+ * anything else missing is amber, because it is a gap in a starting point rather than a
+ * choice somebody made.
+ */
+function Contents({ t }: { t: TemplateListItem }) {
+  const ungated = t.shape === "UNGATED_ASSESSMENT";
+  const gateOnly = t.shape === "GATE_ONLY";
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      <Fact
+        state={t.gateQuestions > 0 ? "yes" : ungated ? "n/a" : "no"}
+        label={t.gateQuestions > 0 ? `${t.gateQuestions} gate` : "No gate"}
+      />
+      <Fact
+        state={t.questions > 0 ? "yes" : gateOnly ? "n/a" : "no"}
+        label={t.questions > 0 ? `${t.questions} scored` : "No scored questions"}
+      />
+      <Fact state={t.hasResultsPage ? "yes" : "no"} label={t.hasResultsPage ? "Results page" : "No results page"} />
+      <Fact state={t.hasVslPage ? "yes" : "no"} label={t.hasVslPage ? "VSL page" : "No VSL page"} />
+      <Fact state={t.hasAiPrompt ? "yes" : "no"} label={t.hasAiPrompt ? "AI instructions" : "No AI statement"} />
+    </div>
+  );
+}
+
+function Fact({ state, label }: { state: "yes" | "no" | "n/a"; label: string }) {
+  const tone =
+    state === "yes"
+      ? "border-green-600/40 bg-green-600/10 text-green-700 dark:text-green-400"
+      : state === "no"
+      ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+      : "border-[var(--border)] text-[var(--muted-foreground)]";
+  return <span className={`rounded-full border px-2 py-0.5 text-[11px] ${tone}`}>{label}</span>;
 }
