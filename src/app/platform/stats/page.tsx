@@ -3,7 +3,11 @@ import { requireSuperAdmin } from "@/lib/auth/guards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { formatIST } from "@/lib/date";
-import { getPlatformFunnelStats, getPlatformUtmBreakdown } from "@/features/admin/data/platform-analytics";
+import {
+  getPlatformFunnelStats,
+  getPlatformPageBreakdown,
+  getPlatformUtmBreakdown,
+} from "@/features/admin/data/platform-analytics";
 import { listCapiLogs } from "@/features/events/data";
 import { getStatsFloor } from "@/lib/stats-floor";
 import { istDateRangeToUtc } from "@/lib/date";
@@ -31,9 +35,10 @@ export default async function PlatformStatsPage({
   // The export must be the window on screen, not all time, or the file and the page
   // disagree the moment anyone filters.
   const qs = [sp.from ? `&from=${encodeURIComponent(sp.from)}` : "", sp.to ? `&to=${encodeURIComponent(sp.to)}` : ""].join("");
-  const [s, utm, capi] = await Promise.all([
+  const [s, utm, pages, capi] = await Promise.all([
     getPlatformFunnelStats(range),
     getPlatformUtmBreakdown(range),
+    getPlatformPageBreakdown(range),
     // What the SaaS funnel actually sent Meta, with Meta's own answer. These events
     // are the thing an ad account counts as a "registration", so they belong next to
     // the signup number rather than in the respondent-funnel Conversions log.
@@ -167,6 +172,42 @@ export default async function PlatformStatsPage({
                     <td className="max-w-md truncate px-3 py-2 text-xs text-[var(--muted-foreground)]">
                       {dash(r.response)}
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Which PAGE they landed on. Ads point at /offers as well as at the landing
+          page now, so "how much traffic" was no longer a useful number on its own. */}
+      <section className="flex flex-col gap-2">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Traffic by page</h2>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            Every public page that renders the marketing nav is counted, so an offer page
+            and the landing page can be compared directly. Bots excluded.
+          </p>
+        </div>
+        {pages.length === 0 ? (
+          <p className="text-sm text-[var(--muted-foreground)]">No page views yet.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+                <tr>
+                  <th className="px-3 py-1.5">Page</th>
+                  <th className="px-3 py-1.5 text-right">Views</th>
+                  <th className="px-3 py-1.5 text-right">Visitors</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {pages.map((r) => (
+                  <tr key={r.path}>
+                    <td className="whitespace-nowrap px-3 py-2 font-medium">{r.path}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{r.views.toLocaleString()}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{r.visitors.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>

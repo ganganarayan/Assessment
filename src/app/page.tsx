@@ -6,9 +6,6 @@ import { getTenantContext, getCurrentTenant } from "@/lib/tenant/context";
 import { rootAssessmentSlugFor } from "@/features/assessment/root-assessment";
 import { buttonVariants } from "@/components/ui/button";
 import { Landing } from "@/components/marketing/Landing";
-import { PlatformPixel } from "@/components/platform-pixel";
-import { LandingTracker } from "@/features/billing/components/landing-tracker";
-import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { getLandingVideos } from "@/features/platform/landing-videos";
 import { MARKETING } from "@/lib/marketing/content";
 import { OG_IMAGE } from "@/lib/seo/site";
@@ -52,20 +49,14 @@ export default async function HomePage() {
   // with no root domain at all, without the landing page disappearing.
   const tenant = await getCurrentTenant();
 
-  // Platform → marketing landing. The SaaS pixel fires PageView here (separate from
-  // the Gita assessment pixel).
+  // Platform → marketing landing.
+  //
+  // The SaaS pixel and the page-view recorder used to be mounted HERE, which is why
+  // only this page was ever counted. They moved into <Nav> (rendered by Landing), so
+  // every public surface is instrumented and none of them can ship without it. Mounting
+  // them again here would fire two PageViews for one visit.
   if (!tenant) {
-    const [{ pixelId }, videos] = await Promise.all([
-      resolvePlatformMetaConfig(),
-      getLandingVideos(),
-    ]);
-    return (
-      <>
-        <PlatformPixel pixelId={pixelId} />
-        <LandingTracker />
-        <Landing videos={videos} />
-      </>
-    );
+    return <Landing videos={await getLandingVideos()} />;
   }
 
   // Tenant root (subdomain or custom domain). Land on that tenant's funnel, which is

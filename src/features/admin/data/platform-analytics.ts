@@ -96,3 +96,53 @@ export async function getPlatformUtmBreakdown(range?: Range): Promise<PlatformUt
     .sort((a, b) => b.views - a.views)
     .slice(0, 25);
 }
+
+export interface PlatformPageRow {
+  /** The path as it was recorded. "/" for rows written before the column existed. */
+  path: string;
+  views: number;
+  visitors: number;
+}
+
+/**
+ * Views per PAGE.
+ *
+ * The `path` column has been written on every page view since the recorder was added
+ * and was never read by anything, so the dashboard could say how much traffic arrived
+ * and from which campaign, but not which page it landed on. With ads now pointing at
+ * /offers rather than at the landing page, "which page" is the question being asked.
+ *
+ * Two groupBys rather than one: the first is a handful of rows, and the second is the
+ * only way to get a distinct visitor count per path out of Prisma, since groupBy has
+ * no count-distinct. Its cost is the same shape as the unique-visitor count in
+ * getPlatformFunnelStats above, and the date range bounds both.
+ */
+export async function getPlatformPageBreakdown(range?: Range): Promise<PlatformPageRow[]> {
+  const createdAt = createdAtFilter(range);
+  const where: Prisma.PlatformPageViewWhereInput = {
+    isBot: false,
+    ...(createdAt ? { createdAt } : {}),
+  };
+
+  const [viewRows, visitorRows] = await Promise.all([
+    prisma.platformPageView.groupBy({ by: ["path"], where, _count: { _all: true } }),
+    prisma.platformPageView.groupBy({ by: ["path", "visitorId"], where }),
+  ]);
+
+  const visitors = new Map<string, number>();
+  for (const r of visitorRows) {
+    const key = r.path || "/";
+    visitors.set(key, (visitors.get(key) ?? 0) + 1);
+  }
+
+  const views = new Map<string, number>();
+  for (const r of viewRows) {
+    const key = r.path || "/";
+    views.set(key, (views.get(key) ?? 0) + r._count._all);
+  }
+
+  return [...views.entries()]
+    .map(([path, v]) => ({ path, views: v, visitors: visitors.get(path) ?? 0 }))
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 50);
+}

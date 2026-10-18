@@ -5,7 +5,7 @@ import { getCurrentTenant } from "@/lib/tenant/context";
 import { Nav } from "@/components/marketing/Nav";
 import { Footer } from "@/components/marketing/Footer";
 import { OfferDetail } from "@/components/marketing/OfferDetail";
-import { closedOffers, openOffers } from "@/lib/marketing/offers";
+import { closedOffers, offerClosed, openOffers } from "@/lib/marketing/offers";
 import { resolveOfferSlotsLeft } from "@/lib/settings/config";
 import { platformPageMetadata } from "@/lib/seo/site";
 
@@ -43,15 +43,20 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function OffersPage() {
   if (await getCurrentTenant()) notFound();
 
-  const open = openOffers();
-  const closed = closedOffers();
+  // "Open" is not the same question as "still taking applications". An offer whose
+  // closing date has passed is rendered with the archive, because the campaign that
+  // pointed here has moved on and a live call to action nobody is watching is a promise
+  // nobody is keeping. See offerClosed().
+  const published = openOffers();
+  const open = published.filter((o) => !offerClosed(o));
+  const closed = [...published.filter((o) => offerClosed(o)), ...closedOffers()];
   // null, not 0, when the counter is unmaintained or spent: the component then shows no
   // count at all rather than standing there advertising a closed door.
   const slotsLeft = await resolveOfferSlotsLeft().catch(() => null);
 
   return (
     <>
-      <Nav anchorBase="/" showCta={false} />
+      <Nav anchorBase="/" showCta={false} showSignin={false} />
       <main id="main">
         <section className="border-b">
           <div className="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
@@ -78,7 +83,7 @@ export default async function OffersPage() {
           </section>
         ) : (
           open.map((offer) => (
-            <OfferDetail key={offer.slug} offer={offer} slotsLeft={slotsLeft} />
+            <OfferDetail key={offer.slug} offer={offer} slotsLeft={slotsLeft} closed={false} />
           ))
         )}
 
@@ -93,7 +98,7 @@ export default async function OffersPage() {
               </div>
             </section>
             {closed.map((offer) => (
-              <OfferDetail key={offer.slug} offer={offer} slotsLeft={null} />
+              <OfferDetail key={offer.slug} offer={offer} slotsLeft={null} closed />
             ))}
           </>
         ) : null}

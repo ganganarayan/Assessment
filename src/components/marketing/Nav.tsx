@@ -3,6 +3,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { MARKETING, NAV_LINKS } from "@/lib/marketing/content";
 import { getCta } from "@/lib/settings/cta";
+import { resolvePlatformMetaConfig } from "@/lib/settings/config";
+import { PlatformPixel } from "@/components/platform-pixel";
+import { LandingTracker } from "@/features/billing/components/landing-tracker";
 import { OfferBar } from "./OfferBar";
 import { CtaLink } from "./CtaLink";
 
@@ -16,18 +19,37 @@ import { CtaLink } from "./CtaLink";
  * a supported build with preconditions, and a self-serve trial taken first is the one
  * order in which it cannot be delivered. It suppresses the offer bar as well as the
  * button, because both point at the same funnel.
+ *
+ * `showSignin` exists for the same page. /offers is the TOP of a cold funnel: ads land
+ * there, and the next step is the application or the main page. A sign-in button is for
+ * somebody who already has an account, and on that page it is one more door out of a
+ * screen that is supposed to have two.
+ *
+ * 🟢 PAGE-VIEW TRACKING LIVES HERE, not on each page. Every public surface renders this
+ * nav, so mounting the pixel and the view recorder here is what makes "every visitor to
+ * any page is counted" structurally true rather than a thing to remember. LandingTracker
+ * records the PATH, so /platform/stats can break views down by page. Before this, only
+ * the landing page was instrumented and /offers was invisible.
+ *
+ * 🔴 So do NOT also mount PlatformPixel or LandingTracker on a page that renders this
+ * nav: two PageViews for one visit reads as double the traffic. /sign-up and /w mount
+ * their own because neither has this nav.
  */
 export async function Nav({
   anchorBase = "",
   showCta = true,
+  showSignin = true,
 }: {
   anchorBase?: string;
   showCta?: boolean;
+  showSignin?: boolean;
 }) {
-  const cta = await getCta();
+  const [cta, { pixelId }] = await Promise.all([getCta(), resolvePlatformMetaConfig()]);
 
   return (
     <header className="sticky top-0 z-40 border-b bg-[var(--background)]">
+      <PlatformPixel pixelId={pixelId} />
+      <LandingTracker />
       {/* Inside the sticky header, above the nav row, so it travels with it rather than
           scrolling away - and so a new public page cannot ship without the offer on it. */}
       {showCta ? <OfferBar /> : null}
@@ -85,12 +107,14 @@ export async function Nav({
               /sign-in was the footer's legal row or typing the URL. Ghost, not outline -
               a secondary action next to the trial CTA, which stays the only filled
               button on the page. */}
-          <Link
-            href={MARKETING.signinHref}
-            className={buttonVariants({ variant: "ghost", size: "sm" })}
-          >
-            Sign in
-          </Link>
+          {showSignin ? (
+            <Link
+              href={MARKETING.signinHref}
+              className={buttonVariants({ variant: "ghost", size: "sm" })}
+            >
+              Sign in
+            </Link>
+          ) : null}
           {showCta ? (
             <CtaLink href={cta.href} className={buttonVariants({ size: "sm" })}>
               {cta.trialLabel}
