@@ -58,23 +58,17 @@ export default async function OffersPage() {
     <>
       <Nav anchorBase="/" showCta={false} showSignin={false} />
       <main id="main">
-        <section className="border-b">
-          <div className="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
-            <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
-              Offers
-            </h1>
-            <p className="mt-5 text-lg leading-relaxed text-[var(--muted-foreground)]">
-              What is on the table right now. Offers are released from time to time, run
-              until their slots are gone, and then stay on this page so the terms they ran
-              on are still readable.
-            </p>
-          </div>
-        </section>
+        {/* No "Offers" masthead. Ads land on this page cold, and a title plus a
+            paragraph about how offers work in general is a screen of throat-clearing
+            in front of the only thing the visitor came for. The offer's own mechanism
+            heading is the page's h1 instead (see `lead` on OfferDetail). */}
 
         {open.length === 0 ? (
           <section className="border-b">
             <div className="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
-              <h2 className="text-2xl font-bold tracking-tight">Nothing open at the moment</h2>
+              {/* h1 here, because with the masthead gone this is the only heading on
+                  the page when nothing is running. */}
+              <h1 className="text-2xl font-bold tracking-tight">Nothing open at the moment</h1>
               <p className="mt-4 leading-relaxed text-[var(--muted-foreground)]">
                 No offer is running today. The product is on the main page, at its ordinary
                 price.
@@ -82,8 +76,15 @@ export default async function OffersPage() {
             </div>
           </section>
         ) : (
-          open.map((offer) => (
-            <OfferDetail key={offer.slug} offer={offer} slotsLeft={slotsLeft} closed={false} />
+          open.map((offer, i) => (
+            <OfferDetail
+              key={offer.slug}
+              offer={offer}
+              slotsLeft={slotsLeft}
+              closed={false}
+              // The first open offer carries the page's h1. Exactly one, always.
+              lead={i === 0}
+            />
           ))
         )}
 

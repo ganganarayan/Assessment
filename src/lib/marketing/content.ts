@@ -85,9 +85,26 @@ export const DFY_CTA = "Qualify, build my free scorecard";
 export const NAV_LINKS: ReadonlyArray<{ label: string; href: string }> = [
   { label: "How it works", href: "#how" },
   { label: "Capabilities", href: "#capabilities" },
-  { label: "Pricing", href: "#pricing" },
+  // A REAL ROUTE, not the landing page's "#pricing" section. /pricing is already the
+  // canonical home of the table (see app/pricing/page.tsx), it is the page people link
+  // to and quote, and from /offers the anchor version scrolled to a section on a
+  // different page. One destination for the word "Pricing", everywhere it appears.
+  { label: "Pricing", href: "/pricing" },
   { label: "FAQ", href: "#faq" },
 ];
+
+/**
+ * Where a nav link actually points from a given page.
+ *
+ * NAV_LINKS mixes in-page anchors with real routes. An anchor needs the page prefix
+ * when the nav is rendered somewhere other than the landing page ("#faq" scrolls to
+ * nothing on /offers), and a route must never get one, or "/" + "/pricing" becomes
+ * "//pricing", which the browser reads as a protocol-relative URL to a host named
+ * "pricing".
+ */
+export function navHref(href: string, anchorBase = ""): string {
+  return href.startsWith("/") ? href : `${anchorBase}${href}`;
+}
 
 export const STEPS: ReadonlyArray<{ n: string; title: string; body: string }> = [
   {

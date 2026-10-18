@@ -89,7 +89,7 @@ async function entityNodes(): Promise<Node[]> {
       name: t.name,
       price: String(t.amount),
       priceCurrency: "USD",
-      url: absolute("/#pricing"),
+      url: absolute("/pricing"),
       availability: "https://schema.org/InStock",
     })),
   };

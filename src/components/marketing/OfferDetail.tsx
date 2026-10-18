@@ -47,13 +47,26 @@ export function OfferDetail({
   offer,
   slotsLeft,
   closed,
+  lead = false,
 }: {
   offer: Offer;
   slotsLeft: number | null;
   /** Status closed, or the application window has passed. See offerClosed(). */
   closed: boolean;
+  /**
+   * This is the first offer on the page, so it carries the h1.
+   *
+   * The page has no masthead of its own any more, and a page with no h1 is a
+   * defect in both a screen reader and a crawler. The mechanism heading takes it
+   * when there is one, because that is the first thing on the page; otherwise the
+   * offer's own name does.
+   */
+  lead?: boolean;
 }) {
   const open = !closed;
+  const showMechanism = Boolean(offer.mechanism) && open;
+  const MechanismHeading = lead ? "h1" : "h2";
+  const NameHeading = lead && !showMechanism ? "h1" : "h2";
 
   // The count appears only once it is actually scarce. Above the threshold the cap on
   // its own is both honest and stronger: "18 of 20 left" advertises how few took it.
@@ -65,14 +78,14 @@ export function OfferDetail({
     <article id={offer.slug} className="scroll-mt-24 border-b">
       <div className="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
         {/* 1. The mechanism, for traffic that has never seen the main page. */}
-        {offer.mechanism && open ? (
+        {offer.mechanism && showMechanism ? (
           <section className="mb-14 border-b pb-12">
             <p className="text-sm font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">
               {offer.mechanism.eyebrow}
             </p>
-            <h2 className="mt-3 text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
+            <MechanismHeading className="mt-3 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
               {offer.mechanism.heading}
-            </h2>
+            </MechanismHeading>
             <ol className="mt-7 flex flex-col gap-4 sm:grid sm:grid-cols-3">
               {offer.mechanism.steps.map((s) => (
                 <li key={s.name} className="rounded-xl border p-5">
@@ -91,9 +104,9 @@ export function OfferDetail({
         <p className="text-sm font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">
           {offer.eyebrow}
         </p>
-        <h2 className="mt-3 text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
+        <NameHeading className="mt-3 text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
           {offer.name}
-        </h2>
+        </NameHeading>
         <p className="mt-5 text-lg leading-relaxed">{offer.promise}</p>
 
         {open ? (

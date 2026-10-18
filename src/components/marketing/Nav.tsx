@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { MARKETING, NAV_LINKS } from "@/lib/marketing/content";
+import { MARKETING, NAV_LINKS, navHref } from "@/lib/marketing/content";
 import { getCta } from "@/lib/settings/cta";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { PlatformPixel } from "@/components/platform-pixel";
@@ -74,7 +74,7 @@ export async function Nav({
           {NAV_LINKS.map((l) => (
             <a
               key={l.href}
-              href={`${anchorBase}${l.href}`}
+              href={navHref(l.href, anchorBase)}
               className="text-sm font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
             >
               {l.label}

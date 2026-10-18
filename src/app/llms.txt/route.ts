@@ -50,7 +50,7 @@ export async function GET(): Promise<Response> {
     lines.push("");
   }
 
-  lines.push("## Company", "", `- [Pricing](${absolute("/#pricing")}): plans and what each includes.`);
+  lines.push("## Company", "", `- [Pricing](${absolute("/pricing")}): plans and what each includes.`);
   lines.push(`- [Privacy](${absolute("/privacy")})`, `- [Terms](${absolute("/terms")})`, "");
 
   return new Response(lines.join("\n"), {

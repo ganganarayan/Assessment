@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant/context";
 import { buttonVariants } from "@/components/ui/button";
-import { NAV_LINKS } from "@/lib/marketing/content";
+import { NAV_LINKS, navHref } from "@/lib/marketing/content";
 
 /**
  * 404. There was no not-found.tsx at all, so every dead URL - a mistyped funnel slug, a
@@ -44,7 +44,7 @@ export default async function NotFound() {
           <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
             {NAV_LINKS.map((l) => (
               <li key={l.href}>
-                <Link href={`/${l.href}`} className="underline underline-offset-4">
+                <Link href={navHref(l.href, "/")} className="underline underline-offset-4">
                   {l.label}
                 </Link>
               </li>

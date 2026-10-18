@@ -243,7 +243,7 @@ const FOUNDERS: Offer = {
   promise:
     "The first 20 get it built inside the trial, over 21 days, in your own workspace and your own ad account. You keep spending what you already spend on ads. We do not touch that money.",
   fallbackNote:
-    "If nobody has bought by day 21, the funnel is still yours and still live, and we stay on it with you until your first paying client, up to 30 days from the day you onboard. Your ads keep running while we change the creative or the messaging, and changing either takes about a day. You do not pay for the build either way.",
+    "If nobody bought your product or service by day 21, the funnel is still yours and still live, and we stay on it with you until your first paying client, up to 30 days from the day you onboard. Your ads keep running while we change the creative or the messaging, and changing either takes about a day.",
 
   mechanism: {
     eyebrow: "Negative lead generation",
@@ -256,12 +256,13 @@ const FOUNDERS: Offer = {
         body: "Only the qualified ones are sent to Meta, and the rejected ones go into an exclusion list.",
       },
     ],
-    kicker: "Every other tool is paid to bring you more leads. This one is paid to bring you fewer.",
+    kicker:
+      "Every other tool is paid to bring you more leads. This one is paid to bring you fewer, but qualified.",
   },
 
   paras: [
     "This is not a template and a handover note. Somebody from here is in the build with you: the assessment and its gate, the landing page it sits behind, the pixel and the Conversions API, the exclusion and retargeting audiences, and the campaigns you launch on day 6.",
-    "All of it is built in your own workspace and your own ad account, so all of it stays yours when the 21 days are up.",
+    "All of it is built in your own workspace and your own ad account, so all of it is yours, and the build runs until day 21.",
   ],
 
   cost: {
@@ -276,8 +277,8 @@ const FOUNDERS: Offer = {
         body: "We never ask for it and we never handle it. You are already spending at least ₹1,000 a day, and that is the money the funnel runs on.",
       },
       {
-        title: "The trial, and what happens after it",
-        body: "14 days, no card. On day 15 the account parks read only: your scorecard pauses and your data stays. Nothing charges automatically, because there is no card on file to cancel. If you want it live after that, you pick a plan.",
+        title: "What happens when the build is done",
+        body: "No card is taken for the trial, so nothing charges automatically and there is nothing to cancel. When the funnel is live you are handed to the support team, who stay on your account from then on. If you want to keep it running, you pick a plan.",
       },
     ],
   },
