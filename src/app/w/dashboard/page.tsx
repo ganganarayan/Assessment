@@ -12,6 +12,8 @@ import { resolvePlan } from "@/lib/billing/entitlements";
 import { getSetupProgress } from "@/features/workspace/data/setup-progress";
 import { SetupProgressPanel } from "@/features/workspace/components/setup-progress-panel";
 import { TrialFocus } from "@/features/billing/components/trial-focus";
+import { getOnboardingView, getStarterTemplates } from "@/features/onboarding/data";
+import { OnboardingDialog } from "@/features/onboarding/components/onboarding-dialog";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -53,7 +55,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceDashboardPage() {
-  const { tenantId, impersonating } = await requireWorkspace();
+  const { user, tenantId, impersonating } = await requireWorkspace();
   const [counts, onboardingVideoUrl, onboardingSteps, templates, canEdit, cap, resolved, setup] = await Promise.all([
     getDashboardCounts(tenantOnly(tenantId)),
     resolveOnboardingVideoUrl(),
@@ -66,6 +68,19 @@ export default async function WorkspaceDashboardPage() {
     // owner-authored steps below have never been able to carry.
     getSetupProgress(tenantId),
   ]);
+
+  /**
+   * THE GUIDED SETUP, which opens over this page until it is finished.
+   *
+   * Not while a super admin is operating the workspace: the questions are the customer's
+   * to answer, and an owner who entered a tenant to fix something must not be asked for
+   * their WhatsApp number on the customer's behalf.
+   *
+   * Closed, the same component renders as a Resume button, so the way back in is on the
+   * screen they land on rather than in a menu.
+   */
+  const onboarding = impersonating || !canEdit ? null : await getOnboardingView(tenantId, user.id);
+  const starters = onboarding && !onboarding.complete ? await getStarterTemplates(tenantId) : [];
 
   const capReason = cap.ok
     ? null
@@ -81,6 +96,16 @@ export default async function WorkspaceDashboardPage() {
       </div>
 
       <TrialFocus resolved={resolved} />
+
+      {/* 🟡 OPENS BY ITSELF ONLY WHILE THERE IS NO FUNNEL YET. That is what tells a
+          workspace being set up apart from one that has been working for months: the
+          second kind has answered most of this already, by hand, and an established
+          customer does not want a dialog in front of their dashboard to confirm their
+          own business name. They get the Resume button instead, which is the same
+          component closed. */}
+      {onboarding && !onboarding.complete ? (
+        <OnboardingDialog initial={onboarding} templates={starters} openOnLoad={counts.assessments === 0} />
+      ) : null}
 
       <SetupProgressPanel progress={setup} />
 

@@ -179,6 +179,8 @@ model Tenant {
   audienceLists        AudienceList[]
   /// Result pages (RESULTS + VSL) in this workspace's library.
   resultPageDocs       ResultPageDoc[]
+  /// What this workspace has answered in the guided setup sequence.
+  onboardingAnswers    OnboardingAnswer[]
 
   @@index([status])
   @@index([deletedAt])
@@ -3320,4 +3322,50 @@ model SupportAttachment {
 
   @@index([requestId])
   @@map("support_attachment")
+}
+
+/// ---------------------------------------------------------------------------
+/// GUIDED SETUP: one row per question answered.
+///
+/// A new workspace used to read a numbered list of sentences that was the same on
+/// every visit and carried no state, so somebody who did three of them on Monday had
+/// to remember where they were on Wednesday. This table is that missing memory, and it
+/// is deliberately the smallest thing that can carry it.
+///
+/// 🔴 THE JOURNAL IS NOT THE TRUTH. Every step writes to the place that already owns
+/// its value - the pixel to the default ad account, the sender to AppSetting, the
+/// colour to Theme - and this row only records that the question was answered. Where
+/// the app can check the fact itself, the FACT decides whether the step is done, never
+/// the row: a workspace can never look configured with a pixel that does not resolve.
+///
+/// There is no progress pointer and no completed flag. Position and completion are
+/// computed from the step registry plus these rows, so adding, reordering or
+/// re-wording a step cannot strand somebody in the middle of their own setup.
+///
+/// A SECRET IS NEVER STORED HERE. `value` is null for the token steps: the credential
+/// goes to its encrypted column and the row says only that it was given, so nothing
+/// about this table needs to be redacted on the way to a browser.
+model OnboardingAnswer {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// The registry key of the step (see src/features/onboarding/steps.ts). A plain
+  /// string, not an enum: adding a step must never need a migration.
+  stepKey String
+
+  /// What they gave, for the facts that have no other home (the business name, what
+  /// they sell). Null for a secret, for a tap-only step, and for a skip.
+  value String? @db.Text
+
+  /// They chose to come back to it. Kept apart from an answer so "left to do" can be
+  /// listed without guessing at an empty value.
+  skipped Boolean @default(false)
+
+  answeredAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([tenantId, stepKey])
+  @@index([tenantId])
+  @@map("onboarding_answer")
 }
