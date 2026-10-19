@@ -42,7 +42,16 @@ const OURS = ["assess360"];
  * check cannot protect, and the `*\/*` route covers it from the moment its DNS record is
  * proxied.
  */
-const FOREIGN = ["avr", "cosmetic", "powertools", "paymentz"];
+const FOREIGN = ["avr", "cosmetic", "powertools", "paymentz", "revenueos"];
+
+/**
+ * 🟡 `revenueos` joined on 20-10-2026 and is a different shape from the rest: a static
+ * site served by its own Worker (revenueos-site) through a Custom Domain, not an app on
+ * its own origin. That is exactly why it belongs here. An exact-hostname Custom Domain
+ * outranks the SaaS proxy's `*\/*` route, so it should win - and "should" is what this
+ * check exists to stop anyone relying on. Before this it was grey-clouded and the Worker
+ * never saw it; attaching the Custom Domain put it inside the route for the first time.
+ */
 
 /**
  * The Cloudflare for SaaS fallback origin. It is INSIDE the zone, so the Worker must pass
