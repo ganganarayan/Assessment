@@ -48,30 +48,81 @@ matches, and falls back to the real Host, which is always truthful.
 - Note the **Zone ID** from the zone overview. Whatever you named the fallback goes into
   `CLOUDFLARE_SAAS_FALLBACK` verbatim; nothing in the code assumes the word "cname".
 
-**2. Worker**, deploy `infra/cloudflare-worker.js`
+**2. Worker**, deployed from this repo with wrangler
 
-- Variables: `ORIGIN_HOST` = the Railway host (plaintext);
-  `PROXY_SECRET` = a long random string (**encrypted**);
-  `ZONE_HOST` = the zone itself, e.g. `divineleads.guru` (plaintext).
-- Route: `*/*` on that zone, so every custom hostname passes through it.
+The Worker is `infra/cloudflare-worker.js` and its deploy configuration is
+`infra/wrangler.toml`. `ORIGIN_HOST`, `ZONE_HOST` and the `*/*` route all live in that
+file, under review, so the only thing held outside the repo is the secret.
 
-🔴 **THE FILE IN THIS REPO IS NOT THE DEPLOYED ARTIFACT.** The Worker script is pasted
-into the Cloudflare dashboard by hand, so committing a fix here changes nothing live.
-Deploy it: Workers & Pages → the Worker → Edit code → select all → paste → Deploy.
+```bash
+npm run worker:check
+```
 
-🔴 **A variable edit is not a code deploy.** On 2026-10-14 `ZONE_HOST` was set correctly
-for four hours while the deployed script had no zone pass-through at all, and the
-dashboard read as configured the whole time. The Deployments tab tells them apart: a row
-named "Updated variable: ZONE_HOST" did not change the code. The cost was four unrelated
-apps in the zone - avr, cosmetic, powertools, paymentz - serving the Assess360 marketing
-page, because the `*/*` route matches every proxied record in your own zone and the
-script was rewriting all of them to `ORIGIN_HOST`.
+That compiles the script and resolves the bindings without uploading anything. Then:
 
-🟡 **The structural fix** is to put Cloudflare for SaaS on a zone that hosts nothing
+```bash
+npm run worker:deploy && npm run verify:zone
+```
+
+🟢 **The repo is now the deployed artifact.** This replaces the old "Edit code → select
+all → paste → Deploy" step, which is what made the 2026-10-14 outage possible: the
+`ZONE_HOST` pass-through was committed (10089cf) while the running script still had none,
+so a correct fix sat in git for hours changing nothing. Never paste into the dashboard
+again. If someone does, the next `worker:deploy` silently reverts it, which is the
+correct outcome and the reason to put the fix in git instead.
+
+Authentication, once per machine: either `npx wrangler@4 login`, or export a
+`CLOUDFLARE_API_TOKEN` with **Workers Scripts:Edit** plus `CLOUDFLARE_ACCOUNT_ID`. 🟡 This
+is a *different* token from the `CLOUDFLARE_API_TOKEN` on the Railway service, which only
+needs Zone:Read + SSL:Edit for custom hostnames. Do not assume the Railway one can deploy.
+
+🔴 **The secret is set once, out of band, and is preserved by every later deploy:**
+
+```bash
+npx --yes wrangler@4 secret put PROXY_SECRET --config infra/wrangler.toml
+```
+
+It must equal Railway's `CLOUDFLARE_PROXY_SECRET`. Without it, `ORIGIN_HOST` is publicly
+reachable and anyone could send `x-forwarded-host: <a tenant's domain>` and be served as
+that tenant. `src/lib/tenant/forwarded-host.ts` ignores the header unless the secret
+matches, so a mismatch fails safe, not open: every custom hostname resolves to the
+platform and no tenant is impersonated.
+
+### 🔴 Pre-flight, before the FIRST deploy only
+
+Routes declared in `wrangler.toml` are *managed* by it: a deploy reconciles the live set
+to that block, so a route in the dashboard but not in the file gets removed, and removing
+`*/*` breaks every custom hostname at once. Twice, before shipping the first time:
+
+1. **List the live routes** for the Worker in the dashboard (Workers & Pages →
+   assess360-saas-proxy → Settings → Domains & Routes). If `*/*` on the zone is the only
+   one, the file already matches and you are clear. If there are others, add them to
+   `[[routes]]` before deploying, or comment the block out and keep managing routes in
+   the dashboard. The script still deploys from the repo either way, which is the win.
+2. **Check for an uncommitted hotfix.** `npm run worker:history` shows the deploy
+   timestamps. A code deploy *after* the last commit to `infra/cloudflare-worker.js`
+   means somebody pasted something that was never committed, and this deploy would
+   discard it. Read it out of the dashboard and commit it first.
+
+🟢 **Rollback** is `npm run worker:rollback`, and `npm run worker:tail` streams live
+requests when something is wrong and you need to see which host is arriving.
+
+🟡 **A dashboard variable edit is still not a code deploy.** That distinction caused the
+outage and the dashboard will not warn you: a Deployments row named "Updated variable:
+ZONE_HOST" changed no code. Now that both variables come from `wrangler.toml`, edit them
+there and deploy, so the two can no longer disagree.
+
+🟡 **wrangler is invoked through `npx`, not installed as a dependency.** It is a ~50MB
+tool used for an occasional manual deploy, and adding it to devDependencies would make
+every Railway build install it for nothing. Pinned to major 4 so the config format
+cannot shift underneath this file.
+
+🟡 **The structural fix** is still to put Cloudflare for SaaS on a zone that hosts nothing
 else. The route has to be `*/*` (client hostnames are unknown in advance), so on a shared
-zone one pasted script is a single point of failure for every app on it. The free Workers
-plan compounds it: past 100,000 requests in a UTC day the Worker stops (error 1027) and
-every proxied host in the zone fails together. Workers Paid is $5/month.
+zone one script is a single point of failure for every app on it. Deploying from the repo
+removes the *paste* from that risk, not the shared blast radius. The free Workers plan
+compounds it: past 100,000 requests in a UTC day the Worker stops (error 1027) and every
+proxied host in the zone fails together. Workers Paid is $5/month.
 
 **3. Railway variables** (the app service)
 

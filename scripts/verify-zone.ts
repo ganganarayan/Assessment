@@ -13,9 +13,15 @@
  * identity: does the app answering this host claim to be the app that owns it.
  *
  * The second half of the trap: `infra/cloudflare-worker.js` IS NOT THE DEPLOYED ARTIFACT.
- * It is pasted into the Cloudflare dashboard by hand, so committing a Worker fix changes
- * nothing live. The variables had been set correctly for hours while the script ignored
- * them. RUN THIS AFTER EVERY WORKER DEPLOY, not after every commit.
+ * It WAS pasted into the Cloudflare dashboard by hand, so committing a Worker fix changed
+ * nothing live, and the variables had been set correctly for hours while the script
+ * ignored them. That half is now fixed: the Worker deploys from the repo with
+ * `npm run worker:deploy` (infra/wrangler.toml), so the artifact and the file agree.
+ *
+ * This check is still the one that matters, because the remaining failure modes do not
+ * show up in a diff: a deploy that did not reach the edge, a second Worker holding the
+ * same *\/* route, or a DNS record newly proxied into a route nobody re-tested. RUN THIS
+ * AFTER EVERY WORKER DEPLOY, not after every commit.
  *
  *   npm run verify:zone
  *
@@ -176,8 +182,10 @@ async function main(): Promise<void> {
     } else if (servedByAssess(p)) {
       failures.push(
         `${p.host} is being served by ASSESS360 - the Worker is rewriting own-zone traffic. ` +
-          `Paste the current infra/cloudflare-worker.js over the deployed script (a ZONE_HOST ` +
-          `variable edit is NOT a code deploy) and check no second Worker holds the */* route.`,
+          `Run \`npm run worker:deploy\` to ship infra/cloudflare-worker.js from the repo ` +
+          `(ZONE_HOST comes from infra/wrangler.toml, so a stale dashboard variable can no ` +
+          `longer be the cause), then check no second Worker holds the */* route. ` +
+          `\`npm run worker:rollback\` reverts if the deploy itself is what broke it.`,
       );
     }
   }

@@ -79,7 +79,13 @@
     "verify:result-pages": "tsx scripts/verify-result-pages.ts",
     "verify:zone": "tsx scripts/verify-zone.ts",
     "qa:ui": "tsx qa/src/ui/server.ts",
-    "verify:custom-fields": "tsx scripts/verify-custom-fields.ts"
+    "verify:custom-fields": "tsx scripts/verify-custom-fields.ts",
+    "worker:check": "npx --yes wrangler@4 deploy --config infra/wrangler.toml --dry-run",
+    "worker:deploy": "npx --yes wrangler@4 deploy --config infra/wrangler.toml",
+    "worker:history": "npx --yes wrangler@4 deployments list --config infra/wrangler.toml",
+    "worker:rollback": "npx --yes wrangler@4 rollback --config infra/wrangler.toml",
+    "worker:secret": "npx --yes wrangler@4 secret put PROXY_SECRET --config infra/wrangler.toml",
+    "worker:tail": "npx --yes wrangler@4 tail --config infra/wrangler.toml"
   },
   "prisma": {
     "seed": "tsx --conditions=react-server prisma/seed.ts"

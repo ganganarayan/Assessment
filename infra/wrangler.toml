@@ -1,0 +1,84 @@
+# =============================================================================
+#  Assess360 - Cloudflare for SaaS edge Worker, deploy configuration.
+#
+#  🔴 WHY THIS FILE EXISTS. Until now cloudflare-worker.js was pasted into the
+#  Cloudflare dashboard by hand, so the deployed artifact was not the repo file and
+#  committing a fix changed nothing live. That is what made the 2026-10-14 outage last
+#  four hours: the ZONE_HOST pass-through was committed (10089cf) while the running
+#  script still had none, and the dashboard read as configured the whole time.
+#  With this file the repo IS the artifact: npm run worker:deploy, reviewed in git,
+#  rollback-able, and no "select all, paste" step that nobody can diff.
+#
+#  Deploy:   npm run worker:check     (compiles and resolves bindings, uploads nothing)
+#            npm run worker:deploy    (ships it)
+#            npm run verify:zone      (🔴 ALWAYS, immediately after - see below)
+#
+#  Full runbook, including the pre-flight and the rollback: docs/CUSTOM-DOMAINS.md.
+# =============================================================================
+
+name = "assess360-saas-proxy"
+main = "cloudflare-worker.js"
+compatibility_date = "2026-10-19"
+
+# The Worker uses nothing but fetch, Request, Headers and URL, so there is no need for
+# nodejs_compat. Keep it that way: a Node polyfill in an edge proxy on the critical path
+# of six live properties buys nothing and costs cold-start time.
+
+# 🔴 NO workers.dev URL. The whole security model is that ORIGIN_HOST only trusts
+# x-assess-proxy from us. A workers.dev subdomain would be a second, public entrance to
+# the same script, outside the zone, and outside everything verify:zone checks.
+workers_dev = false
+
+# No usage telemetry from a deploy that runs on the owner's own machine.
+send_metrics = false
+
+# -----------------------------------------------------------------------------
+#  Plaintext variables. Version-controlled on purpose: these two decide which
+#  requests get rewritten, which is precisely the thing that must not be editable
+#  without review. The dashboard copies are overwritten by a deploy.
+# -----------------------------------------------------------------------------
+[vars]
+# The host Railway actually routes. Customer hostnames are rewritten to this.
+ORIGIN_HOST = "assess-production.up.railway.app"
+
+# 🔴 THE PASS-THROUGH, AND THE ENTIRE LESSON OF 2026-10-14. The route below has to be
+# */* because client hostnames are unknown in advance, so it also matches every proxied
+# record in our own zone. Anything inside ZONE_HOST is handed to the origin its own DNS
+# record names; only hosts OUTSIDE it are customer hostnames and get rewritten. Empty
+# this value and the Worker takes avr, cosmetic, powertools and paymentz down with it.
+ZONE_HOST = "divineleads.guru"
+
+# -----------------------------------------------------------------------------
+#  🔴 PROXY_SECRET IS NOT HERE, AND MUST NEVER BE.
+#
+#  It is the only thing stopping anyone from sending `x-forwarded-host: <a tenant's
+#  domain>` straight to the public Railway host and being served as that tenant. It is
+#  a Worker SECRET, set once and preserved across deploys:
+#
+#      npx wrangler@4 secret put PROXY_SECRET --config infra/wrangler.toml
+#
+#  The value must equal Railway's CLOUDFLARE_PROXY_SECRET on the app service, or
+#  src/lib/tenant/forwarded-host.ts ignores the header and every custom hostname
+#  resolves to the platform instead of its tenant. It fails safe, not open.
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+#  Routes.
+#
+#  🔴 CONFIRM AGAINST THE LIVE LIST BEFORE THE FIRST DEPLOY. Routes declared here are
+#  managed here: a deploy reconciles the live set to this block, so a route that exists
+#  in the dashboard and NOT below would be removed, and removing the */* route breaks
+#  every custom hostname at once. Run the pre-flight in docs/CUSTOM-DOMAINS.md and
+#  check the list matches before shipping the first time.
+#
+#  If wrangler rejects or rewrites the bare-host pattern, comment this block out and
+#  keep managing the route in the dashboard. The script still deploys from the repo,
+#  which is the win that matters; the route changes roughly never.
+# -----------------------------------------------------------------------------
+[[routes]]
+pattern = "*/*"
+zone_name = "divineleads.guru"
+
+# account_id is deliberately absent: it is account identity, not configuration, and it
+# does not belong in a public repo. Export CLOUDFLARE_ACCOUNT_ID, or let an interactive
+# `wrangler login` resolve it.
