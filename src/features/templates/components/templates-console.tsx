@@ -21,6 +21,7 @@ import {
   getTemplateDocument,
   updateTemplateDocument,
   revertTemplateToRepo,
+  setAllTemplatesPublished,
 } from "@/features/templates/actions/templates";
 import { SHAPE_LABELS, TEMPLATE_CATEGORIES } from "@/features/templates/schema";
 import { repairJson, locateJsonError } from "@/features/templates/json-repair";
@@ -105,9 +106,24 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
   const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [reward, setReward] = useState<Reward | null>(null);
+  /**
+   * The bulk publish, held behind one confirmation.
+   *
+   * A press here changes the first screen of every workspace on the install, which is
+   * the one action on this page that is worth being sure about. It is not a typed
+   * confirmation: nothing is destroyed, and the same button puts it back.
+   */
+  const [confirmAll, setConfirmAll] = useState<null | boolean>(null);
 
   const pending = items.filter((i) => i.reviewStatus === "PENDING");
   const shelf = items.filter((i) => i.reviewStatus !== "PENDING");
+  // What a bulk press would actually touch: the master-library rows that are reviewed
+  // and accepted. A private template and a pending contribution are excluded here for
+  // the same reasons the action excludes them, so the number on screen is the number
+  // that changes.
+  const bulkable = items.filter((i) => !i.isPrivate && i.reviewStatus === "APPROVED");
+  const unpublishedCount = bulkable.filter((i) => !i.published).length;
+  const publishedCount = bulkable.filter((i) => i.published).length;
 
   function run(id: string, fn: () => Promise<{ ok: boolean; error?: string }>, okText?: string) {
     setMsg(null);
@@ -135,6 +151,33 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
       }
       if (r.data) setReward({ ...r.data, templateTitle: t.title });
       setMsg({ tone: "ok", text: `"${t.title}" is approved and published.` });
+      router.refresh();
+    });
+  }
+
+  function doAll(published: boolean) {
+    setConfirmAll(null);
+    setMsg(null);
+    setBusy("all");
+    start(async () => {
+      const r = await setAllTemplatesPublished(published);
+      setBusy(null);
+      if (!r.ok) {
+        setMsg({ tone: "bad", text: r.error });
+        return;
+      }
+      const n = r.data?.changed ?? 0;
+      setMsg({
+        tone: "ok",
+        text:
+          n === 0
+            ? published
+              ? "Everything eligible was already published."
+              : "Nothing was published, so there was nothing to take down."
+            : published
+            ? `${n} template${n === 1 ? " is" : "s are"} now on every workspace's dashboard.`
+            : `${n} template${n === 1 ? "" : "s"} taken down. Nothing was deleted.`,
+      });
       router.refresh();
     });
   }
@@ -212,10 +255,61 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
             </div>
             {/* The Re-seed button is gone. Built-ins re-seed themselves on every
                 deploy, so it duplicated something that already happens and invited a
-                press whose only visible effect was a counter. */}
+                press whose only visible effect was a counter.
+
+                What is here instead is the decision that IS taken in one go: the whole
+                shelf up, or the whole shelf down. Twenty-two ticks is twenty-two round
+                trips and one of them gets missed. */}
+            {canEdit ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => setConfirmAll(true)}
+                  disabled={busy !== null || unpublishedCount === 0}
+                  title={
+                    unpublishedCount === 0
+                      ? "Everything reviewed is already published."
+                      : `Publish ${unpublishedCount} template${unpublishedCount === 1 ? "" : "s"}`
+                  }
+                >
+                  {busy === "all" ? "Working..." : `Publish all (${unpublishedCount})`}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setConfirmAll(false)}
+                  disabled={busy !== null || publishedCount === 0}
+                  title={publishedCount === 0 ? "Nothing is published." : `Unpublish ${publishedCount}`}
+                >
+                  Unpublish all
+                </Button>
+              </div>
+            ) : null}
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
+          {confirmAll !== null ? (
+            <div className="rounded-lg border border-green-600/40 bg-green-600/5 p-3 text-sm">
+              <p className="font-medium">
+                {confirmAll
+                  ? `Publish ${unpublishedCount} template${unpublishedCount === 1 ? "" : "s"} to every workspace?`
+                  : `Take all ${publishedCount} published template${publishedCount === 1 ? "" : "s"} off the shelf?`}
+              </p>
+              <p className="mt-1 text-[var(--muted-foreground)]">
+                {confirmAll
+                  ? "They appear on the first screen of every workspace on this install. Private templates and contributions still waiting for review are not touched."
+                  : "Nothing is deleted, and an assessment somebody already imported is unaffected. The same button puts them back."}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Button size="sm" onClick={() => doAll(confirmAll)} disabled={busy !== null}>
+                  {confirmAll ? "Yes, publish them" : "Yes, take them down"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setConfirmAll(null)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : null}
           {shelf.length === 0 ? (
             <p className="text-sm text-[var(--muted-foreground)]">
               Nothing in the library yet. The built-ins load themselves on the next deploy.

@@ -438,3 +438,45 @@ export async function promoteAssessmentToLibrary(
   bump();
   return { ok: true, data: { templateId: row.id, published: row.published } };
 }
+
+/**
+ * Put the whole shelf up, or take it all down, in one press.
+ *
+ * Twenty-two ticks is twenty-two round trips and twenty-two chances to miss one, and
+ * the owner's actual decision is almost never per template: it is "the library is ready"
+ * or "take it down while I fix something".
+ *
+ * 🔴 THE SAME THREE RULES AS THE SINGLE TICK, enforced in the where clause rather than
+ * trusted to the caller. A PRIVATE template belongs to one workspace and publishing it
+ * would hand their own work to every other tenant. A PENDING contribution has not been
+ * reviewed, and a bulk press must never be the thing that skips a review - approving one
+ * is a separate, deliberate act with a reward decision attached to it. A REJECTED row
+ * stays rejected.
+ *
+ * Unpublishing is the same clause and is deliberately offered beside it: a bulk action
+ * with no way back is how somebody ends up unticking twenty-two boxes by hand at the
+ * exact moment they are already in a hurry. Nothing is deleted either way, and a tenant
+ * mid-import of a template that goes down keeps the assessment they already imported.
+ *
+ * Returns how many rows actually changed, which is the only honest confirmation: "all
+ * published" is not the same sentence as "three were already up".
+ */
+export async function setAllTemplatesPublished(published: boolean): Promise<ActionResult<{ changed: number }>> {
+  const denied = await requireOwner();
+  if (denied) return denied;
+
+  const r = await prisma.template.updateMany({
+    where: {
+      // The master library only: never a workspace's private row.
+      ownerTenantId: null,
+      // Reviewed and accepted only: a pending contribution is invisible by design.
+      reviewStatus: "APPROVED",
+      // Only the rows this would actually change, so the count means something.
+      published: !published,
+    },
+    data: { published },
+  });
+
+  bump();
+  return { ok: true, data: { changed: r.count } };
+}

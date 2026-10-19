@@ -37,6 +37,14 @@ export interface TemplateListItem {
   builtin: boolean;
   /** True for a row this workspace owns or contributed - "theirs" on screen. */
   mine: boolean;
+  /**
+   * PRIVATE to one workspace, whoever is asking.
+   *
+   * `mine` answers "is this the asker's", which is false on the owner's console for
+   * every row, private ones included - that console asks as nobody. A bulk action has
+   * to be able to count what it may touch, and a private template is never one of them.
+   */
+  isPrivate: boolean;
   /** Whether THIS workspace may remove it: a private template of their own, or a
    *  contribution nobody has ruled on yet. An approved contribution is in the library
    *  and withdrawing it would empty the screen of every workspace reading it. */
@@ -149,6 +157,7 @@ function toItem(r: RawRow, askingTenantId: string | null): TemplateListItem {
     displayOrder: r.displayOrder,
     builtin: r.builtin,
     mine: owns || contributed,
+    isPrivate: !!r.ownerTenantId,
     canRemove: owns || (contributed && r.reviewStatus === "PENDING"),
     importable: owns || (!r.ownerTenantId && r.published && r.reviewStatus === "APPROVED"),
     hasAiPrompt: !!r.aiInstructions?.trim(),
