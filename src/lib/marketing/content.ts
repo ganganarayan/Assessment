@@ -535,7 +535,24 @@ export const HERO = {
   // says the first half; the sentence that is ours is that the bad lead does not just
   // cost you a click, it teaches the auction to go and find more of him.
   headline: "You are not paying for bad leads once. You are teaching Meta to find more of them.",
-  sub: "A gate runs before the opt-in, so wrong-fit traffic never becomes a lead record. Everyone who passes is scored against criteria you weight. Then only the qualified ones report back to Meta, and the rejected ones build an exclusion audience. Your campaigns stop shopping in the wrong aisle, and your cost per qualified lead falls.",
+  /**
+   * 🔴 THE PRODUCT DESCRIPTOR LIVES HERE, NOT IN THE TITLE.
+   *
+   * "Lead qualification engine" is what the product IS, and it opens this sentence so a
+   * reader who skips the mechanism headline still learns what they are looking at. It
+   * deliberately does NOT go into MARKETING.title, MARKETING.description or the
+   * schema.org nodes: nobody searches "engine", 16 pages and the SoftwareApplication
+   * node are optimised for "lead qualification software", and swapping the category
+   * phrase for a positioning phrase would trade rankings for a word. The eyebrow stays
+   * on the category ("Negative lead generation") for the same reason, and because
+   * INDUSTRY_EYEBROW reads it - changing it here would silently restyle 13 industry
+   * pages that were written around that frame.
+   *
+   * "Self-hosted, on your own domain" is the half buyers ask about first: every
+   * competitor hosts the quiz on their domain, and the custom-domain support that makes
+   * this true is already built (see docs/CUSTOM-DOMAINS.md).
+   */
+  sub: "A self-hosted lead qualification engine that runs on your own domain. A gate runs before the opt-in, so wrong-fit traffic never becomes a lead record. Everyone who passes is scored against criteria you weight. Then only the qualified ones report back to Meta, and the rejected ones build an exclusion audience. Your campaigns stop shopping in the wrong aisle, and your cost per qualified lead falls.",
   primaryCta: DFY_CTA,
   secondaryCta: TRIAL_CTA,
 } as const;
