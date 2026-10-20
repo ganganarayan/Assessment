@@ -1,8 +1,9 @@
-import { getAiSettings } from "@/features/admin/actions/ai-settings";
+import { getAiSettings, getAiAdminKeyView } from "@/features/admin/actions/ai-settings";
 import { getPlanAiModels } from "@/features/admin/actions/platform-integrations";
 import { PlanAiModelsForm } from "@/features/admin/components/plan-ai-models-form";
 import { actingTenantId } from "@/lib/tenant/acting";
 import { AiSettingsForm } from "@/features/admin/components/ai-settings-form";
+import { AiAdminKeysForm } from "@/features/admin/components/ai-admin-keys-form";
 import { PromptVersionsManager } from "@/features/admin/components/prompt-versions-manager";
 import {
   Card,
@@ -19,9 +20,12 @@ export default async function AiSettingsPage() {
   // are a platform-wide decision, so they are shown only in the platform's own scope.
   const actingId = await actingTenantId();
   const impersonating = actingId !== null;
-  const [settings, planModels] = await Promise.all([
+  const [settings, planModels, adminKeys] = await Promise.all([
     getAiSettings(),
     impersonating ? Promise.resolve({} as Record<string, string>) : getPlanAiModels(),
+    // Platform scope only: a tenant has no business holding a key that reads the
+    // organisation's invoice, so it is not even fetched while impersonating one.
+    impersonating ? Promise.resolve(null) : getAiAdminKeyView(),
   ]);
 
   return (
@@ -48,6 +52,15 @@ export default async function AiSettingsPage() {
           <AiSettingsForm initial={settings} />
         </CardContent>
       </Card>
+
+      {adminKeys ? (
+        <AiAdminKeysForm
+          claudeSaved={adminKeys.claudeSaved}
+          openAiSaved={adminKeys.openAiSaved}
+          claudeApiKeyId={adminKeys.claudeApiKeyId}
+          openAiApiKeyId={adminKeys.openAiApiKeyId}
+        />
+      ) : null}
 
       {impersonating ? null : (
         <Card>

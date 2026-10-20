@@ -273,3 +273,35 @@ export async function updateAiAdminKeys(input: {
   revalidatePath("/platform/accounts");
   return { ok: true };
 }
+
+/**
+ * What the billing-access form needs to render.
+ *
+ * Says WHETHER each admin key is saved, never what it is: the form is write-only, and
+ * a secret that is read back to a screen is a secret that ends up in a screenshot. The
+ * api key ids are not secrets and come back in full so they can be edited.
+ */
+export async function getAiAdminKeyView(): Promise<{
+  claudeSaved: boolean;
+  openAiSaved: boolean;
+  claudeApiKeyId: string;
+  openAiApiKeyId: string;
+} | null> {
+  const scope = await resolveActingScope();
+  if (!scope.isSuper) return null;
+  const row = await prisma.appSetting.findUnique({
+    where: { id: "singleton" },
+    select: {
+      aiClaudeAdminKeyEnc: true,
+      aiOpenAiAdminKeyEnc: true,
+      aiClaudeApiKeyId: true,
+      aiOpenAiApiKeyId: true,
+    },
+  });
+  return {
+    claudeSaved: Boolean(row?.aiClaudeAdminKeyEnc),
+    openAiSaved: Boolean(row?.aiOpenAiAdminKeyEnc),
+    claudeApiKeyId: row?.aiClaudeApiKeyId ?? "",
+    openAiApiKeyId: row?.aiOpenAiApiKeyId ?? "",
+  };
+}
