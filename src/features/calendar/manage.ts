@@ -112,7 +112,10 @@ export async function loadManageView(token: string): Promise<ManageBookingView |
   // honest option rather than a picker that cannot commit.
   let days: PublicDay[] = [];
   if (canChange && a.bookingType?.active) {
-    const slotMap = await openSlotsByDate(slotSourceOf(a.bookingType), now);
+    // Their call is with a PARTICULAR person. Moving it offers that person's free
+    // times, not the team's: a respondent who booked Asha and reschedules should not
+    // silently end up with somebody else.
+    const slotMap = await openSlotsByDate(slotSourceOf(a.bookingType, a.assignedUserId), now);
     days = [...slotMap.entries()].map(([dateKey, slots]) => ({
       dateKey,
       label: dayLabel(dateKey),
@@ -213,7 +216,8 @@ export async function rescheduleMyBooking(token: string, startMs: number): Promi
   }
 
   const now = Date.now();
-  const slotMap = await openSlotsByDate(slotSourceOf(a.bookingType), now);
+  // Same person as before - see the comment in loadManageView.
+  const slotMap = await openSlotsByDate(slotSourceOf(a.bookingType, a.assignedUserId), now);
   const slot = slotMap.get(istDateKey(startMs))?.find((s) => s.startMs === startMs);
   if (!slot) return { ok: false, error: "That time has just been taken. Pick another slot." };
 

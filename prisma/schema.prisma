@@ -547,6 +547,7 @@ model User {
   /// appointments sitting in their diary.
   bookingTypes       BookingType[]           @relation("StaffBookingTypes")
   googleCalendars    GoogleCalendarAccount[] @relation("StaffGoogleCalendars")
+  teamBookings       BookingTypeMember[]     @relation("TeamBookingMemberships")
   appointments       Appointment[]           @relation("StaffAppointments")
 
   @@index([tenantId])
@@ -3579,11 +3580,20 @@ model BookingType {
   adAccountId String?
   adAccount   AdAccount? @relation(fields: [adAccountId], references: [id], onDelete: Restrict)
 
-  /// WHOSE time this link sells.
+  /// Whether this link sells ONE person's time or a TEAM's.
+  ///
+  /// SINGLE is the original and the default: assignedUserId says whose, and a slot is
+  /// offered when that person is free. ROUND_ROBIN pools the members below - a slot is
+  /// offered when ANY of them is free, and the booking is handed to one of them.
+  assignmentMode BookingAssignment @default(SINGLE)
+
+  /// The pool, for ROUND_ROBIN. Ignored entirely in SINGLE mode.
+  members BookingTypeMember[]
+
+  /// WHOSE time this link sells, in SINGLE mode.
   ///
   /// One link per staff member: the hours on it are that person's hours, the slots it
   /// offers are free in that person's diary, and a lead who opens it books that person.
-  /// There is no pooling or round-robin - a slot belongs to one calendar.
   ///
   /// Null is the workspace's own shared calendar, which is what every link created
   /// before staff calendars existed is, and what a one-person workspace keeps using
@@ -4150,11 +4160,11 @@ model Contact {
   source     String?
   lastSeenAt DateTime @default(now())
 
-  tags         ContactTag[]
-  workflowRuns WorkflowRun[]
+  tags                ContactTag[]
+  workflowRuns        WorkflowRun[]
   broadcastRecipients BroadcastRecipient[]
-  submissions  Submission[]
-  gateEntries  GateEntry[]
+  submissions         Submission[]
+  gateEntries         GateEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4612,10 +4622,10 @@ model BroadcastRecipient {
 
   tenantId String
 
-  status    BroadcastRecipientStatus @default(PENDING)
+  status     BroadcastRecipientStatus @default(PENDING)
   /// Where it went, for the log. An email address or E.164 digits.
-  toAddress String?
-  error     String?
+  toAddress  String?
+  error      String?
   /// Why it was skipped, in plain words ("they unsubscribed before it went out").
   skipReason String?
   sentAt     DateTime?
@@ -4628,4 +4638,47 @@ model BroadcastRecipient {
   @@index([broadcastId, status])
   @@index([tenantId, createdAt])
   @@map("broadcast_recipient")
+}
+
+/// Whether a booking link sells one person's time or a team's.
+enum BookingAssignment {
+  SINGLE
+  ROUND_ROBIN
+}
+
+/// One person in a team booking link's pool.
+///
+/// The hours stay on the LINK, not on the member: a team page sells "we take calls
+/// Tuesdays 10 to 6", and within those hours a slot is open when somebody is free.
+/// Per-person weekly hours would mean availability rules per user, which is a different
+/// and much larger model - and most teams genuinely do publish one set of hours.
+///
+/// What IS per person is everything about being busy: their own appointments, their own
+/// blocked-out time, their own Google calendar, and their own per-day cap. So a team of
+/// three offers a slot until all three are taken, which is the capacity a team page is
+/// for.
+model BookingTypeMember {
+  id            String      @id @default(cuid())
+  bookingTypeId String
+  bookingType   BookingType @relation(fields: [bookingTypeId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("TeamBookingMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The rotation cursor: when this member was last handed a booking from this link.
+  ///
+  /// Round robin here means LONGEST WAITING, not a counter modulo the team size. A
+  /// counter breaks the moment somebody is busy and gets skipped - the next booking
+  /// still advances it, so the person who was skipped waits another full lap. Oldest
+  /// stamp first self-corrects: being skipped leaves you first in line.
+  ///
+  /// Null means never assigned, which sorts first, so a new member starts at the front
+  /// rather than waiting out everyone else's history.
+  lastAssignedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([bookingTypeId, userId])
+  @@index([bookingTypeId])
+  @@map("booking_type_member")
 }

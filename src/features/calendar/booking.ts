@@ -9,7 +9,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { reportAppointment } from "@/lib/calendar/signals";
-import { slotLockFor, istDateKey } from "@/lib/calendar/slots";
+import { calendarOwnerKey, istDateKey, pickRoundRobin, slotLockFor } from "@/lib/calendar/slots";
 import { bookingTypeBySlug, openSlotsByDate, slotSourceOf } from "@/features/calendar/data";
 import { publicBookingSchema } from "@/features/calendar/schemas";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -147,37 +147,92 @@ export async function bookSlot(input: unknown): Promise<ActionResult<BookingConf
 
   const endMs = slot.endMs;
   try {
-    const created = await prisma.appointment.create({
-      data: {
-        tenantId: bookingType.tenantId,
-        bookingTypeId: bookingType.id,
-        source: "BOOKING",
-        status: "BOOKED",
-        startAt: new Date(slot.startMs),
-        endAt: new Date(endMs),
-        attendeeName: v.name,
-        attendeeEmail: v.email,
-        attendeeMobile: v.mobile || null,
-        notes: v.notes || null,
-        submissionId: submission?.id ?? null,
-        isPreview: v.preview,
-        fbp: ctx.fbp,
-        fbc: ctx.fbc,
-        externalId: submission?.metaExternalId ?? null,
-        clientIp: ctx.clientIpAddress,
-        userAgent: ctx.clientUserAgent,
-        attribution: (normalizeAttribution(submission?.attribution) ?? undefined) as
-          | Prisma.InputJsonValue
-          | undefined,
-        // Whose diary this lands in, stamped from the link rather than read through it:
-        // the link can be reassigned later, and this booking belongs to the calendar it
-        // was actually made in.
-        assignedUserId: bookingType.assignedUserId,
-        slotLock: slotLockFor(bookingType.tenantId, bookingType.assignedUserId, slot.startMs),
-        publicToken: randomUUID(),
-      },
-      select: { id: true, publicToken: true, startAt: true },
-    });
+    /**
+     * WHO GETS THIS CALL.
+     *
+     * A single-person link has one answer. A team link picks the member who has waited
+     * longest among those actually free for this slot, and then has to survive the race
+     * that makes a team page worth having: two people booking the same minute should get
+     * two DIFFERENT members, not one winner and one apology.
+     *
+     * The lock is what arbitrates. It is keyed on the calendar, so two bookings at the
+     * same instant on different members are different locks and both commit; two that
+     * land on the SAME member collide, and the loser retries with the next in line. The
+     * loop therefore ends either in a booking or in an honestly full slot, and never in
+     * a double booking.
+     */
+    const rota: Record<string, number | null> = {};
+    for (const m of bookingType.members ?? []) rota[m.userId] = m.lastAssignedAt?.getTime() ?? null;
+    const isTeam = bookingType.assignmentMode === "ROUND_ROBIN" && (bookingType.members ?? []).length > 0;
+
+    const tried: string[] = [];
+    let created: { id: string; publicToken: string; startAt: Date } | null = null;
+    let assignedUserId: string | null = null;
+
+    // At most one attempt per member: a slot cannot be taken more times than there are
+    // people to take it.
+    const attempts = isTeam ? slot.freeOwners.length : 1;
+    for (let i = 0; i < attempts && !created; i++) {
+      const owner = isTeam ? pickRoundRobin(slot.freeOwners, rota, tried) : calendarOwnerKey(bookingType.assignedUserId);
+      if (!owner) break;
+      tried.push(owner);
+      // "shared" is the key for the workspace calendar; the column holds null for it.
+      assignedUserId = owner === "shared" ? null : owner;
+
+      try {
+        created = await prisma.appointment.create({
+          data: {
+            tenantId: bookingType.tenantId,
+            bookingTypeId: bookingType.id,
+            source: "BOOKING",
+            status: "BOOKED",
+            startAt: new Date(slot.startMs),
+            endAt: new Date(endMs),
+            attendeeName: v.name,
+            attendeeEmail: v.email,
+            attendeeMobile: v.mobile || null,
+            notes: v.notes || null,
+            submissionId: submission?.id ?? null,
+            isPreview: v.preview,
+            fbp: ctx.fbp,
+            fbc: ctx.fbc,
+            externalId: submission?.metaExternalId ?? null,
+            clientIp: ctx.clientIpAddress,
+            userAgent: ctx.clientUserAgent,
+            attribution: (normalizeAttribution(submission?.attribution) ?? undefined) as
+              | Prisma.InputJsonValue
+              | undefined,
+            // Whose diary this lands in, stamped rather than read through the link: the
+            // link can be reassigned later, and this booking belongs to the calendar it
+            // was actually made in.
+            assignedUserId,
+            slotLock: slotLockFor(bookingType.tenantId, assignedUserId, slot.startMs),
+            publicToken: randomUUID(),
+          },
+          select: { id: true, publicToken: true, startAt: true },
+        });
+      } catch (e) {
+        // That member was taken a moment ago. Try the next one rather than telling a
+        // respondent the team is full when it is not.
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") continue;
+        throw e;
+      }
+    }
+
+    if (!created) {
+      return { ok: false, error: "Somebody just took that slot. Pick another time." };
+    }
+
+    // Move the rota on, for the member who actually got it. Best-effort: a missed stamp
+    // costs one turn of fairness, never a booking.
+    if (isTeam && assignedUserId) {
+      await prisma.bookingTypeMember
+        .updateMany({
+          where: { bookingTypeId: bookingType.id, userId: assignedUserId },
+          data: { lastAssignedAt: new Date() },
+        })
+        .catch(() => {});
+    }
 
     await reportAppointment(created.id, "BOOKED");
 

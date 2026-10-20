@@ -23,7 +23,9 @@ import {
   istDateKey,
   istMinutesOfDay,
   istWeekday,
+  mergeOwnerSlots,
   minutesToHHMM,
+  pickRoundRobin,
   slotLockFor,
   stampBookingUrl,
   utcMsFor,
@@ -388,6 +390,83 @@ check("an unparseable link is returned as it came", stampBookingUrl("not a url",
 check(
   "other query parameters survive the stamp",
   (stampBookingUrl("/b/call?utm_source=fb", TOK) ?? "").includes("utm_source=fb"),
+);
+
+
+/* ------------------------------------------------------- team booking --- */
+
+console.log("\nA team link's open slots");
+const at = (min: number) => ({ startMs: utcMsFor("2026-10-20", min), endMs: utcMsFor("2026-10-20", min + 30) });
+
+// Asha is free at 10:00 and 11:00; Bina at 11:00 and 12:00. The link offers all three.
+const team = mergeOwnerSlots([
+  { owner: "asha", slots: [at(600), at(660)] },
+  { owner: "bina", slots: [at(660), at(720)] },
+]);
+check("the union is every time somebody is free", team.length === 3);
+check("the slots come back in order", team.map((s) => s.startMs).every((v, i, a) => i === 0 || a[i - 1]! < v));
+check(
+  "a time only one person has free carries only that person",
+  team.find((s) => s.startMs === utcMsFor("2026-10-20", 600))?.freeOwners.join() === "asha",
+);
+check(
+  "a time both have free carries both - that is the capacity",
+  (team.find((s) => s.startMs === utcMsFor("2026-10-20", 660))?.freeOwners.length ?? 0) === 2,
+);
+check("nobody free anywhere is no slots", mergeOwnerSlots([{ owner: "asha", slots: [] }]).length === 0);
+check(
+  "one person is simply a team of one",
+  mergeOwnerSlots([{ owner: "shared", slots: [at(600)] }]).length === 1,
+);
+
+console.log("\nWhose turn it is");
+const never = { asha: null, bina: null, cara: null };
+check(
+  "with nobody assigned yet it is deterministic, not random",
+  pickRoundRobin(["bina", "asha", "cara"], never) === "asha" &&
+    pickRoundRobin(["cara", "bina", "asha"], never) === "asha",
+);
+check(
+  "the longest waiting goes first",
+  pickRoundRobin(["asha", "bina"], { asha: 2_000, bina: 1_000 }) === "bina",
+);
+check(
+  "somebody never assigned beats everybody who has been",
+  pickRoundRobin(["asha", "bina"], { asha: 1_000, bina: null }) === "bina",
+);
+// 🔴 The reason the cursor is a timestamp and not a counter: being skipped must leave
+// you at the FRONT of the queue, not send you round another lap.
+check(
+  "being passed over leaves you first next time",
+  pickRoundRobin(["asha", "cara"], { asha: 500, bina: 400, cara: 900 }) === "asha",
+);
+check(
+  "only people actually free are considered",
+  pickRoundRobin(["cara"], { asha: 1, bina: 2, cara: 3 }) === "cara",
+);
+// What the booking retry does when the database refuses the first choice.
+check(
+  "an excluded member is passed over",
+  pickRoundRobin(["asha", "bina"], { asha: 1_000, bina: 2_000 }, ["asha"]) === "bina",
+);
+check(
+  "everybody excluded means nobody, not a crash",
+  pickRoundRobin(["asha"], { asha: 1_000 }, ["asha"]) === null,
+);
+check("no free members means nobody", pickRoundRobin([], never) === null);
+
+console.log("\nTwo people booking the same minute on a team link");
+// The lock is keyed on the calendar, so two different members at one instant are two
+// different locks and BOTH commit. That is the capacity a team page sells.
+check(
+  "two members can hold the same instant",
+  slotLockFor("tnt_1", "asha", utcMsFor("2026-10-20", 660)) !==
+    slotLockFor("tnt_1", "bina", utcMsFor("2026-10-20", 660)),
+);
+check(
+  "the same member cannot hold it twice",
+  slotLockFor("tnt_1", "asha", utcMsFor("2026-10-20", 660)) ===
+    slotLockFor("tnt_1", "asha", utcMsFor("2026-10-20", 660)),
 );
 
 console.log("");

@@ -3,15 +3,18 @@ import { prisma } from "@/lib/db/prisma";
 import { formatIST } from "@/lib/date";
 import { googleBusyWindows, keyForAppointment } from "@/lib/google/calendar";
 import {
+  calendarOwnerKey,
   daySlots,
   horizonDateKeys,
   istDateKey,
   istMinutesOfDay,
+  mergeOwnerSlots,
   minutesToHHMM,
   utcMsFor,
   type BusyInput,
   type SlotExceptionInput,
   type SlotRuleInput,
+  type TeamSlot,
 } from "@/lib/calendar/slots";
 import {
   type AppointmentRow,
@@ -214,6 +217,7 @@ export async function listBookingTypes(tenantId: string): Promise<BookingTypeRow
       exceptions: { orderBy: { date: "asc" } },
       assessment: { select: { title: true } },
       assignedUser: { select: { name: true } },
+      members: { select: { userId: true } },
       _count: { select: { appointments: true } },
     },
   });
@@ -243,6 +247,8 @@ export async function listBookingTypes(tenantId: string): Promise<BookingTypeRow
     assessmentTitle: t.assessment?.title ?? null,
     assignedUserId: t.assignedUserId,
     assignedUserName: t.assignedUser?.name ?? null,
+    assignmentMode: t.assignmentMode as "SINGLE" | "ROUND_ROBIN",
+    memberIds: t.members.map((m) => m.userId),
     adAccountId: t.adAccountId,
     fireMetaCapi: t.fireMetaCapi,
     metaBookedEvent: t.metaBookedEvent,
@@ -335,8 +341,14 @@ export async function busyIntervals(
 interface SlotSource {
   id: string;
   tenantId: string;
-  /** Whose calendar this link sells time in. Null is the workspace shared one. */
-  assignedUserId: string | null;
+  /**
+   * The calendars this link sells time in: one for a SINGLE link (null meaning the
+   * workspace's shared calendar), or every member for a ROUND_ROBIN one.
+   *
+   * A list rather than a mode flag, so the slot maths never has to ask which kind of
+   * link it is holding - one calendar is simply a team of one.
+   */
+  owners: (string | null)[];
   durationMin: number;
   bufferMin: number;
   slotStepMin: number;
@@ -355,8 +367,13 @@ interface SlotSource {
  * was posted. Two implementations of "is this slot open" would eventually disagree, and
  * the disagreement would be a booking the owner never offered.
  */
-export async function openSlotsByDate(
+/**
+ * The open slots for ONE calendar: one member of a team, or the single person a link
+ * belongs to. The team union is assembled from these in openSlotsByDate.
+ */
+async function ownerSlotsByDate(
   source: SlotSource,
+  owner: string | null,
   nowMs: number,
 ): Promise<Map<string, { startMs: number; endMs: number }[]>> {
   const dateKeys = horizonDateKeys(nowMs, source.horizonDays);
@@ -364,7 +381,7 @@ export async function openSlotsByDate(
   const lastKey = dateKeys[dateKeys.length - 1] as string;
   const fromMs = utcMsFor(firstKey, 0);
   const toMs = utcMsFor(lastKey, 1440);
-  const busy = await busyIntervals(source.tenantId, fromMs, toMs, source.assignedUserId);
+  const busy = await busyIntervals(source.tenantId, fromMs, toMs, owner);
 
   /**
    * Whatever Google says this person already has on.
@@ -379,7 +396,7 @@ export async function openSlotsByDate(
    */
   const googleBusy = await googleBusyWindows(
     source.tenantId,
-    keyForAppointment(source.tenantId, source.assignedUserId),
+    keyForAppointment(source.tenantId, owner),
     fromMs,
     toMs,
   );
@@ -416,6 +433,45 @@ export async function openSlotsByDate(
   return out;
 }
 
+/**
+ * The open slots for a booking link, and WHO is free for each.
+ *
+ * SINGLE mode is one calendar and every slot carries that one owner. ROUND_ROBIN asks
+ * each member separately and unions the answers, so a slot survives while anybody is
+ * free - a team of three keeps eleven o'clock bookable until all three are taken.
+ *
+ * 🟡 Costs one pass per member. A team of five over a thirty-day horizon is five busy
+ * queries and, where Google is connected, five free/busy calls - which is why the
+ * free/busy answers are cached per calendar and why the public page is the only hot
+ * caller. Teams are small; horizons are not.
+ */
+export async function openSlotsByDate(
+  source: SlotSource,
+  nowMs: number,
+): Promise<Map<string, TeamSlot[]>> {
+  const owners = source.owners;
+  const perOwner: { owner: string; slots: { startMs: number; endMs: number }[] }[] = [];
+  for (const owner of owners) {
+    const map = await ownerSlotsByDate(source, owner, nowMs);
+    perOwner.push({
+      // The map key for the shared calendar is the literal "shared", the same string
+      // the lock and the Google connection use, so one vocabulary covers all three.
+      owner: calendarOwnerKey(owner),
+      slots: [...map.values()].flat(),
+    });
+  }
+
+  const merged = mergeOwnerSlots(perOwner);
+  const out = new Map<string, TeamSlot[]>();
+  for (const slot of merged) {
+    const key = istDateKey(slot.startMs);
+    const list = out.get(key) ?? [];
+    list.push(slot);
+    out.set(key, list);
+  }
+  return out;
+}
+
 /** Load a booking type by its public slug, with everything the slot math needs. */
 export async function bookingTypeBySlug(slug: string) {
   return prisma.bookingType.findFirst({
@@ -423,28 +479,46 @@ export async function bookingTypeBySlug(slug: string) {
     include: {
       rules: true,
       exceptions: true,
+      // The pool and the rota, for a team link. Empty on a single-person one.
+      members: { select: { userId: true, lastAssignedAt: true } },
       tenant: { select: { id: true, name: true, status: true } },
     },
   });
 }
 
-function slotSourceOf(t: {
-  id: string;
-  tenantId: string;
-  assignedUserId: string | null;
-  durationMin: number;
-  bufferMin: number;
-  slotStepMin: number;
-  noticeMin: number;
-  horizonDays: number;
-  maxPerDay: number | null;
-  rules: { weekday: number; startMin: number; endMin: number }[];
-  exceptions: { date: Date; kind: string; startMin: number | null; endMin: number | null }[];
-}): SlotSource {
+/**
+ * Turn a booking link into the slot maths' idea of it.
+ *
+ * `only` forces ONE calendar even on a team link, which is what a reschedule needs: the
+ * respondent's call is with a particular person, and moving it must offer that person's
+ * free times rather than the team's. A team link with no members left behaves as the
+ * shared calendar, so a half-configured link still shows something rather than nothing.
+ */
+function slotSourceOf(
+  t: {
+    id: string;
+    tenantId: string;
+    assignedUserId: string | null;
+    assignmentMode?: string;
+    members?: { userId: string }[];
+    durationMin: number;
+    bufferMin: number;
+    slotStepMin: number;
+    noticeMin: number;
+    horizonDays: number;
+    maxPerDay: number | null;
+    rules: { weekday: number; startMin: number; endMin: number }[];
+    exceptions: { date: Date; kind: string; startMin: number | null; endMin: number | null }[];
+  },
+  only?: string | null,
+): SlotSource {
+  const team = t.assignmentMode === "ROUND_ROBIN" ? (t.members ?? []).map((m) => m.userId) : [];
+  const owners: (string | null)[] =
+    only !== undefined ? [only] : team.length > 0 ? team : [t.assignedUserId];
   return {
     id: t.id,
     tenantId: t.tenantId,
-    assignedUserId: t.assignedUserId,
+    owners,
     durationMin: t.durationMin,
     bufferMin: t.bufferMin,
     slotStepMin: t.slotStepMin,

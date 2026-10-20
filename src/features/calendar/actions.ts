@@ -109,6 +109,7 @@ export async function saveBookingType(
     assessmentId: v.assessmentId || null,
     adAccountId: v.adAccountId || null,
     assignedUserId: v.assignedUserId || null,
+    assignmentMode: v.assignmentMode,
     fireMetaCapi: v.fireMetaCapi,
     metaBookedEvent: v.metaBookedEvent,
     metaCancelledEvent: v.metaCancelledEvent,
@@ -124,6 +125,7 @@ export async function saveBookingType(
       });
       if (!existing) return { ok: false, error: "That booking link is not in this workspace." };
       await prisma.bookingType.update({ where: { id: bookingTypeId }, data });
+      await syncTeam(bookingTypeId, auth.tenantId, v.assignmentMode, v.memberIds ?? []);
       refresh();
       return { ok: true, data: { id: bookingTypeId } };
     }
@@ -131,6 +133,7 @@ export async function saveBookingType(
       data: { ...data, tenantId: auth.tenantId },
       select: { id: true },
     });
+    await syncTeam(created.id, auth.tenantId, v.assignmentMode, v.memberIds ?? []);
     refresh();
     return { ok: true, data: { id: created.id } };
   } catch (e) {
@@ -531,4 +534,49 @@ export async function rotateCalendarFeed(): Promise<ActionResult<{ path: string 
   // resolves by token on any host this app serves, so the host they are already using
   // is the one that certainly works for them.
   return { ok: true, data: { path: `/api/calendar/${token}.ics` } };
+}
+
+/**
+ * Bring a team link's membership in line with what was saved.
+ *
+ * Members are ADDED and REMOVED rather than replaced wholesale, because the row carries
+ * the rotation cursor: deleting and recreating the lot would reset everybody's place in
+ * the queue every time somebody edited the link's name, and the next few bookings would
+ * all land on whoever sorted first.
+ *
+ * Ids are checked against this workspace before they are stored, so a crafted form post
+ * cannot put somebody else's staff member into a rota.
+ */
+async function syncTeam(
+  bookingTypeId: string,
+  tenantId: string,
+  mode: "SINGLE" | "ROUND_ROBIN",
+  memberIds: string[],
+): Promise<void> {
+  // Switched back to a single person: the pool is no longer meaningful, and keeping it
+  // would silently resurrect the old team if the mode were switched back months later.
+  if (mode !== "ROUND_ROBIN") {
+    await prisma.bookingTypeMember.deleteMany({ where: { bookingTypeId } });
+    return;
+  }
+
+  const owned = await prisma.user.findMany({
+    where: { id: { in: memberIds }, tenantId, deletedAt: null },
+    select: { id: true },
+  });
+  const keep = owned.map((u) => u.id);
+
+  await prisma.bookingTypeMember.deleteMany({
+    where: { bookingTypeId, userId: { notIn: keep.length > 0 ? keep : ["none"] } },
+  });
+  for (const userId of keep) {
+    await prisma.bookingTypeMember
+      .upsert({
+        where: { bookingTypeId_userId: { bookingTypeId, userId } },
+        // Deliberately empty: an existing member keeps their place in the rota.
+        update: {},
+        create: { bookingTypeId, userId },
+      })
+      .catch(() => {});
+  }
 }
