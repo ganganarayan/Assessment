@@ -25,6 +25,7 @@ import {
   istWeekday,
   minutesToHHMM,
   slotLockFor,
+  stampBookingUrl,
   utcMsFor,
   windowsForDate,
   type SlotExceptionInput,
@@ -341,6 +342,52 @@ check("the shared calendar's key is the literal shared", calendarOwnerKey(null) 
 check(
   "the key matches the half the slot lock uses",
   calendarKey("tnt_1", "usr_asha") === `tnt_1:${calendarOwnerKey("usr_asha")}`,
+);
+
+
+/* ----------------------------------------------- result-page booking CTA --- */
+
+console.log("\nStamping a booking link on the result page");
+const TOK = "tok_abc123";
+
+check(
+  "a relative booking link gets the token and stays relative",
+  stampBookingUrl("/b/strategy-call", TOK) === "/b/strategy-call?t=tok_abc123",
+);
+check(
+  "an absolute booking link keeps its host",
+  stampBookingUrl("https://acme.example.com/b/strategy-call", TOK) ===
+    "https://acme.example.com/b/strategy-call?t=tok_abc123",
+);
+check(
+  "a trailing slash is still a booking link",
+  (stampBookingUrl("/b/strategy-call/", TOK) ?? "").includes("t=tok_abc123"),
+);
+check(
+  "a link that already names a token is left exactly alone",
+  stampBookingUrl("/b/strategy-call?t=theirs", TOK) === "/b/strategy-call?t=theirs",
+);
+
+// 🔴 The one that matters: a token identifies a person, and a page that is not ours
+// must never be handed one.
+check(
+  "a link to somebody else's site is untouched",
+  stampBookingUrl("https://calendly.com/acme/30min", TOK) === "https://calendly.com/acme/30min",
+);
+check(
+  "an assessment link is untouched - only /b/ is a booking page",
+  stampBookingUrl("/a/emotional-stability", TOK) === "/a/emotional-stability",
+);
+check(
+  "a deeper path that merely starts with /b/ is untouched",
+  stampBookingUrl("/b/strategy-call/extra", TOK) === "/b/strategy-call/extra",
+);
+check("a blank link stays null", stampBookingUrl("", TOK) === null);
+check("no token means no stamp", stampBookingUrl("/b/strategy-call", "") === "/b/strategy-call");
+check("an unparseable link is returned as it came", stampBookingUrl("not a url", TOK) === "not a url");
+check(
+  "other query parameters survive the stamp",
+  (stampBookingUrl("/b/call?utm_source=fb", TOK) ?? "").includes("utm_source=fb"),
 );
 
 console.log("");

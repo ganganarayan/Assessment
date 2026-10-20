@@ -6,6 +6,7 @@ import { emitEvent } from "@/lib/events/emit";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { readResultPage, normalizeHref, type ButtonConfig } from "@/features/assessment/result-page/blocks";
 import { stampVidapulseCtaUrl } from "@/lib/vidapulse";
+import { stampBookingUrl } from "@/lib/calendar/slots";
 import { sendCtaNotification } from "@/lib/cta/notify";
 import { ctaResultUrl } from "@/lib/cta/result-url";
 
@@ -78,9 +79,19 @@ export async function GET(
   const config = block.config as ButtonConfig;
 
   const label = (config.label ?? "").trim() || null;
-  const destination = stampVidapulseCtaUrl(
-    normalizeHref(config.url),
-    sub.customerId,
+  /**
+   * Two stamps, and they are the same idea applied to two destinations: say WHO is
+   * arriving, because the anchor on the result page carries rel="noreferrer" and the
+   * click otherwise lands anonymous.
+   *
+   * The booking one closes the loop this calendar was built for. A button pointing at
+   * /b/<slug> becomes that respondent's own booking link, so the form opens filled in
+   * and the call that follows is attached to their submission - with their score, their
+   * attribution and their fbp behind the Schedule event that reaches Meta. Without it
+   * the booking is a stranger's and the ad that paid for the visit gets no credit.
+   */
+  const destination = stampBookingUrl(
+    stampVidapulseCtaUrl(normalizeHref(config.url), sub.customerId, sub.resultToken),
     sub.resultToken,
   );
 
