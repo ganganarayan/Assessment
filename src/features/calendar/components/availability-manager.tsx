@@ -264,6 +264,13 @@ export function AvailabilityManager({
                 <a href={t.publicPath} target="_blank" rel="noreferrer" className="text-xs underline">
                   {origin ? absolute(t.publicPath) : t.publicPath}
                 </a>
+                {/* The loop back to the funnel, which is easy to miss: this address in a
+                    result-page button sends the respondent to a form already filled in,
+                    and the call that follows carries their score and their ad. */}
+                <span className="text-xs text-[var(--muted-foreground)]">
+                  Paste this into a button on a result page and the person arrives with their
+                  details already filled in.
+                </span>
                 <span className="text-xs text-[var(--muted-foreground)]">
                   {t.assignedUserName ? `${t.assignedUserName} · ` : ""}
                   {t.active ? "Taking bookings" : "Switched off"}

@@ -278,6 +278,46 @@ export function calendarKey(tenantId: string, assignedUserId: string | null | un
 }
 
 /**
+ * Put the respondent's own token on a link that points at one of our booking pages.
+ *
+ * 🔴 WHY THE RESULT-PAGE CTA NEEDS THIS. An owner pastes /b/strategy-call into the
+ * button on their result page. Without the token, the person who just finished the
+ * assessment arrives at an empty form and is asked for the name, email and mobile they
+ * typed two screens ago - and, worse, the booking that follows is a stranger's: no
+ * submission, no score behind it, no fbp, so the Schedule event reaching Meta cannot be
+ * matched to the ad that paid for the visit. With the token it is the same person all
+ * the way through.
+ *
+ * PURE and conservative. It stamps a link only when the path is /b/<something>, leaves
+ * an existing ?t= alone, and returns anything else untouched - including a link to
+ * another site, which must never be handed somebody's token. A relative path is stamped
+ * as-is; an absolute URL keeps its host.
+ */
+export function stampBookingUrl(url: string | null | undefined, resultToken: string | null | undefined): string | null {
+  const raw = (url ?? "").trim();
+  if (!raw) return null;
+  const token = (resultToken ?? "").trim();
+  if (!token) return raw;
+
+  // A relative link can only be our own, so it is parsed against a placeholder origin
+  // and written back in the same shape it arrived.
+  const relative = raw.startsWith("/");
+  let u: URL;
+  try {
+    u = new URL(raw, relative ? "https://placeholder.invalid" : undefined);
+  } catch {
+    return raw;
+  }
+  // Only OUR booking pages. The host is not checked for an absolute URL because an
+  // owner may run their own domain, and /b/<slug> on a foreign host is not a path this
+  // app serves anyway - but the path shape is what decides, never the query.
+  if (!/^\/b\/[^/]+\/?$/.test(u.pathname)) return raw;
+  if (u.searchParams.has("t")) return raw;
+  u.searchParams.set("t", token);
+  return relative ? `${u.pathname}${u.search}` : u.toString();
+}
+
+/**
  * WHOSE calendar, without the workspace in front of it: a staff id, or the literal
  * "shared".
  *

@@ -1,4 +1,5 @@
 import { stampVidapulseCtaUrl } from "@/lib/vidapulse";
+import { stampBookingUrl } from "@/lib/calendar/slots";
 import { VideoPlayer } from "@/features/assessment/components/public/video-player";
 import { VslWatchListener } from "@/features/assessment/components/public/vsl-watch-listener";
 import {
@@ -201,7 +202,14 @@ function ButtonBlock({
   // clicking it. That has to happen here, server-side, because the anchor below
   // carries rel="noreferrer" - without the ids in the URL, the click arrives at
   // VidaPulse anonymous. Any other link is returned untouched.
-  const direct = stampVidapulseCtaUrl(normalizeHref(config.url), customerId, resultToken);
+  // A button pointing at one of our booking pages carries the respondent's own token,
+  // whether or not it is tracked: otherwise the person who just finished the assessment
+  // is asked again for the details they typed two screens ago, and the booking that
+  // follows belongs to nobody. Any other link is returned untouched.
+  const direct = stampBookingUrl(
+    stampVidapulseCtaUrl(normalizeHref(config.url), customerId, resultToken),
+    resultToken,
+  );
   // A booking CTA goes via /api/cta instead, which records who clicked, fires the CRM
   // webhook and emails the owner, then 302s to this very same stamped destination -
   // the respondent lands in the identical place either way. Needs a submissionId, so
