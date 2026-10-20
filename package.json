@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:calendar && npm run verify:automations && npm run verify:releases && next build",
+    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:calendar && npm run verify:automations && npm run verify:releases && npm run verify:billing-ledger && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -44,6 +44,7 @@
     "verify:enrichment": "tsx scripts/verify-enrichment.ts",
     "reset:result-views": "tsx scripts/reset-result-views.ts",
     "verify:billing": "tsx scripts/verify-billing.ts",
+    "verify:billing-ledger": "tsx scripts/verify-billing-ledger.ts",
     "verify:ad-accounts": "tsx scripts/verify-ad-accounts.ts",
     "verify:owner-stamp": "tsx scripts/verify-owner-stamp.ts",
     "verify:seo": "tsx scripts/verify-seo.ts",

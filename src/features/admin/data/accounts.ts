@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { istDateRangeToUtc } from "@/lib/date";
 import { ourMicroUsd } from "@/lib/ai/cost-report";
+import { apportion, type BilledDay, type UsageRow } from "@/lib/billing/ai-apportion";
 
 /**
  * The books, per tenant: what they paid us, what they cost us, what is left.
@@ -109,50 +110,28 @@ export async function getAccounts(range?: Range): Promise<{ rows: AccountRow[]; 
     prisma.aiCostDay.findMany({ where: createdAt ? { day: createdAt } : undefined }),
   ]);
 
-  // ── The split. Per provider-day, because that is the grain the provider bills at.
-  const billedByKey = new Map<string, number>();
-  for (const c of costDays) {
-    billedByKey.set(`${c.provider}|${dayKeyOf(c.day)}`, ourMicroUsd(c));
-  }
+  // ── The split. The arithmetic lives in lib/billing/ai-apportion.ts, pure, so the
+  // claim it makes (billed = attributed + unattributed) is pinned by a verify script
+  // rather than only visible on this page. Here we do nothing but shape the rows.
+  const billedDays: BilledDay[] = costDays.map((c) => ({
+    provider: c.provider,
+    day: dayKeyOf(c.day),
+    ourMicroUsd: ourMicroUsd(c),
+  }));
+  const usageRows: UsageRow[] = usage.map((u) => ({
+    tenantId: u.tenantId,
+    provider: u.provider,
+    day: dayKeyOf(u.createdAt),
+    tokens: u.inputTokens + u.outputTokens,
+  }));
 
-  // Tokens per provider-day, and within that per tenant, so each day's real money is
-  // divided by that day's own shares rather than by a range-wide average.
-  const dayTotals = new Map<string, number>();
-  const dayTenant = new Map<string, Map<string, number>>();
+  const split = apportion(billedDays, usageRows);
+
   const tokensByTenant = new Map<string, number>();
-
-  for (const u of usage) {
-    const key = `${u.provider}|${dayKeyOf(u.createdAt)}`;
-    const t = u.inputTokens + u.outputTokens;
-    dayTotals.set(key, (dayTotals.get(key) ?? 0) + t);
-    if (!dayTenant.has(key)) dayTenant.set(key, new Map());
-    const per = dayTenant.get(key) as Map<string, number>;
-    // Null tenant = platform-level generation. Kept under "" so it lands in
-    // unattributed rather than being quietly dropped out of the arithmetic.
-    const id = u.tenantId ?? "";
-    per.set(id, (per.get(id) ?? 0) + t);
-    if (id) tokensByTenant.set(id, (tokensByTenant.get(id) ?? 0) + t);
+  for (const u of usageRows) {
+    if (!u.tenantId) continue;
+    tokensByTenant.set(u.tenantId, (tokensByTenant.get(u.tenantId) ?? 0) + u.tokens);
   }
-
-  const expenseByTenant = new Map<string, number>();
-  let billedTotal = 0;
-  let attributedTotal = 0;
-
-  for (const [key, billed] of billedByKey) {
-    billedTotal += billed;
-    const total = dayTotals.get(key) ?? 0;
-    if (total <= 0) continue; // billed, but nothing of ours recorded: unattributed.
-    for (const [tenantId, tokens] of dayTenant.get(key) ?? []) {
-      if (!tenantId) continue; // platform generation stays unattributed, by design.
-      const share = Math.round((billed * tokens) / total);
-      expenseByTenant.set(tenantId, (expenseByTenant.get(tenantId) ?? 0) + share);
-      attributedTotal += share;
-    }
-  }
-
-  // Days we generated on but have no invoice for yet. Counted, never estimated.
-  let daysUnpriced = 0;
-  for (const key of dayTotals.keys()) if (!billedByKey.has(key)) daysUnpriced++;
 
   const revById = new Map(revenue.map((r) => [r.tenantId ?? "", r]));
   const lastById = new Map(lastPaid.map((r) => [r.tenantId ?? "", r._max.createdAt]));
@@ -168,7 +147,7 @@ export async function getAccounts(range?: Range): Promise<{ rows: AccountRow[]; 
       revenueCents: rev?._sum.amount ?? 0,
       payments: rev?._count._all ?? 0,
       lastPaidAt: lastById.get(t.id) ?? null,
-      expenseMicroUsd: expenseByTenant.get(t.id) ?? 0,
+      expenseMicroUsd: split.byTenant.get(t.id) ?? 0,
       tokens: tokensByTenant.get(t.id) ?? 0,
     };
   });
@@ -183,15 +162,15 @@ export async function getAccounts(range?: Range): Promise<{ rows: AccountRow[]; 
     rows,
     totals: {
       revenueCents,
-      billedMicroUsd: billedTotal,
-      attributedMicroUsd: attributedTotal,
-      // By construction, not by a second sum: whatever the invoice holds that no tenant
-      // claimed. Rounding residue lands here too, which is where it belongs.
-      unattributedMicroUsd: billedTotal - attributedTotal,
-      profitMicroUsd: centsToMicro(revenueCents) - billedTotal,
+      billedMicroUsd: split.billedMicroUsd,
+      attributedMicroUsd: split.attributedMicroUsd,
+      unattributedMicroUsd: split.unattributedMicroUsd,
+      // Profit is against BILLED, not attributed: unattributed spend is still our money
+      // leaving the business, and charging it to nobody does not make it free.
+      profitMicroUsd: centsToMicro(revenueCents) - split.billedMicroUsd,
       tenants: rows.length,
-      daysUnpriced,
-      daysPriced: billedByKey.size,
+      daysUnpriced: split.daysUnpriced,
+      daysPriced: split.daysPriced,
     },
   };
 }
