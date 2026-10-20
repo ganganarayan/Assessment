@@ -467,9 +467,14 @@ function AutomationForm({
         </div>
 
         <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-xs text-[var(--muted-foreground)]">
-          Placeholders: {[...NURTURE_PLACEHOLDERS, ...APPOINTMENT_PLACEHOLDERS].map((p) => `{{${p}}}`).join("  ")}
-          . <strong>{"{{bookingUrl}}"}</strong> is their booking page with their own details already
-          filled in, which is what you want in a &ldquo;pick another time&rdquo; message.
+          {/* Deduped: unsubscribeUrl is offered by both lists, since the contacts module
+              added it for nurture drafts and it is just as useful here. */}
+          Placeholders:{" "}
+          {[...new Set([...NURTURE_PLACEHOLDERS, ...APPOINTMENT_PLACEHOLDERS])]
+            .map((p) => `{{${p}}}`)
+            .join("  ")}
+          . <strong>{"{{manageUrl}}"}</strong> opens their own booking with Move and Cancel on it, which
+          is how a reminder turns a silent no-show into a freed slot. Put it in every reminder.
         </p>
 
         {d.actions.map((a, i) => (
@@ -504,7 +509,7 @@ function AutomationForm({
                     spellCheck={false}
                     value={a.body}
                     placeholder={
-                      "<p>Hi {{firstName}},</p>\n<p>Your {{bookingName}} is on {{appointmentDate}} at {{appointmentTime}} IST.</p>\n<p><a href=\"{{meetingLink}}\">Join here</a> · <a href=\"{{icsUrl}}\">Add to calendar</a></p>"
+                      "<p>Hi {{firstName}},</p>\n<p>Your {{bookingName}} is on {{appointmentDate}} at {{appointmentTime}} IST.</p>\n<p><a href=\"{{meetingLink}}\">Join here</a> · <a href=\"{{icsUrl}}\">Add to calendar</a></p>\n<p>Need to change it? <a href=\"{{manageUrl}}\">Move or cancel your booking</a></p>"
                     }
                     onChange={(e) => setAction(i, { body: e.target.value })}
                   />

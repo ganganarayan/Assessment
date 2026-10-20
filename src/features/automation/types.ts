@@ -104,9 +104,10 @@ export const RUN_STATUS_CLASS: Record<AutomationRunStatusValue, string> = {
 /**
  * What a message can say about the appointment, beyond the lead's own fields.
  *
- * {{bookingUrl}} is the one worth knowing about: it is the booking page with the
- * person's own result token on it, so a "pick another time" message opens a form
- * already filled in with who they are.
+ * Two worth knowing about. {{manageUrl}} opens THEIR booking with a Move and a Cancel
+ * on it, which is what turns a silent no-show into a freed slot - every reminder should
+ * carry it. {{bookingUrl}} is the booking page with their own token on it, so booking
+ * again opens a form already filled in with who they are.
  */
 export const APPOINTMENT_PLACEHOLDERS = [
   "appointmentTime",
@@ -115,6 +116,8 @@ export const APPOINTMENT_PLACEHOLDERS = [
   "meetingLink",
   "bookingUrl",
   "icsUrl",
+  "manageUrl",
+  "unsubscribeUrl",
 ] as const;
 
 /* -------------------------------------------------------------- view rows --- */

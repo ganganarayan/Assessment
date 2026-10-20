@@ -7,6 +7,9 @@ import { wabaVisible } from "@/lib/nurture/waba-visible";
 import { resolveWabaConfig } from "@/lib/settings/config";
 import { fillPlaceholders, toE164Digits, type LeadFields } from "@/features/nurture/config";
 import { istMinutesOfDay, minutesToHHMM } from "@/lib/calendar/slots";
+import { respectsSuppression } from "@/lib/automation/schedule";
+// The contacts module owns consent; the automation sender asks it, never decides it.
+import { isSuppressed, unsubscribeUrlFor } from "@/lib/contacts/dnd";
 
 /**
  * The automation worker: take what is due, send it, write down what happened.
@@ -165,6 +168,9 @@ export async function processRun(runId: string): Promise<"sent" | "failed" | "sk
           submission: {
             select: {
               resultToken: true,
+              // The person behind the run, for their unsubscribe link. Null on a booking
+              // made before contacts existed, which renders the placeholder blank.
+              contact: { select: { optOutToken: true } },
               leadFirstName: true,
               leadLastName: true,
               leadEmail: true,
@@ -206,9 +212,34 @@ export async function processRun(runId: string): Promise<"sent" | "failed" | "sk
     profession: appointment.submission?.leadProfession ?? null,
   };
 
+  /**
+   * Do not disturb, for the messages that are outreach.
+   *
+   * The booking's own messages are exempt by design - see respectsSuppression - so this
+   * stops the two follow-ups and nothing else. isSuppressed fails OPEN on a database
+   * error, which is the right way round here: a blip must never silently stop the
+   * messages a person is waiting for.
+   */
+  if (respectsSuppression(automation.trigger)) {
+    const stop = await isSuppressed(run.tenantId, { email: lead.email, mobile: lead.mobile });
+    if (stop) {
+      await skip(run.id, "This person has asked not to be contacted.");
+      return "skipped";
+    }
+  }
+
   const origin = await outboundOrigin(run.tenantId);
   const token = appointment.submission?.resultToken ?? "";
+  // Their way out of the list, on the workspace's own domain, and blank when the run has
+  // no contact behind it rather than a link that goes nowhere.
+  const unsubscribeUrl =
+    (await unsubscribeUrlFor(run.tenantId, appointment.submission?.contact?.optOutToken)) ?? "";
   const extra: Record<string, string> = {
+    unsubscribeUrl,
+    // 🔴 The link that turns a silent no-show into a freed slot. Every reminder should
+    // carry it: somebody whose plans changed will either move the call or disappear, and
+    // which one they do is decided by whether there is a link in front of them.
+    manageUrl: `${origin}/b/manage/${appointment.publicToken}`,
     appointmentTime: minutesToHHMM(istMinutesOfDay(appointment.startAt.getTime())),
     appointmentDate: formatISTDate(appointment.startAt),
     bookingName: appointment.bookingType?.name ?? "your call",

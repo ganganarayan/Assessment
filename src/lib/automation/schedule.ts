@@ -46,3 +46,28 @@ export const PRUNABLE_RUN_STATUSES = ["SENT", "FAILED", "SKIPPED", "CANCELLED"] 
 export function retentionCutoff(nowMs: number): Date {
   return new Date(nowMs - RETENTION_DAYS * 86_400_000);
 }
+
+/**
+ * Which triggers are OUTREACH, and therefore stop at a do-not-disturb flag.
+ *
+ * 🔴 The line, and the reasoning, because somebody will be tempted to move it.
+ *
+ * A person who booked a call asked for every message ABOUT that call. Withholding "your
+ * call moved to Friday" from somebody who once unsubscribed from a newsletter is not
+ * honouring consent; it is making them miss an appointment they chose, and they will
+ * rightly blame the business. So the booking's own messages - the confirmation, the
+ * reschedule, the cancellation, the reminder - always send.
+ *
+ * The two follow-ups are different. "You did not show up, here is another slot" and
+ * "great speaking, here is my offer" are outreach that happens to be triggered by a
+ * calendar, and somebody who has said stop has said stop to those.
+ *
+ * Pure and listed here rather than decided inside the sender so the rule can be checked
+ * by verify:automations instead of trusted.
+ */
+export const SUPPRESSIBLE_TRIGGERS = ["APPOINTMENT_ATTENDED", "APPOINTMENT_NO_SHOW"] as const;
+
+/** True when this trigger's messages must not reach a suppressed contact. */
+export function respectsSuppression(trigger: string): boolean {
+  return (SUPPRESSIBLE_TRIGGERS as readonly string[]).includes(trigger);
+}

@@ -174,3 +174,30 @@ export interface BookingConfirmation {
   /** Download link for this one appointment, carrying its own capability token. */
   icsUrl: string;
 }
+
+/* ----------------------------------------------------- manage my booking --- */
+
+/** What a respondent sees at /b/manage/<token>: their own call, and what they may
+ *  still do about it. Nothing here identifies anybody else's booking. */
+export interface ManageBookingView {
+  /** Echoed back so the client can post actions without re-reading the URL. */
+  token: string;
+  hostName: string;
+  what: string;
+  startLabel: string;
+  durationMin: number;
+  status: AppointmentStatusValue;
+  locationKind: BookingLocationKindValue | null;
+  /** Shown only while the booking is live: a meeting link for a cancelled call is
+   *  an invitation to turn up to something that is not happening. */
+  locationValue: string | null;
+  /** False once the call has started, been cancelled, or had its outcome marked. */
+  canChange: boolean;
+  /** Why not, when canChange is false, in the respondent's words. */
+  closedReason: string | null;
+  /** Open slots on the same booking link, for moving it. Empty when the link is gone
+   *  or nothing is free, which leaves cancelling as the only honest option. */
+  days: PublicDay[];
+  /** Their booking page, carrying their own token, for booking again after a cancel. */
+  bookAgainPath: string | null;
+}

@@ -17,10 +17,16 @@ import {
   RETENTION_DAYS,
   isStillAhead,
   reminderDueAt,
+  respectsSuppression,
   retentionCutoff,
 } from "../src/lib/automation/schedule";
 import { automationSchema, automationActionSchema } from "../src/features/automation/schemas";
-import { offsetLabel, TRIGGERS, OFFSET_PRESETS } from "../src/features/automation/types";
+import {
+  APPOINTMENT_PLACEHOLDERS,
+  offsetLabel,
+  TRIGGERS,
+  OFFSET_PRESETS,
+} from "../src/features/automation/types";
 import { fillPlaceholders } from "../src/features/nurture/config";
 
 let failures = 0;
@@ -200,6 +206,33 @@ check(
   ["SENT", "FAILED", "SKIPPED", "CANCELLED"].every((s) =>
     (PRUNABLE_RUN_STATUSES as readonly string[]).includes(s),
   ),
+);
+
+/* ----------------------------------------------------- do not disturb --- */
+
+console.log("\nWho a suppressed contact still hears from");
+// The booking's own messages. Somebody who booked a call asked for these, and
+// withholding them is not consent, it is making them miss what they chose.
+for (const t of ["APPOINTMENT_BOOKED", "APPOINTMENT_RESCHEDULED", "APPOINTMENT_CANCELLED", "APPOINTMENT_REMINDER"]) {
+  check(`${t} still sends to a suppressed contact`, !respectsSuppression(t));
+}
+// The follow-ups. Outreach that happens to be triggered by a calendar.
+for (const t of ["APPOINTMENT_ATTENDED", "APPOINTMENT_NO_SHOW"]) {
+  check(`${t} stops at the do-not-disturb flag`, respectsSuppression(t));
+}
+check(
+  "every trigger in the UI has a stated position on suppression",
+  TRIGGERS.every((t) => typeof respectsSuppression(t.value) === "boolean"),
+);
+
+console.log("\nPlaceholders a booking message can carry");
+check(
+  "the manage link is offered, or a reminder cannot free its own slot",
+  (APPOINTMENT_PLACEHOLDERS as readonly string[]).includes("manageUrl"),
+);
+check(
+  "the unsubscribe link is offered on the outreach ones",
+  (APPOINTMENT_PLACEHOLDERS as readonly string[]).includes("unsubscribeUrl"),
 );
 
 console.log("");
