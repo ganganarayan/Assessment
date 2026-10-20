@@ -274,7 +274,21 @@ export function daySlots(input: DaySlotInput): Slot[] {
  * the two can never disagree about what "the same diary" means.
  */
 export function calendarKey(tenantId: string, assignedUserId: string | null | undefined): string {
-  return `${tenantId}:${assignedUserId ?? "shared"}`;
+  return `${tenantId}:${calendarOwnerKey(assignedUserId)}`;
+}
+
+/**
+ * WHOSE calendar, without the workspace in front of it: a staff id, or the literal
+ * "shared".
+ *
+ * The same string the Google connection is stored under (GoogleCalendarAccount
+ * .calendarKey) and the one the connect link carries, so the screen, the booking and
+ * the sync can never disagree about which diary is meant. It is "shared" rather than
+ * null because it ends up in a UNIQUE index, and Postgres treats NULLs as distinct -
+ * which would let one calendar be connected to two Google accounts at once.
+ */
+export function calendarOwnerKey(assignedUserId: string | null | undefined): string {
+  return assignedUserId ?? "shared";
 }
 
 /**

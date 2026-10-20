@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { availabilityPageProps } from "@/features/calendar/page-data";
 import { requireReleasedFeature } from "@/lib/features/route-guard";
 import { AvailabilityManager } from "@/features/calendar/components/availability-manager";
+import { GoogleCalendarCard } from "@/features/calendar/components/google-calendar-card";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,19 @@ export default async function WorkspaceAvailabilityPage() {
           Back to calendar
         </Link>
       </div>
+
+      {/* Suspense because the card reads the ?google= outcome from the URL, and a
+          client component using useSearchParams must be wrapped or the whole route
+          opts out of static rendering. */}
+      <Suspense fallback={null}>
+        <GoogleCalendarCard
+          calendars={props.googleCalendars}
+          appConfigured={props.googleAppConfigured}
+          isPlatform={props.isPlatform}
+          returnTo="/w/calendar/availability"
+          canEdit={props.canEdit}
+        />
+      </Suspense>
 
       <AvailabilityManager {...props} />
     </div>

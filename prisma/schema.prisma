@@ -172,9 +172,9 @@ model Tenant {
   paymentHandoffs      PaymentHandoff[]
   paymentLinks         PaymentLink[]
   /// Templates PRIVATE to this workspace (saved from the builder, never contributed).
-  ownedTemplates       Template[]             @relation("TemplateOwner")
+  ownedTemplates       Template[]              @relation("TemplateOwner")
   /// Templates this workspace sent to the master library.
-  contributedTemplates Template[]             @relation("TemplateContributor")
+  contributedTemplates Template[]              @relation("TemplateContributor")
   adAccounts           AdAccount[]
   supportRequests      SupportRequest[]
   audienceLists        AudienceList[]
@@ -185,7 +185,7 @@ model Tenant {
   /// What this workspace offers for 1:1 booking, and the appointments in its calendar.
   bookingTypes         BookingType[]
   appointments         Appointment[]
-  googleCalendar       GoogleCalendarAccount?
+  googleCalendars      GoogleCalendarAccount[]
   automations          Automation[]
   contacts             Contact[]
   workflows            Workflow[]
@@ -544,8 +544,9 @@ model User {
   supportMessages    SupportMessage[]
   /// This staff member's own calendar: the booking links that sell their time, and the
   /// appointments sitting in their diary.
-  bookingTypes       BookingType[]    @relation("StaffBookingTypes")
-  appointments       Appointment[]    @relation("StaffAppointments")
+  bookingTypes       BookingType[]           @relation("StaffBookingTypes")
+  googleCalendars    GoogleCalendarAccount[] @relation("StaffGoogleCalendars")
+  appointments       Appointment[]           @relation("StaffAppointments")
 
   @@index([tenantId])
   @@map("user")
@@ -2857,6 +2858,21 @@ model AppSetting {
   /// owner's CRM automations already map, plus event_type "support_reply".
   supportWebhookUrl String?
 
+  /// PLATFORM ONLY, read from the singleton row: the one Google OAuth app the whole
+  /// product connects through.
+  ///
+  /// Not per tenant, and not in the environment. Not per tenant because a tenant does
+  /// not have a Google Cloud project and should never be asked for one - they click
+  /// Connect and consent. Not in the environment because every other credential in this
+  /// app moved in-app for the same reason: an env edit plus a redeploy is not a setting.
+  ///
+  /// The redirect URI registered with Google is the PLATFORM origin plus
+  /// /api/google/callback, which is why connecting always happens on the platform
+  /// domain even for a tenant on their own: Google matches the redirect exactly, and no
+  /// OAuth app can enumerate every customer domain.
+  googleClientId        String?
+  googleClientSecretEnc String?
+
   /// Secret in the CALENDAR SUBSCRIPTION URL (/api/calendar/<token>.ics), so the
   /// workspace can read its bookings in Google Calendar, Apple Calendar or Outlook
   /// without this app holding anybody OAuth credentials.
@@ -3773,12 +3789,28 @@ model Appointment {
 /// deletes the row outright rather than blanking it, so revoking leaves nothing behind.
 model GoogleCalendarAccount {
   id       String @id @default(cuid())
-  tenantId String @unique
+  tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// WHICH CALENDAR this connection belongs to: a staff member's own, or the
+  /// workspace's shared one.
+  ///
+  /// 🔴 calendarKey is NOT NULL and carries the literal "shared" for the workspace
+  /// calendar, because the unique index is the only thing stopping one calendar being
+  /// connected to two Google accounts - and Postgres treats NULLs as DISTINCT, so
+  /// @@unique([tenantId, userId]) with a null userId would happily allow a second row.
+  /// The same trap as Appointment.slotLock, solved the same way.
+  calendarKey String
+  /// The staff member, for showing whose connection it is. Null for the shared
+  /// calendar. Cascade: a hard-deleted user takes their own connection with them.
+  userId      String?
+  user        User?   @relation("StaffGoogleCalendars", fields: [userId], references: [id], onDelete: Cascade)
 
   /// Which Google account and calendar this is, for showing what is connected.
   googleEmail String?
-  calendarId  String?
+  /// The Google calendar to write to. "primary" is the owner's own calendar and is the
+  /// only one offered for now; the column exists so picking another is a UI change.
+  calendarId  String? @default("primary")
 
   accessTokenEnc  String?
   refreshTokenEnc String?
@@ -3795,6 +3827,8 @@ model GoogleCalendarAccount {
 
   updatedAt DateTime @updatedAt
 
+  @@unique([tenantId, calendarKey])
+  @@index([tenantId])
   @@map("google_calendar_account")
 }
 
@@ -4115,10 +4149,10 @@ model Contact {
   source     String?
   lastSeenAt DateTime @default(now())
 
-  tags        ContactTag[]
+  tags         ContactTag[]
   workflowRuns WorkflowRun[]
-  submissions Submission[]
-  gateEntries GateEntry[]
+  submissions  Submission[]
+  gateEntries  GateEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4413,7 +4447,7 @@ model WorkflowSend {
   tenantId String
 
   workflowId String
-  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  workflow   Workflow     @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   stepId     String
   step       WorkflowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
 

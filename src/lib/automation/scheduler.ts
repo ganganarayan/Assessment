@@ -1,6 +1,7 @@
 import "server-only";
 import { runDueAutomations } from "@/lib/automation/run";
 import { pruneAutomationHistory } from "@/lib/automation/retention";
+import { syncDueAppointments } from "@/lib/google/calendar";
 
 /**
  * The clock, inside the app.
@@ -66,6 +67,21 @@ async function tick(): Promise<void> {
     await drain();
   } catch (e) {
     console.error("[automation-scheduler] drain failed:", e instanceof Error ? e.message : String(e));
+  }
+
+  /**
+   * Push bookings to the Google calendars that are connected.
+   *
+   * It rides on this heartbeat rather than calling Google at each write site, so one
+   * code path covers a booking, an owner's edit, a respondent's reschedule and a
+   * cancellation - and so a failed or interrupted write is simply still stale on the
+   * next tick. Nothing to queue, nothing to retry by hand. A workspace with no Google
+   * connection costs one indexed query that returns nothing.
+   */
+  try {
+    await syncDueAppointments();
+  } catch (e) {
+    console.error("[automation-scheduler] google sync failed:", e instanceof Error ? e.message : String(e));
   }
 
   try {

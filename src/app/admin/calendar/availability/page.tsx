@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { availabilityPageProps } from "@/features/calendar/page-data";
 import { AvailabilityManager } from "@/features/calendar/components/availability-manager";
+import { GoogleCalendarCard } from "@/features/calendar/components/google-calendar-card";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,16 @@ export default async function AdminAvailabilityPage() {
           Back to calendar
         </Link>
       </div>
+
+      <Suspense fallback={null}>
+        <GoogleCalendarCard
+          calendars={props.googleCalendars}
+          appConfigured={props.googleAppConfigured}
+          isPlatform={props.isPlatform}
+          returnTo="/admin/calendar/availability"
+          canEdit={props.canEdit}
+        />
+      </Suspense>
 
       <AvailabilityManager {...props} />
     </div>

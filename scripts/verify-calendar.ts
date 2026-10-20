@@ -15,6 +15,7 @@ import {
   IST_OFFSET_MIN,
   addDays,
   calendarKey,
+  calendarOwnerKey,
   daySlots,
   hhmmToMinutes,
   horizonDateKeys,
@@ -30,6 +31,7 @@ import {
   type SlotRuleInput,
 } from "../src/lib/calendar/slots";
 import { buildIcsCalendar } from "../src/lib/calendar/ics";
+import { buildState, parseState, STATE_TTL_MS } from "../src/lib/google/state";
 
 let failures = 0;
 function check(name: string, cond: boolean) {
@@ -266,6 +268,79 @@ check(
       status: "CANCELLED",
     },
   ]).includes("STATUS:CANCELLED"),
+);
+
+/* ------------------------------------------------------- google oauth --- */
+
+console.log("\nGoogle OAuth state");
+const SECRET = "test-secret-not-a-real-one";
+const OTHER = "a-different-secret";
+const issued = Date.parse("2026-10-21T06:00:00.000Z");
+const good = buildState(
+  { tenantId: "tnt_1", calendarKey: "usr_asha", returnTo: "/w/calendar/availability", issuedAtMs: issued },
+  SECRET,
+);
+
+const round = parseState(good, SECRET, issued + 1000);
+check("a state we issued round-trips", round?.tenantId === "tnt_1" && round?.calendarKey === "usr_asha");
+
+// The whole point of signing it: the callback decides WHICH workspace and WHICH
+// calendar the tokens are stored against, from this value alone.
+const tampered = buildState(
+  { tenantId: "tnt_victim", calendarKey: "shared", returnTo: "/w/calendar/availability", issuedAtMs: issued },
+  OTHER,
+);
+check("a state signed with another secret is refused", parseState(tampered, SECRET, issued + 1000) === null);
+check(
+  "flipping a character in the payload is refused",
+  parseState(`x${good.slice(1)}`, SECRET, issued + 1000) === null,
+);
+check("a state with no signature at all is refused", parseState("justapayload", SECRET, issued) === null);
+check("an empty state is refused", parseState("", SECRET, issued) === null);
+
+// A consent screen left open overnight is a dead link, not a replay.
+check(
+  "a state older than its window is refused",
+  parseState(good, SECRET, issued + STATE_TTL_MS + 1000) === null,
+);
+check("a state from the future is refused", parseState(good, SECRET, issued - 120_000) === null);
+check("a state inside its window is accepted", parseState(good, SECRET, issued + STATE_TTL_MS - 1000) !== null);
+
+// The other way this parameter gets abused: bounce somebody off our domain to theirs.
+const offsite = buildState(
+  { tenantId: "tnt_1", calendarKey: "shared", returnTo: "https://evil.example.com/steal", issuedAtMs: issued },
+  SECRET,
+);
+check(
+  "an absolute returnTo is replaced, never followed",
+  parseState(offsite, SECRET, issued)?.returnTo === "/w/calendar/availability",
+);
+const protocolRelative = buildState(
+  { tenantId: "tnt_1", calendarKey: "shared", returnTo: "//evil.example.com", issuedAtMs: issued },
+  SECRET,
+);
+check(
+  "a protocol-relative returnTo is replaced too",
+  parseState(protocolRelative, SECRET, issued)?.returnTo === "/w/calendar/availability",
+);
+check(
+  "an ordinary local path survives",
+  parseState(
+    buildState({ tenantId: "t", calendarKey: "shared", returnTo: "/admin/calendar/availability", issuedAtMs: issued }, SECRET),
+    SECRET,
+    issued,
+  )?.returnTo === "/admin/calendar/availability",
+);
+
+console.log("\nWhich diary a Google connection belongs to");
+check(
+  "a staff member’s calendar key is their id",
+  calendarOwnerKey("usr_asha") === "usr_asha",
+);
+check("the shared calendar's key is the literal shared", calendarOwnerKey(null) === "shared");
+check(
+  "the key matches the half the slot lock uses",
+  calendarKey("tnt_1", "usr_asha") === `tnt_1:${calendarOwnerKey("usr_asha")}`,
 );
 
 console.log("");

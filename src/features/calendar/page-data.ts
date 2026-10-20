@@ -2,10 +2,12 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, configTenantOf } from "@/lib/tenant/acting";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
+import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 import type { Prisma } from "@prisma/client";
 import {
   bookingPickers,
   calendarStaff,
+  googleCalendarStatus,
   isMonthKey,
   istMonthKey,
   listAwaitingOutcome,
@@ -15,7 +17,12 @@ import {
   shiftMonth,
 } from "@/features/calendar/data";
 import { istDateKey } from "@/lib/calendar/slots";
-import type { AppointmentRow, BookingTypeRow, PickerOption } from "@/features/calendar/types";
+import type {
+  AppointmentRow,
+  BookingTypeRow,
+  GoogleCalendarRow,
+  PickerOption,
+} from "@/features/calendar/types";
 
 /**
  * Everything the two calendar screens need, assembled once so /admin and /w are thin
@@ -110,6 +117,12 @@ export interface AvailabilityPageProps {
   /** The feed's PATH, or null until one is generated. Made absolute in the browser,
    *  like every other link the owner copies out of this app. */
   feedPath: string | null;
+  /** Every calendar in the workspace, with the state of its Google connection. */
+  googleCalendars: GoogleCalendarRow[];
+  /** False until the platform owner has entered the Google OAuth app credentials. */
+  googleAppConfigured: boolean;
+  /** True in the platform scope, where those credentials are editable. */
+  isPlatform: boolean;
   canEdit: boolean;
 }
 
@@ -117,7 +130,7 @@ export async function availabilityPageProps(): Promise<AvailabilityPageProps> {
   const scope = await resolveActingScope();
   const tenantId = configTenantOf(scope);
 
-  const [bookingTypes, pickers, setting, staff] = await Promise.all([
+  const [bookingTypes, pickers, setting, staff, googleCalendars, platformSetting] = await Promise.all([
     listBookingTypes(tenantId),
     bookingPickers(tenantId),
     prisma.appSetting.findUnique({
@@ -125,6 +138,14 @@ export async function availabilityPageProps(): Promise<AvailabilityPageProps> {
       select: { calendarFeedToken: true },
     }),
     calendarStaff(tenantId),
+    googleCalendarStatus(tenantId),
+    // The OAuth app is the PLATFORM's, so this reads the platform row whichever
+    // workspace is being looked at: a tenant needs to know whether there is anything to
+    // connect to, without being able to see or set the credentials.
+    prisma.appSetting.findUnique({
+      where: appSettingWhere(null) as Prisma.AppSettingWhereUniqueInput,
+      select: { googleClientId: true, googleClientSecretEnc: true },
+    }),
   ]);
 
   return {
@@ -135,6 +156,9 @@ export async function availabilityPageProps(): Promise<AvailabilityPageProps> {
     // Read here rather than minted: generating a credential is a write, and a page
     // render must not perform one. The Generate button mints the first one.
     feedPath: setting?.calendarFeedToken ? `/api/calendar/${setting.calendarFeedToken}.ics` : null,
+    googleCalendars,
+    googleAppConfigured: !!platformSetting?.googleClientId && !!platformSetting?.googleClientSecretEnc,
+    isPlatform: isPlatformScope(tenantId),
     canEdit: scope.canEdit,
   };
 }

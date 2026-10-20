@@ -201,3 +201,21 @@ export interface ManageBookingView {
   /** Their booking page, carrying their own token, for booking again after a cancel. */
   bookAgainPath: string | null;
 }
+
+/* --------------------------------------------------------------- google --- */
+
+/** One calendar and the state of its Google connection, for the availability card. */
+export interface GoogleCalendarRow {
+  /** "shared" or a staff id. The same key the connection, the sync and the slot maths
+   *  all use, so the screen and the booking can never disagree about which diary. */
+  key: string;
+  label: string;
+  connected: boolean;
+  googleEmail: string | null;
+  /** False while paused: connected, writing nothing and reading nothing. */
+  syncEnabled: boolean;
+  /** Pre-formatted DD-MM-YYYY HH:MM IST, or null if it has never run. */
+  lastSyncLabel: string | null;
+  /** What Google last refused, in its own words. Usually somebody revoking access. */
+  lastError: string | null;
+}

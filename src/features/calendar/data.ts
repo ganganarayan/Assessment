@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { formatIST } from "@/lib/date";
+import { googleBusyWindows, keyForAppointment } from "@/lib/google/calendar";
 import {
   daySlots,
   horizonDateKeys,
@@ -21,6 +22,7 @@ import {
   type BookingLocationKindValue,
   type AppointmentStatusValue,
   type AppointmentSourceValue,
+  type GoogleCalendarRow,
 } from "@/features/calendar/types";
 
 /**
@@ -360,12 +362,28 @@ export async function openSlotsByDate(
   const dateKeys = horizonDateKeys(nowMs, source.horizonDays);
   const firstKey = dateKeys[0] as string;
   const lastKey = dateKeys[dateKeys.length - 1] as string;
-  const busy = await busyIntervals(
+  const fromMs = utcMsFor(firstKey, 0);
+  const toMs = utcMsFor(lastKey, 1440);
+  const busy = await busyIntervals(source.tenantId, fromMs, toMs, source.assignedUserId);
+
+  /**
+   * Whatever Google says this person already has on.
+   *
+   * This is the half of "sync" that owners actually ask for: without it the product
+   * cheerfully books them against their own dentist. Treated exactly like an internal
+   * booking - it takes the slot - but NOT counted toward the per-day cap, because a
+   * meeting in somebody's own diary is not one of the calls they agreed to take.
+   *
+   * Returns nothing at all when the calendar is not connected, so a workspace that has
+   * never heard of Google pays nothing for this.
+   */
+  const googleBusy = await googleBusyWindows(
     source.tenantId,
-    utcMsFor(firstKey, 0),
-    utcMsFor(lastKey, 1440),
-    source.assignedUserId,
+    keyForAppointment(source.tenantId, source.assignedUserId),
+    fromMs,
+    toMs,
   );
+  for (const w of googleBusy) busy.push({ ...w, isBooking: false });
 
   // Live bookings per IST date, for the per-day cap. Counted from the same busy rows
   // rather than a second query: the cap is about this workspace's day, which is what
@@ -487,4 +505,51 @@ export async function calendarStaff(tenantId: string): Promise<PickerOption[]> {
     take: 200,
   });
   return rows.map((u) => ({ id: u.id, label: u.name?.trim() || u.email }));
+}
+
+/* --------------------------------------------------------- google status --- */
+
+/**
+ * Which calendars this workspace runs, and what each one's Google connection looks like.
+ *
+ * The list is the SHARED calendar plus every staff member who either owns a booking
+ * link or has already connected one. Listing every member of a ten-person workspace
+ * would be nine rows of nothing for a business where two people take calls.
+ */
+export async function googleCalendarStatus(tenantId: string): Promise<GoogleCalendarRow[]> {
+  const [staff, types, connections] = await Promise.all([
+    calendarStaff(tenantId),
+    prisma.bookingType.findMany({ where: { tenantId }, select: { assignedUserId: true } }),
+    prisma.googleCalendarAccount.findMany({
+      where: { tenantId },
+      select: {
+        calendarKey: true,
+        googleEmail: true,
+        syncEnabled: true,
+        lastSyncAt: true,
+        lastError: true,
+      },
+    }),
+  ]);
+
+  const withLinks = new Set(types.map((t) => t.assignedUserId).filter((id): id is string => !!id));
+  const connected = new Map(connections.map((c) => [c.calendarKey, c]));
+
+  const keys: { key: string; label: string }[] = [{ key: "shared", label: "Workspace calendar" }];
+  for (const s of staff) {
+    if (withLinks.has(s.id) || connected.has(s.id)) keys.push({ key: s.id, label: s.label });
+  }
+
+  return keys.map(({ key, label }) => {
+    const c = connected.get(key);
+    return {
+      key,
+      label,
+      connected: !!c,
+      googleEmail: c?.googleEmail ?? null,
+      syncEnabled: c?.syncEnabled ?? false,
+      lastSyncLabel: c?.lastSyncAt ? formatIST(c.lastSyncAt) : null,
+      lastError: c?.lastError ?? null,
+    };
+  });
 }
