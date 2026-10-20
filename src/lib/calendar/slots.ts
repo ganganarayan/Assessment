@@ -1,0 +1,292 @@
+/**
+ * Slot arithmetic for the booking calendar. PURE: no DB, no env, no next/headers, so
+ * scripts/verify-calendar.ts can prove it without a server or a database.
+ *
+ * Everything here is integer minutes against a FIXED IST offset, never the host's
+ * timezone. Railway runs UTC, so "10:00 on Tuesday" resolved through the runtime would
+ * be 10:00 UTC - half past three in the afternoon for the person who typed it. The same
+ * reasoning as formatIST in src/lib/date.ts, and the reason availability is stored as
+ * minutes-from-midnight plus a weekday rather than as timestamps.
+ *
+ * The vocabulary, once:
+ *   dateKey   an IST calendar date, "YYYY-MM-DD". What a respondent picks.
+ *   minutes   minutes from IST midnight. 0 = 00:00, 570 = 09:30, 1440 = midnight.
+ *   window    a continuous span of bookable minutes on one date.
+ *   busy      an instant range already taken, in epoch ms (UTC).
+ */
+
+/** IST is UTC+5:30 and has no DST, which is what makes a fixed offset correct here. */
+export const IST_OFFSET_MIN = 330;
+const MS_PER_MIN = 60_000;
+const MINUTES_PER_DAY = 1440;
+
+export interface AvailabilityWindow {
+  startMin: number;
+  endMin: number;
+}
+
+/** One recurring weekly window. weekday: 0 = Sunday through 6 = Saturday, IST. */
+export interface SlotRuleInput {
+  weekday: number;
+  startMin: number;
+  endMin: number;
+}
+
+/**
+ * A one-date change to the weekly pattern. A BLOCK with null times is the whole day
+ * off; an OPEN with null times is the whole day open (00:00 to 24:00).
+ */
+export interface SlotExceptionInput {
+  dateKey: string;
+  kind: "BLOCK" | "OPEN";
+  startMin: number | null;
+  endMin: number | null;
+}
+
+/** An instant range that is already taken (another booking, or blocked-out time). */
+export interface BusyInput {
+  startMs: number;
+  endMs: number;
+}
+
+export interface Slot {
+  startMs: number;
+  endMs: number;
+}
+
+export interface DaySlotInput {
+  dateKey: string;
+  rules: SlotRuleInput[];
+  exceptions: SlotExceptionInput[];
+  /** Every live appointment in the workspace, not just this booking type's: one shared
+   *  calendar means a call sold through another booking type still takes the time. */
+  busy: BusyInput[];
+  durationMin: number;
+  bufferMin: number;
+  /** 0 = step by duration + buffer, which is the everyday case. */
+  slotStepMin: number;
+  noticeMin: number;
+  nowMs: number;
+  horizonDays: number;
+  maxPerDay: number | null;
+  /** Live bookings already held on this IST date, for the per-day cap. */
+  bookedCountOnDay: number;
+}
+
+/* ------------------------------------------------------------------ dates --- */
+
+/** The IST calendar date of an instant, as "YYYY-MM-DD". */
+export function istDateKey(ms: number): string {
+  return new Date(ms + IST_OFFSET_MIN * MS_PER_MIN).toISOString().slice(0, 10);
+}
+
+/** Minutes past IST midnight for an instant. */
+export function istMinutesOfDay(ms: number): number {
+  const shifted = new Date(ms + IST_OFFSET_MIN * MS_PER_MIN);
+  return shifted.getUTCHours() * 60 + shifted.getUTCMinutes();
+}
+
+/** True for a well-formed "YYYY-MM-DD" that names a real date. */
+export function isDateKey(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const ms = Date.parse(`${value}T00:00:00.000Z`);
+  return Number.isFinite(ms) && new Date(ms).toISOString().slice(0, 10) === value;
+}
+
+/** The instant (epoch ms, UTC) at `minutes` past IST midnight on an IST date. */
+export function utcMsFor(dateKey: string, minutes: number): number {
+  return Date.parse(`${dateKey}T00:00:00.000Z`) + (minutes - IST_OFFSET_MIN) * MS_PER_MIN;
+}
+
+/** 0 = Sunday through 6 = Saturday, for an IST date. */
+export function istWeekday(dateKey: string): number {
+  return new Date(`${dateKey}T00:00:00.000Z`).getUTCDay();
+}
+
+/** The IST date `days` after (or before, when negative) the given one. */
+export function addDays(dateKey: string, days: number): string {
+  return new Date(Date.parse(`${dateKey}T00:00:00.000Z`) + days * MINUTES_PER_DAY * MS_PER_MIN)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/** Every IST date the public page may offer, today first. */
+export function horizonDateKeys(nowMs: number, horizonDays: number): string[] {
+  const first = istDateKey(nowMs);
+  const span = Math.max(1, Math.min(horizonDays, 400));
+  return Array.from({ length: span }, (_, i) => addDays(first, i));
+}
+
+/** "09:30" from 570. Used by the availability editor and the slot buttons. */
+export function minutesToHHMM(minutes: number): string {
+  const m = ((Math.round(minutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+/** 570 from "09:30". Null when it is not a time, so a caller can reject rather than
+ *  silently book midnight. "24:00" is accepted as the end of a day (1440). */
+export function hhmmToMinutes(value: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!m) return null;
+  const hours = Number(m[1]);
+  const mins = Number(m[2]);
+  if (!Number.isInteger(hours) || !Number.isInteger(mins) || mins > 59) return null;
+  const total = hours * 60 + mins;
+  return total >= 0 && total <= MINUTES_PER_DAY ? total : null;
+}
+
+/* ---------------------------------------------------------------- windows --- */
+
+/** Merge overlapping or touching windows into the fewest spans, in order. */
+function mergeWindows(windows: AvailabilityWindow[]): AvailabilityWindow[] {
+  const sorted = [...windows]
+    .filter((w) => w.endMin > w.startMin)
+    .sort((a, b) => a.startMin - b.startMin);
+  const out: AvailabilityWindow[] = [];
+  for (const w of sorted) {
+    const last = out[out.length - 1];
+    if (last && w.startMin <= last.endMin) {
+      last.endMin = Math.max(last.endMin, w.endMin);
+    } else {
+      out.push({ ...w });
+    }
+  }
+  return out;
+}
+
+/** Cut a span out of each window, which can split one window into two. */
+function subtract(windows: AvailabilityWindow[], cut: AvailabilityWindow): AvailabilityWindow[] {
+  const out: AvailabilityWindow[] = [];
+  for (const w of windows) {
+    if (cut.endMin <= w.startMin || cut.startMin >= w.endMin) {
+      out.push(w);
+      continue;
+    }
+    if (cut.startMin > w.startMin) out.push({ startMin: w.startMin, endMin: cut.startMin });
+    if (cut.endMin < w.endMin) out.push({ startMin: cut.endMin, endMin: w.endMin });
+  }
+  return out;
+}
+
+/**
+ * The bookable windows on one IST date: the weekly rules for that weekday, plus any
+ * OPEN exception for the date, minus every BLOCK exception for it.
+ *
+ * Order matters and is deliberate. BLOCK is applied LAST, so a day off beats a window
+ * that was opened for it: "I am away on the 26th" has to win over any rule, including
+ * one added later, or a holiday silently leaks slots.
+ */
+export function windowsForDate(
+  dateKey: string,
+  rules: SlotRuleInput[],
+  exceptions: SlotExceptionInput[],
+): AvailabilityWindow[] {
+  const mine = exceptions.filter((e) => e.dateKey === dateKey);
+  const weekday = istWeekday(dateKey);
+
+  const opens = mine
+    .filter((e) => e.kind === "OPEN")
+    .map((e) => ({
+      startMin: e.startMin ?? 0,
+      endMin: e.endMin ?? MINUTES_PER_DAY,
+    }));
+
+  let windows = mergeWindows([
+    ...rules.filter((r) => r.weekday === weekday).map((r) => ({ startMin: r.startMin, endMin: r.endMin })),
+    ...opens,
+  ]);
+
+  for (const block of mine.filter((e) => e.kind === "BLOCK")) {
+    windows = subtract(windows, {
+      startMin: block.startMin ?? 0,
+      endMin: block.endMin ?? MINUTES_PER_DAY,
+    });
+  }
+  return windows;
+}
+
+/* ------------------------------------------------------------------ slots --- */
+
+function overlapsBusy(slot: Slot, busy: BusyInput[], bufferMs: number): boolean {
+  // The buffer is dead time around a booking that nothing else may take, so it is
+  // added to BOTH sides of what is already in the diary and to the end of the
+  // candidate. Without the leading side, a 30-minute call with a 15-minute buffer
+  // could still be booked to start the moment the previous one ended.
+  return busy.some((b) => slot.startMs < b.endMs + bufferMs && b.startMs - bufferMs < slot.endMs);
+}
+
+/**
+ * Every slot that can still be booked on one IST date.
+ *
+ * Returns [] rather than throwing for every ordinary "nothing here" case: a date in the
+ * past, past the horizon, a day with no rules, a day at its cap. The public page shows
+ * dates with slots and stays quiet about the rest.
+ */
+export function daySlots(input: DaySlotInput): Slot[] {
+  const {
+    dateKey,
+    rules,
+    exceptions,
+    busy,
+    durationMin,
+    bufferMin,
+    slotStepMin,
+    noticeMin,
+    nowMs,
+    horizonDays,
+    maxPerDay,
+    bookedCountOnDay,
+  } = input;
+
+  if (!isDateKey(dateKey) || durationMin <= 0) return [];
+  if (maxPerDay != null && bookedCountOnDay >= maxPerDay) return [];
+
+  const todayKey = istDateKey(nowMs);
+  const lastKey = addDays(todayKey, Math.max(0, horizonDays - 1));
+  if (dateKey < todayKey || dateKey > lastKey) return [];
+
+  const step = slotStepMin > 0 ? slotStepMin : durationMin + bufferMin;
+  if (step <= 0) return [];
+
+  // The earliest a respondent may book. The notice window is why a slot an hour from
+  // now is not offered on a booking type that asks for a day's warning.
+  const earliestMs = nowMs + Math.max(0, noticeMin) * MS_PER_MIN;
+  const bufferMs = Math.max(0, bufferMin) * MS_PER_MIN;
+
+  const slots: Slot[] = [];
+  for (const window of windowsForDate(dateKey, rules, exceptions)) {
+    for (let min = window.startMin; min + durationMin <= window.endMin; min += step) {
+      const startMs = utcMsFor(dateKey, min);
+      const endMs = startMs + durationMin * MS_PER_MIN;
+      if (startMs < earliestMs) continue;
+      if (overlapsBusy({ startMs, endMs }, busy, bufferMs)) continue;
+      slots.push({ startMs, endMs });
+    }
+  }
+  return slots.sort((a, b) => a.startMs - b.startMs);
+}
+
+/**
+ * The lock value that makes double booking impossible.
+ *
+ * Written into Appointment.slotLock (UNIQUE, nullable) while a booking is live and
+ * nulled on cancel, so the database refuses the second of two simultaneous bookings of
+ * one slot instead of both succeeding.
+ *
+ * 🔴 Keyed on the WORKSPACE and the start instant, NOT on the booking type. There is one
+ * calendar per workspace, so two people booking a strategy call and a discovery call for
+ * the same 11:00 are double-booking the same hour of the same person. The slot list
+ * already refuses it (busy time is read across the whole workspace), but a list is
+ * computed a moment before the write, and per-type locks would let two different types
+ * through the gap. Per workspace, the second one loses at the database.
+ *
+ * 🟡 What this still does not catch: two bookings that OVERLAP without starting at the
+ * same instant (10:00 to 10:30 against 10:15 to 10:45), committed in the same instant.
+ * It needs two booking types whose grids are offset and two people pressing at once, and
+ * a unique index cannot express "overlaps". The slot computation is the defence there.
+ * Per-staff calendars will add the staff id to this key rather than change its shape.
+ */
+export function slotLockFor(tenantId: string, startAt: Date | number): string {
+  const ms = startAt instanceof Date ? startAt.getTime() : startAt;
+  return `${tenantId}:${new Date(ms).toISOString()}`;
+}

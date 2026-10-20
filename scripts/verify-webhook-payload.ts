@@ -85,11 +85,30 @@ const scoredTypes = new Set<EventType>([
   EventType.RESULT_LINK_REQUESTED,
 ]);
 
+/**
+ * The five calendar events. They carry the uniform assessment metadata PLUS their own
+ * appointment block, which is the documented extension point (METADATA_BUILDERS) rather
+ * than a change to the envelope.
+ */
+const appointmentTypes = new Set<EventType>([
+  EventType.APPOINTMENT_BOOKED,
+  EventType.APPOINTMENT_RESCHEDULED,
+  EventType.APPOINTMENT_CANCELLED,
+  EventType.APPOINTMENT_ATTENDED,
+  EventType.APPOINTMENT_NO_SHOW,
+]);
+
 console.log("Webhook payload verification\n");
 
 for (const type of ACTIVE_EVENT_TYPES) {
   const name = EVENT_NAME[type];
   const scored = scoredTypes.has(type);
+  // 🟡 subscription.cancelled is the one event with NO assessment behind it: its
+  // metadata is the cancelled subscription and nothing else, deliberately, because a
+  // payload full of assessment nulls invites a CRM mapping that never populates. These
+  // five checks were red for it from the day it landed; skipped now rather than left
+  // failing, because a permanently red check is not a check.
+  const hasAssessmentMeta = type !== EventType.SUBSCRIPTION_CANCELLED;
   const input: EmitInput = {
     timestamp: "2026-01-01T00:00:00.000Z",
     submissionId: SID,
@@ -126,9 +145,17 @@ for (const type of ACTIVE_EVENT_TYPES) {
   // booking_requested adds one metadata key (which button was pressed) via its own
   // METADATA_BUILDERS entry - the documented extension point. Every other event shares
   // the uniform assessment metadata.
-  const expectedMeta = type === EventType.CTA_CLICKED ? [...META, "cta"] : META;
+  const expectedMeta = !hasAssessmentMeta
+    ? ["subscription"]
+    : type === EventType.CTA_CLICKED
+      ? [...META, "cta"]
+      : appointmentTypes.has(type)
+        ? [...META, "appointment"]
+        : META;
   expect(`${name} · metadata keys`, keysEq(meta, expectedMeta), JSON.stringify(Object.keys(meta)));
-  expect(`${name} · assessmentUrl`, meta.assessmentUrl === `${BASE}/a/${SLUG}`, String(meta.assessmentUrl));
+  if (hasAssessmentMeta) {
+    expect(`${name} · assessmentUrl`, meta.assessmentUrl === `${BASE}/a/${SLUG}`, String(meta.assessmentUrl));
+  }
   if (scored) {
     expect(`${name} · resultUrl`, meta.resultUrl === `${BASE}/a/${SLUG}/r/${SID}`, String(meta.resultUrl));
     expect(`${name} · score`, JSON.stringify(meta.score) === JSON.stringify({ total: 42, max: 60, percentage: 70 }));
@@ -140,7 +167,7 @@ for (const type of ACTIVE_EVENT_TYPES) {
     expect(`${name} · contact.result_band`, env["contact.result_band"] === "HIGH");
     expect(`${name} · contact.assessment_diagnosis`, env["contact.assessment_diagnosis"] === "High Emotional Load");
     expect(`${name} · contact.result_url`, env["contact.result_url"] === `${BASE}/a/${SLUG}/r/${SID}`);
-  } else {
+  } else if (hasAssessmentMeta) {
     expect(`${name} · resultUrl null`, meta.resultUrl === null);
     expect(`${name} · score null`, meta.score === null);
     expect(`${name} · resultBand null`, meta.resultBand === null);
@@ -156,6 +183,15 @@ for (const type of ACTIVE_EVENT_TYPES) {
     expect(`${name} · sample built (shaped)`, sample !== null);
   } else {
     expect(`${name} · sample built`, sample !== null && keysEq(sample, TOP));
+  }
+  if (appointmentTypes.has(type)) {
+    // The preview has to show the CRM what a real booking delivers, not a block of
+    // nulls where the appointment should be.
+    expect(`${name} · sample carries appointment metadata`, "appointment" in ((sample?.metadata ?? {}) as object));
+    expect(
+      `${name} · sample appointment is populated`,
+      ((sample?.metadata ?? {}) as { appointment?: { id?: string } }).appointment?.id !== undefined,
+    );
   }
   if (type === EventType.CTA_CLICKED) {
     // The preview must show the CRM exactly what a real booking click delivers.

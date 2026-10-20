@@ -26,6 +26,14 @@ export const EVENT_NAME: Record<EventType, string> = {
   [EventType.RESULT_LINK_REQUESTED]: "result.link_requested",
   [EventType.CTA_CLICKED]: "booking_requested", // result-page booking CTA clicked
   [EventType.SUBSCRIPTION_CANCELLED]: "subscription.cancelled", // a customer asked to stop
+  // Calendar. A booking is an intention; the two outcome events are the ones worth
+  // nurturing on, which is why attended and no-show are separate names and not a
+  // status field on one event.
+  [EventType.APPOINTMENT_BOOKED]: "appointment.booked",
+  [EventType.APPOINTMENT_RESCHEDULED]: "appointment.rescheduled",
+  [EventType.APPOINTMENT_CANCELLED]: "appointment.cancelled",
+  [EventType.APPOINTMENT_ATTENDED]: "appointment.attended",
+  [EventType.APPOINTMENT_NO_SHOW]: "appointment.no_show",
 };
 
 /** Reverse of EVENT_NAME: dotted name -> enum value. */
@@ -47,6 +55,11 @@ export const ALL_EVENT_TYPES: EventType[] = [
   EventType.RESULT_LINK_REQUESTED,
   EventType.CTA_CLICKED,
   EventType.SUBSCRIPTION_CANCELLED,
+  EventType.APPOINTMENT_BOOKED,
+  EventType.APPOINTMENT_RESCHEDULED,
+  EventType.APPOINTMENT_CANCELLED,
+  EventType.APPOINTMENT_ATTENDED,
+  EventType.APPOINTMENT_NO_SHOW,
 ];
 
 /**
@@ -71,6 +84,11 @@ export const ACTIVE_EVENT_TYPES: EventType[] = [
   // cancellation, and the person who needs to hear it is the owner, whose webhooks are
   // the platform-scoped ones. Who cancelled is in metadata.subscription.
   EventType.SUBSCRIPTION_CANCELLED,
+  EventType.APPOINTMENT_BOOKED,
+  EventType.APPOINTMENT_RESCHEDULED,
+  EventType.APPOINTMENT_CANCELLED,
+  EventType.APPOINTMENT_ATTENDED,
+  EventType.APPOINTMENT_NO_SHOW,
 ];
 
 /**
@@ -92,6 +110,11 @@ export const EVENT_LABEL: Partial<Record<EventType, string>> = {
   [EventType.RESULT_LINK_REQUESTED]: "Result link requested",
   [EventType.CTA_CLICKED]: "Booking requested (result-page CTA)",
   [EventType.SUBSCRIPTION_CANCELLED]: "Subscription cancelled (a customer left)",
+  [EventType.APPOINTMENT_BOOKED]: "Appointment booked",
+  [EventType.APPOINTMENT_RESCHEDULED]: "Appointment rescheduled",
+  [EventType.APPOINTMENT_CANCELLED]: "Appointment cancelled",
+  [EventType.APPOINTMENT_ATTENDED]: "Appointment - showed up",
+  [EventType.APPOINTMENT_NO_SHOW]: "Appointment - no show",
 };
 
 /** Suggested default delivered name per trigger (the canonical event name). */
@@ -193,6 +216,27 @@ export interface PayloadClinic {
 /** The result-page button a respondent pressed to ask for a call. `label` and `url`
  *  are snapshotted at click time - the page is editable, so re-reading the block later
  *  could describe a button that has since changed or been removed. */
+/**
+ * One appointment, as a CRM reads it. Times are ISO instants (machine fields stay
+ * ISO UTC) plus a pre-formatted IST string, because the one thing a CRM does with an
+ * appointment is put it in front of a person, and left to a template a bare ISO
+ * instant renders as US-order local time for whoever opens it.
+ */
+export interface PayloadAppointment {
+  id: string;
+  /** The booking type, e.g. "30-minute strategy call". Null for a manual entry. */
+  bookingType: string | null;
+  startAt: string;
+  endAt: string;
+  /** DD-MM-YYYY HH:MM, IST. */
+  startLabel: string;
+  durationMin: number;
+  status: string;
+  locationKind: string | null;
+  locationValue: string | null;
+  /** Who ended it, on a cancellation: "operator" or "respondent". */
+  cancelledBy: string | null;
+}
 export interface PayloadCta {
   blockId: string;
   label: string | null;
@@ -273,6 +317,8 @@ export interface EmitInput {
   cta?: PayloadCta | null;
   /** The cancelled subscription (SUBSCRIPTION_CANCELLED only). */
   subscription?: PayloadSubscription | null;
+  /** The appointment (every APPOINTMENT_* event). */
+  appointment?: PayloadAppointment | null;
   /** Override the event timestamp (defaults to now). Used for deterministic samples. */
   timestamp?: string;
 }

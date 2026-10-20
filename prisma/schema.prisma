@@ -171,9 +171,9 @@ model Tenant {
   paymentHandoffs      PaymentHandoff[]
   paymentLinks         PaymentLink[]
   /// Templates PRIVATE to this workspace (saved from the builder, never contributed).
-  ownedTemplates       Template[]        @relation("TemplateOwner")
+  ownedTemplates       Template[]             @relation("TemplateOwner")
   /// Templates this workspace sent to the master library.
-  contributedTemplates Template[]        @relation("TemplateContributor")
+  contributedTemplates Template[]             @relation("TemplateContributor")
   adAccounts           AdAccount[]
   supportRequests      SupportRequest[]
   audienceLists        AudienceList[]
@@ -181,6 +181,10 @@ model Tenant {
   resultPageDocs       ResultPageDoc[]
   /// What this workspace has answered in the guided setup sequence.
   onboardingAnswers    OnboardingAnswer[]
+  /// What this workspace offers for 1:1 booking, and the appointments in its calendar.
+  bookingTypes         BookingType[]
+  appointments         Appointment[]
+  googleCalendar       GoogleCalendarAccount?
 
   @@index([status])
   @@index([deletedAt])
@@ -329,7 +333,7 @@ model Subscription {
   // on top of PlanLimits.customDomains, which is what makes it an add-on rather than a
   // negotiated deal - limitOverrides REPLACES the plan's number, so it could never
   // express "one more than whatever they are on".
-  extraCustomDomains         Int     @default(0)
+  extraCustomDomains Int @default(0)
 
   // Entitlements FROZEN at purchase (a copy of PLAN_LIMITS for `plan`). Resolution
   // reads this first so a later catalog change never re-rates this customer.
@@ -974,6 +978,7 @@ model Assessment {
   ctaClicks             CtaClick[]
   gateEntries           GateEntry[]
   eventCounts           FunnelEventCount[]
+  bookingTypes          BookingType[]
 
   @@index([tenantId])
   @@index([status])
@@ -1198,24 +1203,24 @@ model Category {
 // ---------------------------------------------------------------------------
 
 model Question {
-  id           String       @id @default(cuid())
-  text         String
-  type         QuestionType @default(SINGLE_SELECT)
-  weight       Float        @default(1)
-  required     Boolean      @default(true)
-  displayOrder Int          @default(0)
+  id                      String       @id @default(cuid())
+  text                    String
+  type                    QuestionType @default(SINGLE_SELECT)
+  weight                  Float        @default(1)
+  required                Boolean      @default(true)
+  displayOrder            Int          @default(0)
   // CLINIC_AUDIT engine only: the funnel role this question feeds - one of
   // ENQUIRIES, BOOK_RATE, SHOWUP_RATE, CLOSE_RATE, TREATMENT_VALUE, AD_SPEND,
   // DORMANT, CAPACITY, UPLIFT_BOOKRATE. Null = not a scoring input (context /
   // qualifier). Ignored by the GENERIC engine. See lib/scoring/clinic-audit.ts.
-  scoringRole  String?
+  scoringRole             String?
   // CLINIC_AUDIT: the UNIT this question's numbers are expressed in - PER_10
   // ("out of every 10"), PER_100 (percent / "out of every 100"), RUPEES, COUNT,
   // or POINTS (book-rate uplift). Applies to BOTH the option values and the
   // respondent's typed actual number, so a question worded "out of every 10"
   // can never be silently read as a percentage. Null = the role's default
   // (rates → PER_100), which preserves every existing configuration exactly.
-  scoringUnit  String?
+  scoringUnit             String?
   // ---- Default (unconditional) route ----------------------------------------
   // Where the flow goes from this question when NO option rule applies: the question
   // was skipped (optional), it is FREE_TEXT so there is no option at all, or the chosen
@@ -1232,8 +1237,8 @@ model Question {
   defaultRouteAction      RouteAction?
   defaultTargetQuestionId String? // scalar ref (no FK), validated forward-only on save
   defaultTargetCategoryId String? // scalar ref (no FK), validated forward-only on save
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -1604,6 +1609,7 @@ model Submission {
   crmSendJobs    CrmSendQueue[]
   nurtureLogs    NurtureLog[]
   ctaClicks      CtaClick[]
+  appointments   Appointment[]
 
   @@index([assessmentId])
   @@index([leadEmail])
@@ -1850,7 +1856,7 @@ model AiStatement {
 // ---------------------------------------------------------------------------
 
 model SubmissionAnswer {
-  id String @id @default(cuid())
+  id        String   @id @default(cuid())
   // The option's score point. 0 for a FREE_TEXT answer, which scores nothing.
   value     Int      @default(0)
   createdAt DateTime @default(now())
@@ -1916,6 +1922,14 @@ enum EventType {
   RESULT_LINK_REQUESTED // result.link_requested (returning user asks to be emailed their prior result)
   CTA_CLICKED // booking_requested (respondent clicked the result page's booking CTA)
   SUBSCRIPTION_CANCELLED // subscription.cancelled (a paying customer asked to stop)
+  // Appointment lifecycle (Calendar). BOOKED fires when a respondent or the owner
+  // books a 1:1 slot; ATTENDED / NO_SHOW are marked by the owner afterwards, which
+  // is what carries the real outcome of the call back to the CRM and to Meta.
+  APPOINTMENT_BOOKED // appointment.booked
+  APPOINTMENT_RESCHEDULED // appointment.rescheduled
+  APPOINTMENT_CANCELLED // appointment.cancelled
+  APPOINTMENT_ATTENDED // appointment.attended (showed up)
+  APPOINTMENT_NO_SHOW // appointment.no_show
 }
 
 // ---------------------------------------------------------------------------
@@ -2679,7 +2693,7 @@ model AppSetting {
   // sender. No env fallback (new feature) - unconfigured => that channel just no-ops.
   smtpHost               String?
   smtpPort               Int?
-  smtpSecure             Boolean @default(false)
+  smtpSecure             Boolean   @default(false)
   smtpUser               String?
   smtpPassEnc            String?
   smtpFromName           String?
@@ -2706,7 +2720,7 @@ model AppSetting {
   wabaBusinessId         String? // Meta business portfolio id of the connected customer
   wabaDisplayPhone       String? // e.g. "+91 98765 43210", for showing what is connected
   wabaVerifiedName       String? // the display name Meta approved for the number
-  wabaIsOnBizApp         Boolean @default(false)
+  wabaIsOnBizApp         Boolean   @default(false)
   wabaOnboardedAt        DateTime?
   // Last failure, shown verbatim on the settings card. A connect that half-finishes is
   // the dangerous state, so the reason is kept rather than swallowed into a log nobody
@@ -2780,6 +2794,16 @@ model AppSetting {
   /// The payload uses the flat contact_name / contact_email / contact_phone keys the
   /// owner's CRM automations already map, plus event_type "support_reply".
   supportWebhookUrl String?
+
+  /// Secret in the CALENDAR SUBSCRIPTION URL (/api/calendar/<token>.ics), so the
+  /// workspace can read its bookings in Google Calendar, Apple Calendar or Outlook
+  /// without this app holding anybody OAuth credentials.
+  ///
+  /// A capability token, which is why it is per workspace and rotatable: the URL is
+  /// pasted into a calendar client that will fetch it forever with no session, so the
+  /// only way to revoke a leaked subscription is to change the token. Null = no feed
+  /// has been generated yet (the page generates one on first ask).
+  calendarFeedToken String? @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3044,7 +3068,8 @@ model AdAccount {
   /// arbitrarily between two live pixels.
   isDefault Boolean @default(false)
 
-  assessments Assessment[]
+  assessments  Assessment[]
+  bookingTypes BookingType[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3368,4 +3393,323 @@ model OnboardingAnswer {
   @@unique([tenantId, stepKey])
   @@index([tenantId])
   @@map("onboarding_answer")
+}
+
+// ---------------------------------------------------------------------------
+// CALENDAR - 1:1 appointment booking.
+//
+// Four models and no more: what can be booked (BookingType), when it can be booked
+// (AvailabilityRule plus AvailabilityException), and what actually got booked
+// (Appointment). The automation that fires around an appointment is a separate
+// concern and arrives with its own models; the only thing the calendar owes it is an
+// event, which it emits through the existing event bus.
+// ---------------------------------------------------------------------------
+
+/// Where the call happens. Not free text: the public page has to SAY where to turn up,
+/// and three kinds cover it. The detail (a Meet link, a number, an address) lives in
+/// locationValue, so adding a kind later never touches the data already there.
+enum BookingLocationKind {
+  MEET_LINK
+  PHONE
+  IN_PERSON
+}
+
+/// Who put the row in the calendar. A MANUAL row is the owner blocking out their own
+/// time: it occupies the slot exactly like a booking, carries no attendee, emits no
+/// event and reports nothing to Meta.
+enum AppointmentSource {
+  BOOKING
+  MANUAL
+}
+
+/// The life of one appointment. BOOKED is the only live state; the other three are
+/// terminal and each is a different thing to tell an ad account.
+///
+/// ATTENDED and NO_SHOW are the whole reason this feature reports to Meta at all: a
+/// booking is an intention, and only the owner marking the outcome afterwards says
+/// whether the ad bought a conversation or an empty slot.
+enum AppointmentStatus {
+  BOOKED
+  CANCELLED
+  ATTENDED
+  NO_SHOW
+}
+
+/// A named exception to the weekly pattern, in both directions: BLOCK takes time away
+/// (a holiday, a half day), OPEN adds a window on a date the weekly rules do not cover
+/// (a Sunday opened for one week only).
+enum AvailabilityExceptionKind {
+  BLOCK
+  OPEN
+}
+
+/// One thing that can be booked, e.g. "30-minute strategy call". Publicly reachable at
+/// /b/<slug> while active.
+///
+/// The slug is GLOBALLY unique, matching Assessment: the public page is resolved by
+/// slug alone, so per-tenant uniqueness would make /b/discovery-call ambiguous the
+/// moment a second workspace picked the same name.
+model BookingType {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  slug        String  @unique
+  description String? @db.Text
+
+  /// Minutes. duration is the call; buffer is dead time AFTER it that no other booking
+  /// may take, so back-to-back calls cannot be booked against a stated gap.
+  durationMin Int @default(30)
+  bufferMin   Int @default(0)
+
+  /// Shortest notice a respondent may book at (minutes). Without it an ad clicked at
+  /// 11:58 can book the 12:00 slot, and the owner finds out when the call starts.
+  noticeMin Int @default(120)
+
+  /// How far ahead the public page offers dates.
+  horizonDays Int @default(30)
+
+  /// Slot start granularity in minutes. 0 means duration + buffer, which is the
+  /// everyday case (a 30-minute call offered on the half hour). Setting it smaller
+  /// offers overlapping starts, which some owners want for a short call.
+  slotStepMin Int @default(0)
+
+  /// Cap on live bookings per IST day. Null = no cap. A day at its cap offers no slots
+  /// rather than hiding the booking type, so the respondent is told to pick another day.
+  maxPerDay Int?
+
+  locationKind BookingLocationKind @default(MEET_LINK)
+
+  /// The meeting link, phone number or address. Shown on the confirmation and in the
+  /// calendar feed, never on the slot picker.
+  locationValue String?
+
+  active Boolean @default(true)
+
+  /// The funnel this call belongs to, when it has one. Two jobs: it is how a booking
+  /// made from a result page is attributed back to the assessment that produced it, and
+  /// it is where the funnel event counters are kept.
+  assessmentId String?
+  assessment   Assessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+
+  /// Which ad account the appointment events report to. Null = the tenant's default,
+  /// the same contract as Assessment.adAccountId. Restrict, so deleting an ad account
+  /// that a live booking type reports to fails loudly instead of silently re-pointing
+  /// its conversions at another pixel.
+  adAccountId String?
+  adAccount   AdAccount? @relation(fields: [adAccountId], references: [id], onDelete: Restrict)
+
+  /// Reserved for per-staff calendars. One shared workspace calendar ships first; when
+  /// staff calendars arrive, a booking type names whose time it sells and nothing else
+  /// in this model has to change.
+  assignedUserId String?
+
+  /// Master switch for the Meta side of this booking type. Off means the calendar still
+  /// works and the webhooks still fire, and nothing reaches the ad account.
+  fireMetaCapi Boolean @default(true)
+
+  /// The Meta event name per moment, configurable because an ad account's history is
+  /// its own. The default for a booking is the STANDARD event Schedule, which Meta can
+  /// optimize delivery for; the other three have no standard equivalent, so they are
+  /// custom events and are useful as audiences rather than as optimization targets.
+  metaBookedEvent    String @default("Schedule")
+  metaCancelledEvent String @default("AppointmentCancelled")
+  metaAttendedEvent  String @default("AppointmentAttended")
+  metaNoShowEvent    String @default("AppointmentNoShow")
+
+  rules        AvailabilityRule[]
+  exceptions   AvailabilityException[]
+  appointments Appointment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([assessmentId])
+  @@map("booking_type")
+}
+
+/// One recurring weekly window, e.g. Tuesdays 10:00 to 13:00.
+///
+/// Minutes from midnight IST rather than a time column: slot arithmetic is integer
+/// arithmetic on a fixed offset (see src/lib/calendar/slots.ts), and a time-of-day
+/// column would hand the same job to the runtime's timezone, which on Railway is UTC.
+model AvailabilityRule {
+  id            String      @id @default(cuid())
+  bookingTypeId String
+  bookingType   BookingType @relation(fields: [bookingTypeId], references: [id], onDelete: Cascade)
+
+  /// 0 = Sunday through 6 = Saturday, IST.
+  weekday  Int
+  startMin Int
+  endMin   Int
+
+  createdAt DateTime @default(now())
+
+  @@index([bookingTypeId])
+  @@map("availability_rule")
+}
+
+/// A one-date change to the weekly pattern. A BLOCK with no times is the whole day off.
+model AvailabilityException {
+  id            String      @id @default(cuid())
+  bookingTypeId String
+  bookingType   BookingType @relation(fields: [bookingTypeId], references: [id], onDelete: Cascade)
+
+  /// The IST calendar date this applies to, stored as a plain date so it cannot drift
+  /// across midnight when read on a UTC host.
+  date DateTime @db.Date
+
+  kind     AvailabilityExceptionKind @default(BLOCK)
+  startMin Int?
+  endMin   Int?
+  note     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([bookingTypeId, date])
+  @@map("availability_exception")
+}
+
+/// One row in the calendar: a booked call, or time the owner blocked out.
+model Appointment {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// Null for a manual block, and SetNull rather than Cascade for a booking: deleting a
+  /// booking type must not erase the history of calls that were sold through it.
+  bookingTypeId String?
+  bookingType   BookingType? @relation(fields: [bookingTypeId], references: [id], onDelete: SetNull)
+
+  source AppointmentSource @default(BOOKING)
+  status AppointmentStatus @default(BOOKED)
+
+  /// Stored UTC, always. Every surface renders DD-MM-YYYY HH:MM IST through formatIST.
+  startAt DateTime
+  endAt   DateTime
+
+  title String?
+  notes String? @db.Text
+
+  attendeeName   String?
+  attendeeEmail  String?
+  attendeeMobile String?
+
+  /// The submission this call came out of, when it was booked from a result page. The
+  /// link is what makes the appointment part of the funnel rather than a diary entry.
+  /// SetNull: a deleted submission must not take the appointment with it.
+  submissionId String?
+  submission   Submission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+
+  /// Reserved for per-staff calendars, like BookingType.assignedUserId.
+  assignedUserId String?
+
+  /// Meta match signals, snapshotted at booking time.
+  ///
+  /// 🔴 This is what makes the offline fire work. ATTENDED is marked days after the
+  /// browser that booked the call has gone, so there is no request to read _fbp / _fbc
+  /// from at that point. Captured here, an attendance marked on Friday still matches
+  /// the ad clicked on Monday; captured at fire time, it would match nothing.
+  fbp         String?
+  fbc         String?
+  externalId  String?
+  clientIp    String?
+  userAgent   String?
+  attribution Json?
+
+  /// Booked during an owner's own preview run. Everything about the row is real; the
+  /// server-side conversion is the one thing it must not produce.
+  isPreview Boolean @default(false)
+
+  /// The double-booking guard.
+  ///
+  /// Holds "tenantId:startAt" while the row is live and is set to NULL the moment it is
+  /// cancelled. Postgres treats NULLs as distinct in a unique index, so a cancelled slot
+  /// frees itself for the next person while two simultaneous bookings of the same slot
+  /// cannot both commit. A partial unique index would say the same thing, and Prisma
+  /// cannot express one.
+  ///
+  /// Keyed on the WORKSPACE rather than the booking type, because there is one calendar
+  /// per workspace: two people booking different call types for the same 11:00 are
+  /// booking the same hour of the same person. See slotLockFor in lib/calendar/slots.ts
+  /// for what this still cannot catch.
+  slotLock String? @unique
+
+  /// Capability token in the respondent's own links: the .ics download now, and the
+  /// cancel / reschedule page when it ships. Random per appointment, so one person's
+  /// link never reaches another's booking.
+  publicToken String @unique
+
+  /// Per-moment "already reported" stamps: the event bus emit AND the Meta conversion
+  /// for that moment happen together, once, however many times an operator presses the
+  /// button or a retry runs. RESCHEDULED has no stamp on purpose: moving a call twice is
+  /// two things the CRM needs to hear, not a duplicate.
+  reportedBookedAt    DateTime?
+  reportedCancelledAt DateTime?
+  reportedAttendedAt  DateTime?
+  reportedNoShowAt    DateTime?
+
+  /// Set on the NEW row when a booking is moved, pointing at the row it replaced.
+  rescheduledFromId String?
+
+  cancelledAt DateTime?
+
+  /// "operator" or "respondent". Who ended it changes what you say to them next.
+  cancelledBy        String?
+  attendanceMarkedAt DateTime?
+
+  /// Google Calendar two-way sync, which arrives with its own phase. The columns are
+  /// here from the start so that landing it is a code change rather than a migration
+  /// against a table that by then holds live bookings.
+  googleEventId   String?
+  googleSyncedAt  DateTime?
+  googleSyncError String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, startAt])
+  @@index([bookingTypeId, startAt])
+  @@index([submissionId])
+  @@index([status, startAt])
+  @@map("appointment")
+}
+
+/// A workspace's connected Google Calendar.
+///
+/// 🟡 NO READER YET, deliberately. The OAuth connect and disconnect pair ships in its
+/// own phase; the model is in the first migration so that phase adds routes and a
+/// button rather than a schema change. Nothing in the app shows a Google card until it
+/// can actually connect, because a button that does nothing is worse than no button.
+///
+/// One per workspace (tenantId unique), matching the single shared calendar that ships
+/// first. Tokens are encrypted at rest like every other secret here, and disconnecting
+/// deletes the row outright rather than blanking it, so revoking leaves nothing behind.
+model GoogleCalendarAccount {
+  id       String @id @default(cuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// Which Google account and calendar this is, for showing what is connected.
+  googleEmail String?
+  calendarId  String?
+
+  accessTokenEnc  String?
+  refreshTokenEnc String?
+  expiresAt       DateTime?
+  scope           String?
+
+  /// Connected but paused. Kept apart from deleting the row so a workspace can stop
+  /// writing to Google without re-doing the OAuth dance to start again.
+  syncEnabled Boolean @default(true)
+
+  connectedAt DateTime  @default(now())
+  lastSyncAt  DateTime?
+  lastError   String?
+
+  updatedAt DateTime @updatedAt
+
+  @@map("google_calendar_account")
 }

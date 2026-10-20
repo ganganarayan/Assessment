@@ -99,6 +99,12 @@ function assessmentMetadata(input: EmitInput, baseUrl: string): AssessmentMetada
   };
 }
 
+/** Assessment metadata plus the appointment, for the five calendar events. */
+const appointmentMetadata: MetadataBuilder = (input, baseUrl) => ({
+  ...assessmentMetadata(input, baseUrl),
+  appointment: input.appointment ?? null,
+});
+
 const METADATA_BUILDERS: Partial<Record<EventType, MetadataBuilder>> = {
   [EventType.LEAD_CREATED]: assessmentMetadata,
   [EventType.ASSESSMENT_STARTED]: assessmentMetadata,
@@ -118,6 +124,15 @@ const METADATA_BUILDERS: Partial<Record<EventType, MetadataBuilder>> = {
   // The one event with no assessment behind it. Deliberately NOT spread with
   // assessmentMetadata: a cancellation has no scorecard, no score and no result page,
   // and a payload full of nulls invites a CRM mapping that silently never populates.
+  // Every appointment event carries the assessment metadata when the booking came out
+  // of a funnel (so the CRM sees the score behind the call) plus the appointment
+  // itself. A call booked straight from the public link simply has nulls there, which
+  // is honest: there is no scorecard behind it.
+  [EventType.APPOINTMENT_BOOKED]: appointmentMetadata,
+  [EventType.APPOINTMENT_RESCHEDULED]: appointmentMetadata,
+  [EventType.APPOINTMENT_CANCELLED]: appointmentMetadata,
+  [EventType.APPOINTMENT_ATTENDED]: appointmentMetadata,
+  [EventType.APPOINTMENT_NO_SHOW]: appointmentMetadata,
   [EventType.SUBSCRIPTION_CANCELLED]: (input) => ({
     subscription: input.subscription ?? null,
   }),
@@ -320,6 +335,15 @@ export function buildSamplePayload(eventName: string, baseUrl: string): Record<s
     type === EventType.RESULT_GENERATED ||
     type === EventType.RESULT_LINK_REQUESTED;
 
+  // The calendar events get a sample appointment, so the webhook page previews what a
+  // CRM will actually receive rather than a block of nulls.
+  const isAppointment =
+    type === EventType.APPOINTMENT_BOOKED ||
+    type === EventType.APPOINTMENT_RESCHEDULED ||
+    type === EventType.APPOINTMENT_CANCELLED ||
+    type === EventType.APPOINTMENT_ATTENDED ||
+    type === EventType.APPOINTMENT_NO_SHOW;
+
   const envelope = buildEnvelope(
     type,
     {
@@ -342,6 +366,20 @@ export function buildSamplePayload(eventName: string, baseUrl: string): Record<s
       },
       score: scored ? { total: 42, max: 60, percentage: 70 } : null,
       resultBand: scored ? { level: "HIGH", title: "High Emotional Load" } : null,
+      appointment: isAppointment
+        ? {
+            id: "apt_3x4mpl3",
+            bookingType: "30-minute strategy call",
+            startAt: "2026-01-05T05:30:00.000Z",
+            endAt: "2026-01-05T06:00:00.000Z",
+            startLabel: "05-01-2026 11:00",
+            durationMin: 30,
+            status: EVENT_NAME[type] === "appointment.no_show" ? "NO_SHOW" : "BOOKED",
+            locationKind: "MEET_LINK",
+            locationValue: "https://meet.example.com/acme-strategy",
+            cancelledBy: null,
+          }
+        : null,
     },
     baseUrl,
   );

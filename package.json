@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && npm run verify:owner-stamp && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && next build",
+    "build": "prisma generate && npm run verify:owner-stamp && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:calendar && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -85,7 +85,8 @@
     "worker:history": "npx --yes wrangler@4 deployments list --config infra/wrangler.toml",
     "worker:rollback": "npx --yes wrangler@4 rollback --config infra/wrangler.toml",
     "worker:secret": "npx --yes wrangler@4 secret put PROXY_SECRET --config infra/wrangler.toml",
-    "worker:tail": "npx --yes wrangler@4 tail --config infra/wrangler.toml"
+    "worker:tail": "npx --yes wrangler@4 tail --config infra/wrangler.toml",
+    "verify:calendar": "tsx scripts/verify-calendar.ts"
   },
   "prisma": {
     "seed": "tsx --conditions=react-server prisma/seed.ts"

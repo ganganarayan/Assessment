@@ -67,6 +67,16 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    // The calls the funnel produced, and the hours they can be booked in. Its own
+    // section rather than an item under Leads: half of what happens here (marking who
+    // turned up) is about an appointment, not about a lead.
+    title: "Calendar",
+    items: [
+      { href: "/admin/calendar", label: "Calendar", exact: true },
+      { href: "/admin/calendar/availability", label: "Availability" },
+    ],
+  },
+  {
     title: "Analytics",
     items: [
       { href: "/admin/analytics/stats", label: "Stats" },

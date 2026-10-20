@@ -45,6 +45,15 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    // After Leads and before Analytics, because that is the order it happens in: a lead
+    // qualifies, books a call, and the outcome of that call is the number worth reading.
+    title: "Calendar",
+    items: [
+      { href: "/w/calendar", label: "Calendar", exact: true },
+      { href: "/w/calendar/availability", label: "Availability" },
+    ],
+  },
+  {
     title: "Analytics",
     items: [
       { href: "/w/stats", label: "Stats" },
