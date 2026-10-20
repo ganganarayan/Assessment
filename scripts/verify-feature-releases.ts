@@ -154,23 +154,34 @@ for (const f of RELEASABLE_FEATURES) {
 }
 
 // --- The guards are wired ---------------------------------------------------------
-// A route in the catalog with no guard on its page is the failure mode that matters
-// most: the menu item disappears and the URL still works, which is the difference
-// between a held-back feature and a hidden one.
+// A route in the catalog whose page has no guard is the failure mode that matters most:
+// the menu item disappears and the URL still works, which is the difference between a
+// held-back feature and a hidden one.
+//
+// A route whose page does NOT EXIST YET is a different thing entirely, and this check
+// used to treat them the same. It cost four sessions half a day of red staging when a
+// catalog entry was pushed one commit ahead of its screen - a route registered early
+// 404s, nothing links to it (the catalog only ever HIDES routes; the menu is written by
+// hand), and there is no surface for a customer to reach. Failing the build for it
+// stopped every unrelated deploy to prevent nothing. So it is reported and allowed:
+// the entry can land before the page, and the moment the page exists it must be guarded.
 for (const f of RELEASABLE_FEATURES) {
   for (const route of f.routes) {
     const page = join(process.cwd(), "src", "app", ...route.split("/").filter(Boolean), "page.tsx");
-    let src = "";
+    let src: string | null = null;
     try {
       src = readFileSync(page, "utf8");
     } catch {
-      fail(`${route} has a page`, `expected ${page}`);
+      src = null;
+    }
+    if (src === null) {
+      ok(`${route} is registered ahead of its screen (404 until it lands, nothing to leak)`);
       continue;
     }
     expect(
       `${route} guards itself`,
       src.includes(`requireReleasedFeature("${f.key}")`),
-      "the page is reachable by typing the URL. Add await requireReleasedFeature(...) at the top.",
+      "the page exists, so the URL works for anybody who has it. Add await requireReleasedFeature(...) at the top.",
     );
   }
 }
