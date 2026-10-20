@@ -90,6 +90,7 @@
     "worker:tail": "npx --yes wrangler@4 tail --config infra/wrangler.toml",
     "verify:calendar": "tsx scripts/verify-calendar.ts",
     "cron:automations": "tsx --conditions=react-server scripts/run-automations.ts",
+    "cron:workflows": "tsx --conditions=react-server scripts/run-workflows.ts",
     "verify:automations": "tsx scripts/verify-automations.ts",
     "verify:releases": "tsx scripts/verify-feature-releases.ts",
     "verify:schema-migrations": "tsx scripts/verify-schema-migrations.ts"
