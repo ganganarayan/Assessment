@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import { resolveActingScope, configTenantOf } from "@/lib/tenant/acting";
 import { resolveGoogleApp, consentUrl } from "@/lib/google/oauth";
-import { buildState } from "@/lib/google/state";
+import { buildState } from "@/lib/integrations/oauth-state";
 
 /**
  * Start the Google connection for one calendar.
@@ -36,7 +36,7 @@ export async function GET(req: Request) {
   const returnTo = url.searchParams.get("returnTo") ?? "/w/calendar/availability";
 
   const state = buildState(
-    { tenantId, calendarKey: calendar, returnTo, issuedAtMs: Date.now() },
+    { tenantId, subject: calendar, returnTo, issuedAtMs: Date.now() },
     env.BETTER_AUTH_SECRET,
   );
   return NextResponse.redirect(consentUrl(app, state), { status: 302 });

@@ -34,7 +34,7 @@ import {
   type SlotRuleInput,
 } from "../src/lib/calendar/slots";
 import { buildIcsCalendar } from "../src/lib/calendar/ics";
-import { buildState, parseState, STATE_TTL_MS } from "../src/lib/google/state";
+import { buildState, parseState, STATE_TTL_MS } from "../src/lib/integrations/oauth-state";
 
 let failures = 0;
 function check(name: string, cond: boolean) {
@@ -280,17 +280,17 @@ const SECRET = "test-secret-not-a-real-one";
 const OTHER = "a-different-secret";
 const issued = Date.parse("2026-10-21T06:00:00.000Z");
 const good = buildState(
-  { tenantId: "tnt_1", calendarKey: "usr_asha", returnTo: "/w/calendar/availability", issuedAtMs: issued },
+  { tenantId: "tnt_1", subject: "usr_asha", returnTo: "/w/calendar/availability", issuedAtMs: issued },
   SECRET,
 );
 
 const round = parseState(good, SECRET, issued + 1000);
-check("a state we issued round-trips", round?.tenantId === "tnt_1" && round?.calendarKey === "usr_asha");
+check("a state we issued round-trips", round?.tenantId === "tnt_1" && round?.subject === "usr_asha");
 
 // The whole point of signing it: the callback decides WHICH workspace and WHICH
 // calendar the tokens are stored against, from this value alone.
 const tampered = buildState(
-  { tenantId: "tnt_victim", calendarKey: "shared", returnTo: "/w/calendar/availability", issuedAtMs: issued },
+  { tenantId: "tnt_victim", subject: "shared", returnTo: "/w/calendar/availability", issuedAtMs: issued },
   OTHER,
 );
 check("a state signed with another secret is refused", parseState(tampered, SECRET, issued + 1000) === null);
@@ -311,7 +311,7 @@ check("a state inside its window is accepted", parseState(good, SECRET, issued +
 
 // The other way this parameter gets abused: bounce somebody off our domain to theirs.
 const offsite = buildState(
-  { tenantId: "tnt_1", calendarKey: "shared", returnTo: "https://evil.example.com/steal", issuedAtMs: issued },
+  { tenantId: "tnt_1", subject: "shared", returnTo: "https://evil.example.com/steal", issuedAtMs: issued },
   SECRET,
 );
 check(
@@ -319,7 +319,7 @@ check(
   parseState(offsite, SECRET, issued)?.returnTo === "/w/calendar/availability",
 );
 const protocolRelative = buildState(
-  { tenantId: "tnt_1", calendarKey: "shared", returnTo: "//evil.example.com", issuedAtMs: issued },
+  { tenantId: "tnt_1", subject: "shared", returnTo: "//evil.example.com", issuedAtMs: issued },
   SECRET,
 );
 check(
@@ -329,7 +329,7 @@ check(
 check(
   "an ordinary local path survives",
   parseState(
-    buildState({ tenantId: "t", calendarKey: "shared", returnTo: "/admin/calendar/availability", issuedAtMs: issued }, SECRET),
+    buildState({ tenantId: "t", subject: "shared", returnTo: "/admin/calendar/availability", issuedAtMs: issued }, SECRET),
     SECRET,
     issued,
   )?.returnTo === "/admin/calendar/availability",

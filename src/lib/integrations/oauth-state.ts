@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
- * The OAuth `state` parameter: who started this connect, signed so it cannot be forged.
+ * The OAuth `state` parameter, for every integration that uses one: who started this
+ * connect, signed so it cannot be forged.
  *
  * PURE (node crypto only, no DB, no env), so scripts/verify-calendar.ts can prove the
  * round trip and the tamper cases without a server.
@@ -19,8 +20,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export interface OAuthState {
   tenantId: string;
-  /** The calendar being connected: a staff id, or "shared" for the workspace one. */
-  calendarKey: string;
+  /** What is being connected: a calendar key for Google, or "zoom". */
+  subject: string;
   /** Where to send the browser afterwards. A PATH, never a URL - see parseState. */
   returnTo: string;
   issuedAtMs: number;
@@ -65,7 +66,7 @@ export function parseState(raw: string, secret: string, nowMs = Date.now()): OAu
   if (!parsed || typeof parsed !== "object") return null;
   const s = parsed as Partial<OAuthState>;
   if (typeof s.tenantId !== "string" || !s.tenantId) return null;
-  if (typeof s.calendarKey !== "string" || !s.calendarKey) return null;
+  if (typeof s.subject !== "string" || !s.subject) return null;
   if (typeof s.issuedAtMs !== "number" || !Number.isFinite(s.issuedAtMs)) return null;
   if (nowMs - s.issuedAtMs > STATE_TTL_MS || s.issuedAtMs > nowMs + 60_000) return null;
 
@@ -80,7 +81,7 @@ export function parseState(raw: string, secret: string, nowMs = Date.now()): OAu
 
   return {
     tenantId: s.tenantId,
-    calendarKey: s.calendarKey,
+    subject: s.subject,
     returnTo: safeReturn,
     issuedAtMs: s.issuedAtMs,
   };

@@ -93,6 +93,8 @@ function toRow(a: {
   reportedNoShowAt: Date | null;
   assignedUserId: string | null;
   assignedUser: { name: string } | null;
+  zoomJoinUrl: string | null;
+  zoomError: string | null;
   bookingType: { id: string; name: string; locationKind: string; locationValue: string | null } | null;
 }): AppointmentRow {
   return {
@@ -117,6 +119,8 @@ function toRow(a: {
     isPreview: a.isPreview,
     assignedUserId: a.assignedUserId,
     assignedUserName: a.assignedUser?.name ?? null,
+    zoomJoinUrl: a.zoomJoinUrl,
+    zoomError: a.zoomError,
     metaBooked: a.reportedBookedAt != null,
     metaOutcome: a.reportedAttendedAt != null || a.reportedNoShowAt != null,
   };
@@ -140,6 +144,8 @@ const ROW_SELECT = {
   reportedNoShowAt: true,
   assignedUserId: true,
   assignedUser: { select: { name: true } },
+  zoomJoinUrl: true,
+  zoomError: true,
   bookingType: { select: { id: true, name: true, locationKind: true, locationValue: true } },
 } as const;
 

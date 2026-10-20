@@ -14,7 +14,7 @@ export type AutomationTriggerValue =
   | "APPOINTMENT_NO_SHOW"
   | "APPOINTMENT_REMINDER";
 
-export type AutomationChannelValue = "EMAIL" | "WABA";
+export type AutomationChannelValue = "EMAIL" | "WABA" | "ZOOM_MEETING";
 export type AutomationRunStatusValue =
   | "PENDING"
   | "SENDING"
@@ -130,6 +130,8 @@ export interface AutomationActionRow {
   wabaTemplate: string;
   wabaLang: string;
   wabaVars: string[];
+  /** ZOOM_MEETING: what the meeting is called in Zoom, with placeholders. */
+  zoomTopic: string;
   /** What this ONE message has done. Lifetime counters that outlive the 30-day log,
    *  plus what it has done inside that window. */
   stats: {

@@ -82,6 +82,7 @@ export async function listAutomations(tenantId: string): Promise<AutomationRow[]
           wabaTemplate: x.wabaTemplate ?? "",
           wabaLang: x.wabaLang,
           wabaVars: toVars(x.wabaVars),
+          zoomTopic: x.zoomTopic ?? "",
           stats: {
             sent: x.sentCount,
             failed: x.failedCount,

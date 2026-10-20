@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { resolveGoogleApp, exchangeCode, saveConnection } from "@/lib/google/oauth";
-import { parseState } from "@/lib/google/state";
+import { parseState } from "@/lib/integrations/oauth-state";
 import { resetFreeBusyCache } from "@/lib/google/calendar";
 
 /**
@@ -56,16 +56,16 @@ export async function GET(req: Request) {
    * consent screen, and a staff member can have been removed in between.
    */
   let userId: string | null = null;
-  if (state.calendarKey !== "shared") {
+  if (state.subject !== "shared") {
     const staff = await prisma.user.findFirst({
-      where: { id: state.calendarKey, tenantId: state.tenantId, deletedAt: null },
+      where: { id: state.subject, tenantId: state.tenantId, deletedAt: null },
       select: { id: true },
     });
     if (!staff) return back(state.returnTo, "failed", "That person is no longer in this workspace.");
     userId = staff.id;
   }
 
-  await saveConnection({ tenantId: state.tenantId, calendarKey: state.calendarKey, userId, tokens });
+  await saveConnection({ tenantId: state.tenantId, calendarKey: state.subject, userId, tokens });
   resetFreeBusyCache();
 
   return back(state.returnTo, "connected");

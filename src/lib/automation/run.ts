@@ -9,6 +9,7 @@ import { resolveWabaConfig } from "@/lib/settings/config";
 import { fillPlaceholders, toE164Digits, type LeadFields } from "@/features/nurture/config";
 import { istMinutesOfDay, minutesToHHMM } from "@/lib/calendar/slots";
 import { isStale, respectsSuppression } from "@/lib/automation/schedule";
+import { createZoomMeeting } from "@/lib/zoom/meetings";
 // The contacts module owns consent; the automation sender asks it, never decides it.
 import { isSuppressed, unsubscribeUrlFor } from "@/lib/contacts/dnd";
 
@@ -70,7 +71,7 @@ async function recordSend(args: {
   automationId: string;
   actionId: string;
   runId: string;
-  channel: "EMAIL" | "WABA";
+  channel: "EMAIL" | "WABA" | "ZOOM_MEETING";
   status: "SENT" | "FAILED" | "SKIPPED";
   toAddress?: string | null;
   error?: string | null;
@@ -162,7 +163,10 @@ export async function processRun(runId: string): Promise<"sent" | "failed" | "sk
           id: true,
           status: true,
           startAt: true,
+          endAt: true,
           publicToken: true,
+          // The meeting already made for this call, if a rule has a meeting step.
+          zoomJoinUrl: true,
           attendeeName: true,
           attendeeEmail: true,
           attendeeMobile: true,
@@ -260,7 +264,10 @@ export async function processRun(runId: string): Promise<"sent" | "failed" | "sk
     appointmentTime: minutesToHHMM(istMinutesOfDay(appointment.startAt.getTime())),
     appointmentDate: formatISTDate(appointment.startAt),
     bookingName: appointment.bookingType?.name ?? "your call",
-    meetingLink: appointment.bookingType?.locationValue ?? "",
+    // The Zoom meeting made for THIS person wins over the booking link's static
+    // location, so a rule with a meeting step needs no configuration anywhere else:
+    // every message that already said {{meetingLink}} starts saying the new one.
+    meetingLink: appointment.zoomJoinUrl ?? appointment.bookingType?.locationValue ?? "",
     // Their own token rides along, so "pick another time" opens a booking page that
     // already knows who they are instead of asking them to prove it.
     bookingUrl: appointment.bookingType
@@ -274,6 +281,52 @@ export async function processRun(runId: string): Promise<"sent" | "failed" | "sk
   const errors: string[] = [];
 
   for (const action of automation.actions) {
+    /**
+     * The step that MAKES something rather than sending it.
+     *
+     * Runs in order like any other, which is the whole design: put "create a meeting
+     * link" above the email and the email has the link, because the placeholders are
+     * rebuilt the moment it exists. No wiring between steps, no field to point one at
+     * another - the order on screen is the order of events.
+     *
+     * Counted as SENT when it produced a link, because something was done, and as
+     * FAILED when Zoom refused, so a workspace whose connection has lapsed sees it in
+     * the same log as everything else rather than silently losing meeting links.
+     */
+    if (action.channel === "ZOOM_MEETING") {
+      const topic = fillPlaceholders(action.zoomTopic?.trim() || "{{bookingName}}", lead, extra);
+      const link = await createZoomMeeting({
+        appointmentId: appointment.id,
+        tenantId: run.tenantId,
+        topic,
+        startAt: appointment.startAt,
+        durationMin: Math.max(
+          1,
+          Math.round((appointment.endAt.getTime() - appointment.startAt.getTime()) / 60_000),
+        ),
+      });
+      if (link) {
+        // Every later step in THIS run, and every placeholder already written into
+        // them, now resolve to the new meeting.
+        extra.meetingLink = link;
+        sentAny = true;
+        nobodyToReach = false;
+      } else {
+        errors.push("Zoom: the meeting could not be created.");
+      }
+      await recordSend({
+        tenantId: run.tenantId,
+        automationId: automation.id,
+        actionId: action.id,
+        runId: run.id,
+        channel: "ZOOM_MEETING",
+        status: link ? "SENT" : "FAILED",
+        toAddress: null,
+        error: link ? null : "The meeting could not be created.",
+      });
+      continue;
+    }
+
     if (action.channel === "EMAIL") {
       const to = (lead.email ?? "").trim();
       if (!to) {

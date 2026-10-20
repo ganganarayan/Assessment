@@ -186,6 +186,7 @@ model Tenant {
   bookingTypes         BookingType[]
   appointments         Appointment[]
   googleCalendars      GoogleCalendarAccount[]
+  zoomAccount          ZoomAccount?
   automations          Automation[]
   contacts             Contact[]
   workflows            Workflow[]
@@ -2875,6 +2876,13 @@ model AppSetting {
   googleClientId        String?
   googleClientSecretEnc String?
 
+  /// PLATFORM ONLY, same reasoning as the Google app above: one Zoom Marketplace app
+  /// for the whole product, so a tenant clicks Connect and approves a consent screen
+  /// rather than building an app of their own. The review Zoom requires before other
+  /// accounts may install it is paid once, by the owner, and never touches onboarding.
+  zoomClientId        String?
+  zoomClientSecretEnc String?
+
   /// Secret in the CALENDAR SUBSCRIPTION URL (/api/calendar/<token>.ics), so the
   /// workspace can read its bookings in Google Calendar, Apple Calendar or Outlook
   /// without this app holding anybody OAuth credentials.
@@ -3768,6 +3776,17 @@ model Appointment {
   cancelledBy        String?
   attendanceMarkedAt DateTime?
 
+  /// The Zoom meeting created for this call, when a rule has a meeting-link step.
+  ///
+  /// Created when the booking is MADE, not minutes before the call: a link that fails
+  /// to be created ten minutes beforehand leaves nobody any time to fix it, while one
+  /// created at booking has hours or days of slack and can ride in the confirmation as
+  /// well as every reminder. {{meetingLink}} prefers this over the booking link's
+  /// static location, so a later step needs no configuration to find it.
+  zoomMeetingId String?
+  zoomJoinUrl   String?
+  zoomError     String?
+
   /// Google Calendar two-way sync, which arrives with its own phase. The columns are
   /// here from the start so that landing it is a code change rather than a migration
   /// against a table that by then holds live bookings.
@@ -3873,9 +3892,16 @@ enum AutomationTrigger {
 }
 
 /// How an action reaches the person. Both go through the nurture sender.
+/// What a step does. Two of these send a message; the third makes something.
+///
+/// ZOOM_MEETING is the odd one and is deliberately in the same list: to an owner
+/// building a rule it is simply another step, exactly as it is in the tools they are
+/// used to. It creates the meeting and puts the link on the appointment, where every
+/// later step - and every later reminder - reads it through {{meetingLink}}.
 enum AutomationChannel {
   EMAIL
   WABA
+  ZOOM_MEETING
 }
 
 /// The life of one queued firing.
@@ -3946,6 +3972,10 @@ model AutomationAction {
   /// EMAIL. Both accept {{placeholders}} - the lead's fields plus the appointment's.
   subject String?
   body    String? @db.Text
+
+  /// ZOOM_MEETING. What the meeting is called in Zoom, with placeholders - "Meeting
+  /// with {{firstName}}". Blank falls back to the booking link's name.
+  zoomTopic String?
 
   /// WABA. The template must be APPROVED on the workspace's own WhatsApp Business
   /// Account; business-initiated messages cannot be free text, which is why there is a
@@ -4681,4 +4711,41 @@ model BookingTypeMember {
   @@unique([bookingTypeId, userId])
   @@index([bookingTypeId])
   @@map("booking_type_member")
+}
+
+/// A workspace's connected Zoom account.
+///
+/// ONE PER WORKSPACE, not per staff member, and that is a real limit worth stating: the
+/// meeting is created in whichever Zoom account was connected, so on a team link every
+/// member's call is hosted from that account. Zoom can create a meeting FOR another user
+/// in the same account, but only with an admin-level scope, and asking for a wider scope
+/// makes the Marketplace review harder for a case most workspaces do not have. When
+/// somebody needs it, this model gains a userId and the same shape as the calendar.
+///
+/// The tokens are the tenant's, obtained by them clicking Connect and approving a
+/// consent screen. They never see or hold a credential; the APP is the platform's.
+model ZoomAccount {
+  id       String @id @default(cuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// Whose Zoom it is, for showing what is connected.
+  zoomUserId String?
+  zoomEmail  String?
+
+  accessTokenEnc  String?
+  /// 🔴 Zoom ROTATES the refresh token on every refresh: each renewal returns a NEW
+  /// one and invalidates the old. Storing only the first would work for an hour and
+  /// then fail forever, which is the single most common way these integrations break.
+  refreshTokenEnc String?
+  expiresAt       DateTime?
+  scope           String?
+
+  connectedAt DateTime  @default(now())
+  lastUsedAt  DateTime?
+  lastError   String?
+
+  updatedAt DateTime @updatedAt
+
+  @@map("zoom_account")
 }

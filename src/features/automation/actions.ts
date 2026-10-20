@@ -82,6 +82,7 @@ export async function saveAutomation(
     wabaTemplate: a.channel === "WABA" ? a.wabaTemplate : null,
     wabaLang: a.wabaLang || "en",
     wabaVars: a.channel === "WABA" ? a.wabaVars : [],
+    zoomTopic: a.channel === "ZOOM_MEETING" ? a.zoomTopic : null,
   });
 
   if (automationId) {

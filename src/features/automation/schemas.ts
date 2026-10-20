@@ -13,12 +13,13 @@ export const automationActionSchema = z
      * zero the first time somebody fixes a typo in the subject line.
      */
     id: z.string().trim().max(60).optional().default(""),
-    channel: z.enum(["EMAIL", "WABA"]),
+    channel: z.enum(["EMAIL", "WABA", "ZOOM_MEETING"]),
     subject: z.string().trim().max(300).optional().default(""),
     body: z.string().trim().max(20000).optional().default(""),
     wabaTemplate: z.string().trim().max(200).optional().default(""),
     wabaLang: z.string().trim().max(20).optional().default("en"),
     wabaVars: z.array(z.string().trim().max(1000)).max(20).optional().default([]),
+    zoomTopic: z.string().trim().max(200).optional().default(""),
   })
   // Each channel has to carry what it actually needs to send. An email with no body and
   // a WhatsApp action with no template both save perfectly and then do nothing at the

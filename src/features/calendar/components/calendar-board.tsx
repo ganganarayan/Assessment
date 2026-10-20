@@ -551,6 +551,16 @@ function AppointmentDialog({
           ) : null}
         </dl>
 
+        {/* The meeting made for this person, with one press to take it. An owner who
+            has to select a URL out of a page before they can paste it into a chat has
+            been given a link in name only. */}
+        {row.zoomJoinUrl ? <MeetingLink url={row.zoomJoinUrl} /> : null}
+        {row.zoomError && !row.zoomJoinUrl ? (
+          <p className="text-xs text-red-600 dark:text-red-400">
+            The meeting link could not be created: {row.zoomError}
+          </p>
+        ) : null}
+
         {canEdit ? (
           <>
             {/* The outcome, while the call is still open and has already started. */}
@@ -811,4 +821,52 @@ function istPretty(dateKey: string): string {
   const d = new Date(`${dateKey}T00:00:00.000Z`);
   const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   return `${weekdays[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTHS_LONG[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+/**
+ * The meeting link, with one press to take it.
+ *
+ * Copy falls back to selecting the text when the clipboard is unavailable - an insecure
+ * context, a browser that refuses the permission - because the one thing this must not
+ * do is look like it worked and leave an empty clipboard.
+ */
+function MeetingLink({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-1 rounded-md border p-2">
+      <span className="text-xs text-[var(--muted-foreground)]">Meeting link</span>
+      <div className="flex items-center gap-2">
+        <input
+          readOnly
+          value={url}
+          onFocus={(e) => e.currentTarget.select()}
+          className="min-w-0 flex-1 rounded border bg-[var(--background)] px-2 py-1 font-mono text-xs"
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(url);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            } catch {
+              // Nothing to apologise for: the field is right there and selectable.
+            }
+          }}
+        >
+          {copied ? "Copied" : "Copy"}
+        </Button>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-md border px-3 py-1.5 text-sm hover:bg-[var(--muted)]"
+        >
+          Open
+        </a>
+      </div>
+    </div>
+  );
 }

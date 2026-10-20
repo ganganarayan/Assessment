@@ -87,6 +87,10 @@ export interface AppointmentRow {
   /** Whose calendar it is in: the staff member, or null for the shared one. */
   assignedUserId: string | null;
   assignedUserName: string | null;
+  /** The Zoom meeting made for this call, when a rule created one, and whatever Zoom
+   *  last refused. Shown on the appointment with a copy button. */
+  zoomJoinUrl: string | null;
+  zoomError: string | null;
   /** Which appointment events have reached Meta, so the day list can say so rather
    *  than leaving the owner to wonder whether marking it did anything. */
   metaBooked: boolean;

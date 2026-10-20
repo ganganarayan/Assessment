@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { NURTURE_PLACEHOLDERS } from "@/features/nurture/config";
 import { fetchWabaTemplates, type WabaTemplateOption } from "@/features/nurture/actions";
+import { disconnectZoom, saveZoomApp } from "@/features/automation/zoom";
 import {
   APPOINTMENT_PLACEHOLDERS,
   OFFSET_PRESETS,
@@ -48,6 +49,7 @@ interface ActionDraft {
   wabaTemplate: string;
   wabaLang: string;
   wabaVars: string[];
+  zoomTopic: string;
 }
 
 interface Draft {
@@ -66,8 +68,10 @@ const BLANK_EMAIL: ActionDraft = {
   wabaTemplate: "",
   wabaLang: "en",
   wabaVars: [],
+  zoomTopic: "",
 };
 const BLANK_WABA: ActionDraft = { ...BLANK_EMAIL, channel: "WABA" };
+const BLANK_ZOOM: ActionDraft = { ...BLANK_EMAIL, channel: "ZOOM_MEETING", zoomTopic: "Meeting with {{firstName}}" };
 
 const BLANK: Draft = {
   name: "",
@@ -92,6 +96,7 @@ const draftOf = (a: AutomationRow): Draft => ({
     wabaTemplate: x.wabaTemplate,
     wabaLang: x.wabaLang,
     wabaVars: x.wabaVars,
+    zoomTopic: x.zoomTopic,
   })),
 });
 
@@ -100,6 +105,10 @@ export function AutomationManager({
   runs,
   bookingTypes,
   showWaba,
+  zoomConnected,
+  zoomEmail,
+  zoomAppConfigured,
+  isPlatform,
   canEdit,
 }: {
   automations: AutomationRow[];
@@ -107,6 +116,13 @@ export function AutomationManager({
   bookingTypes: { id: string; label: string }[];
   /** False while WhatsApp is parked for this workspace: the channel is not offered. */
   showWaba: boolean;
+  /** Whether this workspace has connected Zoom, which is what offers the step. */
+  zoomConnected: boolean;
+  zoomEmail: string | null;
+  /** False until the platform owner has entered the Zoom app credentials. */
+  zoomAppConfigured: boolean;
+  /** True in the platform scope, where those credentials are editable. */
+  isPlatform: boolean;
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -137,6 +153,51 @@ export function AutomationManager({
         <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-sm text-[var(--muted-foreground)]">{msg}</p>
       ) : null}
 
+      {/* Zoom: the connection behind the meeting-link step. Here rather than on
+          Availability because this is where the step that uses it lives. */}
+      <section className="flex flex-col gap-2 rounded-lg border p-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-sm font-semibold">Zoom</h2>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              {zoomConnected
+                ? `Connected${zoomEmail ? ` as ${zoomEmail}` : ""}. A rule can now create a meeting link for each person.`
+                : zoomAppConfigured
+                  ? "Connect your Zoom and a rule can create a meeting for each booking, named however you like."
+                  : "Zoom is not set up on this platform yet, so there is nothing to connect to."}
+            </p>
+          </div>
+          {canEdit && zoomAppConfigured ? (
+            zoomConnected ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={pending}
+                onClick={() =>
+                  run(
+                    () => disconnectZoom(),
+                    "Zoom disconnected. Meetings already created stay in your Zoom account.",
+                    false,
+                  )
+                }
+              >
+                Disconnect
+              </Button>
+            ) : (
+              // A link, not a button: connecting is a redirect to Zoom's own consent
+              // screen, which no server action can perform.
+              <a
+                href="/api/zoom/connect?returnTo=/w/automations"
+                className="inline-flex h-9 items-center justify-center rounded-md bg-green-600 px-3 text-sm font-medium text-white hover:bg-green-700"
+              >
+                Connect Zoom
+              </a>
+            )
+          ) : null}
+        </div>
+        {isPlatform && canEdit ? <ZoomAppForm configured={zoomAppConfigured} onDone={setMsg} /> : null}
+      </section>
+
       {bookingTypes.length === 0 ? (
         <p className="rounded-md border border-dashed px-3 py-2 text-sm text-[var(--muted-foreground)]">
           Nothing can be booked yet, so nothing can trigger. Create a booking link under Calendar →
@@ -158,6 +219,7 @@ export function AutomationManager({
           initial={BLANK}
           bookingTypes={bookingTypes}
           showWaba={showWaba}
+          zoomConnected={zoomConnected}
           pending={pending}
           onSubmit={(d) => run(() => saveAutomation(d), "Automation created.")}
         />
@@ -258,6 +320,7 @@ export function AutomationManager({
                   initial={draftOf(a)}
                   bookingTypes={bookingTypes}
                   showWaba={showWaba}
+                  zoomConnected={zoomConnected}
                   pending={pending}
                   onSubmit={(d) => run(() => saveAutomation(d, a.id), "Automation saved.")}
                 />
@@ -336,12 +399,14 @@ function AutomationForm({
   initial,
   bookingTypes,
   showWaba,
+  zoomConnected,
   pending,
   onSubmit,
 }: {
   initial: Draft;
   bookingTypes: { id: string; label: string }[];
   showWaba: boolean;
+  zoomConnected: boolean;
   pending: boolean;
   onSubmit: (draft: Draft) => void;
 }) {
@@ -463,6 +528,15 @@ function AutomationForm({
                 Add a WhatsApp
               </Button>
             ) : null}
+            {zoomConnected ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => set({ actions: [...d.actions, { ...BLANK_ZOOM }] })}
+              >
+                Add a meeting link
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -515,6 +589,29 @@ function AutomationForm({
                   />
                 </div>
               </>
+            ) : a.channel === "ZOOM_MEETING" ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Creates a Zoom meeting for this person and puts the link on their booking. Every
+                  step BELOW this one can use <strong>{"{{meetingLink}}"}</strong>, and so can every
+                  later reminder - put this step first and the rest needs no wiring.
+                </p>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs">What the meeting is called in Zoom</Label>
+                  <Input
+                    value={a.zoomTopic}
+                    placeholder="Meeting with {{firstName}}"
+                    onChange={(e) => setAction(i, { zoomTopic: e.target.value })}
+                  />
+                </div>
+                {/* The design decision worth telling the owner about, because it is not
+                    what they will have assumed from other tools. */}
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Put this on <strong>A call is booked</strong>. The link is then made when the
+                  booking is made, with hours or days of slack if Zoom is briefly unreachable. Made
+                  ten minutes before the call instead, a failure leaves nobody time to fix it.
+                </p>
+              </div>
             ) : (
               <WabaAction action={a} onChange={(patch) => setAction(i, patch)} />
             )}
@@ -665,6 +762,77 @@ function TestSend({ pending, onSend }: { pending: boolean; onSend: (to: string) 
         Email only. A WhatsApp template is approved copy held by Meta, so what arrives is decided
         there; the picker above already shows its text.
       </p>
+    </div>
+  );
+}
+
+/**
+ * The platform's own Zoom app. Owner scope only.
+ *
+ * One Marketplace app serves every workspace, which is what makes a tenant's side a
+ * single click. The cost is a Zoom review before accounts outside the owner's own can
+ * install it - paid once, here, and never during anybody's onboarding.
+ */
+function ZoomAppForm({ configured, onDone }: { configured: boolean; onDone: (msg: string) => void }) {
+  const [open, setOpen] = useState(!configured);
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [pending, start] = useTransition();
+
+  if (!open) {
+    return (
+      <button type="button" className="self-start text-xs underline" onClick={() => setOpen(true)}>
+        Platform: edit the Zoom app credentials
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-dashed p-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+        Platform: Zoom app
+      </h3>
+      <p className="text-xs text-[var(--muted-foreground)]">
+        From a Zoom Marketplace app of type <strong>General</strong>, with the scope to create a
+        meeting. The redirect URL to register there is this app&apos;s own address plus{" "}
+        <strong>/api/zoom/callback</strong>, and only that one. To let other Zoom accounts connect,
+        the app must be published - it can be published <strong>unlisted</strong>, so it never
+        appears in the public directory, but Zoom still reviews it. Asking for one scope rather
+        than ten is what keeps that review short.
+      </p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Client ID</Label>
+          <Input value={clientId} onChange={(e) => setClientId(e.target.value)} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Client secret {configured ? "(blank keeps the saved one)" : ""}</Label>
+          <Input
+            type="password"
+            value={clientSecret}
+            onChange={(e) => setClientSecret(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
+      </div>
+      <div>
+        <Button
+          size="sm"
+          disabled={pending || !clientId.trim()}
+          onClick={() =>
+            start(async () => {
+              const r = await saveZoomApp(clientId, clientSecret);
+              onDone(r.ok ? "Zoom app saved." : r.error);
+              if (r.ok) {
+                setClientSecret("");
+                setOpen(false);
+              }
+            })
+          }
+        >
+          {pending ? "Saving…" : "Save"}
+        </Button>
+      </div>
     </div>
   );
 }

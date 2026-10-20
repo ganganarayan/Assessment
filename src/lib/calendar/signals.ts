@@ -8,6 +8,7 @@ import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
 import { tenantCan } from "@/lib/billing/plan-resolve";
 import { formatIST } from "@/lib/date";
 import { normalizeAttribution } from "@/lib/events/payload";
+import { deleteZoomMeeting } from "@/lib/zoom/meetings";
 import type { PayloadAppointment } from "@/features/events/types";
 
 /**
@@ -170,6 +171,19 @@ export async function reportAppointment(appointmentId: string, moment: Appointme
     if (appointment.source === "MANUAL" && !appointment.bookingType) return;
 
     if (!(await claimMoment(appointmentId, moment))) return;
+
+    /**
+     * A cancelled call releases its Zoom meeting.
+     *
+     * Here rather than at each cancel site, because there are two of them - the owner
+     * cancelling from the calendar and the respondent cancelling from their own link -
+     * and a workspace's Zoom filling with meetings for calls that are not happening is
+     * exactly the kind of mess nobody notices until it is large. Best-effort and never
+     * blocking: the cancellation itself has already happened.
+     */
+    if (moment === "CANCELLED") {
+      void deleteZoomMeeting(appointmentId).catch(() => {});
+    }
 
     const durationMin = Math.max(
       1,
