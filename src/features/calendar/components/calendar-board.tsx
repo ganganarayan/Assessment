@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -18,23 +18,33 @@ import {
 import {
   cancelAppointment,
   createManualAppointment,
+  deleteAppointment,
   markAttendance,
   updateAppointment,
 } from "@/features/calendar/actions";
 
 /**
- * The calendar: a month at a glance, the selected day in detail, and the one list that
- * makes the whole feature pay for itself - calls that have happened and whose outcome
- * nobody has marked yet.
+ * The calendar: a month at a glance, and the grid itself is the interface.
+ *
+ * Clicking a booking opens that booking. Clicking an empty day starts a new one on that
+ * day. There is no panel below holding a second copy of the same actions, because a
+ * calendar where the thing you clicked is not the thing that opens is a calendar people
+ * stop clicking.
  *
  * Month navigation is a LINK, not client state (?m=YYYY-MM), so the server fetches that
- * month. A client-side month would mean holding a year of appointments in the browser
- * to avoid a round trip nobody minds.
+ * month rather than the browser holding a year of appointments to avoid a round trip
+ * nobody minds.
  */
 
 interface BookingTypeOption extends PickerOption {
   durationMin: number;
 }
+
+type Dialog =
+  | { kind: "appointment"; row: AppointmentRow }
+  | { kind: "new"; dateKey: string }
+  | { kind: "day"; dateKey: string }
+  | null;
 
 export function CalendarBoard({
   monthKey,
@@ -65,11 +75,7 @@ export function CalendarBoard({
   const router = useRouter();
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const [selected, setSelected] = useState<string>(() =>
-    monthKey === todayMonth ? todayKey : `${monthKey}-01`,
-  );
-  const [adding, setAdding] = useState(false);
-  const [editing, setEditing] = useState<AppointmentRow | null>(null);
+  const [dialog, setDialog] = useState<Dialog>(null);
 
   const byDate = useMemo(() => {
     const map = new Map<string, AppointmentRow[]>();
@@ -81,16 +87,22 @@ export function CalendarBoard({
     return map;
   }, [rows]);
 
-  const dayRows = byDate.get(selected) ?? [];
+  // The open appointment, re-read from the freshly loaded rows: after an action the
+  // server sends new data, and a dialog still rendering its captured copy would show
+  // "Booked" next to the Showed up button that was just pressed.
+  const open: Dialog = useMemo(() => {
+    if (dialog?.kind !== "appointment") return dialog;
+    const fresh = rows.find((r) => r.id === dialog.row.id);
+    return fresh ? { kind: "appointment", row: fresh } : null;
+  }, [dialog, rows]);
 
-  const run = (fn: () => Promise<{ ok: boolean; error?: string }>, done: string) =>
+  const run = (fn: () => Promise<{ ok: boolean; error?: string }>, done: string, close = true) =>
     start(async () => {
       setMsg(null);
       const r = await fn();
       if (r.ok) {
         setMsg(done);
-        setAdding(false);
-        setEditing(null);
+        if (close) setDialog(null);
         router.refresh();
       } else {
         setMsg(r.error ?? "That did not work.");
@@ -122,12 +134,18 @@ export function CalendarBoard({
                 key={a.id}
                 className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">{a.attendeeName ?? a.title ?? "Appointment"}</span>
+                <button
+                  type="button"
+                  className="flex flex-col text-left"
+                  onClick={() => setDialog({ kind: "appointment", row: a })}
+                >
+                  <span className="text-sm font-medium underline-offset-2 hover:underline">
+                    {a.attendeeName ?? a.title ?? "Appointment"}
+                  </span>
                   <span className="text-xs text-[var(--muted-foreground)]">
                     {a.startLabel} · {a.bookingTypeName ?? "Manual"}
                   </span>
-                </div>
+                </button>
                 {canEdit ? (
                   <div className="flex gap-2">
                     <Button
@@ -178,132 +196,78 @@ export function CalendarBoard({
         </div>
       </div>
 
+      <p className="text-xs text-[var(--muted-foreground)]">
+        Click a booking to open it. Click any empty day to add one.
+      </p>
+
       <MonthGrid
         monthKey={monthKey}
         byDate={byDate}
-        selected={selected}
         todayKey={todayKey}
-        onSelect={(key) => {
-          setSelected(key);
-          setEditing(null);
-          setAdding(false);
-        }}
+        canEdit={canEdit}
+        onOpenAppointment={(row) => setDialog({ kind: "appointment", row })}
+        onOpenDay={(dateKey) => setDialog({ kind: "day", dateKey })}
+        onNew={(dateKey) => setDialog({ kind: "new", dateKey })}
       />
 
-      {/* The selected day */}
-      <section className="flex flex-col gap-3 rounded-lg border p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">{istPretty(selected)}</h3>
-          {canEdit ? (
-            <Button size="sm" variant="outline" onClick={() => setAdding((v) => !v)}>
-              {adding ? "Close" : "Add to calendar"}
-            </Button>
-          ) : null}
-        </div>
+      {open?.kind === "appointment" ? (
+        <AppointmentDialog
+          row={open.row}
+          canEdit={canEdit}
+          pending={pending}
+          onClose={() => setDialog(null)}
+          onRun={run}
+        />
+      ) : null}
 
-        {adding ? (
+      {open?.kind === "new" ? (
+        <Modal title={`New booking · ${istPretty(open.dateKey)}`} onClose={() => setDialog(null)}>
           <AppointmentForm
-            dateKey={selected}
+            dateKey={open.dateKey}
             bookingTypes={bookingTypes}
             pending={pending}
             onSubmit={(values) => run(() => createManualAppointment(values), "Added to the calendar.")}
           />
-        ) : null}
+        </Modal>
+      ) : null}
 
-        {dayRows.length === 0 && !adding ? (
-          <p className="text-sm text-[var(--muted-foreground)]">Nothing booked on this day.</p>
-        ) : null}
-
-        <ul className="flex flex-col gap-2">
-          {dayRows.map((a) => (
-            <li key={a.id} className="flex flex-col gap-2 rounded-md border p-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">
-                    {a.timeLabel} · {a.bookingTypeName ?? a.title ?? "Blocked out"}
-                  </span>
-                  {a.attendeeName || a.attendeeEmail ? (
-                    <span className="text-xs text-[var(--muted-foreground)]">
-                      {[a.attendeeName, a.attendeeEmail, a.attendeeMobile].filter(Boolean).join(" · ")}
+      {open?.kind === "day" ? (
+        <Modal title={istPretty(open.dateKey)} onClose={() => setDialog(null)}>
+          <ul className="flex flex-col gap-2">
+            {(byDate.get(open.dateKey) ?? []).map((a) => (
+              <li key={a.id}>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-2 rounded-md border p-3 text-left hover:bg-[var(--muted)]/40"
+                  onClick={() => setDialog({ kind: "appointment", row: a })}
+                >
+                  <span className="flex flex-col">
+                    <span className="text-sm font-medium">
+                      {a.timeLabel} · {a.attendeeName ?? a.title ?? a.bookingTypeName ?? "Appointment"}
                     </span>
-                  ) : null}
-                  {a.notes ? <span className="mt-1 text-xs text-[var(--muted-foreground)]">{a.notes}</span> : null}
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span
-                    className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", STATUS_CLASS[a.status])}
-                  >
+                    <span className="text-xs text-[var(--muted-foreground)]">
+                      {a.bookingTypeName ?? "Blocked out"}
+                    </span>
+                  </span>
+                  <span className={cn("rounded-full border px-2 py-0.5 text-xs", STATUS_CLASS[a.status])}>
                     {STATUS_LABEL[a.status]}
                   </span>
-                  {a.isPreview ? (
-                    <span className="text-xs text-[var(--muted-foreground)]">Preview, not reported</span>
-                  ) : null}
-                </div>
-              </div>
-
-              {canEdit ? (
-                <div className="flex flex-wrap gap-2">
-                  {a.status === "BOOKED" ? (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={pending}
-                        onClick={() => run(() => markAttendance(a.id, "ATTENDED"), "Marked as showed up.")}
-                      >
-                        Showed up
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={pending}
-                        onClick={() => run(() => markAttendance(a.id, "NO_SHOW"), "Marked as a no show.")}
-                      >
-                        No show
-                      </Button>
-                    </>
-                  ) : null}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setEditing((cur) => (cur?.id === a.id ? null : a))}
-                  >
-                    {editing?.id === a.id ? "Close" : "Edit"}
-                  </Button>
-                  {a.status !== "CANCELLED" ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={pending}
-                      onClick={() => run(() => cancelAppointment(a.id), "Cancelled, and the slot is free again.")}
-                    >
-                      Cancel
-                    </Button>
-                  ) : null}
-                  {a.submissionId ? (
-                    <Link
-                      href={`${basePath.replace("/calendar", "")}/submissions?focus=${a.submissionId}`}
-                      className="self-center text-xs underline"
-                    >
-                      See their answers
-                    </Link>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {editing?.id === a.id ? (
-                <AppointmentForm
-                  dateKey={a.dateKey}
-                  bookingTypes={bookingTypes}
-                  pending={pending}
-                  initial={a}
-                  onSubmit={(values) => run(() => updateAppointment(a.id, values), "Appointment updated.")}
-                />
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      </section>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {canEdit ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-3"
+              onClick={() => setDialog({ kind: "new", dateKey: open.dateKey })}
+            >
+              Add a booking on this day
+            </Button>
+          ) : null}
+        </Modal>
+      ) : null}
     </div>
   );
 }
@@ -313,15 +277,19 @@ export function CalendarBoard({
 function MonthGrid({
   monthKey,
   byDate,
-  selected,
   todayKey,
-  onSelect,
+  canEdit,
+  onOpenAppointment,
+  onOpenDay,
+  onNew,
 }: {
   monthKey: string;
   byDate: Map<string, AppointmentRow[]>;
-  selected: string;
   todayKey: string;
-  onSelect: (dateKey: string) => void;
+  canEdit: boolean;
+  onOpenAppointment: (row: AppointmentRow) => void;
+  onOpenDay: (dateKey: string) => void;
+  onNew: (dateKey: string) => void;
 }) {
   // The leading blanks and the day count, computed from the month key itself: a Date
   // built from "YYYY-MM-01T00:00:00Z" is read with getUTC*, so the grid never shifts a
@@ -348,17 +316,29 @@ function MonthGrid({
       </div>
       <div className="grid grid-cols-7">
         {cells.map((key, i) => {
-          if (!key) return <div key={`blank-${i}`} className="min-h-16 border-b border-r bg-[var(--muted)]/10" />;
-          const rows = byDate.get(key) ?? [];
-          const live = rows.filter((r) => r.status !== "CANCELLED");
+          if (!key) return <div key={`blank-${i}`} className="min-h-20 border-b border-r bg-[var(--muted)]/10" />;
+          const dayRows = byDate.get(key) ?? [];
+          const shown = dayRows.slice(0, 2);
           return (
-            <button
+            // A DIV, not a button: the chips inside are buttons of their own, and a
+            // button inside a button is invalid markup that browsers resolve by
+            // dropping one of the two click handlers.
+            <div
               key={key}
-              type="button"
-              onClick={() => onSelect(key)}
+              role={canEdit ? "button" : undefined}
+              tabIndex={canEdit ? 0 : undefined}
+              aria-label={canEdit ? `Add a booking on ${key}` : undefined}
+              onClick={() => canEdit && onNew(key)}
+              onKeyDown={(e) => {
+                if (!canEdit) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onNew(key);
+                }
+              }}
               className={cn(
-                "flex min-h-16 flex-col items-start gap-1 border-b border-r p-1 text-left hover:bg-[var(--muted)]/40",
-                selected === key && "bg-[var(--muted)]/60",
+                "flex min-h-20 flex-col items-start gap-1 border-b border-r p-1 text-left",
+                canEdit && "cursor-pointer hover:bg-[var(--muted)]/30",
               )}
             >
               <span
@@ -371,19 +351,257 @@ function MonthGrid({
               >
                 {Number(key.slice(-2))}
               </span>
-              {live.slice(0, 2).map((r) => (
-                <span key={r.id} className="w-full truncate text-[10px] leading-tight">
+
+              {shown.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  // Stop the cell's "new booking" handler: clicking a booking means
+                  // that booking, never a second one on top of it.
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenAppointment(r);
+                  }}
+                  className={cn(
+                    "w-full truncate rounded px-1 py-0.5 text-left text-[10px] leading-tight hover:bg-[var(--muted)]",
+                    r.status === "CANCELLED" && "line-through opacity-60",
+                    r.status === "NO_SHOW" && "text-red-600 dark:text-red-400",
+                    r.status === "ATTENDED" && "text-emerald-600 dark:text-emerald-400",
+                  )}
+                  title={`${r.timeLabel} ${r.attendeeName ?? r.title ?? ""} · ${STATUS_LABEL[r.status]}`}
+                >
                   {r.timeLabel} {r.attendeeName ?? r.title ?? r.bookingTypeName ?? ""}
-                </span>
+                </button>
               ))}
-              {live.length > 2 ? (
-                <span className="text-[10px] text-[var(--muted-foreground)]">+{live.length - 2} more</span>
+
+              {dayRows.length > shown.length ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenDay(key);
+                  }}
+                  className="px-1 text-[10px] text-[var(--muted-foreground)] underline"
+                >
+                  +{dayRows.length - shown.length} more
+                </button>
               ) : null}
-            </button>
+            </div>
           );
         })}
       </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------- modal --- */
+
+function Modal({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  // Escape closes, and nothing behind it scrolls while it is up.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/70 p-4 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        // The backdrop closes; the panel must not, or every click inside dismisses it.
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-lg border bg-[var(--background)] p-4 shadow-xl"
+      >
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <h2 className="text-sm font-semibold">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded px-2 text-lg leading-none text-[var(--muted-foreground)] hover:bg-[var(--muted)]"
+          >
+            ×
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------- appointment dialog --- */
+
+function AppointmentDialog({
+  row,
+  canEdit,
+  pending,
+  onClose,
+  onRun,
+}: {
+  row: AppointmentRow;
+  canEdit: boolean;
+  pending: boolean;
+  onClose: () => void;
+  onRun: (fn: () => Promise<{ ok: boolean; error?: string }>, done: string, close?: boolean) => void;
+}) {
+  const [mode, setMode] = useState<"view" | "edit">("view");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const live = row.status === "BOOKED";
+  const started = new Date(row.startAt).getTime() <= Date.now() + 60_000;
+
+  return (
+    <Modal title={row.attendeeName ?? row.title ?? row.bookingTypeName ?? "Appointment"} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", STATUS_CLASS[row.status])}>
+            {STATUS_LABEL[row.status]}
+          </span>
+          {row.isPreview ? (
+            <span className="text-xs text-[var(--muted-foreground)]">Preview, not reported</span>
+          ) : null}
+          {row.metaOutcome ? (
+            <span className="text-xs text-[var(--muted-foreground)]">Outcome reported to Meta</span>
+          ) : row.metaBooked ? (
+            <span className="text-xs text-[var(--muted-foreground)]">Booking reported to Meta</span>
+          ) : null}
+        </div>
+
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+          <dt className="text-[var(--muted-foreground)]">When</dt>
+          <dd>{row.startLabel} IST</dd>
+          <dt className="text-[var(--muted-foreground)]">What</dt>
+          <dd>{row.bookingTypeName ?? "Blocked out time"}</dd>
+          {row.attendeeEmail ? (
+            <>
+              <dt className="text-[var(--muted-foreground)]">Email</dt>
+              <dd className="break-all">{row.attendeeEmail}</dd>
+            </>
+          ) : null}
+          {row.attendeeMobile ? (
+            <>
+              <dt className="text-[var(--muted-foreground)]">Mobile</dt>
+              <dd>{row.attendeeMobile}</dd>
+            </>
+          ) : null}
+          {row.locationValue ? (
+            <>
+              <dt className="text-[var(--muted-foreground)]">Where</dt>
+              <dd className="break-all">{row.locationValue}</dd>
+            </>
+          ) : null}
+          {row.notes ? (
+            <>
+              <dt className="text-[var(--muted-foreground)]">Notes</dt>
+              <dd className="whitespace-pre-wrap">{row.notes}</dd>
+            </>
+          ) : null}
+        </dl>
+
+        {canEdit ? (
+          <>
+            {/* The outcome, while the call is still open and has already started. */}
+            {live && started ? (
+              <div className="flex flex-wrap gap-2 border-t pt-3">
+                <Button
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => onRun(() => markAttendance(row.id, "ATTENDED"), "Marked as showed up.")}
+                >
+                  Showed up
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => onRun(() => markAttendance(row.id, "NO_SHOW"), "Marked as a no show.")}
+                >
+                  No show
+                </Button>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2 border-t pt-3">
+              <Button size="sm" variant="outline" onClick={() => setMode(mode === "edit" ? "view" : "edit")}>
+                {mode === "edit" ? "Close editor" : "Edit or reschedule"}
+              </Button>
+              {row.status !== "CANCELLED" ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() =>
+                    onRun(() => cancelAppointment(row.id), "Cancelled, and the slot is free again.")
+                  }
+                >
+                  Cancel booking
+                </Button>
+              ) : null}
+              <Button size="sm" variant="ghost" onClick={() => setConfirmDelete((v) => !v)}>
+                Delete
+              </Button>
+            </div>
+
+            {confirmDelete ? (
+              <div className="flex flex-col gap-2 rounded-md border border-red-500/60 p-3">
+                <p className="text-xs">
+                  Delete removes this from the calendar and tells nobody. If the person is expecting the
+                  call, <strong>cancel</strong> instead: that frees the slot, reaches your CRM and reports
+                  the cancellation to Meta. A conversion already sent cannot be unsent by deleting.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() => onRun(() => deleteAppointment(row.id), "Deleted.")}
+                  >
+                    Delete permanently
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
+                    Keep it
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {mode === "edit" ? (
+              <AppointmentForm
+                dateKey={row.dateKey}
+                bookingTypes={[]}
+                pending={pending}
+                initial={row}
+                onSubmit={(values) =>
+                  onRun(
+                    () => updateAppointment(row.id, values),
+                    "Saved. A moved booking is reported as a reschedule.",
+                  )
+                }
+              />
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    </Modal>
   );
 }
 
@@ -429,13 +647,19 @@ function AppointmentForm({
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-dashed p-3">
-      <p className="text-xs text-[var(--muted-foreground)]">
-        Pick a booking link to record a call somebody asked for by phone, which reports to Meta like
-        any other booking. Leave it blank to block out your own time, which only holds the slot.
-      </p>
+      {initial ? (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Changing the date or time reschedules the booking, which is reported to your CRM as a
+          reschedule. The booking link cannot change: it decides the length, the location and the pixel
+          this booking already reported to.
+        </p>
+      ) : (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Pick a booking link to record a call somebody asked for by phone, which reports to Meta like
+          any other booking. Leave it blank to block out your own time, which only holds the slot.
+        </p>
+      )}
 
-      {/* The booking type is fixed once the row exists: it decides the duration, the
-          location and which pixel the booking already reported to. */}
       {initial ? null : (
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Booking link</Label>
@@ -495,7 +719,11 @@ function AppointmentForm({
 
       <div className="flex flex-col gap-1">
         <Label className="text-xs">Title (used when there is no booking link)</Label>
-        <Input value={values.title} onChange={(e) => set({ title: e.target.value })} placeholder="Lunch, travel, admin" />
+        <Input
+          value={values.title}
+          onChange={(e) => set({ title: e.target.value })}
+          placeholder="Lunch, travel, admin"
+        />
       </div>
 
       <div className="flex flex-col gap-1">

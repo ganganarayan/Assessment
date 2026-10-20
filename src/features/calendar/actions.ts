@@ -398,6 +398,34 @@ export async function cancelAppointment(appointmentId: string): Promise<ActionRe
 }
 
 /**
+ * Remove an appointment from the calendar entirely.
+ *
+ * 🟡 NOT the same as cancelling, and the dialog says so before it offers this. Cancel is
+ * an outcome: it frees the slot, tells the CRM, reports a cancellation to Meta and
+ * leaves the row where the owner can see what happened. Delete is for a row that should
+ * never have existed - a test booking, a mis-typed block - and it tells nobody, because
+ * there is nothing to tell.
+ *
+ * What it cannot undo is a conversion already sent: if this booking was reported to
+ * Meta, deleting the row here does not unsend that, which is exactly why cancel is
+ * offered first and this sits behind a confirmation.
+ */
+export async function deleteAppointment(appointmentId: string): Promise<ActionResult> {
+  const auth = await editor();
+  if ("error" in auth) return { ok: false, error: auth.error };
+
+  const existing = await prisma.appointment.findFirst({
+    where: { id: appointmentId, tenantId: auth.tenantId },
+    select: { id: true },
+  });
+  if (!existing) return { ok: false, error: "That appointment is not in this workspace." };
+
+  await prisma.appointment.delete({ where: { id: appointmentId } });
+  refresh();
+  return { ok: true };
+}
+
+/**
  * Mark whether the person turned up. THE point of the calendar reporting to Meta at
  * all: a booking says somebody meant to come, and only this says whether they did.
  */
