@@ -15,10 +15,12 @@
 import {
   PRUNABLE_RUN_STATUSES,
   RETENTION_DAYS,
+  isStale,
   isStillAhead,
   reminderDueAt,
   respectsSuppression,
   retentionCutoff,
+  STALE_AFTER_MS,
 } from "../src/lib/automation/schedule";
 import { automationSchema, automationActionSchema } from "../src/features/automation/schemas";
 import {
@@ -195,9 +197,10 @@ check(
   "the cutoff is 30 days back, not 30 hours or 30 minutes",
   retentionCutoff(Date.parse("2026-10-31T00:00:00.000Z")).toISOString() === "2026-10-01T00:00:00.000Z",
 );
-// The rule that stops the sweep deleting next month's reminders.
+// The rule that stops the sweep deleting next month's reminders BY AGE. A run that has
+// not fired is only ever cleared on its DUE time, never on how long ago it was made.
 check(
-  "a run that has not fired is NEVER prunable",
+  "a run that has not fired is NEVER prunable by age",
   !(PRUNABLE_RUN_STATUSES as readonly string[]).includes("PENDING") &&
     !(PRUNABLE_RUN_STATUSES as readonly string[]).includes("SENDING"),
 );
@@ -234,6 +237,32 @@ check(
   "the unsubscribe link is offered on the outreach ones",
   (APPOINTMENT_PLACEHOLDERS as readonly string[]).includes("unsubscribeUrl"),
 );
+
+
+/* ------------------------------------------------------- too late to send --- */
+
+console.log("\nA message that would arrive too late");
+const dueAt = new Date("2026-10-22T04:30:00.000Z");
+
+check("on time is not stale", !isStale(dueAt, dueAt.getTime()));
+check("a few minutes late still sends", !isStale(dueAt, dueAt.getTime() + 5 * 60_000));
+check(
+  "an outage of an hour still sends",
+  !isStale(dueAt, dueAt.getTime() + 60 * 60_000),
+);
+check(
+  "just inside the window still sends",
+  !isStale(dueAt, dueAt.getTime() + STALE_AFTER_MS - 60_000),
+);
+// The case this exists for: a feature held back for a week, then released, with every
+// reminder in the backlog claiming a call is tomorrow that happened last Tuesday.
+check("a day late does not send", isStale(dueAt, dueAt.getTime() + 24 * 60 * 60_000));
+check("a week late does not send", isStale(dueAt, dueAt.getTime() + 7 * 24 * 60 * 60_000));
+check(
+  "a run due in the future is never stale",
+  !isStale(new Date(dueAt.getTime() + 86_400_000), dueAt.getTime()),
+);
+check("the window is six hours", STALE_AFTER_MS === 6 * 60 * 60_000);
 
 console.log("");
 if (failures > 0) {

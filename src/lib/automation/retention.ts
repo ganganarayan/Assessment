@@ -47,9 +47,30 @@ export async function pruneAutomationHistory(now = Date.now()): Promise<PruneSum
   for (let i = 0; i < MAX_SLICES; i++) {
     const old = await prisma.automationRun.findMany({
       where: {
-        createdAt: { lt: cutoff },
-        // Terminal rows only - see PRUNABLE_RUN_STATUSES for why that is not negotiable.
-        status: { in: [...PRUNABLE_RUN_STATUSES] },
+        OR: [
+          {
+            createdAt: { lt: cutoff },
+            // Terminal rows only - see PRUNABLE_RUN_STATUSES for why that is not
+            // negotiable when judging by AGE.
+            status: { in: [...PRUNABLE_RUN_STATUSES] },
+          },
+          {
+            /**
+             * A run that was never sent and can never usefully be sent.
+             *
+             * 🔴 Judged on DUE TIME, not creation time, and that distinction is the
+             * whole safety: a reminder for a call three months out is created today and
+             * is due in three months, so it is never touched here, while a row whose
+             * send time passed a month ago is dead whatever its status says. Without
+             * this, anything that stops a run from ever being claimed - a feature held
+             * back for a workspace, a tenant parked, a rule nobody re-enabled - leaves
+             * PENDING rows that never terminate and therefore never prune, on the
+             * highest-write table in the product.
+             */
+            dueAt: { lt: cutoff },
+            status: { in: ["PENDING", "SENDING"] },
+          },
+        ],
       },
       select: { id: true },
       take: SLICE,

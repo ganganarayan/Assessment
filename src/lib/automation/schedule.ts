@@ -28,6 +28,27 @@ export function isStillAhead(dueAt: Date, nowMs: number): boolean {
   return dueAt.getTime() > nowMs;
 }
 
+/**
+ * How late is too late to still send a message.
+ *
+ * 🔴 WHY THIS EXISTS AT ALL. A run that cannot send stays PENDING on purpose, so it goes
+ * out late rather than never: that is right for a deploy, a crash or a few minutes of
+ * Google being down. It is badly wrong for a long pause. A feature held back for a week
+ * and then released, or a scheduler stopped over a weekend, would otherwise release the
+ * whole backlog at once - and every one of those reminders says "your call is tomorrow"
+ * about a call that happened last Tuesday. The person reads it as the business being
+ * broken, which it is.
+ *
+ * Six hours: long enough that an ordinary outage still delivers, short enough that
+ * nothing arrives describing a day that has already gone.
+ */
+export const STALE_AFTER_MS = 6 * 60 * 60_000;
+
+/** True when a run is so far past its due time that sending it would misinform. */
+export function isStale(dueAt: Date, nowMs: number): boolean {
+  return nowMs - dueAt.getTime() > STALE_AFTER_MS;
+}
+
 /** How much automation history is kept. Everything older is deleted by the sweep. */
 export const RETENTION_DAYS = 30;
 

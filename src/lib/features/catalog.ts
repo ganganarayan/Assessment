@@ -81,7 +81,8 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     key: "automations",
     label: "Automations",
     blurb: "A trigger and the messages it sends - confirmations, reminders, follow-ups.",
-    whileHeld: "The menu item and page go, saving is refused, and queued runs wait instead of sending.",
+    whileHeld:
+      "The menu item and page go, saving is refused, and queued runs wait instead of sending. Releasing is a clean start, not a catch-up: a run more than six hours past its send time is skipped, so nobody is reminded about a call that already happened.",
     defaultReleased: false,
     routes: ["/w/automations"],
   },
@@ -89,7 +90,8 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     key: "workflows",
     label: "Workflow sequences",
     blurb: "Multi-step sequences with delays, tags and per-step suppression.",
-    whileHeld: "Nothing is queued and the queue is not drained. Runs already waiting stay where they are.",
+    whileHeld:
+      "Nothing new is queued and the queue is not drained. Runs already waiting stay where they are and resume on release, so a long hold can deliver a few of their steps close together.",
     // The engine shipped before its screens. Held back until there is something to look at.
     defaultReleased: false,
     routes: ["/w/workflows"],
