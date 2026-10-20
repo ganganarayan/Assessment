@@ -13,10 +13,21 @@
  * and the release key is checked first, because an unreleased feature should not even
  * offer an upgrade.
  *
- * `defaultReleased` is the answer used when there is no row in feature_release - and,
- * deliberately, when the read FAILS. It is per feature so that a database blip can only
- * hold a feature in its safe state: something customers already have stays up, and
- * something they have never seen stays hidden.
+ * `defaultReleased` is the PANIC ANSWER: what to say when there is no row in
+ * feature_release, or the read failed. It is false for everything, on purpose.
+ *
+ * 🔴 It used to be true for the features that were already live, so that a database
+ * blip could not take a working feature away. That reasoning does not survive two
+ * databases. The same seed runs on staging and on production, where "already live" is
+ * simply not true - production had never shown calendar, automations or contacts to
+ * anybody - so a default of true would have released three features to every customer
+ * the moment production deployed. Worse, the fallback would then CONTRADICT the stored
+ * row: a read failure on production would show a feature that the row says is held back.
+ *
+ * So the row is the truth and the default is the panic answer, and the panic answer is
+ * "show nothing new". A failed switch read almost certainly means the database behind
+ * the feature is unreachable too, which makes hiding it the honest outcome rather than
+ * a loss, and it is the behaviour the WhatsApp gate always had.
  */
 
 export const FEATURE_RELEASE_KEYS = [
@@ -61,7 +72,7 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     blurb: "Connect a WhatsApp Business number and send approved templates.",
     whileHeld:
       "The connect card is hidden, connecting is refused, and WhatsApp steps in nurture, automations and workflows are skipped and logged. Stored numbers and templates are untouched.",
-    // Off: the Meta app still needs Tech Provider approval, so a customer who connected
+    // The Meta app still needs Tech Provider approval, so a customer who connected
     // would hit a wall that is not theirs to fix.
     defaultReleased: false,
     routes: [],
@@ -71,7 +82,7 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     label: "Automations",
     blurb: "A trigger and the messages it sends - confirmations, reminders, follow-ups.",
     whileHeld: "The menu item and page go, saving is refused, and queued runs wait instead of sending.",
-    defaultReleased: true,
+    defaultReleased: false,
     routes: ["/w/automations"],
   },
   {
@@ -89,7 +100,7 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     blurb: "One-to-one booking, availability, attendance and the calendar feed.",
     whileHeld:
       "The menu items and pages go and editing is refused. Booking links already published keep working - pulling those down would break a live campaign.",
-    defaultReleased: true,
+    defaultReleased: false,
     routes: ["/w/calendar", "/w/calendar/availability"],
   },
   {
@@ -98,7 +109,7 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     blurb: "One row per person, with tags and the way out (unsubscribe).",
     whileHeld:
       "The menu item and page go and editing is refused. Contacts keep being created behind the scenes, and unsubscribe keeps working - consent is never held back.",
-    defaultReleased: true,
+    defaultReleased: false,
     routes: ["/w/contacts"],
   },
 ];
