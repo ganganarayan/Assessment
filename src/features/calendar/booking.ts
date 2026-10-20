@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { formatIST } from "@/lib/date";
 import { resolvePlan } from "@/lib/billing/plan-resolve";
+import { rateLimit } from "@/lib/rate-limit";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { reportAppointment } from "@/lib/calendar/signals";
@@ -23,6 +24,79 @@ import { type BookingConfirmation, type BookingLocationKindValue } from "@/featu
  * way. The database has the last word: Appointment.slotLock is unique, so of two people
  * booking the same slot in the same second, exactly one wins.
  */
+
+/**
+ * Who is this, from the browser they opted in with?
+ *
+ * The booking link that goes in an email or a WhatsApp carries ?t=<result token> and the
+ * page prefills from that server-side. A BARE link does not, and the person opening it
+ * has usually just given their name, email and mobile two screens ago - so asking for
+ * them again is asking somebody to prove they are themselves, to a page that could
+ * already know.
+ *
+ * The handle is a360_xid: the first-party visitor id minted on their first visit, kept
+ * in their own localStorage, and written onto Submission.metaExternalId at opt-in. So
+ * this answers "which submission did THIS browser make in THIS workspace" and nothing
+ * else.
+ *
+ * 🟡 The id is the authorisation, like a result token, and the same reasoning applies: a
+ * random UUID in one browser's storage, scoped here to one workspace, returning only the
+ * three fields the form asks for plus the person's own result token. Never a score,
+ * never an answer, and never anything if the id does not match a submission. Guessing it
+ * is guessing a UUID, and the rate limit below makes the attempt pointless as well as
+ * hopeless.
+ *
+ * 🟡 A SHARED BROWSER shows the last person's details to the next one, because one
+ * browser has one id. Accepted: the same is already true of the funnel itself (the id is
+ * what dedupes a repeat visitor), the fields are editable, and the page says where they
+ * came from rather than presenting them as fact. Anyone booking on a borrowed laptop
+ * types over them, which is what they would have done with an empty form.
+ */
+export async function prefillForBooking(
+  slug: string,
+  visitorId: string,
+): Promise<ActionResult<{ name: string; email: string; mobile: string; resultToken: string }>> {
+  const vid = visitorId.trim();
+  // A plausible id only: minted as a UUID, with the pre-crypto.randomUUID fallback
+  // ("<ms>-<base36>") still in circulation on older browsers.
+  if (vid.length < 16 || vid.length > 80) return { ok: false, error: "No match." };
+  if (!rateLimit("bookprefill:global", 5000) || !rateLimit(`bookprefill:vid:${vid}`, 10)) {
+    return { ok: false, error: "No match." };
+  }
+
+  const bookingType = await prisma.bookingType.findFirst({
+    where: { slug, active: true },
+    select: { tenantId: true },
+  });
+  if (!bookingType) return { ok: false, error: "No match." };
+
+  const submission = await prisma.submission.findFirst({
+    where: { tenantId: bookingType.tenantId, metaExternalId: vid },
+    // Their latest run, because that is the one whose details are current.
+    orderBy: { createdAt: "desc" },
+    select: {
+      resultToken: true,
+      leadFirstName: true,
+      leadLastName: true,
+      leadEmail: true,
+      leadMobile: true,
+    },
+  });
+  // No lead on it means they started and never opted in: there is nothing to fill.
+  if (!submission?.leadEmail) return { ok: false, error: "No match." };
+
+  return {
+    ok: true,
+    data: {
+      name: [submission.leadFirstName, submission.leadLastName].filter(Boolean).join(" "),
+      email: submission.leadEmail,
+      mobile: submission.leadMobile ?? "",
+      // Handed back so the booking ATTACHES to that submission through the same
+      // checked path a ?t= link uses. Without it the call would be a stranger's.
+      resultToken: submission.resultToken ?? "",
+    },
+  };
+}
 
 export async function bookSlot(input: unknown): Promise<ActionResult<BookingConfirmation>> {
   const parsed = publicBookingSchema.safeParse(input);

@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { LOCATION_HINT, type BookingConfirmation, type PublicBookingView } from "@/features/calendar/types";
-import { bookSlot } from "@/features/calendar/booking";
+import { bookSlot, prefillForBooking } from "@/features/calendar/booking";
+import { getOrCreateExternalId } from "@/lib/external-id";
 
 /**
  * The respondent's booking page. Mobile first, and deliberately three steps on one
@@ -24,6 +25,7 @@ export function PublicBooking({
   prefill,
 }: {
   view: PublicBookingView;
+  /** From ?t= on the link, when it carried one. May be filled in on mount instead. */
   resultToken: string;
   preview: boolean;
   prefill: { name: string; email: string; mobile: string };
@@ -37,6 +39,39 @@ export function PublicBooking({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<BookingConfirmation | null>(null);
   const [pending, start] = useTransition();
+  // The token can arrive two ways: on the link, or from the lookup below. Either way it
+  // is what attaches this booking to the submission they already made.
+  const [token, setToken] = useState(resultToken);
+  const [recognised, setRecognised] = useState(prefill.email !== "");
+
+  /**
+   * They opted in two screens ago. Fill the form in for them.
+   *
+   * Only when the link carried no ?t= and nothing came from the server: a link sent by
+   * email already identifies its reader, and this is for the bare link. The handle is
+   * the first-party id in their own localStorage, the same one the funnel wrote to their
+   * submission, so it works on the browser they filled the assessment in on and quietly
+   * does nothing on any other. Failure is silence: an unrecognised visitor simply types
+   * their details, which is what they would have done anyway.
+   */
+  useEffect(() => {
+    if (prefill.email || resultToken) return;
+    const vid = getOrCreateExternalId();
+    if (!vid) return;
+    let cancelled = false;
+    void prefillForBooking(view.slug, vid).then((r) => {
+      if (cancelled || !r.ok || !r.data) return;
+      // Never overwrite something they have already started typing.
+      setName((cur) => cur || r.data!.name);
+      setEmail((cur) => cur || r.data!.email);
+      setMobile((cur) => cur || r.data!.mobile);
+      setToken((cur) => cur || r.data!.resultToken);
+      setRecognised(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [prefill.email, resultToken, view.slug]);
 
   const day = view.days.find((d) => d.dateKey === dateKey) ?? null;
 
@@ -97,7 +132,7 @@ export function PublicBooking({
         setError("Pick a time first.");
         return;
       }
-      const r = await bookSlot({ slug: view.slug, startMs, name, email, mobile, notes, resultToken, preview });
+      const r = await bookSlot({ slug: view.slug, startMs, name, email, mobile, notes, resultToken: token, preview });
       if (r.ok && r.data) {
         setDone(r.data);
       } else if (!r.ok) {
@@ -156,6 +191,14 @@ export function PublicBooking({
       {/* Step 3: who */}
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold">Your details</h2>
+        {/* Said out loud rather than filled in silently. Finding your own name already
+            typed into a page you have not typed it into is unsettling if nothing
+            explains it, and the whole point is that they do not have to type it. */}
+        {recognised ? (
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Filled in from your earlier answers. Change anything that is out of date.
+          </p>
+        ) : null}
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Name</Label>
           <Input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
