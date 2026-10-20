@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
+import { featureDenied } from "@/lib/features/release";
 import { contactTenantOf } from "@/lib/contacts/upsert";
 import { unsuppressContact } from "@/lib/contacts/dnd";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -32,7 +33,13 @@ async function ownerScope(): Promise<OwnerScope> {
   if (!scope.tenantId && !scope.isSuper) {
     return { ok: false, result: { ok: false, error: "No workspace." } };
   }
-  return { ok: true, tenantId: contactTenantOf(scope.tenantId) };
+  const tenantId = contactTenantOf(scope.tenantId);
+  // Held back from customers until released. The admin half only - contacts keep being
+  // CREATED behind the scenes and unsubscribe keeps working, because consent is never
+  // something a release switch gets to hold back.
+  const held = await featureDenied("contacts", tenantId);
+  if (held) return { ok: false, result: held };
+  return { ok: true, tenantId };
 }
 
 function refresh() {

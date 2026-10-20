@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { type WorkflowTrigger } from "@prisma/client";
 import { contactTenantOf } from "@/lib/contacts/upsert";
+import { featureAllowedFor } from "@/lib/features/release";
 
 /**
  * Starting somebody on a workflow.
@@ -41,6 +42,10 @@ export interface TriggerContext {
 export async function fireWorkflowTrigger(trigger: WorkflowTrigger, ctx: TriggerContext): Promise<void> {
   try {
     const tenantId = contactTenantOf(ctx.tenantId);
+    // Held back from customers until released. Gated at the queue door as well as at
+    // the drain: a feature nobody can see must not quietly build a backlog of people
+    // waiting to be messaged, because releasing it would then send all of it at once.
+    if (!(await featureAllowedFor("workflows", tenantId))) return;
     const workflows = await prisma.workflow.findMany({
       where: {
         tenantId,

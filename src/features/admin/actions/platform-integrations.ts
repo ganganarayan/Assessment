@@ -7,6 +7,7 @@ import { requireSuperAdmin, editDenied } from "@/lib/auth/guards";
 import { env } from "@/lib/env";
 import { encryptWithSecret } from "@/lib/crypto";
 import { type ActionResult } from "@/features/assessment/actions/shared";
+import { isFeatureReleased, writeFeatureRelease } from "@/lib/features/release";
 import { type IntegrationSettingsView } from "@/features/workspace/actions/integrations";
 import { parsePlanModels, planModelsSchema } from "@/lib/ai/plan-models";
 import {
@@ -513,14 +514,10 @@ export async function sendWelcomeTest(to: string): Promise<ActionResult> {
   return err ? { ok: false, error: err } : { ok: true };
 }
 
-/** Current state of the WhatsApp park switch (singleton row). */
+/** Current state of the WhatsApp park switch - now the "whatsapp" release key. */
 export async function getPlatformWaba(): Promise<boolean> {
   await requireSuperAdmin();
-  const s = await prisma.appSetting.findUnique({
-    where: { id: "singleton" },
-    select: { wabaEnabledGlobal: true },
-  });
-  return s?.wabaEnabledGlobal === true;
+  return isFeatureReleased("whatsapp");
 }
 
 /**
@@ -531,13 +528,14 @@ export async function getPlatformWaba(): Promise<boolean> {
  * what was there. The owner's internal tenants see it either way.
  */
 export async function setPlatformWaba(enabled: boolean): Promise<ActionResult> {
-  const denied = editDenied(await requireSuperAdmin());
+  const me = await requireSuperAdmin();
+  const denied = editDenied(me);
   if (denied) return denied;
-  await prisma.appSetting.upsert({
-    where: { id: "singleton" },
-    update: { wabaEnabledGlobal: enabled },
-    create: { id: "singleton", wabaEnabledGlobal: enabled },
-  });
+  // ONE switch, two screens. This toggle and the Feature releases card on /platform
+  // write the same row, so they can never disagree about whether customers have
+  // WhatsApp - which is exactly what two independent switches would eventually do.
+  await writeFeatureRelease("whatsapp", enabled, me.id, "Set from the WhatsApp switch.");
+  revalidatePath("/platform");
   revalidatePath("/admin/settings");
   revalidatePath("/admin/nurture");
   revalidatePath("/w/nurture");

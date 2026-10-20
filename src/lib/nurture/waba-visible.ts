@@ -1,6 +1,5 @@
 import "server-only";
-import { prisma } from "@/lib/db/prisma";
-import { isPlatformScope } from "@/lib/tenant/platform-tenant";
+import { featureAllowedFor } from "@/lib/features/release";
 
 /**
  * Is the WhatsApp sender visible to this scope?
@@ -16,24 +15,14 @@ import { isPlatformScope } from "@/lib/tenant/platform-tenant";
  * The owner's own INTERNAL tenants (Tenant.unlimited) always see it, because they are
  * already using it and parking a feature for customers should not take it away from
  * the businesses that depend on it. Same rule as the built-in AI prompts.
+ *
+ * SINCE THE RELEASE SWITCHES: this is the "whatsapp" key in lib/features/catalog, and
+ * this function is a thin alias kept for its five call sites. The behaviour is
+ * unchanged - one platform-wide switch, the owner's scope exempt, failing closed on a
+ * read error (the key's catalog default is off) - the difference being that WhatsApp is
+ * no longer the only feature that can be held back, and the switch now lives in one
+ * place with the others instead of in a column of its own.
  */
 export async function wabaVisible(tenantId: string | null): Promise<boolean> {
-  try {
-    const s = await prisma.appSetting.findUnique({
-      where: { id: "singleton" },
-      select: { wabaEnabledGlobal: true },
-    });
-    if (s?.wabaEnabledGlobal) return true;
-    if (isPlatformScope(tenantId)) return true;
-    const t = await prisma.tenant.findUnique({
-      where: { id: tenantId as string },
-      select: { unlimited: true },
-    });
-    return t?.unlimited === true;
-  } catch (e) {
-    // Fail CLOSED. This gate exists to keep an unfinished feature out of sight, so a
-    // DB blip must not be the thing that shows it to a customer.
-    console.error("[waba] visibility read failed:", e instanceof Error ? e.message : String(e));
-    return false;
-  }
+  return featureAllowedFor("whatsapp", tenantId);
 }

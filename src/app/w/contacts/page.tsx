@@ -1,5 +1,6 @@
 
 import { requireWorkspace } from "@/lib/auth/guards";
+import { requireReleasedFeature } from "@/lib/features/route-guard";
 import { listContacts } from "@/features/contacts/data";
 import { ContactsScreen } from "@/features/contacts/components/contacts-screen";
 
@@ -14,6 +15,8 @@ export default async function WorkspaceContactsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // Held back until the owner releases it: a hidden link is presentation, not a permission.
+  await requireReleasedFeature("contacts");
   const { tenantId } = await requireWorkspace();
   const sp = await searchParams;
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");

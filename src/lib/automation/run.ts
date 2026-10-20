@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { formatISTDate } from "@/lib/date";
 import { sendTrackedEmailWithLog, sendWaba } from "@/lib/nurture/send";
 import { wabaVisible } from "@/lib/nurture/waba-visible";
+import { featureAllowedFor } from "@/lib/features/release";
 import { resolveWabaConfig } from "@/lib/settings/config";
 import { fillPlaceholders, toE164Digits, type LeadFields } from "@/features/nurture/config";
 import { istMinutesOfDay, minutesToHHMM } from "@/lib/calendar/slots";
@@ -407,10 +408,13 @@ export async function runDueAutomations(limit = 50): Promise<RunSummary> {
     where: { status: "PENDING", dueAt: { lte: new Date() } },
     orderBy: { dueAt: "asc" },
     take: limit,
-    select: { id: true },
+    select: { id: true, tenantId: true },
   });
 
-  for (const { id } of due) {
+  for (const { id, tenantId } of due) {
+    // Held back from customers = nothing goes out. Skipped before the claim so the run
+    // stays PENDING and goes out late rather than never if it is switched back on.
+    if (!(await featureAllowedFor("automations", tenantId))) continue;
     try {
       if (!(await claim(id))) continue;
       summary.claimed += 1;

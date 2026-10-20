@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
+import { featureDenied } from "@/lib/features/release";
 import { appSettingWhere, tenantAppSettingId } from "@/lib/settings/tenant-row";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { reportAppointment } from "@/lib/calendar/signals";
@@ -41,7 +42,13 @@ async function editor(): Promise<{ tenantId: string } | { error: string }> {
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return { error: denied.error };
-  return { tenantId: configTenantOf(scope) };
+  const tenantId = configTenantOf(scope);
+  // Held back from customers until released. Checked HERE rather than in each action,
+  // so an action added later cannot forget it. Public booking is NOT gated: a link
+  // already in somebody's ad must not break because a switch moved.
+  const held = await featureDenied("calendar", tenantId);
+  if (held) return { error: held.error };
+  return { tenantId };
 }
 
 /* ------------------------------------------------------------ booking types --- */

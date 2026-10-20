@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { availabilityPageProps } from "@/features/calendar/page-data";
+import { requireReleasedFeature } from "@/lib/features/route-guard";
 import { AvailabilityManager } from "@/features/calendar/components/availability-manager";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
  * dates off, and the read-only feed that puts the bookings in the owner's own calendar.
  */
 export default async function WorkspaceAvailabilityPage() {
+  // Held back until the owner releases it: a hidden link is presentation, not a permission.
+  await requireReleasedFeature("calendar");
   const props = await availabilityPageProps();
 
   return (

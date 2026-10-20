@@ -23,6 +23,8 @@ import { SupportStrip } from "@/features/billing/components/support-strip";
 import { headers } from "next/headers";
 import { isStaff } from "@/lib/auth/guards";
 import { resolveSupportRouting } from "@/lib/support/config";
+import { allowedFeaturesFor } from "@/lib/features/release";
+import { routesHeldBack } from "@/lib/features/catalog";
 import { tenantUnreadCounts } from "@/features/support/data";
 
 /**
@@ -59,6 +61,12 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   // customer, and a client workspace must not be able to see or act on a plan. The
   // route guards itself as well - a hidden link is presentation, never a permission.
   if (resolved.agencyTenant) hiddenNav.push("/w/billing");
+  // Features not RELEASED to customers yet (lib/features/catalog): their routes leave
+  // the menu altogether. Not a plan question - these are finished-but-unproven features
+  // the owner is still testing on their own internal workspace, and a customer must not
+  // meet one by seeing its link. The routes guard themselves as well.
+  // An owner operating a workspace is never held back from what they are there to look at.
+  if (!impersonating) hiddenNav.push(...routesHeldBack(await allowedFeaturesFor(tenantId)));
 
   /**
    * The Support section, and the red count on it.

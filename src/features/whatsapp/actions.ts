@@ -7,6 +7,7 @@ import { env } from "@/lib/env";
 import { encryptWithSecret, decryptWithSecret } from "@/lib/crypto";
 import { formatIST } from "@/lib/date";
 import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
+import { featureDenied } from "@/lib/features/release";
 import { appSettingWhere, tenantAppSettingId } from "@/lib/settings/tenant-row";
 import { resolveMetaAppConfig, metaAppReady } from "@/lib/settings/meta-app";
 import {
@@ -125,6 +126,11 @@ export async function completeWhatsAppConnect(input: unknown): Promise<ActionRes
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
+  // The card is hidden while WhatsApp is held back (wabaVisible reads the same switch),
+  // but the action refuses on its own: connecting a number to a feature whose Tech
+  // Provider approval has not landed strands the business, not us.
+  const held = await featureDenied("whatsapp", scope.tenantId);
+  if (held) return held;
 
   const parsed = embeddedSignupSchema.safeParse(input);
   if (!parsed.success) {
@@ -229,6 +235,9 @@ export async function disconnectWhatsApp(): Promise<ActionResult> {
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
+  // Disconnect is NOT gated on the release switch on purpose: a workspace that already
+  // connected a number must always be able to take it back, including after the feature
+  // was held back again. Only the view-only check above applies.
 
   const [app, s] = await Promise.all([
     resolveMetaAppConfig(),

@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
+import { featureAllowedFor } from "@/lib/features/release";
 import { type WorkflowStep } from "@prisma/client";
 import { sendEmail, sendWaba } from "@/lib/nurture/send";
 import { fillPlaceholders, toE164Digits, type LeadFields } from "@/features/nurture/config";
@@ -39,10 +40,16 @@ export async function runDueWorkflows(now: Date = new Date()): Promise<RunOutcom
     where: { status: "PENDING", dueAt: { lte: now } },
     orderBy: { dueAt: "asc" },
     take: BATCH,
-    select: { id: true },
+    select: { id: true, tenantId: true },
   });
 
-  for (const { id } of due) {
+  for (const { id, tenantId } of due) {
+    // 🔴 THE KILL SWITCH HAS TO BITE HERE. Switching workflows back off is how a
+    // half-working sequence is stopped, and a run queued while it was on would
+    // otherwise keep sending. Skipped BEFORE the claim, so the row stays PENDING and
+    // the person resumes where they were if it is switched on again - nobody is
+    // dropped, and nobody gets a message from a feature that was pulled.
+    if (!(await featureAllowedFor("workflows", tenantId))) continue;
     // Claim it before doing anything. Two workers (the cron and an inline drain) can
     // overlap, and the claim is what stops one person getting a message twice.
     const claim = await prisma.workflowRun.updateMany({

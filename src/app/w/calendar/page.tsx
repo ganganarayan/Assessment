@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { calendarPageProps } from "@/features/calendar/page-data";
+import { requireReleasedFeature } from "@/lib/features/route-guard";
 import { CalendarBoard } from "@/features/calendar/components/calendar-board";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,8 @@ export default async function WorkspaceCalendarPage({
 }: {
   searchParams: Promise<{ m?: string; who?: string }>;
 }) {
+  // Held back until the owner releases it: a hidden link is presentation, not a permission.
+  await requireReleasedFeature("calendar");
   const { m, who } = await searchParams;
   const props = await calendarPageProps(m, who);
 

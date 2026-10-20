@@ -4430,3 +4430,52 @@ model WorkflowSend {
   @@index([stepId])
   @@map("workflow_send")
 }
+
+/// ---------------------------------------------------------------------------
+///  ONE SWITCH PER FEATURE, FOR EVERY WORKSPACE AT ONCE.
+/// ---------------------------------------------------------------------------
+///
+/// The problem this solves is not "who may use what" - the plan catalog already
+/// answers that. It is RELEASE: code lands in production finished but unproven, the
+/// owner exercises it on their own internal workspace, and only then do customers get
+/// to see it. Without a switch the only way to hold a feature back is to hold the
+/// BRANCH back, and a long-lived branch is how a release breaks three features that
+/// had nothing to do with it.
+///
+/// So the row is the release, not the entitlement. `released = false` means every
+/// customer workspace behaves exactly as it did before the feature existed: the menu
+/// item is absent, the route redirects, the actions refuse and the senders skip. The
+/// owner's own scope (the platform, and any INTERNAL tenant - Tenant.unlimited) is
+/// exempt and always sees it, which is what makes "test it as a tenant would" possible
+/// at all.
+///
+/// REVERSIBLE BY DESIGN. Switching a key back off is a kill switch, not a deletion:
+/// every row a tenant created stays exactly where it is, unread, and switching back on
+/// restores what was there. That is the whole reason this is a flag and not a revert.
+///
+/// A key with NO ROW falls back to the default in lib/features/catalog.ts. That
+/// fallback is also what a failed read uses, and it is chosen per feature so a database
+/// blip can only ever hold a feature in its safe state: already-released features stay
+/// up (default true), unreleased ones stay hidden (default false).
+model FeatureRelease {
+  /// The catalog key (lib/features/catalog.ts). A plain string primary key, not an
+  /// enum: adding a feature should be a code constant plus a seed row, never a
+  /// migration that rewrites a type while the app is running.
+  key String @id
+
+  released Boolean @default(false)
+
+  /// When it was last switched ON. Left in place when it is switched off again, so the
+  /// row still answers "when did customers first get this" after a kill switch.
+  releasedAt DateTime?
+
+  /// Who flipped it, and why. A plain user id rather than a relation: the audit should
+  /// survive the staff account that made the change being deleted.
+  changedByUserId String?
+  note            String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("feature_release")
+}

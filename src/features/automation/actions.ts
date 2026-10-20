@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
+import { featureDenied } from "@/lib/features/release";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { automationSchema } from "@/features/automation/schemas";
 import { fillPlaceholders } from "@/features/nurture/config";
@@ -26,7 +27,12 @@ async function editor(): Promise<{ tenantId: string } | { error: string }> {
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return { error: denied.error };
-  return { tenantId: configTenantOf(scope) };
+  const tenantId = configTenantOf(scope);
+  // Held back from customers until released. Checked HERE rather than in each action,
+  // so an action added later cannot forget it.
+  const held = await featureDenied("automations", tenantId);
+  if (held) return { error: held.error };
+  return { tenantId };
 }
 
 /**

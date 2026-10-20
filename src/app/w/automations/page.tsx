@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { automationPageProps } from "@/features/automation/page-data";
+import { requireReleasedFeature } from "@/lib/features/route-guard";
 import { AutomationManager } from "@/features/automation/components/automation-manager";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
  * reminders, follow-ups after a no-show.
  */
 export default async function WorkspaceAutomationsPage() {
+  // Held back until the owner releases it: a hidden link is presentation, not a permission.
+  await requireReleasedFeature("automations");
   const props = await automationPageProps();
 
   return (
