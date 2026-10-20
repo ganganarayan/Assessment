@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import {
   PLATFORM_SUPPORT_EMAIL,
@@ -78,9 +77,18 @@ export function WorkspaceLocked({
 
           <div className="mt-5 flex flex-col gap-2">
             {viaAgency ? null : (
-              <Link href="/w/billing" className={buttonVariants({ className: "w-full" })}>
+              /* 🔴 A PLAIN <a>, NOT <Link>, AND IT HAS TO STAY ONE.
+                 This panel is rendered by the /w layout, which decides per request
+                 whether the lock applies and exempts /w/billing so the customer can
+                 pay. A layout does NOT re-render on a client navigation: the App
+                 Router re-renders only the segments that changed, and a shared layout
+                 is not one of them. So <Link href="/w/billing"> changed the address
+                 bar and nothing else, leaving this same panel on screen over the
+                 billing page, and the only button that ends the lock did nothing.
+                 A full load re-runs the layout, which re-reads the path. */
+              <a href="/w/billing" className={buttonVariants({ className: "w-full" })}>
                 Choose a plan
-              </Link>
+              </a>
             )}
             <a
               href="/api/w/submissions/export?format=csv"

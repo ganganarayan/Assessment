@@ -179,13 +179,17 @@ export function BillingBanner({
             {notice.secondary.label}
           </Link>
         ) : null}
+        {/* A plain <a>, not <Link>, for the same reason as the locked panel's button:
+            this banner is rendered by the /w layout, and a client navigation does not
+            re-render a layout, so clicking through to billing left a parked workspace
+            parked on screen. See workspace-locked.tsx. */}
         {notice.cta ? (
-          <Link
+          <a
             href={notice.href ?? "/w/billing"}
             className="rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-1 text-xs font-medium hover:bg-[var(--muted)]"
           >
             {notice.cta}
-          </Link>
+          </a>
         ) : null}
       </span>
     </div>

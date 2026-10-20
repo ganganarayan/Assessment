@@ -112,10 +112,15 @@ const SECTIONS: NavSection[] = [
 export function WorkspaceNav({
   hidden = [],
   badges = {},
+  hardNav = false,
 }: {
   hidden?: string[];
   /** href -> count, resolved on the server. Here it is only drawn. */
   badges?: Record<string, number>;
+  /** The workspace is PARKED, so every link has to be a full page load. The lock is
+   *  decided in the /w layout, and a layout does not re-render on a client navigation,
+   *  so a soft link to /w/billing changed the URL and left the lock on screen. */
+  hardNav?: boolean;
 }) {
   const pathname = usePathname();
   const tab = useBuilderTab();
@@ -135,6 +140,7 @@ export function WorkspaceNav({
       sections={sections}
       isActive={isActive}
       storageKey="w"
+      hardNav={hardNav}
       renderUnder={(it) =>
         // While editing an assessment, the builder's STEPS branch off Assessments -
         // the same place /admin puts them. This branch is the only way to reach them.

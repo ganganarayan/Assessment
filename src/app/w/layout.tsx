@@ -183,7 +183,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
             <AppBrand href="/w" subtitle={tenant?.name ?? "Workspace"} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <WorkspaceNav hidden={hiddenNav} badges={supportBadges} />
+            <WorkspaceNav hidden={hiddenNav} badges={supportBadges} hardNav={locked} />
           </div>
           <div className="mt-auto">
             <SignOutButton />

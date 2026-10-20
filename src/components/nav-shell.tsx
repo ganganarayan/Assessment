@@ -52,6 +52,7 @@ export function NavShell({
   isActive,
   renderUnder,
   storageKey,
+  hardNav = false,
 }: {
   sections: NavSection[];
   /** Whether an item is the current page. Each app has its own matching rules. */
@@ -60,7 +61,30 @@ export function NavShell({
   renderUnder?: (item: NavItem) => ReactNode;
   /** Remembers the column's folded state per app. */
   storageKey: string;
+  /**
+   * Navigate with a FULL page load instead of a client transition.
+   *
+   * 🔴 THIS EXISTS BECAUSE A LAYOUT DOES NOT RE-RENDER ON A CLIENT NAVIGATION. The
+   * App Router re-renders only the segments that changed, and a layout shared by two
+   * routes is not one of them. So a layout that decides something PER ROUTE - like
+   * /w deciding whether this request is allowed past the parked-workspace lock - makes
+   * that decision once, on the first server render, and keeps it for every link the
+   * visitor clicks afterwards.
+   *
+   * A parked workspace is exactly that case: the lock exempts /w/billing, but clicking
+   * through to it changed the URL and nothing else, so the page that ENDS the lock was
+   * unreachable from inside it. A full load re-runs the layout, which re-reads the
+   * path, and the exemption applies.
+   */
+  hardNav?: boolean;
 }) {
+  const NavLink = hardNav
+    ? ({ href, className, children }: { href: string; className?: string; children: ReactNode }) => (
+        <a href={href} className={className}>
+          {children}
+        </a>
+      )
+    : Link;
   const activeSection = sections.find((s) => s.items.some((i) => isActive(i)))?.title ?? null;
   const [open, setOpen] = useState<string | null>(activeSection ?? sections[0]?.title ?? null);
   const [folded, setFolded] = useState(false);
@@ -163,7 +187,7 @@ export function NavShell({
               <div className="mb-1 ml-1 flex flex-col gap-0.5 border-l pl-2">
                 {section.items.map((item) => (
                   <div key={item.href} className="flex flex-col">
-                    <Link
+                    <NavLink
                       href={item.href}
                       className={cn(
                         "flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--muted)]",
@@ -176,7 +200,7 @@ export function NavShell({
                           {item.badge > 99 ? "99+" : item.badge}
                         </span>
                       ) : null}
-                    </Link>
+                    </NavLink>
                     {renderUnder?.(item)}
                   </div>
                 ))}
