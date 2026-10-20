@@ -34,6 +34,7 @@ import { isCrawlerUserAgent } from "@/lib/bots";
 import { generateCustomerId, generateToken } from "@/lib/ids";
 import { linkContactSafely } from "@/lib/contacts/upsert";
 import { resolveConsentText } from "@/lib/contacts/consent";
+import { fireWorkflowTrigger } from "@/lib/workflows/enqueue";
 import { env } from "@/lib/env";
 import { randomUUID } from "crypto";
 import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
@@ -484,12 +485,23 @@ async function linkSplitLead(gateEntryId: string | null, submissionId: string): 
  */
 async function attachContact(
   tenantId: string | null,
+  assessmentId: string,
   submissionId: string,
   lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null; profession: string | null },
 ) {
   const consentText = await resolveConsentText(tenantId);
   const contactId = await linkContactSafely({ tenantId, ...lead }, { source: "SUBMISSION", consentText });
   if (!contactId) return;
+
+  // A workflow starts HERE, at the line that creates the person, rather than from a
+  // shared event bus. "They opted in" is this, and routing it through a notification
+  // would add a hop able to fail separately from the thing it describes.
+  await fireWorkflowTrigger("CONTACT_OPTED_IN", {
+    tenantId,
+    contactId,
+    assessmentId,
+    subjectId: submissionId,
+  });
   try {
     await prisma.submission.update({ where: { id: submissionId }, data: { contactId } });
   } catch (e) {
@@ -998,7 +1010,7 @@ export async function startSubmission(
       };
     }
     await linkSplitLead(splitGateEntryId, outcome.submissionId);
-    await attachContact(assessment.tenantId, outcome.submissionId, {
+    await attachContact(assessment.tenantId, assessment.id, outcome.submissionId, {
       firstName: submissionData.leadFirstName,
       lastName: submissionData.leadLastName,
       email: submissionData.leadEmail,
@@ -1030,7 +1042,7 @@ export async function startSubmission(
     select: { id: true },
   });
   await linkSplitLead(splitGateEntryId, created.id);
-  await attachContact(assessment.tenantId, created.id, {
+  await attachContact(assessment.tenantId, assessment.id, created.id, {
     firstName: submissionData.leadFirstName,
     lastName: submissionData.leadLastName,
     email: submissionData.leadEmail,
@@ -1801,6 +1813,25 @@ export async function completeSubmission(
   // paid + free; the result token/snapshot are already persisted, so {{resultUrl}}
   // resolves to the person's finished result.
   void sendNurtureForSubmission(submissionId).catch(() => {});
+
+  // ASSESSMENT_COMPLETED, and BAND_REACHED when the funnel scores a band. Both read
+  // the contact off the row rather than rebuilding it: by now the person exists, and
+  // if they do not, there is nobody to start a sequence for.
+  void (async () => {
+    const row = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      select: { contactId: true, tenantId: true, assessmentId: true, gateBand: true },
+    });
+    if (!row?.contactId) return;
+    const ctx = {
+      tenantId: row.tenantId,
+      contactId: row.contactId,
+      assessmentId: row.assessmentId,
+      subjectId: submissionId,
+    };
+    await fireWorkflowTrigger("ASSESSMENT_COMPLETED", ctx);
+    if (row.gateBand) await fireWorkflowTrigger("BAND_REACHED", { ...ctx, bandKey: row.gateBand });
+  })().catch(() => {});
 
   // Emit assessment.completed. EventLog is always written; webhook delivery
   // (incl. the CRM endpoint) is non-blocking and never fails this flow. Run only
