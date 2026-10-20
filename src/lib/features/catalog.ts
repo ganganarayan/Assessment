@@ -36,6 +36,7 @@ export const FEATURE_RELEASE_KEYS = [
   "workflows",
   "calendar",
   "contacts",
+  "broadcasts",
 ] as const;
 
 export type FeatureReleaseKey = (typeof FEATURE_RELEASE_KEYS)[number];
@@ -113,6 +114,18 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
       "The menu item and page go and editing is refused. Contacts keep being created behind the scenes, and unsubscribe keeps working - consent is never held back.",
     defaultReleased: false,
     routes: ["/w/contacts"],
+  },
+  {
+    key: "broadcasts",
+    label: "Broadcasts",
+    blurb: "One message to a filtered audience, scheduled and sent at a throttled rate.",
+    whileHeld:
+      "The menu item and page go, nothing is scheduled, and a broadcast already sending stops being drained - the rows it has not reached stay PENDING rather than being lost.",
+    // Its own key and not folded into workflows: a sequence that reaches one person at
+    // a time and a blast that reaches five thousand at once carry very different risk,
+    // and the owner has to be able to release one without the other.
+    defaultReleased: false,
+    routes: ["/w/broadcasts"],
   },
 ];
 
