@@ -42,7 +42,21 @@ const OURS = ["assess360"];
  * check cannot protect, and the `*\/*` route covers it from the moment its DNS record is
  * proxied.
  */
-const FOREIGN = ["avr", "cosmetic", "powertools", "paymentz", "revenueos"];
+const FOREIGN = ["avr", "cosmetic", "powertools", "revenueos"];
+
+/**
+ * 🟡 `paymentz` was here until 20-10-2026 and is RETIRED: the hostname has no DNS record
+ * at all any more, so it answers NXDOMAIN rather than an app.
+ *
+ * Removed rather than left in, because a host that cannot resolve made this check report
+ * a problem on EVERY run, and a check that is always red is a check nobody reads. That
+ * is precisely how the 2026-10-14 outage ran for four hours. A retired host also cannot
+ * be hijacked by the `*\/*` route, since no record means no request, so there is nothing
+ * left here to protect.
+ *
+ * 🔴 If paymentz ever comes back, it goes back in this list the same day its DNS record
+ * does, not afterwards.
+ */
 
 /**
  * 🟡 `revenueos` joined on 20-10-2026 and is a different shape from the rest: a static
@@ -107,8 +121,8 @@ function titleOf(html: string): string | null {
 
 /**
  * Is this the Assess360 version payload? Keyed on the two fields only Assess360 emits
- * together. Deliberately not a substring match on the body: paymentz serves its SPA shell
- * for unknown paths, so "did /api/version return 200" proves nothing.
+ * together. Deliberately not a substring match on the body: an SPA in this zone serves
+ * its shell for unknown paths, so "did /api/version return 200" proves nothing.
  */
 function isAssessVersion(body: string): boolean {
   try {
