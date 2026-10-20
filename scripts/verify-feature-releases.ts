@@ -6,12 +6,14 @@
  * What it proves:
  *   1. The catalog is complete and internally consistent (every key has an entry, no
  *      route is owned by two features, every route is a real /w path).
- *   2. Every key has a SEED ROW in the migration, or is deliberately defaulted. A key
- *      added in code with no row anywhere falls back to its default silently, and
- *      "silently" is the word that makes it a production incident rather than a bug.
- *   3. The seeded value AGREES with the catalog default. Two sources saying different
- *      things about whether customers have a feature is the failure this file exists
- *      to make impossible.
+ *   2. Every key has a SEED ROW in the migration. A key added in code with no row
+ *      anywhere falls back to its default silently, and "silently" is the word that
+ *      makes it a production incident rather than a bug.
+ *   3. Every catalog default is FALSE. The default is the answer used when the row is
+ *      missing or unreadable, and it must not claim a feature is live: the same code
+ *      runs against staging and production, where the answer differs, so only the row
+ *      may say yes. A default of true once meant production would have released three
+ *      features to every customer on its first deploy.
  *   4. routesHeldBack hides exactly the routes of the features that are held back -
  *      nothing more (a released feature losing its menu item) and nothing less (a held
  *      feature keeping one).
@@ -103,16 +105,19 @@ for (const key of FEATURE_RELEASE_KEYS) {
       `${key} is seeded`,
       "no INSERT in any migration names this key. It would fall back to the catalog default with no row and no audit date - add a seed row.",
     );
-    continue;
-  }
-  if (seeded === "carried") {
+  } else if (seeded === "carried") {
     ok(`${key} is seeded (carried over from an existing switch)`);
-    continue;
+  } else {
+    ok(`${key} is seeded (${seeded})`);
   }
+
+  // 🔴 The panic answer must never claim a feature is live. The row is per database;
+  // this constant is not, so a true here releases the feature on every database that
+  // has no row yet - which is what production is on the day the table is created.
   expect(
-    `${key} seed agrees with its catalog default`,
-    (seeded === "true") === defaultReleased(key),
-    `migration seeds ${seeded}, catalog default is ${defaultReleased(key)}. One of them is lying about whether customers have it.`,
+    `${key} fails closed by default`,
+    defaultReleased(key) === false,
+    "set defaultReleased false and let the seeded row carry the live state",
   );
 }
 
