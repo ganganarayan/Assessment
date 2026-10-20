@@ -53,3 +53,27 @@ export function describeDelay(amount: number | null | undefined, unit: WorkflowD
   const word = unit.toLowerCase().replace(/s$/, "");
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
+
+/**
+ * How long after its due time a MESSAGE step is still worth sending.
+ *
+ * Deliberately NOT imported from the automation engine, which has its own copy and a
+ * much shorter window. The two are different problems: a reminder announcing a call
+ * that happened last Tuesday is actively harmful, while a nurture message that is a
+ * day late is merely late. Sharing one constant across the two engines is also how two
+ * engines quietly become one.
+ *
+ * Three days, because the realistic causes of lateness here are a cron that stopped
+ * overnight or a feature switched off and back on, and a sequence step is rarely
+ * anchored to a moment the way an appointment is. Long enough to survive an outage,
+ * short enough that a month-old step never lands.
+ *
+ * The enqueue gate means there is no backlog to flood from: new runs are not queued
+ * while the feature is held back, so at most ONE step per paused run is ever overdue.
+ */
+export const STALE_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
+
+/** Is this send so late that it should be recorded rather than sent? */
+export function isStale(dueAt: Date, now: Date = new Date()): boolean {
+  return now.getTime() - dueAt.getTime() > STALE_AFTER_MS;
+}

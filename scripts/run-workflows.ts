@@ -16,12 +16,24 @@
  * engine imports "server-only" which does not resolve under plain tsx.
  */
 import { runDueWorkflows } from "../src/lib/workflows/run";
+import { sweepWorkflowRetention } from "../src/lib/workflows/retention";
 
 async function main() {
   const summary = await runDueWorkflows();
   console.log(
     `[cron:workflows] claimed ${summary.claimed}, advanced ${summary.advanced}, finished ${summary.finished}, failed ${summary.failed}`,
   );
+
+  // The sweep rides along with the drain rather than being a second job to configure.
+  // Both deletes are indexed predicates that normally match nothing, so the cost of
+  // running it every pass is a great deal lower than the cost of it being a schedule
+  // somebody forgot to set up - which is exactly how the table started leaking.
+  const swept = await sweepWorkflowRetention();
+  if (swept.deadRuns || swept.deletedRuns || swept.deletedSends) {
+    console.log(
+      `[cron:workflows] swept ${swept.deadRuns} overdue, deleted ${swept.deletedRuns} finished runs and ${swept.deletedSends} send rows`,
+    );
+  }
 }
 
 main()

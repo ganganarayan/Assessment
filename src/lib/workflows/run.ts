@@ -6,7 +6,7 @@ import { sendEmail, sendWaba } from "@/lib/nurture/send";
 import { fillPlaceholders, toE164Digits, type LeadFields } from "@/features/nurture/config";
 import { isSuppressed, unsubscribeUrlFor } from "@/lib/contacts/dnd";
 import { defaultCountryCodeFor } from "@/lib/contacts/upsert";
-import { dueAfter } from "@/lib/workflows/schedule";
+import { dueAfter, isStale } from "@/lib/workflows/schedule";
 
 /**
  * The worker: take the runs that are due, do the next step, decide when the one after
@@ -94,6 +94,7 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
       id: true,
       tenantId: true,
       currentStep: true,
+      dueAt: true,
       subjectId: true,
       workflowId: true,
       contact: {
@@ -149,6 +150,22 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
 
   if (step.kind === "TAG") {
     await applyTag(step, run.contact.id, run.tenantId);
+    await prisma.workflowRun.update({
+      where: { id: runId },
+      data: { status: "PENDING", currentStep: run.currentStep + 1, dueAt: now, attempts: 0 },
+    });
+    return false;
+  }
+
+  // MESSAGE. Too late to be worth sending? Recorded rather than sent.
+  //
+  // The case this exists for: the run was paused mid-sequence - the feature held back,
+  // or the drain stopped - and comes back long after this step was due. Sending it
+  // then delivers a message whose timing was the point. The step is SKIPPED and the
+  // sequence carries on, so nobody is dropped out of it for having been late.
+  if (isStale(run.dueAt, now)) {
+    await logSend(run.tenantId, run.workflowId, step, run.contact.id, "SKIPPED", null, "Overdue - not sent.");
+    await bump(step.id, "skippedCount");
     await prisma.workflowRun.update({
       where: { id: runId },
       data: { status: "PENDING", currentStep: run.currentStep + 1, dueAt: now, attempts: 0 },
