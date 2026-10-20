@@ -43,3 +43,7 @@ public/hero-scorecard big.png
 
 # re-home manifests (row ids; local only)
 .rehome/
+
+# Other sessions working copies of this repo, created by the worktree tooling.
+# Untracked and unignored, a single git add -A would commit entire checkouts.
+.claude/worktrees/

@@ -23,7 +23,11 @@ const eslintConfig = [
     // are not ours to change. Leaving it in meant `npx eslint .` always reported an error
     // nobody could fix, and an always-failing gate is one people stop reading, which is
     // exactly how a real lint failure reached a deploy.
-    ignores: [".next/**", "node_modules/**", "src/generated/**", "qa/**", "next-env.d.ts"],
+    // .claude/worktrees holds OTHER sessions full checkouts of this repo. Without
+    // this, npx eslint . walks every one of them and reports their branches errors as
+    // if they were on staging - which turns the one lint gate everybody relies on into
+    // noise, and a noisy gate gets ignored exactly when it is right.
+    ignores: [".next/**", "node_modules/**", "src/generated/**", "qa/**", "next-env.d.ts", ".claude/worktrees/**"],
   },
 ];
 
