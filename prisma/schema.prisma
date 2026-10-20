@@ -189,6 +189,7 @@ model Tenant {
   automations          Automation[]
   contacts             Contact[]
   workflows            Workflow[]
+  broadcasts           Broadcast[]
   tags                 Tag[]
 
   @@index([status])
@@ -4151,6 +4152,7 @@ model Contact {
 
   tags         ContactTag[]
   workflowRuns WorkflowRun[]
+  broadcastRecipients BroadcastRecipient[]
   submissions  Submission[]
   gateEntries  GateEntry[]
 
@@ -4512,4 +4514,118 @@ model FeatureRelease {
   updatedAt DateTime @updatedAt
 
   @@map("feature_release")
+}
+
+// ---------------------------------------------------------------------------
+// BROADCASTS - one message to many people, once.
+//
+// Not a workflow with one step, and the difference is the direction. A workflow starts
+// when something happens TO a person and walks them through it; a broadcast starts
+// when the owner decides, and fans out to everybody who matches a filter right then.
+//
+// THE RECIPIENTS ARE MATERIALISED when it is scheduled, not resolved at send time. An
+// audience query run at midnight would include people who opted in at 23:59, so the
+// count the owner approved and the number of messages actually sent would differ. The
+// one thing somebody wants to be certain of before sending to five thousand people is
+// how many five thousand is.
+enum BroadcastStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+  FAILED
+}
+
+enum BroadcastChannel {
+  EMAIL
+  WABA
+}
+
+enum BroadcastRecipientStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model Broadcast {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name    String
+  channel BroadcastChannel
+
+  /// EMAIL
+  subject String?
+  body    String? @db.Text
+
+  /// WABA: an approved template name and the values for its numbered slots.
+  wabaTemplate String?
+  wabaLang     String  @default("en")
+  wabaVars     Json?
+
+  /// The filter that was chosen, kept for the record even after the recipients are
+  /// materialised: "who did this go to" is a question asked months later, and a list
+  /// of ids does not answer it the way "everyone tagged hot who finished the audit"
+  /// does.
+  audience Json?
+
+  status      BroadcastStatus @default(DRAFT)
+  /// When it should start going out. Null on a draft.
+  scheduledAt DateTime?
+
+  /// HOW FAST, and it is not a performance knob. A WhatsApp number is tiered at 1K,
+  /// 10K or 100K unique recipients per 24 hours with a per-second cap on top, and a
+  /// burst of blocks drops the quality rating, which drops the tier. So a broadcast
+  /// drains over minutes on purpose, and the default is deliberately unambitious.
+  ratePerMinute Int @default(60)
+
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  /// Tallies, kept on the row so the list does not count a million join rows to draw.
+  totalCount   Int @default(0)
+  sentCount    Int @default(0)
+  failedCount  Int @default(0)
+  skippedCount Int @default(0)
+
+  recipients BroadcastRecipient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([status, scheduledAt])
+  @@map("broadcast")
+}
+
+/// One person on one broadcast: the queue AND the record of what happened to them.
+model BroadcastRecipient {
+  id          String    @id @default(cuid())
+  broadcastId String
+  broadcast   Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  tenantId String
+
+  status    BroadcastRecipientStatus @default(PENDING)
+  /// Where it went, for the log. An email address or E.164 digits.
+  toAddress String?
+  error     String?
+  /// Why it was skipped, in plain words ("they unsubscribed before it went out").
+  skipReason String?
+  sentAt     DateTime?
+
+  createdAt DateTime @default(now())
+
+  /// One row per person per broadcast. The materialiser can be re-run after a failure
+  /// without queueing anybody twice.
+  @@unique([broadcastId, contactId])
+  @@index([broadcastId, status])
+  @@index([tenantId, createdAt])
+  @@map("broadcast_recipient")
 }
