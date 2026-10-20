@@ -110,7 +110,14 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     path.startsWith("/w/billing") || path.startsWith("/w/support") || path.startsWith("/w/onboarding");
   // An agency tenant cannot end its own lock, so billing is not an escape hatch for it -
   // only support and the export are, and both are already exempt above.
-  const locked = resolved.parked && !impersonating && !exemptWhileParked;
+  /**
+   * Parked, whatever route this is. The lock below is this AND "not an exempt route".
+   *
+   * Both are needed, and conflating them is how the parked workspace broke twice. This
+   * one is the state of the account; `locked` is a statement about this request only.
+   */
+  const parkedSession = resolved.parked && !impersonating;
+  const locked = parkedSession && !exemptWhileParked;
   const supportEmail = locked ? await supportEmailFor(tenantId) : null;
 
   /**
@@ -156,11 +163,21 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
    * step was dismissed. On every other page load it renders nothing.
    *
    * Never for an operator (a super admin inside a customer's workspace), never for
-   * view-only staff, and never while the workspace is locked - the questions are the
+   * view-only staff, and never for a PARKED workspace - the questions are the
    * customer's to answer, and a parked account has a plan to pick first.
+   *
+   * 🔴 `resolved.parked`, NOT `locked`. They are different questions and the difference
+   * is the whole trap. `parked` is the state of the ACCOUNT. `locked` is whether THIS
+   * ROUTE is withheld, and it is deliberately false on the three routes that are exempt
+   * while parked - billing above all, because that is where they pay.
+   *
+   * Gating this on `locked` therefore did the exact opposite of what the line above
+   * promises: the wizard was suppressed everywhere EXCEPT the pages a parked customer
+   * is sent to, so "What is your business called?" opened on top of the plan picker and
+   * covered it. A parked account has a plan to pick first, so ask nothing until it has.
    */
   const onboarding =
-    impersonating || staff || locked ? null : await getOnboardingView(tenantId, user.id);
+    impersonating || staff || resolved.parked ? null : await getOnboardingView(tenantId, user.id);
   const starters = onboarding && !onboarding.complete ? await getStarterTemplates(tenantId) : [];
   // Fetched only for the step that needs it: the one-click connect reads the install's
   // Meta app config, and no other step has any use for it.
@@ -183,7 +200,13 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
             <AppBrand href="/w" subtitle={tenant?.name ?? "Workspace"} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <WorkspaceNav hidden={hiddenNav} badges={supportBadges} hardNav={locked} />
+            {/* hardNav keys off PARKED, not `locked`. A layout does not re-render on a
+                client navigation, so from an exempt page (billing, support) a soft link
+                to any other page would swap in that page's content while this layout
+                still held `locked: false` from the exempt render - walking a parked
+                workspace straight past the lock that is supposed to withhold it. Full
+                loads from the rail mean the layout decides again every time. */}
+            <WorkspaceNav hidden={hiddenNav} badges={supportBadges} hardNav={parkedSession} />
           </div>
           <div className="mt-auto">
             <SignOutButton />
