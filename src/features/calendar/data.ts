@@ -1,8 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
 import { formatIST } from "@/lib/date";
-import { tenantCanonicalOrigin } from "@/lib/seo/site";
 import {
   daySlots,
   horizonDateKeys,
@@ -184,26 +182,17 @@ export async function listAwaitingOutcome(tenantId: string, take = 20): Promise<
   return rows.map(toRow);
 }
 
-/** The workspace's origin, for showing a tenant their own booking link. */
-async function originFor(tenantId: string): Promise<string> {
-  const origin = await tenantCanonicalOrigin(tenantId).catch(() => null);
-  return origin ?? env.NEXT_PUBLIC_APP_URL;
-}
-
 export async function listBookingTypes(tenantId: string): Promise<BookingTypeRow[]> {
-  const [types, origin] = await Promise.all([
-    prisma.bookingType.findMany({
-      where: { tenantId },
-      orderBy: [{ active: "desc" }, { createdAt: "asc" }],
-      include: {
-        rules: { orderBy: [{ weekday: "asc" }, { startMin: "asc" }] },
-        exceptions: { orderBy: { date: "asc" } },
-        assessment: { select: { title: true } },
-        _count: { select: { appointments: true } },
-      },
-    }),
-    originFor(tenantId),
-  ]);
+  const types = await prisma.bookingType.findMany({
+    where: { tenantId },
+    orderBy: [{ active: "desc" }, { createdAt: "asc" }],
+    include: {
+      rules: { orderBy: [{ weekday: "asc" }, { startMin: "asc" }] },
+      exceptions: { orderBy: { date: "asc" } },
+      assessment: { select: { title: true } },
+      _count: { select: { appointments: true } },
+    },
+  });
 
   const upcoming = await prisma.appointment.groupBy({
     by: ["bookingTypeId"],
@@ -234,7 +223,12 @@ export async function listBookingTypes(tenantId: string): Promise<BookingTypeRow
     metaCancelledEvent: t.metaCancelledEvent,
     metaAttendedEvent: t.metaAttendedEvent,
     metaNoShowEvent: t.metaNoShowEvent,
-    publicUrl: `${origin}/b/${t.slug}`,
+    // A PATH, not a URL. The absolute link is composed in the browser from the origin
+    // being browsed (see funnel-links.tsx): the host serving this screen is the host
+    // that serves the booking page, on a custom domain as much as on the platform.
+    // Manufacturing one from the tenant slug printed a subdomain with no DNS behind it,
+    // and handed the owner a dead link.
+    publicPath: `/b/${t.slug}`,
     rules: t.rules.map((r) => ({ id: r.id, weekday: r.weekday, startMin: r.startMin, endMin: r.endMin })),
     exceptions: t.exceptions.map((e) => ({
       id: e.id,

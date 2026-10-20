@@ -3,7 +3,6 @@
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
 import { formatIST } from "@/lib/date";
 import { resolvePlan } from "@/lib/billing/plan-resolve";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
@@ -114,7 +113,11 @@ export async function bookSlot(input: unknown): Promise<ActionResult<BookingConf
         // Told only now that there is a booking to attach it to. On the slot picker the
         // meeting link would be a free consultation for anybody who opened the page.
         locationValue: bookingType.locationValue,
-        icsUrl: `${env.NEXT_PUBLIC_APP_URL}/api/calendar/event/${created.publicToken}.ics`,
+        // Relative, so the download is served by the host the respondent is already on.
+        // An absolute URL built from an env var would send somebody who booked on a
+        // tenant's own domain to the platform's, which is at best confusing and at
+        // worst not routable for them.
+        icsUrl: `/api/calendar/event/${created.publicToken}.ics`,
       },
     };
   } catch (e) {

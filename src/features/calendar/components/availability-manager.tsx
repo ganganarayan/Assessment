@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,14 +110,14 @@ export function AvailabilityManager({
   bookingTypes,
   assessments,
   adAccounts,
-  feedUrl,
+  feedPath,
   canEdit,
 }: {
   bookingTypes: BookingTypeRow[];
   assessments: PickerOption[];
   adAccounts: PickerOption[];
-  /** Null until somebody generates one, or when a view-only staff member is looking. */
-  feedUrl: string | null;
+  /** Null until somebody generates one. A path; made absolute below. */
+  feedPath: string | null;
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -125,7 +125,20 @@ export function AvailabilityManager({
   const [pending, start] = useTransition();
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [url, setUrl] = useState<string | null>(feedUrl);
+  const [path, setPath] = useState<string | null>(feedPath);
+
+  /**
+   * 🔴 Every absolute link on this screen is built from the origin being browsed, the
+   * same rule the funnel links follow. The server used to manufacture one from the
+   * tenant's slug and root domain, which printed apply-gita.orbitq-assess… - a host
+   * with no DNS behind it - and the owner copied a dead link out of their own app.
+   *
+   * Read after mount rather than during render, so the server and client markup agree.
+   */
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
+  const absolute = (p: string) => `${origin}${p}`;
+  const url = path ? absolute(path) : null;
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, done: string) =>
     start(async () => {
@@ -163,7 +176,7 @@ export function AvailabilityManager({
                   start(async () => {
                     const r = await rotateCalendarFeed();
                     if (r.ok && r.data) {
-                      setUrl(r.data.url);
+                      setPath(r.data.path);
                       setMsg("New link generated. The old one stops working now.");
                     } else if (!r.ok) {
                       setMsg(r.error);
@@ -185,7 +198,7 @@ export function AvailabilityManager({
                 start(async () => {
                   const r = await rotateCalendarFeed();
                   if (r.ok && r.data) {
-                    setUrl(r.data.url);
+                    setPath(r.data.path);
                     setMsg("Feed link generated.");
                   } else if (!r.ok) {
                     setMsg(r.error);
@@ -241,8 +254,8 @@ export function AvailabilityManager({
                     · {t.durationMin} min · {LOCATION_LABEL[t.locationKind]}
                   </span>
                 </h3>
-                <a href={t.publicUrl} target="_blank" rel="noreferrer" className="text-xs underline">
-                  {t.publicUrl}
+                <a href={t.publicPath} target="_blank" rel="noreferrer" className="text-xs underline">
+                  {origin ? absolute(t.publicPath) : t.publicPath}
                 </a>
                 <span className="text-xs text-[var(--muted-foreground)]">
                   {t.active ? "Taking bookings" : "Switched off"}

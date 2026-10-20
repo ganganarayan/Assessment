@@ -2,7 +2,6 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, configTenantOf } from "@/lib/tenant/acting";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
-import { env } from "@/lib/env";
 import type { Prisma } from "@prisma/client";
 import {
   bookingPickers,
@@ -77,7 +76,9 @@ export interface AvailabilityPageProps {
   bookingTypes: BookingTypeRow[];
   assessments: PickerOption[];
   adAccounts: PickerOption[];
-  feedUrl: string | null;
+  /** The feed's PATH, or null until one is generated. Made absolute in the browser,
+   *  like every other link the owner copies out of this app. */
+  feedPath: string | null;
   canEdit: boolean;
 }
 
@@ -99,10 +100,8 @@ export async function availabilityPageProps(): Promise<AvailabilityPageProps> {
     assessments: pickers.assessments,
     adAccounts: pickers.adAccounts,
     // Read here rather than minted: generating a credential is a write, and a page
-    // render must not perform one. The Rotate button mints the first one.
-    feedUrl: setting?.calendarFeedToken
-      ? `${env.NEXT_PUBLIC_APP_URL}/api/calendar/${setting.calendarFeedToken}.ics`
-      : null,
+    // render must not perform one. The Generate button mints the first one.
+    feedPath: setting?.calendarFeedToken ? `/api/calendar/${setting.calendarFeedToken}.ics` : null,
     canEdit: scope.canEdit,
   };
 }

@@ -4,7 +4,6 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
 import { resolveActingScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
 import { appSettingWhere, tenantAppSettingId } from "@/lib/settings/tenant-row";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -443,7 +442,7 @@ export async function markAttendance(
  * end, so rotating the token is what takes a leaked subscription away. The page reads
  * the existing token itself - rendering a page must not mint a credential.
  */
-export async function rotateCalendarFeed(): Promise<ActionResult<{ url: string }>> {
+export async function rotateCalendarFeed(): Promise<ActionResult<{ path: string }>> {
   const auth = await editor();
   if ("error" in auth) return { ok: false, error: auth.error };
   const token = randomBytes(24).toString("hex");
@@ -453,5 +452,8 @@ export async function rotateCalendarFeed(): Promise<ActionResult<{ url: string }
     create: { id: tenantAppSettingId(auth.tenantId), tenantId: auth.tenantId, calendarFeedToken: token },
   });
   refresh();
-  return { ok: true, data: { url: `${env.NEXT_PUBLIC_APP_URL}/api/calendar/${token}.ics` } };
+  // A path, made absolute in the browser against the origin the owner is on. The feed
+  // resolves by token on any host this app serves, so the host they are already using
+  // is the one that certainly works for them.
+  return { ok: true, data: { path: `/api/calendar/${token}.ics` } };
 }

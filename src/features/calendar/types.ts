@@ -113,9 +113,11 @@ export interface BookingTypeRow {
   metaCancelledEvent: string;
   metaAttendedEvent: string;
   metaNoShowEvent: string;
-  /** The public URL, built on the server from the request's own host so a tenant on a
-   *  custom domain is shown their own link rather than the platform's. */
-  publicUrl: string;
+  /** The booking page's PATH. The absolute link is composed in the browser from the
+   *  origin being browsed, never manufactured from the tenant's slug or domain list:
+   *  whatever host serves this screen serves the booking page. Same rule as the funnel
+   *  links, and skipping it printed a subdomain that did not resolve. */
+  publicPath: string;
   rules: { id: string; weekday: number; startMin: number; endMin: number }[];
   exceptions: {
     id: string;
