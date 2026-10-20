@@ -268,14 +268,7 @@ export async function pullAiCostDay(day: string): Promise<{ written: string[]; s
   return { written, skipped, failed };
 }
 
-/**
- * This product's real cost for a day: the bill, times our key's share of the tokens.
- *
- * Zero total tokens with a non-zero bill means the usage report had nothing to split
- * by, so the whole bill is taken as ours. Understating here would hide real money.
- */
-export function ourMicroUsd(row: { billedMicroUsd: number; scopeTokens: number; totalTokens: number }): number {
-  if (row.totalTokens <= 0) return row.billedMicroUsd;
-  if (row.scopeTokens >= row.totalTokens) return row.billedMicroUsd;
-  return Math.round((row.billedMicroUsd * row.scopeTokens) / row.totalTokens);
-}
+// ourMicroUsd moved to lib/billing/ai-apportion.ts: it is arithmetic, and this module
+// is server-only, which put it out of reach of a build-time check. Re-exported here so
+// every existing caller keeps working.
+export { ourMicroUsd } from "@/lib/billing/ai-apportion";
