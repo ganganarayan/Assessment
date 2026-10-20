@@ -1,10 +1,12 @@
 /**
- * Send every automation message that is due. Run by Railway Cron, every minute:
- *   npm run cron:automations
+ * Send every automation message that is due, once, and exit.
  *
- * A reminder is due at a time, so the resolution of this schedule IS the punctuality of
- * every reminder in the product. Every minute costs one indexed query against
- * (status, dueAt) when there is nothing to do.
+ * 🟡 OPTIONAL, and not how reminders normally go out: the app carries its own scheduler
+ * (lib/automation/scheduler.ts), started on every server boot, because the product
+ * cannot depend on an external cron being configured for thousands of tenants. This
+ * script is for draining the queue by hand, or from any scheduler somebody does happen
+ * to have:
+ *   npm run cron:automations
  */
 import { runDueAutomations } from "../src/lib/automation/run";
 

@@ -56,6 +56,8 @@ export function CalendarBoard({
   rows,
   awaitingOutcome,
   bookingTypes,
+  staff,
+  who,
   canEdit,
   basePath,
 }: {
@@ -68,6 +70,10 @@ export function CalendarBoard({
   rows: AppointmentRow[];
   awaitingOutcome: AppointmentRow[];
   bookingTypes: BookingTypeOption[];
+  /** Everybody whose calendar this workspace runs. */
+  staff: PickerOption[];
+  /** The filter in force: "all", "shared", or a staff id. */
+  who: string;
   canEdit: boolean;
   /** "/w/calendar" or "/admin/calendar", so the same board serves both rails. */
   basePath: string;
@@ -176,25 +182,50 @@ export function CalendarBoard({
         <h2 className="text-lg font-semibold">{monthLabel}</h2>
         <div className="flex items-center gap-2">
           <Link
-            href={`${basePath}?m=${prevMonth}`}
+            href={`${basePath}?m=${prevMonth}&who=${who}`}
             className="rounded-md border px-3 py-1.5 text-sm hover:bg-[var(--muted)]"
           >
             Previous
           </Link>
           <Link
-            href={`${basePath}?m=${todayMonth}`}
+            href={`${basePath}?m=${todayMonth}&who=${who}`}
             className="rounded-md border px-3 py-1.5 text-sm hover:bg-[var(--muted)]"
           >
             Today
           </Link>
           <Link
-            href={`${basePath}?m=${nextMonth}`}
+            href={`${basePath}?m=${nextMonth}&who=${who}`}
             className="rounded-md border px-3 py-1.5 text-sm hover:bg-[var(--muted)]"
           >
             Next
           </Link>
         </div>
       </div>
+
+      {/* Whose calendar. Shown only once there is more than one person to choose
+          between: a one-person workspace has no filter to offer and no decision to
+          make, and a row of chips saying "Everyone" would be furniture. */}
+      {staff.length > 1 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-[var(--muted-foreground)]">Calendar</span>
+          {[
+            { key: "all", label: "Everyone" },
+            ...staff.map((s) => ({ key: s.id, label: s.label })),
+            { key: "shared", label: "Workspace" },
+          ].map((opt) => (
+            <Link
+              key={opt.key}
+              href={`${basePath}?m=${monthKey}&who=${opt.key}`}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs",
+                who === opt.key ? "border-green-600 bg-green-600/10 font-medium" : "hover:bg-[var(--muted)]",
+              )}
+            >
+              {opt.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
 
       <p className="text-xs text-[var(--muted-foreground)]">
         Click a booking to open it. Click any empty day to add one.
@@ -225,6 +256,7 @@ export function CalendarBoard({
           <AppointmentForm
             dateKey={open.dateKey}
             bookingTypes={bookingTypes}
+            staff={staff}
             pending={pending}
             onSubmit={(values) => run(() => createManualAppointment(values), "Added to the calendar.")}
           />
@@ -491,6 +523,8 @@ function AppointmentDialog({
           <dd>{row.startLabel} IST</dd>
           <dt className="text-[var(--muted-foreground)]">What</dt>
           <dd>{row.bookingTypeName ?? "Blocked out time"}</dd>
+          <dt className="text-[var(--muted-foreground)]">Calendar</dt>
+          <dd>{row.assignedUserName ?? "Workspace"}</dd>
           {row.attendeeEmail ? (
             <>
               <dt className="text-[var(--muted-foreground)]">Email</dt>
@@ -588,6 +622,7 @@ function AppointmentDialog({
               <AppointmentForm
                 dateKey={row.dateKey}
                 bookingTypes={[]}
+                staff={[]}
                 pending={pending}
                 initial={row}
                 onSubmit={(values) =>
@@ -609,6 +644,7 @@ function AppointmentDialog({
 
 interface FormValues {
   bookingTypeId: string;
+  assignedUserId: string;
   date: string;
   start: string;
   end: string;
@@ -622,18 +658,21 @@ interface FormValues {
 function AppointmentForm({
   dateKey,
   bookingTypes,
+  staff,
   pending,
   initial,
   onSubmit,
 }: {
   dateKey: string;
   bookingTypes: BookingTypeOption[];
+  staff: PickerOption[];
   pending: boolean;
   initial?: AppointmentRow;
   onSubmit: (values: FormValues) => void;
 }) {
   const [values, setValues] = useState<FormValues>({
     bookingTypeId: initial?.bookingTypeId ?? "",
+    assignedUserId: initial?.assignedUserId ?? "",
     date: initial?.dateKey ?? dateKey,
     start: initial?.timeLabel ?? "10:00",
     end: "",
@@ -677,6 +716,27 @@ function AppointmentForm({
           </select>
         </div>
       )}
+
+      {/* Whose time is being blocked. Only for a BLOCK: a booking belongs to the
+          calendar its link sells, which is why the picker disappears the moment a link
+          is chosen rather than offering a contradiction. */}
+      {!initial && !values.bookingTypeId && staff.length > 1 ? (
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Whose calendar</Label>
+          <select
+            className="h-9 rounded-md border bg-[var(--background)] px-2 text-sm text-[var(--foreground)]"
+            value={values.assignedUserId}
+            onChange={(e) => set({ assignedUserId: e.target.value })}
+          >
+            <option value="">The workspace calendar</option>
+            {staff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1">

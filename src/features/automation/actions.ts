@@ -68,7 +68,7 @@ export async function saveAutomation(
     offsetMin: v.trigger === "APPOINTMENT_REMINDER" ? v.offsetMin : 0,
     active: v.active,
   };
-  const actions = v.actions.map((a, i) => ({
+  const fields = (a: (typeof v.actions)[number], i: number) => ({
     displayOrder: i,
     channel: a.channel,
     subject: a.channel === "EMAIL" ? a.subject : null,
@@ -76,19 +76,37 @@ export async function saveAutomation(
     wabaTemplate: a.channel === "WABA" ? a.wabaTemplate : null,
     wabaLang: a.wabaLang || "en",
     wabaVars: a.channel === "WABA" ? a.wabaVars : [],
-  }));
+  });
 
   if (automationId) {
     const existing = await prisma.automation.findFirst({
       where: { id: automationId, tenantId: auth.tenantId },
-      select: { id: true },
+      select: { id: true, actions: { select: { id: true } } },
     });
     if (!existing) return { ok: false, error: "That automation is not in this workspace." };
+
+    // Only ids that really belong to THIS automation count as an update; anything else
+    // arriving in the form is treated as a new message rather than trusted as a target.
+    const owned = new Set(existing.actions.map((a) => a.id));
+    const keep = v.actions.map((a) => (a.id && owned.has(a.id) ? a.id : null));
+
+    /**
+     * Updated in place, not replaced.
+     *
+     * Each message keeps its row, so its lifetime counters and its 30 days of sends stay
+     * attached to it through every edit. A message REMOVED from the form is deleted, and
+     * its statistics go with it - which is right: the message is gone.
+     */
     await prisma.$transaction([
-      prisma.automationAction.deleteMany({ where: { automationId } }),
-      prisma.automation.update({
-        where: { id: automationId },
-        data: { ...base, actions: { create: actions } },
+      prisma.automationAction.deleteMany({
+        where: { automationId, id: { notIn: keep.filter((id): id is string => id !== null) } },
+      }),
+      prisma.automation.update({ where: { id: automationId }, data: base }),
+      ...v.actions.map((a, i) => {
+        const id = keep[i];
+        return id
+          ? prisma.automationAction.update({ where: { id }, data: fields(a, i) })
+          : prisma.automationAction.create({ data: { automationId, ...fields(a, i) } });
       }),
     ]);
     refresh();
@@ -96,7 +114,7 @@ export async function saveAutomation(
   }
 
   const created = await prisma.automation.create({
-    data: { ...base, tenantId: auth.tenantId, actions: { create: actions } },
+    data: { ...base, tenantId: auth.tenantId, actions: { create: v.actions.map(fields) } },
     select: { id: true },
   });
   refresh();

@@ -14,6 +14,7 @@
 import {
   IST_OFFSET_MIN,
   addDays,
+  calendarKey,
   daySlots,
   hhmmToMinutes,
   horizonDateKeys,
@@ -184,13 +185,35 @@ check("a zero-length call offers nothing rather than looping", daySlots({ ...bas
 /* ------------------------------------------------------------- slot lock --- */
 
 console.log("\nDouble-booking guard");
-const lockA = slotLockFor("tnt_1", new Date(utcMsFor("2026-10-20", 600)));
+const lockA = slotLockFor("tnt_1", "usr_asha", new Date(utcMsFor("2026-10-20", 600)));
 check(
-  "the lock is the same string for the same workspace and instant",
-  lockA === slotLockFor("tnt_1", utcMsFor("2026-10-20", 600)),
+  "the lock is the same string for the same calendar and instant",
+  lockA === slotLockFor("tnt_1", "usr_asha", utcMsFor("2026-10-20", 600)),
 );
-check("another workspace at the same instant is a different lock", lockA !== slotLockFor("tnt_2", utcMsFor("2026-10-20", 600)));
-check("a different time is a different lock", lockA !== slotLockFor("tnt_1", utcMsFor("2026-10-20", 630)));
+check(
+  "another workspace at the same instant is a different lock",
+  lockA !== slotLockFor("tnt_2", "usr_asha", utcMsFor("2026-10-20", 600)),
+);
+check(
+  "a different time is a different lock",
+  lockA !== slotLockFor("tnt_1", "usr_asha", utcMsFor("2026-10-20", 630)),
+);
+// The point of per-staff calendars: two people CAN hold the same hour, and one of them
+// cannot hold it twice - including through two different booking links of their own.
+check(
+  "a second staff member can hold the same instant",
+  lockA !== slotLockFor("tnt_1", "usr_bina", utcMsFor("2026-10-20", 600)),
+);
+check(
+  "the shared calendar is its own diary, not everybody's",
+  lockA !== slotLockFor("tnt_1", null, utcMsFor("2026-10-20", 600)) &&
+    slotLockFor("tnt_1", null, utcMsFor("2026-10-20", 600)) ===
+      slotLockFor("tnt_1", undefined, utcMsFor("2026-10-20", 600)),
+);
+check(
+  "the calendar key is what the lock is built from",
+  lockA.startsWith(calendarKey("tnt_1", "usr_asha")),
+);
 
 /* ------------------------------------------------------------------- ics --- */
 

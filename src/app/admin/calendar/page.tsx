@@ -11,10 +11,10 @@ export const dynamic = "force-dynamic";
 export default async function AdminCalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ m?: string }>;
+  searchParams: Promise<{ m?: string; who?: string }>;
 }) {
-  const { m } = await searchParams;
-  const props = await calendarPageProps(m);
+  const { m, who } = await searchParams;
+  const props = await calendarPageProps(m, who);
 
   return (
     <div className="flex flex-col gap-6">

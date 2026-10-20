@@ -86,6 +86,8 @@ function toRow(a: {
   reportedBookedAt: Date | null;
   reportedAttendedAt: Date | null;
   reportedNoShowAt: Date | null;
+  assignedUserId: string | null;
+  assignedUser: { name: string } | null;
   bookingType: { id: string; name: string; locationKind: string; locationValue: string | null } | null;
 }): AppointmentRow {
   return {
@@ -108,6 +110,8 @@ function toRow(a: {
     locationValue: a.bookingType?.locationValue ?? null,
     submissionId: a.submissionId,
     isPreview: a.isPreview,
+    assignedUserId: a.assignedUserId,
+    assignedUserName: a.assignedUser?.name ?? null,
     metaBooked: a.reportedBookedAt != null,
     metaOutcome: a.reportedAttendedAt != null || a.reportedNoShowAt != null,
   };
@@ -129,6 +133,8 @@ const ROW_SELECT = {
   reportedBookedAt: true,
   reportedAttendedAt: true,
   reportedNoShowAt: true,
+  assignedUserId: true,
+  assignedUser: { select: { name: true } },
   bookingType: { select: { id: true, name: true, locationKind: true, locationValue: true } },
 } as const;
 
@@ -139,14 +145,19 @@ const ROW_SELECT = {
  * see that the 11:00 call was called off has no way to tell it apart from a slot that
  * was never booked, and that is the difference between a quiet week and a problem.
  */
-export async function listMonthAppointments(tenantId: string, monthKey: string): Promise<AppointmentRow[]> {
+export async function listMonthAppointments(
+  tenantId: string,
+  monthKey: string,
+  /** Whose calendar to show. undefined = everybody, which is the owner default. */
+  assignedUserId?: string | null,
+): Promise<AppointmentRow[]> {
   if (!isMonthKey(monthKey)) return [];
   // Bounded by the first instant of this IST month and of the next one, so a booking at
   // 23:30 IST on the last day of the month lands in the month its owner calls it.
   const gte = new Date(utcMsFor(`${monthKey}-01`, 0));
   const lt = new Date(utcMsFor(`${shiftMonth(monthKey, 1)}-01`, 0));
   const rows = await prisma.appointment.findMany({
-    where: { tenantId, startAt: { gte, lt } },
+    where: { tenantId, startAt: { gte, lt }, ...(assignedUserId === undefined ? {} : { assignedUserId }) },
     orderBy: { startAt: "asc" },
     select: ROW_SELECT,
     take: 1000,
@@ -172,9 +183,19 @@ export async function listUpcomingAppointments(tenantId: string, take = 10): Pro
  * owner who is never shown "you have four calls to mark" marks none of them, which
  * leaves the ad account with bookings and no outcomes.
  */
-export async function listAwaitingOutcome(tenantId: string, take = 20): Promise<AppointmentRow[]> {
+export async function listAwaitingOutcome(
+  tenantId: string,
+  take = 20,
+  assignedUserId?: string | null,
+): Promise<AppointmentRow[]> {
   const rows = await prisma.appointment.findMany({
-    where: { tenantId, status: "BOOKED", source: "BOOKING", endAt: { lt: new Date() } },
+    where: {
+      tenantId,
+      status: "BOOKED",
+      source: "BOOKING",
+      endAt: { lt: new Date() },
+      ...(assignedUserId === undefined ? {} : { assignedUserId }),
+    },
     orderBy: { startAt: "desc" },
     take,
     select: ROW_SELECT,
@@ -190,6 +211,7 @@ export async function listBookingTypes(tenantId: string): Promise<BookingTypeRow
       rules: { orderBy: [{ weekday: "asc" }, { startMin: "asc" }] },
       exceptions: { orderBy: { date: "asc" } },
       assessment: { select: { title: true } },
+      assignedUser: { select: { name: true } },
       _count: { select: { appointments: true } },
     },
   });
@@ -217,6 +239,8 @@ export async function listBookingTypes(tenantId: string): Promise<BookingTypeRow
     active: t.active,
     assessmentId: t.assessmentId,
     assessmentTitle: t.assessment?.title ?? null,
+    assignedUserId: t.assignedUserId,
+    assignedUserName: t.assignedUser?.name ?? null,
     adAccountId: t.adAccountId,
     fireMetaCapi: t.fireMetaCapi,
     metaBookedEvent: t.metaBookedEvent,
@@ -278,10 +302,17 @@ export async function busyIntervals(
   tenantId: string,
   fromMs: number,
   toMs: number,
+  /** Whose diary. Null is the workspace's shared calendar, which is its own diary and
+   *  not "everybody's": a shared-calendar booking does not block a staff member's. */
+  assignedUserId: string | null = null,
 ): Promise<(BusyInput & { isBooking: boolean })[]> {
   const rows = await prisma.appointment.findMany({
     where: {
       tenantId,
+      // 🔴 Scoped to ONE calendar. Across the whole workspace it would mean one staff
+      // member's 11:00 makes every other staff member unbookable at 11:00, which is the
+      // opposite of what separate calendars are for.
+      assignedUserId,
       status: { not: "CANCELLED" },
       startAt: { lt: new Date(toMs) },
       endAt: { gt: new Date(fromMs) },
@@ -302,6 +333,8 @@ export async function busyIntervals(
 interface SlotSource {
   id: string;
   tenantId: string;
+  /** Whose calendar this link sells time in. Null is the workspace shared one. */
+  assignedUserId: string | null;
   durationMin: number;
   bufferMin: number;
   slotStepMin: number;
@@ -327,7 +360,12 @@ export async function openSlotsByDate(
   const dateKeys = horizonDateKeys(nowMs, source.horizonDays);
   const firstKey = dateKeys[0] as string;
   const lastKey = dateKeys[dateKeys.length - 1] as string;
-  const busy = await busyIntervals(source.tenantId, utcMsFor(firstKey, 0), utcMsFor(lastKey, 1440));
+  const busy = await busyIntervals(
+    source.tenantId,
+    utcMsFor(firstKey, 0),
+    utcMsFor(lastKey, 1440),
+    source.assignedUserId,
+  );
 
   // Live bookings per IST date, for the per-day cap. Counted from the same busy rows
   // rather than a second query: the cap is about this workspace's day, which is what
@@ -375,6 +413,7 @@ export async function bookingTypeBySlug(slug: string) {
 function slotSourceOf(t: {
   id: string;
   tenantId: string;
+  assignedUserId: string | null;
   durationMin: number;
   bufferMin: number;
   slotStepMin: number;
@@ -387,6 +426,7 @@ function slotSourceOf(t: {
   return {
     id: t.id,
     tenantId: t.tenantId,
+    assignedUserId: t.assignedUserId,
     durationMin: t.durationMin,
     bufferMin: t.bufferMin,
     slotStepMin: t.slotStepMin,
@@ -432,4 +472,19 @@ export async function publicBookingView(slug: string, nowMs = Date.now()): Promi
     days,
     hostName: t.tenant.name,
   };
+}
+
+/**
+ * The people whose calendars this workspace runs: everybody who can be assigned a
+ * booking link. Includes the owner, since a one-person workspace is the common case and
+ * "assign it to me" has to be sayable.
+ */
+export async function calendarStaff(tenantId: string): Promise<PickerOption[]> {
+  const rows = await prisma.user.findMany({
+    where: { tenantId, deletedAt: null },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, email: true },
+    take: 200,
+  });
+  return rows.map((u) => ({ id: u.id, label: u.name?.trim() || u.email }));
 }

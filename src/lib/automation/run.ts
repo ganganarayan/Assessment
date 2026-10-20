@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { formatISTDate } from "@/lib/date";
-import { sendTrackedEmail, sendWaba } from "@/lib/nurture/send";
+import { sendTrackedEmailWithLog, sendWaba } from "@/lib/nurture/send";
 import { wabaVisible } from "@/lib/nurture/waba-visible";
 import { resolveWabaConfig } from "@/lib/settings/config";
 import { fillPlaceholders, toE164Digits, type LeadFields } from "@/features/nurture/config";
@@ -49,6 +49,52 @@ async function outboundOrigin(tenantId: string): Promise<string> {
     })
     .catch(() => null);
   return domain ? `https://${domain.hostname}` : env.NEXT_PUBLIC_APP_URL;
+}
+
+/**
+ * Write down what happened to ONE message: a row for the last 30 days, and a tick on
+ * the lifetime counter that outlives it.
+ *
+ * Both, deliberately. The row answers "what went to this person and did it bounce",
+ * which is only interesting while it is recent; the counter answers "is this message
+ * working", which must not reset to zero every month when the rows behind it are swept.
+ *
+ * Never throws: a statistic is not worth failing a send that already happened.
+ */
+async function recordSend(args: {
+  tenantId: string;
+  automationId: string;
+  actionId: string;
+  runId: string;
+  channel: "EMAIL" | "WABA";
+  status: "SENT" | "FAILED" | "SKIPPED";
+  toAddress?: string | null;
+  error?: string | null;
+  nurtureLogId?: string | null;
+}): Promise<void> {
+  try {
+    await prisma.automationSend.create({
+      data: {
+        tenantId: args.tenantId,
+        automationId: args.automationId,
+        actionId: args.actionId,
+        runId: args.runId,
+        channel: args.channel,
+        status: args.status,
+        toAddress: args.toAddress ?? null,
+        error: args.error?.slice(0, 500) ?? null,
+        nurtureLogId: args.nurtureLogId ?? null,
+      },
+    });
+    const field =
+      args.status === "SENT" ? "sentCount" : args.status === "FAILED" ? "failedCount" : "skippedCount";
+    await prisma.automationAction.update({
+      where: { id: args.actionId },
+      data: { [field]: { increment: 1 } },
+    });
+  } catch (e) {
+    console.error("[automation] recording a send failed:", e instanceof Error ? e.message : String(e));
+  }
 }
 
 /** Claim one PENDING run for this worker. False when somebody else got there first. */
@@ -182,15 +228,41 @@ export async function processRun(runId: string): Promise<"sent" | "failed" | "sk
   for (const action of automation.actions) {
     if (action.channel === "EMAIL") {
       const to = (lead.email ?? "").trim();
-      if (!to) continue; // no address: nothing to send to, and not a failure
+      if (!to) {
+        // No address. Not a failure, and worth counting: a rule that keeps skipping is
+        // a rule pointed at a funnel that does not collect an email.
+        await recordSend({
+          tenantId: run.tenantId,
+          automationId: automation.id,
+          actionId: action.id,
+          runId: run.id,
+          channel: "EMAIL",
+          status: "SKIPPED",
+          error: "No email address on this booking.",
+        });
+        continue;
+      }
       nobodyToReach = false;
-      const err = await sendTrackedEmail(
+      const { error: err, logId } = await sendTrackedEmailWithLog(
         run.tenantId,
         appointment.submissionId,
         to,
         fillPlaceholders(action.subject ?? "", lead, extra),
         fillPlaceholders(action.body ?? "", lead, extra),
       );
+      await recordSend({
+        tenantId: run.tenantId,
+        automationId: automation.id,
+        actionId: action.id,
+        runId: run.id,
+        channel: "EMAIL",
+        status: err ? "FAILED" : "SENT",
+        toAddress: to,
+        error: err,
+        // The id baked into this email's links, so a click on it can be traced back to
+        // this message rather than to "an email we sent that month".
+        nurtureLogId: logId,
+      });
       if (err) errors.push(`Email: ${err}`);
       else sentAny = true;
       continue;
@@ -198,10 +270,32 @@ export async function processRun(runId: string): Promise<"sent" | "failed" | "sk
 
     // WhatsApp. Parked means parked: a workspace that cannot see the feature must not
     // keep sending through it, the same rule the nurture sender follows.
-    if (!(await wabaVisible(run.tenantId))) continue;
+    if (!(await wabaVisible(run.tenantId))) {
+      await recordSend({
+        tenantId: run.tenantId,
+        automationId: automation.id,
+        actionId: action.id,
+        runId: run.id,
+        channel: "WABA",
+        status: "SKIPPED",
+        error: "WhatsApp is not switched on for this workspace.",
+      });
+      continue;
+    }
     const waba = await resolveWabaConfig(run.tenantId);
     const digits = toE164Digits(lead.mobile, waba.defaultCountryCode);
-    if (!digits) continue;
+    if (!digits) {
+      await recordSend({
+        tenantId: run.tenantId,
+        automationId: automation.id,
+        actionId: action.id,
+        runId: run.id,
+        channel: "WABA",
+        status: "SKIPPED",
+        error: "No usable mobile number on this booking.",
+      });
+      continue;
+    }
     nobodyToReach = false;
     const vars = (Array.isArray(action.wabaVars) ? (action.wabaVars as unknown[]) : [])
       .map((v) => (typeof v === "string" ? v : ""))
@@ -219,6 +313,16 @@ export async function processRun(runId: string): Promise<"sent" | "failed" | "sk
         },
       })
       .catch(() => {});
+    await recordSend({
+      tenantId: run.tenantId,
+      automationId: automation.id,
+      actionId: action.id,
+      runId: run.id,
+      channel: "WABA",
+      status: err ? "FAILED" : "SENT",
+      toAddress: digits,
+      error: err,
+    });
     if (err) errors.push(`WhatsApp: ${err}`);
     else sentAny = true;
   }

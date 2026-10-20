@@ -539,6 +539,10 @@ model User {
   createdAssessments Assessment[]
   supportRequests    SupportRequest[]
   supportMessages    SupportMessage[]
+  /// This staff member's own calendar: the booking links that sell their time, and the
+  /// appointments sitting in their diary.
+  bookingTypes       BookingType[]    @relation("StaffBookingTypes")
+  appointments       Appointment[]    @relation("StaffAppointments")
 
   @@index([tenantId])
   @@map("user")
@@ -3521,10 +3525,21 @@ model BookingType {
   adAccountId String?
   adAccount   AdAccount? @relation(fields: [adAccountId], references: [id], onDelete: Restrict)
 
-  /// Reserved for per-staff calendars. One shared workspace calendar ships first; when
-  /// staff calendars arrive, a booking type names whose time it sells and nothing else
-  /// in this model has to change.
+  /// WHOSE time this link sells.
+  ///
+  /// One link per staff member: the hours on it are that person's hours, the slots it
+  /// offers are free in that person's diary, and a lead who opens it books that person.
+  /// There is no pooling or round-robin - a slot belongs to one calendar.
+  ///
+  /// Null is the workspace's own shared calendar, which is what every link created
+  /// before staff calendars existed is, and what a one-person workspace keeps using
+  /// without ever meeting the idea of an assignee.
+  ///
+  /// SetNull rather than Restrict because a staff member is soft-deleted here (the row
+  /// stays), so Restrict would never fire and would only be a promise the database
+  /// cannot keep. An unassigned link is visibly unassigned on the availability screen.
   assignedUserId String?
+  assignedUser   User?   @relation("StaffBookingTypes", fields: [assignedUserId], references: [id], onDelete: SetNull)
 
   /// Master switch for the Meta side of this booking type. Off means the calendar still
   /// works and the webhooks still fire, and nothing reaches the ad account.
@@ -3625,8 +3640,15 @@ model Appointment {
   submissionId String?
   submission   Submission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
 
-  /// Reserved for per-staff calendars, like BookingType.assignedUserId.
+  /// WHICH calendar this sits in: the staff member the booking link belongs to, or null
+  /// for the workspace's shared one. Stamped at booking time from the link rather than
+  /// read through it, because the link can be reassigned later and a past appointment
+  /// belongs to the diary it was actually in.
+  ///
+  /// It is also half of the double-booking key (see slotLock): two staff members can
+  /// each take 11:00, and one of them cannot take it twice.
   assignedUserId String?
+  assignedUser   User?   @relation("StaffAppointments", fields: [assignedUserId], references: [id], onDelete: SetNull)
 
   /// Meta match signals, snapshotted at booking time.
   ///
@@ -3815,6 +3837,7 @@ model Automation {
 
   actions AutomationAction[]
   runs    AutomationRun[]
+  sends   AutomationSend[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3850,6 +3873,19 @@ model AutomationAction {
   /// Ordered values for the template's {{1}}, {{2}} … Each is literal text or a
   /// placeholder, resolved at send time.
   wabaVars     Json?
+
+  /// LIFETIME tallies for this one message, so the builder can say what it has
+  /// actually done. Counters rather than a COUNT over the log, because the log keeps
+  /// 30 days and "sent 4 in the last month" is a different question from "sent 1,482
+  /// since you wrote it" - the page shows both and they are both true.
+  sentCount    Int @default(0)
+  failedCount  Int @default(0)
+  skippedCount Int @default(0)
+  /// First clicks on a link in this email, credited by the click redirect (/e/c).
+  /// Zero forever for WhatsApp, which has no click tracking of ours.
+  clickCount   Int @default(0)
+
+  sends AutomationSend[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3939,4 +3975,55 @@ model AiUsage {
   @@index([tenantId, createdAt])
   @@index([createdAt])
   @@map("ai_usage")
+}
+
+/// One attempt to deliver one message of one automation, kept for 30 days.
+///
+/// 🔴 KEYED ON THE ACTION, which is why saving an automation no longer deletes and
+/// recreates its actions. An action's id IS the identity of that message: "the reminder
+/// email" has to keep its numbers when its wording is edited, or every stat on the page
+/// resets the first time somebody fixes a typo.
+///
+/// The row is pruned after 30 days; the lifetime counters on the action are not, so the
+/// page can say both "sent 1,482 of these" and "here are the last 30 days".
+model AutomationSend {
+  id       String @id @default(cuid())
+  tenantId String
+
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  actionId String
+  action   AutomationAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  /// The firing this belonged to. A plain reference, no FK: runs are pruned on their
+  /// own schedule and a send must not disappear with one.
+  runId String?
+
+  channel AutomationChannel
+  status  AutomationSendStatus
+
+  /// Where it went: an email address or E.164 digits. Kept so a bounce can be traced
+  /// to the address it was actually sent to rather than to whatever the lead holds now.
+  toAddress String?
+  error     String?
+
+  /// The NurtureLog row this email became, so a click on it (NurtureLog.clickedAt) is
+  /// attributable back to the message that earned it. Null for WhatsApp, which has no
+  /// click tracking of ours.
+  nurtureLogId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([actionId, createdAt])
+  @@index([tenantId, createdAt])
+  /// The retention sweep's index: delete where createdAt < 30 days ago.
+  @@index([createdAt])
+  @@map("automation_send")
+}
+
+enum AutomationSendStatus {
+  SENT
+  FAILED
+  SKIPPED
 }

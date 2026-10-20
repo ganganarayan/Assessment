@@ -267,26 +267,41 @@ export function daySlots(input: DaySlotInput): Slot[] {
 }
 
 /**
+ * WHICH CALENDAR a booking belongs to: a staff member's own, or the workspace's shared
+ * one when nobody is assigned.
+ *
+ * One string, used as half of the double-booking key and as the filter on busy time, so
+ * the two can never disagree about what "the same diary" means.
+ */
+export function calendarKey(tenantId: string, assignedUserId: string | null | undefined): string {
+  return `${tenantId}:${assignedUserId ?? "shared"}`;
+}
+
+/**
  * The lock value that makes double booking impossible.
  *
  * Written into Appointment.slotLock (UNIQUE, nullable) while a booking is live and
  * nulled on cancel, so the database refuses the second of two simultaneous bookings of
  * one slot instead of both succeeding.
  *
- * 🔴 Keyed on the WORKSPACE and the start instant, NOT on the booking type. There is one
- * calendar per workspace, so two people booking a strategy call and a discovery call for
- * the same 11:00 are double-booking the same hour of the same person. The slot list
- * already refuses it (busy time is read across the whole workspace), but a list is
- * computed a moment before the write, and per-type locks would let two different types
- * through the gap. Per workspace, the second one loses at the database.
+ * 🔴 Keyed on the CALENDAR and the start instant, never on the booking type. Two staff
+ * members can each take 11:00 and that is the point of per-staff calendars; one of them
+ * cannot take it twice, including through two different booking links that happen to
+ * sell the same person's time. The slot list already refuses that (busy time is read per
+ * calendar), but a list is computed a moment before the write, and a per-link key would
+ * let two links through the gap.
  *
  * 🟡 What this still does not catch: two bookings that OVERLAP without starting at the
  * same instant (10:00 to 10:30 against 10:15 to 10:45), committed in the same instant.
- * It needs two booking types whose grids are offset and two people pressing at once, and
- * a unique index cannot express "overlaps". The slot computation is the defence there.
- * Per-staff calendars will add the staff id to this key rather than change its shape.
+ * It needs two booking links on one calendar whose grids are offset and two people
+ * pressing at once, and a unique index cannot express "overlaps". The slot computation
+ * is the defence there.
  */
-export function slotLockFor(tenantId: string, startAt: Date | number): string {
+export function slotLockFor(
+  tenantId: string,
+  assignedUserId: string | null | undefined,
+  startAt: Date | number,
+): string {
   const ms = startAt instanceof Date ? startAt.getTime() : startAt;
-  return `${tenantId}:${new Date(ms).toISOString()}`;
+  return `${calendarKey(tenantId, assignedUserId)}:${new Date(ms).toISOString()}`;
 }

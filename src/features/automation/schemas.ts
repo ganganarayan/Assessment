@@ -4,6 +4,15 @@ import { z } from "zod";
 
 export const automationActionSchema = z
   .object({
+    /**
+     * The existing message this edit is to, when there is one. Blank for a new one.
+     *
+     * 🔴 It is here so that saving an automation UPDATES its messages instead of
+     * replacing them. An action's id is the identity of that message, and every
+     * statistic hangs off it - delete and recreate, and "sent 1,482 of these" resets to
+     * zero the first time somebody fixes a typo in the subject line.
+     */
+    id: z.string().trim().max(60).optional().default(""),
     channel: z.enum(["EMAIL", "WABA"]),
     subject: z.string().trim().max(300).optional().default(""),
     body: z.string().trim().max(20000).optional().default(""),

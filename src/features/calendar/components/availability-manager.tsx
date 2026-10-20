@@ -45,6 +45,7 @@ interface FormValues {
   locationKind: BookingLocationKindValue;
   locationValue: string;
   active: boolean;
+  assignedUserId: string;
   assessmentId: string;
   adAccountId: string;
   fireMetaCapi: boolean;
@@ -67,6 +68,7 @@ const BLANK: FormValues = {
   locationKind: "MEET_LINK",
   locationValue: "",
   active: true,
+  assignedUserId: "",
   assessmentId: "",
   adAccountId: "",
   fireMetaCapi: true,
@@ -89,6 +91,7 @@ const valuesOf = (t: BookingTypeRow): FormValues => ({
   locationKind: t.locationKind,
   locationValue: t.locationValue ?? "",
   active: t.active,
+  assignedUserId: t.assignedUserId ?? "",
   assessmentId: t.assessmentId ?? "",
   adAccountId: t.adAccountId ?? "",
   fireMetaCapi: t.fireMetaCapi,
@@ -110,12 +113,15 @@ export function AvailabilityManager({
   bookingTypes,
   assessments,
   adAccounts,
+  staff,
   feedPath,
   canEdit,
 }: {
   bookingTypes: BookingTypeRow[];
   assessments: PickerOption[];
   adAccounts: PickerOption[];
+  /** Who a link can be assigned to: one calendar per staff member. */
+  staff: PickerOption[];
   /** Null until somebody generates one. A path; made absolute below. */
   feedPath: string | null;
   canEdit: boolean;
@@ -232,6 +238,7 @@ export function AvailabilityManager({
             initial={BLANK}
             assessments={assessments}
             adAccounts={adAccounts}
+            staff={staff}
             pending={pending}
             onSubmit={(v) => run(() => saveBookingType(toInput(v)), "Booking link created.")}
           />
@@ -258,6 +265,7 @@ export function AvailabilityManager({
                   {origin ? absolute(t.publicPath) : t.publicPath}
                 </a>
                 <span className="text-xs text-[var(--muted-foreground)]">
+                  {t.assignedUserName ? `${t.assignedUserName} · ` : ""}
                   {t.active ? "Taking bookings" : "Switched off"}
                   {t.upcomingCount > 0 ? ` · ${t.upcomingCount} upcoming` : ""}
                   {t.assessmentTitle ? ` · attached to ${t.assessmentTitle}` : ""}
@@ -286,6 +294,7 @@ export function AvailabilityManager({
                   initial={valuesOf(t)}
                   assessments={assessments}
                   adAccounts={adAccounts}
+                  staff={staff}
                   pending={pending}
                   onSubmit={(v) => run(() => saveBookingType(toInput(v), t.id), "Booking link saved.")}
                 />
@@ -416,12 +425,14 @@ function BookingTypeForm({
   initial,
   assessments,
   adAccounts,
+  staff,
   pending,
   onSubmit,
 }: {
   initial: FormValues;
   assessments: PickerOption[];
   adAccounts: PickerOption[];
+  staff: PickerOption[];
   pending: boolean;
   onSubmit: (values: FormValues) => void;
 }) {
@@ -511,6 +522,30 @@ function BookingTypeForm({
           />
         </div>
       </div>
+
+      {/* Whose calendar this link sells time in. One link per staff member: the hours on
+          it are that person's hours, and a lead who opens it books that person. */}
+      {staff.length > 1 ? (
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Whose calendar</Label>
+          <select
+            className="h-9 rounded-md border bg-[var(--background)] px-2 text-sm text-[var(--foreground)]"
+            value={v.assignedUserId}
+            onChange={(e) => set({ assignedUserId: e.target.value })}
+          >
+            <option value="">The workspace calendar</option>
+            {staff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-[var(--muted-foreground)]">
+            The hours below are this person&apos;s hours, and a slot is offered only when their own
+            diary is free. Two staff members can both be booked at 11:00.
+          </span>
+        </div>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">

@@ -27,3 +27,22 @@ export function reminderDueAt(startAt: Date, offsetMin: number): Date {
 export function isStillAhead(dueAt: Date, nowMs: number): boolean {
   return dueAt.getTime() > nowMs;
 }
+
+/** How much automation history is kept. Everything older is deleted by the sweep. */
+export const RETENTION_DAYS = 30;
+
+/**
+ * The run states the retention sweep is allowed to delete.
+ *
+ * 🔴 PENDING AND SENDING ARE NOT HERE, AND MUST NEVER BE. A reminder for a call three
+ * months out is queued the day the call is booked, so its row is older than the cutoff
+ * long before it is due. Sweeping by age alone would delete tomorrow's reminders, and
+ * nothing anywhere would say why they never arrived. Expressed as a list here, in a
+ * module with no database in it, so the rule can be checked rather than trusted.
+ */
+export const PRUNABLE_RUN_STATUSES = ["SENT", "FAILED", "SKIPPED", "CANCELLED"] as const;
+
+/** The instant before which history is deleted. */
+export function retentionCutoff(nowMs: number): Date {
+  return new Date(nowMs - RETENTION_DAYS * 86_400_000);
+}

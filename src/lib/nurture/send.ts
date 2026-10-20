@@ -43,6 +43,24 @@ export async function sendTrackedEmail(
   subject: string,
   htmlBody: string,
 ): Promise<string | null> {
+  return (await sendTrackedEmailWithLog(tenantId, submissionId, to, subject, htmlBody)).error;
+}
+
+/**
+ * The same send, returning the LOG ID as well as the error.
+ *
+ * It exists for one reason: the click redirect stamps NurtureLog.clickedAt, so whoever
+ * wants to know which message earned a click has to keep hold of the id that was baked
+ * into its links. Automations store it on their send row; the nurture path never needed
+ * it, which is why the plain signature above stays exactly as it was.
+ */
+export async function sendTrackedEmailWithLog(
+  tenantId: string | null,
+  submissionId: string | null,
+  to: string,
+  subject: string,
+  htmlBody: string,
+): Promise<{ error: string | null; logId: string }> {
   const logId = randomUUID();
   const html = instrumentEmailLinks(htmlBody, logId, env.NEXT_PUBLIC_APP_URL);
   const err = await sendEmail(tenantId, to, subject, html);
@@ -59,7 +77,7 @@ export async function sendTrackedEmail(
       },
     })
     .catch(() => {});
-  return err;
+  return { error: err, logId };
 }
 
 /**

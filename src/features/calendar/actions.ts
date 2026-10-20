@@ -76,6 +76,15 @@ export async function saveBookingType(
     });
     if (!owned) return { ok: false, error: "That ad account is not in this workspace." };
   }
+  // The staff member whose calendar this sells has to be one of this workspace's own,
+  // or a link could be pointed at somebody else's diary from a crafted form post.
+  if (v.assignedUserId) {
+    const staff = await prisma.user.findFirst({
+      where: { id: v.assignedUserId, tenantId: auth.tenantId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!staff) return { ok: false, error: "That person is not in this workspace." };
+  }
 
   const data = {
     name: v.name,
@@ -92,6 +101,7 @@ export async function saveBookingType(
     active: v.active,
     assessmentId: v.assessmentId || null,
     adAccountId: v.adAccountId || null,
+    assignedUserId: v.assignedUserId || null,
     fireMetaCapi: v.fireMetaCapi,
     metaBookedEvent: v.metaBookedEvent,
     metaCancelledEvent: v.metaCancelledEvent,
@@ -243,22 +253,39 @@ export async function deleteAvailabilityException(exceptionId: string): Promise<
 
 /** Start and end instants from the form's IST date and times. */
 async function instantsFor(
-  v: { date: string; start: number; end: number | null },
+  v: { date: string; start: number; end: number | null; assignedUserId?: string },
   bookingTypeId: string,
   tenantId: string,
-): Promise<{ startAt: Date; endAt: Date; durationMin: number } | null> {
+): Promise<{ startAt: Date; endAt: Date; durationMin: number; assignedUserId: string | null } | null> {
   let durationMin = 30;
+  // A booking belongs to the calendar its LINK sells; only blocked-out time is free to
+  // name a calendar of its own, which is how an owner blocks an afternoon for one staff
+  // member without taking everybody else's afternoon with it.
+  let assignedUserId: string | null = v.assignedUserId?.trim() || null;
   if (bookingTypeId) {
     const t = await prisma.bookingType.findFirst({
       where: { id: bookingTypeId, tenantId },
-      select: { durationMin: true },
+      select: { durationMin: true, assignedUserId: true },
     });
     if (!t) return null;
     durationMin = t.durationMin;
+    assignedUserId = t.assignedUserId;
+  } else if (assignedUserId) {
+    // A staff member named on a block has to be one of this workspace's own.
+    const staff = await prisma.user.findFirst({
+      where: { id: assignedUserId, tenantId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!staff) return null;
   }
   const startAt = new Date(utcMsFor(v.date, v.start));
   const endAt = v.end != null ? new Date(utcMsFor(v.date, v.end)) : new Date(startAt.getTime() + durationMin * 60_000);
-  return { startAt, endAt, durationMin: Math.round((endAt.getTime() - startAt.getTime()) / 60_000) };
+  return {
+    startAt,
+    endAt,
+    durationMin: Math.round((endAt.getTime() - startAt.getTime()) / 60_000),
+    assignedUserId,
+  };
 }
 
 /**
@@ -295,9 +322,12 @@ export async function createManualAppointment(input: unknown): Promise<ActionRes
         attendeeName: v.attendeeName || null,
         attendeeEmail: v.attendeeEmail || null,
         attendeeMobile: v.attendeeMobile || null,
+        // Whose calendar: the link's staff member for a booking, or the one picked on
+        // the form for blocked-out time (blank = the workspace's shared calendar).
+        assignedUserId: times.assignedUserId,
         // Blocked-out time has no slot lock: blocking the same hour twice is the
         // owner's business, and the lock exists to stop two PEOPLE taking one slot.
-        slotLock: isBooking ? slotLockFor(auth.tenantId, times.startAt) : null,
+        slotLock: isBooking ? slotLockFor(auth.tenantId, times.assignedUserId, times.startAt) : null,
         publicToken: randomUUID(),
       },
       select: { id: true },
@@ -325,7 +355,15 @@ export async function updateAppointment(appointmentId: string, input: unknown): 
 
   const existing = await prisma.appointment.findFirst({
     where: { id: appointmentId, tenantId: auth.tenantId },
-    select: { id: true, startAt: true, status: true, source: true, bookingTypeId: true, slotLock: true },
+    select: {
+      id: true,
+      startAt: true,
+      status: true,
+      source: true,
+      bookingTypeId: true,
+      slotLock: true,
+      assignedUserId: true,
+    },
   });
   if (!existing) return { ok: false, error: "That appointment is not in this workspace." };
 
@@ -351,7 +389,9 @@ export async function updateAppointment(appointmentId: string, input: unknown): 
         attendeeMobile: v.attendeeMobile || null,
         // The lock follows the new start, and only while the row is live. A cancelled
         // row keeps its null lock so its old slot stays free.
-        ...(bookingTypeId && live ? { slotLock: slotLockFor(auth.tenantId, times.startAt) } : {}),
+        ...(bookingTypeId && live
+          ? { slotLock: slotLockFor(auth.tenantId, existing.assignedUserId, times.startAt) }
+          : {}),
       },
     });
   } catch (e) {

@@ -60,6 +60,8 @@ export const bookingTypeSchema = z.object({
   active: z.boolean().default(true),
   assessmentId: z.string().trim().max(60).optional().default(""),
   adAccountId: z.string().trim().max(60).optional().default(""),
+  /** Whose calendar this link sells time in. Blank = the workspace shared calendar. */
+  assignedUserId: z.string().trim().max(60).optional().default(""),
   fireMetaCapi: z.boolean().default(true),
   metaBookedEvent: metaEventName.default("Schedule"),
   metaCancelledEvent: metaEventName.default("AppointmentCancelled"),
@@ -121,6 +123,9 @@ export const manualAppointmentSchema = z
       .optional()
       .default(""),
     attendeeMobile: z.string().trim().max(30).optional().default(""),
+    /** Whose calendar a BLOCK goes in. Ignored when a booking link is chosen: a
+     *  booking belongs to the calendar its link sells. Blank = the shared calendar. */
+    assignedUserId: z.string().trim().max(60).optional().default(""),
   })
   .refine((v) => v.end == null || v.end > v.start, {
     message: "The event has to end after it starts.",

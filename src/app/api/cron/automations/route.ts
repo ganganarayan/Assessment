@@ -5,10 +5,11 @@ import { runDueAutomations } from "@/lib/automation/run";
  * Automation trigger (HTTP). Protected by CRON_SECRET.
  *   POST /api/cron/automations   Authorization: Bearer <CRON_SECRET>
  *
- * Primary scheduling is Railway Cron running `npm run cron:automations` every minute.
- * A reminder is only as punctual as this job, which is why it is its own schedule and
- * not folded into the webhook retry: a queue of failed deliveries must never be what
- * delays somebody's "your call is in an hour".
+ * 🟡 OPTIONAL. The app schedules itself (lib/automation/scheduler.ts starts a heartbeat
+ * on every server boot), because a product running for thousands of tenants cannot
+ * depend on somebody having configured a cron. This endpoint stays as a way to kick the
+ * queue from outside - after a host has had the process parked, or to drain it by hand
+ * while watching the result.
  *
  * Fail-closed when no secret is configured.
  */

@@ -6,16 +6,16 @@ export const dynamic = "force-dynamic";
 
 /**
  * The workspace calendar: this month's bookings, the day in detail, and the calls
- * waiting on an outcome. One shared calendar per workspace; what can be booked and when
- * lives on the Availability page beside it.
+ * waiting on an outcome. One calendar per staff member plus the workspace's own shared
+ * one, filtered with ?who=; what can be booked and when lives on Availability beside it.
  */
 export default async function WorkspaceCalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ m?: string }>;
+  searchParams: Promise<{ m?: string; who?: string }>;
 }) {
-  const { m } = await searchParams;
-  const props = await calendarPageProps(m);
+  const { m, who } = await searchParams;
+  const props = await calendarPageProps(m, who);
 
   return (
     <div className="flex flex-col gap-6">

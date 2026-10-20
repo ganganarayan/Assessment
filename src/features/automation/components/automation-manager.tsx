@@ -39,6 +39,9 @@ import {
  */
 
 interface ActionDraft {
+  /** The message being edited, when it already exists. Carried so a save UPDATES it
+   *  and its statistics survive the edit. */
+  id?: string;
   channel: AutomationChannelValue;
   subject: string;
   body: string;
@@ -82,6 +85,7 @@ const draftOf = (a: AutomationRow): Draft => ({
   offsetMin: a.offsetMin || -1440,
   active: a.active,
   actions: a.actions.map((x) => ({
+    id: x.id,
     channel: x.channel,
     subject: x.subject,
     body: x.body,
@@ -184,11 +188,32 @@ export function AutomationManager({
                     "no messages"}
                 </span>
                 <span className="text-xs text-[var(--muted-foreground)]">
-                  {a.sentCount} sent
+                  {a.sentCount} fired
                   {a.pendingCount > 0 ? ` · ${a.pendingCount} waiting` : ""}
                   {a.failedCount > 0 ? ` · ${a.failedCount} failed` : ""}
                   {!a.active ? " · switched off" : ""}
                 </span>
+
+                {/* Per MESSAGE, because "this automation sent 400" does not say which of
+                    its two messages is the one nobody opens. Lifetime first, since it is
+                    the number that does not reset when the 30-day log is swept. */}
+                <ul className="mt-1 flex flex-col gap-0.5">
+                  {a.actions.map((x) => (
+                    <li key={x.id} className="text-xs text-[var(--muted-foreground)]">
+                      <span className="font-medium">{x.channel === "EMAIL" ? "Email" : "WhatsApp"}</span>
+                      {x.channel === "EMAIL" && x.subject ? ` “${x.subject}”` : ""}
+                      {x.channel === "WABA" && x.wabaTemplate ? ` ${x.wabaTemplate}` : ""}
+                      {" · "}
+                      {x.stats.sent} sent
+                      {x.channel === "EMAIL" && x.stats.sent > 0
+                        ? ` · ${x.stats.clicks} clicked (${Math.round((x.stats.clicks / x.stats.sent) * 100)}%)`
+                        : ""}
+                      {x.stats.failed > 0 ? ` · ${x.stats.failed} failed` : ""}
+                      {x.stats.skipped > 0 ? ` · ${x.stats.skipped} had nobody to send to` : ""}
+                      {x.stats.recentSent > 0 ? ` · ${x.stats.recentSent} in the last 30 days` : ""}
+                    </li>
+                  ))}
+                </ul>
               </div>
               <div className="flex flex-wrap gap-2">
                 {canEdit ? (

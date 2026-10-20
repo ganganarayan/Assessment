@@ -169,7 +169,11 @@ export async function bookSlot(input: unknown): Promise<ActionResult<BookingConf
         attribution: (normalizeAttribution(submission?.attribution) ?? undefined) as
           | Prisma.InputJsonValue
           | undefined,
-        slotLock: slotLockFor(bookingType.tenantId, slot.startMs),
+        // Whose diary this lands in, stamped from the link rather than read through it:
+        // the link can be reassigned later, and this booking belongs to the calendar it
+        // was actually made in.
+        assignedUserId: bookingType.assignedUserId,
+        slotLock: slotLockFor(bookingType.tenantId, bookingType.assignedUserId, slot.startMs),
         publicToken: randomUUID(),
       },
       select: { id: true, publicToken: true, startAt: true },

@@ -12,7 +12,13 @@
  *
  * Exits non-zero on the first failure, like the other verify-* scripts.
  */
-import { isStillAhead, reminderDueAt } from "../src/lib/automation/schedule";
+import {
+  PRUNABLE_RUN_STATUSES,
+  RETENTION_DAYS,
+  isStillAhead,
+  reminderDueAt,
+  retentionCutoff,
+} from "../src/lib/automation/schedule";
 import { automationSchema, automationActionSchema } from "../src/features/automation/schemas";
 import { offsetLabel, TRIGGERS, OFFSET_PRESETS } from "../src/features/automation/types";
 import { fillPlaceholders } from "../src/features/nurture/config";
@@ -173,6 +179,27 @@ check(
 check(
   "resultUrl is blank rather than literal when nothing is passed",
   fillPlaceholders("[{{resultUrl}}]", lead) === "[]",
+);
+
+/* ------------------------------------------------------------- retention --- */
+
+console.log("\nRetention");
+check("history is kept for 30 days", RETENTION_DAYS === 30);
+check(
+  "the cutoff is 30 days back, not 30 hours or 30 minutes",
+  retentionCutoff(Date.parse("2026-10-31T00:00:00.000Z")).toISOString() === "2026-10-01T00:00:00.000Z",
+);
+// The rule that stops the sweep deleting next month's reminders.
+check(
+  "a run that has not fired is NEVER prunable",
+  !(PRUNABLE_RUN_STATUSES as readonly string[]).includes("PENDING") &&
+    !(PRUNABLE_RUN_STATUSES as readonly string[]).includes("SENDING"),
+);
+check(
+  "every finished state is prunable",
+  ["SENT", "FAILED", "SKIPPED", "CANCELLED"].every((s) =>
+    (PRUNABLE_RUN_STATUSES as readonly string[]).includes(s),
+  ),
 );
 
 console.log("");

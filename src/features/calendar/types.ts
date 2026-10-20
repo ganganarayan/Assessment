@@ -84,6 +84,9 @@ export interface AppointmentRow {
   locationValue: string | null;
   submissionId: string | null;
   isPreview: boolean;
+  /** Whose calendar it is in: the staff member, or null for the shared one. */
+  assignedUserId: string | null;
+  assignedUserName: string | null;
   /** Which appointment events have reached Meta, so the day list can say so rather
    *  than leaving the owner to wonder whether marking it did anything. */
   metaBooked: boolean;
@@ -107,6 +110,9 @@ export interface BookingTypeRow {
   active: boolean;
   assessmentId: string | null;
   assessmentTitle: string | null;
+  /** Whose time this link sells. Null is the workspace shared calendar. */
+  assignedUserId: string | null;
+  assignedUserName: string | null;
   adAccountId: string | null;
   fireMetaCapi: boolean;
   metaBookedEvent: string;

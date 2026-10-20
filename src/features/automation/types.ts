@@ -127,6 +127,18 @@ export interface AutomationActionRow {
   wabaTemplate: string;
   wabaLang: string;
   wabaVars: string[];
+  /** What this ONE message has done. Lifetime counters that outlive the 30-day log,
+   *  plus what it has done inside that window. */
+  stats: {
+    sent: number;
+    failed: number;
+    skipped: number;
+    /** First clicks on a link in it. Always 0 for WhatsApp. */
+    clicks: number;
+    /** Sends inside the retained window, which is what "lately" means here. */
+    recentSent: number;
+    recentFailed: number;
+  };
 }
 
 export interface AutomationRow {
