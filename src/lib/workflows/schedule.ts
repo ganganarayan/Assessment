@@ -77,3 +77,24 @@ export const STALE_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
 export function isStale(dueAt: Date, now: Date = new Date()): boolean {
   return now.getTime() - dueAt.getTime() > STALE_AFTER_MS;
 }
+
+/**
+ * Retention windows, kept HERE rather than beside the sweep that uses them.
+ *
+ * The sweep imports prisma and is server-only, which means anything importing it needs
+ * the react-server condition to resolve. A build-chain check should not depend on a
+ * flag being remembered, so the numbers live in this pure module and the sweep
+ * re-exports them: one definition, importable from anywhere.
+ *
+ * The rule they encode is DUE TIME and never age. A run created today for a step due
+ * in March is thirty days old next month and perfectly valid; a send time a month in
+ * the past is dead whatever the status says.
+ */
+const DAY_MS = 86_400_000;
+
+/** A due time this far in the past belongs to a run nobody is still waiting on. */
+export const DEAD_AFTER_MS = 30 * DAY_MS;
+/** How long a finished run is kept, so the owner can still see what happened. */
+export const TERMINAL_KEEP_MS = 90 * DAY_MS;
+/** What the schema promises for the per-send log. */
+export const SEND_KEEP_MS = 30 * DAY_MS;

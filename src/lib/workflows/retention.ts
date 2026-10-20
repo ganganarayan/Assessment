@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
+import { DEAD_AFTER_MS, TERMINAL_KEEP_MS, SEND_KEEP_MS } from "@/lib/workflows/schedule";
 
 /**
  * Keeping the workflow tables from growing forever.
@@ -20,14 +21,9 @@ import { prisma } from "@/lib/db/prisma";
  * unbounded growth created by a switch nobody thinks of as a data decision.
  */
 
-const DAY_MS = 86_400_000;
-
-/** A due time this far in the past belongs to a run nobody is still waiting on. */
-export const DEAD_AFTER_MS = 30 * DAY_MS;
-/** How long a finished run is kept, so the owner can still see what happened. */
-export const TERMINAL_KEEP_MS = 90 * DAY_MS;
-/** What the schema promises for the per-send log. */
-export const SEND_KEEP_MS = 30 * DAY_MS;
+// Defined in the pure schedule module and re-exported here, so a build-chain check can
+// read them without needing the react-server condition to resolve server-only.
+export { DEAD_AFTER_MS, TERMINAL_KEEP_MS, SEND_KEEP_MS } from "@/lib/workflows/schedule";
 
 export interface SweepOutcome {
   deadRuns: number;
