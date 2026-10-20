@@ -173,6 +173,12 @@ export async function verifySubscriptionPayment(input: VerifyInput): Promise<Act
     plan: plan as PaidPlanId,
     razorpaySubscriptionId: input.razorpay_subscription_id,
     razorpayPlanId: sub?.razorpayPlanId ?? null,
+    // The payment id was already here: it was used as the Meta Purchase event id and
+    // then dropped. It is the customer's confirmation and the ledger key, so it is
+    // kept now, and it is what gives this subscription a paid date and a renewal date
+    // without waiting on a webhook that may never come.
+    paymentId: input.razorpay_payment_id,
+    amountUsd: PLAN_PRICE_USD[plan],
   });
 
   // SaaS funnel: fire Purchase on the platform pixel (server CAPI), keyed by the

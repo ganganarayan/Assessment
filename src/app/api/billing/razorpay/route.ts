@@ -166,6 +166,12 @@ export async function POST(req: Request) {
     }
     if (!plan) return NextResponse.json({ ok: true, warning: "plan not resolved" });
 
+    // The payment id is read BEFORE activation now, because activation records the
+    // ledger row and stamps the paid/renewal dates from it. A renewal arriving here
+    // is what moves those dates on, so this is the path that keeps them true for the
+    // life of the subscription rather than only at the first charge.
+    const paymentId = asStr(paymentEntity.id);
+
     await activateSubscription({
       tenantId,
       plan,
@@ -173,11 +179,13 @@ export async function POST(req: Request) {
       razorpayPlanId: asStr(subEntity.plan_id),
       currentPeriodStart: asDateFromUnix(subEntity.current_start),
       currentPeriodEnd: asDateFromUnix(subEntity.current_end),
+      paymentId,
+      amountUsd: PLAN_PRICE_USD[plan],
+      method: asStr(paymentEntity.method),
     });
 
     // SaaS funnel: fire Purchase on the platform pixel (server CAPI), keyed by the
     // Razorpay payment id so it dedups with the in-app /verify + browser events.
-    const paymentId = asStr(paymentEntity.id);
     if (paymentId) {
       await firePlatformPurchase({
         email: asStr(paymentEntity.email),

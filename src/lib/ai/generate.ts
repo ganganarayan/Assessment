@@ -11,6 +11,7 @@ import { DEFAULT_MODEL, isAiProvider, type AiConfig, type AiProvider, type State
 import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 import { resolvePlan, tenantCan } from "@/lib/billing/entitlements";
 import { modelForTenant, parsePlanModels } from "@/lib/ai/plan-models";
+import { costMicroUsd } from "@/lib/ai/pricing";
 import { CLINIC_SYSTEM_PROMPT } from "@/lib/ai/clinic-prompt";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
 
@@ -84,6 +85,8 @@ async function readAiConfig(requireEnabled: boolean, tenantId: string | null = n
         apiKey: key.apiKey,
         guidance: s.aiGuidance ?? null,
         promptVersion: s.aiPromptVersion ?? null,
+        // The platform operating on its own behalf: our key, our cost.
+        onPlatformKey: true,
       };
     }
 
@@ -109,6 +112,8 @@ async function readAiConfig(requireEnabled: boolean, tenantId: string | null = n
         apiKey: ownKey.apiKey,
         guidance: own?.aiGuidance ?? null,
         promptVersion: own?.aiPromptVersion ?? null,
+        // Their key, their bill. Not an expense of ours.
+        onPlatformKey: false,
       };
     }
 
@@ -125,6 +130,7 @@ async function readAiConfig(requireEnabled: boolean, tenantId: string | null = n
       provider: platformKey.provider,
       model,
       apiKey: platformKey.apiKey,
+      onPlatformKey: true,
       // The tenant's own historical guidance still applies to their own versions; the
       // platform's never leaks across.
       guidance: own?.aiGuidance ?? null,
@@ -173,7 +179,7 @@ export async function generatePersonalStatementResult(
     const guidance = version.minimal ? (input.guidance ?? null) : (input.guidance ?? cfg.guidance);
     const merged = { ...input, guidance };
     const { system, user } = buildStatementMessages(merged, version, words);
-    const raw = await callProvider(cfg, system, user);
+    const raw = await callProvider(cfg, system, user, { tenantId, purpose: "statement" });
     if (!raw) return { text: null, error: `The ${cfg.provider} model (${cfg.model}) returned an empty response.` };
     // Instruction (V3+) versions own their style verbatim, with ONE exception: a long
     // dash. That rule is not a style preference, it is the house standard, and the
@@ -213,7 +219,7 @@ export async function generateClinicStatement(
   try {
     const cfg = await getAiConfig(tenantId);
     if (!cfg) return null;
-    const raw = await callProvider(cfg, CLINIC_SYSTEM_PROMPT, context);
+    const raw = await callProvider(cfg, CLINIC_SYSTEM_PROMPT, context, { tenantId, purpose: "clinic-statement" });
     return clean(raw);
   } catch (e) {
     console.error("[ai] clinic statement error:", e instanceof Error ? e.message : String(e));
@@ -221,14 +227,75 @@ export async function generateClinicStatement(
   }
 }
 
-async function callProvider(cfg: AiConfig, system: string, user: string): Promise<string | null> {
+/** One provider response: the text, plus what it cost in tokens. */
+interface AiCall {
+  text: string | null;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/** A token count from a provider, or 0. They are occasionally absent or non-numeric. */
+function num(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.trunc(v) : 0;
+}
+
+/**
+ * THE ONE PLACE EVERY AI CALL GOES THROUGH, and therefore the only place spend has to
+ * be recorded. Three providers, one meter.
+ *
+ * The usage row is written AFTER the response, never before, and failing to write it
+ * can never fail the generation: a customer losing their report because our accounting
+ * had a bad minute is a far worse outcome than a missing row in a cost report.
+ */
+async function callProvider(
+  cfg: AiConfig,
+  system: string,
+  user: string,
+  meta: { tenantId: string | null; purpose: string },
+): Promise<string | null> {
   // Returns the RAW model text; humanizing (dash-stripping) is applied by the caller
   // only for built-in code versions, so instruction versions keep their style verbatim.
-  return cfg.provider === "claude"
-    ? callClaude(cfg, system, user)
-    : cfg.provider === "openai"
-      ? callOpenAI(cfg, system, user)
-      : callGemini(cfg, system, user);
+  const call =
+    cfg.provider === "claude"
+      ? await callClaude(cfg, system, user)
+      : cfg.provider === "openai"
+        ? await callOpenAI(cfg, system, user)
+        : await callGemini(cfg, system, user);
+
+  void recordAiUsage(cfg, call, meta);
+  return call.text;
+}
+
+/**
+ * Record what that call cost.
+ *
+ * `onPlatformKey` decides whether it is OUR money. A tenant running on their own
+ * provider key spends their own, and counting it as a platform expense would make
+ * every profit figure on the Accounts page wrong in the same direction. The row is
+ * still written, because knowing a tenant generates heavily on their own key is worth
+ * having; the Accounts page filters, not this.
+ */
+async function recordAiUsage(
+  cfg: AiConfig,
+  call: AiCall,
+  meta: { tenantId: string | null; purpose: string },
+): Promise<void> {
+  try {
+    await prisma.aiUsage.create({
+      data: {
+        tenantId: meta.tenantId,
+        provider: cfg.provider,
+        model: cfg.model,
+        purpose: meta.purpose,
+        onPlatformKey: cfg.onPlatformKey,
+        inputTokens: call.inputTokens,
+        outputTokens: call.outputTokens,
+        costMicroUsd: costMicroUsd(cfg.model, call.inputTokens, call.outputTokens),
+      },
+    });
+  } catch (e) {
+    console.error("[ai] usage not recorded:", e instanceof Error ? e.message : String(e));
+  }
 }
 
 /**
@@ -263,7 +330,7 @@ export async function testStatement(versionId?: string, tenantId: string | null 
   );
   const t0 = Date.now();
   try {
-    const raw = await callProvider(cfg, system, user);
+    const raw = await callProvider(cfg, system, user, { tenantId, purpose: "test" });
     const styled = raw ? (version.minimal ? raw : humanizeStatement(raw)) : raw;
     const text = styled ? applyCrisisLine(styled, sample.bandLevel, sample.percentage) : styled;
     return { ok: true, ms: Date.now() - t0, text: text ?? "(model returned an empty response)" };
@@ -277,7 +344,7 @@ function clean(text: string | null | undefined): string | null {
   return t.length > 0 ? t : null;
 }
 
-async function callClaude(cfg: AiConfig, system: string, user: string): Promise<string | null> {
+async function callClaude(cfg: AiConfig, system: string, user: string): Promise<AiCall> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -294,12 +361,19 @@ async function callClaude(cfg: AiConfig, system: string, user: string): Promise<
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Claude ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  const data = (await res.json()) as { content?: { type?: string; text?: string }[] };
+  const data = (await res.json()) as {
+    content?: { type?: string; text?: string }[];
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
   const text = data.content?.find((b) => b.type === "text")?.text ?? data.content?.[0]?.text;
-  return clean(text);
+  return {
+    text: clean(text),
+    inputTokens: num(data.usage?.input_tokens),
+    outputTokens: num(data.usage?.output_tokens),
+  };
 }
 
-async function callOpenAI(cfg: AiConfig, system: string, user: string): Promise<string | null> {
+async function callOpenAI(cfg: AiConfig, system: string, user: string): Promise<AiCall> {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${cfg.apiKey}` },
@@ -314,11 +388,18 @@ async function callOpenAI(cfg: AiConfig, system: string, user: string): Promise<
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  return clean(data.choices?.[0]?.message?.content);
+  const data = (await res.json()) as {
+    choices?: { message?: { content?: string } }[];
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
+  };
+  return {
+    text: clean(data.choices?.[0]?.message?.content),
+    inputTokens: num(data.usage?.prompt_tokens),
+    outputTokens: num(data.usage?.completion_tokens),
+  };
 }
 
-async function callGemini(cfg: AiConfig, system: string, user: string): Promise<string | null> {
+async function callGemini(cfg: AiConfig, system: string, user: string): Promise<AiCall> {
   // Key is a query param; NEVER log this URL.
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
     cfg.model,
@@ -336,6 +417,11 @@ async function callGemini(cfg: AiConfig, system: string, user: string): Promise<
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
   };
-  return clean(data.candidates?.[0]?.content?.parts?.[0]?.text);
+  return {
+    text: clean(data.candidates?.[0]?.content?.parts?.[0]?.text),
+    inputTokens: num(data.usageMetadata?.promptTokenCount),
+    outputTokens: num(data.usageMetadata?.candidatesTokenCount),
+  };
 }

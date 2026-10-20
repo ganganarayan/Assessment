@@ -162,6 +162,7 @@ model Tenant {
   webhooks             Webhook[]
   webhookLogs          WebhookLog[]
   payments             Payment[]
+  aiUsage              AiUsage[]
   capiLogs             CapiLog[]
   setting              AppSetting?
   promptVersions       AiPromptVersion[]
@@ -316,9 +317,28 @@ model Subscription {
 
   // Current billing period, copied from Razorpay. Also the window the RESPONSES
   // usage counter resets on for a paid tenant (Free tenants use the calendar month).
+  //
+  // 🔴 THESE CAN BE NULL FOREVER. They are only ever written by the webhook, so a
+  // subscription activated by the browser returning from Checkout has none. That is
+  // why paidAt/renewsAt below exist and are the fields the app actually displays:
+  // a renewal date that only exists when a webhook arrives is not a billing record.
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
-  cancelAtPeriodEnd  Boolean   @default(false)
+
+  /// When this subscription was last PAID, from the confirmation the app itself
+  /// received. Written by both paths: /verify (the browser returning with a signed
+  /// payment id) and the subscription.charged webhook.
+  paidAt DateTime?
+
+  /// When it renews next, COMPUTED BY US from paidAt - the same day of the month,
+  /// clamped to the last day in shorter months. Never waits on Razorpay, so the app
+  /// can always answer "when does this renew" (see lib/billing/renewal.ts).
+  renewsAt DateTime?
+
+  /// The Razorpay payment id of the last successful charge. The confirmation the
+  /// customer can quote back, and the join key to the Payment ledger row.
+  lastPaymentId     String?
+  cancelAtPeriodEnd Boolean @default(false)
 
   seats Int @default(1)
 
@@ -3877,4 +3897,46 @@ model AutomationRun {
   @@index([status, dueAt])
   @@index([tenantId, createdAt])
   @@map("automation_run")
+}
+
+/// AI spend, per call, attributed to a tenant.
+///
+/// 🔴 ONLY WHAT WE PAY FOR. A row is written when the call ran on the PLATFORM's
+/// provider key, because that is the only usage that costs this business money. A
+/// tenant running on their own key spends their own money, and counting it as our
+/// expense would make every Accounts figure wrong in the same direction.
+/// `onPlatformKey` is stored anyway rather than filtering at write time: knowing a
+/// tenant generates heavily on their own key is useful, and a column is cheaper than
+/// discovering later that the rows were never kept.
+///
+/// Written at the single AI call site (lib/ai/generate.ts), after the provider
+/// answers, and never in a way that can fail the generation it is measuring.
+model AiUsage {
+  id String @id @default(cuid())
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  /// "openai" | "anthropic" | "gemini", and the model string the provider was asked for.
+  provider String
+  model    String
+  /// What it was generating, for reading the bill later: "statement" | "report" | "questions".
+  purpose  String?
+
+  /// Whose key paid. False = the tenant's own key, so NOT our expense.
+  onPlatformKey Boolean @default(true)
+
+  inputTokens  Int @default(0)
+  outputTokens Int @default(0)
+
+  /// Cost in micro-dollars (USD x 1,000,000). An integer because a per-call cost is
+  /// frequently a fraction of a cent, and float money that gets summed across
+  /// thousands of rows drifts. Divide by 1e6 to display.
+  costMicroUsd Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([createdAt])
+  @@map("ai_usage")
 }

@@ -2,6 +2,7 @@ import { requireWorkspace } from "@/lib/auth/guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import Link from "next/link";
 import { resolvePlan, getUsage } from "@/lib/billing/entitlements";
+import { formatISTDate } from "@/lib/date";
 import { agencyTenantUsage } from "@/lib/billing/gate";
 import { UsageMeters } from "@/features/billing/components/usage-meters";
 import { PLAN_IDS, PLAN_LABEL, PLAN_LIMITS, PLAN_PRICE_USD, TRIAL_PLAN, type PlanId } from "@/lib/billing/plans";
@@ -65,7 +66,18 @@ export default async function BillingPage() {
   // paid period ends, and whether a cancellation is already booked.
   const subRow = await prisma.subscription.findUnique({
     where: { tenantId },
-    select: { currentPeriodEnd: true, cancelAtPeriodEnd: true, razorpaySubscriptionId: true, status: true },
+    select: {
+      currentPeriodEnd: true,
+      cancelAtPeriodEnd: true,
+      razorpaySubscriptionId: true,
+      status: true,
+      // The billing record the app owns, written at every successful charge. Shown
+      // as one line below the plan sentence, because "what did I pay, when, and when
+      // does it go again" is the whole of what a customer wants from this page.
+      paidAt: true,
+      renewsAt: true,
+      lastPaymentId: true,
+    },
   });
 
   /**
@@ -155,7 +167,30 @@ export default async function BillingPage() {
             You&apos;re on the <span className="font-semibold text-[var(--foreground)]">{PLAN_LABEL[currentPlan]}</span> plan
             {resolved.status ? ` (${resolved.status.toLowerCase()})` : ""}. Upgrade any time - it takes effect right after payment.
           </p>
-        ) : resolved.trialing ? (
+        ) : null}
+        {purchased && subRow?.paidAt ? (
+          /* One line, four facts. The payment id is here because it is the thing a
+             customer quotes when they write in, and sending them to Razorpay to find
+             it is work we can simply not create. */
+          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[var(--muted-foreground)]">
+            <span className="font-semibold text-[var(--foreground)]">{PLAN_LABEL[currentPlan]}</span>
+            <span aria-hidden>·</span>
+            <span>paid {formatISTDate(subRow.paidAt)}</span>
+            {subRow.lastPaymentId ? (
+              <>
+                <span aria-hidden>·</span>
+                <span className="font-mono text-xs">{subRow.lastPaymentId}</span>
+              </>
+            ) : null}
+            {subRow.renewsAt ? (
+              <>
+                <span aria-hidden>·</span>
+                <span>renews {formatISTDate(subRow.renewsAt)}</span>
+              </>
+            ) : null}
+          </p>
+        ) : null}
+        {resolved.trialing ? (
           <p className="text-sm text-[var(--muted-foreground)]">
             You&apos;re on the{" "}
             <span className="font-semibold text-[var(--foreground)]">

@@ -49,6 +49,15 @@ export interface AiConfig {
   guidance: string | null;
   /** Active prompt version id (see prompt-versions.ts); null => default. */
   promptVersion: string | null;
+  /**
+   * Whose provider key is paying for this call.
+   *
+   * True = the platform's, so the call costs THIS business money and belongs in the
+   * expense column. False = the tenant brought their own key and spends their own.
+   * Recorded on every AiUsage row so the Accounts page can tell the two apart; without
+   * it, a tenant on their own key would inflate our costs and understate profit.
+   */
+  onPlatformKey: boolean;
 }
 
 /** The signals passed to the model for one personalized statement. */

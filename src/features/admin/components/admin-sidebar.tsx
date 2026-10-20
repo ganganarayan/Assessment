@@ -36,6 +36,9 @@ const SECTIONS: NavSection[] = [
     title: "Platform",
     items: [
       { href: "/platform", label: "Tenants", exact: true },
+      // Separate from Tenants on purpose: that list is read while operating a
+      // workspace, this one is read down a column to see who pays and what they cost.
+      { href: "/platform/accounts", label: "Accounts" },
       { href: "/platform/stats", label: "Marketing stats" },
       // The done-for-you queue. Under Platform rather than Leads: these are applicants
       // to the offer, not respondents to anybody's funnel.

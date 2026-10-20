@@ -1,6 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { nextRenewal } from "@/lib/billing/renewal";
 import { razorpayRequest, type RazorpayKeys } from "@/lib/payments/razorpay";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { agencyTenantExtraUsd, PLAN_LABEL, PLAN_PRICE_USD, type PlanId } from "@/lib/billing/plans";
@@ -190,6 +191,21 @@ export interface ActivateInput {
   razorpayPlanId?: string | null;
   currentPeriodStart?: Date | null;
   currentPeriodEnd?: Date | null;
+  /**
+   * The Razorpay payment id of the charge that caused this activation.
+   *
+   * Both callers have it and neither used to keep it: /verify had it as the Meta
+   * Purchase event id and threw it away, and the webhook carries it in the payload.
+   * It is the confirmation a customer quotes back, so it is stored, and it is what
+   * dedups the Payment ledger row.
+   */
+  paymentId?: string | null;
+  /** When the charge happened. Defaults to now, which is true for both callers. */
+  paidAt?: Date | null;
+  /** What was charged, in whole USD. Written to the ledger row, never displayed from here. */
+  amountUsd?: number | null;
+  /** card / upi / netbanking, when the provider said. */
+  method?: string | null;
 }
 
 /**
@@ -206,12 +222,19 @@ export async function activateSubscription(input: ActivateInput): Promise<void> 
   });
   const prior = existing?.razorpaySubscriptionId ?? null;
 
+  // The billing record the app owns. Computed here rather than copied from Razorpay,
+  // so it exists whether or not a webhook ever arrives - see lib/billing/renewal.ts.
+  const paidAt = input.paidAt ?? new Date();
+
   const data = {
     plan: input.plan,
     status: "ACTIVE" as const,
     razorpaySubscriptionId: input.razorpaySubscriptionId,
     razorpayPlanId: input.razorpayPlanId ?? undefined,
     limitsSnapshot: snapshotFor(input.plan),
+    paidAt,
+    renewsAt: nextRenewal(paidAt),
+    ...(input.paymentId ? { lastPaymentId: input.paymentId } : {}),
     ...(input.currentPeriodStart ? { currentPeriodStart: input.currentPeriodStart } : {}),
     ...(input.currentPeriodEnd ? { currentPeriodEnd: input.currentPeriodEnd } : {}),
   };
@@ -224,6 +247,37 @@ export async function activateSubscription(input: ActivateInput): Promise<void> 
     }),
     prisma.tenant.update({ where: { id: input.tenantId }, data: { plan: input.plan } }),
   ]);
+
+  // THE LEDGER ROW, after the entitlement is already committed. A subscription that
+  // activates but fails to record its payment is a bookkeeping problem; one that
+  // records a payment and fails to activate is a customer who paid for nothing. So
+  // the money is written second, and never in a way that can throw back at the caller.
+  //
+  // Keyed on the Razorpay payment id, which is unique, so the webhook and /verify
+  // firing for the same charge produce ONE row rather than two.
+  if (input.paymentId) {
+    await prisma.payment
+      .upsert({
+        where: { providerPaymentId: input.paymentId },
+        create: {
+          providerPaymentId: input.paymentId,
+          provider: "razorpay",
+          purpose: "subscription",
+          plan: input.plan,
+          tenantId: input.tenantId,
+          status: "captured",
+          method: input.method ?? null,
+          currency: "USD",
+          // `amount` is the paise column for INR funnel payments. Subscriptions are
+          // billed in USD, so this holds CENTS, which the Accounts page divides by 100
+          // with the currency beside it rather than guessing from the number.
+          amount: input.amountUsd != null ? Math.round(input.amountUsd * 100) : null,
+          notes: { razorpaySubscriptionId: input.razorpaySubscriptionId ?? null },
+        },
+        update: {},
+      })
+      .catch(() => {});
+  }
 
   if (prior && input.razorpaySubscriptionId && prior !== input.razorpaySubscriptionId) {
     await cancelRazorpaySubscription(prior).catch(() => {});
