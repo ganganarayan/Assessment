@@ -6,9 +6,14 @@
  * What it proves:
  *   1. The catalog is complete and internally consistent (every key has an entry, no
  *      route is owned by two features, every route is a real /w path).
- *   2. Every key has a SEED ROW in the migration. A key added in code with no row
- *      anywhere falls back to its default silently, and "silently" is the word that
- *      makes it a production incident rather than a bug.
+ *   2. A key with no SEED ROW starts held back. It does not need a migration: an
+ *      absent row falls back to the catalog default, and since every default is false
+ *      (check 3) that fallback is the safe state, visible in the console as "never
+ *      released". This was once a hard failure, on the reasoning that a key with no
+ *      row defaults SILENTLY - true while the defaults could say true, pointless now
+ *      that they cannot, and it would have forced a migration for a row the first flip
+ *      writes anyway. What is still a failure is the pair that cannot be safe: no row
+ *      AND a default of released.
  *   3. Every catalog default is FALSE. The default is the answer used when the row is
  *      missing or unreadable, and it must not claim a feature is live: the same code
  *      runs against staging and production, where the answer differs, so only the row
@@ -101,9 +106,13 @@ function seededValue(key: FeatureReleaseKey): "true" | "false" | "carried" | "mi
 for (const key of FEATURE_RELEASE_KEYS) {
   const seeded = seededValue(key);
   if (seeded === "missing") {
-    fail(
-      `${key} is seeded`,
-      "no INSERT in any migration names this key. It would fall back to the catalog default with no row and no audit date - add a seed row.",
+    // No row is fine, as long as no row means held back. A new key can therefore be one
+    // constant in the catalog plus its page guard, which is what makes adding a feature
+    // to this list cheap enough that nobody routes around it.
+    expect(
+      `${key} has no seed row, so it starts held back`,
+      defaultReleased(key) === false,
+      "a key with no row AND a released default goes live on any database that has not seeded it - add a seed row or set the default false",
     );
   } else if (seeded === "carried") {
     ok(`${key} is seeded (carried over from an existing switch)`);
