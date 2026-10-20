@@ -62,6 +62,7 @@ export const NURTURE_PLACEHOLDERS = [
   "mobile",
   "profession",
   "resultUrl",
+  "unsubscribeUrl",
 ] as const;
 
 /**
@@ -88,6 +89,10 @@ export function fillPlaceholders(
     mobile: (lead.mobile ?? "").trim(),
     profession: (lead.profession ?? "").trim(),
     resultUrl: "",
+    // Default blank rather than absent: a message whose sender did not supply one
+    // renders nothing, instead of leaving a literal {{unsubscribeUrl}} in front of a
+    // customer.
+    unsubscribeUrl: "",
   };
   for (const [key, value] of Object.entries(extra ?? {})) {
     map[key] = (value ?? "").trim();

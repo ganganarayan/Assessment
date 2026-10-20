@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { generateCustomerId, generateToken } from "@/lib/ids";
+import { linkContactSafely } from "@/lib/contacts/upsert";
+import { resolveConsentText } from "@/lib/contacts/consent";
 import { rateLimit } from "@/lib/rate-limit";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { ATTR_COOKIE } from "@/lib/attribution";
@@ -322,6 +324,33 @@ export async function captureSplitLead(
     update: { ...signals, ...lead },
     create: { assessmentId: assessment.id, visitorId: vid, ...signals, ...lead },
   });
+
+  // The person behind the gate. Same rule as the submission path: after the lead is
+  // stored, never inside its write, and a failure here is a log line rather than a
+  // lost capture. A SPLIT gate collects an email and no mobile, so these contacts
+  // start email-only and gain their number when the same person finishes the funnel.
+  const consentText = await resolveConsentText(assessment.tenantId);
+  const contactId = await linkContactSafely(
+    {
+      tenantId: assessment.tenantId,
+      firstName: lead.leadFirstName,
+      lastName: lead.leadLastName,
+      email: lead.leadEmail,
+      mobile: null,
+      profession: lead.leadProfession,
+    },
+    { source: "SPLIT_GATE", consentText },
+  );
+  if (contactId) {
+    try {
+      await prisma.gateEntry.update({
+        where: { assessmentId_visitorId: { assessmentId: assessment.id, visitorId: vid } },
+        data: { contactId },
+      });
+    } catch (e) {
+      console.error("[contacts] gate link failed:", e instanceof Error ? e.message : String(e));
+    }
+  }
 
   return { ok: true, data: { status: "captured", customerId, leadToken } };
 }

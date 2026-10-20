@@ -32,6 +32,8 @@ import { isPlatformOwner } from "@/lib/auth/platform";
 import { normalizeIdentifier, evaluateLockout } from "@/features/assessment/lockout";
 import { isCrawlerUserAgent } from "@/lib/bots";
 import { generateCustomerId, generateToken } from "@/lib/ids";
+import { linkContactSafely } from "@/lib/contacts/upsert";
+import { resolveConsentText } from "@/lib/contacts/consent";
 import { env } from "@/lib/env";
 import { randomUUID } from "crypto";
 import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
@@ -465,6 +467,33 @@ async function linkSplitLead(gateEntryId: string | null, submissionId: string): 
     await prisma.gateEntry.update({ where: { id: gateEntryId }, data: { submissionId } });
   } catch {
     /* already linked, or the row is gone - neither is worth failing a lead over */
+  }
+}
+
+/**
+ * Attach the PERSON behind this run.
+ *
+ * Runs after the lead is already safely stored, and swallows its own failures: a
+ * contact is how the owner finds and messages somebody later, while the submission IS
+ * the lead. A tagging problem must never be able to cost a customer, so the ordering
+ * and the try/catch are the whole design.
+ *
+ * Consent is stamped here rather than sent up from the browser. The box is shown,
+ * ticked and not changeable, so it carries no information worth transmitting - what is
+ * worth keeping is the exact wording the person saw, which only the server knows.
+ */
+async function attachContact(
+  tenantId: string | null,
+  submissionId: string,
+  lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null; profession: string | null },
+) {
+  const consentText = await resolveConsentText(tenantId);
+  const contactId = await linkContactSafely({ tenantId, ...lead }, { source: "SUBMISSION", consentText });
+  if (!contactId) return;
+  try {
+    await prisma.submission.update({ where: { id: submissionId }, data: { contactId } });
+  } catch (e) {
+    console.error("[contacts] link failed:", e instanceof Error ? e.message : String(e));
   }
 }
 
@@ -969,6 +998,13 @@ export async function startSubmission(
       };
     }
     await linkSplitLead(splitGateEntryId, outcome.submissionId);
+    await attachContact(assessment.tenantId, outcome.submissionId, {
+      firstName: submissionData.leadFirstName,
+      lastName: submissionData.leadLastName,
+      email: submissionData.leadEmail,
+      mobile: submissionData.leadMobile,
+      profession: submissionData.leadProfession,
+    });
     let eventId: string | undefined;
     if (outcome.kind === "created") {
       eventId = await fireRegistration(assessment, outcome.submissionId, outcome.customerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid, gatePayload, exitRoute, preview);
@@ -994,6 +1030,13 @@ export async function startSubmission(
     select: { id: true },
   });
   await linkSplitLead(splitGateEntryId, created.id);
+  await attachContact(assessment.tenantId, created.id, {
+    firstName: submissionData.leadFirstName,
+    lastName: submissionData.leadLastName,
+    email: submissionData.leadEmail,
+    mobile: submissionData.leadMobile,
+    profession: submissionData.leadProfession,
+  });
   const eventId = await fireRegistration(assessment, created.id, newCustomerId, leadFields, attr, metaEventOn(assessment.fireMetaCapi, assessment.metaEvents, "registration"), cleanXid, gatePayload, exitRoute, preview);
   // Nurture now fires on COMPLETION (see completeSubmission) so {{resultUrl}} resolves.
   return { ok: true, data: { status: "started", submissionId: created.id, editToken: newEditToken, ...(eventId ? { eventId } : {}) } };

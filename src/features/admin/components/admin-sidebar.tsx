@@ -64,6 +64,9 @@ const SECTIONS: NavSection[] = [
   {
     title: "Leads",
     items: [
+      // Above the run-by-run lists on purpose: a person is the thing an owner looks
+      // for, and the submissions below are what that person did.
+      { href: "/admin/contacts", label: "Contacts" },
       { href: "/admin/submissions", label: "Submissions" },
       { href: "/admin/gate-qualified", label: "Gate qualified" },
       { href: "/admin/audiences", label: "Audiences" },

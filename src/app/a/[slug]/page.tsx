@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { resolveConsentText } from "@/lib/contacts/consent";
 import { notFound } from "next/navigation";
 import { tenantCanonicalOrigin } from "@/lib/seo/site";
 import { getPublishedAssessmentBySlug, getSlugById } from "@/features/assessment/data";
@@ -119,6 +120,11 @@ export default async function PublicAssessmentPage({
   // nothing either way.
   const plan = await planFor(a.tenantId);
   if (plan.parked && !preview) return <FunnelPaused title={a.title} />;
+
+  // The consent line under the opt-in form. Resolved server-side because the stored
+  // wording has to be the wording that was displayed, and the browser is not the
+  // authority on that.
+  const consentText = await resolveConsentText(a.tenantId);
 
   // Audience gate (Phase 2): each role either continues in THIS assessment
   // (redirectSlug null) or redirects to another assessment. The option is shown
@@ -311,6 +317,7 @@ export default async function PublicAssessmentPage({
         assessment={assessment}
         attribution={attribution}
         preview={preview}
+        consentText={consentText}
         prefill={
           handoff ? { firstName: handoff.firstName ?? "", email: handoff.email ?? "" } : undefined
         }

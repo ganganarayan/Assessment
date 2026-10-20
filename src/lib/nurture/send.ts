@@ -1,4 +1,5 @@
 import "server-only";
+import { unsubscribeUrlFor } from "@/lib/contacts/dnd";
 import { randomUUID } from "node:crypto";
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/db/prisma";
@@ -248,6 +249,9 @@ export async function sendNurtureForSubmission(submissionId: string, opts?: { fo
       customerId: true,
       resultToken: true,
       status: true,
+      // The person, for their unsubscribe link. Null on a run captured before
+      // contacts existed, which renders the placeholder blank rather than broken.
+      contact: { select: { optOutToken: true } },
       assessment: {
         select: { slug: true, engine: true, nextStep: true, targetUrl: true },
       },
@@ -287,7 +291,10 @@ export async function sendNurtureForSubmission(submissionId: string, opts?: { fo
       vidapulseParam,
     });
   }
-  const extra = { resultUrl };
+  // The unsubscribe link, on whichever domain this workspace owns. Available to
+  // every draft; a workspace that never uses the placeholder simply never renders it.
+  const unsubscribeUrl = await unsubscribeUrlFor(s.tenantId, s.contact?.optOutToken);
+  const extra = { resultUrl, unsubscribeUrl };
 
   // Email
   if (cfg.email.enabled) {

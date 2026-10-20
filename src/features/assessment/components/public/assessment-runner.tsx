@@ -275,8 +275,15 @@ export function AssessmentRunner({
   attribution,
   preview,
   prefill,
+  consentText,
 }: {
   assessment: PublicAssessment;
+  /**
+   * The consent line shown under the opt-in form: displayed, ticked, and not
+   * changeable. Nothing about it is sent back - a control nobody can move carries no
+   * information - and the server stamps the same wording onto the contact it creates.
+   */
+  consentText?: string | null;
   /** UTM + click-id params from the landing URL; forwarded to startSubmission. */
   attribution?: Record<string, string>;
   /** Admin preview flag (?preview=1); server verifies the caller before bypassing. */
@@ -1828,6 +1835,19 @@ export function AssessmentRunner({
         </div>
         {qualifiedNote}
         {leadFieldsBlock}
+        {consentText ? (
+          <label className="flex items-start gap-2 text-xs text-[var(--muted-foreground)]">
+            <input
+              type="checkbox"
+              checked
+              readOnly
+              disabled
+              aria-describedby="optin-consent-text"
+              className="mt-0.5 shrink-0"
+            />
+            <span id="optin-consent-text">{consentText}</span>
+          </label>
+        ) : null}
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         <Button size="lg" type="submit" disabled={pending} style={ctaStyle} data-qa-nav="optin-submit">
           {pending ? "Please wait…" : assessment.resultsButtonLabel?.trim() || "Show my results"}
