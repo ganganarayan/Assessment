@@ -81,7 +81,7 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     whileHeld: "Nothing is queued and the queue is not drained. Runs already waiting stay where they are.",
     // The engine shipped before its screens. Held back until there is something to look at.
     defaultReleased: false,
-    routes: [],
+    routes: ["/w/workflows"],
   },
   {
     key: "calendar",

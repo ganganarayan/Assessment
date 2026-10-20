@@ -80,6 +80,9 @@ const SECTIONS: NavSection[] = [
       // First in the section: a trigger and its messages is the general shape, and
       // Nurture is the one-shot special case that predates it.
       { href: "/w/automations", label: "Automations" },
+      // Above Nurture: a sequence is the thing most workspaces want, and the
+      // one-shot below it is the special case of a sequence with one step.
+      { href: "/w/workflows", label: "Workflows" },
       { href: "/w/nurture", label: "Nurture" },
       { href: "/w/webhooks", label: "Webhooks", exact: true },
       { href: "/w/webhooks/logs", label: "Webhook Logs" },
