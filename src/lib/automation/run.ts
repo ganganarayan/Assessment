@@ -8,7 +8,7 @@ import { featureAllowedFor } from "@/lib/features/release";
 import { resolveWabaConfig } from "@/lib/settings/config";
 import { fillPlaceholders, toE164Digits, type LeadFields } from "@/features/nurture/config";
 import { istMinutesOfDay, minutesToHHMM } from "@/lib/calendar/slots";
-import { respectsSuppression } from "@/lib/automation/schedule";
+import { isStale, respectsSuppression } from "@/lib/automation/schedule";
 // The contacts module owns consent; the automation sender asks it, never decides it.
 import { isSuppressed, unsubscribeUrlFor } from "@/lib/contacts/dnd";
 
@@ -146,6 +146,8 @@ export async function processRun(runId: string): Promise<"sent" | "failed" | "sk
       id: true,
       attempts: true,
       tenantId: true,
+      // Read so the send can refuse to be too late; see the staleness guard below.
+      dueAt: true,
       automation: {
         select: {
           id: true,
@@ -186,6 +188,20 @@ export async function processRun(runId: string): Promise<"sent" | "failed" | "sk
   if (!run) return "skipped";
 
   const { automation, appointment } = run;
+
+  /**
+   * Too late to be true.
+   *
+   * A run waits as PENDING when it cannot send, which is right for a deploy or a short
+   * outage and wrong for a long pause: a feature held back for a week and then released
+   * would send its whole backlog at once, every reminder announcing a call that already
+   * happened. Marked SKIPPED with the reason rather than sent, which also makes the row
+   * terminal so the retention sweep can eventually clear it.
+   */
+  if (isStale(run.dueAt, Date.now())) {
+    await skip(run.id, "Too long past its send time to still be true.");
+    return "skipped";
+  }
 
   // Switched off between queueing and coming due. The rule is read HERE rather than at
   // queue time precisely so that switching an automation off stops tomorrow's reminders
