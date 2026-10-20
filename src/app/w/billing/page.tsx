@@ -162,16 +162,43 @@ export default async function BillingPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Billing</h1>
+        {/* 🔴 ONE CHAIN, THREE STATES, AND IT HAS TO STAY ONE.
+            purchased / trialing / neither are mutually exclusive, and this used to be a
+            single if-else-if-else saying so. Inserting the paid line below as its own
+            block broke that: the final else stopped meaning "neither" and started
+            meaning "not trialing", so a paying customer was told both that they are on
+            the Agency plan AND that the workspace has no active plan and the funnel is
+            paused. Two contradictory sentences, one of them frightening, on the page
+            where somebody decides whether to keep paying.
+
+            Anything else that belongs here goes AFTER the chain, never inside it. */}
         {purchased ? (
           <p className="text-sm text-[var(--muted-foreground)]">
             You&apos;re on the <span className="font-semibold text-[var(--foreground)]">{PLAN_LABEL[currentPlan]}</span> plan
             {resolved.status ? ` (${resolved.status.toLowerCase()})` : ""}. Upgrade any time - it takes effect right after payment.
           </p>
-        ) : null}
+        ) : resolved.trialing ? (
+          <p className="text-sm text-[var(--muted-foreground)]">
+            You&apos;re on the{" "}
+            <span className="font-semibold text-[var(--foreground)]">
+              {resolved.trialDaysLeft}-day
+            </span>{" "}
+            remainder of your free trial, with every{" "}
+            <span className="font-semibold text-[var(--foreground)]">{PLAN_LABEL[TRIAL_PLAN]}</span> feature switched
+            on. Pick a plan whenever you like - nothing is charged until you do.
+          </p>
+        ) : (
+          <p className="text-sm text-[var(--muted-foreground)]">
+            This workspace has{" "}
+            <span className="font-semibold text-[var(--foreground)]">no active plan</span> - the funnel is paused and
+            your data is kept. Choosing a plan restarts it immediately.
+          </p>
+        )}
+
+        {/* The billing record, AFTER the chain and never part of it. One line, four
+            facts. The payment id is here because it is what a customer quotes when they
+            write in, and sending them to Razorpay to find it is work we need not create. */}
         {purchased && subRow?.paidAt ? (
-          /* One line, four facts. The payment id is here because it is the thing a
-             customer quotes when they write in, and sending them to Razorpay to find
-             it is work we can simply not create. */
           <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[var(--muted-foreground)]">
             <span className="font-semibold text-[var(--foreground)]">{PLAN_LABEL[currentPlan]}</span>
             <span aria-hidden>·</span>
@@ -190,23 +217,6 @@ export default async function BillingPage() {
             ) : null}
           </p>
         ) : null}
-        {resolved.trialing ? (
-          <p className="text-sm text-[var(--muted-foreground)]">
-            You&apos;re on the{" "}
-            <span className="font-semibold text-[var(--foreground)]">
-              {resolved.trialDaysLeft}-day
-            </span>{" "}
-            remainder of your free trial, with every{" "}
-            <span className="font-semibold text-[var(--foreground)]">{PLAN_LABEL[TRIAL_PLAN]}</span> feature switched
-            on. Pick a plan whenever you like - nothing is charged until you do.
-          </p>
-        ) : (
-          <p className="text-sm text-[var(--muted-foreground)]">
-            This workspace has{" "}
-            <span className="font-semibold text-[var(--foreground)]">no active plan</span> - the funnel is paused and
-            your data is kept. Choosing a plan restarts it immediately.
-          </p>
-        )}
       </div>
 
       <UsageMeters usage={usage} />

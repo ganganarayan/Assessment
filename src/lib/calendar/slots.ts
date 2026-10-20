@@ -277,6 +277,69 @@ export function calendarKey(tenantId: string, assignedUserId: string | null | un
   return `${tenantId}:${calendarOwnerKey(assignedUserId)}`;
 }
 
+/** A slot on a team link, and who is actually free to take it. */
+export interface TeamSlot extends Slot {
+  /** Member ids free at this instant, in no particular order. Never empty. */
+  freeOwners: string[];
+}
+
+/**
+ * Merge one slot list per team member into one list for the link.
+ *
+ * A slot survives while ANYBODY is free, which is the whole point of a team page: three
+ * people means the eleven o'clock stays bookable until all three are taken. Each slot
+ * carries who is free, because the booking that follows has to be handed to one of them
+ * and the page must not offer a time nobody can actually take.
+ *
+ * PURE, so scripts/verify-calendar.ts can prove the union and the capacity.
+ */
+export function mergeOwnerSlots(perOwner: { owner: string; slots: Slot[] }[]): TeamSlot[] {
+  const byStart = new Map<number, TeamSlot>();
+  for (const { owner, slots } of perOwner) {
+    for (const s of slots) {
+      const existing = byStart.get(s.startMs);
+      if (existing) {
+        if (!existing.freeOwners.includes(owner)) existing.freeOwners.push(owner);
+      } else {
+        byStart.set(s.startMs, { startMs: s.startMs, endMs: s.endMs, freeOwners: [owner] });
+      }
+    }
+  }
+  return [...byStart.values()].sort((a, b) => a.startMs - b.startMs);
+}
+
+/**
+ * Whose turn it is, among the members free for a slot.
+ *
+ * 🔴 ROUND ROBIN MEANS LONGEST WAITING, not a counter modulo the team size. A counter
+ * breaks the first time somebody is busy and gets skipped: the booking still advances
+ * it, so the person who was skipped waits another full lap, and on a team where one
+ * person has a fuller diary the rota silently drifts into never choosing them. Oldest
+ * stamp first self-corrects - being skipped leaves you at the front of the queue.
+ *
+ * Never assigned (no stamp) sorts first, so a new member starts at the front rather
+ * than waiting out everybody else's history. Equal stamps break on the member id, so
+ * the answer is deterministic rather than dependent on row order.
+ *
+ * PURE, and the `exclude` argument is what makes the booking retry honest: when the
+ * database refuses a member because somebody just took them, the next call asks for the
+ * next in line rather than the same person again.
+ */
+export function pickRoundRobin(
+  freeOwners: string[],
+  lastAssignedAt: Record<string, number | null | undefined>,
+  exclude: string[] = [],
+): string | null {
+  const candidates = freeOwners.filter((o) => !exclude.includes(o));
+  if (candidates.length === 0) return null;
+  return candidates.sort((a, b) => {
+    const at = lastAssignedAt[a] ?? -1;
+    const bt = lastAssignedAt[b] ?? -1;
+    if (at !== bt) return at - bt;
+    return a < b ? -1 : 1;
+  })[0] as string;
+}
+
 /**
  * Put the respondent's own token on a link that points at one of our booking pages.
  *

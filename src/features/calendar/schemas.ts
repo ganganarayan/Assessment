@@ -60,14 +60,24 @@ export const bookingTypeSchema = z.object({
   active: z.boolean().default(true),
   assessmentId: z.string().trim().max(60).optional().default(""),
   adAccountId: z.string().trim().max(60).optional().default(""),
-  /** Whose calendar this link sells time in. Blank = the workspace shared calendar. */
+  /** Whose calendar this link sells time in, in SINGLE mode. Blank = the shared one. */
   assignedUserId: z.string().trim().max(60).optional().default(""),
+  /** SINGLE sells one person's time; ROUND_ROBIN pools the members below. */
+  assignmentMode: z.enum(["SINGLE", "ROUND_ROBIN"]).default("SINGLE"),
+  /** The pool, for ROUND_ROBIN. Ignored in SINGLE mode. */
+  memberIds: z.array(z.string().trim().min(1).max(60)).max(50).optional().default([]),
   fireMetaCapi: z.boolean().default(true),
   metaBookedEvent: metaEventName.default("Schedule"),
   metaCancelledEvent: metaEventName.default("AppointmentCancelled"),
   metaAttendedEvent: metaEventName.default("AppointmentAttended"),
   metaNoShowEvent: metaEventName.default("AppointmentNoShow"),
-});
+})
+  // A team link with nobody in it offers no slots and takes no bookings, which from the
+  // outside is indistinguishable from the product being broken. Refused at the save.
+  .refine((v) => v.assignmentMode !== "ROUND_ROBIN" || (v.memberIds ?? []).length > 0, {
+    message: "A team link needs at least one person in it.",
+    path: ["memberIds"],
+  });
 export type BookingTypeInput = z.input<typeof bookingTypeSchema>;
 
 export const availabilityRuleSchema = z

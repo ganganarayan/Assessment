@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { minutesToHHMM } from "@/lib/calendar/slots";
 import {
   LOCATION_LABEL,
@@ -46,6 +47,8 @@ interface FormValues {
   locationValue: string;
   active: boolean;
   assignedUserId: string;
+  assignmentMode: "SINGLE" | "ROUND_ROBIN";
+  memberIds: string[];
   assessmentId: string;
   adAccountId: string;
   fireMetaCapi: boolean;
@@ -69,6 +72,8 @@ const BLANK: FormValues = {
   locationValue: "",
   active: true,
   assignedUserId: "",
+  assignmentMode: "SINGLE",
+  memberIds: [],
   assessmentId: "",
   adAccountId: "",
   fireMetaCapi: true,
@@ -92,6 +97,8 @@ const valuesOf = (t: BookingTypeRow): FormValues => ({
   locationValue: t.locationValue ?? "",
   active: t.active,
   assignedUserId: t.assignedUserId ?? "",
+  assignmentMode: t.assignmentMode,
+  memberIds: t.memberIds,
   assessmentId: t.assessmentId ?? "",
   adAccountId: t.adAccountId ?? "",
   fireMetaCapi: t.fireMetaCapi,
@@ -533,24 +540,91 @@ function BookingTypeForm({
       {/* Whose calendar this link sells time in. One link per staff member: the hours on
           it are that person's hours, and a lead who opens it books that person. */}
       {staff.length > 1 ? (
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs">Whose calendar</Label>
-          <select
-            className="h-9 rounded-md border bg-[var(--background)] px-2 text-sm text-[var(--foreground)]"
-            value={v.assignedUserId}
-            onChange={(e) => set({ assignedUserId: e.target.value })}
-          >
-            <option value="">The workspace calendar</option>
-            {staff.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
+        <div className="flex flex-col gap-2">
+          <Label className="text-xs">Who takes these calls</Label>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { mode: "SINGLE" as const, label: "One person" },
+                { mode: "ROUND_ROBIN" as const, label: "A team, in turn" },
+              ]
+            ).map((opt) => (
+              <button
+                key={opt.mode}
+                type="button"
+                onClick={() => set({ assignmentMode: opt.mode })}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs",
+                  v.assignmentMode === opt.mode
+                    ? "border-green-600 bg-green-600/10 font-medium"
+                    : "hover:bg-[var(--muted)]",
+                )}
+              >
+                {opt.label}
+              </button>
             ))}
-          </select>
-          <span className="text-xs text-[var(--muted-foreground)]">
-            The hours below are this person&apos;s hours, and a slot is offered only when their own
-            diary is free. Two staff members can both be booked at 11:00.
-          </span>
+          </div>
+
+          {v.assignmentMode === "SINGLE" ? (
+            <div className="flex flex-col gap-1">
+              <select
+                className="h-9 rounded-md border bg-[var(--background)] px-2 text-sm text-[var(--foreground)]"
+                value={v.assignedUserId}
+                onChange={(e) => set({ assignedUserId: e.target.value })}
+              >
+                <option value="">The workspace calendar</option>
+                {staff.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-[var(--muted-foreground)]">
+                The hours below are this person&apos;s hours, and a slot is offered only when their
+                own diary is free. Two staff members can both be booked at 11:00.
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap gap-2">
+                {staff.map((s) => {
+                  const on = v.memberIds.includes(s.id);
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() =>
+                        set({
+                          memberIds: on
+                            ? v.memberIds.filter((id) => id !== s.id)
+                            : [...v.memberIds, s.id],
+                        })
+                      }
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs",
+                        on ? "border-green-600 bg-green-600/10 font-medium" : "hover:bg-[var(--muted)]",
+                      )}
+                    >
+                      {on ? "✓ " : ""}
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* The two things somebody choosing a team has to know, and neither is
+                  obvious from the switch alone. */}
+              <span className="text-xs text-[var(--muted-foreground)]">
+                The hours below are the team&apos;s hours, and a time stays bookable until
+                everybody on it is taken. Each booking goes to whoever has waited longest among
+                those free, so a busy week does not push the same person to the back forever.
+              </span>
+              {v.memberIds.length === 0 ? (
+                <span className="text-xs text-amber-600 dark:text-amber-400">
+                  Pick at least one person, or this link can take no bookings at all.
+                </span>
+              ) : null}
+            </div>
+          )}
         </div>
       ) : null}
 

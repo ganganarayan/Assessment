@@ -110,9 +110,13 @@ export interface BookingTypeRow {
   active: boolean;
   assessmentId: string | null;
   assessmentTitle: string | null;
-  /** Whose time this link sells. Null is the workspace shared calendar. */
+  /** Whose time this link sells, in SINGLE mode. Null is the workspace shared one. */
   assignedUserId: string | null;
   assignedUserName: string | null;
+  /** SINGLE sells one person's time; ROUND_ROBIN pools the members below. */
+  assignmentMode: "SINGLE" | "ROUND_ROBIN";
+  /** The pool, for a team link. Empty for a single-person one. */
+  memberIds: string[];
   adAccountId: string | null;
   fireMetaCapi: boolean;
   metaBookedEvent: string;
