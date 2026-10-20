@@ -11,7 +11,7 @@ import { DEFAULT_MODEL, isAiProvider, type AiConfig, type AiProvider, type State
 import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 import { resolvePlan, tenantCan } from "@/lib/billing/entitlements";
 import { modelForTenant, parsePlanModels } from "@/lib/ai/plan-models";
-import { costMicroUsd } from "@/lib/ai/pricing";
+import { costMicroUsd, hasCostReport } from "@/lib/ai/pricing";
 import { CLINIC_SYSTEM_PROMPT } from "@/lib/ai/clinic-prompt";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
 
@@ -290,7 +290,20 @@ async function recordAiUsage(
         onPlatformKey: cfg.onPlatformKey,
         inputTokens: call.inputTokens,
         outputTokens: call.outputTokens,
-        costMicroUsd: costMicroUsd(cfg.model, call.inputTokens, call.outputTokens),
+        // 🔴 ESTIMATED COST IS ONLY WRITTEN WHERE THERE IS NO INVOICE TO READ.
+        //
+        // Anthropic and OpenAI publish what they actually billed, pulled daily into
+        // AiCostDay, and the Accounts page apportions THAT. Writing a second,
+        // list-price figure here as well would put two numbers for the same spend in
+        // the database, and the gap between them would widen every time a price moved
+        // until each told its own story. So those providers store tokens only, and
+        // the money comes from the bill.
+        //
+        // Gemini has no comparable endpoint, so there the estimate is the only figure
+        // available and is kept - labelled as an estimate wherever it is shown.
+        costMicroUsd: hasCostReport(cfg.provider)
+          ? 0
+          : costMicroUsd(cfg.model, call.inputTokens, call.outputTokens),
       },
     });
   } catch (e) {

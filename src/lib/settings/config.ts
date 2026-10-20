@@ -618,3 +618,42 @@ export async function resolveOnboardingSteps(): Promise<string[]> {
     .filter(Boolean)
     .slice(0, 20);
 }
+
+/**
+ * The ADMIN credentials that read what the AI providers actually billed.
+ *
+ * A different credential from the generation keys above, and never used to generate:
+ * an Anthropic admin key starts sk-ant-admin and only an org admin can mint one. The
+ * api key ids say which key inside a shared organisation is THIS product's, so a day's
+ * real spend can be split between products that share an account. Blank id = the whole
+ * organisation's bill is taken as ours, which is only correct on a dedicated account.
+ *
+ * Platform scope only. A tenant has no business reading the platform's invoice.
+ */
+export interface AiAdminConfig {
+  claudeAdminKey: string | null;
+  openAiAdminKey: string | null;
+  claudeApiKeyId: string | null;
+  openAiApiKeyId: string | null;
+}
+
+export async function resolveAiAdminConfig(): Promise<AiAdminConfig> {
+  const s = (await settingRow(null, {
+    aiClaudeAdminKeyEnc: true,
+    aiOpenAiAdminKeyEnc: true,
+    aiClaudeApiKeyId: true,
+    aiOpenAiApiKeyId: true,
+  })) as {
+    aiClaudeAdminKeyEnc: string | null;
+    aiOpenAiAdminKeyEnc: string | null;
+    aiClaudeApiKeyId: string | null;
+    aiOpenAiApiKeyId: string | null;
+  } | null;
+
+  return {
+    claudeAdminKey: safeDecrypt(s?.aiClaudeAdminKeyEnc),
+    openAiAdminKey: safeDecrypt(s?.aiOpenAiAdminKeyEnc),
+    claudeApiKeyId: s?.aiClaudeApiKeyId?.trim() || null,
+    openAiApiKeyId: s?.aiOpenAiApiKeyId?.trim() || null,
+  };
+}

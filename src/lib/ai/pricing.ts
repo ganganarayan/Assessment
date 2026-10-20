@@ -70,3 +70,18 @@ export function costMicroUsd(model: string, inputTokens: number, outputTokens: n
 export function isPriced(model: string): boolean {
   return rateFor(model) !== null;
 }
+
+/**
+ * Does this provider publish what it actually billed?
+ *
+ * Anthropic and OpenAI do, through their admin cost reports, and the app pulls those
+ * daily (see lib/ai/cost-report.ts). Where a real figure exists, the estimate in this
+ * file must NOT also be recorded: two numbers for one spend is precisely how an app
+ * ends up with a second set of books that drifts a little further every month.
+ *
+ * Gemini bills through Google Cloud and has no equivalent endpoint, so there the
+ * estimate is all there is, and it is labelled as an estimate wherever it is shown.
+ */
+export function hasCostReport(provider: string): boolean {
+  return provider === "claude" || provider === "openai";
+}

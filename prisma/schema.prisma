@@ -187,6 +187,8 @@ model Tenant {
   appointments         Appointment[]
   googleCalendar       GoogleCalendarAccount?
   automations          Automation[]
+  contacts             Contact[]
+  tags                 Tag[]
 
   @@index([status])
   @@index([deletedAt])
@@ -1407,6 +1409,13 @@ model Submission {
   // without a join. Null = never asked for a call.
   ctaClickedAt DateTime?
 
+  /// The PERSON behind this run. Nullable, and deliberately not the source of truth:
+  /// the lead columns below stay the snapshot of what was typed that day, and this is
+  /// only how the run is attributed to a contact. Backfilled; null on rows that have
+  /// no email and no mobile to match on.
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
   leadFirstName  String?
   leadLastName   String?
   leadEmail      String?
@@ -1706,6 +1715,11 @@ model GateEntry {
   tenantId String?
 
   // -------------------------------------------------------------------------
+  /// The person, when this gate captured one. Same rule as Submission: a link, not
+  /// the source of truth.
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
   // SPLIT lead capture (leadCaptureMode = SPLIT). Everything below is null on a
   // row from an ALL_AT_ONCE funnel, which is every row that existed before this.
   //
@@ -2443,25 +2457,41 @@ model AppSetting {
 
   // AI personalized-statement config (platform-level). The API key is stored
   // ENCRYPTED at rest (see lib/crypto) and never returned to the client.
-  aiEnabled       Boolean @default(false)
-  aiProvider      String? // "claude" | "openai" | "gemini" - which provider to USE
-  aiModel         String?
+  aiEnabled      Boolean @default(false)
+  aiProvider     String? // "claude" | "openai" | "gemini" - which provider to USE
+  aiModel        String?
   // Legacy single key (kept for back-compat/fallback). New keys are stored PER
   // provider below, so switching provider/model never re-prompts or breaks.
-  aiApiKeyEnc     String?
+  aiApiKeyEnc    String?
   // One ENCRYPTED key per provider, saved once and reused. The active provider
   // (aiProvider) selects which of these is used at generation time.
-  aiClaudeKeyEnc  String?
-  aiOpenAiKeyEnc  String?
-  aiGeminiKeyEnc  String?
-  aiGuidance      String?
+  aiClaudeKeyEnc String?
+  aiOpenAiKeyEnc String?
+  aiGeminiKeyEnc String?
+
+  // ADMIN keys, platform row only. A DIFFERENT credential from the keys above: an
+  // Anthropic admin key starts sk-ant-admin and only an org admin can mint one. They
+  // read the organisation's real billed cost, which is the only way the expense in
+  // this app can be the same number as the invoice. Nothing generates with them.
+  aiClaudeAdminKeyEnc String?
+  aiOpenAiAdminKeyEnc String?
+
+  /// Which API key id inside the provider organisation is THIS product's.
+  ///
+  /// The cost report bills an organisation, not a product. Assess360 and the other
+  /// apps share one Anthropic account separated only by API key, so the day's real
+  /// spend is split by each key's share of that day's tokens. Blank = take the whole
+  /// organisation's bill as ours, which is only right on a dedicated account.
+  aiClaudeApiKeyId String?
+  aiOpenAiApiKeyId String?
+  aiGuidance       String?
   // Default result-statement prompt version - the tenant-wide default that a new
   // assessment inherits (an assessment can override via Assessment.aiPromptVersionId).
   // May be a built-in code id ("v1-mentor"/"v2-easy-read") or an AiPromptVersion id.
-  aiPromptVersion String?
+  aiPromptVersion  String?
   // Tenant-wide word-count window the assembled system prompt asks the model for.
-  aiWordMin       Int     @default(200)
-  aiWordMax       Int     @default(280)
+  aiWordMin        Int     @default(200)
+  aiWordMax        Int     @default(280)
 
   // Per-tenant Meta (ads) config. On the singleton these stay null and the code uses
   // the platform env (NEXT_PUBLIC_META_PIXEL_ID / META_CAPI_ACCESS_TOKEN); a tenant
@@ -2614,6 +2644,12 @@ model AppSetting {
   //
   // Default FALSE: hidden for customers. The owner's own INTERNAL tenants
   // (Tenant.unlimited) always see it regardless, because they are already using it.
+  // The consent line shown under every opt-in form, per tenant. Blank falls back to
+  // the wording in code, so a workspace that never touches this still shows something
+  // honest. Stored ON THE CONTACT at capture time as well, because what matters later
+  // is what the person actually saw, not what the setting says today.
+  consentText String? @db.Text
+
   wabaEnabledGlobal Boolean @default(false)
 
   // THE META APP behind one-click WhatsApp onboarding. Singleton row ONLY: there is one
@@ -4026,4 +4062,153 @@ enum AutomationSendStatus {
   SENT
   FAILED
   SKIPPED
+}
+
+// ---------------------------------------------------------------------------
+// CONTACT - one row per person, which this schema has never had.
+//
+// A lead's name, email and mobile are copied onto Submission AND GateEntry, once per
+// run. That is right for those tables: a submission is a snapshot of what somebody
+// typed that day, and it must not change when they later type something else. But it
+// means the product has no idea that four submissions and a gate entry are one human,
+// and everything the owner now wants - tags, a do-not-disturb flag, an audience to
+// broadcast to, an unsubscribe that actually stops the messages - is a statement about
+// the human rather than about any one run.
+//
+// So the run tables keep their columns exactly as they are, and gain a nullable link
+// to the person. Nothing that works today starts depending on this table: the contact
+// is upserted ALONGSIDE the lead write, outside its transaction, and a failure there
+// loses a tag, never a lead.
+model Contact {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// E.164 DIGITS, no plus, normalised by toE164Digits - the same function the WhatsApp
+  /// sender uses, so a number that can be messaged and a number that can be matched are
+  /// the same string. The primary identity: a mobile is what WhatsApp needs.
+  mobile String?
+  email  String?
+
+  firstName  String?
+  lastName   String?
+  profession String?
+
+  /// CONSENT, as it was actually shown. The text is stored, not just the timestamp,
+  /// because "they agreed" is worth nothing a year later without "to what".
+  consentAt   DateTime?
+  consentText String?   @db.Text
+
+  /// DO NOT DISTURB. Set, and no marketing message of any kind goes out, on any
+  /// channel, from any workflow or broadcast. One flag, checked at one choke point.
+  marketingOptOutAt DateTime?
+  /// How they left: "LINK" (the unsubscribe page), "WHATSAPP_STOP" (they replied STOP
+  /// or tapped the opt-out button), "ADMIN" (somebody did it for them).
+  optOutSource      String?
+
+  /// Capability token in the unsubscribe URL. Unguessable, because the page it opens
+  /// takes an irreversible action with no login.
+  optOutToken String @unique
+
+  /// Where the person first came from: "SUBMISSION" | "SPLIT_GATE" | "ADMIN".
+  source     String?
+  lastSeenAt DateTime @default(now())
+
+  tags        ContactTag[]
+  submissions Submission[]
+  gateEntries GateEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Two partial identities rather than one composite. Postgres treats NULLs as
+  /// distinct, so the email-only contacts a SPLIT gate produces do not collide with
+  /// each other, and neither do the mobile-only ones.
+  @@unique([tenantId, mobile])
+  @@unique([tenantId, email])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, marketingOptOutAt])
+  @@map("contact")
+}
+
+/// A label the workspace invents. Named per tenant, so two workspaces can both have
+/// "hot" and mean different things.
+model Tag {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name  String
+  /// A token name from the palette, for the chip. Null renders the neutral chip.
+  color String?
+
+  contacts ContactTag[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("tag")
+}
+
+/// Which contacts carry which tag. A join row rather than a string array, because the
+/// audience filter asks "every contact with this tag" far more often than it asks
+/// "every tag on this contact", and only one of those is an index.
+model ContactTag {
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  /// When it was applied, so a workflow can ask "tagged in the last 7 days".
+  createdAt DateTime @default(now())
+
+  @@id([contactId, tagId])
+  @@index([tagId])
+  @@map("contact_tag")
+}
+
+/// One provider, one day, what it ACTUALLY cost.
+///
+/// 🔴 THE PRICE IS NEVER STORED. A rate table is a copy of a price list that changes
+/// without telling us, and the moment the app holds one it begins telling a second
+/// story that drifts from the invoice and compounds. So this holds the money the
+/// provider billed, and the tokens it billed it for, and every per-tenant figure is a
+/// share of that. Rates stale, shares do not.
+///
+/// THE RECONCILIATION. `ourMicroUsd` (billed x scopeTokens / totalTokens) is this
+/// product's real cost for the day. The Accounts page splits exactly that across
+/// tenants by their recorded tokens and shows whatever will not attribute as
+/// UNATTRIBUTED, so billed always equals attributed plus unattributed. There is no
+/// residue left anywhere to grow quietly into a different number.
+model AiCostDay {
+  id String @id @default(cuid())
+
+  /// "claude" | "openai" | "gemini", matching AiUsage.provider.
+  provider String
+  /// The UTC day the provider billed. Theirs, not IST: reconciling against an invoice
+  /// means using the invoice's own day boundary.
+  day      DateTime @db.Date
+
+  /// Real spend for the billed scope that day, in micro-dollars (USD x 1,000,000).
+  billedMicroUsd Int @default(0)
+
+  /// Tokens on OUR api key that day, from the provider's usage report.
+  scopeTokens Int @default(0)
+  /// Tokens across the whole billed scope that day. Equal to scopeTokens on a
+  /// dedicated account; larger when the organisation is shared with another product.
+  totalTokens Int @default(0)
+
+  /// "cost_report" when the money came from the provider, "estimate" when no such
+  /// endpoint exists (Gemini) and it was priced from a table. Shown on the page, so
+  /// an estimate is never read as an invoice.
+  source String  @default("cost_report")
+  /// Why a day is missing or partial, in words, for the page to show.
+  note   String?
+
+  fetchedAt DateTime @default(now())
+
+  @@unique([provider, day])
+  @@index([day])
+  @@map("ai_cost_day")
 }

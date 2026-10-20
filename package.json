@@ -80,6 +80,7 @@
     "verify:zone": "tsx scripts/verify-zone.ts",
     "qa:ui": "tsx qa/src/ui/server.ts",
     "verify:custom-fields": "tsx scripts/verify-custom-fields.ts",
+    "cron:ai-costs": "tsx --conditions=react-server scripts/cron-ai-costs.ts",
     "worker:check": "npx --yes wrangler@4 deploy --config infra/wrangler.toml --dry-run",
     "worker:deploy": "npx --yes wrangler@4 deploy --config infra/wrangler.toml",
     "worker:history": "npx --yes wrangler@4 deployments list --config infra/wrangler.toml",

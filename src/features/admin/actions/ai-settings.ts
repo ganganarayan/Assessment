@@ -224,3 +224,52 @@ export async function testAi(
   if (!scope.isSuper && !scope.tenantId) return { ok: false, ms: 0, error: "No workspace." };
   return testStatement(versionId, scope.tenantId);
 }
+
+/**
+ * Save the ADMIN credentials that read what the providers actually billed.
+ *
+ * 🔴 PLATFORM ONLY, AND NEVER USED TO GENERATE. An admin key reads the organisation's
+ * cost report; Anthropic's starts sk-ant-admin and only an org admin can mint one. A
+ * tenant has no business holding one, so this refuses anyone but a super admin, and
+ * writes to the platform row regardless of which workspace is being acted in.
+ *
+ * The api key ids say which key inside a shared provider organisation belongs to THIS
+ * product. Assess360 shares an account with the other apps, separated by API key, so
+ * the day's real spend is split by each key's share of that day's tokens. Blank means
+ * the whole organisation's bill is counted as ours, which is only right on a dedicated
+ * account - the Accounts page says so when it is blank.
+ *
+ * A blank KEY leaves the stored one alone, like every other secret field here: the
+ * form never receives the saved value back, so treating blank as "clear it" would wipe
+ * a working credential every time somebody edited the field next to it.
+ */
+export async function updateAiAdminKeys(input: {
+  claudeAdminKey?: string;
+  openAiAdminKey?: string;
+  claudeApiKeyId?: string;
+  openAiApiKeyId?: string;
+}): Promise<ActionResult> {
+  const scope = await resolveActingScope();
+  if (!scope.isSuper) return { ok: false, error: "Super admin only." };
+
+  const data: Record<string, string | null> = {};
+  const claude = input.claudeAdminKey?.trim();
+  const openai = input.openAiAdminKey?.trim();
+  if (claude) data.aiClaudeAdminKeyEnc = encryptWithSecret(claude, env.BETTER_AUTH_SECRET);
+  if (openai) data.aiOpenAiAdminKeyEnc = encryptWithSecret(openai, env.BETTER_AUTH_SECRET);
+
+  // Ids are not secrets, so blank genuinely means "clear it" here.
+  if (input.claudeApiKeyId !== undefined) data.aiClaudeApiKeyId = input.claudeApiKeyId.trim() || null;
+  if (input.openAiApiKeyId !== undefined) data.aiOpenAiApiKeyId = input.openAiApiKeyId.trim() || null;
+
+  if (Object.keys(data).length === 0) return { ok: true };
+
+  await prisma.appSetting.upsert({
+    where: { id: "singleton" },
+    update: data,
+    create: { id: "singleton", ...data },
+  });
+  revalidatePath("/admin/ai");
+  revalidatePath("/platform/accounts");
+  return { ok: true };
+}

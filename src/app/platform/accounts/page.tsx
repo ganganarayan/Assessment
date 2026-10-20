@@ -15,17 +15,17 @@ export const dynamic = "force-dynamic";
  *
  * A SEPARATE PAGE FROM THE TENANTS LIST, on purpose. That list answers "what state is
  * this workspace in" and is read while operating one. This answers "is this business
- * making money", which is read down a column. One table doing both does neither, and
- * every money column added there would weigh on people who came for the other job.
+ * making money", which is read down a column.
  *
- * What the two numbers mean is narrower than it looks, and the page says so rather
- * than leaving it to be assumed:
+ * The page's job is that the figures RECONCILE. Billed is what the providers invoiced,
+ * taken from their own cost reports rather than from a price list, so it is the same
+ * number as the bill. Every tenant figure is a share of it. Whatever no tenant claims
+ * is printed as unattributed instead of being folded into the rows, so there is never a
+ * difference loose in the system to compound into a second set of books.
  *
- *   REVENUE is subscription payments. Funnel payments belong to the tenant and run
- *   through the tenant's own Razorpay account; they never reach us.
- *
- *   EXPENSE is AI run on the PLATFORM's key. A tenant on their own key spends their
- *   own money, and counting it would understate profit for the cheapest tenants.
+ * What it does NOT do: estimate. A day with no billed figure contributes nothing and
+ * the page says how many such days there were. A number that looks like money and is
+ * not is worse than an admitted gap, because it gets believed.
  */
 export default async function PlatformAccountsPage({
   searchParams,
@@ -51,7 +51,7 @@ export default async function PlatformAccountsPage({
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Figure label="Revenue" value={usdFromCents(totals.revenueCents)} tone="good" />
-        <Figure label="AI expense" value={usdFromMicro(totals.expenseMicroUsd)} />
+        <Figure label="AI billed" value={usdFromMicro(totals.billedMicroUsd)} />
         <Figure
           label="Profit"
           value={usdFromMicro(totals.profitMicroUsd)}
@@ -59,17 +59,39 @@ export default async function PlatformAccountsPage({
         />
       </div>
 
-      {/* 🟡 Said out loud rather than left in the arithmetic. A model with no rate in
-          lib/ai/pricing records its tokens and a cost of zero, so the expense column is
-          an understatement and the profit above it is flattering. Better to print that
-          than to let a confident number be believed. */}
-      {totals.unpricedCalls > 0 ? (
+      {totals.daysPriced === 0 ? (
         <p className="rounded-lg border border-yellow-600/40 bg-yellow-600/10 px-4 py-3 text-sm">
-          {totals.unpricedCalls} AI call{totals.unpricedCalls === 1 ? "" : "s"} ran on a model with
-          no rate set, so their tokens are counted but their cost is not. Expense is therefore
-          lower than the truth, and profit higher. Add the rate in lib/ai/pricing.ts.
+          No billed AI cost has been pulled yet, so every cost column here is zero and profit
+          is overstated by whatever the providers have charged. Add an admin key under AI and
+          run the daily cron. Nothing is estimated in the meantime, on purpose.
+        </p>
+      ) : totals.daysUnpriced > 0 ? (
+        <p className="rounded-lg border border-yellow-600/40 bg-yellow-600/10 px-4 py-3 text-sm">
+          {totals.daysUnpriced} day{totals.daysUnpriced === 1 ? "" : "s"} in this range had AI
+          usage but no billed figure yet, so that cost is missing rather than guessed. The
+          daily pull fills them in, including retrospectively.
         </p>
       ) : null}
+
+      {/* The reconciliation, stated rather than implied. The three always add up. */}
+      <div className="rounded-lg border p-4">
+        <h2 className="text-sm font-semibold">AI cost, reconciled</h2>
+        <dl className="mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+          <Line label="Billed by providers" value={usdFromMicro(totals.billedMicroUsd)} />
+          <Line label="Attributed to tenants" value={usdFromMicro(totals.attributedMicroUsd)} />
+          <Line
+            label="Unattributed"
+            value={usdFromMicro(totals.unattributedMicroUsd)}
+            muted={totals.unattributedMicroUsd === 0}
+          />
+        </dl>
+        <p className="mt-3 text-xs leading-relaxed text-[var(--muted-foreground)]">
+          Billed comes from each provider&apos;s own cost report, not from a price list, so it is
+          the same number as the invoice. Tenant figures are shares of it, split by the tokens
+          recorded against them, which reconciles to the day rather than to the individual
+          call. Unattributed is spend no tenant claimed, usually platform generation.
+        </p>
+      </div>
 
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
@@ -80,7 +102,7 @@ export default async function PlatformAccountsPage({
               <th className="px-3 py-2 text-right">Revenue</th>
               <th className="px-3 py-2 text-right">Payments</th>
               <th className="px-3 py-2">Last paid</th>
-              <th className="px-3 py-2 text-right">AI expense</th>
+              <th className="px-3 py-2 text-right">AI cost</th>
               <th className="px-3 py-2 text-right">Tokens</th>
               <th className="px-3 py-2 text-right">Profit</th>
             </tr>
@@ -102,17 +124,7 @@ export default async function PlatformAccountsPage({
                   <td className="whitespace-nowrap px-3 py-2 text-xs">
                     {r.lastPaidAt ? formatISTDate(r.lastPaidAt) : "-"}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {usdFromMicro(r.expenseMicroUsd)}
-                    {r.unpricedCalls > 0 ? (
-                      <span
-                        title={`${r.unpricedCalls} call(s) on a model with no rate set`}
-                        className="ml-1 text-yellow-600"
-                      >
-                        *
-                      </span>
-                    ) : null}
-                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">{usdFromMicro(r.expenseMicroUsd)}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-[var(--muted-foreground)]">
                     {r.tokens ? r.tokens.toLocaleString("en-IN") : "-"}
                   </td>
@@ -134,7 +146,9 @@ export default async function PlatformAccountsPage({
               </td>
               <td className="px-3 py-2 text-right tabular-nums">{usdFromCents(totals.revenueCents)}</td>
               <td className="px-3 py-2" colSpan={2} />
-              <td className="px-3 py-2 text-right tabular-nums">{usdFromMicro(totals.expenseMicroUsd)}</td>
+              <td className="px-3 py-2 text-right tabular-nums">
+                {usdFromMicro(totals.attributedMicroUsd)}
+              </td>
               <td className="px-3 py-2" />
               <td
                 className={`px-3 py-2 text-right tabular-nums ${
@@ -147,6 +161,14 @@ export default async function PlatformAccountsPage({
           </tfoot>
         </table>
       </div>
+
+      {/* 🟡 The footer's AI column is ATTRIBUTED, not billed, so it can be read beside the
+          rows above it. Profit uses BILLED, because unattributed spend is still our money
+          going out. They differ by exactly the unattributed line in the panel above. */}
+      <p className="text-xs text-[var(--muted-foreground)]">
+        The AI total in the table is the attributed part, so it matches the rows. Profit is
+        calculated against the full billed amount, including unattributed spend.
+      </p>
     </main>
   );
 }
@@ -162,6 +184,17 @@ function Figure({ label, value, tone }: { label: string; value: string; tone?: "
       >
         {value}
       </p>
+    </div>
+  );
+}
+
+function Line({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <div>
+      <dt className="text-xs text-[var(--muted-foreground)]">{label}</dt>
+      <dd className={`font-semibold tabular-nums ${muted ? "text-[var(--muted-foreground)]" : ""}`}>
+        {value}
+      </dd>
     </div>
   );
 }
