@@ -185,6 +185,7 @@ model Tenant {
   bookingTypes         BookingType[]
   appointments         Appointment[]
   googleCalendar       GoogleCalendarAccount?
+  automations          Automation[]
 
   @@index([status])
   @@index([deletedAt])
@@ -3521,6 +3522,7 @@ model BookingType {
   rules        AvailabilityRule[]
   exceptions   AvailabilityException[]
   appointments Appointment[]
+  automations  Automation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3667,6 +3669,9 @@ model Appointment {
   googleSyncedAt  DateTime?
   googleSyncError String?
 
+  /// Queued automation firings for this appointment (reminders and the rest).
+  automationRuns AutomationRun[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -3712,4 +3717,164 @@ model GoogleCalendarAccount {
   updatedAt DateTime @updatedAt
 
   @@map("google_calendar_account")
+}
+
+// ---------------------------------------------------------------------------
+// AUTOMATION - trigger, then actions.
+//
+// One shape, three models: an Automation is a trigger plus a list of actions, and an
+// AutomationRun is one firing of it for one appointment. Nothing here knows how to send
+// anything: the actions carry an email or an approved WhatsApp template and the sending
+// is the nurture sender, which already holds the SMTP and Cloud API plumbing, the
+// placeholder substitution and the send log.
+//
+// 🟡 Triggers are APPOINTMENT ONLY for now, on purpose. The opt-in and completion events
+// already have a sender (Nurture), and offering them here as well would be two screens
+// that both send one email on opt-in, disagreeing about which. The trigger enum and the
+// event-bus hook are shaped so that adding them later is a registry entry, not a design.
+// ---------------------------------------------------------------------------
+
+/// What starts an automation.
+///
+/// Five of these are events that have already happened; APPOINTMENT_REMINDER is the odd
+/// one and the reason the run queue exists, because it is due at a time relative to a
+/// call that has not happened yet.
+enum AutomationTrigger {
+  APPOINTMENT_BOOKED
+  APPOINTMENT_RESCHEDULED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_ATTENDED
+  APPOINTMENT_NO_SHOW
+  APPOINTMENT_REMINDER
+}
+
+/// How an action reaches the person. Both go through the nurture sender.
+enum AutomationChannel {
+  EMAIL
+  WABA
+}
+
+/// The life of one queued firing.
+///
+/// SKIPPED is not a failure and is kept apart from one: a reminder for a call that was
+/// cancelled yesterday must not be sent, and the owner needs to see that it was
+/// deliberately not sent rather than that it broke.
+enum AutomationRunStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  SKIPPED
+  CANCELLED
+}
+
+/// One rule: when THIS happens, do THESE things.
+model Automation {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name    String
+  trigger AutomationTrigger
+
+  /// Which booking link this watches. NULL means every one in the workspace, which is
+  /// what most owners want for a reminder and what a second booking link would
+  /// otherwise silently miss.
+  bookingTypeId String?
+  bookingType   BookingType? @relation(fields: [bookingTypeId], references: [id], onDelete: Cascade)
+
+  /// Minutes relative to the call's START, for APPOINTMENT_REMINDER only. Negative is
+  /// before (-1440 = a day ahead), positive is after. Ignored by every other trigger,
+  /// which fire when their event does.
+  offsetMin Int @default(-1440)
+
+  /// Switched off keeps the rule and stops the sending. Pending runs are left alone:
+  /// the worker re-reads the automation when a run comes due, so switching off stops
+  /// tomorrow's reminders without having to go and find them.
+  active Boolean @default(true)
+
+  actions AutomationAction[]
+  runs    AutomationRun[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([trigger, active])
+  @@map("automation")
+}
+
+/// One thing an automation does. Ordered, and they run in order.
+///
+/// The two channels keep their own columns rather than sharing a JSON blob: an email is
+/// a subject and a body, a WhatsApp message is an approved template name plus the
+/// variables to fill its numbered slots, and the two have nothing in common but the
+/// person they reach.
+model AutomationAction {
+  id           String     @id @default(cuid())
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  displayOrder Int               @default(0)
+  channel      AutomationChannel
+
+  /// EMAIL. Both accept {{placeholders}} - the lead's fields plus the appointment's.
+  subject String?
+  body    String? @db.Text
+
+  /// WABA. The template must be APPROVED on the workspace's own WhatsApp Business
+  /// Account; business-initiated messages cannot be free text, which is why there is a
+  /// name here and not a message.
+  wabaTemplate String?
+  wabaLang     String  @default("en")
+  /// Ordered values for the template's {{1}}, {{2}} … Each is literal text or a
+  /// placeholder, resolved at send time.
+  wabaVars     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([automationId, displayOrder])
+  @@map("automation_action")
+}
+
+/// One firing of one automation for one appointment: the durable queue AND the log.
+///
+/// 🔴 Why a row rather than a timer. A reminder is due hours or days after the thing
+/// that scheduled it, and an in-process timer dies with the deploy that created it -
+/// silently, with nobody to tell. A row survives deploys, restarts and the worker
+/// falling over, and the cron picks up whatever is due. The same reasoning as the
+/// webhook delivery queue.
+model AutomationRun {
+  id           String     @id @default(cuid())
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  /// Denormalized so the log can be scoped and read without a join.
+  tenantId String
+
+  /// When this should go out. Now, for the five event triggers; start plus the offset
+  /// for a reminder. Also the retry time after a failure.
+  dueAt DateTime
+
+  status     AutomationRunStatus @default(PENDING)
+  attempts   Int                 @default(0)
+  lastError  String?
+  firedAt    DateTime?
+  /// Why it was skipped, in the owner's words ("the call was cancelled").
+  skipReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// ONE row per automation per appointment, forever. A re-emitted event updates this
+  /// row instead of stacking a second reminder, and a rescheduled call moves its due
+  /// time rather than sending twice.
+  @@unique([automationId, appointmentId])
+  @@index([status, dueAt])
+  @@index([tenantId, createdAt])
+  @@map("automation_run")
 }

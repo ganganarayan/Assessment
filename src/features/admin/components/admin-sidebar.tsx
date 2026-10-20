@@ -100,6 +100,9 @@ const SECTIONS: NavSection[] = [
     // What fires on its own after a lead arrives, and nothing else.
     title: "Automation",
     items: [
+      // First in the section: a trigger and its messages is the general shape, and
+      // Nurture is the one-shot special case that predates it.
+      { href: "/admin/automations", label: "Automations" },
       { href: "/admin/nurture", label: "Nurture" },
       { href: "/admin/webhooks", label: "Webhooks", exact: true },
       { href: "/admin/webhook-logs", label: "Webhook Logs" },

@@ -64,10 +64,21 @@ export const NURTURE_PLACEHOLDERS = [
   "resultUrl",
 ] as const;
 
-/** Replace {{firstName}} etc. with the lead's values (blank when unknown). Unknown
- *  placeholders are left as-is so a typo is visible rather than silently dropped.
- *  `extra` carries non-lead values such as the completion result URL ({{resultUrl}}). */
-export function fillPlaceholders(template: string, lead: LeadFields, extra?: { resultUrl?: string | null }): string {
+/**
+ * Replace {{firstName}} etc. with the lead's values (blank when unknown). Unknown
+ * placeholders are left as-is so a typo is visible rather than silently dropped.
+ *
+ * `extra` carries whatever is not a lead field: the completion result URL
+ * ({{resultUrl}}) for a nurture send, and the appointment's own time, link and booking
+ * name for a calendar automation. A plain map rather than a named shape, so a feature
+ * that needs its own placeholders adds them at the call site instead of here - the
+ * substitution does not care what the values mean.
+ */
+export function fillPlaceholders(
+  template: string,
+  lead: LeadFields,
+  extra?: Record<string, string | null | undefined>,
+): string {
   const name = [lead.firstName, lead.lastName].filter(Boolean).join(" ").trim();
   const map: Record<string, string> = {
     firstName: (lead.firstName ?? "").trim(),
@@ -76,8 +87,11 @@ export function fillPlaceholders(template: string, lead: LeadFields, extra?: { r
     email: (lead.email ?? "").trim(),
     mobile: (lead.mobile ?? "").trim(),
     profession: (lead.profession ?? "").trim(),
-    resultUrl: (extra?.resultUrl ?? "").trim(),
+    resultUrl: "",
   };
+  for (const [key, value] of Object.entries(extra ?? {})) {
+    map[key] = (value ?? "").trim();
+  }
   return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (whole, key: string) => map[key] ?? whole);
 }
 

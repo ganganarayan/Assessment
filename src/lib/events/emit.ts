@@ -5,6 +5,8 @@ import { processDelivery } from "@/lib/webhooks/retry";
 import { EVENT_NAME, type EmitInput } from "@/features/events/types";
 import { buildEnvelope, shapePayload, withDeliveredName } from "@/lib/events/payload";
 import { ownedWhere } from "@/lib/tenant/platform-tenant";
+import { enqueueAutomationsForEvent } from "@/lib/automation/enqueue";
+import { processRuns } from "@/lib/automation/run";
 
 /**
  * Central event service.
@@ -52,7 +54,24 @@ export async function emitEvent(type: EventType, input: EmitInput): Promise<void
     },
   });
 
-  // 2) ENQUEUE a durable delivery per matching webhook (awaited, so it survives a
+  // 2) QUEUE what this event makes due for the workspace's automations, and send
+  //    anything due immediately (a booking confirmation must not wait a minute for the
+  //    cron). Awaited, like the webhook enqueue, so the row survives a deploy; the
+  //    sending itself is not. Entirely fail-soft and placed BEFORE the webhook block
+  //    below, which returns early when a workspace has no webhooks - an automation must
+  //    not depend on whether somebody also configured a webhook.
+  try {
+    const dueNow = await enqueueAutomationsForEvent(type, input.appointment?.id);
+    if (dueNow.length > 0) {
+      void processRuns(dueNow).catch(() => {
+        // Outcomes are on the run row; the cron picks up anything left PENDING.
+      });
+    }
+  } catch (e) {
+    console.error("[emit] automation enqueue failed:", e instanceof Error ? e.message : String(e));
+  }
+
+  // 3) ENQUEUE a durable delivery per matching webhook (awaited, so it survives a
   //    deploy), then fire the first attempt inline - non-blocking. If that inline
   //    attempt is killed mid-flight, the pending row is retried by the cron
   //    (lib/webhooks/retry). Tenant scoping is unchanged: Gita/platform events
