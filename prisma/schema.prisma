@@ -188,6 +188,7 @@ model Tenant {
   googleCalendar       GoogleCalendarAccount?
   automations          Automation[]
   contacts             Contact[]
+  workflows            Workflow[]
   tags                 Tag[]
 
   @@index([status])
@@ -4115,6 +4116,7 @@ model Contact {
   lastSeenAt DateTime @default(now())
 
   tags        ContactTag[]
+  workflowRuns WorkflowRun[]
   submissions Submission[]
   gateEntries GateEntry[]
 
@@ -4211,4 +4213,220 @@ model AiCostDay {
   @@unique([provider, day])
   @@index([day])
   @@map("ai_cost_day")
+}
+
+// ---------------------------------------------------------------------------
+// WORKFLOWS - a sequence of messages sent to a PERSON, over time.
+//
+// Deliberately NOT the Automation model, and the duplication is on purpose for now.
+// Automation is an appointment engine: its run row is welded to an appointmentId, one
+// rule fires at one moment, and every action in it goes out together. A workflow needs
+// a subject that is a person, a delay BETWEEN steps, and a draft state - which is a
+// different model, not a bigger one. Unifying them would mean an invasive migration on
+// a table another workstream is actively writing to, so the two engines share the
+// parts that matter (lib/nurture/send.ts for sending, lib/contacts/dnd.ts for
+// suppression) and keep their own queues. Merging them is a deliberate refactor for
+// whoever finishes last, not something to do while both are being built.
+enum WorkflowTrigger {
+  CONTACT_OPTED_IN
+  ASSESSMENT_COMPLETED
+  GATE_QUALIFIED
+  BAND_REACHED
+  TAG_ADDED
+}
+
+/// DRAFT is the shipping state of a new workflow, and the reason this is an enum
+/// rather than the active boolean the automations use: "never published" and
+/// "published then switched off" look identical to a boolean, and only one of them is
+/// safe to edit without warning anybody.
+enum WorkflowStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+}
+
+enum WorkflowStepKind {
+  MESSAGE
+  DELAY
+  TAG
+}
+
+enum WorkflowChannel {
+  EMAIL
+  WABA
+}
+
+/// Months are CALENDAR months, which is why the unit is stored rather than flattened
+/// into minutes when it is typed. "One month after they opted in" means the same date
+/// next month, not 43,200 minutes later, and the two drift apart by up to three days.
+enum WorkflowDelayUnit {
+  MINUTES
+  HOURS
+  DAYS
+  MONTHS
+}
+
+enum WorkflowTagAction {
+  ADD
+  REMOVE
+}
+
+enum WorkflowRunStatus {
+  PENDING
+  SENDING
+  DONE
+  FAILED
+  CANCELLED
+}
+
+model Workflow {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name    String
+  trigger WorkflowTrigger
+  status  WorkflowStatus  @default(DRAFT)
+
+  /// Which funnel this watches. Null means every one in the workspace.
+  ///
+  /// A plain id and NOT a foreign key, on purpose. A relation would force a choice
+  /// between cascade-deleting a workflow when somebody deletes a funnel, and setting
+  /// this to null - which silently WIDENS the audience from one assessment to all of
+  /// them. Neither is acceptable, and the plain id gives the safe third behaviour for
+  /// free: events only ever arrive carrying a live assessment id, so a workflow
+  /// pointing at a deleted one simply never matches again.
+  assessmentId String?
+
+  /// For BAND_REACHED: which band. Null on every other trigger.
+  bandKey String?
+
+  /// For TAG_ADDED: which tag. A plain id for the same reason as assessmentId - a
+  /// deleted tag should quieten the workflow, never delete it.
+  triggerTagId String?
+
+  steps WorkflowStep[]
+  runs  WorkflowRun[]
+  sends WorkflowSend[]
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([trigger, status])
+  @@map("workflow")
+}
+
+/// One step. Ordered, and the order IS the sequence.
+model WorkflowStep {
+  id         String   @id @default(cuid())
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  displayOrder Int              @default(0)
+  kind         WorkflowStepKind
+
+  /// MESSAGE
+  channel      WorkflowChannel?
+  subject      String?
+  body         String?          @db.Text
+  /// WABA: a business-initiated message cannot be free text, so this is an approved
+  /// template name plus the ordered values for its numbered slots.
+  wabaTemplate String?
+  wabaLang     String           @default("en")
+  wabaVars     Json?
+
+  /// DELAY: how long to wait BEFORE this step. Amount plus unit, never normalised.
+  delayAmount Int?
+  delayUnit   WorkflowDelayUnit?
+
+  /// TAG: a plain tag id, and what to do with it.
+  tagId     String?
+  tagAction WorkflowTagAction?
+
+  /// LIFETIME tallies for this one step. Counters rather than a COUNT over the log,
+  /// because the log is pruned and "sent 1,482 since you wrote it" is a different
+  /// question from "sent 4 this month" - the page shows both and both are true.
+  sentCount    Int @default(0)
+  failedCount  Int @default(0)
+  skippedCount Int @default(0)
+
+  sends WorkflowSend[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workflowId, displayOrder])
+  @@map("workflow_step")
+}
+
+/// One person going through one workflow: the durable queue AND the log.
+///
+/// A row rather than a timer, for the same reason the automations use one: a step due
+/// in three days outlives any in-process timer, and a timer dies with the deploy that
+/// created it, silently, with nobody to tell.
+model WorkflowRun {
+  id         String   @id @default(cuid())
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  /// Denormalised so the log reads without a join, exactly like automation_run.
+  tenantId String
+
+  /// What started it, for the placeholders a message can use. A submission id today;
+  /// a plain id so a later trigger can point at something else.
+  subjectId String?
+
+  /// displayOrder of the NEXT step to run. A sequence advances by moving this.
+  currentStep Int @default(0)
+
+  /// When that step is due. Now for an immediate one, the delay out for a waited one.
+  dueAt DateTime
+
+  status     WorkflowRunStatus @default(PENDING)
+  attempts   Int               @default(0)
+  lastError  String?
+  /// Why it stopped early, in the owner words ("they unsubscribed").
+  stopReason String?
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  updatedAt  DateTime  @updatedAt
+
+  /// ONE run per person per workflow, forever. A second opt-in moves nothing and
+  /// queues nothing: somebody three days into a sequence must not be put back at the
+  /// start by filling the form again.
+  @@unique([workflowId, contactId])
+  @@index([status, dueAt])
+  @@index([tenantId, startedAt])
+  @@map("workflow_run")
+}
+
+/// One attempt to deliver one step, kept for 30 days. Keyed on the STEP, so editing a
+/// step wording does not reset what it has done.
+model WorkflowSend {
+  id       String @id @default(cuid())
+  tenantId String
+
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  stepId     String
+  step       WorkflowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  contactId String?
+  channel   WorkflowChannel
+  /// "SENT" | "FAILED" | "SKIPPED"
+  status    String
+  toAddress String?
+  error     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([stepId])
+  @@map("workflow_send")
 }
