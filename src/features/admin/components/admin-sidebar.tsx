@@ -39,6 +39,10 @@ const SECTIONS: NavSection[] = [
       // Separate from Tenants on purpose: that list is read while operating a
       // workspace, this one is read down a column to see who pays and what they cost.
       { href: "/platform/accounts", label: "Accounts" },
+      // The switches that hold a finished feature back from every tenant. They live on
+      // the Tenants page, under a list long enough to hide them, so the rail points at
+      // them directly rather than leaving them to be scrolled for.
+      { href: "/platform#feature-releases", label: "Feature releases" },
       { href: "/platform/stats", label: "Marketing stats" },
       // The done-for-you queue. Under Platform rather than Leads: these are applicants
       // to the offer, not respondents to anybody's funnel.
