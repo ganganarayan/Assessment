@@ -9,6 +9,9 @@ import { tenantCan } from "@/lib/billing/plan-resolve";
 import { formatIST } from "@/lib/date";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { deleteZoomMeeting } from "@/lib/zoom/meetings";
+import { fireWorkflowTrigger } from "@/lib/workflows/enqueue";
+import { upsertContactFromLead } from "@/lib/contacts/upsert";
+import type { WorkflowTrigger } from "@prisma/client";
 import type { PayloadAppointment } from "@/features/events/types";
 
 /**
@@ -100,6 +103,61 @@ function metaEventName(
     // teach the ad account that moving a call is a second booking.
     case "RESCHEDULED":
       return null;
+  }
+}
+
+const WORKFLOW_TRIGGER_FOR: Record<AppointmentMoment, WorkflowTrigger> = {
+  BOOKED: "APPOINTMENT_BOOKED",
+  RESCHEDULED: "APPOINTMENT_RESCHEDULED",
+  CANCELLED: "APPOINTMENT_CANCELLED",
+  ATTENDED: "APPOINTMENT_ATTENDED",
+  NO_SHOW: "APPOINTMENT_NO_SHOW",
+};
+
+/**
+ * Start any workflow sequence waiting on this moment.
+ *
+ * Separate from the CRM event and the Meta conversion because it needs something they
+ * do not: a CONTACT. The event bus is happy with whatever the attendee typed, but a
+ * workflow sends messages over days and has to know who it is sending to, so the
+ * attendee is resolved to a contact row first. A walk-up booking with neither an email
+ * nor a mobile resolves to nobody and simply starts nothing.
+ *
+ * Fail-soft like everything else here, and deliberately AFTER the event and the
+ * conversion. A sequence is the least urgent of the three.
+ */
+async function startWorkflows(
+  trigger: WorkflowTrigger,
+  a: {
+    tenantId: string;
+    submissionId: string | null;
+    attendeeEmail: string | null;
+    attendeeMobile: string | null;
+    assessmentId: string | null;
+    lead: { firstName: string | null; lastName: string | null; email: string | null; mobile: string | null; profession: string | null };
+  },
+): Promise<void> {
+  try {
+    const contactId = await upsertContactFromLead(
+      {
+        tenantId: a.tenantId,
+        firstName: a.lead.firstName,
+        lastName: a.lead.lastName,
+        email: a.lead.email ?? a.attendeeEmail,
+        mobile: a.lead.mobile ?? a.attendeeMobile,
+        profession: a.lead.profession,
+      },
+      { source: "APPOINTMENT" },
+    );
+    if (!contactId) return;
+    await fireWorkflowTrigger(trigger, {
+      tenantId: a.tenantId,
+      contactId,
+      assessmentId: a.assessmentId,
+      subjectId: a.submissionId,
+    });
+  } catch (e) {
+    console.error("[calendar] workflow trigger failed:", e instanceof Error ? e.message : String(e));
   }
 }
 
@@ -225,6 +283,17 @@ export async function reportAppointment(appointmentId: string, moment: Appointme
       lead,
       attribution: normalizeAttribution(appointment.attribution),
       appointment: payload,
+    });
+
+    await startWorkflows(WORKFLOW_TRIGGER_FOR[moment], {
+      tenantId: appointment.tenantId,
+      submissionId: appointment.submissionId,
+      attendeeEmail: appointment.attendeeEmail,
+      attendeeMobile: appointment.attendeeMobile,
+      // The funnel the BOOKING LINK belongs to, which is what scoping a workflow to an
+      // assessment means for an appointment trigger.
+      assessmentId: assessment?.id ?? null,
+      lead,
     });
 
     const eventName = metaEventName(moment, appointment.bookingType);

@@ -56,7 +56,53 @@ export const TRIGGERS: TriggerSpec[] = [
     hint: "How one sequence hands somebody to the next.",
     needsTag: true,
   },
+  {
+    value: "APPOINTMENT_BOOKED",
+    label: "They book a call",
+    hint: "The moment a slot is taken. Confirm now, then nudge before the day.",
+  },
+  {
+    value: "APPOINTMENT_RESCHEDULED",
+    label: "They move the call",
+    hint: "The booking kept its place in the diary but changed its time.",
+  },
+  {
+    value: "APPOINTMENT_CANCELLED",
+    label: "The call is cancelled",
+    hint: "By them or by you. The slot went back on the calendar.",
+  },
+  {
+    value: "APPOINTMENT_ATTENDED",
+    label: "They turn up",
+    hint: "Marked attended on the calendar. Where the follow-up sequence belongs.",
+  },
+  {
+    value: "APPOINTMENT_NO_SHOW",
+    label: "They do not turn up",
+    hint: "Marked no-show. The one worth winning back rather than writing off.",
+  },
+  {
+    value: "APPOINTMENT_TIME_PASSED",
+    label: "The call's time passes, unmarked",
+    hint: "The hour came and went and nobody said what happened. Use it to ask yourself.",
+  },
 ];
+
+/**
+ * Triggers that start from an appointment rather than from a funnel.
+ *
+ * They carry no band and no tag, and scoping them to one assessment means the funnel
+ * the BOOKING LINK belongs to, not one somebody filled in. Kept as a set so the
+ * builder and the queue agree on which ones those are.
+ */
+export const APPOINTMENT_TRIGGERS = new Set<WorkflowTrigger>([
+  "APPOINTMENT_BOOKED",
+  "APPOINTMENT_RESCHEDULED",
+  "APPOINTMENT_CANCELLED",
+  "APPOINTMENT_ATTENDED",
+  "APPOINTMENT_NO_SHOW",
+  "APPOINTMENT_TIME_PASSED",
+]);
 
 export const TRIGGER_LABEL: Record<WorkflowTrigger, string> = Object.fromEntries(
   TRIGGERS.map((t) => [t.value, t.label]),
@@ -151,9 +197,19 @@ export interface BuilderOptions {
 
 /* ------------------------------------------------------------- validation --- */
 
+/**
+ * Read off the registry rather than typed out again.
+ *
+ * 🟡 It was a second hand-written list, which is the quiet way a trigger gets added to
+ * the menu and then refused on save: the UI offers it, the schema has never heard of
+ * it, and the error says "Invalid enum value" to somebody who only picked a choice you
+ * showed them. One list, so that cannot happen.
+ */
+const TRIGGER_VALUES = TRIGGERS.map((t) => t.value) as [WorkflowTrigger, ...WorkflowTrigger[]];
+
 export const createWorkflowSchema = z.object({
   name: z.string().trim().min(1, "Give it a name.").max(80),
-  trigger: z.enum(["CONTACT_OPTED_IN", "ASSESSMENT_COMPLETED", "GATE_QUALIFIED", "BAND_REACHED", "TAG_ADDED"]),
+  trigger: z.enum(TRIGGER_VALUES),
 });
 
 export const workflowSettingsSchema = z.object({

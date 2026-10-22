@@ -12,15 +12,13 @@ import { getLandingVideosRaw } from "@/features/platform/landing-videos";
 import { CtaOfferCard } from "@/features/platform/components/cta-offer-card";
 import { getCtaOfferRaw } from "@/features/platform/cta-offer";
 import { StorageSettingsCard } from "@/features/platform/components/storage-settings-card";
-import { FeatureReleasesCard } from "@/features/platform/components/feature-releases-card";
-import { listFeatureReleases } from "@/features/platform/feature-releases";
 import { getStorageSettings } from "@/features/platform/storage-settings";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlatformPage() {
   const me = await requireSuperAdmin();
-  const [t, dt, u, d, lv, st, cta, fr] = await Promise.all([
+  const [t, dt, u, d, lv, st, cta] = await Promise.all([
     listTenants(),
     listDeletedTenants(),
     listUsers(),
@@ -28,11 +26,10 @@ export default async function PlatformPage() {
     getLandingVideosRaw(),
     getStorageSettings(),
     getCtaOfferRaw(),
-    listFeatureReleases(),
   ]);
   // Any loader that failed (a transient DB error) surfaces as a banner - the page
   // still renders with whatever loaded, instead of a full-page server crash.
-  const loadErrors = [t, dt, u, d, lv, st, cta, fr]
+  const loadErrors = [t, dt, u, d, lv, st, cta]
     .filter((r): r is { ok: false; error: string } => !r.ok)
     .map((r) => r.error);
   return (
@@ -81,13 +78,6 @@ export default async function PlatformPage() {
         initialDeletedUsers={d.ok && d.data ? d.data : []}
         currentUserId={me.id}
       />
-      {/* Named so the rail can jump straight to it. It sits below the tenant list,
-          which on a real account is long enough that the switches read as missing. */}
-      {fr.ok && fr.data ? (
-        <div id="feature-releases" className="scroll-mt-6">
-          <FeatureReleasesCard initial={fr.data} />
-        </div>
-      ) : null}
       {/* The offer first, then the videos: what the buttons say and where they go is
           the landing page's whole job, and the videos dress it. */}
       {cta.ok && cta.data ? (
