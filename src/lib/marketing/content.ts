@@ -620,14 +620,6 @@ export const HERO = {
 } as const;
 
 /**
- * The second cost, directly under the hero.
- *
- * The first cost is in Ads Manager and everybody has already seen it. The one that
- * decides whether this product is worth anything is the hour a rep spends on a call
- * that was never going to close, and that one appears on no invoice - which is exactly
- * why it goes unmanaged.
- */
-/**
  * What one disqualified lead actually costs, itemised, directly under the hero.
  *
  * WHY IT IS ITS OWN SECTION AND WHY IT IS FIRST. The product's whole claim rests on a
@@ -735,11 +727,24 @@ export const DISQUALIFIED_COST = {
     "None of that is a sales problem and none of it is a tooling problem. It is an entry problem, and the entry is the only place it can be fixed.",
 } as const;
 
+/**
+ * The same bill as arithmetic, after the itemised one above it.
+ *
+ * 🔴 IT USED TO SAY "TWICE", AND TWICE IS WRONG. The heading was "A bad lead costs you
+ * twice. The second time is the expensive one", which was written before DISQUALIFIED_COST
+ * existed and was the whole cost argument on the page. It is now the second cost section,
+ * and counting to two directly under a list of eighteen charges both undercounts the
+ * problem and contradicts the section above - where the point is that the charges REPEAT:
+ * the stored contact, the template message, the retargeting, the next campaign.
+ *
+ * So the count is open-ended here and the arithmetic stays, because that is the half this
+ * section does that a list cannot: what the charges come to in a month.
+ */
 export const REAL_COST = {
-  heading: "A bad lead costs you twice. The second time is the expensive one.",
+  heading: "A bad lead is not a cost. He is a subscription.",
   paras: [
-    "The first cost is the click, and you can see it in Ads Manager. The second cost is the 45 minutes your rep spends on a call that was never going to close, and that one never appears on any invoice.",
-    "Run 40 calls a month. If half are wrong-fit, that is 15 hours gone, plus the ad spend that bought them, plus the spend tomorrow when the algorithm goes looking for more of the same person. The leak is not your sales skill. It is that nothing in your funnel ever told the machine who was worth buying.",
+    "The click is the only part you can see, and it is the cheapest thing on the list above. Everything after it recurs: the contact you pay to store every month, each template message, the retargeting that keeps serving him, the 45 minutes your rep spends on a call that was never going to close, and the campaign tomorrow that goes looking for more people exactly like him.",
+    "Run 40 calls a month. If half are wrong-fit, that is 15 hours gone, plus the ad spend that bought them, plus the spend tomorrow chasing more of the same person, and then the same bill again next month, because nothing in the funnel ever marked him. The leak is not your sales skill. It is that nothing in your funnel ever told the machine who was worth buying.",
   ],
 } as const;
 
@@ -1057,6 +1062,6 @@ export const WHY_EXISTS = {
  */
 export const AUDIENCES = {
   heading: "Who it is for",
-  lead: "Anyone who buys traffic and pays for it twice: once for the click, and again in the hour someone spends on a call that was never going to close.",
+  lead: "Anyone who buys traffic and then keeps paying for the wrong half of it: the click, the hour on a call that was never going to close, the nurture that runs for months, and the next campaign that goes looking for more of them.",
   note: "Every audience below has a ready-made scorecard in the library, with the gate questions already written. Start from one and change the wording, or write your own from scratch.",
 } as const;

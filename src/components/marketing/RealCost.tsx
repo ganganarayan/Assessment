@@ -1,13 +1,16 @@
 import { REAL_COST } from "@/lib/marketing/content";
 
 /**
- * The second cost, directly under the hero.
+ * The bill as arithmetic, straight after the itemised one.
  *
- * It sits here rather than further down because the hero makes a claim about what a bad
- * lead does to the ad account, and this is the half of the bill the reader has already
- * paid without ever seeing it itemised. No call to action: the section's whole job is to
- * make the next five sections worth reading, and asking for something here would spend
- * the attention it just earned.
+ * DisqualifiedCost above says what the charges ARE, line by line; this says what they
+ * come to in a month, which is the one thing a list cannot do. It no longer sits directly
+ * under the hero and no longer calls itself "the second cost": counting to two under a
+ * list of eighteen charges undersells the problem, and the point of both sections is that
+ * the charges repeat rather than arriving once.
+ *
+ * No call to action, like the section above it: these two exist to make the next five
+ * worth reading, and asking for something here would spend the attention they just earned.
  */
 export function RealCost() {
   return (
