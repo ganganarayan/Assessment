@@ -2,6 +2,7 @@ import { MARKETING, TIERS, FAQS } from "@/lib/marketing/content";
 import { getCta } from "@/lib/settings/cta";
 import { Nav } from "./Nav";
 import { Hero } from "./Hero";
+import { DisqualifiedCost } from "./DisqualifiedCost";
 import { Metering } from "./Metering";
 import { NoCrmNeeded } from "./NoCrmNeeded";
 import { WhyThisExists } from "./WhyThisExists";
@@ -88,8 +89,14 @@ export async function Landing({
       <Nav />
       <main id="main">
         <Hero video={videos?.hero ?? null} />
-        {/* The bill the reader has already paid and never seen itemised. It earns the
-            attention the next five sections spend, which is why it asks for nothing. */}
+        {/* The bill, itemised, line by line. It is first because every section after it
+            answers a premise the reader has to accept before any of them matter: that a
+            lead who will never buy is expensive, and expensive monthly. */}
+        <DisqualifiedCost />
+        {/* Then the same bill as arithmetic rather than a list - 40 calls, half of them
+            wrong, 15 hours. The itemisation says what the charges ARE; this says what
+            they come to. Both ask for nothing, because they are earning the attention
+            the next five sections spend. */}
         <RealCost />
         {/* Then who built this and why, in seven lines somebody can skim. It answers
             "why should I believe any of this" before the page starts making claims, and

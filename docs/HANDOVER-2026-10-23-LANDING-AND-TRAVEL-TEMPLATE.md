@@ -27,7 +27,16 @@ page, the industry pages and the pricing table.
   Gate tier, because the higher tiers already say "Everything in Gate, plus:" and these
   features are release-gated rather than plan-gated, so they are in every plan.
 - One **FAQ**: "Do I still need a CRM alongside this?"
-- One **WHY_EXISTS** line: the owner stopped renewing his own CRM this month.
+- One **WHY_EXISTS** line: the owner stopped renewing his own CRM from October 2026.
+- **DISQUALIFIED_COST** and DisqualifiedCost.tsx, mounted directly under the hero and
+  ahead of RealCost. Ten numbered charges in the order they arrive, eight unnumbered ones
+  nobody counts, and a closing line that it is an entry problem. Amber rather than green,
+  because green is the page's "this is fine" colour and every line there is money
+  leaving. Asked for on 23-10-2026, with the first ten points dictated by the owner.
+- Two copy fixes in the same pass: the gate line in WHY_EXISTS had the cause after the
+  effect ("So the gate was built. The opt-in was happening before anyone knew who it
+  was."), and "this month" was replaced by "from October 2026" in both places it
+  appeared, since a relative month is wrong the moment the month turns.
 
 ### The two decisions worth knowing
 

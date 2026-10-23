@@ -627,6 +627,114 @@ export const HERO = {
  * that was never going to close, and that one appears on no invoice - which is exactly
  * why it goes unmanaged.
  */
+/**
+ * What one disqualified lead actually costs, itemised, directly under the hero.
+ *
+ * WHY IT IS ITS OWN SECTION AND WHY IT IS FIRST. The product's whole claim rests on a
+ * premise the reader has never had to accept out loud: that a lead who will never buy is
+ * not merely worthless but EXPENSIVE, and expensive every month rather than once. Every
+ * section after this one is an answer to that premise. Stated as a summary ("bad leads
+ * waste money") it is a platitude nobody argues with and nobody acts on. Itemised, in
+ * the order the charges arrive, it is a bill - and a bill is the only version of this
+ * argument a reader checks against their own accounts instead of nodding at.
+ *
+ * `chain` is SEQUENTIAL and numbered, because the compounding is the point: step six is
+ * where the same person signs up a second time, and steps three, four and seven are the
+ * same charges arriving again. A bulleted list would lose the loop, which is the part
+ * that makes the number large.
+ *
+ * `hidden` is unnumbered, because those are simultaneous rather than consecutive, and
+ * because they are the ones a reader has genuinely never counted - the deliverability
+ * damage, the lookalike seeded from the wrong converters, the calendar slot a real buyer
+ * could not take, and the fact that cost per lead looks healthy the entire time.
+ *
+ * NOT green ticks when this renders. Green means "this is fine" everywhere else on the
+ * page, and every line here is money leaving.
+ */
+export const DISQUALIFIED_COST = {
+  heading: "A disqualified lead costs real money. Every month, not once.",
+  lead: "He is cheap to acquire and expensive to keep, which is why the charge never shows up anywhere as a single line. Here is the bill, in the order it arrives.",
+  chain: [
+    {
+      text: "He completes the registration, so your pixel reports him as a conversion.",
+      strong: ["reports him as a conversion"],
+    },
+    {
+      text: "Meta believes you, and spends tomorrow finding more people exactly like him.",
+      strong: ["more people exactly like him"],
+    },
+    {
+      text: "He enters your email nurture and stays there indefinitely, on a platform that bills you per contact.",
+      strong: ["bills you per contact"],
+    },
+    {
+      text: "He enters your WhatsApp nurture too, where every template message is a conversation Meta charges you for.",
+      strong: ["Meta charges you for"],
+    },
+    {
+      text: "Somebody builds and maintains the automations that send all of it. That time is paid for once and then paid for again every time they change.",
+      strong: ["paid for again"],
+    },
+    {
+      text: "You launch a second funnel, and the same person signs up again - because nothing in the first one ever marked him.",
+      strong: ["signs up again"],
+    },
+    {
+      text: "So the emails and the WhatsApp messages start over, to the same human being, from a second list.",
+      strong: ["start over"],
+    },
+    {
+      text: "A rep takes the call. Forty-five minutes, a follow-up, and a note in the CRM that goes nowhere.",
+      strong: ["goes nowhere"],
+    },
+    {
+      text: "Or somebody sits and qualifies him by phone across three attempts, because nobody wants to say no in writing.",
+      strong: ["three attempts"],
+    },
+    {
+      text: "And most businesses never find an appointment setter good enough to do that job, so the calls keep being taken by the person who should be closing.",
+      strong: ["should be closing"],
+    },
+  ],
+  hiddenHeading: "And the leaks nobody itemises at all",
+  hidden: [
+    {
+      text: "Your retargeting window keeps paying to put ads in front of him for another thirty days.",
+      strong: ["another thirty days"],
+    },
+    {
+      text: "Your lookalike audiences get built from the wrong converters, so the next campaign starts the same leak, wider.",
+      strong: ["starts the same leak, wider"],
+    },
+    {
+      text: "He never opens anything, so your sender reputation falls and the people who would have bought land in the promotions tab.",
+      strong: ["land in the promotions tab"],
+    },
+    {
+      text: "Your assessment tool meters him as a submission, so you pay for the privilege of collecting him.",
+      strong: ["pay for the privilege of collecting him"],
+    },
+    {
+      text: "He takes a slot on the calendar that a real buyer then could not take.",
+      strong: ["a real buyer then could not take"],
+    },
+    {
+      text: "Your pipeline report counts him, so the forecast is wrong and the rep gets told to work harder.",
+      strong: ["the forecast is wrong"],
+    },
+    {
+      text: "Cost per lead looks healthy the entire time. Cost per QUALIFIED lead is the number nobody is watching.",
+      strong: ["nobody is watching"],
+    },
+    {
+      text: "And when you finally clean the list, you cannot tell which ones were worth keeping, so the good ones go out with him.",
+      strong: ["the good ones go out with him"],
+    },
+  ],
+  closing:
+    "None of that is a sales problem and none of it is a tooling problem. It is an entry problem, and the entry is the only place it can be fixed.",
+} as const;
+
 export const REAL_COST = {
   heading: "A bad lead costs you twice. The second time is the expensive one.",
   paras: [
@@ -781,7 +889,7 @@ export const NO_CRM = {
     },
   ],
   note: "Live today: the booking calendar, the result-page button, the Google Calendar sync and the payment step. Contacts, automations, sequences and broadcasts are in final testing and release within days - every card further down says which it is.",
-  closing: "I stopped renewing my own CRM this month. This is what replaced it.",
+  closing: "I stopped renewing my own CRM from October 2026. This is what replaced it.",
 } as const;
 
 export type Pillar = {
@@ -913,8 +1021,8 @@ export const WHY_EXISTS = {
       strong: ["worth a call"],
     },
     {
-      text: "So the gate was built. The opt-in was happening before anyone knew who it was.",
-      strong: ["the gate"],
+      text: "The opt-in was happening before anybody knew who it was. So the gate was built.",
+      strong: ["So the gate was built"],
     },
     {
       text: "Then the exclusion event, because the ad account kept buying more of the same wrong people.",
@@ -925,7 +1033,7 @@ export const WHY_EXISTS = {
       strong: ["the qualified-only signal"],
     },
     {
-      text: "I stopped renewing my own CRM this month, because the follow-up half ended up in here too.",
+      text: "I stopped renewing my own CRM from October 2026, because the follow-up half ended up in here too.",
       strong: ["stopped renewing my own CRM"],
     },
     {
