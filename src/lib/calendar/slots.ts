@@ -422,3 +422,42 @@ export function slotLockFor(
   const ms = startAt instanceof Date ? startAt.getTime() : startAt;
   return `${calendarKey(tenantId, assignedUserId)}:${new Date(ms).toISOString()}`;
 }
+
+/* ------------------------------------------------- the unmarked call ------ */
+
+/**
+ * How long after a call ends before "nobody marked it" is worth saying.
+ *
+ * Not zero. The owner closing the call and reaching for the calendar is the NORMAL
+ * case, and a sequence that fired the second the hour ended would ask "what happened?"
+ * while they were still typing the answer. Two hours is long enough that the question
+ * is a reminder rather than an interruption.
+ */
+export const TIME_PASSED_GRACE_MS = 2 * 60 * 60_000;
+
+/**
+ * And how far back the sweep is willing to look.
+ *
+ * 🔴 THIS IS THE GUARD THAT MATTERS. Without a floor, the first tick after this
+ * feature deploys finds every call anybody ever left unmarked - months of them - and
+ * starts a sequence for each one in the same second. The owner's first experience of
+ * the trigger would be their whole history messaged at once. Seven days is a generous
+ * window for a real lapse and a hard stop on history.
+ */
+export const TIME_PASSED_HORIZON_MS = 7 * 24 * 60 * 60_000;
+
+/** The window the sweep asks the database for: ended long enough ago to count, not so
+ *  long ago that it is history. */
+export function timePassedWindow(nowMs: number): { from: Date; to: Date } {
+  return {
+    from: new Date(nowMs - TIME_PASSED_HORIZON_MS),
+    to: new Date(nowMs - TIME_PASSED_GRACE_MS),
+  };
+}
+
+/** Whether one appointment's end time falls in that window. The same rule as the
+ *  query, kept here so it can be proved without a database. */
+export function isTimePassedDue(endAtMs: number, nowMs: number): boolean {
+  const { from, to } = timePassedWindow(nowMs);
+  return endAtMs > from.getTime() && endAtMs <= to.getTime();
+}

@@ -2,6 +2,7 @@ import "server-only";
 import { runDueAutomations } from "@/lib/automation/run";
 import { pruneAutomationHistory } from "@/lib/automation/retention";
 import { syncDueAppointments } from "@/lib/google/calendar";
+import { sweepTimePassedAppointments } from "@/lib/calendar/time-passed";
 
 /**
  * The clock, inside the app.
@@ -82,6 +83,23 @@ async function tick(): Promise<void> {
     await syncDueAppointments();
   } catch (e) {
     console.error("[automation-scheduler] google sync failed:", e instanceof Error ? e.message : String(e));
+  }
+
+  /**
+   * The one trigger nothing emits: a call whose hour passed with nobody marking it.
+   *
+   * It belongs on the heartbeat rather than at a write site because there IS no write
+   * site - the whole point is that nobody did anything. One indexed query that returns
+   * nothing on a quiet tick, same as the drain above it.
+   */
+  try {
+    const fired = await sweepTimePassedAppointments();
+    if (fired) console.log(`[automation-scheduler] ${fired} unmarked call(s) started a sequence`);
+  } catch (e) {
+    console.error(
+      "[automation-scheduler] time-passed sweep failed:",
+      e instanceof Error ? e.message : String(e),
+    );
   }
 
   try {

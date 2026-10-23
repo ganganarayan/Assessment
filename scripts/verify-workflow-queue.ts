@@ -132,5 +132,56 @@ expect(
   "a sweep nothing invokes is the leak it was written to fix",
 );
 
+/**
+ * Every trigger the database knows is one the builder offers, and vice versa.
+ *
+ * 🔴 A trigger in the enum but not in TRIGGERS is a trigger that can fire and start
+ * sequences nobody can see or edit. One in TRIGGERS but not the enum is a choice the
+ * menu shows and the save rejects. Both are silent, and both are a one-line omission
+ * when the next trigger gets added, so the two lists are compared here rather than
+ * trusted to stay in step.
+ */
+const schemaSrc = readFileSync(join(process.cwd(), "prisma", "schema.prisma"), "utf8");
+const enumBlock = /enum WorkflowTrigger \{([\s\S]*?)\n\}/.exec(schemaSrc)?.[1] ?? "";
+const enumValues = enumBlock
+  .split("\n")
+  .map((l) => l.replace(/\/\/.*$/, "").trim())
+  .filter((l) => /^[A-Z][A-Z_]*$/.test(l));
+const typesSrc = readFileSync(join(process.cwd(), "src", "features", "workflows", "types.ts"), "utf8");
+const registryBlock = /export const TRIGGERS: TriggerSpec\[\] = \[([\s\S]*?)\n\];/.exec(typesSrc)?.[1] ?? "";
+const registryValues = [...registryBlock.matchAll(/value:\s*"([A-Z_]+)"/g)]
+  .map((m) => m[1])
+  .filter((v): v is string => !!v);
+
+expect("the schema's trigger list was found", enumValues.length > 0);
+expect("the builder's trigger registry was found", registryValues.length > 0);
+for (const v of enumValues) {
+  expect(
+    `${v} is offered in the builder`,
+    registryValues.includes(v),
+    "a trigger that can fire but cannot be chosen starts sequences nobody can see",
+  );
+}
+for (const v of registryValues) {
+  expect(
+    `${v} is a trigger the database accepts`,
+    enumValues.includes(v),
+    "the menu would offer it and the save would refuse it",
+  );
+}
+expect(
+  "the appointment triggers are among them",
+  ["APPOINTMENT_BOOKED", "APPOINTMENT_CANCELLED", "APPOINTMENT_TIME_PASSED"].every((v) =>
+    enumValues.includes(v),
+  ),
+);
+expect(
+  "the trigger nothing emits has a sweep behind it",
+  readFileSync(join(process.cwd(), "src", "lib", "automation", "scheduler.ts"), "utf8").includes(
+    "sweepTimePassedAppointments",
+  ),
+  "APPOINTMENT_TIME_PASSED is found, not emitted - with no sweep on the heartbeat it never fires at all",
+);
+
 console.log(failures === 0 ? "\nAll workflow queue checks passed.\n" : `\n${failures} check(s) failed.\n`);
 process.exit(failures === 0 ? 0 : 1);
