@@ -262,3 +262,47 @@ needs `ownerTenantId` null AND `published` AND `reviewStatus` APPROVED; the boot
 the other two on every deploy, so the Publish tick has not landed **on this database**.
 Most likely it was ticked on production, where the built-in file does not exist yet. Tick
 it on staging, at /admin/templates, and the audience appears.
+
+## 4. What re-walking the fixes found
+
+The funnel was imported again from a file carrying its own `aiInstructions` and walked
+end to end on staging (36 of 36, 100%, CRITICAL - the worst answer on all twelve). Three
+fixes proved out and one new fault surfaced, which is what a second walk is for.
+
+**🟢 The prompt now travels.** The statement named the single biggest gap (the unnamed
+hotels), costed it out on the day it surfaces ("you will lose your first morning...
+ringing numbers that do not answer"), kept British spelling, never mentioned a video or a
+price, and closed on half an hour with somebody who runs these trips. That is this
+template's instructions, where the same run on the same answers previously produced a
+coaching intervention.
+
+**🟢 The draft preview works, and only for the right people.** /a/india-trip-fixcheck
+rendered for the signed-in owner while the funnel was still a DRAFT; the same URL fetched
+anonymously returns **404**, and a published funnel's preview link still returns 200.
+
+**🟢 The required gate question is live** and reads without the "(optional)" marker.
+
+**🔴 The crisis helpline was still being appended.** The statement ended with "If you ever
+feel you can't carry it alone right now... Tele-MANAS... 14416" - a mental health helpline
+under a paragraph about hotel vouchers, offered to a traveller in the United States.
+
+`applyCrisisLine` had an unconditional safety net: a CRITICAL result at 90% or more with
+no `{{CRISIS_LINE}}` token got the line appended. Only the BUILT-IN prompts know that
+token exists - a tenant instruction (V3+) version is the owner's whole system prompt, so
+it never emits one, and the net therefore fired on every top-band result in every funnel
+in the product, whatever it was about.
+
+The line now follows the prompt that asked for it: `appendIfMissing` defaults to true, and
+the generator passes `!version.minimal`. A built-in keeps its net; an owner who wants the
+line writes the token into their own instructions and gets it replaced verbatim. The band
+and percentage rule is untouched, and `verify:ai` now covers both directions.
+
+**🟡 One cosmetic miss from the first pass.** `estimatedMinutes` was 4 and I corrected it
+to 6, but the hero line a respondent actually reads is the template's own `eyebrow`
+string, which still said "12 questions, 4 minutes". It now reads "18 questions, 6
+minutes", which is what six gate questions plus twelve scored ones actually is.
+
+**🟡 Pre-existing and left alone:** `verify:ai` fails one assertion, `[v3-bridge] sets
+200-280 words`. It fails on the committed tree too (checked by stashing), the script is
+not part of the build chain, and the assertion is a stale invariant about a prompt that
+deliberately differs. Worth deleting or rewriting, but not inside this change.

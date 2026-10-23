@@ -187,7 +187,17 @@ export async function generatePersonalStatementResult(
     // strip and nothing else; the built-in code versions get the full humanizer.
     // The crisis line is applied AFTER either way, and uses a plain hyphen.
     const styled = version.minimal ? stripLongDashes(raw) : humanizeStatement(raw);
-    return { text: applyCrisisLine(styled, merged.bandLevel, merged.percentage), error: null };
+    // Appended unasked only for the BUILT-IN prompts, which are the ones instructed to
+    // emit the token. An instruction (V3+) version is the owner's whole prompt and has
+    // never heard of it, so appending turned a travel funnel's result into a mental
+    // health intervention. Such an owner opts in by writing the token into their own
+    // instructions, which the branch above then replaces verbatim.
+    return {
+      text: applyCrisisLine(styled, merged.bandLevel, merged.percentage, {
+        appendIfMissing: !version.minimal,
+      }),
+      error: null,
+    };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[ai] generation error:", msg);
@@ -345,7 +355,9 @@ export async function testStatement(versionId?: string, tenantId: string | null 
   try {
     const raw = await callProvider(cfg, system, user, { tenantId, purpose: "test" });
     const styled = raw ? (version.minimal ? raw : humanizeStatement(raw)) : raw;
-    const text = styled ? applyCrisisLine(styled, sample.bandLevel, sample.percentage) : styled;
+    const text = styled
+      ? applyCrisisLine(styled, sample.bandLevel, sample.percentage, { appendIfMissing: !version.minimal })
+      : styled;
     return { ok: true, ms: Date.now() - t0, text: text ?? "(model returned an empty response)" };
   } catch (e) {
     return { ok: false, ms: Date.now() - t0, error: e instanceof Error ? e.message : String(e) };

@@ -161,6 +161,16 @@ console.log("AI feature verification\n");
     applyCrisisLine("No token in here.", "CRITICAL", 95).endsWith(CRISIS_LINE),
   );
   // Non-qualifying: stripped, never shown.
+  // A tenant's own instructions never emit the token, so the line must not arrive
+  // unasked: a travel funnel at 100% was being handed a mental health helpline.
+  expect(
+    "crisis: NOT appended for an instruction prompt that never asked",
+    applyCrisisLine("No token in here.", "CRITICAL", 100, { appendIfMissing: false }) === "No token in here.",
+  );
+  expect(
+    "crisis: an instruction prompt that DOES ask still gets it verbatim",
+    applyCrisisLine(withToken, "CRITICAL", 100, { appendIfMissing: false }).includes(CRISIS_LINE),
+  );
   const c89 = applyCrisisLine(withToken, "CRITICAL", 89);
   expect("crisis: stripped at CRITICAL 89", !c89.includes("14416") && !c89.includes(CRISIS_TOKEN));
   expect("crisis: stripped at HIGH 95", !applyCrisisLine(withToken, "HIGH", 95).includes("14416"));
