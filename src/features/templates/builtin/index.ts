@@ -37,6 +37,9 @@ import candidateRoleFit from "./candidate-role-fit.json";
 // Authored with BOTH result pages in it, which is what lets the import ask which one a
 // workspace wants. The other twenty carry neither.
 import b2bSaas from "./b2b-saas.json";
+// The second to carry both result pages, and the first for an audience that is not a
+// business buying a service: a traveller who has already been sold something.
+import indiaTripExpectations from "./india-trip-expectations.json";
 
 export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   coachClientFit,
@@ -60,5 +63,6 @@ export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   webinarAttendeeFit,
   candidateRoleFit,
   b2bSaas,
+  indiaTripExpectations,
   cancellationExitWhyYouLeft,
 ];

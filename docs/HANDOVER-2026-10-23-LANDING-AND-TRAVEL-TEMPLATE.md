@@ -1,0 +1,163 @@
+# 23-10-2026 - the follow-up half on the landing page, and the India trip template
+
+Two pieces of work, one commit each half: the public page caught up with what shipped
+after it was written, and a twenty-third built-in template for an audience that is not a
+business buying a service.
+
+## 1. The landing page
+
+### What was missing
+
+Everything built since roughly mid-October. The page had no mention of contacts, the
+appointment calendar, booking, automations, workflow sequences, broadcasts, or payment
+collection inside the funnel. The capability grid stopped at "Team roles & access".
+
+### What was added
+
+All of it lives in src/lib/marketing/content.ts, which is the single source for the home
+page, the industry pages and the pricing table.
+
+- **Eleven capability cards**, appended to CAPABILITIES under an "After the score"
+  comment block.
+- **FOLLOW_UP**, a pillar-shaped group that those eleven belong to, rendered by
+  Capabilities.tsx after the three pillars through followUpCapabilities().
+- **NO_CRM**, and a new section component, NoCrmNeeded.tsx, mounted in Landing.tsx
+  directly after Metering.
+- One line in the **Gate tier** ("Booking calendar, contacts, automations"). Only the
+  Gate tier, because the higher tiers already say "Everything in Gate, plus:" and these
+  features are release-gated rather than plan-gated, so they are in every plan.
+- One **FAQ**: "Do I still need a CRM alongside this?"
+- One **WHY_EXISTS** line: the owner stopped renewing his own CRM this month.
+
+### The two decisions worth knowing
+
+**It is not a fourth step.** The mechanism stays "Gate, Score, Signal". A fourth box in
+the Mechanism diagram would read as a fourth differentiator and dilute the third one,
+which is the only step a competitor cannot also claim. FOLLOW_UP is therefore grouped
+like a pillar but is not in PILLARS, so Mechanism.tsx and its heading are untouched.
+
+**Five of the eleven cards carry `soon: true`.** Not because they are unbuilt. They are
+built and they are held back by the release catalog in src/lib/features/catalog.ts, where
+every key still has `defaultReleased: false`. On a public page "a customer cannot reach
+it" and "it does not exist yet" have to read the same way, so they use the same clock
+icon AI question generation already uses.
+
+The owner's position on 23-10-2026: the calendar is tested and live; contacts,
+automations, workflows and broadcasts release within days once he has tested them end to
+end as a tenant from the Apply Gita login.
+
+**When those switches are flipped**, three edits make the page honest again:
+
+1. Delete `soon: true` from the five cards in CAPABILITIES (contacts, automations, the
+   meeting link per booking, workflow sequences, broadcasts).
+2. Delete the `note` field from NO_CRM and the paragraph that renders it in
+   NoCrmNeeded.tsx.
+3. Trim the middle sentence of the "Do I still need a CRM alongside this?" answer in
+   FAQS, the one that lists what is live today.
+
+## 2. The India trip template
+
+src/features/templates/builtin/india-trip-expectations.json, category **Inbound travel**
+(new, inserted before "Platform" so the owner's bucket stays last on the shelf). Adding
+the category is what puts the audience on the home page, because WhoItIsFor reads
+TEMPLATE_CATEGORIES and verify:templates asserts every category has a built-in behind it.
+
+Shape GATED_ASSESSMENT. Second built-in to carry **both result pages**, so the importer
+asks which one a workspace wants. Theme warm_sand on the VSL page.
+
+### Who it is for
+
+An Indian inbound operator selling to a traveller in the US or UK. The respondent is
+usually not shopping from scratch: somebody has already quoted them. So the funnel does
+not score whether they are ready to buy a trip. It scores **the gap between what they
+have been promised and what will actually happen**, which is a diagnosis they cannot get
+from the agency that made the promise.
+
+Scored so that **higher means more exposure**, which is the library convention: higher
+means more reason to take the call.
+
+### The gate, six questions, three exits
+
+Departure country, per-person budget excluding international flights, how settled the
+dates are, who is travelling, where they are in the process, and a free-text question
+asking what they were promised and by whom (the manual-review field).
+
+Three named exits rather than one rejection:
+
+| Exit key | Who lands there | Meta event |
+| --- | --- | --- |
+| wrong_region | Departing outside US, UK, Canada, Ireland | default, content_category wrong_region |
+| below_floor | Under $1,500 per person for the India portion | default, content_category below_floor |
+| still_reading | No dates decided at all | GateNotYet, content_category not_yet |
+
+below_floor is the one that carries the argument: India can be done for less, but not the
+version being described in the quote, and an operator who agrees to all of it at that
+price takes the difference back out of the itinerary after the traveller lands.
+
+### The twelve questions
+
+Three categories, four questions each, weight 1, options worth 0 to 3, category bands at
+0-39 / 40-69 / 70-100:
+
+1. **What you were promised** - full price in writing with exclusions, named hotels
+   versus "3-star or similar", what the itinerary says about shopping stops, and who is
+   actually with them each day (licensed guide, or the driver explaining things).
+2. **What you are expecting** - how much they want to see, tolerance for hours in a car,
+   the standard of room they are picturing, and their plan for food, water and health.
+3. **How protected you are** - how the money moved, whether the cancellation terms exist
+   in writing, whether anybody verified the operator's registration, and who they ring at
+   11pm in Agra.
+
+Result bands 0-40 / 41-59 / 60-75 / 76-100, per the library convention.
+
+### Where the questions came from
+
+Researched on 23-10-2026 rather than invented. The recurring, documented failures:
+
+- Commission shopping stops consuming itinerary time, and guides steering travellers
+  into expensive shops after being asked not to. Reported in TourRadar and TripAdvisor
+  reviews of Golden Triangle operators, and described as a standard commission
+  arrangement per stop.
+- Hotel downgrades, and the "your hotel has closed" redirect to a property that pays the
+  driver. Also check-in refused on a voucher the traveller is holding.
+- A low headline price with the extras arriving later: monument entry, camera fees, air
+  conditioning, tips. The standing advice is to get the full price in writing and ask
+  explicitly whether shopping stops are included.
+- The fake "government tourist office". The real India Tourism office in Delhi is at 88
+  Janpath; the ones touts walk visitors to are not.
+- Fare overcharging, the broken meter, and prepaid-taxi fraud at the airport.
+- Three-day Golden Triangle itineraries sold as unhurried, where most of the complaint is
+  road time.
+- The credential gap. Ministry of Tourism hotel approval is **voluntary**. Recognition as
+  an approved inbound tour operator is a separate scheme, granted for five years on an
+  inspection report. IATO active membership requires that recognition plus minimum
+  foreign exchange earnings of ₹25 lakh a year. None of these is IATA accreditation, and
+  none of them can be confirmed from a badge on a website: the number has to be checked
+  with the Ministry or with IATO.
+- Redress after the fact is slow: the Ministry of Tourism grievance portal, consumer
+  court, and in Delhi a police nodal officer for touts and agents cheating foreign
+  tourists. Which is the reason the funnel scores "what can you do after you land"
+  as a third of the result.
+
+Sources: [TourRadar operator
+reviews](https://www.tourradar.com/o/golden-triangle-tours-of-india), [TripAdvisor,
+Golden Triangle](https://www.tripadvisor.com/Attraction_Review-g304551-d10833485-Reviews-Golden_Triangle_Tour_India-New_Delhi_National_Capital_Territory_of_Delhi.html),
+[India's steps on tourism and hotel
+scams](https://www.hotelmanagement-network.com/news/india-outlines-new-steps-to-tackle-tourism-and-hotel-scams/),
+[Delhi tourist scams](https://www.movetodelhi.com/tourist-scams-in-delhi-complete-guide-2026/),
+[problems travellers face in India](https://blog.karlrock.com/5-common-problems-travellers-face-in-india/),
+[IATO membership](https://iato.in/), [guidelines for recognition as an approved inbound
+tour operator](https://www.iato.in/pages/view/25).
+
+## What the owner still has to do
+
+A new built-in arrives **unpublished and un-seeded**. Two steps after the staging deploy,
+in this order:
+
+1. Press **Re-seed built-ins** in the templates console. Nothing on a deploy seeds them,
+   and the row has to exist before it can be published.
+2. Tick **Publish** on "India trip - expectations check". Until that tick, no tenant can
+   see it, which is the guarantee that lets template content ship ahead of its review.
+
+Then, separately, the five release switches when the end-to-end testing is done, with the
+three landing-page edits listed above.

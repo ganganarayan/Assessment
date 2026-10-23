@@ -55,6 +55,10 @@ export const TEMPLATE_CATEGORIES = [
   "Insurance brokers",
   "Webinars",
   "Recruiters",
+  // Inbound travel: an Indian operator selling an India trip to a traveller in the US
+  // or UK. Appended here rather than sorted in, like the wave above it, and kept ahead
+  // of "Platform" so the owner's own bucket stays last on the shelf.
+  "Inbound travel",
   // Not an audience: the platform owner's own funnels, which no tenant should be
   // reading as a template for their business. Last on the shelf, deliberately.
   "Platform",
