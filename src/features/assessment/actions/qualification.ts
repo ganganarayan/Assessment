@@ -232,13 +232,15 @@ export async function ensureGateExit(
     bodyHtml: "",
     buttonLabel: "",
     buttonUrl: "",
-    // A NEW exit reports nothing until the owner names its event. Defaulting it to
-    // GateDisqualified would quietly file waitlist sign-ups and wrong-fit visitors into
-    // one exclusion audience, which is the exact thing routes exist to prevent.
+    // A NEW exit arrives unnamed, which means it reports GateDisqualified like the
+    // first one - right for a second wrong-fit door, wrong for a waitlist. The route
+    // that must never reach the exclusion audience says so with `neverExclude`, which
+    // removes that fallback instead of relying on the name being filled in.
     fireDisqualifiedEvent: true,
     eventName: "",
     contentCategory: "",
     completionEventName: "",
+    neverExclude: false,
   };
   await writeExits(assessmentId, [...exits, created]);
   return { ok: true, data: { key: created.key, name: created.name } };

@@ -1,0 +1,241 @@
+{
+  "slug": "platform-junk-leads-gate",
+  "title": "Junk leads: the gate that starts the trial",
+  "category": "Platform",
+  "summary": "The platform's own qualifier, gate only. Eleven questions decide who gets a workspace, nothing is scored afterwards, and the two exits keep wrong-fit and not-yet in separate Meta audiences.",
+  "shape": "GATE_ONLY",
+  "aiInstructions": null,
+  "body": {
+    "title": "How much are you paying for junk leads?",
+    "slug": "paying-for-junk-leads-gate",
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 2,
+    "thankYouMessage": null,
+    "eyebrow": "IF YOU PAY FOR LEADS",
+    "subheadline": "How good are the leads your ads are actually bringing you? 11 questions. About 90 seconds.",
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "firstNameLabel": "Your name",
+    "emailLabel": "Email",
+    "mobileLabel": "WhatsApp number (with country code)",
+    "leadCaptureAfter": true,
+    "leadCaptureMode": "ALL_AT_ONCE",
+    "startButtonLabel": "Start",
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "useAiStatement": false,
+    "nextStep": "DESTINATION",
+    "targetUrl": "/sign-up",
+    "platformSignup": true,
+    "questionDisplayMode": "SINGLE",
+    "retakePolicy": "NEVER",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "fireMetaCapi": true,
+    "metaEvents": {
+      "registration": true,
+      "completion": true,
+      "gateDisqualified": true,
+      "abandoned": false,
+      "gateIncomplete": true,
+      "gatePassed": false
+    },
+    "qualification": {
+      "enabled": true,
+      "showGateOnResult": true,
+      "bands": {
+        "enabled": true,
+        "passMin": 80,
+        "reviewMin": 62,
+        "belowExitKey": "waitlist"
+      },
+      "questions": [
+        {
+          "id": "g1",
+          "text": "Which of these is closest to your situation?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g1a", "label": "I run paid ads for my own business", "points": 10 },
+            { "id": "g1b", "label": "I run paid ads for clients", "points": 12 },
+            { "id": "g1c", "label": "I get leads, but not from paid ads", "points": 6 },
+            { "id": "g1d", "label": "I do not run ads and do not plan to", "points": 0, "disqualifies": true, "exitKey": "disqualified" }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "Before someone becomes a customer, does a sales call happen?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g2a", "label": "Yes, every single time", "points": 12 },
+            { "id": "g2b", "label": "Usually, for anything above a certain value", "points": 10 },
+            { "id": "g2c", "label": "Only for the bigger deals", "points": 5 },
+            { "id": "g2d", "label": "No, people buy without speaking to anyone", "points": 0, "disqualifies": true, "exitKey": "disqualified" }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "How many enquiries, form fills or leads do you get in a month? (If you run ads for clients, answer for the client account you would use this on.)",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g3a", "label": "Under 25", "points": 2 },
+            { "id": "g3b", "label": "25 to 100", "points": 6 },
+            { "id": "g3c", "label": "100 to 500", "points": 10 },
+            { "id": "g3d", "label": "500+", "points": 11 }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Think of the last 10 leads that got on a call. How many were a decent fit? (If you run ads for clients, answer for that same client account.)",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g4a", "label": "8 or more", "points": 0 },
+            { "id": "g4b", "label": "5 to 7", "points": 6 },
+            { "id": "g4c", "label": "2 to 4", "points": 12 },
+            { "id": "g4d", "label": "0 to 1", "points": 15 }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "Who takes the sales call for leads coming in?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g5a", "label": "Me, I take those calls", "points": 12 },
+            { "id": "g5b", "label": "A senior closer or partner", "points": 12 },
+            { "id": "g5c", "label": "A junior rep or appointment setter", "points": 8 },
+            { "id": "g5d", "label": "Nobody takes sales calls", "points": 2, "disqualifies": true, "exitKey": "disqualified" }
+          ]
+        },
+        {
+          "id": "g6",
+          "text": "Right now, how does a lead get filtered before someone speaks to them?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g6a", "label": "They don't, everyone gets through", "points": 15 },
+            { "id": "g6b", "label": "Somebody reads each one", "points": 12 },
+            { "id": "g6c", "label": "We ask a few questions on the form", "points": 8 },
+            { "id": "g6d", "label": "A quiz or scorecard scores them", "points": 4 },
+            { "id": "g6e", "label": "CRM lead scoring", "points": 3 }
+          ]
+        },
+        {
+          "id": "g7",
+          "text": "When a lead turns out to be junk, does your ad platform ever find out?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g7a", "label": "No, the ad platform never knows", "points": 15 },
+            { "id": "g7b", "label": "I wish, if that was possible", "points": 12 },
+            { "id": "g7c", "label": "Sometimes, we upload lists manually", "points": 8 },
+            { "id": "g7d", "label": "Yes, CRM outcomes go back automatically", "points": 2 }
+          ]
+        },
+        {
+          "id": "g8",
+          "text": "What happens to someone who is clearly not a fit?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g8a", "label": "They get the same follow-up as everyone else", "points": 12 },
+            { "id": "g8b", "label": "Someone drops them manually", "points": 9 },
+            { "id": "g8c", "label": "They are tagged in the CRM", "points": 6 },
+            { "id": "g8d", "label": "They are excluded from future ads", "points": 2 }
+          ]
+        },
+        {
+          "id": "g9",
+          "text": "If this got fixed today, who signs up?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g9a", "label": "Me", "points": 10 },
+            { "id": "g9b", "label": "Me and one other person", "points": 8 },
+            { "id": "g9c", "label": "I would recommend it, someone else decides", "points": 5 },
+            { "id": "g9d", "label": "Somebody else entirely, not my call", "points": 2, "disqualifies": true, "exitKey": "waitlist" }
+          ]
+        },
+        {
+          "id": "g10",
+          "text": "Who has access to your ad account?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g10a", "label": "I run it myself, full access", "points": 12 },
+            { "id": "g10b", "label": "An agency runs it, I have full access", "points": 10 },
+            { "id": "g10c", "label": "An agency runs it, I do not have access", "points": 7 },
+            { "id": "g10d", "label": "I do not have an ad account yet", "points": 4 }
+          ]
+        },
+        {
+          "id": "g11",
+          "text": "Are you willing and ready to spend a minimum of ₹1,000 a day on ads from day one? Past ad history is not required.",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g11a", "label": "Yes, I am already spending more than that", "points": 15 },
+            { "id": "g11b", "label": "Yes, I am already spending about that", "points": 13 },
+            { "id": "g11c", "label": "Not yet, but I can from day one", "points": 10 },
+            { "id": "g11d", "label": "I can spend up to ₹500 a day", "points": 6 },
+            { "id": "g11e", "label": "No, I am not able to spend on ads", "points": 0, "disqualifies": true, "exitKey": "waitlist" }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "This isn't built for you, and that's the point.",
+      "subtext": "Assess360 exists to stop paying meta to talk to the wrong people.",
+      "bodyHtml": "<p>You're not in that situation. One thing worth knowing: that screen you just hit? It fired a signal telling Meta never to show you this ad again. No lead stored, nothing in anyone's CRM, no follow-up. That's the product you just used.</p><p><strong>And the boundary, plainly: we are accountable for qualified leads arriving. If they arrive and nothing closes, that is a conversation about your sales calls, and sales coaching is not what this is. Somebody has to be on the other end.</strong></p>",
+      "buttonLabel": "Back to the main page",
+      "buttonUrl": "/",
+      "fireDisqualifiedEvent": true,
+      "exits": [
+        {
+          "key": "disqualified",
+          "name": "Disqualified",
+          "mode": "PAGE",
+          "heading": "This isn't built for you, and that's the point.",
+          "subtext": "Assess360 exists to stop paying meta to talk to the wrong people.",
+          "bodyHtml": "<p>You're not in that situation. One thing worth knowing: that screen you just hit? It fired a signal telling Meta never to show you this ad again. No lead stored, nothing in anyone's CRM, no follow-up. That's the product you just used.</p><p><strong>And the boundary, plainly: we are accountable for qualified leads arriving. If they arrive and nothing closes, that is a conversation about your sales calls, and sales coaching is not what this is. Somebody has to be on the other end.</strong></p>",
+          "buttonLabel": "Back to the main page",
+          "buttonUrl": "/",
+          "fireDisqualifiedEvent": true,
+          "eventName": "GateDisqualified",
+          "contentCategory": "wrong_fit",
+          "completionEventName": "",
+          "neverExclude": false
+        },
+        {
+          "key": "waitlist",
+          "name": "Waitlisted",
+          "mode": "PAGE",
+          "heading": "Not a no. A not yet.",
+          "subtext": "The setup fits. The timing is the one thing nobody can fix from this end.",
+          "bodyHtml": "<p>You keep your place. This is not a rejection and you are not going on any exclusion list, so you will still hear from us. When the piece that is missing today is in place, it is the same door.</p><p>If you want to look around in the meantime, the trial is open and nothing about it depends on this answer.</p>",
+          "buttonLabel": "Start the 14-day trial",
+          "buttonUrl": "/sign-up",
+          "fireDisqualifiedEvent": true,
+          "eventName": "GateWaitlisted",
+          "contentCategory": "not_yet",
+          "completionEventName": "",
+          "neverExclude": true
+        }
+      ]
+    },
+    "categories": [],
+    "resultBands": []
+  }
+}

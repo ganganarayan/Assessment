@@ -40,6 +40,10 @@ import b2bSaas from "./b2b-saas.json";
 // The second to carry both result pages, and the first for an audience that is not a
 // business buying a service: a traveller who has already been sold something.
 import indiaTripExpectations from "./india-trip-expectations.json";
+// Platform-owned, like the cancellation survey: the owner's OWN front door, where
+// passing the gate IS the trial sign-up. No assessment behind it and no result page -
+// a qualified answer hands the person to /sign-up and their workspace is built.
+import platformJunkLeadsGate from "./platform-junk-leads-gate.json";
 
 export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   coachClientFit,
@@ -65,4 +69,5 @@ export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   b2bSaas,
   indiaTripExpectations,
   cancellationExitWhyYouLeft,
+  platformJunkLeadsGate,
 ];

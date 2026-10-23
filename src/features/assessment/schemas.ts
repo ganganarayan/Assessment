@@ -281,8 +281,43 @@ export const gateExitSchema = z.object({
    * cost of a filled seat without anything looking broken.
    */
   completionEventName: z.string().trim().max(60).optional().or(z.literal("")).default(""),
+  /**
+   * 🔴 THIS EXIT IS NOT A REJECTION, AND MUST NEVER REACH THE EXCLUSION AUDIENCE.
+   *
+   * A waitlist is a timing problem, not a wrong-fit problem: those people are worth
+   * retargeting later, and an exclusion audience that contains them is an exclusion
+   * audience that locks out the very prospects it cost money to find. The damage is
+   * invisible - nothing errors, the ad account simply stops being shown to them.
+   *
+   * Config alone could not promise that. `eventName` is a free-text field that falls
+   * back to GateDisqualified when blank, so ONE cleared input - a rename half-finished,
+   * a template imported and tidied - silently re-pointed the waitlist at the exclusion
+   * event. This flag removes that fallback for this exit: blank means NOTHING is sent,
+   * and GateDisqualified is refused even when typed in by hand.
+   *
+   * Default false, so every exit that exists today behaves exactly as it does today.
+   */
+  neverExclude: z.boolean().default(false),
 });
 export type GateExitInput = z.infer<typeof gateExitSchema>;
+
+/**
+ * The event this exit reports, or null when it must report nothing.
+ *
+ * The ONE place that decision is made, so the sender, the builder's warnings and any
+ * verification script cannot disagree about it. Pure - safe on both sides.
+ */
+export function exitEventName(exit: GateExitInput): string | null {
+  const named = exit.eventName.trim();
+  if (exit.neverExclude) {
+    // Refused, not silently rewritten: an owner who typed the exclusion event onto a
+    // never-exclude route has a contradiction worth seeing in the builder, and sending
+    // nothing is the safe half of it.
+    if (!named || named === GATE_DISQUALIFIED_EVENT) return null;
+    return named;
+  }
+  return named || GATE_DISQUALIFIED_EVENT;
+}
 
 /** Content of the exit page(s). The six legacy fields stay at the top level as EXIT
  *  ONE's content, written on every save, so a rollback or an in-flight cached payload
@@ -336,6 +371,9 @@ export function readExits(raw: unknown): GateExitInput[] {
       eventName: "",
       contentCategory: "",
       completionEventName: "",
+      // The legacy single page WAS the rejection, so it keeps the fallback it has
+      // always had. Only a route an owner deliberately marks is held back.
+      neverExclude: false,
     },
   ];
 }

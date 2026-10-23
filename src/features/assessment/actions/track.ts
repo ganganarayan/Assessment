@@ -25,7 +25,7 @@ import {
   qualificationSchema,
   readExits,
   resolveExit,
-  GATE_DISQUALIFIED_EVENT,
+  exitEventName,
   GATE_PASSED_EVENT,
   type GateExitInput,
 } from "@/features/assessment/schemas";
@@ -481,7 +481,11 @@ async function fireGateDisqualified(
     // pooled together is an exclusion audience that excludes the wrong people, and the
     // damage is invisible until the ad account has already learned from it.
     if (!exit || !exit.fireDisqualifiedEvent) return;
-    const eventName = exit.eventName.trim() || GATE_DISQUALIFIED_EVENT;
+    // Null on a never-exclude route with nothing of its own to report. Staying silent
+    // is the whole point: the fallback it is refusing is the exclusion event, and a
+    // waitlist in the exclusion audience costs more than a missing data point.
+    const eventName = exitEventName(exit);
+    if (!eventName) return;
 
     // Already reported recently? Then Meta knows: staying silent is what keeps the
     // event count equal to the number of people, not the number of visits.

@@ -243,6 +243,7 @@ export function QualificationManager({
               eventName: "",
               contentCategory: "",
               completionEventName: "",
+              neverExclude: false,
             },
           ],
         };
@@ -594,6 +595,25 @@ export function QualificationManager({
                 />
                 Report this exit to Meta
               </label>
+              {/* The waitlist guard. A tick here is stronger than a typed event name:
+                  it removes the GateDisqualified fallback for this route entirely, so a
+                  cleared field reports nothing instead of quietly reporting exclusion. */}
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={exit.neverExclude}
+                  onChange={(e) => setExit(exit.key, { neverExclude: e.target.checked })}
+                />
+                <span>
+                  Never the exclusion event
+                  <span className="block text-xs text-[var(--muted-foreground)]">
+                    For a waitlist or any &ldquo;not yet&rdquo; route. This exit can never report
+                    GateDisqualified, even by accident - leave the name blank and it reports
+                    nothing at all rather than excluding them.
+                  </span>
+                </span>
+              </label>
               {exit.fireDisqualifiedEvent ? (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="flex flex-col gap-1">
@@ -638,8 +658,24 @@ export function QualificationManager({
                   )}
                 </div>
               ) : null}
+              {/* A contradiction the owner has to see rather than one the app resolves
+                  behind their back: the route says never exclude, the name says exclude.
+                  Nothing is sent while both are true. */}
+              {exit.fireDisqualifiedEvent && exit.neverExclude && exit.eventName.trim() === "GateDisqualified" ? (
+                <p className="text-xs text-red-600 dark:text-red-400">
+                  🔴 This route is marked never the exclusion event, so{" "}
+                  <strong>GateDisqualified is refused</strong> and nothing is sent. Give it its own
+                  name - GateWaitlisted, say - or untick the guard.
+                </p>
+              ) : null}
               {exit.fireDisqualifiedEvent && !exit.eventName.trim() ? (
-                exit.mode === "OPTIN" || exit.mode === "CONTINUE" ? (
+                exit.neverExclude ? (
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    🟢 No event name and the guard is on, so this exit reports nothing to Meta.
+                    Safe: these people stay out of your exclusion audience. Name an event only if
+                    you want Meta to hold them as a retargeting audience of their own.
+                  </p>
+                ) : exit.mode === "OPTIN" || exit.mode === "CONTINUE" ? (
                   <p className="text-xs text-amber-600 dark:text-amber-400">
                     🟡 No event name, so this exit reports nothing. These people are not
                     rejections, so falling back to GateDisqualified would put them in your
@@ -691,6 +727,7 @@ export function QualificationManager({
                       eventName: "",
                       contentCategory: "",
                       completionEventName: "",
+                      neverExclude: false,
                     },
                   ],
                 };
