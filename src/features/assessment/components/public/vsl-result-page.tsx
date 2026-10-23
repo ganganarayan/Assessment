@@ -219,6 +219,22 @@ function ButtonBlock({
       ? `/api/cta/${encodeURIComponent(submissionId)}/${encodeURIComponent(blockId)}`
       : direct;
   if (!label) return null;
+  /**
+   * 🔴 A BUTTON WITH NOWHERE TO GO IS NOT A BUTTON.
+   *
+   * `href ?? "#"` below used to render one anyway, and both built-in templates that
+   * carry a VSL page ship their CTA with an empty url, because a template cannot know
+   * the booking slug of the workspace importing it. So the most important button on the
+   * page - "Book the 30 minutes", at the end of a funnel whose entire purpose is to
+   * produce that conversation - rendered as a link to nothing, on a page that otherwise
+   * looked finished. Nobody can spot a working-looking button that does nothing.
+   *
+   * A booking CTA still renders with no url, because clicking one DOES something: it
+   * records the request, fires the CRM webhook and emails the owner, and the route then
+   * returns the respondent to their own result page. The "#" that survives here is the
+   * admin preview of exactly that case, where there is no submission to record against.
+   */
+  if (!href && config.bookingCta !== true) return null;
   const bg = (config.bg ?? "").trim() || theme.cta;
   const color = (config.color ?? "").trim() || theme.ctaText;
   const fontSize = typeof config.fontSize === "number" && config.fontSize > 0 ? config.fontSize : 18;

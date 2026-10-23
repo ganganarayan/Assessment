@@ -170,3 +170,95 @@ in this order:
 
 Then, separately, the five release switches when the end-to-end testing is done, with the
 three landing-page edits listed above.
+
+## 3. What the end-to-end walk found, and what was fixed
+
+The template was walked on staging the same day: all three gate exits, the twelve scored
+questions, lead capture, both result pages, the PDF and the JSON export. The scoring
+engine came out exact (35 of 36 on a run where one answer was deliberately a 2, banded
+CRITICAL at 97%), the gate exits fired with the right copy, and the dates read
+DD-MM-YYYY throughout. Six things were wrong. Five are fixed here; the sixth is yours.
+
+### 🔴 The AI statement came from somebody else's prompt
+
+The walk's statement opened with "that took courage", called the trip "an alarming
+situation", said the traveller "may be at the edge of something that could shift
+everything", pointed at a training video the page did not have, and closed by offering a
+US traveller **Tele-MANAS, the Indian mental health helpline**. Nothing malfunctioned:
+that is v2-easy-read doing exactly what it says, including its CRISIS_LINE token, which
+fires on a CRITICAL band at 90% or more.
+
+The cause is one missing field. `useAiStatement` is part of the transfer shape and the
+prompt was not, so a funnel imported from a JSON file arrived with the statement switched
+ON and nothing of its own to say, and fell through to the importing tenant's prompt. The
+template shelf never had this problem - `features/templates/actions/library.ts` turns the
+template's instructions into an AiPromptVersion owned by the importer, and switches the
+statement OFF when a template carries none. The file path had no such rule.
+
+Fixed in three places:
+
+- `aiInstructions` added to `assessmentBodyExport`, nullable and optional so every file
+  written before today still imports.
+- `buildAssessmentBody` resolves the funnel's own AiPromptVersion and exports its text. A
+  built-in code id (v1-mentor, v2-easy-read) lives in code, matches no row and exports as
+  null on purpose: a built-in is the platform's prompt, not the funnel's to carry into
+  somebody else's workspace.
+- `bindImportedPrompt` in the transfer importer creates the version and binds it, or,
+  when no instructions ride along, sets `useAiStatement` to false. "No statement" is a
+  visible absence somebody fixes; "somebody else's statement" is a wrong answer that
+  looks like a working feature.
+
+This is why the walk is not evidence against the template itself: imported by file, it
+never had its own instructions. Imported from the shelf, it gets them.
+
+### 🔴 The CTA linked to nothing
+
+"Book the 30 minutes" rendered as `href="#"`. Both built-ins with a VSL page ship the
+button with an empty url, because a template cannot know the booking slug of the
+workspace importing it, and `vsl-result-page.tsx` rendered one anyway.
+
+- The renderer now hides a button with no destination and no booking action.
+- Both templates set `bookingCta: true`, so the click records the request, fires the
+  `booking_requested` webhook and emails the owner even before a booking page exists.
+- `/api/cta/...` with no destination saved now returns the respondent to **their own
+  result page** instead of the platform's marketing home, which is where `fallback()`
+  used to send somebody who had just asked a travel agency for a call.
+- `verify:templates` fails the build if a built-in ever ships a button that goes nowhere
+  and records nothing.
+
+### 🔴 Preview on a draft 404ed
+
+The builder offers Preview on a DRAFT - which is the whole point of a preview - and the
+publish screen advertises the same link as "Test it yourself". Both 404ed: the only read
+the public page had hard-filtered `status: "PUBLISHED"` and `?preview=1` merely bypassed
+the cache. `readAssessmentForOwnerPreview` now reads the live row whatever its status,
+and the page authorises the viewer (super admin, the owning tenant, or an agency admin
+who has entered that workspace) before showing an unpublished one. A published funnel's
+preview link is ungated exactly as before, because that funnel is already public.
+
+### 🟡 Three content fixes in the template
+
+- The subhead said "then watch the short walkthrough" while `video.embedCode` is empty.
+  The block stays for the owner to fill; the copy no longer promises a video.
+- The gate's promise question was optional, which is the one question that makes this
+  funnel worth running. Reworded to "What have you been promised so far, and by whom? If
+  nobody has quoted you yet, say so." and made required, so somebody who has not been
+  quoted can still answer it honestly.
+- `estimatedMinutes` 4 to 6. Six gate questions and twelve scored ones is not four
+  minutes.
+
+### 🟡 Left alone, deliberately
+
+The three gate exits have no button. The renderer already hides a button with no url, so
+this is a content choice rather than a bug, and there is nowhere honest to send somebody
+we have just told to book with an operator closer to home. The category table on the
+scored page shows a blurred `88 / 100` for every row: that is the designed placeholder
+("the real score is never sent"), and the band words beside it are the real ones.
+
+### 🔴 Still yours: the template is on nobody's shelf
+
+/w/templates and the dashboard shelf jump straight from RECRUITERS to PLATFORM. Visibility
+needs `ownerTenantId` null AND `published` AND `reviewStatus` APPROVED; the boot seed sets
+the other two on every deploy, so the Publish tick has not landed **on this database**.
+Most likely it was ticked on production, where the built-in file does not exist yet. Tick
+it on staging, at /admin/templates, and the audience appears.

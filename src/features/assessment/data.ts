@@ -166,6 +166,38 @@ async function readPublishedAssessmentBySlug(slug: string) {
  * person watching is the person who just configured it. One uncached read per preview
  * is nothing; one tenant concluding the product ignores their settings is not.
  */
+/**
+ * The funnel as its OWNER previews it: the live row WHATEVER its status.
+ *
+ * 🔴 WHY THIS EXISTS. The builder offers a Preview link on a draft - that is the whole
+ * point of a preview, since nobody wants to publish a funnel to find out what it looks
+ * like - and the link 404ed, because the only read the public page had hard-filtered
+ * `status: "PUBLISHED"` and `?preview=1` merely bypassed the cache. The publish screen
+ * then advertised the same link as "Test it yourself", which worked only after the thing
+ * it was meant to de-risk had already happened.
+ *
+ * Never cached and never called on the public path: the caller authorises the viewer
+ * first (same tenant, or a super admin) and a visitor without that 404s exactly as
+ * before. A draft is unpublished work, so who may look at it is the whole question.
+ */
+export async function readAssessmentForOwnerPreview(slug: string) {
+  return prisma.assessment.findFirst({
+    where: { slug, OR: [{ tenantId: null }, { tenant: { deletedAt: null } }] },
+    include: {
+      categories: {
+        orderBy: { displayOrder: "asc" },
+        include: {
+          questions: {
+            orderBy: { displayOrder: "asc" },
+            include: { options: { orderBy: { displayOrder: "asc" }, include: { route: true } } },
+          },
+        },
+      },
+      resultBands: { orderBy: { displayOrder: "asc" } },
+    },
+  });
+}
+
 export async function getPublishedAssessmentBySlug(slug: string, opts?: { fresh?: boolean }) {
   if (opts?.fresh) return readPublishedAssessmentBySlug(slug);
   return unstable_cache(

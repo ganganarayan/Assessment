@@ -2,7 +2,15 @@ import type { Metadata } from "next";
 import { resolveConsentText } from "@/lib/contacts/consent";
 import { notFound } from "next/navigation";
 import { tenantCanonicalOrigin } from "@/lib/seo/site";
-import { getPublishedAssessmentBySlug, getSlugById } from "@/features/assessment/data";
+import {
+  getPublishedAssessmentBySlug,
+  getSlugById,
+  readAssessmentForOwnerPreview,
+} from "@/features/assessment/data";
+import { prisma } from "@/lib/db/prisma";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isSuperAdmin } from "@/lib/auth/guards";
+import { enteredAgencyTenant } from "@/lib/tenant/agency";
 import { pickAttribution } from "@/lib/attribution";
 import {
   AssessmentRunner,
@@ -37,6 +45,35 @@ export const dynamic = "force-dynamic";
  * have been two calls and two queries for answers that arrive in one row.
  */
 const planFor = cache(async (tenantId: string | null) => resolvePlan(tenantId));
+
+/**
+ * May the person looking at this see an UNPUBLISHED draft of it?
+ *
+ * The only authorisation on an otherwise public page, and it runs on the preview path
+ * only - ad traffic never reaches it, so the cached public read stays untouched.
+ *
+ * Deliberately returns false rather than redirecting: a stranger who guesses a draft's
+ * preview URL gets the same 404 the whole page gave before, and is told nothing about
+ * whether that slug exists.
+ */
+async function mayPreviewDraft(assessmentTenantId: string | null): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user) return false;
+  // The platform owner, whether or not they have entered a workspace.
+  if (isSuperAdmin(user)) return true;
+  // Fresh read: a session's tenantId can be stale if assignment changed mid-session.
+  const fresh = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { tenantId: true },
+  });
+  const own = fresh?.tenantId ?? null;
+  if (!own) return false;
+  if (own === assessmentTenantId) return true;
+  // An agency admin who has entered one of their workspaces is previewing THAT
+  // workspace's funnel, which will never match their own tenant id.
+  const entered = await enteredAgencyTenant(user.id, own);
+  return !!entered && entered === assessmentTenantId;
+}
 
 /**
  * Metadata for a public funnel. Three jobs:
@@ -107,8 +144,17 @@ export default async function PublicAssessmentPage({
   // A preview is someone checking their own funnel, usually seconds after saving it, so
   // it reads the live row rather than the cached funnel payload. Ad traffic keeps the
   // cache.
-  const a = await getPublishedAssessmentBySlug(slug, { fresh: preview });
+  // A preview reads the LIVE row whatever its status, because a draft is the thing a
+  // preview is for: the builder offers the link on a draft, and the publish screen
+  // hands out the same link as "Test it yourself". It 404ed on both, since the only
+  // read here required status PUBLISHED and `preview` merely skipped the cache.
+  const a = preview
+    ? await readAssessmentForOwnerPreview(slug)
+    : await getPublishedAssessmentBySlug(slug);
   if (!a) notFound();
+  // Published funnels are public, so a preview link to one is not gated - that is the
+  // link the publish screen shares. An UNPUBLISHED one is somebody's unfinished work.
+  if (preview && a.status !== "PUBLISHED" && !(await mayPreviewDraft(a.tenantId))) notFound();
 
   // PARKED → paused page, before any of the work below. Checked here rather than deeper
   // in the runner so a parked funnel costs one plan lookup instead of building the whole

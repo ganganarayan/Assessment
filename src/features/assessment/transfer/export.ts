@@ -38,6 +38,25 @@ export async function buildAssessmentBody(
   });
   if (!a) return null;
 
+  /**
+   * The funnel's own AI instructions, so the prompt travels with the flag that turns it
+   * on. Without this an exported funnel arrived elsewhere with the statement enabled
+   * and nothing of its own to say, and generated from the importing tenant's prompt.
+   *
+   * Only a tenant-authored AiPromptVersion resolves here. `aiPromptVersionId` may also
+   * hold a BUILT-IN code ("v1-mentor"), which lives in code rather than the database and
+   * matches no row: that exports as null on purpose, because a built-in is the platform's
+   * prompt and not the funnel's to carry into somebody else's workspace.
+   */
+  let aiInstructions: string | null = null;
+  if (a.aiPromptVersionId) {
+    const version = await prisma.aiPromptVersion.findUnique({
+      where: { id: a.aiPromptVersionId },
+      select: { instructions: true },
+    });
+    aiInstructions = version?.instructions.trim() || null;
+  }
+
   // ---- Conditional routing -------------------------------------------------
   // Keys are synthesised ONLY when this assessment actually routes. An assessment
   // without routing exports exactly the bytes it did before this existed, which is
@@ -126,6 +145,7 @@ export async function buildAssessmentBody(
     startButtonLabel: a.startButtonLabel,
     resultsButtonLabel: a.resultsButtonLabel,
     useAiStatement: a.useAiStatement,
+    aiInstructions,
     nextStep: a.nextStep,
     questionDisplayMode: a.questionDisplayMode,
     vslCountdownSeconds: a.vslCountdownSeconds,

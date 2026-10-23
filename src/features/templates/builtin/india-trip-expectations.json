@@ -10,7 +10,7 @@
     "slug": "india-trip-expectations",
     "description": null,
     "coverImageUrl": null,
-    "estimatedMinutes": 4,
+    "estimatedMinutes": 6,
     "thankYouMessage": null,
     "collectFirstName": true,
     "firstNameRequired": true,
@@ -127,10 +127,10 @@
         },
         {
           "id": "g6",
-          "text": "If somebody has quoted you, what did they promise that made you pick them? Their name helps too.",
+          "text": "What have you been promised so far, and by whom? If nobody has quoted you yet, say so.",
           "type": "text",
-          "placeholder": "Private car, five-star hotels, no shopping stops, and the name of the agency",
-          "required": false,
+          "placeholder": "Private car, five-star hotels, no shopping stops, and the name of the agency. Or: nobody has quoted me yet.",
+          "required": true,
           "options": []
         }
       ]
@@ -603,7 +603,7 @@
           "id": "v3",
           "type": "subhead",
           "config": {
-            "text": "Read the summary below, then watch the short walkthrough. It is the same thing we would say on a call, minus your itinerary."
+            "text": "Read it through, then bring your itinerary to a call. This is the same thing we would say on one, minus your dates."
           }
         },
         {
@@ -622,7 +622,7 @@
             "url": "",
             "fontSize": 18,
             "align": "center",
-            "bookingCta": false
+            "bookingCta": true
           }
         },
         {
@@ -654,7 +654,7 @@
           "id": "v3",
           "type": "subhead",
           "config": {
-            "text": "Read the summary below, then watch the short walkthrough. It is the same thing we would say on a call, minus your itinerary."
+            "text": "Read it through, then bring your itinerary to a call. This is the same thing we would say on one, minus your dates."
           }
         },
         {
@@ -673,7 +673,7 @@
             "url": "",
             "fontSize": 18,
             "align": "center",
-            "bookingCta": false
+            "bookingCta": true
           }
         },
         {
