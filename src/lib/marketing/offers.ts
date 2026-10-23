@@ -22,7 +22,7 @@ export type OfferStatus = "open" | "closed";
 
 /** One row of an offer's day-by-day plan. */
 export type OfferStage = {
-  /** The window, in the words a reader counts in: "Day 6", "Days 7 to 10". */
+  /** The window, in the words a reader counts in: "Day 5", "Days 6 to 8". */
   days: string;
   title: string;
   body: string;
@@ -138,7 +138,7 @@ export type Offer = {
    *
    * The days are calendar days from day 1, not working days and not days we were
    * busy. A reader who assumes the clock pauses while they find their Pixel ID will
-   * feel cheated at day 21, and they will be right to, unless it said so here.
+   * feel cheated at day 14, and they will be right to, unless it said so here.
    */
   clockNote?: string;
   /** Eligibility, then preparation. Rendered ABOVE the plan: it decides whether to read on. */
@@ -165,7 +165,8 @@ export type Offer = {
    * 🔴 Never the trial call to action. The offer page deliberately carries no trial
    * link (see app/offers/page.tsx): somebody who reads this page and wants it should
    * land in the intake, where we can see whether the preconditions are met, rather
-   * than self-serving a trial that the 21 days then run out of.
+   * than self-serving the trial and spending its first days waiting on an ad account
+   * check. The build now fills the trial exactly, so there is no slack to lose.
    */
   applyHref: string;
   applyLabel: string;
@@ -278,9 +279,9 @@ const FOUNDERS: Offer = {
   eyebrow: "Founders offer",
   name: "We build your whole qualifying funnel with you, free",
   promise:
-    "The first 20 get it built inside the trial, over 21 days, in your own workspace and your own ad account. You keep spending what you already spend on ads. We do not touch that money.",
+    "The first 20 get it built inside the trial, over 14 days, in your own workspace and your own ad account. You keep spending what you already spend on ads. We do not touch that money.",
   fallbackNote:
-    "If nobody bought your product or service by day 21, and you are willing to keep the ad spend running, we carry on with you from there. Your ads keep running while we change the creative or the messaging, and changing either takes about a day.",
+    "If nobody bought your product or service by day 14, and you are willing to keep the ad spend running, we carry on with you from there. Your ads keep running while we change the creative or the messaging, and changing either takes about a day.",
 
   mechanism: {
     eyebrow: "Negative lead generation",
@@ -299,7 +300,7 @@ const FOUNDERS: Offer = {
 
   scope: {
     heading: "What we do, and what stays yours",
-    oursTitle: "Ours, for the whole 30 days",
+    oursTitle: "Ours, for the 14 days and the 30 of support behind them",
     ours: [
       "The app. The assessment, the gate, the scoring, the bands and the result page. If starting from a template does not fit what you sell, we write them with you.",
       "The ad manager. Pixel and Conversions API, the events, the exclusion and retargeting audiences, and the campaign setup.",
@@ -314,8 +315,8 @@ const FOUNDERS: Offer = {
   },
 
   paras: [
-    "This is not a template and a handover note. Somebody from here is in the build with you: the assessment and its gate, the landing page it sits behind, the pixel and the Conversions API, the exclusion and retargeting audiences, and the campaigns you launch on day 6.",
-    "All of it is built in your own workspace and your own ad account, so all of it is yours, and the build runs until day 21.",
+    "This is not a template and a handover note. Somebody from here is in the build with you: the assessment and its gate, the landing page it sits behind, the pixel and the Conversions API, the exclusion and retargeting audiences, and the campaigns you launch on day 5.",
+    "All of it is built in your own workspace and your own ad account, so all of it is yours, and the build runs until day 14, which is the last day of the trial.",
   ],
 
   cost: {
@@ -340,7 +341,7 @@ const FOUNDERS: Offer = {
 
   timeCommitment: {
     heading: "What it takes out of your week",
-    body: "About 30 minutes on day 1, around two hours spread across days 2 to 5, then your own sales calls from day 11. We do the building.",
+    body: "About 30 minutes on day 1, around two hours spread across days 2 to 4, then your own sales calls from day 12. We do the building.",
   },
 
   entry: [
@@ -360,7 +361,7 @@ const FOUNDERS: Offer = {
     {
       title: "What to have ready",
       intro:
-        "None of this is an interview. It is the kit the first week runs on, and the 21 days do not pause while one of them is being sorted out, so sort them out first.",
+        "None of this is an interview. It is the kit the first week runs on, and the 14 days do not pause while one of them is being sorted out, so sort them out first.",
       items: [
         {
           title: "Your questions, or a template",
@@ -382,39 +383,39 @@ const FOUNDERS: Offer = {
     {
       days: "Day 1",
       title: "Product understanding, and finding the fit",
-      body: "We go through what you sell, who buys it, and who has been wasting your time. If the fit is not there, you hear it on day 1 instead of on day 20.",
+      body: "We go through what you sell, who buys it, and who has been wasting your time. If the fit is not there, you hear it on day 1 instead of on day 13.",
     },
     {
-      days: "Days 2 to 5",
+      days: "Days 2 to 4",
       title: "Setup",
       body: "Your questions, the gate, the scoring and the bands, the result page, the landing page it is linked from, pixel and Conversions API, and the audiences in your ad account. Built with you, in your workspace.",
       note: "We also read your last 30 days of ad data, so there is a before number to measure against.",
     },
     {
-      days: "Day 6",
+      days: "Day 5",
       title: "Ads launch",
       body: "Campaigns go live on the spend you are already running. We optimise on the gate-pass event, which fires the moment someone clears your gate. That is the highest-volume qualified signal available, which is why it can learn at your current budget. Deeper events fire too rarely to teach anything this fast.",
     },
     {
-      days: "Days 7 to 10",
+      days: "Days 6 to 8",
       title: "Qualified leads start coming in",
       body: "Wrong-fit traffic stops at the gate and never becomes a lead record. We read what is getting through with you and tighten the questions and the bar while the spend is still small.",
       note: EXPECTED_NOTE,
     },
     {
-      days: "Days 11 to 15",
+      days: "Days 9 to 11",
       title: "Appointment booking",
       body: "Qualified leads book themselves into your calendar. Your half is working the ones who booked, and chasing the qualified ones who did not. We stay on the funnel and the ad account while you do.",
     },
     {
-      days: "Days 15 to 21",
+      days: "Days 12 to 14",
       title: "Sales calls, and your first close",
-      body: "You run the calls. We look at how the people who booked and bought actually answered, and feed that back into the scoring. If you keep the spend running we carry on with you past day 21, because an ad account needs about a month before a before and after comparison means anything.",
+      body: "You run the calls. We look at how the people who booked and bought actually answered, and feed that back into the scoring. If you keep the spend running we carry on with you past day 14, because an ad account needs about a month before a before and after comparison means anything.",
     },
   ],
 
   clockNote:
-    "The clock is calendar days from day 1 and it does not pause. A day spent waiting on something at your end is a day gone from the 21, and from the 30 if we get that far. It is the one part of this we cannot give back.",
+    "The clock is calendar days from day 1 and it does not pause. The 14 days are the trial, so a day spent waiting on something at your end is a day gone from the build, and from the 30 days of support behind it. It is the one part of this we cannot give back.",
 
   askInReturn: {
     heading: "What we ask in return",
