@@ -3,6 +3,7 @@ import { getCta } from "@/lib/settings/cta";
 import { Nav } from "./Nav";
 import { Hero } from "./Hero";
 import { Metering } from "./Metering";
+import { NoCrmNeeded } from "./NoCrmNeeded";
 import { WhyThisExists } from "./WhyThisExists";
 import { WhoItIsFor } from "./WhoItIsFor";
 import { Problem } from "./Problem";
@@ -105,6 +106,11 @@ export async function Landing({
         {/* Then the only claim on the page that can be checked against an invoice, which
             is worth more to a sceptical reader than the next three sections combined. */}
         <Metering />
+        {/* The other money argument, next to the first one. Metering says what this
+            costs; this says what it replaces, which is the sum a reader already paying
+            for a CRM does by themselves. Two structural claims together, before the
+            offer asks them to act on either. */}
+        <NoCrmNeeded />
         {/* The offer, as a section rather than a strip nobody reads twice - placed where
             somebody who now believes the argument can act on it. */}
         <BuiltWithYou />

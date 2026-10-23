@@ -1,4 +1,11 @@
-import { PILLARS, pillarCapabilities, supportingCapabilities, type Capability } from "@/lib/marketing/content";
+import {
+  FOLLOW_UP,
+  PILLARS,
+  followUpCapabilities,
+  pillarCapabilities,
+  supportingCapabilities,
+  type Capability,
+} from "@/lib/marketing/content";
 import { VideoEmbed } from "./VideoEmbed";
 
 /**
@@ -50,6 +57,31 @@ export function Capabilities({ videos }: { videos?: Record<string, string> }) {
               </div>
             </div>
           ))}
+
+          {/* The follow-up group, in the same grammar as a pillar and deliberately not
+              numbered - FOLLOW_UP in content.ts says why it is not a fourth step. It
+              renders as the last child of this same column so it inherits the gap
+              rather than inventing its own spacing. */}
+          <div>
+            <div className="max-w-3xl border-l-2 border-green-600 pl-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-green-600">
+                {FOLLOW_UP.eyebrow}
+              </p>
+              <h3 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">
+                {FOLLOW_UP.name}{" "}
+                <span className="text-[var(--muted-foreground)]">- {FOLLOW_UP.tagline}</span>
+              </h3>
+              <p className="mt-3 leading-relaxed text-[var(--muted-foreground)]">
+                {FOLLOW_UP.body}
+              </p>
+            </div>
+
+            <div className="mt-7 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {followUpCapabilities().map((it) => (
+                <Tile key={it.title} it={it} video={videos?.[it.title]} />
+              ))}
+            </div>
+          </div>
         </div>
 
         {supporting.length > 0 ? (

@@ -228,6 +228,63 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
     title: "Team roles & access",
     body: "Invite teammates into your workspace, with edit permissions you control.",
   },
+
+  // ---- After the score -----------------------------------------------------
+  // The follow-up half. Everything below shipped after the copy above was written,
+  // which is why this page said nothing about any of it for a month.
+  //
+  // `soon` here does NOT mean unbuilt. It means held back by a release switch
+  // (lib/features/catalog.ts), so no customer can reach it yet - which on a page is the
+  // same thing and has to read the same way. Releasing one is a one-line edit here.
+  {
+    title: "Appointment calendar & booking page",
+    body: "Publish your availability and let a qualified lead take a slot on a hosted booking page. Slot length, buffers, notice and the daily cap are yours. Double-booking is not possible, because the slot is held the moment it is taken.",
+  },
+  {
+    title: "Book from the result page",
+    body: "A button on the result page books the person who is reading it, in one click, with their name and email already known. No second tool, no re-typing, and no gap between the diagnosis and the call.",
+  },
+  {
+    title: "Google Calendar, both ways",
+    body: "Connect a Google account per staff member. Bookings land in their calendar, and whatever is already in it blocks the slot - so a dentist appointment on Thursday closes Thursday without anybody opening this app.",
+  },
+  {
+    title: "Reschedule and cancel, by the respondent",
+    body: "Every confirmation carries that person's own link to move or cancel the call. A freed slot goes back on the booking page immediately, so your inbox is not the booking system.",
+  },
+  {
+    title: "Attendance as a conversion signal",
+    body: "Mark a call attended or a no-show and the outcome reports back to Meta as its own event. Your ads can then optimise toward people who actually turn up, which is one step past qualified.",
+  },
+  {
+    title: "Take the payment in the funnel",
+    body: "Collect the money inside the same flow: a paid step on the funnel itself, or a link you send by hand where the client types the amount. The payment lands against the person, not in a separate tool you reconcile later.",
+  },
+  {
+    title: "Contacts, one row per person",
+    soon: true,
+    body: "Every lead becomes one contact, however many of your scorecards they have taken, with tags and an unsubscribe that works. The list is the thing you message from, so it is never a stale CSV.",
+  },
+  {
+    title: "Automations: a trigger and what it sends",
+    soon: true,
+    body: "Pick the moment - a booking taken, a result delivered, a payment received - and say what goes out. Confirmations, reminders and follow-ups then fire on their own clock rather than on somebody remembering.",
+  },
+  {
+    title: "A meeting link per booking",
+    soon: true,
+    body: "A booking can mint its own video link, for that one person, at the moment it is taken, and carry it in the confirmation. Nobody shares one standing room with a queue outside it.",
+  },
+  {
+    title: "Workflow sequences",
+    soon: true,
+    body: "Multi-step sequences with delays and tags, for onboarding a client or warming a lead who landed in the middle band. A step is suppressed per person once it no longer applies, so nobody is chased about something they have already done.",
+  },
+  {
+    title: "Broadcasts",
+    soon: true,
+    body: "One message to a filtered slice of your contacts, scheduled and sent at a throttled rate. The audience is frozen when you schedule it, so the list cannot shift underneath a send that is already going out.",
+  },
 ];
 
 export const USE_CASES: ReadonlyArray<{ tag: string; body: string }> = [
@@ -293,6 +350,7 @@ export const TIERS: ReadonlyArray<Tier> = [
       "Exclusion + retargeting audiences",
       "Qualified-only optimisation event",
       "Scoring, branching, result pages, PDF",
+      "Booking calendar, contacts, automations",
       "Webhook + CSV export",
       "1 user · 1 ad account",
       "Custom domain not included",
@@ -479,6 +537,10 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
     a: "No. Score bands are on every paid plan, including the entry one, because a gate nobody dares set a real bar on is a gate that does not work. What the higher plans add is the router: a named exit for each disqualifying answer, each with its own page and its own Meta event, so a waitlist and a wrong-fit rejection stop sharing one audience.",
   },
   {
+    q: "Do I still need a CRM alongside this?",
+    a: "No, and that is the point of the last few months of work. A scored lead becomes a contact here, the qualified ones book themselves from the result page they are already reading, confirmations and reminders fire on a trigger, onboarding a new client runs as a sequence, and the payment is collected in the same funnel. Booking, the calendar sync and the payment step are live today; contacts, automations, sequences and broadcasts are in final testing and release within days. If you run a sales floor that needs pipeline forecasting, keep your CRM. If you are a founder or a small team qualifying inbound, this is the whole chain in one place.",
+  },
+  {
     q: "What happens to someone who fits but cannot start right now?",
     a: "He is not a rejection, he is a lead with a timing problem. He takes the full assessment like anyone else and lands on the same result page with a waitlist close, so you keep the finished diagnosis and he keeps his place. His exit fires its own Meta event, separate from both your exclusion audience and the event your ads optimise toward. Because he completes the assessment and you keep the result, he counts as a qualified response; only the people your gate turns away are unmetered.",
   },
@@ -642,6 +704,86 @@ export const METERING = {
   ],
 } as const;
 
+/**
+ * The follow-up group, under the three pillars in the capability grid.
+ *
+ * NOT a fourth pillar, and that is a decision rather than an oversight. The mechanism is
+ * "Gate, Score, Signal", the third step is the one a competitor cannot claim, and a
+ * fourth box in that diagram would read as a fourth differentiator and dilute it. This
+ * is the half that happens AFTER the mechanism has done its job, so it is grouped like a
+ * pillar and labelled like what it is.
+ *
+ * Same contract as a pillar: membership is a list of titles looked up in CAPABILITIES,
+ * so nothing in that list has to be edited to group it, and these cards are added to
+ * `claimed` in supportingCapabilities so they do not render twice.
+ */
+export const FOLLOW_UP = {
+  key: "followup",
+  eyebrow: "After the score",
+  name: "Follow up",
+  tagline: "and no second tool to pay for",
+  body: "A scored lead that waits in a spreadsheet until somebody remembers it is the same as a lead you never got. Booking, contacts, reminders, client onboarding and the payment are all in here - which is the half an assessment tool normally hands back to you and your CRM.",
+  titles: [
+    "Appointment calendar & booking page",
+    "Book from the result page",
+    "Google Calendar, both ways",
+    "Reschedule and cancel, by the respondent",
+    "Attendance as a conversion signal",
+    "Take the payment in the funnel",
+    "Contacts, one row per person",
+    "Automations: a trigger and what it sends",
+    "A meeting link per booking",
+    "Workflow sequences",
+    "Broadcasts",
+  ],
+} as const;
+
+/**
+ * "You will not need a CRM next to this" - its own section, because it is a BUYING
+ * argument and not a feature.
+ *
+ * It earns a section for the same reason the metering claim does: it changes what the
+ * reader is comparing. A scorecard tool is bought next to a CRM; this is bought instead
+ * of one, and a person already paying two subscriptions reads that as a price cut.
+ *
+ * `note` is load-bearing and stays until the switches are flipped. Four of the six
+ * bullets below are features the release catalog is still holding back, and a section
+ * that asserted them flat while the cards beside it said "Coming soon" would contradict
+ * itself on one screen. Saying which is which costs a sentence and buys the paragraph.
+ */
+export const NO_CRM = {
+  heading: "You will not need a CRM next to this.",
+  lead: "The follow-up half is the part an assessment tool normally hands back to you. Handing it back is what makes the second subscription necessary.",
+  points: [
+    {
+      text: "A scored lead becomes a contact here, with its tags and a way out that works.",
+      strong: ["becomes a contact here"],
+    },
+    {
+      text: "The qualified ones book themselves, on the result page they are already reading.",
+      strong: ["book themselves"],
+    },
+    {
+      text: "Confirmations, reminders and follow-ups fire on a trigger, not on somebody remembering.",
+      strong: ["on a trigger"],
+    },
+    {
+      text: "Onboarding a new client runs as a sequence - the steps, the delays, and the message that stops once they have done it.",
+      strong: ["runs as a sequence"],
+    },
+    {
+      text: "You take the payment in the same funnel, so a paying client is a row here rather than a reconciliation.",
+      strong: ["in the same funnel"],
+    },
+    {
+      text: "And one message to a filtered slice of the list, for when all of them need to hear the same thing.",
+      strong: ["a filtered slice of the list"],
+    },
+  ],
+  note: "Live today: the booking calendar, the result-page button, the Google Calendar sync and the payment step. Contacts, automations, sequences and broadcasts are in final testing and release within days - every card further down says which it is.",
+  closing: "I stopped renewing my own CRM this month. This is what replaced it.",
+} as const;
+
 export type Pillar = {
   key: "gate" | "score" | "signal";
   step: string;
@@ -720,13 +862,24 @@ export const supportingCapabilities = (): ReadonlyArray<Capability> => {
   // "anything nobody claimed", and promoting the four routing cards into their own
   // section unclaimed them, so they rendered once there and again down here as though
   // they were leftovers. The whole point of promoting them was that they are not.
-  const claimed = new Set([...PILLARS.flatMap((p) => p.titles), ...NO_GOOD_LEAD.titles]);
+  const claimed = new Set([
+    ...PILLARS.flatMap((p) => p.titles),
+    ...NO_GOOD_LEAD.titles,
+    ...FOLLOW_UP.titles,
+  ]);
   return CAPABILITIES.filter((c) => !claimed.has(c.title));
 };
 
 /** Look up the capabilities of one pillar, in the pillar's own order. */
 export const pillarCapabilities = (p: Pillar): ReadonlyArray<Capability> =>
   p.titles
+    .map((t) => CAPABILITIES.find((c) => c.title === t))
+    .filter((c): c is Capability => c !== undefined);
+
+/** The follow-up group's cards, in its own order. The same lookup as a pillar's, and a
+ *  separate function only because FOLLOW_UP is not one of the three steps. */
+export const followUpCapabilities = (): ReadonlyArray<Capability> =>
+  FOLLOW_UP.titles
     .map((t) => CAPABILITIES.find((c) => c.title === t))
     .filter((c): c is Capability => c !== undefined);
 
@@ -770,6 +923,10 @@ export const WHY_EXISTS = {
     {
       text: "Then the qualified-only signal, because Meta was being taught to find form-fillers.",
       strong: ["the qualified-only signal"],
+    },
+    {
+      text: "I stopped renewing my own CRM this month, because the follow-up half ended up in here too.",
+      strong: ["stopped renewing my own CRM"],
     },
     {
       text: "Every feature on this page started as a wall in a live funnel that cost real money.",
