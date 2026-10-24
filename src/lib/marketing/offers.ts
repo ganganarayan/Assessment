@@ -143,7 +143,15 @@ export type Offer = {
   clockNote?: string;
   /** Eligibility, then preparation. Rendered ABOVE the plan: it decides whether to read on. */
   entry?: readonly OfferGroup[];
-  /** What is asked in return. Not a review, and not a condition of the build. */
+  /**
+   * What is asked in return, and it is only ever data.
+   *
+   * 🟡 NO REVIEW GOES IN HERE, AND THE PAGE DOES NOT SAY THAT EITHER. A review is
+   * asked for after a client has seen their own numbers, where it is a favour between
+   * two people who are pleased with each other. Promising on a sales page not to ask
+   * for one plants the idea that somebody might, which is the only way this sentence
+   * could ever have cost us anything.
+   */
   askInReturn?: { heading: string; body: string };
   /**
    * The hard limits, as a list.
@@ -436,7 +444,7 @@ const FOUNDERS: Offer = {
 
   askInReturn: {
     heading: "What we ask in return",
-    body: "Two things, and neither of them is a review. First, 100 visitors through the funnel, so there is enough data to read. Second, your own numbers before and after: cost per lead, cost per qualified lead, and cost per booked call.",
+    body: "Two things. First, 100 visitors through the funnel, so there is enough data to read. Second, your own numbers before and after: cost per lead, cost per qualified lead, and cost per booked call.",
   },
 
   // Superseded by `cost` and `entry` for this offer. Empty rather than deleted: the

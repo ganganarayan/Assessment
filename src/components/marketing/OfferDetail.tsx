@@ -250,7 +250,7 @@ export function OfferDetail({
               </p>
               <p className="mt-2 leading-relaxed text-[var(--muted-foreground)]">
                 {offer.builder.built} They are in your ad account and your workspace for the
-                14 days, on the calls with you, and they are the same person on day 1 and on
+                14 days, on support with you, and they are the same person on day 1 and on
                 day 14.
               </p>
             </div>
