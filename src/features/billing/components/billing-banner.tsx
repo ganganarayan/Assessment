@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ResolvedPlan } from "@/lib/billing/entitlements";
 import { TRIAL_DAYS, PLAN_LABEL, TRIAL_PLAN } from "@/lib/billing/plans";
+import { RIBBON_NAMED_LIMIT, type Outstanding } from "@/features/onboarding/prerequisites";
 
 /**
  * The workspace-wide billing state strip: trial countdown, parked notice, or a
@@ -153,19 +154,100 @@ const TONE: Record<Notice["tone"], string> = {
   blocked: "border-red-500/40 bg-red-500/10",
 };
 
+/**
+ * What the trial strip says about the setup call.
+ *
+ * Null when there is no calendar configured, which is the state this ships in: the
+ * owner picks a booking type in platform Settings and the whole row appears. Offering a
+ * call with nowhere to book it would be worse than not offering one.
+ */
+export interface BookingRibbon {
+  /** Resolved once, by resolveCallBookingUrl. */
+  url: string;
+  /** Prerequisites still outstanding, in sequence order. Empty means bookable. */
+  outstanding: ReadonlyArray<Outstanding>;
+}
+
+/**
+ * The booking row, under the countdown.
+ *
+ * 🟡 THE LIST IS THE POINT, NOT THE LOCK. A disabled button teaches somebody that the
+ * call is unavailable; a numbered list of what is missing teaches them what to go and
+ * fetch, and each item is a link straight to the question that wants it. The Meta ones
+ * are the only items anybody has to leave the app for, which is the reason this row
+ * exists at all.
+ *
+ * Every link is a plain anchor, for the same reason as the button below it.
+ */
+function BookingRow({ booking }: { booking: BookingRibbon }) {
+  const left = booking.outstanding;
+  if (left.length === 0) {
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-2">
+        <span className="text-[var(--muted-foreground)]">
+          Everything we need is in. Book the 30 minutes and we will set the rest up with you.
+        </span>
+        <a
+          href={booking.url}
+          className="book-glow rounded-md bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700"
+        >
+          Book your 30-minute call
+        </a>
+      </div>
+    );
+  }
+
+  const named = left.slice(0, RIBBON_NAMED_LIMIT);
+  const rest = left.length - named.length;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--border)] pt-2">
+      <span className="text-[var(--muted-foreground)]">Before we can meet:</span>
+      {named.map((o, i) => (
+        <a
+          key={o.key}
+          href={`/w/start?step=${encodeURIComponent(o.key)}`}
+          className="font-medium underline underline-offset-2 hover:no-underline"
+        >
+          {i + 1}. {o.short}
+        </a>
+      ))}
+      {rest > 0 ? (
+        <a
+          href={`/w/start?step=${encodeURIComponent(named[named.length - 1]!.key)}`}
+          className="text-[var(--muted-foreground)] underline underline-offset-2 hover:no-underline"
+        >
+          and {rest} more
+        </a>
+      ) : null}
+      {/* Not disabled. Somebody who came here to book should land on the thing that is
+          stopping them, not on a button that does nothing and says nothing. */}
+      <a
+        href={`/w/start?step=${encodeURIComponent(left[0]!.key)}`}
+        className="rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-1 text-xs font-medium hover:bg-[var(--muted)]"
+      >
+        Book your 30-minute call
+      </a>
+    </div>
+  );
+}
+
 /** The strip itself. Renders nothing when there is no notice - the common case. */
 export function BillingBanner({
   resolved,
   usage = null,
+  booking = null,
 }: {
   resolved: ResolvedPlan;
   /** Response count vs cap, or null when there is nothing to meter. */
   usage?: { used: number; limit: number } | null;
+  /** The setup call, on a trial only. Null when no calendar is configured. */
+  booking?: BookingRibbon | null;
 }) {
   const notice = billingNotice(resolved, usage);
   if (!notice) return null;
   return (
-    <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-4 py-2 text-sm ${TONE[notice.tone]}`}>
+    <div className={`border-b px-4 py-2 text-sm ${TONE[notice.tone]}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
       <span className="min-w-0">
         <strong>{notice.headline}</strong>{" "}
         <span className="text-[var(--muted-foreground)]">{notice.detail}</span>
@@ -192,6 +274,9 @@ export function BillingBanner({
           </a>
         ) : null}
       </span>
+      </div>
+      {/* Only on a trial, and only when the owner has a calendar configured. */}
+      {resolved.trialing && booking ? <BookingRow booking={booking} /> : null}
     </div>
   );
 }

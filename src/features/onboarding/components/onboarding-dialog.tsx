@@ -65,16 +65,25 @@ export function OnboardingDialog({
   whatsapp,
   /** /w/start: somebody asked for the sequence by name, so it is open on arrival. */
   alwaysOpen = false,
+  /**
+   * Open on THIS question rather than on the next unanswered one.
+   *
+   * The trial ribbon lists the booking prerequisites as links, and an item that opened
+   * the sequence at wherever it happened to be would be a link that does not go where it
+   * says. Null means the usual behaviour: carry on where they left off.
+   */
+  startAt = null,
 }: {
   initial: OnboardingView;
   templates: StarterTemplate[];
   whatsapp: WhatsAppConnectView | null;
   alwaysOpen?: boolean;
+  startAt?: string | null;
 }) {
   const router = useRouter();
   const [view, setView] = useState(initial);
   const [open, setOpen] = useState(alwaysOpen);
-  const [cursor, setCursor] = useState<string | null>(initial.currentKey);
+  const [cursor, setCursor] = useState<string | null>(startAt ?? initial.currentKey);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);

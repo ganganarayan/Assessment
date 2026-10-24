@@ -202,3 +202,37 @@ input[type="radio"] {
 .app-shell label:focus-within::after {
   content: none;
 }
+
+/* The trial ribbon's booking button, once every prerequisite is in.
+ *
+ * A pulsing ring rather than a colour change or an opacity fade: the button has to read
+ * as the one live thing on a strip that is otherwise information, and `animate-pulse`
+ * fades the whole element, which makes a solid green button look like it is loading
+ * rather than inviting. The ring expands out of the edge and vanishes, so the button
+ * itself never moves and never dims.
+ *
+ * Green, not red. In this app red means blocked (see the ribbon's own tone map), and a
+ * red button on a countdown strip reads as something having gone wrong. */
+@keyframes book-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgb(22 163 74 / 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgb(22 163 74 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(22 163 74 / 0);
+  }
+}
+
+.book-glow {
+  animation: book-glow 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Somebody who has asked their operating system to stop things moving has asked for
+ * this too. The button keeps its colour and its label, which is all it needed. */
+@media (prefers-reduced-motion: reduce) {
+  .book-glow {
+    animation: none;
+  }
+}

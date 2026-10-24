@@ -27,9 +27,11 @@ import {
   updatePlatformVidapulseSettings,
   getLegalSettings,
   getPlatformSubscriptionPixel,
+  listPlatformBookingTypes,
 } from "@/features/admin/actions/platform-integrations";
 import { PlatformPixelForm } from "@/features/admin/components/platform-pixel-form";
 import { OnboardingVideoForm } from "@/features/admin/components/onboarding-video-form";
+import { CallBookingForm } from "@/features/admin/components/call-booking-form";
 import { OnboardingStepsForm } from "@/features/admin/components/onboarding-steps-form";
 import { DfyScarcityForm } from "@/features/admin/components/dfy-scarcity-form";
 import { DfyWabaForm } from "@/features/admin/components/dfy-waba-form";
@@ -73,7 +75,7 @@ export default async function SettingsPage() {
   const impersonating = actingId !== null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
-  const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn, onboardingVideoUrl, onboardingSteps, dfyScarcity, dfyWaba] = await Promise.all([
+  const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn, onboardingVideoUrl, onboardingSteps, dfyScarcity, dfyWaba, bookingTypes] = await Promise.all([
     impersonating ? getIntegrationSettings() : getPlatformIntegrationSettings(),
     impersonating ? getDomainSettings() : Promise.resolve(null),
     impersonating ? Promise.resolve(null) : getLegalSettings(),
@@ -86,6 +88,7 @@ export default async function SettingsPage() {
     impersonating ? Promise.resolve([]) : resolveOnboardingSteps(),
     impersonating ? Promise.resolve(null) : resolveDfyScarcity(),
     impersonating ? Promise.resolve(null) : resolveDfyWabaTemplate(),
+    impersonating ? Promise.resolve([]) : listPlatformBookingTypes(),
   ]);
 
   // One-click WhatsApp: the connect card follows the ACTING scope (platform row, or
@@ -212,6 +215,28 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             <PlatformPixelForm initial={platformPixel} />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {!impersonating ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>The 30-minute setup call</CardTitle>
+            <CardDescription>
+              Where a tenant books it. One setting for the whole platform, read by the trial
+              ribbon, the welcome email and the lifecycle nudge, so there is no second place
+              a stale link can hide. The button only appears once the workspace has the few
+              things the call cannot run without, and the ribbon names the ones still
+              missing. Leave it unset and the call is not offered anywhere.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CallBookingForm
+              types={bookingTypes}
+              initialTypeId={setting?.callBookingTypeId ?? null}
+              initialUrl={setting?.callBookingUrl ?? null}
+            />
           </CardContent>
         </Card>
       ) : null}

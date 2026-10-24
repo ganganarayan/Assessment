@@ -48,6 +48,24 @@ model Tenant {
   /// the dashboard every day and none of those are a trial starting.
   startTrialFiredAt DateTime?
 
+  /// What they sell, what it costs, who wastes their time, and what happens after a
+  /// yes. Asked by the guided setup before anything is imported.
+  ///
+  /// 🟡 COLUMNS, NOT JOURNAL ROWS. The sequence's rule is that a step is done because
+  /// of a checkable fact, never because onboarding_answer has a row. These four are
+  /// also read before the setup call and decide which template is on screen, so the
+  /// journal would have been the source of truth for the only answers that matter.
+  sells       String?
+  pricePoint  String?
+  badLead     String?
+  afterTheYes String?
+
+  /// Which built-in template family fits this business: a Template.category value, or
+  /// "other" with the free text beside it. "other" is the signal that nothing in the
+  /// library fits and one has to be written for them.
+  industry      String?
+  industryOther String?
+
   id        String       @id @default(cuid())
   // Unique subdomain slug, e.g. "acme" -> acme.example.com
   slug      String       @unique
@@ -2519,6 +2537,14 @@ model AppSetting {
   /// not set it up yet" is the mistake. Only the tenant can say which one it is.
   metaNotUsed Boolean @default(false)
 
+  /// When the three sample events were seeded onto this workspace's pixel.
+  ///
+  /// 🔴 SET ONCE AND NEVER CLEARED. The seeding puts three real conversions into a real
+  /// ad account so that Events Manager and the custom audiences have something in them
+  /// before the setup call. Re-running it on every token edit would quietly accumulate
+  /// synthetic conversions in somebody's account, so this stamp is the whole guard.
+  capiSeededAt DateTime?
+
   // Platform / app SUBSCRIPTION funnel pixel - a SEPARATE Meta pixel for Assess360's
   // own SaaS funnel: landing PageView, free-signup CompleteRegistration, and the
   // subscription Purchase. Distinct from metaPixelId above (which is the Gita
@@ -2562,6 +2588,16 @@ model AppSetting {
   /// https URL. It is operator-set and never request input, so it is not an
   /// open-redirect surface - but it IS rendered into every button, which is why the
   /// action that writes it validates the shape rather than trusting the field.
+  /// The platform's own booking link for the 30-minute setup call. SINGLETON ROW ONLY.
+  ///
+  /// Either a BookingType id, which is served publicly at /b/<slug>, or an absolute URL
+  /// for an external calendar. A chosen booking type is preferred because it cannot be
+  /// mistyped and it breaks loudly if the slug is renamed. Resolved in exactly one place
+  /// (resolveCallBookingUrl) so the trial ribbon, the welcome email and the lifecycle
+  /// nudge can never point at three different calendars.
+  callBookingTypeId String?
+  callBookingUrl    String?
+
   ctaHref       String?
   /// The trial-framed label (nav, hero secondary, the priced tiers, the SEO blocks).
   ctaTrialLabel String?

@@ -59,6 +59,51 @@ export async function persistStep(args: {
       return { ok: true };
     }
 
+    /**
+     * The business profile: four answers and the industry, straight onto the tenant.
+     *
+     * No existing action owns these, because nothing in the app asked for them before.
+     * They are still columns rather than journal rows, for the reason written on the
+     * Tenant model: the sequence decides a step is done from a checkable fact, and these
+     * five are also what the setup call is prepared from and what decides which template
+     * is offered. A journal row would have made onboarding_answer the source of truth
+     * for the only answers that cannot be guessed.
+     */
+    case "whatYouSell": {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { sells: value.slice(0, 2000) } });
+      return { ok: true };
+    }
+
+    case "pricePoint": {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { pricePoint: value.slice(0, 200) } });
+      return { ok: true };
+    }
+
+    case "badLead": {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { badLead: value.slice(0, 2000) } });
+      return { ok: true };
+    }
+
+    case "afterTheYes": {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { afterTheYes: value.slice(0, 2000) } });
+      return { ok: true };
+    }
+
+    case "industry": {
+      // Choosing a real category clears any previous "something else" note, so the two
+      // columns cannot disagree about which one is the answer.
+      await prisma.tenant.update({
+        where: { id: tenantId },
+        data: { industry: value.slice(0, 120), industryOther: value === "other" ? undefined : null },
+      });
+      return { ok: true };
+    }
+
+    case "industryOther": {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { industryOther: value.slice(0, 200) } });
+      return { ok: true };
+    }
+
     case "metaUse": {
       // "Not yet" is a real answer and it has a column: metaNotUsed is what stops the
       // app warning them about a pixel they have deliberately not set.
