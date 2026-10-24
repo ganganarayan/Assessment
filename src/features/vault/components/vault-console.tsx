@@ -12,6 +12,7 @@ import {
   deleteVaultBucket,
   deleteVaultFile,
   deleteVaultFolder,
+  discardVaultUpload,
   listVaultFolder,
   listVaultFolderTree,
   moveVaultFile,
@@ -56,6 +57,12 @@ interface UploadState {
   name: string;
   percent: number;
   error: string | null;
+  /** Set once the server has confirmed the bytes landed. */
+  done: boolean;
+  /** The reservation, so a cancel can throw the row away rather than strand it. */
+  fileId: string | null;
+  /** Present only while in flight. Calling it aborts the PUT. */
+  abort: (() => void) | null;
 }
 
 /**
@@ -91,9 +98,12 @@ function putWithProgress(
   url: string,
   file: File,
   onProgress: (percent: number) => void,
+  /** Handed the aborter as soon as the request exists, so a Cancel button can stop it. */
+  onStart?: (abort: () => void) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    onStart?.(() => xhr.abort());
     // How much actually left the machine, so a failure can be described by distance
     // travelled rather than guessed at.
     let sent = 0;
@@ -179,7 +189,9 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
     setError(null);
     setNotice(null);
     const list = Array.from(files);
-    setUploads(list.map((f) => ({ name: f.name, percent: 0, error: null })));
+    setUploads(
+      list.map((f) => ({ name: f.name, percent: 0, error: null, done: false, fileId: null, abort: null })),
+    );
 
     for (let i = 0; i < list.length; i++) {
       const file = list[i];
@@ -219,25 +231,52 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
         setOne({ error: "R2 did not return an upload URL." });
         continue;
       }
+      const fileId = ticket.data.fileId;
+      setOne({ fileId });
       try {
-        await putWithProgress(ticket.data.url, file, (percent) => setOne({ percent }));
+        await putWithProgress(
+          ticket.data.url,
+          file,
+          (percent) => setOne({ percent }),
+          (abort) => setOne({ abort }),
+        );
       } catch (e) {
-        setOne({ error: e instanceof Error ? e.message : String(e) });
+        setOne({ error: e instanceof Error ? e.message : String(e), abort: null });
+        // The reservation can never be completed now, so it goes rather than becoming
+        // a row with no bytes behind it - which is what made a folder report files it
+        // could not show.
+        await discardVaultUpload(fileId);
         continue;
       }
-      const done = await confirmVaultUpload(ticket.data.fileId);
-      if (!done.ok) {
-        setOne({ error: done.error });
+      const confirmed = await confirmVaultUpload(fileId);
+      if (!confirmed.ok) {
+        setOne({ error: confirmed.error, abort: null });
+        await discardVaultUpload(fileId);
         continue;
       }
-      setOne({ percent: 100 });
+      setOne({ percent: 100, done: true, abort: null });
     }
 
     if (fileInput.current) fileInput.current.value = "";
     await refresh(bucketId, folderId);
-    // Clear only the ones that worked, so a failure stays on screen to be read.
-    setUploads((prev) => prev.filter((u) => u.error));
+    // Successes and failures BOTH stay on screen. Clearing the successes was the whole
+    // reason a finished upload said nothing at all.
   };
+
+  const cancelUpload = async (index: number) => {
+    const target = uploads[index];
+    if (!target) return;
+    target.abort?.();
+    setUploads((prev) =>
+      prev.map((u, i) =>
+        i === index ? { ...u, abort: null, error: "Cancelled. Nothing was stored." } : u,
+      ),
+    );
+    if (target.fileId) await discardVaultUpload(target.fileId);
+    await refresh(bucketId, folderId);
+  };
+
+  const clearFinishedUploads = () => setUploads([]);
 
   /* ---------------------------------------------------------------- render --- */
 
@@ -407,17 +446,43 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
           </div>
 
           {uploads.length > 0 ? (
-            <ul className="flex flex-col gap-1 text-sm">
+            <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
               {uploads.map((u, i) => (
-                <li key={`${u.name}-${i}`} className="flex flex-col gap-0.5">
-                  <span className="truncate">
-                    {u.error ? "🔴" : u.percent === 100 ? "🟢" : "⬆️"} {u.name}
-                    {!u.error && u.percent < 100 ? ` ${u.percent}%` : ""}
-                  </span>
+                <div key={`${u.name}-${i}`} className="flex flex-col gap-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="min-w-0 flex-1 truncate text-sm">
+                      {u.error ? "🔴" : u.done ? "🟢" : "⬆️"} {u.name}
+                      {u.done ? (
+                        <span className="ml-2 font-medium text-emerald-600">Uploaded</span>
+                      ) : !u.error ? (
+                        <span className="ml-2 text-muted-foreground">{u.percent}%</span>
+                      ) : null}
+                    </span>
+                    {/* Only while it is actually in flight: a cancel offered after the
+                        fact would promise something it cannot do. */}
+                    {u.abort ? (
+                      <Button size="sm" variant="ghost" onClick={() => void cancelUpload(i)}>
+                        Cancel
+                      </Button>
+                    ) : null}
+                  </div>
+                  {!u.error && !u.done ? (
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--muted)]">
+                      <div
+                        className="h-full bg-green-600 transition-all"
+                        style={{ width: `${u.percent}%` }}
+                      />
+                    </div>
+                  ) : null}
                   {u.error ? <span className="text-xs text-destructive">{u.error}</span> : null}
-                </li>
+                </div>
               ))}
-            </ul>
+              {uploads.every((u) => u.done || u.error) ? (
+                <Button size="sm" variant="ghost" className="self-start" onClick={clearFinishedUploads}>
+                  Clear
+                </Button>
+              ) : null}
+            </div>
           ) : null}
 
           {/* Folders */}
@@ -743,6 +808,9 @@ function BucketForm({
   const [accessKeyId, setAccessKeyId] = useState(existing?.accessKeyId ?? "");
   const [secretAccessKey, setSecretAccessKey] = useState("");
   const [createInR2, setCreateInR2] = useState(false);
+  // Only meaningful on create. R2 fixes a bucket location permanently, and it is the
+  // dominant factor in upload speed, so it is asked rather than defaulted.
+  const [locationHint, setLocationHint] = useState<string>("apac");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -761,6 +829,7 @@ function BucketForm({
         accessKeyId,
         secretAccessKey,
         createInR2,
+        locationHint: createInR2 ? (locationHint as "apac") : "",
       });
       if (!r.ok) return setError(r.error);
       setSecretAccessKey("");
@@ -893,6 +962,33 @@ function BucketForm({
             </span>
           </span>
         </label>
+      ) : null}
+
+      {!existing && createInR2 ? (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="v-location">Bucket location</Label>
+          <select
+            id="v-location"
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={locationHint}
+            onChange={(e) => setLocationHint(e.target.value)}
+          >
+            <option value="apac">Asia Pacific - closest to India</option>
+            <option value="wnam">Western North America</option>
+            <option value="enam">Eastern North America</option>
+            <option value="weur">Western Europe</option>
+            <option value="eeur">Eastern Europe</option>
+            <option value="oc">Oceania</option>
+            <option value="">Let Cloudflare choose</option>
+          </select>
+          <p className="text-xs text-amber-600">
+            🔴 Permanent. R2 fixes a bucket&apos;s location at creation and it can never be
+            changed, so moving later means a new bucket and re-uploading everything. This is also
+            the biggest factor in upload speed: uploading from India to a North American bucket
+            crosses the Pacific, and one stream over that latency cannot fill a fast line however
+            much bandwidth it has.
+          </p>
+        </div>
       ) : null}
 
       {error ? <p className="text-sm text-destructive">🔴 {error}</p> : null}

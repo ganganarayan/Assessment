@@ -198,7 +198,33 @@ export async function copyObjectAcrossBuckets(
  * token. So a freshly created bucket is private and rejects browser uploads until the
  * two manual steps are done, and the UI shows exactly what to paste.
  */
-export async function createRemoteBucket(creds: VaultBucketCreds): Promise<void> {
+export async function createRemoteBucket(
+  creds: VaultBucketCreds,
+  locationHint?: string,
+): Promise<void> {
   const client = clientFor(creds);
-  await client.send(new CreateBucketCommand({ Bucket: creds.bucketName }));
+  await client.send(
+    new CreateBucketCommand({
+      Bucket: creds.bucketName,
+      // 🔴 SET THIS, AND SET IT RIGHT THE FIRST TIME. R2 fixes a bucket's location at
+      // creation and it can never be changed afterwards - moving means a new bucket and
+      // re-uploading everything, which is why the field is on the create form.
+      //
+      // It is the single biggest factor in upload speed. Uploading from India to a
+      // bucket in Western North America crosses the Pacific at ~230ms round trip, and
+      // one TCP stream over that latency cannot fill a fast line however much bandwidth
+      // it has: 28 MB took three minutes at ~160 KB/s. The first bucket here was created
+      // with no hint, landed in WNAM, and that was the whole of the slowness.
+      //
+      // The SDK types this as AWS's own region enum, but R2 wants its own hints (apac,
+      // wnam, enam, weur, eeur, oc), so the cast is deliberate rather than a shortcut.
+      ...(locationHint
+        ? {
+            CreateBucketConfiguration: {
+              LocationConstraint: locationHint as "us-west-1",
+            },
+          }
+        : {}),
+    }),
+  );
 }

@@ -131,6 +131,9 @@ const bucketInput = z.object({
   secretAccessKey: z.string().max(400),
   /** True = also create the bucket in R2. False = it exists already, just register it. */
   createInR2: z.boolean(),
+  /** R2 location hint, used ONLY when creating. Fixed forever at creation, and the
+   *  dominant factor in upload speed, so it is asked for rather than defaulted. */
+  locationHint: z.enum(["", "apac", "wnam", "enam", "weur", "eeur", "oc"]),
 });
 
 export type VaultBucketInput = z.infer<typeof bucketInput>;
@@ -232,7 +235,7 @@ export async function saveVaultBucket(
     if (v.createInR2) {
       try {
         const creds = await loadBucketCreds(id);
-        await createRemoteBucket(creds);
+        await createRemoteBucket(creds, v.locationHint || undefined);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         // Already owned means the operator ticked Create for a bucket that exists,
@@ -346,7 +349,17 @@ export async function listVaultFolder(
           id: true,
           name: true,
           parentId: true,
-          _count: { select: { files: true, children: true } },
+          _count: {
+            select: {
+              // 🔴 FILTERED, and it must stay filtered. The listing below hides rows
+              // with no bytes behind them (uploadedAt null = a reservation whose upload
+              // never finished), so an unfiltered counter here promises files that
+              // opening the folder does not show. That mismatch was reported as
+              // "0 folders, 2 files" on a folder that was empty.
+              files: { where: { uploadedAt: { not: null } } },
+              children: true,
+            },
+          },
         },
       }),
       prisma.vaultFile.findMany({
@@ -489,7 +502,14 @@ export async function deleteVaultFolder(folderId: string): Promise<ActionResult>
     const tenantId = await actingConfigTenantId();
     const row = await prisma.vaultFolder.findFirst({
       where: { id: folderId, tenantId },
-      select: { _count: { select: { files: true, children: true } } },
+      select: {
+        _count: {
+          // Same filter as the listing: a stranded reservation must not make a folder
+          // look non-empty and block its deletion. Those rows have folderId set to null
+          // by the foreign key when the folder goes.
+          select: { files: { where: { uploadedAt: { not: null } } }, children: true },
+        },
+      },
     });
     if (!row) return { ok: false, error: "That folder is not in this vault." };
     // Same reasoning as the bucket: a cascade here would drop rows and leave the
@@ -855,5 +875,70 @@ export async function listVaultFolderTree(
     };
   } catch (e) {
     return fail(e, "Couldn't load the folder list.");
+  }
+}
+
+/**
+ * Throw away a reservation whose upload failed or was cancelled.
+ *
+ * Called by the browser the moment a PUT errors or is aborted. Without it every failed
+ * attempt leaves a row with no bytes behind it, and those rows were being counted on
+ * the folder - a folder reading "2 files" that opens empty.
+ *
+ * Deliberately refuses to touch a CONFIRMED row: this is cleanup for something that
+ * never landed, not a second delete path that skips removing the object.
+ */
+export async function discardVaultUpload(fileId: string): Promise<ActionResult> {
+  const owner = await requireOwner();
+  if (!owner.ok) return owner;
+  try {
+    const tenantId = await actingConfigTenantId();
+    const row = await prisma.vaultFile.findFirst({
+      where: { id: fileId, tenantId, uploadedAt: null },
+      select: { id: true, bucketId: true, objectKey: true },
+    });
+    // Already confirmed, or not ours: nothing to discard, and saying "ok" keeps a
+    // cancel from erroring at the user over a row that is already in the right state.
+    if (!row) return { ok: true };
+
+    // A cancelled PUT can still have left a partial or complete object in R2, so the
+    // object goes too. Best-effort: the row is the thing that must not survive.
+    try {
+      const creds = await loadBucketCreds(row.bucketId);
+      await deleteObject(creds, row.objectKey);
+    } catch {
+      // Nothing was there, or R2 is unreachable. Either way the row below is the fix.
+    }
+    await prisma.vaultFile.delete({ where: { id: fileId } });
+    revalidatePath("/admin/vault");
+    return { ok: true };
+  } catch (e) {
+    return fail(e, "Couldn't discard that upload.");
+  }
+}
+
+/**
+ * Delete reservations that can no longer complete.
+ *
+ * A presigned upload URL lives six hours, so a row still unconfirmed after that can
+ * never be finished by anybody - the browser that held the ticket is long gone. Run on
+ * the page load that lists buckets, which is cheap and keeps the vault self-healing
+ * rather than needing a cron for a handful of rows.
+ *
+ * Returns how many it removed so a caller can say so; the page ignores it.
+ */
+export async function sweepVaultPending(): Promise<ActionResult<{ removed: number }>> {
+  await requireSuperAdmin();
+  try {
+    const tenantId = await actingConfigTenantId();
+    const cutoff = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    const res = await prisma.vaultFile.deleteMany({
+      where: { tenantId, uploadedAt: null, createdAt: { lt: cutoff } },
+    });
+    // The objects are left alone on purpose: a key nothing references costs storage and
+    // is invisible, while deleting by guess could remove bytes somebody is still using.
+    return { ok: true, data: { removed: res.count } };
+  } catch (e) {
+    return fail(e, "Couldn't sweep stale uploads.");
   }
 }
