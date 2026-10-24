@@ -58,6 +58,34 @@ interface UploadState {
   error: string | null;
 }
 
+/**
+ * Explain a transport failure by HOW FAR IT GOT, which is the only thing that
+ * distinguishes the two completely different causes.
+ *
+ * 🔴 Zero bytes sent means the browser never got permission to send: the CORS preflight
+ * is decided before the body moves, so a wrong CORS rule fails here at 0%.
+ *
+ * 🔴 Some bytes sent means CORS already PASSED - the preflight succeeded and the body
+ * was flowing - and the connection died mid-flight. Blaming CORS in that case sends
+ * someone to re-read a policy that was never the problem, which is exactly what the
+ * first version of this did.
+ */
+function describeTransportFailure(sent: number, total: number): string {
+  if (sent === 0) {
+    return (
+      "The browser could not send anything to R2, so this is almost certainly the bucket's " +
+      "CORS rule - the browser asks permission before any bytes move. Check the CORS policy " +
+      "includes this exact origin."
+    );
+  }
+  const percent = total > 0 ? Math.round((sent / total) * 100) : 0;
+  return (
+    `The connection to R2 dropped after ${percent}% had been sent. CORS is NOT the problem - ` +
+    `the upload had already started, which means permission was granted. This is the network ` +
+    `between you and Cloudflare. Try again; there is no resume yet, so it restarts from the beginning.`
+  );
+}
+
 /** PUT the bytes to R2, reporting progress. Resolves on 2xx, rejects otherwise. */
 function putWithProgress(
   url: string,
@@ -66,29 +94,30 @@ function putWithProgress(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    // How much actually left the machine, so a failure can be described by distance
+    // travelled rather than guessed at.
+    let sent = 0;
     xhr.open("PUT", url, true);
     xhr.setRequestHeader("content-type", file.type);
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      if (e.lengthComputable) {
+        sent = e.loaded;
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
     };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) return resolve();
-      // A CORS failure arrives as status 0 with no body, which is the single most
-      // common first-run failure here - so it is named rather than reported as "0".
       reject(
         new Error(
           xhr.status === 0
-            ? "The browser could not reach R2. This is almost always the bucket's CORS rule - see the setup checklist."
+            ? describeTransportFailure(sent, file.size)
             : `R2 refused the upload (HTTP ${xhr.status}).`,
         ),
       );
     };
-    xhr.onerror = () =>
-      reject(
-        new Error(
-          "The upload failed before it finished. If this is a new bucket, check its CORS rule.",
-        ),
-      );
+    xhr.onerror = () => reject(new Error(describeTransportFailure(sent, file.size)));
+    xhr.onabort = () =>
+      reject(new Error("The upload was cancelled before it finished. Nothing was stored."));
     xhr.send(file);
   });
 }
