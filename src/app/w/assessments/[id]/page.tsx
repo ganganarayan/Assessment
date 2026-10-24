@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireWorkspace, currentUserCanEdit } from "@/lib/auth/guards";
 import { tenantCan } from "@/lib/billing/gate";
+import { featureAllowedFor } from "@/lib/features/release";
 import { getAssessmentById, listAssessments } from "@/features/assessment/data";
 import { buildSpine, defaultRouteOf } from "@/lib/routing/engine";
 import {
@@ -61,6 +62,10 @@ export default async function WorkspaceEditAssessmentPage({
   const [canRoute, canBands] = impersonating
     ? [true, true]
     : await Promise.all([tenantCan(tenantId, "conditionalExit"), tenantCan(tenantId, "gateScoreBands")]);
+  // A RELEASE switch, not a plan feature, so it is not in the pair above and an
+  // operator inside a workspace does not get it for free - featureAllowedFor already
+  // exempts the platform and the owner's own internal workspaces, and nobody else.
+  const canGateResult = await featureAllowedFor("gateResult", tenantId);
   // The Meta publish lock, resolved for the button and the warning. A super admin who
   // has entered this workspace is exempt, exactly as the action is, so the screen never
   // shows a rule that would not actually fire.
@@ -299,6 +304,7 @@ export default async function WorkspaceEditAssessmentPage({
           storedUnreadable={qualUnreadable}
           canRoute={canRoute}
           canBands={canBands}
+          canGateResult={canGateResult}
           section="gate"
         />
         <BuilderStepNav step="gate" />
@@ -320,6 +326,7 @@ export default async function WorkspaceEditAssessmentPage({
           storedUnreadable={qualUnreadable}
           canRoute={canRoute}
           canBands={canBands}
+          canGateResult={canGateResult}
           section="exit"
         />
         <BuilderStepNav step="exit" />

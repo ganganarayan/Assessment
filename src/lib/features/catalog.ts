@@ -37,6 +37,7 @@ export const FEATURE_RELEASE_KEYS = [
   "calendar",
   "contacts",
   "broadcasts",
+  "gateResult",
 ] as const;
 
 export type FeatureReleaseKey = (typeof FEATURE_RELEASE_KEYS)[number];
@@ -126,6 +127,21 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     // and the owner has to be able to release one without the other.
     defaultReleased: false,
     routes: ["/w/broadcasts"],
+  },
+  {
+    key: "gateResult",
+    label: "Show result of gate",
+    blurb: "Lets a funnel show respondents their gate answers and the points each one earned.",
+    whileHeld:
+      "The switch is hidden in the gate builder and saving it on is refused, so no respondent is shown a gate score. Nothing else about the gate changes - routing, bands and the exits all work as they do now.",
+    // Held back because it is the wrong idea for almost every funnel, not because it is
+    // unfinished. A gate decides where somebody goes; a respondent who can read their
+    // own points has been handed the answer key to the next attempt. It exists for the
+    // one owner who wants to show a client's own respondents what the gate saw.
+    defaultReleased: false,
+    // No route of its own: it is one control inside the assessment builder, and the
+    // builder itself is not held back.
+    routes: [],
   },
 ];
 

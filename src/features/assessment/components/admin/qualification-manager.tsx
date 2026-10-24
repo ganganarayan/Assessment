@@ -6,14 +6,23 @@ import {
   saveQualification,
   saveDisqualifiedContent,
   ensureGateExit,
+  ensureWaitlistExit,
 } from "@/features/assessment/actions/qualification";
 import {
   exitLabel,
+  isWaitlistExitKey,
+  makeWaitlistExit,
+  optionOutcome,
   readExits,
+  GATE_DISQUALIFIED_EVENT,
+  GATE_WAITLISTED_EVENT,
+  WAITLIST_EXIT_KEY,
+  type GateOutcome,
   type QualificationInput,
   type DisqualifiedContentInput,
   type GateExitInput,
 } from "@/features/assessment/schemas";
+import { formatIST } from "@/lib/date";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,6 +54,7 @@ export function QualificationManager({
   section = "both",
   canRoute = true,
   canBands = true,
+  canGateResult = false,
 }: {
   assessmentId: string;
   initialQualification: QualificationInput;
@@ -74,6 +84,15 @@ export function QualificationManager({
    */
   canRoute?: boolean;
   canBands?: boolean;
+  /**
+   * Whether the gate's own result may be shown to respondents at all.
+   *
+   * NOT a plan feature: a release switch (`gateResult`), held back from every customer
+   * and open only to the owner's own scope. Hidden rather than disabled, because an
+   * unreleased control is not an upsell - showing it greyed out would advertise a
+   * feature nobody can have.
+   */
+  canGateResult?: boolean;
 }) {
   const router = useRouter();
   const [q, setQ] = useState<QualificationInput>(initialQualification);
@@ -97,6 +116,8 @@ export function QualificationManager({
 
   const [qMsg, setQMsg] = useState<Msg | null>(null);
   const [dMsg, setDMsg] = useState<Msg | null>(null);
+  /** When the last blur-save or dropdown-save landed, DD-MM-YYYY HH:MM IST. */
+  const [savedAt, setSavedAt] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   /**
@@ -141,6 +162,57 @@ export function QualificationManager({
     setQ((s) => ({ ...s, questions: s.questions.map((x, i) => (i === qi ? { ...x, options: x.options.map((o, j) => (j === oi ? { ...o, ...patch } : o)) } : x)) }));
 
   /**
+   * Set what one answer DOES, and save it on the spot.
+   *
+   * Saved here rather than on blur because a dropdown has no blur worth waiting for:
+   * picking a value IS the decision, and the owner's next move is usually to type the
+   * route name, which is a different field writing a different thing. The next state is
+   * built by hand and handed to the save, because setQ has not landed yet when this runs
+   * and saving `q` would write the value that was there a moment ago.
+   *
+   * WAITLIST also makes sure the reserved route exists, so the exit step below has
+   * something to show copy for the moment it is chosen - with the paywall deliberately
+   * not consulted, since the waitlist is on every paid plan.
+   */
+  const setOptionOutcome = (qi: number, oi: number, outcome: GateOutcome) => {
+    const patch =
+      outcome === "NONE"
+        ? { disqualifies: false, exitKey: "" }
+        : outcome === "WAITLIST"
+          ? { disqualifies: true, exitKey: WAITLIST_EXIT_KEY }
+          // Leaving DISQUALIFY's key blank is what opens an empty name box: the answer
+          // goes out through the first exit until a route is named, which is the
+          // behaviour every disqualifying answer had before routes existed.
+          : { disqualifies: true, exitKey: "" };
+    const next: QualificationInput = {
+      ...q,
+      questions: q.questions.map((x, i) =>
+        i === qi ? { ...x, options: x.options.map((o, j) => (j === oi ? { ...o, ...patch } : o)) } : x,
+      ),
+    };
+    setQ(next);
+    start(async () => {
+      if (outcome === "WAITLIST") {
+        const made = await ensureWaitlistExit(assessmentId);
+        if (!made.ok) {
+          setQMsg({ tone: "error", text: made.error });
+          return;
+        }
+        // Adopt it locally too, so the exit step shows the route without a reload.
+        setD((prev) => {
+          const list = prev.exits.length > 0 ? prev.exits : readExits(prev);
+          if (list.some((e) => isWaitlistExitKey(e.key))) return prev;
+          return { ...prev, exits: [...list, makeWaitlistExit()] };
+        });
+      }
+      const res = await saveQualification(assessmentId, next);
+      if (res.ok) setSavedAt(formatIST(new Date()));
+      else setQMsg({ tone: "error", text: res.error });
+      router.refresh();
+    });
+  };
+
+  /**
    * The confirmation says what the FUNNEL will do, not that a row was written.
    * "Qualification saved." was true of a gate that respondents would never see, which
    * is the one case where the owner needs to be told something.
@@ -167,6 +239,41 @@ export function QualificationManager({
       );
       router.refresh();
     });
+  /**
+   * SAVE ON THE WAY OUT OF EVERY FIELD.
+   *
+   * The builder is long and the Save button is at the bottom of it, so an owner who
+   * types a question, re-words an option and then follows a thought somewhere else loses
+   * all of it - and nothing on screen ever said it was unsaved. Committing on blur means
+   * the work is already written by the time anybody reaches the button.
+   *
+   * Deliberately QUIET on refusal. A half-written question fails validation on purpose
+   * ("Question text is required"), and shouting that at somebody who is still typing
+   * trains them to ignore the message area. The Save and next button is still the one
+   * that reports, so a real refusal - a paywall, a bad threshold - is never silent where
+   * the owner is actually looking for an answer.
+   *
+   * No router.refresh() here either: a refresh re-adopts the server copy, and doing that
+   * on every blur would pull the ground out from under the next keystroke.
+   */
+  const autoSaveQual = () => {
+    if (pending) return;
+    const snapshot = q;
+    start(async () => {
+      const res = await saveQualification(assessmentId, snapshot);
+      if (res.ok) setSavedAt(formatIST(new Date()));
+    });
+  };
+  const autoSaveDisq = () => {
+    if (pending) return;
+    // The materialized list, for the same reason the explicit save sends it.
+    const snapshot = { ...d, exits };
+    start(async () => {
+      const res = await saveDisqualifiedContent(assessmentId, snapshot);
+      if (res.ok) setSavedAt(formatIST(new Date()));
+    });
+  };
+
   const saveDisq = () =>
     start(async () => {
       setDMsg(null);
@@ -263,7 +370,12 @@ export function QualificationManager({
   return (
     <div className="flex flex-col gap-6">
       {showGate ? (
-      <div className="flex flex-col gap-3 rounded-lg border p-4">
+      /* onBlur on the WRAPPER, not on thirty fields. React's onBlur is focusout, which
+         bubbles, so every input, textarea, checkbox and select inside this step commits
+         when focus leaves it - and a field added here later is covered without anybody
+         remembering to wire it. That is the whole reason it is here rather than repeated
+         per control: the one field somebody forgets is the one that loses work. */
+      <div className="flex flex-col gap-3 rounded-lg border p-4" onBlur={autoSaveQual}>
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" checked={q.enabled} onChange={(e) => setQ((s) => ({ ...s, enabled: e.target.checked }))} />
           Enable qualification gate (Page 1, shown before the assessment)
@@ -348,19 +460,37 @@ export function QualificationManager({
                         }
                       />
                     </label>
+                    {/* ONE OUTCOME PER ANSWER, as a dropdown rather than a row of
+                        checkboxes. Disqualified and waitlisted are different things and
+                        cannot both be true of one answer: made structural here, because
+                        two checkboxes can say both and somebody eventually ticks both.
+
+                        Labelled with the Meta event each one fires, since that is the
+                        name the owner will go looking for in the ad account - a control
+                        that says "Disqualifies" while the audience says GateDisqualified
+                        is two names for one thing. */}
                     <label className="flex items-center gap-1 whitespace-nowrap text-xs">
-                      <input
-                        type="checkbox"
-                        checked={opt.disqualifies}
-                        onChange={(e) => setOption(qi, oi, { disqualifies: e.target.checked })}
-                      />
-                      Disqualifies
+                      <span className="text-[var(--muted-foreground)]">Outcome</span>
+                      <select
+                        className="h-9 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-xs"
+                        value={optionOutcome(opt)}
+                        onChange={(e) => setOptionOutcome(qi, oi, e.target.value as GateOutcome)}
+                      >
+                        <option value="NONE">None</option>
+                        <option value="DISQUALIFY">{GATE_DISQUALIFIED_EVENT}</option>
+                        <option value="WAITLIST">{GATE_WAITLISTED_EVENT}</option>
+                      </select>
                     </label>
-                    {/* THE ROUTE, right where the decision is made. Type a name and
-                        that exit appears in the exit step below, ready to write. Leave
-                        it blank and they go out through the first exit, which is what
-                        every disqualifying answer did before routes existed. */}
-                    {opt.disqualifies ? (
+                    {/* THE ROUTE, right where the decision is made, and only for a
+                        disqualifying answer. Type a name and that exit appears in the
+                        exit step below, ready to write. Leave it blank and they go out
+                        through the first exit, which is what every disqualifying answer
+                        did before routes existed.
+
+                        Waitlisted has no name box on purpose: there is exactly one
+                        waitlist, it is the same route for every answer that reaches it,
+                        and letting it be named would let it be named twice. */}
+                    {optionOutcome(opt) === "DISQUALIFY" ? (
                       <ExitNameField
                         value={exitNameOf(opt.exitKey ?? "")}
                         onCommit={(typed) => commitExitName(qi, oi, typed)}
@@ -450,22 +580,33 @@ export function QualificationManager({
               </div>
             </div>
           ) : null}
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={q.showGateOnResult}
-              onChange={(e) => setQ((s) => ({ ...s, showGateOnResult: e.target.checked }))}
-            />
-            <span>
-              Show these answers and points on the result page
-              <span className="block text-xs text-[var(--muted-foreground)]">
-                On since this funnel was built. Turn it off for a gate you score privately - but
-                leave it on for a funnel whose gate IS the assessment, or the result page has
-                nothing left to show.
+          {/* Held back from customers by the `gateResult` release switch, so for almost
+              everybody this control does not exist. A gate routes on the choices made;
+              it does not grade, and there is no verdict a respondent is owed. */}
+          {canGateResult ? (
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={q.showResultOfGate}
+                onChange={(e) => setQ((s) => ({ ...s, showResultOfGate: e.target.checked }))}
+              />
+              <span>
+                Show result of gate
+                <span className="block text-xs text-[var(--muted-foreground)]">
+                  Off, and worth leaving off. The gate decides where somebody goes, not what
+                  they scored.
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
+          ) : null}
+          {canGateResult && q.showResultOfGate ? (
+            <p className="text-xs font-medium text-yellow-600">
+              🟡 They will see every gate answer and the points it earned. Anybody who reads
+              their own score has learned what to answer next time, which is the one thing a
+              screening question cannot survive.
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -473,12 +614,17 @@ export function QualificationManager({
           <Button size="sm" variant="outline" onClick={addTextQuestion}>+ Add text question</Button>
           <Button size="sm" onClick={saveQual} disabled={pending}>{pending ? "Saving…" : "Save qualification"}</Button>
           {qMsg ? <span className={MSG_CLASS[qMsg.tone]}>{qMsg.text}</span> : null}
+          {!qMsg && savedAt ? (
+            <span className="text-xs text-[var(--muted-foreground)]">Saved {savedAt}</span>
+          ) : null}
         </div>
       </div>
       ) : null}
 
       {showExit ? (
-      <div className="flex flex-col gap-3 rounded-lg border p-4">
+      /* Same blur-save as the gate step, for the same reason: this half is mostly long
+         prose fields, which are exactly the ones worth losing least. */
+      <div className="flex flex-col gap-3 rounded-lg border p-4" onBlur={autoSaveDisq}>
         {/* "Disqualified page" said what the system calls it, not what it is. The
             person reading this screen needs to know it is the LAST thing a rejected
             visitor sees, and that nothing about them is kept - that is what decides
@@ -741,6 +887,9 @@ export function QualificationManager({
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={saveDisq} disabled={pending}>{pending ? "Saving…" : "Save exits"}</Button>
           {dMsg ? <span className={MSG_CLASS[dMsg.tone]}>{dMsg.text}</span> : null}
+          {!dMsg && savedAt ? (
+            <span className="text-xs text-[var(--muted-foreground)]">Saved {savedAt}</span>
+          ) : null}
         </div>
       </div>
       ) : null}

@@ -31,6 +31,8 @@ import {
   type LeadInput,
   professionOptionsFor,
   completionEventName,
+  optionOutcome,
+  WAITLIST_EXIT_KEY,
   FREE_TEXT_ANSWER_MAX,
   type PreResultField,
 } from "@/features/assessment/schemas";
@@ -513,6 +515,10 @@ export function AssessmentRunner({
   // which must NOT re-fire the pixel (re-firing on every revisit is what inflated
   // Meta's exclusion count over the real number of people rejected).
   const dqCauseRef = useRef<{ questionId?: string; optionId?: string; exitKey?: string; repeat: boolean } | null>(null);
+  /** The answer that waitlisted them, held until the gate is finished. Non-null means
+   *  "route to the waitlist after the last question", and it carries which answer did
+   *  it so the route is reported against a real cause rather than an empty one. */
+  const waitlistCauseRef = useRef<{ questionId?: string; optionId?: string } | null>(null);
 
   // Early-skip: a visitor already rejected by the gate (localStorage flag) goes
   // straight to the exit page without seeing the questions again. Checked after mount
@@ -1000,6 +1006,16 @@ export function AssessmentRunner({
    * pass the gate has always been, with no round trip.
    */
   function finishGate(choices: Record<string, string>) {
+    // The deferred waitlist, settled now that every question has been answered. Checked
+    // BEFORE the bands and before the bands-disabled shortcut: an answer that says "not
+    // yet" is a statement about this person, and a total that happens to clear the bar
+    // does not overrule it. A disqualifying answer never reaches here - it left the
+    // moment it was clicked.
+    const waitlisted = waitlistCauseRef.current;
+    if (waitlisted) {
+      goToExit(WAITLIST_EXIT_KEY, waitlisted);
+      return;
+    }
     const enter = () => {
       markGatePassed(); // cleared the whole gate - they are now in the funnel
       // SPLIT runs the audience gate BEFORE the gate, so clearing the gate never
@@ -1033,7 +1049,8 @@ export function AssessmentRunner({
     setQualPickedId(option.id);
     window.setTimeout(() => {
       setQualPickedId(null);
-      if (option.disqualifies) {
+      const outcome = optionOutcome(option);
+      if (outcome === "DISQUALIFY") {
         // A hard exit is decided HERE, from the key already in the payload, rather than
         // by asking the server: making somebody wait on a network call to be told they
         // are not a fit is its own small insult. The server re-checks it anyway before
@@ -1043,6 +1060,18 @@ export function AssessmentRunner({
           optionId: option.id,
         });
         return;
+      }
+      if (outcome === "WAITLIST") {
+        // 🔴 WAITLISTED DOES NOT LEAVE. They answer the rest of the gate exactly like
+        // somebody who is through, and the route is applied once the last question is
+        // done - see finishGate. Routing them out here is what the old behaviour did,
+        // and it threw away every answer after this one on a person whose only problem
+        // is a date. A ref, not state, because the very next line may be the last
+        // question: finishGate has to see this synchronously.
+        waitlistCauseRef.current = {
+          questionId: qual?.questions[qualIndex]?.id,
+          optionId: option.id,
+        };
       }
       if (!qual) return;
       const answeredId = qual.questions[qualIndex]?.id;

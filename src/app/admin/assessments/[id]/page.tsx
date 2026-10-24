@@ -35,6 +35,7 @@ import { DocBinder } from "@/features/result-pages/components/doc-binder";
 import { listFreeDocs } from "@/features/result-pages/data";
 import { Badge } from "@/components/ui/badge";
 import { ownerScopeOf } from "@/lib/tenant/scope";
+import { featureAllowedFor } from "@/lib/features/release";
 import { readMetaEvents } from "@/features/assessment/meta-events";
 import { normalizeCustomFields } from "@/features/assessment/custom-fields";
 
@@ -267,6 +268,11 @@ export default async function EditAssessmentPage({
   const signupScope = await resolveActingScope();
   const canPlatformSignup = signupScope.isSuper && isPlatformScope(signupScope.tenantId);
 
+  // The gate-result switch is held back by a release flag, not by a plan. Resolved
+  // rather than assumed true: this screen is the owner's, and the owner's scope is
+  // exempt, but the exemption belongs in one place and this is not it.
+  const canGateResult = await featureAllowedFor("gateResult", signupScope.tenantId);
+
   /**
    * Step 1 offers a template only while there is nothing to lose. "Empty" is no
    * categories, no result bands and no gate questions - the three things a template
@@ -309,6 +315,7 @@ export default async function EditAssessmentPage({
           initialDisqualified={disqualified}
           storedUnreadable={qualUnreadable}
           section="gate"
+          canGateResult={canGateResult}
         />
         <BuilderStepNav step="gate" />
       </section>
@@ -328,6 +335,7 @@ export default async function EditAssessmentPage({
           initialDisqualified={disqualified}
           storedUnreadable={qualUnreadable}
           section="exit"
+          canGateResult={canGateResult}
         />
         <BuilderStepNav step="exit" />
       </section>

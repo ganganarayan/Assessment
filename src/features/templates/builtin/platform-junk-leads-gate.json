@@ -51,7 +51,7 @@
     },
     "qualification": {
       "enabled": true,
-      "showGateOnResult": true,
+      "showResultOfGate": false,
       "bands": {
         "enabled": true,
         "passMin": 80,
@@ -221,10 +221,10 @@
         {
           "key": "waitlist",
           "name": "Waitlisted",
-          "mode": "PAGE",
+          "mode": "OPTIN",
           "heading": "Not a no. A not yet.",
           "subtext": "The setup fits. The timing is the one thing nobody can fix from this end.",
-          "bodyHtml": "<p>You keep your place. This is not a rejection and you are not going on any exclusion list, so you will still hear from us. When the piece that is missing today is in place, it is the same door.</p><p>If you want to look around in the meantime, the trial is open and nothing about it depends on this answer.</p>",
+          "bodyHtml": "<p>You keep your place, and we have your details, so this is a list with you actually on it. You are not going on any exclusion list either. When the piece that is missing today is in place, it is the same door.</p><p>If you want to look around in the meantime, the trial is open and nothing about it depends on this answer.</p>",
           "buttonLabel": "Start the 14-day trial",
           "buttonUrl": "/sign-up",
           "fireDisqualifiedEvent": true,

@@ -7,7 +7,11 @@ import {
   qualificationSchema,
   disqualifiedContentSchema,
   isQualificationActive,
+  isWaitlistExitKey,
+  makeWaitlistExit,
+  optionOutcome,
   readExits,
+  WAITLIST_EXIT_KEY,
   type GateExitInput,
   type QualificationInput,
   type DisqualifiedContentInput,
@@ -16,6 +20,7 @@ import { type ActionResult, type QualificationSaveState } from "@/features/asses
 import { assessmentInScope } from "@/features/assessment/actions/ownership";
 import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 import { assertEdit, resolveActingScope } from "@/lib/tenant/acting";
+import { featureAllowedFor } from "@/lib/features/release";
 import { tenantCan } from "@/lib/billing/entitlements";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { PARKED_MESSAGE } from "@/lib/billing/plans";
@@ -49,7 +54,14 @@ async function conditionalExitDenied(): Promise<{ ok: false; error: string } | n
  * who most need it do not have.
  */
 function usesConditionalExit(q: QualificationInput): boolean {
-  return q.questions.some((question) => question.options.some((o) => o.disqualifies && !!o.exitKey?.trim()));
+  // The reserved waitlist does NOT count, deliberately. It is one fixed route with one
+  // fixed meaning, and the tenant most likely to need it is the nervous first-time buyer
+  // on the entry plan - the same reasoning that puts the score bands in the base plan.
+  // Selling "do not throw this lead away" as an upgrade withholds the safety net from
+  // exactly the person who asked for it.
+  return q.questions.some((question) =>
+    question.options.some((o) => optionOutcome(o) === "DISQUALIFY" && !!o.exitKey?.trim()),
+  );
 }
 
 /** Score bands are a paid-tier capability, available from the entry plan up. */
@@ -74,10 +86,23 @@ export async function saveQualification(
   const parsed = qualificationSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
 
+  // 🔴 THE RELEASE SWITCH IS THE BOUNDARY, not the hidden checkbox.
+  //
+  // `showResultOfGate` is held back from customers, and the builder simply does not
+  // render its control - but a stale page, an import or a hand-made payload can still
+  // arrive carrying it true. Forced back to false rather than refused: the owner editing
+  // a gate should not be stopped by a flag they never saw, and the only thing that
+  // matters is that no respondent is shown a score.
+  const releaseScope = await resolveActingScope();
+  const gateResultAllowed = await featureAllowedFor("gateResult", releaseScope.tenantId);
+  const config: QualificationInput = gateResultAllowed
+    ? parsed.data
+    : { ...parsed.data, showResultOfGate: false };
+
   // Billing gate: the pre-assessment qualification / disqualify gate is a Growth+
   // capability. TURNING IT ON needs the feature; saving an inactive/cleared config
   // (to turn it off) is always allowed. The app owner (super admin) is never limited.
-  if (isQualificationActive(parsed.data)) {
+  if (isQualificationActive(config)) {
     const scope = await resolveActingScope();
     if (!scope.isSuper && !(await tenantCan(scope.tenantId, "qualificationGate"))) {
       // Parked reads as "every feature off", so the upgrade sentence would tell a
@@ -88,11 +113,11 @@ export async function saveQualification(
     // Bands from the entry tier up; ROUTING on top of them is the Signal capability.
     // Each checked only when the saved config actually uses it, so a Gate tenant can
     // keep editing a banded, single-exit gate without meeting a wall.
-    if (parsed.data.bands.enabled) {
+    if (config.bands.enabled) {
       const bandsDenied = await scoreBandsDenied();
       if (bandsDenied) return bandsDenied;
     }
-    if (usesConditionalExit(parsed.data)) {
+    if (usesConditionalExit(config)) {
       const denied2 = await conditionalExitDenied();
       if (denied2) return denied2;
     }
@@ -100,7 +125,7 @@ export async function saveQualification(
 
   await prisma.assessment.update({
     where: { id: assessmentId },
-    data: { qualification: parsed.data as unknown as Prisma.InputJsonValue },
+    data: { qualification: config as unknown as Prisma.InputJsonValue },
   });
   // The funnel renders this, so the cached funnel payload has to go. Without it the
   // gate appeared up to a minute later, which during an onboarding call is simply
@@ -111,8 +136,8 @@ export async function saveQualification(
   return {
     ok: true,
     data: {
-      live: isQualificationActive(parsed.data),
-      questionCount: parsed.data.questions.length,
+      live: isQualificationActive(config),
+      questionCount: config.questions.length,
     },
   };
 }
@@ -129,17 +154,34 @@ export async function saveDisqualifiedContent(
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
 
   // A second exit is the capability; the first one is the exit page every paid plan has.
-  if (parsed.data.exits.length > 1) {
+  // The reserved waitlist is not counted - it is available on every paid plan, so a
+  // Gate-tier owner editing its copy must not meet a wall that belongs to named routes.
+  if (parsed.data.exits.filter((e) => !isWaitlistExitKey(e.key)).length > 1) {
     const denied2 = await conditionalExitDenied();
     if (denied2) return denied2;
   }
 
+  // 🔴 THE RESERVED ROUTE IS REPAIRED ON EVERY SAVE, not merely created correctly once.
+  //
+  // Its copy belongs to the owner; its wiring does not. Mode OPTIN is what makes the
+  // waitlist a list at all (a PAGE exit stores nobody), the event name is what the ad
+  // account's audience is built on, and `neverExclude` is what keeps these people out of
+  // the exclusion audience. Any of the three could be edited away through a stale
+  // payload, an import, or a hand-written save, and none of it would error - the damage
+  // would show up as a waitlist that is empty, or worse, excluded.
+  const exits = parsed.data.exits.map((e) =>
+    isWaitlistExitKey(e.key)
+      ? { ...e, mode: "OPTIN" as const, eventName: makeWaitlistExit().eventName, neverExclude: true }
+      : e,
+  );
+
   // Exit one's content is mirrored onto the legacy top-level fields. Derived, never
   // read back while `exits` exists, and written so that a rollback mid-deploy - or a
   // funnel payload cached a minute before this save - still renders a real page.
-  const first = parsed.data.exits[0];
+  const first = exits[0];
   const content = {
     ...parsed.data,
+    exits,
     ...(first
       ? {
           heading: first.heading,
@@ -244,6 +286,37 @@ export async function ensureGateExit(
   };
   await writeExits(assessmentId, [...exits, created]);
   return { ok: true, data: { key: created.key, name: created.name } };
+}
+
+/**
+ * Make sure the RESERVED waitlist route exists, and return its key.
+ *
+ * What the builder's dropdown calls when an answer is set to GateWaitlisted. Separate
+ * from ensureGateExit for three reasons that all matter: the key is fixed rather than
+ * generated, so every answer and every score band names the same route; it is NOT behind
+ * the conditional-exit paywall, because the waitlist is a plan-wide safety net and not a
+ * routing luxury; and it arrives wired as OPTIN with its own event and `neverExclude`
+ * on, which is the difference between a waitlist and a politely worded rejection.
+ *
+ * Appends, and never adopts a blank first exit the way a named route does: the first
+ * exit mirrors onto the legacy fields and is the fallback for a dangling key, and the
+ * waitlist must never be either of those things.
+ */
+export async function ensureWaitlistExit(assessmentId: string): Promise<ActionResult<{ key: string }>> {
+  if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
+  const denied = await assertEdit();
+  if (denied) return denied;
+
+  const row = await prisma.assessment.findUnique({
+    where: { id: assessmentId },
+    select: { disqualifiedContent: true },
+  });
+  const exits = readExits(row?.disqualifiedContent);
+  if (exits.some((e) => isWaitlistExitKey(e.key))) return { ok: true, data: { key: WAITLIST_EXIT_KEY } };
+  if (exits.length >= 20) return { ok: false, error: "That is as many exits as one gate can have." };
+
+  await writeExits(assessmentId, [...exits, makeWaitlistExit()]);
+  return { ok: true, data: { key: WAITLIST_EXIT_KEY } };
 }
 
 /** Persist an exits array, keeping exit one mirrored onto the legacy fields. */

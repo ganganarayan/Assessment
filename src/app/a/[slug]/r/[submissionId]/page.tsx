@@ -251,13 +251,14 @@ export default async function ResultPage({
   // before the breakdown was stored - both of which simply render nothing.
   // The gate as answered - and whether the respondent is allowed to see it.
   //
-  // Showing it is what this page has always done, and a gate-only funnel has nothing
-  // else to show, so it stays the default. A gate that scores people privately turns it
-  // off: a founder reading their own points learns exactly what to say next time, which
-  // is the one thing a screening question cannot survive.
+  // OFF unless the funnel explicitly says otherwise, which is the opposite of what this
+  // page used to do. A gate routes people on the choices they made; it does not grade
+  // them, and a founder reading their own points has learned exactly what to say next
+  // time. An unreadable config therefore shows NOTHING rather than everything: the safe
+  // answer to "I cannot tell what this funnel wants" is silence, not a score.
   const gateVisible = (() => {
     const p = qualificationSchema.safeParse(submission.assessment.qualification);
-    return !p.success || p.data.showGateOnResult;
+    return p.success && p.data.showResultOfGate;
   })();
   const gateRows = gateVisible ? parseGateBreakdown(submission.gateBreakdown) : [];
 

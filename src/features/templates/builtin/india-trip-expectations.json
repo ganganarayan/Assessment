@@ -40,7 +40,7 @@
     "uniqueIdentifier": "EMAIL",
     "qualification": {
       "enabled": true,
-      "showGateOnResult": false,
+      "showResultOfGate": false,
       "questions": [
         {
           "id": "g1",
