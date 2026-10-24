@@ -2630,6 +2630,18 @@ model AppSetting {
   // 🔴 A password is NEVER placed in this email, and there is no placeholder for one.
   // Self-serve signups choose their own, and mailing a credential turns every inbox
   // into a copy of the account. The template offers a reset LINK instead.
+  /// 🔴 THE LIFECYCLE SENDER'S MASTER SWITCH, and it is OFF.
+  ///
+  /// The release key decides whether the engine PLANS; this decides whether a plan
+  /// ever leaves the building. Two switches rather than one because they answer
+  /// different questions: "is this feature on" and "am I happy for a model to write
+  /// to my customers unattended". The owner reads a week of drafts with the first on
+  /// and this off, which is the only way to earn the second.
+  ///
+  /// Read at SEND time, never at plan time. A plan written while this was on must not
+  /// go out after it has been turned off.
+  lifecycleLive Boolean @default(false)
+
   welcomeEmailEnabled Boolean @default(false)
   welcomeEmailSubject String?
   welcomeEmailBody    String? @db.Text
@@ -4857,6 +4869,15 @@ model LifecycleProfile {
   status     LifecycleStatus @default(ACTIVE)
   /// Why it ended, in owner words ("subscribed on 21-10-2026").
   stopReason String?
+
+  /// The way out, and it is per WORKSPACE rather than per address: somebody who says
+  /// stop has not said "stop the email but the WhatsApp is fine".
+  ///
+  /// Its own token and its own page, not the Contact one. A trial signup is our
+  /// customer, not a tenant's respondent, and the two must never share a row: an
+  /// owner unsubscribing from our trial sequence has not unsubscribed their own leads
+  /// from their own funnel.
+  optOutToken String @unique @default(cuid())
 
   /// The IST day key (YYYY-MM-DD) the planner last wrote a plan for. The idempotency
   /// guard: a cron that fires twice, or a hand-run drain, must not produce two plans

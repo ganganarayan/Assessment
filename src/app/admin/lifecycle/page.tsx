@@ -4,6 +4,8 @@ import {
   approveLifecyclePlan,
   skipLifecyclePlan,
   runLifecyclePlannerNow,
+  setLifecycleLive,
+  sendLifecycleNow,
 } from "@/features/platform/lifecycle";
 import { isFeatureReleased } from "@/lib/features/release";
 import { LIFECYCLE_STAGES } from "@/lib/lifecycle/stages";
@@ -55,10 +57,31 @@ export default async function LifecyclePage() {
         </p>
       )}
 
-      <p className="rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2 text-sm">
-        🔴 Dry run. Nothing on this page has been sent to anybody. Read a week of it, then the sender
-        is turned on in Phase 2.
-      </p>
+      <section className="flex flex-col gap-2 rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-3">
+        <p className="text-sm">
+          {summary.live
+            ? "🟡 Sending is LIVE. Plans written from now on go out at each person's own 24 hour mark, unattended."
+            : "🔴 Dry run. Nothing on this page has been sent to anybody."}
+        </p>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Turning this on does not release the backlog. Every plan written while it was off carries
+          its own dry-run stamp and stays unsent, however it is approved.
+        </p>
+        <form action={setLifecycleLive} className="flex items-center gap-2">
+          {/* An unchecked box posts nothing, so "off" is the absence of the field and
+              the submit button is the only thing that commits either way. */}
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="live" defaultChecked={summary.live} />
+            Let the engine send without me
+          </label>
+          <button
+            type="submit"
+            className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm font-medium"
+          >
+            Save
+          </button>
+        </form>
+      </section>
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {[
@@ -75,17 +98,28 @@ export default async function LifecyclePage() {
         ))}
       </section>
 
-      <form action={runLifecyclePlannerNow}>
-        <button
-          type="submit"
-          className="rounded-md bg-[var(--primary)] px-3 py-2 text-sm font-medium text-[var(--primary-foreground)]"
-        >
-          Plan now
-        </button>
-        <span className="ml-3 text-xs text-[var(--muted-foreground)]">
-          Safe to press twice. Anybody already planned today is left alone.
+      <div className="flex flex-wrap items-center gap-3">
+        <form action={runLifecyclePlannerNow}>
+          <button
+            type="submit"
+            className="rounded-md bg-[var(--primary)] px-3 py-2 text-sm font-medium text-[var(--primary-foreground)]"
+          >
+            Plan now
+          </button>
+        </form>
+        <form action={sendLifecycleNow}>
+          <button
+            type="submit"
+            className="rounded-md border border-[var(--border)] px-3 py-2 text-sm font-medium"
+          >
+            Send what is due
+          </button>
+        </form>
+        <span className="text-xs text-[var(--muted-foreground)]">
+          Both are safe to press twice. Anybody already planned today is left alone, and a claimed
+          row cannot be sent a second time.
         </span>
-      </form>
+      </div>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Waiting on you ({waiting.length})</h2>

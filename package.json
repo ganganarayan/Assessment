@@ -93,6 +93,7 @@
     "cron:workflows": "tsx --conditions=react-server scripts/run-workflows.ts",
     "cron:broadcasts": "tsx --conditions=react-server scripts/run-broadcasts.ts",
     "cron:lifecycle": "tsx --conditions=react-server scripts/run-lifecycle.ts",
+    "cron:lifecycle-send": "tsx --conditions=react-server scripts/send-lifecycle.ts",
     "verify:automations": "tsx scripts/verify-automations.ts",
     "verify:releases": "tsx scripts/verify-feature-releases.ts",
     "verify:workflow-queue": "tsx --conditions=react-server scripts/verify-workflow-queue.ts",

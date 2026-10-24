@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { formatIST } from "@/lib/date";
 import { stageLabel, planToday } from "@/lib/lifecycle/plan";
+import { sendDueLifecycle } from "@/lib/lifecycle/send";
 import { type LifecycleFacts } from "@/lib/lifecycle/facts";
 import { type LifecyclePlanRow, type LifecycleSummary } from "@/features/platform/lifecycle-types";
 
@@ -101,7 +102,8 @@ export async function listLifecyclePlans(): Promise<LifecyclePlanRow[]> {
 /** What the run cost and covered, for the header strip. */
 export async function lifecycleSummary(): Promise<LifecycleSummary> {
   await requireSuperAdmin();
-  const [active, needsInput, recent] = await Promise.all([
+  const [setting, active, needsInput, recent] = await Promise.all([
+    prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { lifecycleLive: true } }),
     prisma.lifecycleProfile.count({ where: { status: "ACTIVE" } }),
     prisma.lifecyclePlan.count({ where: { status: "NEEDS_INPUT" } }),
     prisma.lifecyclePlan.findMany({
@@ -110,6 +112,7 @@ export async function lifecycleSummary(): Promise<LifecycleSummary> {
     }),
   ]);
   return {
+    live: setting?.lifecycleLive === true,
     active,
     needsInput,
     plannedToday: recent.length,
@@ -121,9 +124,11 @@ export async function lifecycleSummary(): Promise<LifecycleSummary> {
 /**
  * Approve one plan, with whatever the owner edited into it.
  *
- * 🟡 Approving does NOT send in Phase 1. There is no sender yet, and the row carries
- * dryRun. What approval buys today is the record of what the owner would have let go
- * out, which is exactly the thing the first week of this engine is for.
+ * 🟡 Approving does not itself send. It moves the row to APPROVED and the worker
+ * picks it up at its due time, and only then if sending is live AND the row was not
+ * written during dry run. A row drafted in the dry-run week stays unsent however many
+ * times it is approved, which is what stops flipping the switch from firing a backlog
+ * at everybody at once.
  */
 export async function approveLifecyclePlan(formData: FormData): Promise<void> {
   await requireSuperAdmin();
@@ -149,6 +154,33 @@ export async function skipLifecyclePlan(formData: FormData): Promise<void> {
     where: { id },
     data: { status: "SKIPPED", verdict: "SKIP", reason: reason.slice(0, 300) },
   });
+  revalidatePath("/admin/lifecycle");
+}
+
+/**
+ * Turn real sending on or off.
+ *
+ * 🔴 THE ONE SWITCH IN THIS PRODUCT THAT LETS A MODEL WRITE TO CUSTOMERS UNATTENDED.
+ * It is separate from the release key on purpose: that one says the feature exists,
+ * this one says the owner has read what it writes and is happy for it to go out
+ * without them. Turning it on does not release the backlog - every plan written
+ * before it carries its own dryRun stamp and stays unsent.
+ */
+export async function setLifecycleLive(formData: FormData): Promise<void> {
+  await requireSuperAdmin();
+  const live = String(formData.get("live") ?? "") === "on";
+  await prisma.appSetting.update({ where: { id: "singleton" }, data: { lifecycleLive: live } });
+  console.info(`[lifecycle] sending ${live ? "TURNED ON" : "turned off"}`);
+  revalidatePath("/admin/lifecycle");
+}
+
+/** Drain whatever is due right now rather than waiting for the five minute worker. */
+export async function sendLifecycleNow(): Promise<void> {
+  await requireSuperAdmin();
+  const s = await sendDueLifecycle();
+  console.info(
+    `[lifecycle] manual drain: claimed ${s.claimed}, sent ${s.sent}, skipped ${s.skipped}, failed ${s.failed}`,
+  );
   revalidatePath("/admin/lifecycle");
 }
 

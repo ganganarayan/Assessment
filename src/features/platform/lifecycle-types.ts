@@ -27,6 +27,8 @@ export interface LifecyclePlanRow {
 }
 
 export interface LifecycleSummary {
+  /** The sender's master switch. False = drafts only, nothing leaves. */
+  live: boolean;
   active: number;
   needsInput: number;
   plannedToday: number;
