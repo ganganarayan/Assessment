@@ -212,6 +212,10 @@ model Tenant {
   tags                 Tag[]
   /// Where this workspace is in the trial nurture sequence.
   lifecycleProfile     LifecycleProfile?
+  /// This workspace's own file vault. Null-tenant rows belong to the platform.
+  vaultBuckets         VaultBucket[]
+  vaultFolders         VaultFolder[]
+  vaultFiles           VaultFile[]
 
   @@index([status])
   @@index([deletedAt])
@@ -4993,4 +4997,171 @@ model LifecyclePlan {
   @@index([status, dueAt])
   @@index([tenantId, planDate])
   @@map("lifecycle_plan")
+}
+
+// ---------------------------------------------------------------------------
+// VAULT - the install's own file store: buckets, folders, files, on Cloudflare R2.
+//
+// WHY A SECOND STORAGE LAYER, next to lib/storage/r2. That one is the APP's
+// uploads: one bucket for the install, tenants separated by key prefix, keys composed
+// by the app and never seen by a human. The Vault is the opposite shape - a file
+// manager a person drives, with buckets they create, folders they name, and links they
+// copy out to other products (VidaPulse, an LMS, a landing page). Sharing one bucket
+// and one credential between the two would mean the app's uploads and hand-managed
+// media sit in the same namespace, and that a token scoped for one is scoped for both.
+//
+// 🔴 THE OBJECT KEY IS IMMUTABLE. VaultFile.objectKey is minted once, at upload, and
+// nothing renames it - not Rename, not a move between folders. Folders and display
+// names are DATABASE facts only, and the public link is derived from the key, so a
+// link already pasted into a landing page or an LMS keeps working no matter how the
+// file is reorganised afterwards. The naive alternative - mirroring the folder path
+// into the key - makes Rename and Move rewrite the key, which silently 404s every
+// embed already live in the wild. Moving a file BETWEEN BUCKETS is the one operation
+// that genuinely changes the link, and the UI says so before it runs.
+// ---------------------------------------------------------------------------
+
+/// R2 charges for storage two ways, and the right one depends entirely on read
+/// pattern. STANDARD for anything served (video, images): no retrieval fee, so a view
+/// costs nothing beyond the request. INFREQUENT_ACCESS is cheaper to keep ($0.01 vs
+/// $0.015 per GB-month) but bills $0.01 per GB RETRIEVED, which makes it correct for a
+/// cold archive and actively wrong for an LMS video, where every play would be a
+/// retrieval. A bucket declares which it is so uploads carry the right storage class.
+enum VaultStorageClass {
+  STANDARD
+  INFREQUENT_ACCESS
+}
+
+model VaultBucket {
+  id String @id @default(cuid())
+
+  /// What the switcher shows. Free text, the operator's own naming.
+  label String
+
+  /// The real R2 bucket name, which is what the S3 API addresses.
+  bucketName String
+
+  /// The https origin serving this bucket's objects publicly, no trailing slash, e.g.
+  /// https://cdn.example.com. Null = not public yet, so no shareable link can be
+  /// built and the UI shows the setup checklist instead of a copy button.
+  ///
+  /// 🟡 MUST BE A CUSTOM DOMAIN, never the bucket's r2.dev URL. r2.dev is rate limited
+  /// and not CDN-cached, so serving video through it stutters under load AND bills a
+  /// Class B read for every range request that a cached custom domain would absorb.
+  /// The save action rejects an r2.dev host rather than let that become the default.
+  publicBaseUrl String?
+
+  storageClass VaultStorageClass @default(STANDARD)
+
+  /// Credentials for THIS bucket, deliberately separate from the app-upload R2 config
+  /// on AppSetting. An R2 API token can be scoped to a single bucket, so the app's
+  /// token frequently cannot see a bucket created later - and a vault whose
+  /// credentials are the app's cannot be handed to a tenant without handing over
+  /// access to every tenant's uploads. The secret is encrypted at rest.
+  accountId          String
+  accessKeyId        String
+  secretAccessKeyEnc String
+
+  /// Owning workspace. ALWAYS WRITTEN, via actingConfigTenantId() - the platform's own
+  /// vault carries the PLATFORM tenant id, never null. Writing null here is exactly
+  /// what verify:owner-stamp exists to catch, and this column is on its way to NOT
+  /// NULL once the platform re-home data move runs, so a new model must not add rows
+  /// to that debt.
+  ///
+  /// Nullable only so SetNull can fire: losing a tenant must not delete the objects,
+  /// which still exist in R2 and would otherwise be bytes nobody can find. Present
+  /// from the first migration because retrofitting tenancy onto three tables and every
+  /// query later is the expensive version of this column.
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  /// Per-workspace ceiling in bytes. Null = no limit, which is every row today. Read
+  /// by nothing yet: the LMS case needs it the moment a tenant uploads, and adding the
+  /// column with the table costs nothing while a later migration costs a deploy.
+  quotaBytes BigInt?
+
+  folders VaultFolder[]
+  files   VaultFile[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, bucketName])
+  @@index([tenantId])
+  @@map("vault_bucket")
+}
+
+model VaultFolder {
+  id   String @id @default(cuid())
+  name String
+
+  bucketId String
+  bucket   VaultBucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  /// Null = a folder at the bucket root.
+  parentId String?
+  parent   VaultFolder?  @relation("VaultFolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children VaultFolder[] @relation("VaultFolderTree")
+
+  files VaultFile[]
+
+  /// Denormalised from the bucket so a tenant-scoped read never has to join. Kept in
+  /// step by the actions, which always copy the bucket's value, and non-null for the
+  /// same reason as VaultBucket.tenantId.
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// 🟡 NOT a unique constraint on (bucket, parent, name). Postgres treats NULLs as
+  /// distinct, so it would not stop two root folders sharing a name - exactly the case
+  /// it looks like it covers. The actions check for a duplicate name instead, which
+  /// works at the root too.
+  @@index([bucketId, parentId])
+  @@index([tenantId])
+  @@map("vault_folder")
+}
+
+model VaultFile {
+  id String @id @default(cuid())
+
+  /// 🔴 IMMUTABLE. The R2 object key, minted once at upload. Rename and Move never
+  /// touch it, which is what keeps an already-published link alive. See the block
+  /// comment above this section.
+  objectKey String
+
+  /// The display name, and the only thing Rename edits. Starts as the uploaded
+  /// filename.
+  name String
+
+  contentType String
+  sizeBytes   BigInt
+
+  bucketId String
+  bucket   VaultBucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  /// Null = sitting at the bucket root.
+  folderId String?
+  folder   VaultFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  /// Who uploaded it. A plain audit stamp with no foreign key on purpose: it has to
+  /// survive the user being deleted, and nothing ever queries from a user to their
+  /// files.
+  uploadedById String?
+
+  /// Null = the row was reserved but the browser's upload never confirmed. A pending
+  /// row is not shown in the listing and is safe to sweep; it exists because the key
+  /// has to be minted BEFORE the presigned PUT is handed out.
+  uploadedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([bucketId, objectKey])
+  @@index([bucketId, folderId])
+  @@index([tenantId])
+  @@map("vault_file")
 }

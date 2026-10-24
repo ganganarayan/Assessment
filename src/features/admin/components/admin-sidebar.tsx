@@ -43,6 +43,10 @@ const SECTIONS: NavSection[] = [
       // not a card under the tenant list, where it was below the fold on a real account.
       { href: "/platform/releases", label: "Feature releases" },
       { href: "/platform/stats", label: "Marketing stats" },
+      // The file store whose links get pasted into other products (VidaPulse, an LMS,
+      // a landing page). Under Platform because it is the owner's own vault, not
+      // something a tenant drives yet.
+      { href: "/admin/vault", label: "Vault" },
       // The done-for-you queue. Under Platform rather than Leads: these are applicants
       // to the offer, not respondents to anybody's funnel.
       { href: "/admin/build-requests", label: "Build requests" },
