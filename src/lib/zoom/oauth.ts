@@ -25,8 +25,28 @@ const AUTH_URL = "https://zoom.us/oauth/authorize";
 const TOKEN_URL = "https://zoom.us/oauth/token";
 const API = "https://api.zoom.us/v2";
 
-/** Create a meeting, and read who we are connected as. Nothing else. */
-export const ZOOM_SCOPES = ["meeting:write", "user:read"] as const;
+/**
+ * What this integration actually needs Zoom to permit. TWO calls, nothing else:
+ *
+ *   POST /users/me/meetings      make the call's meeting at booking time
+ *   DELETE /meetings/{id}        release it when the booking is cancelled
+ *
+ * 🔴 THIS LIST IS DOCUMENTATION, NOT CONFIGURATION. Zoom takes an OAuth app's scopes
+ * from the app's own Marketplace settings and ignores any `scope` parameter on the
+ * authorize URL, which is why zoomConsentUrl does not send one. Changing this constant
+ * grants nothing; the Scopes screen on the Marketplace is the only thing that does.
+ * It is here so the next person can see what to tick without reading two files.
+ *
+ * Apps created from 2024 onward get GRANULAR scopes, so the old single `meeting:write`
+ * no longer covers the delete. Pick the user-level pair, never the `:admin` variants -
+ * a user-managed app is authorised by one person for their own account.
+ *
+ * 🟡 If the delete scope is missing, nothing breaks loudly: a cancelled booking still
+ * cancels, and deleteZoomMeeting swallows its own failure by design. The meeting just
+ * quietly stays in the tenant's Zoom account forever. Worth checking once after the
+ * first real cancellation rather than discovering it as clutter months later.
+ */
+export const ZOOM_SCOPES = ["meeting:write:meeting", "meeting:delete:meeting"] as const;
 
 export interface ZoomApp {
   clientId: string;
