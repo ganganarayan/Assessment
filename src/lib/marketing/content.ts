@@ -542,7 +542,7 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
   },
   {
     q: "What happens to someone who fits but cannot start right now?",
-    a: "He is not a rejection, he is a lead with a timing problem. He takes the full assessment like anyone else and lands on the same result page with a waitlist close, so you keep the finished diagnosis and he keeps his place. His exit fires its own Meta event, separate from both your exclusion audience and the event your ads optimise toward. Because he completes the assessment and you keep the result, he counts as a qualified response; only the people your gate turns away are unmetered.",
+    a: "A waitlisted lead is not a rejection, they are a lead with a timing problem. They take the full assessment like anyone else and land on the same result page with a waitlist close, so you keep the finished diagnosis and they keep their place. That exit fires its own Meta event, separate from both your exclusion audience and the event your ads optimise toward. Because they complete the assessment and you keep the result, they count as a qualified response; only the people your gate turns away are unmetered.",
   },
 ];
 
@@ -662,22 +662,22 @@ export const HERO = {
  */
 export const DISQUALIFIED_COST = {
   heading: "You are not paying for bad leads once. You are teaching Meta to find more of them.",
-  lead: "He is cheap to acquire and expensive to keep, which is why the charge never shows up anywhere as a single line. Here is the bill, in the order it arrives.",
+  lead: "A disqualified lead is cheap to acquire and expensive to keep, which is why the charge never shows up anywhere as a single line. Here is the bill, in the order it arrives.",
   chain: [
     {
-      text: "He completes the registration, so your pixel reports him as a conversion.",
-      strong: ["reports him as a conversion"],
+      text: "They complete the registration, so your pixel reports them as a conversion.",
+      strong: ["reports them as a conversion"],
     },
     {
-      text: "Meta believes you, and spends tomorrow finding more people exactly like him.",
-      strong: ["more people exactly like him"],
+      text: "Meta believes you, and spends tomorrow finding more people exactly like them.",
+      strong: ["more people exactly like them"],
     },
     {
-      text: "He enters your email nurture and stays there indefinitely, on a platform that bills you per contact.",
+      text: "They enter your email nurture and stay there indefinitely, on a platform that bills you per contact.",
       strong: ["bills you per contact"],
     },
     {
-      text: "He enters your WhatsApp nurture too, where every template message is a conversation Meta charges you for.",
+      text: "They enter your WhatsApp nurture too, where every template message is a conversation Meta charges you for.",
       strong: ["Meta charges you for"],
     },
     {
@@ -685,7 +685,7 @@ export const DISQUALIFIED_COST = {
       strong: ["paid for again"],
     },
     {
-      text: "You launch a second funnel, and the same person signs up again - because nothing in the first one ever marked him.",
+      text: "You launch a second funnel, and the same person signs up again - because nothing in the first one ever marked them.",
       strong: ["signs up again"],
     },
     {
@@ -697,7 +697,7 @@ export const DISQUALIFIED_COST = {
       strong: ["goes nowhere"],
     },
     {
-      text: "Or somebody sits and qualifies him by phone across three attempts, because nobody wants to say no in writing.",
+      text: "Or somebody sits and qualifies them by phone across three attempts, because nobody wants to say no in writing.",
       strong: ["three attempts"],
     },
     {
@@ -708,7 +708,7 @@ export const DISQUALIFIED_COST = {
   hiddenHeading: "And the leaks nobody itemises at all",
   hidden: [
     {
-      text: "Your retargeting window keeps paying to put ads in front of him for another thirty days.",
+      text: "Your retargeting window keeps paying to put ads in front of them for another thirty days.",
       strong: ["another thirty days"],
     },
     {
@@ -716,19 +716,19 @@ export const DISQUALIFIED_COST = {
       strong: ["starts the same leak, wider"],
     },
     {
-      text: "He never opens anything, so your sender reputation falls and the people who would have bought land in the promotions tab.",
+      text: "They never open anything, so your sender reputation falls and the people who would have bought land in the promotions tab.",
       strong: ["land in the promotions tab"],
     },
     {
-      text: "Your assessment tool meters him as a submission, so you pay for the privilege of collecting him.",
-      strong: ["pay for the privilege of collecting him"],
+      text: "Your assessment tool meters them as a submission, so you pay for the privilege of collecting them.",
+      strong: ["pay for the privilege of collecting them"],
     },
     {
-      text: "He takes a slot on the calendar that a real buyer then could not take.",
+      text: "They take a slot on the calendar that a real buyer then could not take.",
       strong: ["a real buyer then could not take"],
     },
     {
-      text: "Your pipeline report counts him, so the forecast is wrong and the rep gets told to work harder.",
+      text: "Your pipeline report counts them, so the forecast is wrong and the rep gets told to work harder.",
       strong: ["the forecast is wrong"],
     },
     {
@@ -736,8 +736,8 @@ export const DISQUALIFIED_COST = {
       strong: ["nobody is watching"],
     },
     {
-      text: "And when you finally clean the list, you cannot tell which ones were worth keeping, so the good ones go out with him.",
-      strong: ["the good ones go out with him"],
+      text: "And when you finally clean the list, you cannot tell which ones were worth keeping, so the good ones go out with them.",
+      strong: ["the good ones go out with them"],
     },
   ],
   closing:
@@ -758,11 +758,68 @@ export const DISQUALIFIED_COST = {
  * section does that a list cannot: what the charges come to in a month.
  */
 export const REAL_COST = {
-  heading: "A bad lead is not a cost. He is a subscription.",
-  paras: [
-    "The click is the only part you can see, and it is the cheapest thing on the list above. Everything after it recurs: the contact you pay to store every month, each template message, the retargeting that keeps serving him, the 45 minutes your rep spends on a call that was never going to close, and the campaign tomorrow that goes looking for more people exactly like him.",
-    "Run 40 calls a month. If half are wrong-fit, that is 15 hours gone, plus the ad spend that bought them, plus the spend tomorrow chasing more of the same person, and then the same bill again next month, because nothing in the funnel ever marked him. The leak is not your sales skill. It is that nothing in your funnel ever told the machine who was worth buying.",
+  heading: "A bad lead is not a cost. It's a draining subscription.",
+  lead: "The click is the only part you can see, and it is the cheapest thing on the list above. Everything after it recurs.",
+
+  /**
+   * The recurring charges, as lines rather than as a sentence.
+   *
+   * These were a single paragraph with a colon and five clauses in it, which is the one
+   * shape this argument cannot afford: a reader skims a long sentence and takes "lots of
+   * small costs" from it, when the point is that each line is a separate bill with its
+   * own billing cycle. One line each, numbered, and a reader counts them.
+   */
+  recurring: [
+    {
+      text: "The contact you pay to store, every month, on a platform that bills you per record.",
+      strong: ["every month"],
+    },
+    {
+      text: "Each template message, because WhatsApp charges per conversation and not per customer.",
+      strong: ["per conversation"],
+    },
+    {
+      text: "The retargeting that keeps serving them, long after anybody could have closed them.",
+      strong: ["keeps serving them"],
+    },
+    {
+      text: "The 45 minutes your rep spends on a call that was never going to close.",
+      strong: ["45 minutes"],
+    },
+    {
+      text: "The campaign tomorrow, which goes looking for more people exactly like them.",
+      strong: ["more people exactly like them"],
+    },
   ],
+
+  /**
+   * 🟡 THE ARITHMETIC IS CHECKABLE, AND THAT IS THE WHOLE POINT OF IT. Twenty wrong-fit
+   * calls at the 45 minutes named above is 15 hours, so a reader who multiplies gets our
+   * number rather than catching us rounding in our own favour. Change the 45 minutes and
+   * this 15 hours has to move with it.
+   */
+  mathHeading: "Run 40 calls a month, and let half of them be wrong-fit.",
+  math: [
+    {
+      text: "Twenty calls at 45 minutes is 15 hours gone, out of the only month you had.",
+      strong: ["15 hours gone"],
+    },
+    {
+      text: "Plus the ad spend that bought those twenty calls in the first place.",
+      strong: ["the ad spend that bought"],
+    },
+    {
+      text: "Plus tomorrow's spend, chasing more of the same person.",
+      strong: ["more of the same person"],
+    },
+    {
+      text: "Then the same bill again next month, because nothing in the funnel ever marked them.",
+      strong: ["the same bill again next month"],
+    },
+  ],
+
+  closing:
+    "The leak is not your sales skill. It is that nothing in your funnel ever told the machine who was worth buying.",
 } as const;
 
 /**
@@ -777,7 +834,7 @@ export const REAL_COST = {
 export const NO_GOOD_LEAD = {
   heading: "The reason most people never set a real bar is fear of losing someone good.",
   intro:
-    "A gate that only says yes or no is a bouncer, and nobody trusts a bouncer with their pipeline. This one is a router. A strong lead with one weak answer is banded and flagged, not lost. A lead who fits everything except your dates finishes the whole assessment, lands on the same result page with a different close, and keeps his place. Each exit reports its own Meta event, or none at all, so a waitlist sign-up never teaches your ads to go and find more people who cannot come.",
+    "A gate that only says yes or no is a bouncer, and nobody trusts a bouncer with their pipeline. This one is a router. A strong lead with one weak answer is banded and flagged, not lost. A lead who fits everything except your dates finishes the whole assessment, lands on the same result page with a different close, and keeps their place. Each exit reports its own Meta event, or none at all, so a waitlist sign-up never teaches your ads to go and find more people who cannot come.",
   /** The four capability titles promoted into this section. Looked up in CAPABILITIES,
    *  so the copy lives in exactly one place and cannot drift from the feature list. */
   titles: [

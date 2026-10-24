@@ -10,7 +10,21 @@
  * Shared by every bulleted marketing section, so "which words are heavy" is answered the
  * same way in all of them.
  */
-export function Emphasised({ text, strong }: { text: string; strong: readonly string[] }) {
+export function Emphasised({
+  text,
+  strong,
+  strongClassName = "text-[var(--foreground)]",
+}: {
+  text: string;
+  strong: readonly string[];
+  /**
+   * The colour of the heavy phrases. Defaults to the body colour, which is what every
+   * caller but one wants: bold is the emphasis and a colour on top of it would be two
+   * signals for one idea. RealCost overrides it because its rows alternate colour, and
+   * there the coloured words ARE the alternation.
+   */
+  strongClassName?: string;
+}) {
   const parts = strong.reduce<string[]>(
     (acc, phrase) =>
       acc.flatMap((chunk) =>
@@ -25,7 +39,7 @@ export function Emphasised({ text, strong }: { text: string; strong: readonly st
     <>
       {parts.map((part, i) =>
         strong.includes(part) ? (
-          <strong key={`${part}-${i}`} className="font-semibold text-[var(--foreground)]">
+          <strong key={`${part}-${i}`} className={`font-semibold ${strongClassName}`}>
             {part}
           </strong>
         ) : (
