@@ -628,7 +628,14 @@ export async function confirmVaultUpload(fileId: string): Promise<ActionResult> 
     const tenantId = await actingConfigTenantId();
     const row = await prisma.vaultFile.findFirst({
       where: { id: fileId, tenantId },
-      select: { id: true, bucketId: true, objectKey: true },
+      select: {
+        id: true,
+        bucketId: true,
+        objectKey: true,
+        name: true,
+        contentType: true,
+        createdAt: true,
+      },
     });
     if (!row) return { ok: false, error: "That upload is not in this vault." };
 
@@ -641,13 +648,28 @@ export async function confirmVaultUpload(fileId: string): Promise<ActionResult> 
           "R2 has no object at that key, so the upload did not land. If the browser reported a CORS error, the bucket still needs its CORS rule.",
       };
     }
+    const finishedAt = new Date();
     await prisma.vaultFile.update({
       where: { id: fileId },
       data: {
         // The real size from R2, not what the browser claimed.
         sizeBytes: BigInt(head.size),
-        uploadedAt: new Date(),
+        uploadedAt: finishedAt,
       },
+    });
+    // Duration measured SERVER-SIDE, from the reservation to the confirmation. That is
+    // the real wall clock of the transfer, and it cannot be mis-reported by a browser.
+    await logVaultActivity({
+      action: "UPLOADED",
+      fileId,
+      name: row.name,
+      sizeBytes: BigInt(head.size),
+      contentType: row.contentType,
+      objectKey: row.objectKey,
+      durationMs: finishedAt.getTime() - row.createdAt.getTime(),
+      bucketId: row.bucketId,
+      tenantId,
+      actorId: owner.user.id,
     });
     revalidatePath("/admin/vault");
     return { ok: true };
@@ -671,10 +693,29 @@ export async function renameVaultFile(fileId: string, name: string): Promise<Act
     const tenantId = await actingConfigTenantId();
     const row = await prisma.vaultFile.findFirst({
       where: { id: fileId, tenantId },
-      select: { id: true },
+      select: {
+        id: true,
+        name: true,
+        bucketId: true,
+        objectKey: true,
+        sizeBytes: true,
+        contentType: true,
+      },
     });
     if (!row) return { ok: false, error: "That file is not in this vault." };
     await prisma.vaultFile.update({ where: { id: fileId }, data: { name: clean } });
+    await logVaultActivity({
+      action: "RENAMED",
+      fileId,
+      name: clean,
+      sizeBytes: row.sizeBytes,
+      contentType: row.contentType,
+      objectKey: row.objectKey,
+      detail: `was "${row.name}"`,
+      bucketId: row.bucketId,
+      tenantId,
+      actorId: owner.user.id,
+    });
     revalidatePath("/admin/vault");
     return { ok: true };
   } catch (e) {
@@ -822,13 +863,34 @@ export async function deleteVaultFile(fileId: string): Promise<ActionResult> {
     const tenantId = await actingConfigTenantId();
     const row = await prisma.vaultFile.findFirst({
       where: { id: fileId, tenantId },
-      select: { id: true, bucketId: true, objectKey: true },
+      select: {
+        id: true,
+        bucketId: true,
+        objectKey: true,
+        name: true,
+        sizeBytes: true,
+        contentType: true,
+      },
     });
     if (!row) return { ok: false, error: "That file is not in this vault." };
 
     const creds = await loadBucketCreds(row.bucketId);
     await deleteObject(creds, row.objectKey);
     await prisma.vaultFile.delete({ where: { id: fileId } });
+    // Logged AFTER the delete succeeds, so the log never claims something was removed
+    // that is still there. The row keeps the name and size because the file no longer
+    // has them.
+    await logVaultActivity({
+      action: "DELETED",
+      fileId: null,
+      name: row.name,
+      sizeBytes: row.sizeBytes,
+      contentType: row.contentType,
+      objectKey: row.objectKey,
+      bucketId: row.bucketId,
+      tenantId,
+      actorId: owner.user.id,
+    });
     revalidatePath("/admin/vault");
     return { ok: true };
   } catch (e) {
@@ -1057,7 +1119,14 @@ export async function completeVaultMultipart(
     const tenantId = await actingConfigTenantId();
     const row = await prisma.vaultFile.findFirst({
       where: { id: fileId, tenantId, uploadedAt: null },
-      select: { id: true, bucketId: true, objectKey: true },
+      select: {
+        id: true,
+        bucketId: true,
+        objectKey: true,
+        name: true,
+        contentType: true,
+        createdAt: true,
+      },
     });
     if (!row) return { ok: false, error: "That upload is no longer open." };
 
@@ -1073,9 +1142,23 @@ export async function completeVaultMultipart(
         error: "R2 reported the upload complete but the object is not readable. Nothing was saved.",
       };
     }
+    const finishedAt = new Date();
     await prisma.vaultFile.update({
       where: { id: fileId },
-      data: { sizeBytes: BigInt(head.size), uploadedAt: new Date() },
+      data: { sizeBytes: BigInt(head.size), uploadedAt: finishedAt },
+    });
+    await logVaultActivity({
+      action: "UPLOADED",
+      fileId,
+      name: row.name,
+      sizeBytes: BigInt(head.size),
+      contentType: row.contentType,
+      objectKey: row.objectKey,
+      durationMs: finishedAt.getTime() - row.createdAt.getTime(),
+      detail: `${parts.length} parts`,
+      bucketId: row.bucketId,
+      tenantId,
+      actorId: owner.user.id,
     });
     revalidatePath("/admin/vault");
     return { ok: true };
@@ -1122,4 +1205,117 @@ export async function abortVaultMultipart(
 export async function vaultMultipartThreshold(): Promise<ActionResult<{ threshold: number }>> {
   await requireSuperAdmin();
   return { ok: true, data: { threshold: MULTIPART_THRESHOLD } };
+}
+
+/* ---------------------------------------------------------------- activity --- */
+
+/**
+ * Record what happened, in a table that outlives the file.
+ *
+ * Best-effort on purpose: a log that cannot be written must never fail the upload or
+ * the delete it was describing. A missing row is a gap in a report; a thrown error here
+ * would be a file the operator believes is gone and is not, or vice versa.
+ */
+async function logVaultActivity(entry: {
+  action: "UPLOADED" | "DELETED" | "RENAMED" | "MOVED";
+  fileId: string | null;
+  name: string;
+  sizeBytes: bigint;
+  contentType: string;
+  objectKey: string;
+  durationMs?: number | null;
+  detail?: string | null;
+  bucketId: string;
+  tenantId: string;
+  actorId: string;
+}): Promise<void> {
+  try {
+    await prisma.vaultActivity.create({
+      data: {
+        action: entry.action,
+        fileId: entry.fileId,
+        name: entry.name,
+        sizeBytes: entry.sizeBytes,
+        contentType: entry.contentType,
+        objectKey: entry.objectKey,
+        durationMs: entry.durationMs ?? null,
+        detail: entry.detail ?? null,
+        bucketId: entry.bucketId,
+        tenantId: entry.tenantId,
+        actorId: entry.actorId,
+      },
+    });
+  } catch (e) {
+    console.error("[vault] activity log failed:", e instanceof Error ? e.message : String(e));
+  }
+}
+
+export interface VaultActivityRow {
+  id: string;
+  action: "UPLOADED" | "DELETED" | "RENAMED" | "MOVED";
+  name: string;
+  sizeBytes: number;
+  contentType: string;
+  /** Milliseconds the upload took, or null for anything that is not an upload. */
+  durationMs: number | null;
+  detail: string | null;
+  /** ISO; the client formats it, so the format rule lives in one place. */
+  at: string;
+  /** Null once the file has been deleted, which is the point of keeping the row. */
+  fileId: string | null;
+  stillExists: boolean;
+}
+
+/** The log for a bucket, newest first. */
+export async function listVaultActivity(
+  bucketId: string,
+  limit = 100,
+): Promise<ActionResult<VaultActivityRow[]>> {
+  await requireSuperAdmin();
+  try {
+    const tenantId = await actingConfigTenantId();
+    const bucket = await prisma.vaultBucket.findFirst({
+      where: { id: bucketId, tenantId },
+      select: { id: true },
+    });
+    if (!bucket) return { ok: false, error: "That bucket is not in this vault." };
+
+    const rows = await prisma.vaultActivity.findMany({
+      where: { bucketId },
+      orderBy: { at: "desc" },
+      take: Math.min(Math.max(limit, 1), 500),
+    });
+
+    // Which of the logged files are still around, so the log can mark the ones that
+    // are gone. One query rather than one per row.
+    const ids = rows.map((r) => r.fileId).filter((id): id is string => !!id);
+    const alive = new Set(
+      ids.length
+        ? (
+            await prisma.vaultFile.findMany({
+              where: { id: { in: ids }, uploadedAt: { not: null } },
+              select: { id: true },
+            })
+          ).map((f) => f.id)
+        : [],
+    );
+
+    return {
+      ok: true,
+      data: rows.map((r) => ({
+        id: r.id,
+        action: r.action,
+        name: r.name,
+        sizeBytes: Number(r.sizeBytes),
+        contentType: r.contentType,
+        durationMs: r.durationMs,
+        detail: r.detail,
+        at: r.at.toISOString(),
+        fileId: r.fileId,
+        stillExists: !!r.fileId && alive.has(r.fileId),
+      })),
+    };
+  } catch (e) {
+    return fail(e, "Couldn't load the activity log.");
+  }
 }

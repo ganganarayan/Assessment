@@ -32,6 +32,26 @@ function sources(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/**
+ * The substring from `open` at `from` to its MATCHING close, inclusive.
+ *
+ * Crude but adequate: it does not understand strings or comments, which is fine
+ * because it is only ever pointed at an object literal in an argument list. Returns
+ * null if the brackets never balance, and the caller then skips rather than guesses.
+ */
+function balanced(text: string, from: number, open: string, close: string): string | null {
+  if (text[from] !== open) return null;
+  let depth = 0;
+  for (let i = from; i < text.length; i++) {
+    if (text[i] === open) depth++;
+    else if (text[i] === close) {
+      depth--;
+      if (depth === 0) return text.slice(from, i + 1);
+    }
+  }
+  return null;
+}
+
 const problems: string[] = [];
 const files = sources(join(root, "src"));
 
@@ -42,10 +62,20 @@ for (const file of files) {
   //    over-reading risks a false positive, which is the safe direction for a guard
   //    whose failure mode is a silent broken link in production.
   for (const m of text.matchAll(/prisma\.vaultFile\.update(?:Many)?\s*\(/g)) {
-    const window = text.slice(m.index ?? 0, (m.index ?? 0) + 700);
-    if (/\bobjectKey\s*:/.test(window)) {
+    // 🟡 BALANCED, not a fixed window. The first version read 700 characters after the
+    // call and flagged anything containing objectKey - which started failing the build
+    // the moment an activity-log call that legitimately RECORDS the key was written
+    // just after an update. A guard that cries wolf gets switched off, so this reads
+    // the update's own `data` block and nothing else.
+    const callStart = (m.index ?? 0) + m[0].length - 1;
+    const call = balanced(text, callStart, "(", ")");
+    if (!call) continue;
+    const dataAt = call.search(/\bdata\s*:\s*\{/);
+    if (dataAt < 0) continue;
+    const dataBlock = balanced(call, call.indexOf("{", dataAt), "{", "}");
+    if (dataBlock && /\bobjectKey\s*:/.test(dataBlock)) {
       problems.push(
-        `${file}: a vaultFile update writes objectKey. The key is immutable - renaming and moving are name/folder edits only.`,
+        `${file}: a vaultFile update writes objectKey in its data block. The key is immutable - renaming and moving are name/folder edits only.`,
       );
     }
   }

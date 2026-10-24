@@ -216,6 +216,7 @@ model Tenant {
   vaultBuckets         VaultBucket[]
   vaultFolders         VaultFolder[]
   vaultFiles           VaultFile[]
+  vaultActivity        VaultActivity[]
 
   @@index([status])
   @@index([deletedAt])
@@ -5079,8 +5080,10 @@ model VaultBucket {
   /// column with the table costs nothing while a later migration costs a deploy.
   quotaBytes BigInt?
 
-  folders VaultFolder[]
-  files   VaultFile[]
+  folders  VaultFolder[]
+  files    VaultFile[]
+  /// What has happened in this bucket, including to files that are now deleted.
+  activity VaultActivity[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5164,4 +5167,57 @@ model VaultFile {
   @@index([bucketId, folderId])
   @@index([tenantId])
   @@map("vault_file")
+}
+
+/// What happened to a file in the Vault, kept after the file itself is gone.
+///
+/// A separate table rather than columns on VaultFile, because the whole point is that
+/// it OUTLIVES the row: "which videos did I upload, and which did I delete" cannot be
+/// answered by a table whose deletes remove the evidence. Nothing cascades from the
+/// file for the same reason - fileId is a plain string, not a foreign key.
+enum VaultAction {
+  UPLOADED
+  DELETED
+  RENAMED
+  MOVED
+}
+
+model VaultActivity {
+  id String @id @default(cuid())
+
+  action VaultAction
+
+  /// The file this concerns, as a plain id with no foreign key: the row has to survive
+  /// the file being deleted, which is most of why this table exists.
+  fileId String?
+
+  /// Copied, not joined. The name and size at the time it happened, so the log still
+  /// reads correctly after a rename, and still reads at all after a delete.
+  name        String
+  sizeBytes   BigInt
+  contentType String
+  objectKey   String
+
+  /// How long the upload took, in milliseconds. Measured server-side from the
+  /// reservation to the confirmation, so it is the real wall-clock of the transfer and
+  /// not something the browser claimed. Null on anything that is not an upload.
+  durationMs Int?
+
+  /// Free text for the detail that makes the row worth reading: the old name on a
+  /// rename, the destination on a move.
+  detail String?
+
+  bucketId String
+  bucket   VaultBucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  actorId String?
+
+  at DateTime @default(now())
+
+  @@index([bucketId, at])
+  @@index([tenantId, at])
+  @@map("vault_activity")
 }

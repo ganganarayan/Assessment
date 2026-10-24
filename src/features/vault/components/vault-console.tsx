@@ -15,6 +15,8 @@ import {
   discardVaultUpload,
   listVaultFolder,
   listVaultFolderTree,
+  listVaultActivity,
+  type VaultActivityRow,
   moveVaultFile,
   moveVaultFileToBucket,
   renameVaultFile,
@@ -57,10 +59,23 @@ function humanBytes(n: number): string {
   return `${value.toFixed(value < 10 ? 1 : 0)} ${units[i]}`;
 }
 
+/** "1m 24s" / "48s". Short enough to sit on one line next to a filename. */
+function humanDuration(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 1000));
+  if (total < 60) return `${total}s`;
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}m ${s.toString().padStart(2, "0")}s`;
+}
+
 interface UploadState {
   name: string;
   percent: number;
   error: string | null;
+  /** When the transfer began, for the running clock. */
+  startedAt: number;
+  /** Frozen once it finishes, so a completed row stops counting. */
+  finishedMs: number | null;
   /** Set once the server has confirmed the bytes landed. */
   done: boolean;
   /** The reservation, so a cancel can throw the row away rather than strand it. */
@@ -195,6 +210,10 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
   const [showBucketForm, setShowBucketForm] = useState(initialBuckets.length === 0);
   const [editingBucket, setEditingBucket] = useState<VaultBucketView | null>(null);
   const [pending, start] = useTransition();
+  // Drives the elapsed clock. Runs ONLY while an upload is in flight, so an idle Vault
+  // is not re-rendering once a second for nothing.
+  const [now, setNow] = useState(() => Date.now());
+  const anyInFlight = uploads.some((u) => !u.done && !u.error);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(
@@ -222,6 +241,12 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
     void refresh(bucketId, folderId);
   }, [bucketId, folderId, refresh]);
 
+  useEffect(() => {
+    if (!anyInFlight) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [anyInFlight]);
+
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, okMessage?: string) =>
     start(async () => {
       setError(null);
@@ -240,7 +265,16 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
     setNotice(null);
     const list = Array.from(files);
     setUploads(
-      list.map((f) => ({ name: f.name, percent: 0, error: null, done: false, fileId: null, abort: null })),
+      list.map((f) => ({
+        name: f.name,
+        percent: 0,
+        error: null,
+        done: false,
+        fileId: null,
+        abort: null,
+        startedAt: Date.now(),
+        finishedMs: null,
+      })),
     );
 
     for (let i = 0; i < list.length; i++) {
@@ -248,6 +282,8 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
       if (!file) continue;
       const setOne = (patch: Partial<UploadState>) =>
         setUploads((prev) => prev.map((u, idx) => (idx === i ? { ...u, ...patch } : u)));
+      // The clock the row shows while it works, and freezes when it stops.
+      const startedAt = Date.now();
 
       // The browser leaves type blank for some containers (.mkv, odd .mov exports), and
       // an empty content type would be stored and then served as a download rather
@@ -299,17 +335,17 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
           (abort) => setOne({ abort }),
         );
       } catch (e) {
-        setOne({ error: e instanceof Error ? e.message : String(e), abort: null });
+        setOne({ error: e instanceof Error ? e.message : String(e), abort: null, finishedMs: Date.now() - startedAt });
         await discardVaultUpload(fileId);
         continue;
       }
       const confirmed = await confirmVaultUpload(fileId);
       if (!confirmed.ok) {
-        setOne({ error: confirmed.error, abort: null });
+        setOne({ error: confirmed.error, abort: null, finishedMs: Date.now() - startedAt });
         await discardVaultUpload(fileId);
         continue;
       }
-      setOne({ percent: 100, done: true, abort: null });
+      setOne({ percent: 100, done: true, abort: null, finishedMs: Date.now() - startedAt });
       continue;
     }
 
@@ -332,6 +368,7 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
     targetFolder: string | null,
     setOne: (patch: Partial<UploadState>) => void,
   ): Promise<void> => {
+    const startedAt = Date.now();
     const started = await startVaultMultipart({
       bucketId: targetBucket,
       folderId: targetFolder,
@@ -409,7 +446,7 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
 
       const done = await completeVaultMultipart(fileId, uploadId, etags);
       if (!done.ok) throw new Error(done.error);
-      setOne({ percent: 100, done: true, abort: null });
+      setOne({ percent: 100, done: true, abort: null, finishedMs: Date.now() - startedAt });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setOne({
@@ -621,6 +658,11 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
                       ) : !u.error ? (
                         <span className="ml-2 text-muted-foreground">{u.percent}%</span>
                       ) : null}
+                      {/* Ticks while it runs, freezes on the final figure. `now` is the
+                          only reason this re-renders once a second. */}
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {humanDuration(u.finishedMs ?? now - u.startedAt)}
+                      </span>
                     </span>
                     {/* Only while it is actually in flight: a cancel offered after the
                         fact would promise something it cannot do. */}
@@ -664,9 +706,10 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
           ))}
 
           {/* Files */}
-          {(listing?.files ?? []).map((f) => (
+          {(listing?.files ?? []).map((f, i) => (
             <FileRow
               key={f.id}
+              index={i + 1}
               file={f}
               buckets={buckets}
               currentBucketId={bucket.id}
@@ -684,6 +727,8 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
               onCopied={() => setNotice("Link copied.")}
             />
           ))}
+
+          <ActivityLog bucketId={bucket.id} />
 
           {listing && listing.folders.length === 0 && listing.files.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -761,6 +806,7 @@ function FolderRow({
 }
 
 function FileRow({
+  index,
   file,
   buckets,
   currentBucketId,
@@ -772,6 +818,7 @@ function FileRow({
   onDelete,
   onCopied,
 }: {
+  index: number;
   file: VaultListingView["files"][number];
   buckets: VaultBucketView[];
   currentBucketId: string;
@@ -788,46 +835,50 @@ function FileRow({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const others = buckets.filter((b) => b.id !== currentBucketId);
 
-  return (
-    <div className="flex flex-col gap-2 rounded-md border px-3 py-2">
-      {renaming ? (
-        <div className="flex gap-2">
-          <Input value={draft} onChange={(e) => setDraft(e.target.value)} />
-          <Button
-            size="sm"
-            disabled={pending}
-            onClick={() => {
-              onRename(draft);
-              setRenaming(false);
-            }}
-          >
-            Save
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setRenaming(false)}>
-            Cancel
-          </Button>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-0.5">
-          <span className="font-medium break-all">{file.name}</span>
-          <span className="text-xs text-muted-foreground">
-            {humanBytes(file.sizeBytes)} · {file.contentType}
-            {file.uploadedAt ? ` · ${formatIST(file.uploadedAt)}` : ""}
-          </span>
-          {file.publicUrl ? (
-            <span className="text-xs break-all text-muted-foreground">{file.publicUrl}</span>
-          ) : (
-            <span className="text-xs text-amber-600">
-              🟡 No public link yet - this bucket has no custom domain.
-            </span>
-          )}
-        </div>
-      )}
+  if (renaming) {
+    return (
+      <div className="flex items-center gap-2 border-b px-2 py-1.5">
+        <span className="w-6 shrink-0 text-xs text-muted-foreground">{index}</span>
+        <Input value={draft} onChange={(e) => setDraft(e.target.value)} className="h-8" />
+        <Button
+          size="sm"
+          disabled={pending}
+          onClick={() => {
+            onRename(draft);
+            setRenaming(false);
+          }}
+        >
+          Save
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setRenaming(false)}>
+          Cancel
+        </Button>
+      </div>
+    );
+  }
 
-      <div className="flex flex-wrap gap-2">
+  return (
+    // ONE LINE per file. It wraps on a phone rather than scrolling sideways, which is
+    // the only way "one line" and mobile-first are both true.
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-2 py-1.5 text-sm">
+      <span className="w-6 shrink-0 text-xs text-muted-foreground">{index}</span>
+      <span className="min-w-0 flex-1 truncate font-medium" title={file.name}>
+        {file.name}
+      </span>
+      <span className="shrink-0 text-xs text-muted-foreground">
+        {humanBytes(file.sizeBytes)}
+      </span>
+      <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+        {file.contentType}
+      </span>
+      <span className="shrink-0 text-xs text-muted-foreground">
+        {file.uploadedAt ? formatIST(file.uploadedAt) : ""}
+      </span>
+      <span className="flex shrink-0 items-center gap-1">
         {file.publicUrl ? (
           <Button
             size="sm"
+            className="h-7"
             onClick={async () => {
               await navigator.clipboard.writeText(file.publicUrl as string);
               onCopied();
@@ -835,18 +886,20 @@ function FileRow({
           >
             Copy link
           </Button>
-        ) : null}
-        <Button size="sm" variant="outline" onClick={() => setRenaming(true)}>
+        ) : (
+          <span className="text-xs text-amber-600">no public link</span>
+        )}
+        <Button size="sm" variant="outline" className="h-7" onClick={() => setRenaming(true)}>
           Rename
         </Button>
         <select
-          className="rounded-md border bg-background px-2 text-sm"
+          className="h-7 rounded-md border bg-background px-1 text-xs"
           value={file.folderId ?? ""}
           disabled={pending}
           onChange={(e) => onMoveFolder(e.target.value || null)}
           aria-label="Move to folder"
         >
-          <option value="">(bucket root)</option>
+          <option value="">(root)</option>
           {folderTree.map((f) => (
             <option key={f.id} value={f.id}>
               {f.path}
@@ -855,23 +908,21 @@ function FileRow({
         </select>
         {others.length > 0 ? (
           <select
-            className="rounded-md border bg-background px-2 text-sm"
+            className="h-7 rounded-md border bg-background px-1 text-xs"
             value=""
             disabled={pending}
             onChange={(e) => {
               const target = e.target.value;
               if (!target) return;
-              // The one operation that changes the public link, so it asks first
-              // rather than reporting it afterwards.
               const ok = window.confirm(
-                "Moving between buckets changes this file's public link. Anything already pasted into a page or an LMS will stop working. Continue?",
+                "Moving between buckets changes this file’s public link. Anything already pasted into a page or an LMS will stop working. Continue?",
               );
               e.target.value = "";
               if (ok) onMoveBucket(target);
             }}
             aria-label="Move to another bucket"
           >
-            <option value="">Move to bucket…</option>
+            <option value="">Bucket…</option>
             {others.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.label}
@@ -881,19 +932,120 @@ function FileRow({
         ) : null}
         {confirmDelete ? (
           <>
-            <Button size="sm" variant="ghost" disabled={pending} onClick={onDelete}>
-              Really delete
+            <Button size="sm" variant="ghost" className="h-7" disabled={pending} onClick={onDelete}>
+              Really?
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
+            <Button size="sm" variant="ghost" className="h-7" onClick={() => setConfirmDelete(false)}>
               Keep
             </Button>
           </>
         ) : (
-          <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(true)}>
+          <Button size="sm" variant="ghost" className="h-7" onClick={() => setConfirmDelete(true)}>
             Delete
           </Button>
         )}
+      </span>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- activity log --- */
+
+/**
+ * Everything that has happened in this bucket, including to files that are gone.
+ *
+ * Reads from vault_activity, not from the file table - which is the point. A log built
+ * by listing current files could never answer "what did I delete", and the upload
+ * durations would vanish with the rows they belonged to.
+ */
+function ActivityLog({ bucketId }: { bucketId: string }) {
+  const [rows, setRows] = useState<VaultActivityRow[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const r = await listVaultActivity(bucketId, 200);
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
+    setError(null);
+    setRows(r.data ?? []);
+  }, [bucketId]);
+
+  useEffect(() => {
+    if (open) void load();
+  }, [open, load]);
+
+  // Collapsed by default: it is a reference, not something to scroll past on the way
+  // to the files.
+  if (!open) {
+    return (
+      <Button variant="outline" size="sm" className="self-start" onClick={() => setOpen(true)}>
+        Activity log
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <span className="font-medium">Activity log</span>
+        <Button size="sm" variant="ghost" onClick={() => void load()}>
+          Refresh
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+          Hide
+        </Button>
       </div>
+      {error ? <p className="text-sm text-destructive">🔴 {error}</p> : null}
+      {rows === null ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Nothing logged yet. Uploads and deletes from here on will appear.
+        </p>
+      ) : (
+        <div className="flex flex-col">
+          {rows.map((r, i) => (
+            <div
+              key={r.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-2 py-1.5 text-sm"
+            >
+              <span className="w-6 shrink-0 text-xs text-muted-foreground">{i + 1}</span>
+              <span className="w-20 shrink-0 text-xs font-medium">
+                {r.action === "UPLOADED"
+                  ? "🟢 Upload"
+                  : r.action === "DELETED"
+                    ? "🔴 Delete"
+                    : r.action === "RENAMED"
+                      ? "Rename"
+                      : "Move"}
+              </span>
+              <span
+                className={`min-w-0 flex-1 truncate ${r.stillExists ? "" : "text-muted-foreground line-through"}`}
+                title={r.name}
+              >
+                {r.name}
+              </span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {humanBytes(r.sizeBytes)}
+              </span>
+              {/* The headline number for an upload. Blank for everything else rather
+                  than a dash, so the column reads as "this took this long". */}
+              <span className="w-16 shrink-0 text-xs text-muted-foreground">
+                {r.durationMs !== null ? humanDuration(r.durationMs) : ""}
+              </span>
+              <span className="shrink-0 text-xs text-muted-foreground">{formatIST(r.at)}</span>
+              {r.detail ? (
+                <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+                  {r.detail}
+                </span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
