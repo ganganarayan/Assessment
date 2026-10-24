@@ -22,14 +22,14 @@ export type OfferStatus = "open" | "closed";
 
 /** One row of an offer's day-by-day plan. */
 export type OfferStage = {
-  /** The window, in the words a reader counts in: "Day 5", "Days 6 to 8". */
+  /** The window, in the words a reader counts in: "Day 4", "Days 5 to 7". */
   days: string;
   title: string;
   body: string;
   /**
    * A second paragraph, under the body.
    *
-   * It exists for the numbers. A client judging day 10 against their imagination is
+   * It exists for the numbers. A client judging day 7 against their imagination is
    * the fastest way to lose one who is actually winning, so the stage that produces
    * leads says what to expect. Optional, because a number nobody has worked out must
    * not be invented to fill it (see EXPECTED) and the stage still reads without one.
@@ -78,7 +78,7 @@ export type OfferCostItem = { title: string; body: string };
  */
 export type OfferBuilder = { name: string; role: string; built: string };
 
-/** The day-10 expectations, worked out on day 5 from the client's own cost per click. */
+/** The day-7 expectations, worked out on day 4 from the client's own cost per click. */
 export type OfferExpected = {
   clicksPerDay: string;
   gatePercent: string;
@@ -250,9 +250,9 @@ const CLOSES_ON: string | null = null;
 const BUILDER: OfferBuilder | null = null;
 
 /**
- * 🟡 TODO - DAY 10 EXPECTATIONS. These are read off the client's own cost per click on
- * day 5. Numbers invented here would be a forecast nobody made, so while this is null
- * the stage says only that the figures are given on day 5, which is true.
+ * 🟡 TODO - DAY 7 EXPECTATIONS. These are read off the client's own cost per click on
+ * day 4, the day the ads go live. Numbers invented here would be a forecast nobody made,
+ * so while this is null the stage says only that the figures are given on day 4.
  */
 const EXPECTED: OfferExpected | null = null;
 
@@ -266,9 +266,9 @@ const EXPECTED: OfferExpected | null = null;
  */
 function expectedNote(e: OfferExpected | null): string {
   if (!e) {
-    return "On day 5 we work out what to expect by day 10 from your own cost per click: clicks a day, the share of them stopped at the gate, and qualified leads a day. You get those figures before the week starts, so day 10 is judged against a number we gave you rather than against your imagination.";
+    return "On day 4 we work out what to expect by day 7 from your own cost per click: clicks a day, the share of them stopped at the gate, and qualified leads a day. You get those figures before the traffic starts, so day 7 is judged against a number we gave you rather than against your imagination.";
   }
-  return `At ₹1,000 a day you should expect roughly ${e.clicksPerDay} clicks a day, ${e.gatePercent} percent of them stopped at the gate, and ${e.qualifiedPerDay} qualified leads a day by the end of this week. We tell you these numbers on day 5, from your own cost per click, so you know on day 10 whether it is working.`;
+  return `At ₹1,000 a day you should expect roughly ${e.clicksPerDay} clicks a day, ${e.gatePercent} percent of them stopped at the gate, and ${e.qualifiedPerDay} qualified leads a day by the end of that window. We tell you these numbers on day 4, from your own cost per click, so you know on day 7 whether it is working.`;
 }
 
 const EXPECTED_NOTE = expectedNote(EXPECTED);
@@ -281,7 +281,7 @@ const FOUNDERS: Offer = {
   promise:
     "The first 20 get it built inside the trial, over 14 days, in your own workspace and your own ad account. You keep spending what you already spend on ads. We do not touch that money.",
   fallbackNote:
-    "If nobody bought your product or service by day 14, and you are willing to keep the ad spend running, we carry on with you from there. Your ads keep running while we change the creative or the messaging, and changing either takes about a day.",
+    "If nobody bought your product or service by day 14, and you are willing to keep the ad spend running, we carry on with you from there. Nothing is switched off while that happens: your ads keep running, we read what the answers are telling us, and we say what the creative or the messaging should change to. A change like that costs about a day.",
 
   mechanism: {
     eyebrow: "Negative lead generation",
@@ -300,7 +300,7 @@ const FOUNDERS: Offer = {
 
   scope: {
     heading: "What we do, and what stays yours",
-    oursTitle: "Ours, for the 14 days and the 30 of support behind them",
+    oursTitle: "Ours, for the 14 days of the build",
     ours: [
       "The app. The assessment, the gate, the scoring, the bands and the result page. If starting from a template does not fit what you sell, we write them with you.",
       "The ad manager. Pixel and Conversions API, the events, the exclusion and retargeting audiences, and the campaign setup.",
@@ -315,7 +315,7 @@ const FOUNDERS: Offer = {
   },
 
   paras: [
-    "This is not a template and a handover note. Somebody from here is in the build with you: the assessment and its gate, the landing page it sits behind, the pixel and the Conversions API, the exclusion and retargeting audiences, and the campaigns you launch on day 5.",
+    "This is not a template and a handover note. Somebody from here is in the build with you: the assessment and its gate, the scoring and the result page behind it, the pixel and the Conversions API, the exclusion and retargeting audiences, and the campaigns you launch on day 4.",
     "All of it is built in your own workspace and your own ad account, so all of it is yours, and the build runs until day 14, which is the last day of the trial.",
   ],
 
@@ -324,7 +324,7 @@ const FOUNDERS: Offer = {
     items: [
       {
         title: "The build is free",
-        body: "It is part of the trial. There is nothing extra to buy, and no setup fee behind it.",
+        body: "The build is the setup: your assessment and its gate, the scoring and the bands, the result page, the pixel and the Conversions API, the events, and the exclusion and retargeting audiences in your ad account. It is done with you rather than handed to you, because half of it lives inside accounts only you can open. It is part of the trial, so there is nothing extra to buy and no setup fee behind it.",
       },
       {
         title: "Your ad spend stays yours",
@@ -341,7 +341,7 @@ const FOUNDERS: Offer = {
 
   timeCommitment: {
     heading: "What it takes out of your week",
-    body: "About 30 minutes on day 1, around two hours spread across days 2 to 4, then your own sales calls from day 12. We do the building.",
+    body: "About 30 minutes on day 1, on a call while the accounts get connected, because that part cannot be done without you. After that, your own sales calls from day 11. The building is ours.",
   },
 
   entry: [
@@ -354,7 +354,7 @@ const FOUNDERS: Offer = {
         },
         {
           title: "An offer that is ready to sell",
-          body: "Something a client can pay you for this month. The price does not have to be settled, we work on that on day 1. We qualify leads for your offer. We do not invent the offer.",
+          body: "Something a client can pay you for this month. The price does not have to be settled yet. We qualify leads for your offer. We do not invent the offer.",
         },
       ],
     },
@@ -379,47 +379,64 @@ const FOUNDERS: Offer = {
     },
   ],
 
+  // -------------------------------------------------------------------------
+  //  The plan, timed against what the work actually takes.
+  //
+  //  🟡 NO STAGE EXISTS TO FILL A DAY. The earlier version spent day 1 on a fit
+  //  conversation and three more days on setup, and both were padding: the fit is
+  //  decided on the intake, before a slot is given, and the technical setup is half an
+  //  hour because the applicant is ALREADY running ads, so the accounts exist. The
+  //  assessment is a template tuned to what they sell, which is a couple of hours of
+  //  our work. That is the whole of it, and pretending otherwise invites a client to
+  //  judge day 3 against an idleness we wrote in ourselves.
+  //
+  //  🔴 NOTHING HERE DESCRIBES WORK THAT IS NOT OURS, AND NOTHING HERE ASKS FOR ANY.
+  //  The reader has not signed up yet. A stage that reads as homework gives them a
+  //  reason to put the trial off until they feel ready, and the trial is the thing that
+  //  makes anyone move. So the plan says what is true of the build and stops. Where the
+  //  days visibly leave room for something at their end, that is deliberate.
+  // -------------------------------------------------------------------------
   stages: [
     {
       days: "Day 1",
-      title: "Product understanding, and finding the fit",
-      body: "We go through what you sell, who buys it, and who has been wasting your time. If the fit is not there, you hear it on day 1 instead of on day 13.",
-    },
-    {
-      days: "Days 2 to 4",
       title: "Setup",
-      body: "Your questions, the gate, the scoring and the bands, the result page, the landing page it is linked from, pixel and Conversions API, and the audiences in your ad account. Built with you, in your workspace.",
+      body: "Your workspace, your Pixel and Conversions API, the events, and the exclusion and retargeting audiences in your ad account. About half an hour, on a call, because that half of it lives inside accounts only you can open. You are already running ads, so there is nothing here to go and get.",
       note: "We also read your last 30 days of ad data, so there is a before number to measure against.",
     },
     {
-      days: "Day 5",
+      days: "Days 2 to 3",
+      title: "Your assessment",
+      body: "The gate, the questions, the scoring, the bands and the result page. We start from the template closest to what you sell and tune it to you, and that is our work rather than yours. If you would rather write the questions yourself, you get the template and we load back what you send.",
+    },
+    {
+      days: "Day 4",
       title: "Ads launch",
       body: "Campaigns go live on the spend you are already running. We optimise on the gate-pass event, which fires the moment someone clears your gate. That is the highest-volume qualified signal available, which is why it can learn at your current budget. Deeper events fire too rarely to teach anything this fast.",
     },
     {
-      days: "Days 6 to 8",
+      days: "Days 5 to 7",
       title: "Qualified leads start coming in",
-      body: "Wrong-fit traffic stops at the gate and never becomes a lead record. We read what is getting through with you and tighten the questions and the bar while the spend is still small.",
+      body: "Wrong-fit traffic stops at the gate and never becomes a lead record. You watch it arrive as it happens: turned away, gate passed, opted in, and scored. We read what is getting through with you and tighten the questions and the bar while the spend is still small.",
       note: EXPECTED_NOTE,
     },
     {
-      days: "Days 9 to 11",
+      days: "Days 8 to 10",
       title: "Appointment booking",
       body: "Qualified leads book themselves into your calendar. Your half is working the ones who booked, and chasing the qualified ones who did not. We stay on the funnel and the ad account while you do.",
     },
     {
-      days: "Days 12 to 14",
+      days: "Days 11 to 14",
       title: "Sales calls, and your first close",
-      body: "You run the calls. We look at how the people who booked and bought actually answered, and feed that back into the scoring. If you keep the spend running we carry on with you past day 14, because an ad account needs about a month before a before and after comparison means anything.",
+      body: "You run the calls. We look at how the people who booked and bought actually answered, and feed that back into the scoring, so the questions end the trial sharper than they started it.",
     },
   ],
 
   clockNote:
-    "The clock is calendar days from day 1 and it does not pause. The 14 days are the trial, so a day spent waiting on something at your end is a day gone from the build, and from the 30 days of support behind it. It is the one part of this we cannot give back.",
+    "The clock is calendar days from day 1 and it does not pause. The 14 days are the trial, so a day spent waiting on something at your end is a day gone from the build. It is the one part of this we cannot give back.",
 
   askInReturn: {
     heading: "What we ask in return",
-    body: "Two things, and neither of them is a review. First, 100 visitors through the funnel, so there is enough data to read. Second, your numbers at day 30: cost per lead, cost per qualified lead, and cost per booked call, before and after. If you want to write about it afterwards we would be glad, but it is not a condition.",
+    body: "Two things, and neither of them is a review. First, 100 visitors through the funnel, so there is enough data to read. Second, your own numbers before and after: cost per lead, cost per qualified lead, and cost per booked call.",
   },
 
   // Superseded by `cost` and `entry` for this offer. Empty rather than deleted: the
@@ -434,7 +451,7 @@ const FOUNDERS: Offer = {
   applyFollowUp:
     "We read every one and come back on whether the fit is there and which slot you are in.",
   finePrint:
-    "Support on the build runs to day 30 from the day you onboard and ends there. Everything built stays in your own workspace and your own ad account.",
+    "Support covers the build and the ad account it is connected to. Everything built stays in your own workspace and your own ad account.",
   countsSlots: true,
   slotCounterThreshold: 12,
   closesOn: CLOSES_ON,
@@ -450,7 +467,7 @@ const FOUNDERS: Offer = {
       : "WHO IS DOING THE BUILD. A first name, a role, and one line on what they have built. Set BUILDER in lib/marketing/offers.ts. Until then the section does not render at all.",
     EXPECTED
       ? null
-      : "DAY 10 EXPECTATIONS. Clicks a day, percent stopped at the gate, qualified leads a day. Set EXPECTED in lib/marketing/offers.ts. Until then the stage says only that the figures are worked out on day 5, which is true.",
+      : "DAY 7 EXPECTATIONS. Clicks a day, percent stopped at the gate, qualified leads a day. Set EXPECTED in lib/marketing/offers.ts. Until then the stage says only that the figures are worked out on day 4, which is true.",
     "THE FIVE GATE-ONLY INSTALLS. Undecided whether the page says out loud that 5 of the 20 slots keep their existing landing page and campaigns. Nothing on the page claims it either way.",
   ].filter((t): t is string => t !== null),
 };
