@@ -38,6 +38,7 @@ export const FEATURE_RELEASE_KEYS = [
   "contacts",
   "broadcasts",
   "gateResult",
+  "lifecycle",
 ] as const;
 
 export type FeatureReleaseKey = (typeof FEATURE_RELEASE_KEYS)[number];
@@ -141,6 +142,22 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     defaultReleased: false,
     // No route of its own: it is one control inside the assessment builder, and the
     // builder itself is not held back.
+    routes: [],
+  },
+  {
+    key: "lifecycle",
+    label: "Trial lifecycle engine",
+    blurb:
+      "Reads what each trialling workspace has done, decides what they should hear next, and queues it for their own 24-hour mark.",
+    whileHeld:
+      "The planner writes nothing and the queue is not drained. Plans already written stay where they are, unsent, and resume on release. Nobody is messaged by a feature that was pulled.",
+    // 🔴 Held back, and it ships that way. This is the one feature that writes to
+    // CUSTOMERS unprompted, every day, in words a model chose. It earns its switch
+    // before it earns an audience, and even released it stays in dry run until the
+    // owner turns that off (see LifecyclePlan.dryRun).
+    defaultReleased: false,
+    // No /w route: the sequence is the platform talking to its own trial signups, and
+    // a tenant has no business seeing it. The review screen lives under /admin.
     routes: [],
   },
 ];

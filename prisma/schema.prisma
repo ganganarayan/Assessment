@@ -192,6 +192,8 @@ model Tenant {
   workflows            Workflow[]
   broadcasts           Broadcast[]
   tags                 Tag[]
+  /// Where this workspace is in the trial nurture sequence.
+  lifecycleProfile     LifecycleProfile?
 
   @@index([status])
   @@index([deletedAt])
@@ -4774,4 +4776,164 @@ model ZoomAccount {
   updatedAt DateTime @updatedAt
 
   @@map("zoom_account")
+}
+
+// ---------------------------------------------------------------------------
+// LIFECYCLE - the trial nurture engine.
+//
+// Every morning the planner reads what each trialling workspace has actually DONE,
+// decides what that person should hear next, and writes one plan row with the moment
+// it is due. A separate worker sends. That split is the whole design:
+//
+//   - the planner runs ONCE a day, at 06:00 IST, and costs one AI call per person at
+//     most. It never sends anything.
+//   - the plan carries dueAt = the person's OWN opt-in minute, 24 hours on. So the
+//     06:00 job is not a blast: somebody who signed up at 21:40 hears from us at
+//     21:40, every day, until they convert or leave.
+//
+// 🔴 THE MODEL NEVER DECIDES WHEN, OR WHETHER TO SEND AT ALL. It picks a stage from a
+// fixed catalogue and writes the words for it. The timing, the caps, the suppression
+// check and the kill switch are all code. A planner that could invent its own schedule
+// is a planner that can message somebody six times on a bad morning.
+// ---------------------------------------------------------------------------
+
+/// Where a workspace is in the sequence. Only ACTIVE is planned for.
+///
+/// The four endings are kept apart rather than folded into one "stopped", because the
+/// question asked of this table a month later is never "did it stop" - it is "did the
+/// sequence work", and a workspace that converted and one that unsubscribed answer
+/// that in opposite directions.
+enum LifecycleStatus {
+  ACTIVE
+  /// They bought. The sequence ends having done its job.
+  CONVERTED
+  /// Trial ran out with no subscription. Still a lead, no longer in this sequence.
+  PARKED
+  /// They asked us to stop. Never planned for again, whatever else changes.
+  UNSUBSCRIBED
+  /// Reached the end of the catalogue with nothing left to say.
+  COMPLETED
+}
+
+/// What the planner decided for one person on one day.
+enum LifecycleVerdict {
+  SEND
+  /// Deliberately nothing today (they acted yesterday, or a cap is in the way).
+  SKIP
+  /// The planner would not back itself. Parked for the owner to answer.
+  ESCALATE
+}
+
+/// The life of one plan row.
+///
+/// NEEDS_INPUT is not a failure and is kept apart from one: the owner being asked a
+/// question is the system working as designed, and it must be visible as a queue
+/// rather than buried among things that broke.
+enum LifecyclePlanStatus {
+  /// Written, waiting for its dueAt.
+  DRAFT
+  /// Escalated. Waiting on the owner.
+  NEEDS_INPUT
+  /// The owner said yes (or edited it and said yes).
+  APPROVED
+  SENT
+  SKIPPED
+  FAILED
+}
+
+/// One workspace's place in the trial sequence. One row per tenant, forever.
+model LifecycleProfile {
+  id       String @id @default(cuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// The 24-hour clock everything hangs off: when they opted in. Their daily message
+  /// is due at this time of day, every day, not at the planner's convenience.
+  ///
+  /// Stored rather than read from Tenant.createdAt so a sequence can be restarted, or
+  /// moved off an unsociable hour, without rewriting the workspace's own history.
+  anchorAt DateTime
+
+  status     LifecycleStatus @default(ACTIVE)
+  /// Why it ended, in owner words ("subscribed on 21-10-2026").
+  stopReason String?
+
+  /// The IST day key (YYYY-MM-DD) the planner last wrote a plan for. The idempotency
+  /// guard: a cron that fires twice, or a hand-run drain, must not produce two plans
+  /// for one person for one day.
+  lastPlannedOn String?
+
+  plans LifecyclePlan[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, anchorAt])
+  @@map("lifecycle_profile")
+}
+
+/// One person, one day: the facts, the decision, and the words. The durable queue AND
+/// the audit trail, exactly like workflow_run.
+model LifecyclePlan {
+  id        String           @id @default(cuid())
+  profileId String
+  profile   LifecycleProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  /// Denormalised so the review screen reads without a join.
+  tenantId String
+
+  /// IST day key (YYYY-MM-DD). Half of the uniqueness that stops a double send.
+  planDate String
+  /// When this one is actually due: the person's own anchor minute.
+  dueAt    DateTime
+  /// Day N of the trial, 1-based, as the facts saw it. Frozen here because the copy
+  /// refers to it and a plan read back next week has to still make sense.
+  trialDay Int
+
+  stageKey String
+  verdict  LifecycleVerdict
+  status   LifecyclePlanStatus @default(DRAFT)
+
+  /// "router" or "ai". Worth storing: it is the number that says whether the model is
+  /// earning its place, and it is the first thing to look at when a cost report jumps.
+  decidedBy String
+  /// Why this stage, in one sentence. Written by whichever of the two decided.
+  reason    String?
+
+  /// The facts snapshot the decision was made from. The only way to answer "why did it
+  /// say that" after the workspace has moved on.
+  facts Json
+
+  emailSubject String?
+  emailBody    String? @db.Text
+  /// The approved template name, and the ordered values for its numbered slots.
+  /// 🔴 Short values only. A template whose body is one long variable does not survive
+  /// Meta's review, and pushing a paragraph through an approved shell is how a number
+  /// loses its quality rating.
+  waTemplate   String?
+  waVars       Json?
+
+  /// 🟡 TRUE means nothing was sent. The engine ships in dry run and stays there until
+  /// the owner has read a week of what it WOULD have said. A default of true is the
+  /// safety: a plan row that reaches the sender through some path nobody thought of
+  /// does nothing.
+  dryRun Boolean @default(true)
+
+  /// What the decision cost, when the model made it. Zero for a routed row.
+  model        String?
+  inputTokens  Int     @default(0)
+  outputTokens Int     @default(0)
+
+  sentAt DateTime?
+  error  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// ONE plan per person per day. The database says so, rather than the planner
+  /// promising to behave.
+  @@unique([profileId, planDate])
+  @@index([status, dueAt])
+  @@index([tenantId, planDate])
+  @@map("lifecycle_plan")
 }

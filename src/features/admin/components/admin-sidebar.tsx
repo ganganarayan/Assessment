@@ -119,6 +119,10 @@ const SECTIONS: NavSection[] = [
       // the thing you decide to send today.
       { href: "/admin/broadcasts", label: "Broadcasts" },
       { href: "/admin/nurture", label: "Nurture" },
+      // Last of the senders, and the only one pointed at our OWN customers rather
+      // than a tenant's respondents. It sits here because it is automation; it reads
+      // differently from everything above it because the audience is different.
+      { href: "/admin/lifecycle", label: "Trial lifecycle" },
       { href: "/admin/webhooks", label: "Webhooks", exact: true },
       { href: "/admin/webhook-logs", label: "Webhook Logs" },
     ],
