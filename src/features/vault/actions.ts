@@ -19,7 +19,13 @@ import {
 } from "./types";
 import { mintObjectKey, publicUrlFor, safeDisplayName } from "./keys";
 import {
+  abortMultipart,
+  completeMultipart,
   copyObjectAcrossBuckets,
+  presignParts,
+  startMultipart,
+  PART_SIZE,
+  MULTIPART_THRESHOLD,
   createRemoteBucket,
   deleteObject,
   headObject,
@@ -941,4 +947,179 @@ export async function sweepVaultPending(): Promise<ActionResult<{ removed: numbe
   } catch (e) {
     return fail(e, "Couldn't sweep stale uploads.");
   }
+}
+
+/* --------------------------------------------------------------- multipart --- */
+
+/**
+ * Begin a multipart upload and reserve the row.
+ *
+ * The uploadId is handed to the browser rather than stored: it is useless without the
+ * presigned part URLs, which only this server can mint, and keeping the flow stateless
+ * means a half-finished upload leaves nothing to reconcile beyond the reservation row.
+ */
+export async function startVaultMultipart(
+  input: VaultTicketInput,
+): Promise<ActionResult<{ fileId: string; uploadId: string; objectKey: string; partSize: number }>> {
+  const owner = await requireOwner();
+  if (!owner.ok) return owner;
+
+  const parsed = ticketInput.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "That upload is not valid." };
+  }
+  const v = parsed.data;
+
+  if (v.sizeBytes > MAX_UPLOAD_BYTES) {
+    return { ok: false, error: "That file is over the 5 GB limit for a single file." };
+  }
+  if (!ALLOWED_CONTENT_TYPES.includes(v.contentType)) {
+    return { ok: false, error: `${v.contentType} is not an allowed file type here.` };
+  }
+
+  try {
+    const tenantId = await actingConfigTenantId();
+    const bucket = await prisma.vaultBucket.findFirst({
+      where: { id: v.bucketId, tenantId },
+      select: { id: true },
+    });
+    if (!bucket) return { ok: false, error: "That bucket is not in this vault." };
+    if (v.folderId) {
+      const folder = await prisma.vaultFolder.findFirst({
+        where: { id: v.folderId, bucketId: v.bucketId },
+        select: { id: true },
+      });
+      if (!folder) return { ok: false, error: "That folder is not in this bucket." };
+    }
+
+    const objectKey = mintObjectKey(v.filename);
+    const creds = await loadBucketCreds(v.bucketId);
+    const uploadId = await startMultipart(creds, objectKey, v.contentType);
+
+    const row = await prisma.vaultFile.create({
+      data: {
+        objectKey,
+        name: safeDisplayName(v.filename) || "file",
+        contentType: v.contentType,
+        sizeBytes: BigInt(v.sizeBytes),
+        bucketId: v.bucketId,
+        folderId: v.folderId,
+        tenantId,
+        uploadedById: owner.user.id,
+        uploadedAt: null,
+      },
+      select: { id: true },
+    });
+
+    return { ok: true, data: { fileId: row.id, uploadId, objectKey, partSize: PART_SIZE } };
+  } catch (e) {
+    return fail(e, "Couldn't start that upload.");
+  }
+}
+
+/** Presign a batch of parts. Called repeatedly as the browser works through the file. */
+export async function signVaultParts(
+  fileId: string,
+  uploadId: string,
+  partNumbers: number[],
+): Promise<ActionResult<{ partNumber: number; url: string }[]>> {
+  const owner = await requireOwner();
+  if (!owner.ok) return owner;
+  // A bound on the batch so one call cannot be turned into thousands of signatures.
+  if (partNumbers.length === 0 || partNumbers.length > 64) {
+    return { ok: false, error: "Ask for between 1 and 64 parts at a time." };
+  }
+  try {
+    const tenantId = await actingConfigTenantId();
+    const row = await prisma.vaultFile.findFirst({
+      where: { id: fileId, tenantId, uploadedAt: null },
+      select: { bucketId: true, objectKey: true },
+    });
+    if (!row) return { ok: false, error: "That upload is no longer open." };
+    const creds = await loadBucketCreds(row.bucketId);
+    const urls = await presignParts(creds, row.objectKey, uploadId, partNumbers);
+    return { ok: true, data: urls };
+  } catch (e) {
+    return fail(e, "Couldn't prepare the next parts.");
+  }
+}
+
+/** Stitch the parts together, verify the result, and mark the file real. */
+export async function completeVaultMultipart(
+  fileId: string,
+  uploadId: string,
+  parts: { partNumber: number; etag: string }[],
+): Promise<ActionResult> {
+  const owner = await requireOwner();
+  if (!owner.ok) return owner;
+  if (parts.length === 0) return { ok: false, error: "No parts were uploaded." };
+  try {
+    const tenantId = await actingConfigTenantId();
+    const row = await prisma.vaultFile.findFirst({
+      where: { id: fileId, tenantId, uploadedAt: null },
+      select: { id: true, bucketId: true, objectKey: true },
+    });
+    if (!row) return { ok: false, error: "That upload is no longer open." };
+
+    const creds = await loadBucketCreds(row.bucketId);
+    await completeMultipart(creds, row.objectKey, uploadId, parts);
+
+    // Same rule as the single-PUT path: the row becomes a file only once R2 confirms
+    // the object is readable, and the size recorded is R2's, not the browser's claim.
+    const head = await headObject(creds, row.objectKey);
+    if (!head) {
+      return {
+        ok: false,
+        error: "R2 reported the upload complete but the object is not readable. Nothing was saved.",
+      };
+    }
+    await prisma.vaultFile.update({
+      where: { id: fileId },
+      data: { sizeBytes: BigInt(head.size), uploadedAt: new Date() },
+    });
+    revalidatePath("/admin/vault");
+    return { ok: true };
+  } catch (e) {
+    return fail(e, "Couldn't finish that upload.");
+  }
+}
+
+/**
+ * Abandon a multipart upload and remove its reservation.
+ *
+ * 🟡 Aborting at R2 matters for money, not tidiness: the parts of an incomplete
+ * multipart upload are billed as storage and do not appear in the bucket listing, so an
+ * upload that is cancelled and never aborted is invisible storage paid for forever.
+ */
+export async function abortVaultMultipart(
+  fileId: string,
+  uploadId: string,
+): Promise<ActionResult> {
+  const owner = await requireOwner();
+  if (!owner.ok) return owner;
+  try {
+    const tenantId = await actingConfigTenantId();
+    const row = await prisma.vaultFile.findFirst({
+      where: { id: fileId, tenantId, uploadedAt: null },
+      select: { id: true, bucketId: true, objectKey: true },
+    });
+    if (!row) return { ok: true };
+    try {
+      const creds = await loadBucketCreds(row.bucketId);
+      await abortMultipart(creds, row.objectKey, uploadId);
+    } catch (e) {
+      console.error("[vault] could not abort multipart", e instanceof Error ? e.message : String(e));
+    }
+    await prisma.vaultFile.delete({ where: { id: fileId } });
+    revalidatePath("/admin/vault");
+    return { ok: true };
+  } catch (e) {
+    return fail(e, "Couldn't abandon that upload.");
+  }
+}
+
+/** Where the browser switches from one PUT to many parts. */
+export async function vaultMultipartThreshold(): Promise<ActionResult<{ threshold: number }>> {
+  await requireSuperAdmin();
+  return { ok: true, data: { threshold: MULTIPART_THRESHOLD } };
 }

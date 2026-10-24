@@ -5,6 +5,10 @@ import {
   DeleteObjectCommand,
   CopyObjectCommand,
   CreateBucketCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "@/lib/db/prisma";
@@ -225,6 +229,125 @@ export async function createRemoteBucket(
             },
           }
         : {}),
+    }),
+  );
+}
+
+/* ------------------------------------------------------------- multipart --- */
+
+/**
+ * Multipart upload: the only way a large file survives a real network.
+ *
+ * 🔴 WHY THIS REPLACED THE SINGLE PUT. One PUT is one TCP connection held open for the
+ * whole transfer, and if anything breaks it the entire file restarts from zero. A 54 MB
+ * file failed three times that way - at 25%, 67% and 49% - and a 1 GB file over the
+ * same link would never finish. Multipart turns one long fragile request into many
+ * short ones:
+ *
+ *   - a dropped part costs that part, not the file, and is retried on its own
+ *   - parts upload in PARALLEL, which is what actually fixes throughput on a
+ *     high-latency link: a single stream to a bucket an ocean away is limited by round
+ *     trip time rather than by bandwidth, so several streams multiply it
+ *   - progress is real, because it is measured in completed parts
+ *
+ * R2 requires every part except the last to be the same size, and at least 5 MiB.
+ */
+
+/** 8 MiB. Comfortably over R2's 5 MiB floor, and small enough that losing one is cheap. */
+export const PART_SIZE = 8 * 1024 * 1024;
+
+/** Below this a single PUT is simpler and needs fewer round trips. */
+export const MULTIPART_THRESHOLD = PART_SIZE;
+
+export async function startMultipart(
+  creds: VaultBucketCreds,
+  objectKey: string,
+  contentType: string,
+): Promise<string> {
+  const client = clientFor(creds);
+  const res = await client.send(
+    new CreateMultipartUploadCommand({
+      Bucket: creds.bucketName,
+      Key: objectKey,
+      ContentType: contentType,
+    }),
+  );
+  if (!res.UploadId) throw new Error("R2 did not return an upload id for the multipart upload.");
+  return res.UploadId;
+}
+
+/**
+ * Presign a batch of part uploads.
+ *
+ * Signed in batches rather than one per round trip: a 1 GB file is 128 parts, and
+ * asking the server to sign each one separately would add 128 requests to a flow whose
+ * whole point is to be robust.
+ */
+export async function presignParts(
+  creds: VaultBucketCreds,
+  objectKey: string,
+  uploadId: string,
+  partNumbers: number[],
+): Promise<{ partNumber: number; url: string }[]> {
+  const client = clientFor(creds);
+  return Promise.all(
+    partNumbers.map(async (partNumber) => ({
+      partNumber,
+      url: await getSignedUrl(
+        client,
+        new UploadPartCommand({
+          Bucket: creds.bucketName,
+          Key: objectKey,
+          UploadId: uploadId,
+          PartNumber: partNumber,
+        }),
+        { expiresIn: 60 * 60 * 6 },
+      ),
+    })),
+  );
+}
+
+export async function completeMultipart(
+  creds: VaultBucketCreds,
+  objectKey: string,
+  uploadId: string,
+  parts: { partNumber: number; etag: string }[],
+): Promise<void> {
+  const client = clientFor(creds);
+  await client.send(
+    new CompleteMultipartUploadCommand({
+      Bucket: creds.bucketName,
+      Key: objectKey,
+      UploadId: uploadId,
+      MultipartUpload: {
+        // R2 rejects a completion whose parts are out of order, and the browser finishes
+        // them in whatever order the network allows, so sorting here is required.
+        Parts: [...parts]
+          .sort((a, b) => a.partNumber - b.partNumber)
+          .map((p) => ({ PartNumber: p.partNumber, ETag: p.etag })),
+      },
+    }),
+  );
+}
+
+/**
+ * Abandon a multipart upload.
+ *
+ * 🟡 Not optional housekeeping. R2 keeps the parts of an incomplete multipart upload and
+ * BILLS for them, while they are invisible in the bucket listing - so a cancelled or
+ * failed upload that is never aborted is storage paid for forever and never seen.
+ */
+export async function abortMultipart(
+  creds: VaultBucketCreds,
+  objectKey: string,
+  uploadId: string,
+): Promise<void> {
+  const client = clientFor(creds);
+  await client.send(
+    new AbortMultipartUploadCommand({
+      Bucket: creds.bucketName,
+      Key: objectKey,
+      UploadId: uploadId,
     }),
   );
 }

@@ -20,6 +20,10 @@ import {
   renameVaultFile,
   renameVaultFolder,
   saveVaultBucket,
+  signVaultParts,
+  startVaultMultipart,
+  completeVaultMultipart,
+  abortVaultMultipart,
   testVaultBucket,
 } from "@/features/vault/actions";
 import {
@@ -132,6 +136,52 @@ function putWithProgress(
   });
 }
 
+/** 8 MiB, matching PART_SIZE on the server. Over R2's 5 MiB floor for a non-final part. */
+const PART_SIZE = 8 * 1024 * 1024;
+/** How many parts ride at once. The real cure for a bucket an ocean away: one stream is
+ *  capped by round-trip time rather than bandwidth, four are not. */
+const PART_CONCURRENCY = 4;
+/** Per part, not per file - which is the whole point of doing it this way. */
+const PART_ATTEMPTS = 4;
+
+/** PUT one part and return its ETag, which R2 needs to stitch the file back together. */
+function putPart(url: string, blob: Blob, onDelta: (bytes: number) => void): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let counted = 0;
+    xhr.open("PUT", url, true);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        // Report the DELTA: the caller is summing bytes across parts running at once,
+        // so handing it a per-part total would count the same bytes repeatedly.
+        onDelta(e.loaded - counted);
+        counted = e.loaded;
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const etag = xhr.getResponseHeader("ETag");
+        if (!etag) {
+          // Needs ExposeHeaders: ["ETag"] in the bucket's CORS policy, or the browser
+          // can see the response but not this header, and completion is impossible.
+          reject(new Error("R2 accepted the part but the browser could not read its ETag. Add ETag to ExposeHeaders in the bucket's CORS policy."));
+          return;
+        }
+        resolve(etag);
+        return;
+      }
+      reject(new Error(`R2 refused a part (HTTP ${xhr.status}).`));
+    };
+    xhr.onerror = () => reject(new Error("A part failed to upload."));
+    xhr.onabort = () => reject(new Error("aborted"));
+    // Rolled back so a retry of this part does not double-count what it already sent.
+    const rollback = () => onDelta(-counted);
+    xhr.addEventListener("error", rollback);
+    xhr.addEventListener("abort", rollback);
+    xhr.send(blob);
+  });
+}
+
 export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketView[] }) {
   const [buckets, setBuckets] = useState(initialBuckets);
   const [bucketId, setBucketId] = useState<string | null>(initialBuckets[0]?.id ?? null);
@@ -214,6 +264,14 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
         continue;
       }
 
+      // Small files keep the single PUT: fewer round trips and nothing to stitch back
+      // together. Anything larger goes in parts, which is what makes it survivable -
+      // a drop then costs one part instead of the whole file.
+      if (file.size > PART_SIZE) {
+        await uploadInParts(file, bucketId, folderId, setOne);
+        continue;
+      }
+
       const ticket = await createVaultUploadTicket({
         bucketId,
         folderId,
@@ -242,9 +300,6 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
         );
       } catch (e) {
         setOne({ error: e instanceof Error ? e.message : String(e), abort: null });
-        // The reservation can never be completed now, so it goes rather than becoming
-        // a row with no bytes behind it - which is what made a folder report files it
-        // could not show.
         await discardVaultUpload(fileId);
         continue;
       }
@@ -255,12 +310,116 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
         continue;
       }
       setOne({ percent: 100, done: true, abort: null });
+      continue;
     }
 
     if (fileInput.current) fileInput.current.value = "";
     await refresh(bucketId, folderId);
-    // Successes and failures BOTH stay on screen. Clearing the successes was the whole
-    // reason a finished upload said nothing at all.
+  };
+
+  /**
+   * Upload one file in parts, several at a time, retrying parts rather than files.
+   *
+   * 🔴 THIS EXISTS BECAUSE ONE PUT WAS NOT SURVIVABLE. A 54 MB file failed three times
+   * at 25%, 67% and 49%, each time losing everything, and a 1 GB file over the same
+   * link would never have finished. Here a dropped part costs that part, and four parts
+   * in flight at once is what actually lifts throughput to a bucket on another
+   * continent, where a single stream is limited by round-trip time and not by bandwidth.
+   */
+  const uploadInParts = async (
+    file: File,
+    targetBucket: string,
+    targetFolder: string | null,
+    setOne: (patch: Partial<UploadState>) => void,
+  ): Promise<void> => {
+    const started = await startVaultMultipart({
+      bucketId: targetBucket,
+      folderId: targetFolder,
+      filename: file.name,
+      contentType: file.type,
+      sizeBytes: file.size,
+    });
+    if (!started.ok) {
+      setOne({ error: started.error });
+      return;
+    }
+    if (!started.data) {
+      setOne({ error: "R2 did not open the upload." });
+      return;
+    }
+    const { fileId, uploadId } = started.data;
+    setOne({ fileId });
+
+    let cancelled = false;
+    setOne({
+      abort: () => {
+        cancelled = true;
+      },
+    });
+
+    const partCount = Math.max(1, Math.ceil(file.size / PART_SIZE));
+    const partNumbers = Array.from({ length: partCount }, (_, i) => i + 1);
+
+    let sent = 0;
+    const bumpSent = (delta: number) => {
+      sent += delta;
+      setOne({ percent: Math.min(99, Math.round((sent / file.size) * 100)) });
+    };
+
+    const etags: { partNumber: number; etag: string }[] = [];
+
+    try {
+      // Signatures are fetched in batches rather than one per part: a 1 GB file is 128
+      // parts, and a round trip each would undo the robustness this is here for.
+      for (let offset = 0; offset < partNumbers.length; offset += 64) {
+        if (cancelled) throw new Error("aborted");
+        const batch = partNumbers.slice(offset, offset + 64);
+        const signed = await signVaultParts(fileId, uploadId, batch);
+        if (!signed.ok || !signed.data) throw new Error(signed.ok ? "No URLs returned." : signed.error);
+
+        const queue = [...signed.data];
+        const workers = Array.from({ length: Math.min(PART_CONCURRENCY, queue.length) }, async () => {
+          for (;;) {
+            const next = queue.shift();
+            if (!next) return;
+            if (cancelled) throw new Error("aborted");
+            const start = (next.partNumber - 1) * PART_SIZE;
+            const blob = file.slice(start, Math.min(start + PART_SIZE, file.size));
+
+            let lastError: unknown = null;
+            for (let attempt = 1; attempt <= PART_ATTEMPTS; attempt++) {
+              if (cancelled) throw new Error("aborted");
+              try {
+                const etag = await putPart(next.url, blob, bumpSent);
+                etags.push({ partNumber: next.partNumber, etag });
+                lastError = null;
+                break;
+              } catch (e) {
+                lastError = e;
+                if (e instanceof Error && e.message === "aborted") throw e;
+                // Back off before retrying, so a momentary problem is not hammered.
+                await new Promise((r) => setTimeout(r, 400 * attempt));
+              }
+            }
+            if (lastError) throw lastError;
+          }
+        });
+        await Promise.all(workers);
+      }
+
+      const done = await completeVaultMultipart(fileId, uploadId, etags);
+      if (!done.ok) throw new Error(done.error);
+      setOne({ percent: 100, done: true, abort: null });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setOne({
+        error: msg === "aborted" ? "Cancelled. Nothing was stored." : msg,
+        abort: null,
+      });
+      // Always abort at R2: the parts of an incomplete multipart upload are billed and
+      // are invisible in the bucket listing, so skipping this leaks storage silently.
+      await abortVaultMultipart(fileId, uploadId);
+    }
   };
 
   const cancelUpload = async (index: number) => {
@@ -272,7 +431,12 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
         i === index ? { ...u, abort: null, error: "Cancelled. Nothing was stored." } : u,
       ),
     );
-    if (target.fileId) await discardVaultUpload(target.fileId);
+    // 🔴 DELIBERATELY DOES NOT CLEAN UP HERE. Each upload path already tears itself down
+    // when its request aborts: the single PUT discards its reservation, and the
+    // multipart path aborts at R2 first, which is what stops the parts of an incomplete
+    // upload being billed invisibly. Deleting the row from here would race that, win,
+    // and leave abortVaultMultipart with no row to work from - so the parts would be
+    // paid for forever with nothing in the app that knows they exist.
     await refresh(bucketId, folderId);
   };
 
