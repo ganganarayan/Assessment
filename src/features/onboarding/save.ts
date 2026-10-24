@@ -39,7 +39,16 @@ import { seedCapiEvents } from "@/lib/meta/seed-events";
  * acknowledgement at the end of the sequence.
  */
 
-export type SaveResult = { ok: true } | { ok: false; error: string };
+/**
+ * `note` is a receipt shown to the tenant once, under the question they just answered.
+ *
+ * Only one step has anything to report: saving the Conversions API token also puts three
+ * events on their pixel, and that is worth telling somebody about, because it is the
+ * part they cannot see and the part that makes their setup call worth having. It is
+ * optional because every other step's success is self-evident from the sequence moving
+ * on, and a note on each of them would be noise.
+ */
+export type SaveResult = { ok: true; note?: string } | { ok: false; error: string };
 
 export async function persistStep(args: {
   tenantId: string;
@@ -140,8 +149,15 @@ export async function persistStep(args: {
        * throws and reports its own failures, and a workspace must not lose the token it
        * just pasted because Meta's edge was slow. See lib/meta/seed-events.
        */
-      if (r.ok) await seedCapiEvents(tenantId);
-      return r;
+      if (!r.ok) return r;
+      const seeded = await seedCapiEvents(tenantId);
+      if (!seeded) return r;
+      // Named, not counted. "Three events sent" is a claim; the names are what they go
+      // and look for in Events Manager, and finding them there is the whole point.
+      return {
+        ok: true,
+        note: `Saved. ${seeded.names.join(", ")} have just gone to your pixel, so your ad account has data in it before we speak. Events Manager can take an hour or two to show them.`,
+      };
     }
 
     /**

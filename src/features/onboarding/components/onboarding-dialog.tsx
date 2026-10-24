@@ -88,6 +88,15 @@ export function OnboardingDialog({
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  /**
+   * A receipt for something that happened BEHIND a save, kept apart from `note`.
+   *
+   * `note` is cleared whenever the question changes, which is right for it: it reports
+   * on the step being looked at. A receipt reports on a side effect of the step just
+   * left, so it has to outlive the move to the next question or it would be set and
+   * wiped in the same tick. Cleared on the next answer, and when the dialog closes.
+   */
+  const [receipt, setReceipt] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -160,13 +169,19 @@ export function OnboardingDialog({
     const payload = (raw ?? value).trim();
     setBusy(true);
     setError(null);
+    setReceipt(null);
     const r = await answerOnboardingStep(step.key, payload);
     setBusy(false);
     if (!r.ok) {
       setError(r.error);
       return;
     }
-    if (r.data) adopt(r.data);
+    if (r.data) {
+      adopt(r.data);
+      // Only the Conversions API token reports anything back, and it is the one thing a
+      // tenant cannot see for themselves: three events have left for their pixel.
+      if (r.data.message) setReceipt(r.data.message);
+    }
   }
 
   async function skip() {
@@ -230,6 +245,7 @@ export function OnboardingDialog({
     } catch {
       // Not being able to remember it is not a reason to refuse to close it.
     }
+    setReceipt(null);
     setOpen(false);
     router.refresh();
   }
@@ -412,6 +428,11 @@ export function OnboardingDialog({
 
             {error ? <p className="mt-3 text-sm text-amber-700">{error}</p> : null}
             {note ? <p className="mt-3 text-sm text-green-700">{note}</p> : null}
+            {receipt ? (
+              <p className="mt-3 rounded-lg border border-green-600/40 bg-green-600/10 p-3 text-sm">
+                {receipt}
+              </p>
+            ) : null}
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
               {TYPED_KINDS.has(step.kind) ? (
