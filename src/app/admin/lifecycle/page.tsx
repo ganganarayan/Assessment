@@ -45,8 +45,9 @@ export default async function LifecyclePage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Trial lifecycle</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Every morning at 06:00 IST this reads what each trialling workspace has done and writes one
-          message per person, due at their own 24 hour mark. It does not send yet.
+          From 06:00 IST the app reads what each trialling workspace has done and writes one message
+          per person, due at that person&apos;s own hour rather than everybody&apos;s 06:00. The same
+          heartbeat inside the app sends them as they fall due. There is no external cron to set up.
         </p>
       </div>
 
@@ -116,8 +117,8 @@ export default async function LifecyclePage() {
           </button>
         </form>
         <span className="text-xs text-[var(--muted-foreground)]">
-          Both are safe to press twice. Anybody already planned today is left alone, and a claimed
-          row cannot be sent a second time.
+          Neither is needed in normal running, and both are safe to press twice. Anybody already
+          planned today is left alone, and a claimed row cannot be sent a second time.
         </span>
       </div>
 

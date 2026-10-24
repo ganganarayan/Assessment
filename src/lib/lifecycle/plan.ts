@@ -11,9 +11,9 @@ import { type LifecycleVerdict, type Prisma } from "@prisma/client";
  * THE PLANNER - one pass, once a morning, writing one plan per trialling workspace.
  *
  * It does not send. That is the entire shape of the thing: planning is a daily batch
- * that can be slow, expensive and clever, and sending is a cheap worker that runs
- * every few minutes and is allowed to be stupid. Keeping them apart is what lets the
- * 06:00 job exist at all without turning into a 06:00 blast.
+ * that can be slow, expensive and clever, and sending is a cheap sweep that runs on
+ * the app's own heartbeat and is allowed to be stupid. Keeping them apart is what
+ * lets the 06:00 job exist at all without turning into a 06:00 blast.
  *
  * 🔴 DRY RUN IS HARD-WIRED ON IN PHASE 1, because there is no sender yet. Every row
  * this writes is a draft for the owner to read. Phase 2 adds the worker and the
@@ -41,6 +41,16 @@ export interface PlanSummary {
 /** The IST calendar day as YYYY-MM-DD. The idempotency key for one night's run. */
 export function istDayKey(at: Date = new Date()): string {
   return new Date(at.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * The hour of the IST day, 0 to 23. What the heartbeat asks before planning.
+ *
+ * From the fixed offset above, never from the host clock: the server runs UTC and a
+ * planner that trusted the host would fire at 11:30 IST and call it morning.
+ */
+export function istHour(at: Date = new Date()): number {
+  return new Date(at.getTime() + IST_OFFSET_MS).getUTCHours();
 }
 
 /**
@@ -177,14 +187,31 @@ export async function planToday(now: Date = new Date()): Promise<PlanSummary> {
   });
 
   for (const profile of due) {
+    /**
+     * 🔴 CLAIM THE PERSON BEFORE WORKING ON THEM, not after. Two separate things
+     * depend on it now that this runs on the heartbeat rather than a once-a-day cron.
+     *
+     * Several replicas beat at once. Without the claim each would build the same
+     * facts and pay for its own AI call on the same person, and only then would the
+     * unique index throw the loser's work away. The claim is one conditional UPDATE
+     * and the loser gets a count of zero.
+     *
+     * And a person whose planning throws stays claimed. The old code left them
+     * unstamped so the next run would retry, which was fine when the next run was
+     * tomorrow and is a tight retry loop against a paid API when it is thirty
+     * seconds away. One attempt per person per day. Tomorrow writes a fresh one from
+     * fresh facts, which is the better version of a retry anyway.
+     */
+    const claim = await prisma.lifecycleProfile.updateMany({
+      where: { id: profile.id, OR: [{ lastPlannedOn: null }, { lastPlannedOn: { not: today } }] },
+      data: { lastPlannedOn: today },
+    });
+    if (claim.count === 0) continue;
+
     out.considered++;
     try {
       const facts = await buildFacts(profile.tenantId, profile.anchorAt, now);
       if (!facts) {
-        await prisma.lifecycleProfile.update({
-          where: { id: profile.id },
-          data: { lastPlannedOn: today },
-        });
         out.skipped++;
         continue;
       }
@@ -287,10 +314,6 @@ export async function planToday(now: Date = new Date()): Promise<PlanSummary> {
         },
       });
 
-      await prisma.lifecycleProfile.update({
-        where: { id: profile.id },
-        data: { lastPlannedOn: today },
-      });
     } catch (e) {
       out.failed++;
       console.error(

@@ -53,7 +53,7 @@ async function liveNow(): Promise<boolean> {
   } catch (e) {
     // 🔴 Fails CLOSED, unlike the contact suppression check, and the asymmetry is the
     // point. A failed read there would stop transactional mail somebody asked for; a
-    // failed read here only delays an unsolicited one by five minutes.
+    // failed read here only delays an unsolicited one by one heartbeat.
     console.error("[lifecycle] live switch read failed:", e instanceof Error ? e.message : String(e));
     return false;
   }
@@ -106,8 +106,9 @@ export async function sendDueLifecycle(now: Date = new Date()): Promise<SendOutc
   });
 
   for (const { id } of due) {
-    // Claim before doing anything. The cron and a hand-run drain can overlap, and the
-    // claim is the only thing standing between that and a person hearing twice.
+    // Claim before doing anything. A heartbeat tick, another replica and a hand-run
+    // drain can all overlap, and the claim is the only thing standing between that
+    // and a person hearing the same thing twice.
     const claim = await prisma.lifecyclePlan.updateMany({
       where: { id, status: { in: ["DRAFT", "APPROVED"] } },
       data: { status: "SENT", sentAt: now },

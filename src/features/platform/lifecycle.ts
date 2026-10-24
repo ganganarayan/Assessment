@@ -174,7 +174,7 @@ export async function setLifecycleLive(formData: FormData): Promise<void> {
   revalidatePath("/admin/lifecycle");
 }
 
-/** Drain whatever is due right now rather than waiting for the five minute worker. */
+/** Drain whatever is due right now rather than waiting for the next heartbeat. */
 export async function sendLifecycleNow(): Promise<void> {
   await requireSuperAdmin();
   const s = await sendDueLifecycle();
@@ -185,7 +185,7 @@ export async function sendLifecycleNow(): Promise<void> {
 }
 
 /**
- * Run the planner now rather than waiting for 06:00.
+ * Run the planner now rather than waiting for the 06:00 IST beat.
  *
  * Safe to press twice: a profile already planned for today is skipped by the day key,
  * so this cannot produce a second message for anybody.
