@@ -23,6 +23,7 @@ import { ANSWERS, PAGES, TOPICS, auditContent } from "../src/lib/seo/registry";
 import { buildKeywordMap } from "../src/lib/seo/keyword-map";
 import { isPlatformHost, PLATFORM_HOST } from "../src/lib/seo/urls";
 import { publicSitemapEntries } from "../src/lib/seo/sitemap-entries";
+import { HERO, DISQUALIFIED_COST } from "../src/lib/marketing/content";
 import { publicRobotsRules } from "../src/app/robots";
 import { MARKETING } from "../src/lib/marketing/content";
 
@@ -158,6 +159,24 @@ function main(): void {
     for (const f of failures) console.error(`  - ${f}`);
     process.exit(1);
   }
+  /**
+   * The home page's H1 makes a countable claim, and the section under it is the count.
+   *
+   * "10 times in 10 different ways" is only persuasive because a reader can scroll one
+   * section and audit it, so the number has to equal the length of the bill. Nothing in
+   * TypeScript connects a sentence to an array length: the headline is a string and the
+   * chain is data, and adding an eleventh charge would leave the page disproving itself
+   * one scroll below its own promise. Hence a check.
+   */
+  const claimed = HERO.headline.match(/(\d+)\s+times/);
+  if (!claimed) {
+    failures.push("hero: the H1 no longer states a countable number of charges, so the bill below it is unanchored");
+  } else if (Number(claimed[1]) !== DISQUALIFIED_COST.chain.length) {
+    failures.push(
+      `hero: the H1 claims ${claimed[1]} charges and DISQUALIFIED_COST.chain lists ${DISQUALIFIED_COST.chain.length}`,
+    );
+  }
+
   console.log("\nseo content OK");
 }
 

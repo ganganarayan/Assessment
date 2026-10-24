@@ -593,10 +593,21 @@ export const OFFER = {
 
 export const HERO = {
   eyebrow: "Negative lead generation",
-  // Names the SECOND cost, which is the one nobody has priced. Everyone selling a quiz
-  // says the first half; the sentence that is ours is that the bad lead does not just
-  // cost you a click, it teaches the auction to go and find more of him.
-  headline: "You are not paying for bad leads once. You are teaching Meta to find more of them.",
+  /**
+   * The headline makes a COUNTABLE claim, and the next section is the count.
+   *
+   * "A bad lead wastes money" is a platitude; "every month, not once" is an argument but
+   * an unfalsifiable one, and a reader nods at both without reaching for their own
+   * accounts. A number they can check is different: it promises ten charges, and the
+   * very next section on the page is a numbered bill with exactly ten lines in it, in
+   * the order they arrive. The reader scrolls to audit the claim, which is the only
+   * reading of this page that ever sells anything.
+   *
+   * 🔴 THE TEN IS NOT A FIGURE OF SPEECH. It is DISQUALIFIED_COST.chain.length. If a
+   * charge is ever added to or removed from that list, this headline becomes a lie that
+   * the page immediately disproves, so change the number with it.
+   */
+  headline: "A disqualified lead costs real money. Not one time, 10 times in 10 different ways.",
   /**
    * 🔴 THE PRODUCT DESCRIPTOR LIVES HERE, NOT IN THE TITLE.
    *
@@ -624,11 +635,17 @@ export const HERO = {
  *
  * WHY IT IS ITS OWN SECTION AND WHY IT IS FIRST. The product's whole claim rests on a
  * premise the reader has never had to accept out loud: that a lead who will never buy is
- * not merely worthless but EXPENSIVE, and expensive every month rather than once. Every
+ * not merely worthless but EXPENSIVE, and expensive repeatedly rather than once. Every
  * section after this one is an answer to that premise. Stated as a summary ("bad leads
  * waste money") it is a platitude nobody argues with and nobody acts on. Itemised, in
  * the order the charges arrive, it is a bill - and a bill is the only version of this
  * argument a reader checks against their own accounts instead of nodding at.
+ *
+ * 🔴 THE HERO PROMISES TEN CHARGES AND `chain` IS WHERE THEY ARE COUNTED. The H1 says
+ * "10 times in 10 different ways" because this list has ten entries. Add or remove one
+ * and the headline in HERO has to move with it, or the page disproves itself one scroll
+ * below the claim. The heading here carries the compounding instead, which is the first
+ * and largest of the ten.
  *
  * `chain` is SEQUENTIAL and numbered, because the compounding is the point: step six is
  * where the same person signs up a second time, and steps three, four and seven are the
@@ -644,7 +661,7 @@ export const HERO = {
  * page, and every line here is money leaving.
  */
 export const DISQUALIFIED_COST = {
-  heading: "A disqualified lead costs real money. Every month, not once.",
+  heading: "You are not paying for bad leads once. You are teaching Meta to find more of them.",
   lead: "He is cheap to acquire and expensive to keep, which is why the charge never shows up anywhere as a single line. Here is the bill, in the order it arrives.",
   chain: [
     {
