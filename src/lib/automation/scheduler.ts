@@ -3,7 +3,6 @@ import { runDueAutomations } from "@/lib/automation/run";
 import { pruneAutomationHistory } from "@/lib/automation/retention";
 import { syncDueAppointments } from "@/lib/google/calendar";
 import { sweepTimePassedAppointments } from "@/lib/calendar/time-passed";
-import { planToday, istDayKey, istHour } from "@/lib/lifecycle/plan";
 import { sendDueLifecycle } from "@/lib/lifecycle/send";
 
 /**
@@ -53,13 +52,8 @@ const MAX_PASSES = 20;
 const PRUNE_EVERY_MS = 60 * 60_000;
 /** The first tick after boot: soon, because anything overdue has been waiting. */
 const BOOT_DELAY_MS = 5_000;
-/** The hour, in IST, from which the trial planner may write the day's messages. */
-const LIFECYCLE_PLAN_HOUR_IST = 6;
-
 let started = false;
 let lastPruneAt = 0;
-/** The IST day this process last planned. In memory on purpose: see the tick. */
-let lifecyclePlannedOn = "";
 
 async function drain(): Promise<void> {
   for (let pass = 0; pass < MAX_PASSES; pass++) {
@@ -109,52 +103,23 @@ async function tick(): Promise<void> {
   }
 
   /**
-   * THE TRIAL LIFECYCLE, on the same heartbeat as everything else.
+   * THE TRIAL LIFECYCLE SENDER, which belongs here and whose planner does not.
    *
-   * 🔴 NEITHER HALF OF THIS NEEDS A RAILWAY CRON, and both were wrongly specced with
-   * one. The argument at the top of this file applies here word for word: the server
-   * is already a long-lived process, an external cron is a thing somebody has to
-   * remember to create and nobody ever remembers to verify, and a container woken
-   * every five minutes to ask an empty queue a question is a container start, a cold
-   * boot and a fresh connection pool, 288 times a day, to learn nothing.
+   * 🔴 NEITHER HALF OF THE LIFECYCLE NEEDS A RAILWAY CRON, and both were wrongly
+   * specced with one. The argument at the top of this file applies word for word: an
+   * external cron is a thing somebody has to remember to create and nobody ever
+   * remembers to verify, and a container woken every five minutes to ask an empty
+   * queue a question is a container start, a cold boot and a fresh connection pool,
+   * 288 times a day, to learn nothing.
    *
-   * Two jobs that are deliberately not the same job:
-   *
-   *   PLANNING is once per IST day, from 06:00. Slow, expensive, calls a model. The
-   *   day marker below lives in memory rather than in a row because the real
-   *   idempotency is per person: each profile is claimed with a conditional UPDATE
-   *   on lastPlannedOn, so a restart at noon costs one query per already-planned
-   *   person and plans anybody who enrolled since. A marker in the database would
-   *   add a row to lose and buy nothing.
-   *
-   *   SENDING is every beat. One indexed query over (status, dueAt), which is how a
-   *   06:00 planning run turns into messages arriving at each person's own hour
-   *   instead of all at 06:00. A quiet beat is a probe that returns nothing.
-   *
-   * 🟡 Planning runs inside the tick, so the heartbeat does not beat while it works.
-   * With a handful of trials that is seconds. If a run ever grows to minutes, this
-   * is the line to move off the tick, because reminders would be that late.
+   * 🟡 BUT THE PLANNER IS NOT ON THIS TICK, and that is the point of lib/lifecycle/
+   * heartbeat.ts. This tick is a chain: the next beat is scheduled only once the last
+   * job returns, so everything on it has to finish in milliseconds or it becomes
+   * everybody else's delay. The planner can spend a minute per person on an AI call.
+   * The sender cannot: it is one indexed query over (status, dueAt), which is exactly
+   * how a 06:00 planning run turns into messages arriving at each person's own hour
+   * instead of all at 06:00. A quiet beat is a probe that returns nothing.
    */
-  try {
-    const today = istDayKey();
-    if (lifecyclePlannedOn !== today && istHour() >= LIFECYCLE_PLAN_HOUR_IST) {
-      // Marked before the await, not after: a planning run that throws must not be
-      // retried on the next beat thirty seconds later.
-      lifecyclePlannedOn = today;
-      const s = await planToday();
-      if (!s.heldBack) {
-        console.log(
-          `[automation-scheduler] lifecycle ${today}: planned ${s.planned}, escalated ${s.escalated}, skipped ${s.skipped}, by model ${s.byModel}, failed ${s.failed}`,
-        );
-      }
-    }
-  } catch (e) {
-    console.error(
-      "[automation-scheduler] lifecycle planning failed:",
-      e instanceof Error ? e.message : String(e),
-    );
-  }
-
   try {
     const s = await sendDueLifecycle();
     if (s.sent || s.failed || s.skipped) {

@@ -45,9 +45,10 @@ export default async function LifecyclePage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Trial lifecycle</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          From 06:00 IST the app reads what each trialling workspace has done and writes one message
-          per person, due at that person&apos;s own hour rather than everybody&apos;s 06:00. The same
-          heartbeat inside the app sends them as they fall due. There is no external cron to set up.
+          From 06:00 IST a worker inside the app reads what each trialling workspace has done and
+          writes one message per person, due at that person&apos;s own hour rather than
+          everybody&apos;s 06:00. A second, faster worker sends them as they fall due. They are kept
+          apart so a slow planning run never delays anything else, and there is no cron to set up.
         </p>
       </div>
 
