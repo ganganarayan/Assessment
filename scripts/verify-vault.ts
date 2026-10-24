@@ -74,16 +74,82 @@ if (!/randomBytes/.test(keys)) {
   );
 }
 
-if (problems.length === 0) {
-  console.log("🟢 vault: object keys are minted once and never rewritten.");
-  process.exit(0);
+/**
+ * 4. The presigned upload URL must carry NO checksum parameters.
+ *
+ * 🔴 THE FAILURE THIS EXISTS TO END. Since v3.729 the AWS SDK adds an integrity
+ * checksum to PutObject by default. Presigning has no body, so it signs the checksum of
+ * an EMPTY one; the browser then uploads the real file and R2 rejects it on the
+ * mismatch. The symptom is a progress bar that climbs normally and dies at a different
+ * percentage every attempt, reported as a bare network error because R2's error
+ * response has no CORS header for the browser to read. It looks exactly like a bad
+ * connection, and it cost two failed uploads of a 54 MB file before anyone looked at
+ * the actual URL.
+ *
+ * clientFor() disables it. This generates a real presigned URL with throwaway
+ * credentials - local work, no network, no account - and fails the build if a checksum
+ * parameter ever comes back, which is what an SDK upgrade would do silently.
+ */
+async function checkPresignedUrlHasNoChecksum(): Promise<void> {
+  const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
+  const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+
+  // Mirrors clientFor() in src/features/vault/client.ts. Kept in step by this check
+  // failing if the two ever drift on the settings that matter.
+  const client = new S3Client({
+    region: "auto",
+    endpoint: "https://probe.r2.cloudflarestorage.com",
+    credentials: { accessKeyId: "PROBEKEYPROBEKEY", secretAccessKey: "probesecretprobesecretprobe" },
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
+  });
+
+  const url = await getSignedUrl(
+    client,
+    new PutObjectCommand({ Bucket: "probe", Key: "v/probe/probe.mp4", ContentType: "video/mp4" }),
+    { expiresIn: 60 },
+  );
+  const offenders = [...new URL(url).searchParams.keys()].filter((k) => /checksum/i.test(k));
+  if (offenders.length > 0) {
+    problems.push(
+      `the presigned upload URL carries ${offenders.join(", ")}. R2 will reject every browser ` +
+        `upload on a checksum mismatch, and the browser will report it as a network error. ` +
+        `Check requestChecksumCalculation in src/features/vault/client.ts.`,
+    );
+  }
+
+  // The disabling flags must actually be present in the shipped client, not only here.
+  const clientSrc = readFileSync(join(root, "src/features/vault/client.ts"), "utf8");
+  if (!/requestChecksumCalculation:\s*"WHEN_REQUIRED"/.test(clientSrc)) {
+    problems.push(
+      `src/features/vault/client.ts no longer sets requestChecksumCalculation: "WHEN_REQUIRED". ` +
+        `Browser uploads will fail at an arbitrary percentage with no readable error.`,
+    );
+  }
 }
 
-console.error(`🔴 ${problems.length} problem(s) with the vault's immutable object keys.\n`);
-for (const p of problems) console.error(`  - ${p}`);
-console.error(
-  `\nWhy this matters: a vault link is pasted into VidaPulse, an LMS and landing pages.\n` +
-    `Changing an object key breaks all of them at once, with no error anywhere in this app.\n` +
-    `Rename and move are database edits; only a cross-bucket move touches bytes.`,
-);
-process.exit(1);
+
+
+async function main(): Promise<void> {
+  await checkPresignedUrlHasNoChecksum();
+
+  if (problems.length === 0) {
+    console.log("🟢 vault: object keys are minted once, and presigned uploads carry no checksum.");
+    process.exit(0);
+  }
+
+  console.error(`🔴 ${problems.length} problem(s) with the vault's immutable object keys.\n`);
+  for (const p of problems) console.error(`  - ${p}`);
+  console.error(
+    `\nWhy this matters: a vault link is pasted into VidaPulse, an LMS and landing pages.\n` +
+      `Changing an object key breaks all of them at once, with no error anywhere in this app.\n` +
+      `Rename and move are database edits; only a cross-bucket move touches bytes.`,
+  );
+  process.exit(1);
+
+}
+
+main().catch((e) => {
+  console.error("verify:vault crashed:", e instanceof Error ? e.message : String(e));
+  process.exit(1);
+});

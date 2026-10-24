@@ -80,6 +80,28 @@ export function clientFor(creds: VaultBucketCreds): S3Client {
       accessKeyId: creds.accessKeyId,
       secretAccessKey: creds.secretAccessKey,
     },
+    // 🔴 BOTH OF THESE ARE LOAD-BEARING FOR PRESIGNED BROWSER UPLOADS. Do not remove.
+    //
+    // Since v3.729 the AWS SDK adds an integrity checksum to PutObject by default. That
+    // is correct for a server-side upload, where the SDK has the bytes and can hash
+    // them. When PRESIGNING there is no body - so the SDK hashes an EMPTY one and bakes
+    // x-amz-checksum-crc32 for nothing into the signed URL. The browser then sends the
+    // real file, R2 reads all of it, computes the real checksum, finds the mismatch and
+    // rejects the upload.
+    //
+    // The failure is brutal to read: the preflight passes and the body transfers, so
+    // progress climbs normally and then dies at an arbitrary percentage that moves
+    // between attempts. R2's error response carries no Access-Control-Allow-Origin, so
+    // the browser will not surface the status and reports a bare network error - which
+    // reads exactly like a flaky connection and is not one. A 54 MB file failed twice
+    // this way before the signed URL was actually inspected.
+    //
+    // WHEN_REQUIRED keeps checksums for operations that genuinely need them and stops
+    // the SDK volunteering one it cannot compute. scripts/verify-vault.ts asserts the
+    // generated URL stays free of checksum parameters, so an SDK upgrade cannot quietly
+    // put this back.
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   });
 }
 
