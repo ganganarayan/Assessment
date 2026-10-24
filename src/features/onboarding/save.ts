@@ -13,6 +13,8 @@ import { updateBookingUrl } from "@/features/workspace/actions/booking";
 import { updateSupportEmail } from "@/features/workspace/actions/support";
 import { DEFAULT_THEME_COLORS } from "@/features/workspace/theme-colors";
 import { EMAIL_PRESETS } from "@/features/onboarding/steps";
+import { notifyTemplateGap } from "@/features/onboarding/notify-gap";
+import { seedCapiEvents } from "@/lib/meta/seed-events";
 
 /**
  * WHERE EACH ANSWER ACTUALLY GOES.
@@ -101,6 +103,10 @@ export async function persistStep(args: {
 
     case "industryOther": {
       await prisma.tenant.update({ where: { id: tenantId }, data: { industryOther: value.slice(0, 200) } });
+      // Stored first, then told. The owner wants to know while there is still time to
+      // write them a funnel before the call, and a mail failure must not cost the
+      // answer: see notifyTemplateGap.
+      await notifyTemplateGap(tenantId);
       return { ok: true };
     }
 
@@ -122,7 +128,20 @@ export async function persistStep(args: {
       // The pixel comes back from the same resolver the funnel reads, because passing a
       // blank one here would delete it.
       const meta = await resolveMetaConfig(tenantId);
-      return updateMetaSettings(meta.pixelId ?? "", value);
+      const r = await updateMetaSettings(meta.pixelId ?? "", value);
+      /**
+       * The token is the last thing the pixel was waiting for, so this is the moment
+       * their ad account can be given something to look at. Three sample events go out
+       * now, once ever, so that Events Manager and the custom audiences are populated
+       * by the time anybody joins their setup call - Meta can take hours to surface a
+       * new event, and an audience cannot be built on one it has never seen.
+       *
+       * Deliberately not awaited for its result beyond this: seedCapiEvents never
+       * throws and reports its own failures, and a workspace must not lose the token it
+       * just pasted because Meta's edge was slow. See lib/meta/seed-events.
+       */
+      if (r.ok) await seedCapiEvents(tenantId);
+      return r;
     }
 
     /**

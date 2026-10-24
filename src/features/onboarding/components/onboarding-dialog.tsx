@@ -57,6 +57,7 @@ export interface StarterTemplate {
   gateQuestions: number;
   hasResultsPage: boolean;
   hasVslPage: boolean;
+  matchesIndustry: boolean;
 }
 
 export function OnboardingDialog({
@@ -322,6 +323,16 @@ export function OnboardingDialog({
                 )
               ) : step.kind === "handoff" ? (
                 <div className="flex flex-col gap-2">
+                  {/* Nothing in the library fits them. Said once, here, where they are
+                      about to pick one, and said as a thing we are doing rather than a
+                      thing they lack: the owner has already been told by email. */}
+                  {templates.length > 0 && !templates.some((t) => t.matchesIndustry) ? (
+                    <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                      We do not have a ready-made funnel for your industry yet. Start from the
+                      closest one below and we will shape it to you on the call, or wait for
+                      yours - we are writing it.
+                    </p>
+                  ) : null}
                   {templates.length === 0 ? (
                     <p className="text-sm text-[var(--muted-foreground)]">
                       There are no templates on the shelf yet. You can start from a blank builder instead.
@@ -336,6 +347,11 @@ export function OnboardingDialog({
                         className="rounded-lg border border-[var(--border)] p-3 text-left text-sm transition-colors hover:border-green-600 hover:bg-green-600/5 disabled:opacity-60"
                       >
                         <span className="font-medium">{t.title}</span>
+                        {t.matchesIndustry ? (
+                          <span className="ml-2 rounded bg-green-600/15 px-1.5 py-0.5 text-[11px] font-semibold text-green-700 dark:text-green-400">
+                            Yours
+                          </span>
+                        ) : null}
                         <span className="block text-xs text-[var(--muted-foreground)]">
                           {t.category} · {t.gateQuestions} gate · {t.questions} scored
                           {pageKind === "VSL" && t.hasVslPage

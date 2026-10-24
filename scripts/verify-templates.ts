@@ -21,6 +21,7 @@ import { qualificationSchema } from "../src/features/assessment/schemas";
 import { BUILTIN_TEMPLATE_DOCS } from "../src/features/templates/builtin";
 import { buildSpine, walk, type RouteSpec, type SpineQuestion } from "../src/lib/routing/engine";
 import type { TemplateDoc } from "../src/features/templates/schema";
+import { INDUSTRY_CATEGORIES } from "../src/features/onboarding/steps";
 
 /**
  * Branching checks for a template that routes - run against the pure engine, with the
@@ -420,6 +421,44 @@ else fail("coverage", "every built-in template needs AI, so none works without a
     ok(`audiences: all ${TEMPLATE_CATEGORIES.length} categories have a built-in behind them`);
   } else {
     fail("audiences", `the home page lists these with no template behind them: ${empty.join(", ")}`);
+  }
+}
+
+/**
+ * The guided setup's industry question offers these same buckets, and the import step
+ * matches a tenant's answer against a template's category by equality. So the two lists
+ * have to BE the same list, minus the owner's own bucket.
+ *
+ * 🟡 WHY IT IS NOT ONE CONSTANT. The onboarding registry is client-safe and deliberately
+ * light; importing the template schema into it to share this array would pull zod and
+ * the whole assessment transfer schema into the browser bundle to save twenty-one
+ * strings. So they are two lists and this is the seam that keeps them honest.
+ *
+ * Both directions matter. A category in the library and not in the question leaves the
+ * tenants it describes picking "Something else" and asking us to build a template that
+ * already exists. One in the question and not in the library offers somebody an industry
+ * and then matches nothing, which is worse: it reads as the product being broken rather
+ * than as the library being incomplete.
+ */
+{
+  const offered = new Set<string>(INDUSTRY_CATEGORIES);
+  // "Platform" is the owner's own funnels, which no tenant should pick as their trade.
+  const library = TEMPLATE_CATEGORIES.filter((c) => c !== "Platform");
+
+  const missing = library.filter((c) => !offered.has(c));
+  if (missing.length === 0) {
+    ok(`industries: all ${library.length} library categories are offered in the setup`);
+  } else {
+    fail("industries", `in the library but never offered: ${missing.join(", ")}`);
+  }
+
+  const unknown = INDUSTRY_CATEGORIES.filter(
+    (c) => !(TEMPLATE_CATEGORIES as readonly string[]).includes(c),
+  );
+  if (unknown.length === 0) {
+    ok("industries: every offered industry exists in the library");
+  } else {
+    fail("industries", `offered in the setup but not a library category: ${unknown.join(", ")}`);
   }
 }
 
