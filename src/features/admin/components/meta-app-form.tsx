@@ -82,10 +82,11 @@ export function MetaAppForm({ initial }: { initial: MetaAppSettingsView }) {
         <p className="font-medium text-[var(--foreground)]">Paste this into the Meta app as the callback URL</p>
         <p className="mt-1 break-all">{initial.webhookUrl}</p>
         <p className="mt-2">
-          Use the same verify token on both sides. Subscribe the app to <strong>history</strong>,{" "}
-          <strong>smb_app_state_sync</strong> and <strong>smb_message_echoes</strong>, which Meta
-          requires before it will let a business keep its number on the phone app. Graph version in
-          use: {initial.graphVersion}.
+          Use the same verify token on both sides. Subscribe the app to{" "}
+          <strong>account_update</strong>, <strong>history</strong>,{" "}
+          <strong>smb_app_state_sync</strong> and <strong>smb_message_echoes</strong>. All four are
+          required before Meta will let a business keep its number on the phone app, and nothing
+          here can tick them for you. Graph version in use: {initial.graphVersion}.
         </p>
         <p className="mt-2">
           🔴 The configuration must be created new: selecting products in Facebook Login for Business

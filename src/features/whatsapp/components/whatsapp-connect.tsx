@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Script from "next/script";
 import { Button } from "@/components/ui/button";
 import { completeWhatsAppConnect, disconnectWhatsApp } from "@/features/whatsapp/actions";
-import { type WhatsAppConnectView } from "@/features/whatsapp/types";
+import { type SignupFlow, type WhatsAppConnectView } from "@/features/whatsapp/types";
 
 /**
  * The one click.
@@ -24,6 +24,16 @@ import { type WhatsAppConnectView } from "@/features/whatsapp/types";
  * The flow is pinned to Embedded Signup v4 by the CONFIGURATION id, not by anything
  * sent from here: Meta decides the version from the products that configuration
  * selects. v2 was retired on 15-10-2026.
+ *
+ * 🔴 featureType is what makes COEXISTENCE possible at all. Sent with an empty setup
+ * object and nothing else, Meta runs the clean Cloud API onboarding and never offers
+ * the screen that takes a number already live on somebody's WhatsApp Business app -
+ * which is the whole point of the feature. One word in `extras` is the difference
+ * between "connect the number on my phone" and "give me a new number in the cloud".
+ *
+ * On a v5 configuration Meta turns this onboarding on by default and ignores the
+ * parameter, so sending it is right either way; what would break v5 is sending the
+ * opt-out, and that is deliberately absent.
  */
 
 interface FbAuthResponse {
@@ -63,7 +73,10 @@ export function WhatsAppConnect({ initial, canEdit = true }: { initial: WhatsApp
   const [note, setNote] = useState<string | null>(initial.lastError);
   const [connected, setConnected] = useState(initial.connected);
   const [pending, start] = useTransition();
+  const [launched, setLaunched] = useState(false);
   const session = useRef<SignupMessage["data"] | null>(null);
+  // Which finish event closed the popup. A hint for the server, never the record.
+  const flow = useRef<SignupFlow>("CLOUD");
 
   // Meta's own guidance: ignore anything that is not from Facebook. Without this an
   // unrelated page in another tab could hand us ids we would then send to the server.
@@ -84,6 +97,11 @@ export function WhatsAppConnect({ initial, canEdit = true }: { initial: WhatsApp
       }
       if (parsed?.type !== "WA_EMBEDDED_SIGNUP") return;
       if (parsed.data?.waba_id) session.current = parsed.data;
+      // The coexistence path has its own finish event, and it is the only signal that
+      // says the business connected the number from their phone rather than taking a
+      // fresh cloud number. Meta documents its payload as carrying the WABA alone,
+      // which is why the phone number id is looked up server-side instead.
+      if (parsed.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") flow.current = "COEXISTENCE";
       // A CANCEL carries why, and the step they left on. Showing it beats a silent
       // nothing-happened, which is what an abandoned popup looks like otherwise.
       if (parsed.event === "CANCEL") {
@@ -108,7 +126,9 @@ export function WhatsAppConnect({ initial, canEdit = true }: { initial: WhatsApp
     }
     setMsg(null);
     setNote(null);
+    setLaunched(true);
     session.current = null;
+    flow.current = "CLOUD";
     window.FB.login(
       (res) => {
         const code = res?.authResponse?.code;
@@ -131,6 +151,7 @@ export function WhatsAppConnect({ initial, canEdit = true }: { initial: WhatsApp
             wabaId: s.waba_id,
             phoneNumberId: s.phone_number_id ?? null,
             businessId: s.business_id ?? null,
+            flow: flow.current,
           });
           if (!r.ok) {
             setMsg(r.error);
@@ -147,7 +168,14 @@ export function WhatsAppConnect({ initial, canEdit = true }: { initial: WhatsApp
         config_id: initial.configId,
         response_type: "code",
         override_default_response_type: true,
-        extras: { setup: {} },
+        extras: {
+          // Offers the number already on their WhatsApp Business app. Without it Meta
+          // hides that screen and only a new cloud number can be created.
+          featureType: "whatsapp_business_app_onboarding",
+          // Empty prefill: we know their WABA name and number no better than they do,
+          // and a wrong prefill in Meta's own popup is not something we can correct.
+          setup: {},
+        },
       },
     );
   };
@@ -211,12 +239,29 @@ export function WhatsAppConnect({ initial, canEdit = true }: { initial: WhatsApp
       ) : (
         <>
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium">Connect WhatsApp in one click</p>
+            <p className="text-sm font-medium">Connect the number on your phone</p>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Opens Meta, where you log in and pick your WhatsApp Business account. You keep using
-              WhatsApp on your phone exactly as now. Nothing to copy, paste, or get approved.
+              Opens Meta, where you log in and name the number you already use in WhatsApp
+              Business. It keeps working on your phone exactly as now, and you can send from here
+              too. Nothing to copy from a developer screen, and nobody has to approve it.
+            </p>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              🟡 Keep that phone next to you. Meta asks you to confirm on it, and it needs
+              WhatsApp Business version 2.24.17 or newer.
             </p>
           </div>
+          <details open={launched} className="text-xs text-[var(--muted-foreground)]">
+            <summary className="cursor-pointer font-medium">What Meta will ask you</summary>
+            <ol className="mt-2 flex list-decimal flex-col gap-1 pl-4">
+              <li>Choose to connect an account you already have, and type that phone number.</li>
+              <li>Copy the code Meta shows you.</li>
+              <li>On your phone, open the message from Facebook in WhatsApp and tap Connect.</li>
+              <li>Tap Connect to the Business Platform.</li>
+              <li>Choose whether to bring your past chats across.</li>
+              <li>Paste the code back into the Meta window.</li>
+              <li>Leave WhatsApp open on the phone until it finishes copying over.</li>
+            </ol>
+          </details>
           <div>
             <Button size="sm" onClick={launch} disabled={pending || !sdkReady || !canEdit}>
               {pending ? "Connecting..." : "Connect WhatsApp"}

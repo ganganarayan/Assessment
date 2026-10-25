@@ -95,7 +95,15 @@ export async function getWhatsAppConnectInfo(): Promise<WhatsAppConnectView> {
         verifiedName: s.wabaVerifiedName ?? "",
         isOnBizApp: s.wabaIsOnBizApp,
         onboardedAt: s.wabaOnboardedAt ? formatIST(s.wabaOnboardedAt) : null,
-        source: s.wabaOnboardedAt ? ("COEXISTENCE" as const) : ("MANUAL" as const),
+        // Read off what Meta reported, not off how the connection was requested. An
+        // ordinary one-click onboarding stamps wabaOnboardedAt too, so treating that
+        // stamp as proof of coexistence was a straightforward lie: only is_on_biz_app
+        // distinguishes a number that is still answering on somebody's phone.
+        source: !s.wabaOnboardedAt
+          ? ("MANUAL" as const)
+          : s.wabaIsOnBizApp
+            ? ("COEXISTENCE" as const)
+            : ("CLOUD_API" as const),
       }
     : null;
 
@@ -136,7 +144,7 @@ export async function completeWhatsAppConnect(input: unknown): Promise<ActionRes
   if (!parsed.success) {
     return recordFailure(scope.tenantId, "Meta sent back something we could not read. Try connecting again.");
   }
-  const { code, wabaId, phoneNumberId, businessId } = parsed.data;
+  const { code, wabaId, phoneNumberId, businessId, flow } = parsed.data;
 
   const app = await resolveMetaAppConfig();
   if (!metaAppReady(app) || !app.appId || !app.appSecret) {
@@ -218,7 +226,16 @@ export async function completeWhatsAppConnect(input: unknown): Promise<ActionRes
     );
   }
   if (!phone.isOnBizApp) {
-    notes.push("This number is on the Cloud API only, not shared with the WhatsApp Business app on a phone.");
+    notes.push(
+      flow === "COEXISTENCE"
+        ? // They went through the coexistence screens and Meta still says the number
+          // is not shared with a phone. Nothing is broken on our side, and the number
+          // works, but the one thing they were trying to achieve did not happen - and
+          // it is invisible unless we say it. Almost always the confirmation in the
+          // app was never tapped, or it was tapped too late.
+          "🟡 You asked to connect the number from your phone, but Meta reports it as a Cloud API number that is not shared with the WhatsApp Business app. Sending works. If you meant to keep answering on your phone, disconnect and try again, finishing the Connect step in WhatsApp while this window is still open."
+        : "This number is on the Cloud API only, not shared with the WhatsApp Business app on a phone.",
+    );
   }
   return { ok: true, data: notes.length ? { note: notes.join(" ") } : {} };
 }

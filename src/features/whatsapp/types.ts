@@ -6,6 +6,21 @@ import { z } from "zod";
  * anything a client component needs to import by type has to live here.
  */
 
+/**
+ * Which of Meta's two finish events closed the popup.
+ *
+ * COEXISTENCE means the business connected a number that is already live on the
+ * WhatsApp Business app on their phone. CLOUD means the ordinary path: a number that
+ * belongs to the Cloud API alone.
+ *
+ * 🔴 This is a HINT, never the record. It arrives from the browser, so it is only as
+ * trustworthy as the page that sent it; what actually gets stored is Meta's own
+ * is_on_biz_app, read back through Graph with our token. The hint exists so the server
+ * can notice the two disagreeing and say so, which is the one case a business owner
+ * cannot diagnose for themselves.
+ */
+export type SignupFlow = "COEXISTENCE" | "CLOUD";
+
 /** What Meta's popup hands back when the business finishes. */
 export interface EmbeddedSignupResult {
   /** Exchangeable token code. Lives ~30 seconds, so it goes straight to the server. */
@@ -14,6 +29,7 @@ export interface EmbeddedSignupResult {
   /** Absent on the coexistence finish event, which carries the WABA only. */
   phoneNumberId: string | null;
   businessId: string | null;
+  flow: SignupFlow;
 }
 
 /** The number that is live on this scope right now. */
@@ -26,8 +42,15 @@ export interface ConnectedWaba {
   isOnBizApp: boolean;
   /** Already formatted DD-MM-YYYY HH:MM IST, so no client-side locale can undo it. */
   onboardedAt: string | null;
-  /** How it got here. A number typed in by hand has no onboarding to report. */
-  source: "COEXISTENCE" | "MANUAL";
+  /**
+   * How it got here, decided from what Meta reports rather than from how it was asked
+   * for: one click plus is_on_biz_app is coexistence, one click without it is a plain
+   * Cloud API number, and a number typed in by hand has no onboarding to report.
+   *
+   * The distinction is not cosmetic. Only a coexistence number can sync contacts and
+   * history, and only a coexistence number keeps answering on somebody's phone.
+   */
+  source: "COEXISTENCE" | "CLOUD_API" | "MANUAL";
 }
 
 export interface WhatsAppConnectView {
@@ -64,6 +87,9 @@ export const embeddedSignupSchema = z.object({
     .trim()
     .regex(/^\d{5,25}$/)
     .nullish(),
+  // Defaulted rather than required, so an older cached page that posts without it
+  // still connects instead of failing on a field used only for one warning.
+  flow: z.enum(["COEXISTENCE", "CLOUD"]).default("CLOUD"),
 });
 
 /**
