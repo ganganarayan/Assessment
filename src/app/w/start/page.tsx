@@ -17,14 +17,39 @@ import { OnboardingDialog } from "@/features/onboarding/components/onboarding-di
  */
 export const dynamic = "force-dynamic";
 
-export default async function WorkspaceStartPage() {
+export default async function WorkspaceStartPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ step?: string }>;
+}) {
   const { user, tenantId } = await requireWorkspace();
   const view = await getOnboardingView(tenantId, user.id);
-  // Not a workspace being onboarded (the platform, or an internal tenant), or there is
-  // nothing left to ask. Either way the dashboard is the honest destination.
-  if (!view || view.complete) redirect("/w/dashboard");
+  if (!view) redirect("/w/dashboard");
+
+  /**
+   * ?step= opens the sequence AT one question, which is what every item in the trial
+   * ribbon's "before we can meet" list links to.
+   *
+   * 🟡 IT ALSO SUSPENDS THE "NOTHING LEFT TO ASK" REDIRECT. A booking prerequisite can
+   * be outstanding on a sequence that calls itself complete, because skipping a step
+   * finishes it: somebody who skipped the Conversions API token has no next question and
+   * still cannot be met. Redirecting them to the dashboard would make the ribbon's own
+   * link a dead end, which is the one thing that list cannot be.
+   */
+  const asked = (await searchParams).step?.trim();
+  const target = asked && view.steps.some((s) => s.key === asked) ? asked : null;
+  if (!target && view.complete) redirect("/w/dashboard");
 
   const starters = await getStarterTemplates(tenantId);
-  const whatsapp = view.currentKey === "whatsappConnect" ? await getWhatsAppConnectInfo() : null;
-  return <OnboardingDialog initial={view} templates={starters} whatsapp={whatsapp} alwaysOpen />;
+  const current = target ?? view.currentKey;
+  const whatsapp = current === "whatsappConnect" ? await getWhatsAppConnectInfo() : null;
+  return (
+    <OnboardingDialog
+      initial={view}
+      templates={starters}
+      whatsapp={whatsapp}
+      startAt={target}
+      alwaysOpen
+    />
+  );
 }

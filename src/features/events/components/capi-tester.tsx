@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { testMetaCapi } from "@/features/events/actions/capi-test";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { isStandardMetaEvent, type EventChoice } from "@/lib/meta/event-catalog";
 
 type Result = Awaited<ReturnType<typeof testMetaCapi>>;
 
@@ -18,8 +19,20 @@ type Result = Awaited<ReturnType<typeof testMetaCapi>>;
  */
 export function CapiTester({
   accounts = [],
+  events = [],
 }: {
   accounts?: { id: string; label: string; isDefault: boolean }[];
+  /**
+   * Every event name this workspace can send, built by the page from the funnel's own
+   * table and the names actually configured on its booking types and funnels.
+   *
+   * A list rather than a `<select>`, and the field stays an ordinary text input, because
+   * both halves are needed: nobody remembers whether it is GateQualified or the
+   * GatePassed it was renamed from, and a test that can only send names the app already
+   * knows cannot register a NEW conversion in Events Manager, which is half of what this
+   * page is for.
+   */
+  events?: EventChoice[];
 }) {
   const [result, setResult] = useState<Result | null>(null);
   const [code, setCode] = useState("");
@@ -65,10 +78,18 @@ export function CapiTester({
         ) : null}
         <Input
           className="sm:w-56"
+          list={events.length ? "capi-event-names" : undefined}
           value={eventName}
           onChange={(e) => setEventName(e.target.value)}
           placeholder="Event name (e.g. Purchase121)"
         />
+        {events.length ? (
+          <datalist id="capi-event-names">
+            {events.map((e) => (
+              <option key={e.name} value={e.name} label={`${e.name} - ${e.note}`} />
+            ))}
+          </datalist>
+        ) : null}
         <Input
           className="sm:w-64"
           value={code}
@@ -84,6 +105,17 @@ export function CapiTester({
         event arrive there live (it won&apos;t count as a real conversion). Leave blank to send a
         normal event.
       </p>
+      {events.length ? (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          The event field lists every name this workspace sends - the funnel&apos;s own events, each
+          booking type&apos;s four moments and each funnel&apos;s payment event. Type over it to register
+          a new one.{" "}
+          <span className="font-mono">{eventName.trim() || "(empty)"}</span> is{" "}
+          {isStandardMetaEvent(eventName)
+            ? "a Meta standard event."
+            : "a custom event, which is fine for the Conversions API."}
+        </p>
+      ) : null}
 
       {result ? (
         <div className="rounded-md border p-3 text-sm">

@@ -228,6 +228,63 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
     title: "Team roles & access",
     body: "Invite teammates into your workspace, with edit permissions you control.",
   },
+
+  // ---- After the score -----------------------------------------------------
+  // The follow-up half. Everything below shipped after the copy above was written,
+  // which is why this page said nothing about any of it for a month.
+  //
+  // `soon` here does NOT mean unbuilt. It means held back by a release switch
+  // (lib/features/catalog.ts), so no customer can reach it yet - which on a page is the
+  // same thing and has to read the same way. Releasing one is a one-line edit here.
+  {
+    title: "Appointment calendar & booking page",
+    body: "Publish your availability and let a qualified lead take a slot on a hosted booking page. Slot length, buffers, notice and the daily cap are yours. Double-booking is not possible, because the slot is held the moment it is taken.",
+  },
+  {
+    title: "Book from the result page",
+    body: "A button on the result page books the person who is reading it, in one click, with their name and email already known. No second tool, no re-typing, and no gap between the diagnosis and the call.",
+  },
+  {
+    title: "Google Calendar, both ways",
+    body: "Connect a Google account per staff member. Bookings land in their calendar, and whatever is already in it blocks the slot - so a dentist appointment on Thursday closes Thursday without anybody opening this app.",
+  },
+  {
+    title: "Reschedule and cancel, by the respondent",
+    body: "Every confirmation carries that person's own link to move or cancel the call. A freed slot goes back on the booking page immediately, so your inbox is not the booking system.",
+  },
+  {
+    title: "Attendance as a conversion signal",
+    body: "Mark a call attended or a no-show and the outcome reports back to Meta as its own event. Your ads can then optimise toward people who actually turn up, which is one step past qualified.",
+  },
+  {
+    title: "Take the payment in the funnel",
+    body: "Collect the money inside the same flow: a paid step on the funnel itself, or a link you send by hand where the client types the amount. The payment lands against the person, not in a separate tool you reconcile later.",
+  },
+  {
+    title: "Contacts, one row per person",
+    soon: true,
+    body: "Every lead becomes one contact, however many of your scorecards they have taken, with tags and an unsubscribe that works. The list is the thing you message from, so it is never a stale CSV.",
+  },
+  {
+    title: "Automations: a trigger and what it sends",
+    soon: true,
+    body: "Pick the moment - a booking taken, a result delivered, a payment received - and say what goes out. Confirmations, reminders and follow-ups then fire on their own clock rather than on somebody remembering.",
+  },
+  {
+    title: "A meeting link per booking",
+    soon: true,
+    body: "A booking can mint its own video link, for that one person, at the moment it is taken, and carry it in the confirmation. Nobody shares one standing room with a queue outside it.",
+  },
+  {
+    title: "Workflow sequences",
+    soon: true,
+    body: "Multi-step sequences with delays and tags, for onboarding a client or warming a lead who landed in the middle band. A step is suppressed per person once it no longer applies, so nobody is chased about something they have already done.",
+  },
+  {
+    title: "Broadcasts",
+    soon: true,
+    body: "One message to a filtered slice of your contacts, scheduled and sent at a throttled rate. The audience is frozen when you schedule it, so the list cannot shift underneath a send that is already going out.",
+  },
 ];
 
 export const USE_CASES: ReadonlyArray<{ tag: string; body: string }> = [
@@ -293,6 +350,7 @@ export const TIERS: ReadonlyArray<Tier> = [
       "Exclusion + retargeting audiences",
       "Qualified-only optimisation event",
       "Scoring, branching, result pages, PDF",
+      "Booking calendar, contacts, automations",
       "Webhook + CSV export",
       "1 user · 1 ad account",
       "Custom domain not included",
@@ -479,8 +537,12 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
     a: "No. Score bands are on every paid plan, including the entry one, because a gate nobody dares set a real bar on is a gate that does not work. What the higher plans add is the router: a named exit for each disqualifying answer, each with its own page and its own Meta event, so a waitlist and a wrong-fit rejection stop sharing one audience.",
   },
   {
+    q: "Do I still need a CRM alongside this?",
+    a: "No, and that is the point of the last few months of work. A scored lead becomes a contact here, the qualified ones book themselves from the result page they are already reading, confirmations and reminders fire on a trigger, onboarding a new client runs as a sequence, and the payment is collected in the same funnel. Booking, the calendar sync and the payment step are live today; contacts, automations, sequences and broadcasts are in final testing and release within days. If you run a sales floor that needs pipeline forecasting, keep your CRM. If you are a founder or a small team qualifying inbound, this is the whole chain in one place.",
+  },
+  {
     q: "What happens to someone who fits but cannot start right now?",
-    a: "He is not a rejection, he is a lead with a timing problem. He takes the full assessment like anyone else and lands on the same result page with a waitlist close, so you keep the finished diagnosis and he keeps his place. His exit fires its own Meta event, separate from both your exclusion audience and the event your ads optimise toward. Because he completes the assessment and you keep the result, he counts as a qualified response; only the people your gate turns away are unmetered.",
+    a: "A waitlisted lead is not a rejection, they are a lead with a timing problem. They take the full assessment like anyone else and land on the same result page with a waitlist close, so you keep the finished diagnosis and they keep their place. That exit fires its own Meta event, separate from both your exclusion audience and the event your ads optimise toward. Because they complete the assessment and you keep the result, they count as a qualified response; only the people your gate turns away are unmetered.",
   },
 ];
 
@@ -531,10 +593,21 @@ export const OFFER = {
 
 export const HERO = {
   eyebrow: "Negative lead generation",
-  // Names the SECOND cost, which is the one nobody has priced. Everyone selling a quiz
-  // says the first half; the sentence that is ours is that the bad lead does not just
-  // cost you a click, it teaches the auction to go and find more of him.
-  headline: "You are not paying for bad leads once. You are teaching Meta to find more of them.",
+  /**
+   * The headline makes a COUNTABLE claim, and the next section is the count.
+   *
+   * "A bad lead wastes money" is a platitude; "every month, not once" is an argument but
+   * an unfalsifiable one, and a reader nods at both without reaching for their own
+   * accounts. A number they can check is different: it promises ten charges, and the
+   * very next section on the page is a numbered bill with exactly ten lines in it, in
+   * the order they arrive. The reader scrolls to audit the claim, which is the only
+   * reading of this page that ever sells anything.
+   *
+   * 🔴 THE TEN IS NOT A FIGURE OF SPEECH. It is DISQUALIFIED_COST.chain.length. If a
+   * charge is ever added to or removed from that list, this headline becomes a lie that
+   * the page immediately disproves, so change the number with it.
+   */
+  headline: "A disqualified lead costs real money. Not one time, 10 times in 10 different ways.",
   /**
    * 🔴 THE PRODUCT DESCRIPTOR LIVES HERE, NOT IN THE TITLE.
    *
@@ -558,19 +631,195 @@ export const HERO = {
 } as const;
 
 /**
- * The second cost, directly under the hero.
+ * What one disqualified lead actually costs, itemised, directly under the hero.
  *
- * The first cost is in Ads Manager and everybody has already seen it. The one that
- * decides whether this product is worth anything is the hour a rep spends on a call
- * that was never going to close, and that one appears on no invoice - which is exactly
- * why it goes unmanaged.
+ * WHY IT IS ITS OWN SECTION AND WHY IT IS FIRST. The product's whole claim rests on a
+ * premise the reader has never had to accept out loud: that a lead who will never buy is
+ * not merely worthless but EXPENSIVE, and expensive repeatedly rather than once. Every
+ * section after this one is an answer to that premise. Stated as a summary ("bad leads
+ * waste money") it is a platitude nobody argues with and nobody acts on. Itemised, in
+ * the order the charges arrive, it is a bill - and a bill is the only version of this
+ * argument a reader checks against their own accounts instead of nodding at.
+ *
+ * 🔴 THE HERO PROMISES TEN CHARGES AND `chain` IS WHERE THEY ARE COUNTED. The H1 says
+ * "10 times in 10 different ways" because this list has ten entries. Add or remove one
+ * and the headline in HERO has to move with it, or the page disproves itself one scroll
+ * below the claim. The heading here carries the compounding instead, which is the first
+ * and largest of the ten.
+ *
+ * `chain` is SEQUENTIAL and numbered, because the compounding is the point: step six is
+ * where the same person signs up a second time, and steps three, four and seven are the
+ * same charges arriving again. A bulleted list would lose the loop, which is the part
+ * that makes the number large.
+ *
+ * `hidden` is unnumbered, because those are simultaneous rather than consecutive, and
+ * because they are the ones a reader has genuinely never counted - the deliverability
+ * damage, the lookalike seeded from the wrong converters, the calendar slot a real buyer
+ * could not take, and the fact that cost per lead looks healthy the entire time.
+ *
+ * NOT green ticks when this renders. Green means "this is fine" everywhere else on the
+ * page, and every line here is money leaving.
+ */
+export const DISQUALIFIED_COST = {
+  heading: "You are not paying for bad leads once. You are teaching Meta to find more of them.",
+  lead: "A disqualified lead is cheap to acquire and expensive to keep, which is why the charge never shows up anywhere as a single line. Here is the bill, in the order it arrives.",
+  chain: [
+    {
+      text: "They complete the registration, so your pixel reports them as a conversion.",
+      strong: ["reports them as a conversion"],
+    },
+    {
+      text: "Meta believes you, and spends tomorrow finding more people exactly like them.",
+      strong: ["more people exactly like them"],
+    },
+    {
+      text: "They enter your email nurture and stay there indefinitely, on a platform that bills you per contact.",
+      strong: ["bills you per contact"],
+    },
+    {
+      text: "They enter your WhatsApp nurture too, where every template message is a conversation Meta charges you for.",
+      strong: ["Meta charges you for"],
+    },
+    {
+      text: "Somebody builds and maintains the automations that send all of it. That time is paid for once and then paid for again every time they change.",
+      strong: ["paid for again"],
+    },
+    {
+      text: "You launch a second funnel, and the same person signs up again - because nothing in the first one ever marked them.",
+      strong: ["signs up again"],
+    },
+    {
+      text: "So the emails and the WhatsApp messages start over, to the same human being, from a second list.",
+      strong: ["start over"],
+    },
+    {
+      text: "A rep takes the call. Forty-five minutes, a follow-up, and a note in the CRM that goes nowhere.",
+      strong: ["goes nowhere"],
+    },
+    {
+      text: "Or somebody sits and qualifies them by phone across three attempts, because nobody wants to say no in writing.",
+      strong: ["three attempts"],
+    },
+    {
+      text: "And most businesses never find an appointment setter good enough to do that job, so the calls keep being taken by the person who should be closing.",
+      strong: ["should be closing"],
+    },
+  ],
+  hiddenHeading: "And the leaks nobody itemises at all",
+  hidden: [
+    {
+      text: "Your retargeting window keeps paying to put ads in front of them for another thirty days.",
+      strong: ["another thirty days"],
+    },
+    {
+      text: "Your lookalike audiences get built from the wrong converters, so the next campaign starts the same leak, wider.",
+      strong: ["starts the same leak, wider"],
+    },
+    {
+      text: "They never open anything, so your sender reputation falls and the people who would have bought land in the promotions tab.",
+      strong: ["land in the promotions tab"],
+    },
+    {
+      text: "Your assessment tool meters them as a submission, so you pay for the privilege of collecting them.",
+      strong: ["pay for the privilege of collecting them"],
+    },
+    {
+      text: "They take a slot on the calendar that a real buyer then could not take.",
+      strong: ["a real buyer then could not take"],
+    },
+    {
+      text: "Your pipeline report counts them, so the forecast is wrong and the rep gets told to work harder.",
+      strong: ["the forecast is wrong"],
+    },
+    {
+      text: "Cost per lead looks healthy the entire time. Cost per QUALIFIED lead is the number nobody is watching.",
+      strong: ["nobody is watching"],
+    },
+    {
+      text: "And when you finally clean the list, you cannot tell which ones were worth keeping, so the good ones go out with them.",
+      strong: ["the good ones go out with them"],
+    },
+  ],
+  closing:
+    "None of that is a sales problem and none of it is a tooling problem. It is an entry problem, and the entry is the only place it can be fixed.",
+} as const;
+
+/**
+ * The same bill as arithmetic, after the itemised one above it.
+ *
+ * 🔴 IT USED TO SAY "TWICE", AND TWICE IS WRONG. The heading was "A bad lead costs you
+ * twice. The second time is the expensive one", which was written before DISQUALIFIED_COST
+ * existed and was the whole cost argument on the page. It is now the second cost section,
+ * and counting to two directly under a list of eighteen charges both undercounts the
+ * problem and contradicts the section above - where the point is that the charges REPEAT:
+ * the stored contact, the template message, the retargeting, the next campaign.
+ *
+ * So the count is open-ended here and the arithmetic stays, because that is the half this
+ * section does that a list cannot: what the charges come to in a month.
  */
 export const REAL_COST = {
-  heading: "A bad lead costs you twice. The second time is the expensive one.",
-  paras: [
-    "The first cost is the click, and you can see it in Ads Manager. The second cost is the 45 minutes your rep spends on a call that was never going to close, and that one never appears on any invoice.",
-    "Run 40 calls a month. If half are wrong-fit, that is 15 hours gone, plus the ad spend that bought them, plus the spend tomorrow when the algorithm goes looking for more of the same person. The leak is not your sales skill. It is that nothing in your funnel ever told the machine who was worth buying.",
+  heading: "A bad lead is not a cost. It's a draining subscription.",
+  lead: "The click is the only part you can see, and it is the cheapest thing on the list above. Everything after it recurs.",
+
+  /**
+   * The recurring charges, as lines rather than as a sentence.
+   *
+   * These were a single paragraph with a colon and five clauses in it, which is the one
+   * shape this argument cannot afford: a reader skims a long sentence and takes "lots of
+   * small costs" from it, when the point is that each line is a separate bill with its
+   * own billing cycle. One line each, numbered, and a reader counts them.
+   */
+  recurring: [
+    {
+      text: "The contact you pay to store, every month, on a platform that bills you per record.",
+      strong: ["every month"],
+    },
+    {
+      text: "Each template message, because WhatsApp charges per conversation and not per customer.",
+      strong: ["per conversation"],
+    },
+    {
+      text: "The retargeting that keeps serving them, long after anybody could have closed them.",
+      strong: ["keeps serving them"],
+    },
+    {
+      text: "The 45 minutes your rep spends on a call that was never going to close.",
+      strong: ["45 minutes"],
+    },
+    {
+      text: "The campaign tomorrow, which goes looking for more people exactly like them.",
+      strong: ["more people exactly like them"],
+    },
   ],
+
+  /**
+   * 🟡 THE ARITHMETIC IS CHECKABLE, AND THAT IS THE WHOLE POINT OF IT. Twenty wrong-fit
+   * calls at the 45 minutes named above is 15 hours, so a reader who multiplies gets our
+   * number rather than catching us rounding in our own favour. Change the 45 minutes and
+   * this 15 hours has to move with it.
+   */
+  mathHeading: "Run 40 calls a month, and let half of them be wrong-fit.",
+  math: [
+    {
+      text: "Twenty calls at 45 minutes is 15 hours gone, out of the only month you had.",
+      strong: ["15 hours gone"],
+    },
+    {
+      text: "Plus the ad spend that bought those twenty calls in the first place.",
+      strong: ["the ad spend that bought"],
+    },
+    {
+      text: "Plus tomorrow's spend, chasing more of the same person.",
+      strong: ["more of the same person"],
+    },
+    {
+      text: "Then the same bill again next month, because nothing in the funnel ever marked them.",
+      strong: ["the same bill again next month"],
+    },
+  ],
+
+  closing:
+    "The leak is not your sales skill. It is that nothing in your funnel ever told the machine who was worth buying.",
 } as const;
 
 /**
@@ -585,7 +834,7 @@ export const REAL_COST = {
 export const NO_GOOD_LEAD = {
   heading: "The reason most people never set a real bar is fear of losing someone good.",
   intro:
-    "A gate that only says yes or no is a bouncer, and nobody trusts a bouncer with their pipeline. This one is a router. A strong lead with one weak answer is banded and flagged, not lost. A lead who fits everything except your dates finishes the whole assessment, lands on the same result page with a different close, and keeps his place. Each exit reports its own Meta event, or none at all, so a waitlist sign-up never teaches your ads to go and find more people who cannot come.",
+    "A gate that only says yes or no is a bouncer, and nobody trusts a bouncer with their pipeline. This one is a router. A strong lead with one weak answer is banded and flagged, not lost. A lead who fits everything except your dates finishes the whole assessment, lands on the same result page with a different close, and keeps their place. Each exit reports its own Meta event, or none at all, so a waitlist sign-up never teaches your ads to go and find more people who cannot come.",
   /** The four capability titles promoted into this section. Looked up in CAPABILITIES,
    *  so the copy lives in exactly one place and cannot drift from the feature list. */
   titles: [
@@ -640,6 +889,86 @@ export const METERING = {
     },
     { text: "It is the one claim on this page you can verify from your own invoice.", strong: ["verify from your own invoice"] },
   ],
+} as const;
+
+/**
+ * The follow-up group, under the three pillars in the capability grid.
+ *
+ * NOT a fourth pillar, and that is a decision rather than an oversight. The mechanism is
+ * "Gate, Score, Signal", the third step is the one a competitor cannot claim, and a
+ * fourth box in that diagram would read as a fourth differentiator and dilute it. This
+ * is the half that happens AFTER the mechanism has done its job, so it is grouped like a
+ * pillar and labelled like what it is.
+ *
+ * Same contract as a pillar: membership is a list of titles looked up in CAPABILITIES,
+ * so nothing in that list has to be edited to group it, and these cards are added to
+ * `claimed` in supportingCapabilities so they do not render twice.
+ */
+export const FOLLOW_UP = {
+  key: "followup",
+  eyebrow: "After the score",
+  name: "Follow up",
+  tagline: "and no second tool to pay for",
+  body: "A scored lead that waits in a spreadsheet until somebody remembers it is the same as a lead you never got. Booking, contacts, reminders, client onboarding and the payment are all in here - which is the half an assessment tool normally hands back to you and your CRM.",
+  titles: [
+    "Appointment calendar & booking page",
+    "Book from the result page",
+    "Google Calendar, both ways",
+    "Reschedule and cancel, by the respondent",
+    "Attendance as a conversion signal",
+    "Take the payment in the funnel",
+    "Contacts, one row per person",
+    "Automations: a trigger and what it sends",
+    "A meeting link per booking",
+    "Workflow sequences",
+    "Broadcasts",
+  ],
+} as const;
+
+/**
+ * "You will not need a CRM next to this" - its own section, because it is a BUYING
+ * argument and not a feature.
+ *
+ * It earns a section for the same reason the metering claim does: it changes what the
+ * reader is comparing. A scorecard tool is bought next to a CRM; this is bought instead
+ * of one, and a person already paying two subscriptions reads that as a price cut.
+ *
+ * `note` is load-bearing and stays until the switches are flipped. Four of the six
+ * bullets below are features the release catalog is still holding back, and a section
+ * that asserted them flat while the cards beside it said "Coming soon" would contradict
+ * itself on one screen. Saying which is which costs a sentence and buys the paragraph.
+ */
+export const NO_CRM = {
+  heading: "You will not need a CRM next to this.",
+  lead: "The follow-up half is the part an assessment tool normally hands back to you. Handing it back is what makes the second subscription necessary.",
+  points: [
+    {
+      text: "A scored lead becomes a contact here, with its tags and a way out that works.",
+      strong: ["becomes a contact here"],
+    },
+    {
+      text: "The qualified ones book themselves, on the result page they are already reading.",
+      strong: ["book themselves"],
+    },
+    {
+      text: "Confirmations, reminders and follow-ups fire on a trigger, not on somebody remembering.",
+      strong: ["on a trigger"],
+    },
+    {
+      text: "Onboarding a new client runs as a sequence - the steps, the delays, and the message that stops once they have done it.",
+      strong: ["runs as a sequence"],
+    },
+    {
+      text: "You take the payment in the same funnel, so a paying client is a row here rather than a reconciliation.",
+      strong: ["in the same funnel"],
+    },
+    {
+      text: "And one message to a filtered slice of the list, for when all of them need to hear the same thing.",
+      strong: ["a filtered slice of the list"],
+    },
+  ],
+  note: "Live today: the booking calendar, the result-page button, the Google Calendar sync and the payment step. Contacts, automations, sequences and broadcasts are in final testing and release within days - every card further down says which it is.",
+  closing: "I stopped renewing my own CRM from October 2026. This is what replaced it.",
 } as const;
 
 export type Pillar = {
@@ -720,13 +1049,24 @@ export const supportingCapabilities = (): ReadonlyArray<Capability> => {
   // "anything nobody claimed", and promoting the four routing cards into their own
   // section unclaimed them, so they rendered once there and again down here as though
   // they were leftovers. The whole point of promoting them was that they are not.
-  const claimed = new Set([...PILLARS.flatMap((p) => p.titles), ...NO_GOOD_LEAD.titles]);
+  const claimed = new Set([
+    ...PILLARS.flatMap((p) => p.titles),
+    ...NO_GOOD_LEAD.titles,
+    ...FOLLOW_UP.titles,
+  ]);
   return CAPABILITIES.filter((c) => !claimed.has(c.title));
 };
 
 /** Look up the capabilities of one pillar, in the pillar's own order. */
 export const pillarCapabilities = (p: Pillar): ReadonlyArray<Capability> =>
   p.titles
+    .map((t) => CAPABILITIES.find((c) => c.title === t))
+    .filter((c): c is Capability => c !== undefined);
+
+/** The follow-up group's cards, in its own order. The same lookup as a pillar's, and a
+ *  separate function only because FOLLOW_UP is not one of the three steps. */
+export const followUpCapabilities = (): ReadonlyArray<Capability> =>
+  FOLLOW_UP.titles
     .map((t) => CAPABILITIES.find((c) => c.title === t))
     .filter((c): c is Capability => c !== undefined);
 
@@ -760,8 +1100,8 @@ export const WHY_EXISTS = {
       strong: ["worth a call"],
     },
     {
-      text: "So the gate was built. The opt-in was happening before anyone knew who it was.",
-      strong: ["the gate"],
+      text: "The opt-in was happening before anybody knew who it was. So the gate was built.",
+      strong: ["So the gate was built"],
     },
     {
       text: "Then the exclusion event, because the ad account kept buying more of the same wrong people.",
@@ -770,6 +1110,10 @@ export const WHY_EXISTS = {
     {
       text: "Then the qualified-only signal, because Meta was being taught to find form-fillers.",
       strong: ["the qualified-only signal"],
+    },
+    {
+      text: "I stopped renewing my own CRM from October 2026, because the follow-up half ended up in here too.",
+      strong: ["stopped renewing my own CRM"],
     },
     {
       text: "Every feature on this page started as a wall in a live funnel that cost real money.",
@@ -792,6 +1136,6 @@ export const WHY_EXISTS = {
  */
 export const AUDIENCES = {
   heading: "Who it is for",
-  lead: "Anyone who buys traffic and pays for it twice: once for the click, and again in the hour someone spends on a call that was never going to close.",
+  lead: "Anyone who buys traffic and then keeps paying for the wrong half of it: the click, the hour on a call that was never going to close, the nurture that runs for months, and the next campaign that goes looking for more of them.",
   note: "Every audience below has a ready-made scorecard in the library, with the gate questions already written. Start from one and change the wording, or write your own from scratch.",
 } as const;

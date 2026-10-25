@@ -6,6 +6,7 @@ import { buildSpine } from "@/lib/routing/engine";
 import { parseDocument, type ParseResult } from "./format";
 import { importedGate } from "./gate";
 import { normalizeCustomFields } from "@/features/assessment/custom-fields";
+import { nextVersionNumber } from "@/lib/ai/versions";
 
 export type { ParseResult };
 
@@ -420,6 +421,12 @@ export async function performImportAll(
           tenantId,
           body: item.body,
         });
+        await bindImportedPrompt(tx, {
+          assessmentId: createdRow.id,
+          assessmentTitle: createdRow.title,
+          tenantId,
+          body: item.body,
+        });
         await applyImportedRoutes(tx, createdRow.id, item.body);
       }
       return { count: items.length, renamed };
@@ -544,4 +551,68 @@ export async function createResultDocsForImport(
     });
     await tx.assessment.update({ where: { id: args.assessmentId }, data: { vslDocId: doc.id } });
   }
+}
+
+/**
+ * An imported funnel gets its OWN prompt, or no AI statement at all.
+ *
+ * 🔴 THE BUG THIS CLOSES. `useAiStatement` is part of the transfer shape and the prompt
+ * was not, so a funnel imported from a file arrived with the statement switched ON and
+ * nothing of its own to say. The generator then fell back to the importing tenant's
+ * prompt - and on a walk-through of the India travel funnel that produced a coaching
+ * intervention: "this is an alarming situation", "you may be at the edge of something",
+ * an instruction to watch a training video that the page did not have, and a mental
+ * health helpline offered to somebody who had answered twelve questions about a holiday.
+ * Nothing was broken. Each piece did exactly what it was told by a prompt written for a
+ * different product.
+ *
+ * The template shelf already had the right rule (features/templates/actions/library.ts):
+ * instructions become a version owned by the importing tenant, and a template with none
+ * turns the statement OFF rather than borrowing one. This is that rule for the file path,
+ * which is the one a customer migrating from another tool and an owner restoring their
+ * own export both go through.
+ *
+ * The version is the importing TENANT's, never a shared row: a prompt is content they
+ * can then edit in their own AI screens without touching the funnel it came from.
+ */
+async function bindImportedPrompt(
+  tx: ImportTx,
+  args: {
+    assessmentId: string;
+    assessmentTitle: string;
+    tenantId: string | null;
+    body: AssessmentBodyExport;
+  },
+): Promise<void> {
+  const instructions = (args.body.aiInstructions ?? "").trim();
+
+  if (!instructions) {
+    // No prompt of its own. Turning the flag off is the honest outcome: "no statement"
+    // is a visible, fixable absence, where "somebody else's statement" is a wrong answer
+    // that looks like a working feature. Only written when the flag was actually on, so
+    // an ordinary import still writes nothing extra.
+    if (args.body.useAiStatement) {
+      await tx.assessment.update({
+        where: { id: args.assessmentId },
+        data: { useAiStatement: false },
+      });
+    }
+    return;
+  }
+
+  const number = await nextVersionNumber(args.tenantId, tx);
+  const version = await tx.aiPromptVersion.create({
+    data: {
+      tenantId: args.tenantId,
+      number,
+      label: `V${number} - ${args.assessmentTitle}`.slice(0, 120),
+      // Same ceiling the AI screens enforce, so an imported version can be edited there.
+      instructions: instructions.slice(0, 20000),
+    },
+    select: { id: true },
+  });
+  await tx.assessment.update({
+    where: { id: args.assessmentId },
+    data: { aiPromptVersionId: version.id, useAiStatement: true },
+  });
 }

@@ -195,8 +195,8 @@ export function OfferDetail({
                 The plan is the reader's choice and all four are shown so they make it,
                 but the only call to action on this page is the application: a trial
                 button here would let somebody start the 14-day clock BEFORE we have
-                checked their ad account, which is the one order in which the 21 days
-                cannot be delivered. That is also why TIERS is read directly instead of
+                checked their ad account, and the build now fills that trial exactly, so
+                there is no spare day to spend on the check. That is also why TIERS is read directly instead of
                 reusing <Pricing>, which carries a trial CTA in every column. */}
             <div className="mt-6 rounded-xl border bg-[var(--muted)] p-5">
               <h4 className="font-semibold">The plans, so you know what you are choosing</h4>
@@ -250,8 +250,8 @@ export function OfferDetail({
               </p>
               <p className="mt-2 leading-relaxed text-[var(--muted-foreground)]">
                 {offer.builder.built} They are in your ad account and your workspace for the
-                21 days, on the calls with you, and they are the same person on day 1 and on
-                day 21.
+                14 days, on support with you, and they are the same person on day 1 and on
+                day 14.
               </p>
             </div>
           </>
@@ -291,7 +291,7 @@ export function OfferDetail({
           </>
         ) : null}
 
-        <h3 className="mt-12 text-lg font-semibold">The 21 days</h3>
+        <h3 className="mt-12 text-lg font-semibold">The 14 days</h3>
         {offer.clockNote && open ? (
           <p className="mt-3 leading-relaxed text-[var(--muted-foreground)]">{offer.clockNote}</p>
         ) : null}

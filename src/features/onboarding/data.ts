@@ -313,12 +313,37 @@ export async function getStarterTemplates(tenantId: string): Promise<
     gateQuestions: number;
     hasResultsPage: boolean;
     hasVslPage: boolean;
+    /** This is the one for their industry, so the card can say so. */
+    matchesIndustry: boolean;
   }>
 > {
-  const items = await listTemplatesForTenant(tenantId);
+  const [items, tenant] = await Promise.all([
+    listTemplatesForTenant(tenantId),
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { industry: true } }),
+  ]);
+
+  /**
+   * Their industry first, then the house order.
+   *
+   * 🟡 SORTED, NOT FILTERED. Showing only the matching template would be worse than
+   * showing six: the categories are broad, a consultant may well want the coaches one,
+   * and a list of one reads as a product with one template in it. So the match is first
+   * and flagged, and the rest stay visible underneath.
+   *
+   * The industry answer IS a Template.category, which is why this is an equality test
+   * and not a search. "other" matches nothing on purpose - that is the whole signal.
+   */
+  const mine = tenant?.industry ?? null;
+  const matches = (c: string) => mine !== null && mine !== "other" && c === mine;
+
   return items
     .filter((t) => t.importable)
-    .sort((a, b) => a.displayOrder - b.displayOrder || a.title.localeCompare(b.title))
+    .sort(
+      (a, b) =>
+        Number(matches(b.category)) - Number(matches(a.category)) ||
+        a.displayOrder - b.displayOrder ||
+        a.title.localeCompare(b.title),
+    )
     .slice(0, 6)
     .map((t) => ({
       id: t.id,
@@ -329,5 +354,6 @@ export async function getStarterTemplates(tenantId: string): Promise<
       gateQuestions: t.gateQuestions,
       hasResultsPage: t.hasResultsPage,
       hasVslPage: t.hasVslPage,
+      matchesIndustry: matches(t.category),
     }));
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin, editDenied } from "@/lib/auth/guards";
+import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { env } from "@/lib/env";
 import { encryptWithSecret } from "@/lib/crypto";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -540,4 +541,66 @@ export async function setPlatformWaba(enabled: boolean): Promise<ActionResult> {
   revalidatePath("/admin/nurture");
   revalidatePath("/w/nurture");
   return { ok: true };
+}
+
+/**
+ * The booking link for the 30-minute setup call (singleton row).
+ *
+ * 🟡 A CHOSEN BOOKING TYPE, NOT A PASTED URL, WHEREVER POSSIBLE. The call is booked on
+ * this app's own calendar, served at /b/<slug>, so picking the type means the link
+ * cannot be mistyped and cannot rot when a slug is renamed: resolveCallBookingUrl reads
+ * the slug fresh every time. The pasted URL is for an external calendar only, and the
+ * two are exclusive so there is never a question of which one is in force.
+ *
+ * Clearing both switches the offer off everywhere at once. That is deliberate and it is
+ * the state this ships in: a booking button with nowhere to book is worse than no
+ * button, so every caller treats "unset" as "do not offer the call".
+ */
+export async function updateCallBooking(
+  bookingTypeId: string,
+  url: string,
+): Promise<ActionResult> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return denied;
+
+  const id = bookingTypeId.trim();
+  const clean = url.trim();
+  if (id && clean) {
+    return { ok: false, error: "Pick a booking type or paste an external URL, not both." };
+  }
+  if (clean && !/^https:\/\//i.test(clean)) {
+    return { ok: false, error: "Use a full https:// URL, or leave it blank." };
+  }
+  if (id) {
+    // Proving it exists here means the ribbon can never be lit by a stale id, and the
+    // owner finds out now rather than from a tenant hitting a dead page.
+    const t = await prisma.bookingType.findUnique({ where: { id }, select: { active: true } });
+    if (!t) return { ok: false, error: "That booking type no longer exists." };
+    if (!t.active) return { ok: false, error: "That booking type is switched off, so it offers no slots." };
+  }
+
+  const data = { callBookingTypeId: id || null, callBookingUrl: clean || null };
+  await prisma.appSetting.upsert({
+    where: { id: "singleton" },
+    update: data,
+    create: { id: "singleton", ...data },
+  });
+  revalidatePath("/admin/settings");
+  // The trial ribbon is rendered by the workspace layout for every tenant at once.
+  revalidatePath("/w", "layout");
+  return { ok: true };
+}
+
+/** The platform's own booking types, for the picker. Active ones only: an inactive type
+ *  has a page but no slots, so it is not a choice. */
+export async function listPlatformBookingTypes(): Promise<
+  Array<{ id: string; name: string; slug: string; durationMin: number }>
+> {
+  const denied = editDenied(await requireSuperAdmin());
+  if (denied) return [];
+  return prisma.bookingType.findMany({
+    where: { tenantId: PLATFORM_TENANT_ID, active: true },
+    select: { id: true, name: true, slug: true, durationMin: true },
+    orderBy: { name: "asc" },
+  });
 }

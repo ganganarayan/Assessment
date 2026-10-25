@@ -2,6 +2,8 @@ import "server-only";
 import { runDueAutomations } from "@/lib/automation/run";
 import { pruneAutomationHistory } from "@/lib/automation/retention";
 import { syncDueAppointments } from "@/lib/google/calendar";
+import { sweepTimePassedAppointments } from "@/lib/calendar/time-passed";
+import { sendDueLifecycle } from "@/lib/lifecycle/send";
 
 /**
  * The clock, inside the app.
@@ -50,7 +52,6 @@ const MAX_PASSES = 20;
 const PRUNE_EVERY_MS = 60 * 60_000;
 /** The first tick after boot: soon, because anything overdue has been waiting. */
 const BOOT_DELAY_MS = 5_000;
-
 let started = false;
 let lastPruneAt = 0;
 
@@ -82,6 +83,55 @@ async function tick(): Promise<void> {
     await syncDueAppointments();
   } catch (e) {
     console.error("[automation-scheduler] google sync failed:", e instanceof Error ? e.message : String(e));
+  }
+
+  /**
+   * The one trigger nothing emits: a call whose hour passed with nobody marking it.
+   *
+   * It belongs on the heartbeat rather than at a write site because there IS no write
+   * site - the whole point is that nobody did anything. One indexed query that returns
+   * nothing on a quiet tick, same as the drain above it.
+   */
+  try {
+    const fired = await sweepTimePassedAppointments();
+    if (fired) console.log(`[automation-scheduler] ${fired} unmarked call(s) started a sequence`);
+  } catch (e) {
+    console.error(
+      "[automation-scheduler] time-passed sweep failed:",
+      e instanceof Error ? e.message : String(e),
+    );
+  }
+
+  /**
+   * THE TRIAL LIFECYCLE SENDER, which belongs here and whose planner does not.
+   *
+   * 🔴 NEITHER HALF OF THE LIFECYCLE NEEDS A RAILWAY CRON, and both were wrongly
+   * specced with one. The argument at the top of this file applies word for word: an
+   * external cron is a thing somebody has to remember to create and nobody ever
+   * remembers to verify, and a container woken every five minutes to ask an empty
+   * queue a question is a container start, a cold boot and a fresh connection pool,
+   * 288 times a day, to learn nothing.
+   *
+   * 🟡 BUT THE PLANNER IS NOT ON THIS TICK, and that is the point of lib/lifecycle/
+   * heartbeat.ts. This tick is a chain: the next beat is scheduled only once the last
+   * job returns, so everything on it has to finish in milliseconds or it becomes
+   * everybody else's delay. The planner can spend a minute per person on an AI call.
+   * The sender cannot: it is one indexed query over (status, dueAt), which is exactly
+   * how a 06:00 planning run turns into messages arriving at each person's own hour
+   * instead of all at 06:00. A quiet beat is a probe that returns nothing.
+   */
+  try {
+    const s = await sendDueLifecycle();
+    if (s.sent || s.failed || s.skipped) {
+      console.log(
+        `[automation-scheduler] lifecycle sent ${s.sent}, skipped ${s.skipped}, failed ${s.failed}, whatsapp ${s.waSent}/${s.waSent + s.waFailed}`,
+      );
+    }
+  } catch (e) {
+    console.error(
+      "[automation-scheduler] lifecycle send failed:",
+      e instanceof Error ? e.message : String(e),
+    );
   }
 
   try {

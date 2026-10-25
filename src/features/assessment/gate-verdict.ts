@@ -13,7 +13,11 @@
  * So the rule lives here, dependency-free, and the two server modules read it. Nothing
  * about the behaviour changes; what changes is that there is now one of it.
  */
-import type { QualificationInput } from "@/features/assessment/schemas";
+import {
+  WAITLIST_EXIT_KEY,
+  optionOutcome,
+  type QualificationInput,
+} from "@/features/assessment/schemas";
 import type { GateAnswer } from "@/lib/result/gate";
 
 /** What the gate awarded, and what it could have awarded. */
@@ -83,19 +87,35 @@ export interface GateVerdict {
 /**
  * The gate's verdict on one respondent.
  *
- * A disqualifying answer outranks any total: it is a statement about fit, not a score.
+ * THREE OUTCOMES IN PRECEDENCE ORDER, and the order is the point.
+ *
+ * A DISQUALIFYING answer outranks everything: it is a statement about fit, not a score,
+ * and it ends the visit where it was clicked.
+ *
+ * A WAITLIST answer does not end anything. It is remembered and settled here, after the
+ * last question, because a waitlisted person is a fit whose timing is wrong - throwing
+ * away the rest of their answers to hurry them off the page costs the owner the only
+ * record of who they were. This is why the waitlist is checked after the whole loop
+ * rather than inside it: one disqualifying answer anywhere still wins, however late it
+ * comes, but nothing short of one cuts the gate short.
+ *
  * Then the bands, and only if they are enabled - a gate without bands is a yes/no door
- * and everybody who did not hit a disqualifying answer is through.
+ * and everybody who dodged a disqualifying answer is through.
  */
 export function gateVerdict(
   q: QualificationInput,
   choices: Record<string, string>,
 ): GateVerdict {
+  let waitlisted = false;
   for (const question of q.questions) {
     if (question.type !== "choice") continue;
     const picked = question.options.find((o) => o.id === choices[question.id]);
-    if (picked?.disqualifies) return { outcome: "exit", exitKey: picked.exitKey ?? "" };
+    if (!picked) continue;
+    const outcome = optionOutcome(picked);
+    if (outcome === "DISQUALIFY") return { outcome: "exit", exitKey: picked.exitKey ?? "" };
+    if (outcome === "WAITLIST") waitlisted = true;
   }
+  if (waitlisted) return { outcome: "exit", exitKey: WAITLIST_EXIT_KEY };
   if (!q.bands.enabled) return { outcome: "pass" };
   const { score } = gateTotals(q, choices);
   if (score >= q.bands.passMin) return { outcome: "pass" };

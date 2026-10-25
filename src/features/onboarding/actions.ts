@@ -27,7 +27,10 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
  */
 
 /** Save one answer and return where that leaves them. */
-export async function answerOnboardingStep(key: string, value: string): Promise<ActionResult<OnboardingView>> {
+export async function answerOnboardingStep(
+  key: string,
+  value: string,
+): Promise<ActionResult<OnboardingView & { message?: string }>> {
   const { user, tenantId } = await requireWorkspace();
   const denied = editDenied(user);
   if (denied) return denied;
@@ -50,7 +53,11 @@ export async function answerOnboardingStep(key: string, value: string): Promise<
   if (!saved.ok) return saved;
 
   await journal(tenantId, key, step.kind === "secret" ? null : clean);
-  return view(tenantId, user.id);
+  const next = await view(tenantId, user.id);
+  // The receipt rides back WITH the new view rather than in a channel of its own, so
+  // the dialog cannot show a note about a save whose state it failed to adopt.
+  if (next.ok && next.data && saved.note) return { ok: true, data: { ...next.data, message: saved.note } };
+  return next;
 }
 
 /** "I will do this later". Recorded, so the sequence stops asking and the step is still

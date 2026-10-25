@@ -3,13 +3,11 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { isStandardMetaEvent } from "@/lib/meta/event-catalog";
 
-/** Meta standard events use track(); anything else (e.g. AssessmentCompleted) uses trackCustom(). */
-const STANDARD_EVENTS = new Set([
-  "PageView", "ViewContent", "Search", "AddToCart", "AddToWishlist", "InitiateCheckout",
-  "AddPaymentInfo", "Purchase", "Lead", "CompleteRegistration", "Contact", "CustomizeProduct",
-  "Donate", "FindLocation", "Schedule", "StartTrial", "SubmitApplication", "Subscribe",
-]);
+// Meta standard events use track(); anything else (e.g. AssessmentCompleted) uses
+// trackCustom(). The list moved to lib/meta/event-catalog so this page and the CAPI
+// tester below it cannot disagree about which names are standard.
 
 type FbqFn = ((...args: unknown[]) => void) & {
   callMethod?: (...args: unknown[]) => void;
@@ -63,7 +61,7 @@ export function PixelTester() {
       fbq("init", id);
       initedId.current = id;
     }
-    const kind = STANDARD_EVENTS.has(ev) ? "track" : "trackCustom";
+    const kind = isStandardMetaEvent(ev) ? "track" : "trackCustom";
     fbq(kind, ev);
     const ts = new Date().toISOString().slice(11, 19);
     setLog((l) => [`${ts}  ${kind}("${ev}") → pixel ${id}`, ...l].slice(0, 50));

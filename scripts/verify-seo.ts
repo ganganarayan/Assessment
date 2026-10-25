@@ -23,6 +23,7 @@ import { ANSWERS, PAGES, TOPICS, auditContent } from "../src/lib/seo/registry";
 import { buildKeywordMap } from "../src/lib/seo/keyword-map";
 import { isPlatformHost, PLATFORM_HOST } from "../src/lib/seo/urls";
 import { publicSitemapEntries } from "../src/lib/seo/sitemap-entries";
+import { HERO, DISQUALIFIED_COST, REAL_COST } from "../src/lib/marketing/content";
 import { publicRobotsRules } from "../src/app/robots";
 import { MARKETING } from "../src/lib/marketing/content";
 
@@ -158,6 +159,47 @@ function main(): void {
     for (const f of failures) console.error(`  - ${f}`);
     process.exit(1);
   }
+  /**
+   * The home page's H1 makes a countable claim, and the section under it is the count.
+   *
+   * "10 times in 10 different ways" is only persuasive because a reader can scroll one
+   * section and audit it, so the number has to equal the length of the bill. Nothing in
+   * TypeScript connects a sentence to an array length: the headline is a string and the
+   * chain is data, and adding an eleventh charge would leave the page disproving itself
+   * one scroll below its own promise. Hence a check.
+   */
+  const claimed = HERO.headline.match(/(\d+)\s+times/);
+  if (!claimed) {
+    failures.push("hero: the H1 no longer states a countable number of charges, so the bill below it is unanchored");
+  } else if (Number(claimed[1]) !== DISQUALIFIED_COST.chain.length) {
+    failures.push(
+      `hero: the H1 claims ${claimed[1]} charges and DISQUALIFIED_COST.chain lists ${DISQUALIFIED_COST.chain.length}`,
+    );
+  }
+
+  /**
+   * RealCost's worked example has to actually work out.
+   *
+   * The whole section invites a reader to check it against their own accounts, so the
+   * one unrecoverable error here is arithmetic that does not survive being multiplied:
+   * somebody who catches us rounding in our own favour stops believing the eighteen
+   * charges listed above it too. The three numbers live in three separate sentences, so
+   * editing one of them and not the others is a one-word change away at all times.
+   */
+  const calls = REAL_COST.mathHeading.match(/(\d+)\s+calls/);
+  const minutes = REAL_COST.recurring.map((r) => r.text.match(/(\d+)\s+minutes/)).find(Boolean);
+  const hours = REAL_COST.math.map((r) => r.text.match(/(\d+)\s+hours/)).find(Boolean);
+  if (!calls || !minutes || !hours) {
+    failures.push("real cost: the worked example no longer states calls, minutes and hours, so it cannot be checked");
+  } else {
+    const expected = (Number(calls[1]) / 2) * (Number(minutes[1]) / 60);
+    if (expected !== Number(hours[1])) {
+      failures.push(
+        `real cost: half of ${calls[1]} calls at ${minutes[1]} minutes is ${expected} hours, but the page says ${hours[1]}`,
+      );
+    }
+  }
+
   console.log("\nseo content OK");
 }
 

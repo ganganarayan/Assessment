@@ -173,5 +173,15 @@ export async function GET(
     await sendCtaNotification(clickId).catch(() => {});
   }
 
-  return destination ? NextResponse.redirect(destination, 302) : fallback();
+  // No destination saved on the button: back to THEIR OWN result page, which is where
+  // they clicked from and is theirs to re-read, rather than the platform's marketing
+  // home page. A respondent who has just asked a travel agency for a call should not
+  // land on the software's pricing page, and until the owner pastes their booking link
+  // that is exactly what `fallback()` did. The two fallback() calls above stay: those
+  // are a missing submission or a missing block, where there is no page of theirs to
+  // return to.
+  return NextResponse.redirect(
+    destination ?? ctaResultUrl(env.NEXT_PUBLIC_APP_URL, sub.assessment.slug, sub.id, sub.resultToken),
+    302,
+  );
 }

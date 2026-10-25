@@ -57,6 +57,7 @@ export interface StarterTemplate {
   gateQuestions: number;
   hasResultsPage: boolean;
   hasVslPage: boolean;
+  matchesIndustry: boolean;
 }
 
 export function OnboardingDialog({
@@ -65,19 +66,37 @@ export function OnboardingDialog({
   whatsapp,
   /** /w/start: somebody asked for the sequence by name, so it is open on arrival. */
   alwaysOpen = false,
+  /**
+   * Open on THIS question rather than on the next unanswered one.
+   *
+   * The trial ribbon lists the booking prerequisites as links, and an item that opened
+   * the sequence at wherever it happened to be would be a link that does not go where it
+   * says. Null means the usual behaviour: carry on where they left off.
+   */
+  startAt = null,
 }: {
   initial: OnboardingView;
   templates: StarterTemplate[];
   whatsapp: WhatsAppConnectView | null;
   alwaysOpen?: boolean;
+  startAt?: string | null;
 }) {
   const router = useRouter();
   const [view, setView] = useState(initial);
   const [open, setOpen] = useState(alwaysOpen);
-  const [cursor, setCursor] = useState<string | null>(initial.currentKey);
+  const [cursor, setCursor] = useState<string | null>(startAt ?? initial.currentKey);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  /**
+   * A receipt for something that happened BEHIND a save, kept apart from `note`.
+   *
+   * `note` is cleared whenever the question changes, which is right for it: it reports
+   * on the step being looked at. A receipt reports on a side effect of the step just
+   * left, so it has to outlive the move to the next question or it would be set and
+   * wiped in the same tick. Cleared on the next answer, and when the dialog closes.
+   */
+  const [receipt, setReceipt] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -150,13 +169,19 @@ export function OnboardingDialog({
     const payload = (raw ?? value).trim();
     setBusy(true);
     setError(null);
+    setReceipt(null);
     const r = await answerOnboardingStep(step.key, payload);
     setBusy(false);
     if (!r.ok) {
       setError(r.error);
       return;
     }
-    if (r.data) adopt(r.data);
+    if (r.data) {
+      adopt(r.data);
+      // Only the Conversions API token reports anything back, and it is the one thing a
+      // tenant cannot see for themselves: three events have left for their pixel.
+      if (r.data.message) setReceipt(r.data.message);
+    }
   }
 
   async function skip() {
@@ -220,6 +245,7 @@ export function OnboardingDialog({
     } catch {
       // Not being able to remember it is not a reason to refuse to close it.
     }
+    setReceipt(null);
     setOpen(false);
     router.refresh();
   }
@@ -313,6 +339,16 @@ export function OnboardingDialog({
                 )
               ) : step.kind === "handoff" ? (
                 <div className="flex flex-col gap-2">
+                  {/* Nothing in the library fits them. Said once, here, where they are
+                      about to pick one, and said as a thing we are doing rather than a
+                      thing they lack: the owner has already been told by email. */}
+                  {templates.length > 0 && !templates.some((t) => t.matchesIndustry) ? (
+                    <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                      We do not have a ready-made funnel for your industry yet. Start from the
+                      closest one below and we will shape it to you on the call, or wait for
+                      yours - we are writing it.
+                    </p>
+                  ) : null}
                   {templates.length === 0 ? (
                     <p className="text-sm text-[var(--muted-foreground)]">
                       There are no templates on the shelf yet. You can start from a blank builder instead.
@@ -327,6 +363,11 @@ export function OnboardingDialog({
                         className="rounded-lg border border-[var(--border)] p-3 text-left text-sm transition-colors hover:border-green-600 hover:bg-green-600/5 disabled:opacity-60"
                       >
                         <span className="font-medium">{t.title}</span>
+                        {t.matchesIndustry ? (
+                          <span className="ml-2 rounded bg-green-600/15 px-1.5 py-0.5 text-[11px] font-semibold text-green-700 dark:text-green-400">
+                            Yours
+                          </span>
+                        ) : null}
                         <span className="block text-xs text-[var(--muted-foreground)]">
                           {t.category} · {t.gateQuestions} gate · {t.questions} scored
                           {pageKind === "VSL" && t.hasVslPage
@@ -387,6 +428,11 @@ export function OnboardingDialog({
 
             {error ? <p className="mt-3 text-sm text-amber-700">{error}</p> : null}
             {note ? <p className="mt-3 text-sm text-green-700">{note}</p> : null}
+            {receipt ? (
+              <p className="mt-3 rounded-lg border border-green-600/40 bg-green-600/10 p-3 text-sm">
+                {receipt}
+              </p>
+            ) : null}
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
               {TYPED_KINDS.has(step.kind) ? (

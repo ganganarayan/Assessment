@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { AppBrand } from "@/components/app-brand";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import {
   listTenants,
@@ -13,16 +12,13 @@ import { getLandingVideosRaw } from "@/features/platform/landing-videos";
 import { CtaOfferCard } from "@/features/platform/components/cta-offer-card";
 import { getCtaOfferRaw } from "@/features/platform/cta-offer";
 import { StorageSettingsCard } from "@/features/platform/components/storage-settings-card";
-import { FeatureReleasesCard } from "@/features/platform/components/feature-releases-card";
-import { listFeatureReleases } from "@/features/platform/feature-releases";
 import { getStorageSettings } from "@/features/platform/storage-settings";
-import { SignOutButton } from "@/features/auth/components/sign-out-button";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlatformPage() {
   const me = await requireSuperAdmin();
-  const [t, dt, u, d, lv, st, cta, fr] = await Promise.all([
+  const [t, dt, u, d, lv, st, cta] = await Promise.all([
     listTenants(),
     listDeletedTenants(),
     listUsers(),
@@ -30,16 +26,16 @@ export default async function PlatformPage() {
     getLandingVideosRaw(),
     getStorageSettings(),
     getCtaOfferRaw(),
-    listFeatureReleases(),
   ]);
   // Any loader that failed (a transient DB error) surfaces as a banner - the page
   // still renders with whatever loaded, instead of a full-page server crash.
-  const loadErrors = [t, dt, u, d, lv, st, cta, fr]
+  const loadErrors = [t, dt, u, d, lv, st, cta]
     .filter((r): r is { ok: false; error: string } => !r.ok)
     .map((r) => r.error);
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
-      <AppBrand href="/platform" subtitle="Platform console" />
+      {/* No wordmark and no sign-out here any more: the rail carries both, and two of
+          each on one screen is how a page announces that it was built on its own. */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Platform console</h1>
@@ -63,7 +59,6 @@ export default async function PlatformPage() {
           >
             Assessment admin
           </Link>
-          <SignOutButton />
         </div>
       </div>
       {loadErrors.length > 0 ? (
@@ -83,7 +78,6 @@ export default async function PlatformPage() {
         initialDeletedUsers={d.ok && d.data ? d.data : []}
         currentUserId={me.id}
       />
-      {fr.ok && fr.data ? <FeatureReleasesCard initial={fr.data} /> : null}
       {/* The offer first, then the videos: what the buttons say and where they go is
           the landing page's whole job, and the videos dress it. */}
       {cta.ok && cta.data ? (

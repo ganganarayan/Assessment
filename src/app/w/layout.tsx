@@ -18,6 +18,8 @@ import { WorkspaceLocked } from "@/features/billing/components/workspace-locked"
 import { TrialWelcomeModal } from "@/features/billing/components/trial-welcome-modal";
 import { OnboardingDialog } from "@/features/onboarding/components/onboarding-dialog";
 import { getOnboardingView, getStarterTemplates } from "@/features/onboarding/data";
+import { outstandingPrerequisites } from "@/features/onboarding/prerequisites";
+import { resolveCallBookingUrl } from "@/lib/settings/config";
 import { getWhatsAppConnectInfo } from "@/features/whatsapp/actions";
 import { SupportStrip } from "@/features/billing/components/support-strip";
 import { headers } from "next/headers";
@@ -192,6 +194,20 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   const whatsappConnect =
     onboarding?.currentKey === "whatsappConnect" ? await getWhatsAppConnectInfo() : null;
 
+  /**
+   * The setup call, for the trial ribbon.
+   *
+   * Three conditions, and all three are the honest ones: only on a trial, only when the
+   * owner has configured a calendar, and only when there is an onboarding view to read
+   * the prerequisites from. An impersonating super admin or view-only staff has no
+   * onboarding view by the rule above, so neither is offered somebody else's call.
+   */
+  const callBookingUrl = onTrial ? await resolveCallBookingUrl() : null;
+  const booking =
+    onboarding && callBookingUrl
+      ? { url: callBookingUrl, outstanding: outstandingPrerequisites(onboarding.steps) }
+      : null;
+
   return (
     // The provider is what lets the sidebar switch the builder panels: the nav holds the
     // tabs, the editor page renders them, and both read the same React state so an
@@ -231,7 +247,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         {/* Below the impersonation strip on purpose: when an owner enters a parked
             tenant, "who am I acting as" has to be read before "what state is it in",
             or the paused notice looks like the owner's own account. */}
-        <BillingBanner resolved={resolved} usage={responseUsage} />
+        <BillingBanner resolved={resolved} usage={responseUsage} booking={booking} />
         {/* The standing offer. Below the billing strip because "what state is my
             account in" has to be read before "who to call about it". */}
         {onTrial ? <SupportStrip /> : null}

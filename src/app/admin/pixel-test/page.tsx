@@ -3,7 +3,8 @@ import { CapiTester } from "@/features/events/components/capi-tester";
 import { ManualPurchaseResend } from "@/features/events/components/manual-purchase-resend";
 import { PurchaseRecovery } from "@/features/events/components/purchase-recovery";
 import { CapiLogPanel } from "@/features/events/components/capi-log-panel";
-import { listRecentPurchases, listCapiLogs } from "@/features/events/data";
+import { listRecentPurchases, listCapiLogs, listConfiguredEventNames } from "@/features/events/data";
+import { buildEventChoices } from "@/lib/meta/event-catalog";
 import { getPurchaseSettingsForm } from "@/features/events/actions/capi-test";
 import { actingTenantId } from "@/lib/tenant/acting";
 import { getAdAccountsView } from "@/features/admin/actions/ad-account";
@@ -18,6 +19,10 @@ export default async function PixelTestPage() {
   const purchases = await listRecentPurchases(t);
   const capiLogs = await listCapiLogs(t);
   const purchaseSettings = await getPurchaseSettingsForm();
+  // The event list for the CAPI tester: the funnel's own events (from the builder's own
+  // table) plus the names this workspace actually configured, so it never offers a name
+  // nothing fires or omits one somebody renamed.
+  const eventChoices = buildEventChoices(await listConfiguredEventNames(t));
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -33,7 +38,7 @@ export default async function PixelTestPage() {
 
       <PixelTester />
 
-      <CapiTester accounts={adAccounts} />
+      <CapiTester accounts={adAccounts} events={eventChoices} />
 
       <div className="rounded-lg border border-blue-500/40 bg-blue-500/10 p-3 text-xs text-[var(--muted-foreground)]">
         <strong className="text-[var(--foreground)]">Purchase dedup rule.</strong> This app fires the

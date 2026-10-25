@@ -39,7 +39,14 @@ const SECTIONS: NavSection[] = [
       // Separate from Tenants on purpose: that list is read while operating a
       // workspace, this one is read down a column to see who pays and what they cost.
       { href: "/platform/accounts", label: "Accounts" },
+      // The switches that hold a finished feature back from every tenant. Its own page,
+      // not a card under the tenant list, where it was below the fold on a real account.
+      { href: "/platform/releases", label: "Feature releases" },
       { href: "/platform/stats", label: "Marketing stats" },
+      // The file store whose links get pasted into other products (VidaPulse, an LMS,
+      // a landing page). Under Platform because it is the owner's own vault, not
+      // something a tenant drives yet.
+      { href: "/admin/vault", label: "Vault" },
       // The done-for-you queue. Under Platform rather than Leads: these are applicants
       // to the offer, not respondents to anybody's funnel.
       { href: "/admin/build-requests", label: "Build requests" },
@@ -116,6 +123,10 @@ const SECTIONS: NavSection[] = [
       // the thing you decide to send today.
       { href: "/admin/broadcasts", label: "Broadcasts" },
       { href: "/admin/nurture", label: "Nurture" },
+      // Last of the senders, and the only one pointed at our OWN customers rather
+      // than a tenant's respondents. It sits here because it is automation; it reads
+      // differently from everything above it because the audience is different.
+      { href: "/admin/lifecycle", label: "Trial lifecycle" },
       { href: "/admin/webhooks", label: "Webhooks", exact: true },
       { href: "/admin/webhook-logs", label: "Webhook Logs" },
     ],

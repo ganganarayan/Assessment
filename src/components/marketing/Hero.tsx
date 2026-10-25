@@ -9,10 +9,12 @@ import { VideoEmbed } from "./VideoEmbed";
 // them can make - the exclusion signal that retrains the ad account - was sitting at
 // capability eleven. Copy lives in HERO so the page and the ads cannot drift apart.
 //
-// Alternate headlines kept, in case the mechanism line tests worse:
-//  1. "Know which leads are worth a sales call - before you make one."  (previous H1)
-//  2. "Turn a scorecard into a qualified pipeline."
-//  3. "Score every lead against your fit criteria. Talk only to the ready ones."
+// Alternate headlines kept, in case the counted line tests worse:
+//  1. "You are not paying for bad leads once. You are teaching Meta to find more of
+//     them."  (previous H1, now the heading of the bill section below the hero)
+//  2. "Know which leads are worth a sales call - before you make one."
+//  3. "Turn a scorecard into a qualified pipeline."
+//  4. "Score every lead against your fit criteria. Talk only to the ready ones."
 export async function Hero({ video }: { video?: string | null }) {
   const cta = await getCta();
 

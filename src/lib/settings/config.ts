@@ -466,6 +466,40 @@ export async function resolveOnboardingVideoUrl(): Promise<string | null> {
 }
 
 /**
+ * Where somebody books the 30-minute setup call. Null means nowhere is configured yet,
+ * and every caller treats that as "do not offer the call at all".
+ *
+ * 🟡 ONE ANSWER, FIVE CALLERS. The trial ribbon, the welcome email, the WhatsApp at
+ * trial start, the lifecycle nudge and the import step all ask this function. They used
+ * to be the five places a link would have been pasted, which is five chances to point
+ * at a calendar that has been renamed.
+ *
+ * A chosen booking type wins over the pasted URL, deliberately: it is served at
+ * /b/<slug> by this app, so it cannot be mistyped, and if the type is deleted this
+ * returns null rather than a 404 somebody finds out about from a customer.
+ */
+export async function resolveCallBookingUrl(): Promise<string | null> {
+  const s = (await settingRow(null, { callBookingTypeId: true, callBookingUrl: true })) as
+    | { callBookingTypeId: string | null; callBookingUrl: string | null }
+    | null;
+
+  const typeId = s?.callBookingTypeId?.trim();
+  if (typeId) {
+    const t = await prisma.bookingType.findUnique({
+      where: { id: typeId },
+      select: { slug: true, active: true },
+    });
+    // An inactive type still has a page, but it offers no slots, so sending somebody
+    // there is worse than not offering the call.
+    if (t?.slug && t.active) return `${env.NEXT_PUBLIC_APP_URL}/b/${t.slug}`;
+    return null;
+  }
+
+  const url = s?.callBookingUrl?.trim();
+  return url && /^https?:\/\//i.test(url) ? url : null;
+}
+
+/**
  * The approved WhatsApp template for the /build confirmation, or null.
  *
  * Null means send nothing, which is the state this ships in and the correct one: a Meta

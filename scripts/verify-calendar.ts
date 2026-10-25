@@ -28,6 +28,10 @@ import {
   pickRoundRobin,
   slotLockFor,
   stampBookingUrl,
+  isTimePassedDue,
+  timePassedWindow,
+  TIME_PASSED_GRACE_MS,
+  TIME_PASSED_HORIZON_MS,
   utcMsFor,
   windowsForDate,
   type SlotExceptionInput,
@@ -468,6 +472,41 @@ check(
   slotLockFor("tnt_1", "asha", utcMsFor("2026-10-20", 660)) ===
     slotLockFor("tnt_1", "asha", utcMsFor("2026-10-20", 660)),
 );
+
+console.log("\nThe call nobody marked");
+{
+  const now = Date.parse("2026-10-20T12:00:00.000Z");
+  const ago = (ms: number) => now - ms;
+  const MIN = 60_000;
+  const HOUR = 60 * MIN;
+  const DAY = 24 * HOUR;
+
+  check("a call that has not ended yet is not due", !isTimePassedDue(now + HOUR, now));
+  check("a call that just ended is not due either", !isTimePassedDue(ago(5 * MIN), now));
+  check(
+    "still not due one minute inside the grace period",
+    !isTimePassedDue(ago(TIME_PASSED_GRACE_MS - MIN), now),
+  );
+  check("due the moment the grace period is up", isTimePassedDue(ago(TIME_PASSED_GRACE_MS), now));
+  check("due a day later", isTimePassedDue(ago(DAY), now));
+  check("due six days later", isTimePassedDue(ago(6 * DAY), now));
+  // 🔴 The guard that stops a deploy from messaging an entire history at once.
+  check("NOT due past the horizon", !isTimePassedDue(ago(TIME_PASSED_HORIZON_MS + MIN), now));
+  check("a month-old unmarked call is left alone", !isTimePassedDue(ago(30 * DAY), now));
+  check("the grace period is two hours", TIME_PASSED_GRACE_MS === 2 * HOUR);
+  check("the horizon is seven days", TIME_PASSED_HORIZON_MS === 7 * DAY);
+
+  const w = timePassedWindow(now);
+  check("the window ends where the grace period does", w.to.getTime() === ago(TIME_PASSED_GRACE_MS));
+  check("the window starts at the horizon", w.from.getTime() === ago(TIME_PASSED_HORIZON_MS));
+  check("the window is the right way round", w.from.getTime() < w.to.getTime());
+  // The predicate and the query must agree, or the sweep claims rows the rule says are
+  // not due. Both are built from timePassedWindow for exactly that reason.
+  check(
+    "the predicate agrees with the window at both edges",
+    !isTimePassedDue(w.from.getTime(), now) && isTimePassedDue(w.to.getTime(), now),
+  );
+}
 
 console.log("");
 if (failures > 0) {

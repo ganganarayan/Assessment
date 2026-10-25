@@ -134,6 +134,35 @@ const MUST_INVALIDATE = [
   "transfer.ts",
 ];
 
+/**
+ * Files that hand the funnel-visible write to somebody else.
+ *
+ * pages.ts is the one: the result-page builder writes DRAFT rows, which no respondent
+ * can see, and its Publish hands the live snapshot to `mirrorPublished` - the single
+ * place the page library touches live traffic. Requiring the flush to appear in
+ * pages.ts itself would be requiring it in the wrong file, and the obvious way to make
+ * that check pass again is to add a second flush nobody needs.
+ *
+ * So the delegate is named, and then CHECKED ITSELF. That is the part that keeps this
+ * honest: the indirection is allowed, and it cannot quietly lose the flush, because
+ * the module it was delegated to has to prove it does the thing.
+ */
+const DELEGATES: Record<string, { call: string; path: string }> = {
+  "pages.ts": { call: "mirrorPublished", path: "src/features/result-pages/mirror.ts" },
+};
+
+/**
+ * A CALL, not a mention.
+ *
+ * The check used to be `src.includes("invalidatePublicAssessment")`, which the import
+ * line satisfies all by itself - so a file could import the flush, never call it, and
+ * pass. Proved by deleting both calls from mirror.ts and watching this script report
+ * PASS twice. Matching the name followed by an open paren is the difference between
+ * "this file knows the function exists" and "this file runs it".
+ */
+const calls = (src: string, name: string): boolean =>
+  new RegExp(`${name}\\w*\\s*\\(`).test(src);
+
 const present = new Set(readdirSync(ACTIONS_DIR));
 for (const file of MUST_INVALIDATE) {
   if (!present.has(file)) {
@@ -142,9 +171,26 @@ for (const file of MUST_INVALIDATE) {
     continue;
   }
   const src = readFileSync(join(ACTIONS_DIR, file), "utf8");
-  const ok = src.includes("invalidatePublicAssessment");
+  const delegate = DELEGATES[file];
+  const direct = calls(src, "invalidatePublicAssessment");
+  const delegated = !!delegate && calls(src, delegate.call);
+  const ok = direct || delegated;
   if (!ok) failures++;
-  console.log(`${ok ? "PASS" : "FAIL"}  ${file} drops the cached funnel after writing`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"}  ${file} drops the cached funnel after writing${delegated && !direct ? ` (via ${delegate!.call})` : ""}`,
+  );
+  if (!delegated || !delegate) continue;
+  let delegateSrc = "";
+  try {
+    delegateSrc = readFileSync(join(process.cwd(), delegate.path), "utf8");
+  } catch {
+    failures++;
+    console.log(`FAIL  ${delegate.path} is where ${file} sends the write, and it is missing`);
+    continue;
+  }
+  const delegateOk = calls(delegateSrc, "invalidatePublicAssessment");
+  if (!delegateOk) failures++;
+  console.log(`${delegateOk ? "PASS" : "FAIL"}  and ${delegate.path} does the flush on its behalf`);
 }
 
 console.log(failures === 0 ? "\nverify:gate OK" : `\nverify:gate FAILED (${failures})`);

@@ -780,7 +780,7 @@
             "url": "",
             "fontSize": 18,
             "align": "center",
-            "bookingCta": false
+            "bookingCta": true
           }
         },
         {
@@ -856,7 +856,7 @@
             "url": "",
             "fontSize": 18,
             "align": "center",
-            "bookingCta": false
+            "bookingCta": true
           }
         },
         {

@@ -143,10 +143,13 @@ export function WorkflowBuilder({
         {msg ? <p className="text-sm text-red-500">{msg}</p> : null}
       </div>
 
-      {/* The trigger: the top of the flow */}
-      <div className="rounded-lg border-2 border-dashed p-4">
-        <p className="text-xs font-medium text-[var(--muted-foreground)]">WHEN</p>
-        <p className="mt-1 text-sm font-medium">{spec?.label ?? workflow.trigger}</p>
+      {/* The start node. Solid and coloured rather than dashed: it is the one box on
+          the screen that is not optional, and a dashed border reads as a placeholder. */}
+      <div className="rounded-lg border-2 border-emerald-500/50 bg-emerald-500/5 p-4">
+        <span className="rounded-full border border-emerald-500/50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-700 dark:text-emerald-400">
+          START
+        </span>
+        <p className="mt-2 text-sm font-medium">When {(spec?.label ?? workflow.trigger).toLowerCase()}</p>
         <p className="text-xs text-[var(--muted-foreground)]">{spec?.hint}</p>
 
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -252,6 +255,9 @@ export function WorkflowBuilder({
         ))}
       </div>
 
+      <Connector />
+      <EndNode />
+
       <p className="text-xs text-[var(--muted-foreground)]">
         Placeholders: {WORKFLOW_PLACEHOLDERS.map((p) => `{{${p}}}`).join(" · ")}
       </p>
@@ -259,9 +265,80 @@ export function WorkflowBuilder({
   );
 }
 
-/** The line between two cards. The only thing making this read as a flow. */
+/**
+ * The arrow between two nodes.
+ *
+ * It was a bare line, and a line between two boxes is ambiguous - it could mean "these
+ * are related". An arrowhead says which way time runs, which is the one thing a
+ * sequence has to communicate before anything else on the screen matters.
+ */
 function Connector() {
-  return <div className="mx-auto h-5 w-px bg-[var(--field-border)]" aria-hidden="true" />;
+  return (
+    <div className="flex flex-col items-center" aria-hidden="true">
+      <div className="h-6 w-px bg-[var(--field-border)]" />
+      <svg viewBox="0 0 12 8" className="-mt-px h-2 w-3 fill-[var(--field-border)]">
+        <path d="M6 8 0 0h12z" />
+      </svg>
+    </div>
+  );
+}
+
+/** What each kind of node calls itself on its chip. A message says which channel it
+ *  is, because "MESSAGE" is the one label that does not tell you what will happen. */
+function kindLabel(s: WorkflowStepView): string {
+  if (s.kind === "DELAY") return "WAIT";
+  if (s.kind === "TAG") return "TAG";
+  return s.channel === "WABA" ? "WHATSAPP" : "EMAIL";
+}
+
+const KIND_CLASS: Record<WorkflowStepView["kind"], string> = {
+  MESSAGE: "border-sky-500/40",
+  DELAY: "border-amber-500/40",
+  TAG: "border-violet-500/40",
+};
+
+/**
+ * The one line a collapsed node shows.
+ *
+ * 🔴 This is what turns the column from a stack of forms into a flowchart. Every card
+ * used to render its whole form at once, so reading a five-step sequence meant
+ * scrolling through five forms to learn five facts. The node says the fact; the form
+ * is behind it when you want to change it.
+ */
+function stepSummary(s: WorkflowStepView, options: BuilderOptions): string {
+  if (s.kind === "DELAY") {
+    const n = s.delayAmount ?? 0;
+    if (n === 0) return "Straight after the step above";
+    const unit = DELAY_UNITS.find((u) => u.value === s.delayUnit)?.label ?? "minutes";
+    return `Wait ${n} ${n === 1 ? unit.replace(/s$/, "") : unit}`;
+  }
+  if (s.kind === "TAG") {
+    const verb = s.tagAction === "REMOVE" ? "Remove tag" : "Add tag";
+    const name = options.tags.find((t) => t.id === s.tagId)?.name;
+    return name ? `${verb}: ${name}` : `${verb} (none picked yet)`;
+  }
+  if (s.channel === "WABA") {
+    return s.wabaTemplate ? `Template: ${s.wabaTemplate}` : "No template picked yet";
+  }
+  return s.subject.trim() || "No subject yet";
+}
+
+/** A node that cannot send anything yet opens itself, so a half-built step is never
+ *  hidden behind a tidy summary that says it is fine. */
+function stepIncomplete(s: WorkflowStepView): boolean {
+  if (s.kind === "DELAY") return s.delayUnit === null;
+  if (s.kind === "TAG") return !s.tagId;
+  return s.channel === "WABA" ? !s.wabaTemplate : !s.subject.trim() || !s.body.trim();
+}
+
+/** The foot of the flow. Without it the last arrow points at nothing and the column
+ *  reads as unfinished rather than as ended. */
+function EndNode() {
+  return (
+    <div className="mx-auto rounded-full border border-dashed px-4 py-1.5 text-xs text-[var(--muted-foreground)]">
+      Sequence ends
+    </div>
+  );
 }
 
 function StepCard({
@@ -284,16 +361,31 @@ function StepCard({
   onDelete: () => void;
 }) {
   const [v, setV] = useState(step);
+  // A finished step is a box you read; an unfinished one is a form you have to fill,
+  // so it opens itself rather than hiding behind a summary that implies it is done.
+  const [open, setOpen] = useState(() => stepIncomplete(step));
   const set = (patch: Partial<WorkflowStepView>) => setV((x) => ({ ...x, ...patch }));
   const template = options.wabaTemplates.find((t) => t.name === v.wabaTemplate);
 
   return (
-    <div className="rounded-lg border p-4">
+    <div className={`rounded-lg border-2 p-4 ${KIND_CLASS[step.kind]}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <p className="text-xs font-medium text-[var(--muted-foreground)]">
-          STEP {index + 1} ·{" "}
-          {step.kind === "MESSAGE" ? "MESSAGE" : step.kind === "DELAY" ? "WAIT" : "TAG"}
-        </p>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        >
+          <span className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[var(--muted-foreground)]">
+            {index + 1} · {kindLabel(v)}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium">
+            {stepSummary(v, options)}
+          </span>
+          <span className="shrink-0 text-xs text-[var(--muted-foreground)]">
+            {open ? "Close" : "Edit"}
+          </span>
+        </button>
         <div className="flex items-center gap-1">
           <Button size="sm" variant="ghost" disabled={pending || index === 0} onClick={() => onMove(-1)}>
             Up
@@ -307,6 +399,16 @@ function StepCard({
         </div>
       </div>
 
+      {/* The numbers stay on the closed node. A statistic you have to open a form to
+          read is a statistic nobody checks. */}
+      {!open && step.kind === "MESSAGE" && step.sentCount + step.failedCount > 0 ? (
+        <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+          Sent {step.sentCount} · failed {step.failedCount} · skipped {step.skippedCount}
+        </p>
+      ) : null}
+
+      {!open ? null : (
+      <>
       {step.kind === "DELAY" ? (
         <div className="mt-3 flex flex-wrap items-end gap-2">
           <Field label="Wait">
@@ -468,6 +570,8 @@ function StepCard({
           </p>
         </div>
       ) : null}
+      </>
+      )}
     </div>
   );
 }

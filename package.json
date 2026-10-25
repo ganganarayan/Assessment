@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:calendar && npm run verify:automations && npm run verify:releases && npm run verify:billing-ledger && npm run verify:workflow-queue && next build",
+    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:calendar && npm run verify:automations && npm run verify:releases && npm run verify:billing-ledger && npm run verify:workflow-queue && npm run verify:vault && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -92,10 +92,13 @@
     "cron:automations": "tsx --conditions=react-server scripts/run-automations.ts",
     "cron:workflows": "tsx --conditions=react-server scripts/run-workflows.ts",
     "cron:broadcasts": "tsx --conditions=react-server scripts/run-broadcasts.ts",
+    "cron:lifecycle": "tsx --conditions=react-server scripts/run-lifecycle.ts",
+    "cron:lifecycle-send": "tsx --conditions=react-server scripts/send-lifecycle.ts",
     "verify:automations": "tsx scripts/verify-automations.ts",
     "verify:releases": "tsx scripts/verify-feature-releases.ts",
     "verify:workflow-queue": "tsx --conditions=react-server scripts/verify-workflow-queue.ts",
-    "verify:schema-migrations": "tsx scripts/verify-schema-migrations.ts"
+    "verify:schema-migrations": "tsx scripts/verify-schema-migrations.ts",
+    "verify:vault": "tsx scripts/verify-vault.ts"
   },
   "prisma": {
     "seed": "tsx --conditions=react-server prisma/seed.ts"

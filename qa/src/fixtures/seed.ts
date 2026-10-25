@@ -178,7 +178,7 @@ const FIXTURES: FixtureSpec[] = [
     ],
     qualification: {
       enabled: true,
-      showGateOnResult: true,
+      showResultOfGate: false,
       bands: { enabled: true, passMin: 14, reviewMin: 8, belowExitKey: "out" },
       questions: [
         {

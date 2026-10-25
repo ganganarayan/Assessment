@@ -23,6 +23,11 @@ import {
   EMPTY_DISQUALIFIED,
   GATE_PASSED_EVENT,
   GATE_DISQUALIFIED_EVENT,
+  GATE_WAITLISTED_EVENT,
+  WAITLIST_EXIT_KEY,
+  exitEventName,
+  makeWaitlistExit,
+  optionOutcome,
 } from "../src/features/assessment/schemas";
 import { blockVisibleFor, type ResultBlock } from "../src/features/assessment/result-page/blocks";
 import { gateVerdict, gateTotals, gateBandOf } from "../src/features/assessment/gate-verdict";
@@ -135,6 +140,72 @@ expect(
   q1.options[3]!.exitKey === "" && resolveExit(exits, q1.options[3]!.exitKey)?.key === "a",
 );
 
+// --- Disqualified and waitlisted are not the same kind of no -----------------------
+//
+// The behaviour this exists to pin: a waitlist answer must NOT cut the gate short. It
+// is one value per answer, so the two can never both be true, and the waitlist is only
+// applied once every question has been answered - which is what lets the owner keep the
+// answers of somebody whose only problem is a date.
+const twoDoors = qualificationSchema.parse({
+  enabled: true,
+  questions: [
+    {
+      id: "q1",
+      text: "first",
+      type: "choice",
+      options: [
+        { id: "fine", label: "fine", points: 5 },
+        { id: "later", label: "later", points: 2, disqualifies: true, exitKey: WAITLIST_EXIT_KEY },
+      ],
+    },
+    {
+      id: "q2",
+      text: "second",
+      type: "choice",
+      options: [
+        { id: "fine2", label: "fine", points: 5 },
+        { id: "never", label: "never", points: 0, disqualifies: true, exitKey: "a" },
+      ],
+    },
+  ],
+});
+expect(
+  "an answer is NONE, disqualified or waitlisted - never two at once",
+  optionOutcome(twoDoors.questions[0]!.options[0]!) === "NONE" &&
+    optionOutcome(twoDoors.questions[0]!.options[1]!) === "WAITLIST" &&
+    optionOutcome(twoDoors.questions[1]!.options[1]!) === "DISQUALIFY",
+);
+const waitlistOnly = gateVerdict(twoDoors, { q1: "later", q2: "fine2" });
+expect(
+  "a waitlist answer routes to the reserved waitlist, not to a named exit",
+  waitlistOnly.outcome === "exit" && waitlistOnly.exitKey === WAITLIST_EXIT_KEY,
+  JSON.stringify(waitlistOnly),
+);
+const bothPicked = gateVerdict(twoDoors, { q1: "later", q2: "never" });
+expect(
+  "a disqualifying answer still outranks a waitlist one, however late it comes",
+  bothPicked.outcome === "exit" && bothPicked.exitKey === "a",
+  JSON.stringify(bothPicked),
+);
+expect(
+  "and a waitlisted respondent's other answers are all still scored",
+  gateTotals(twoDoors, { q1: "later", q2: "fine2" }).rows.length === 2,
+);
+const reserved = makeWaitlistExit();
+expect(
+  "the reserved waitlist captures the lead instead of ending the visit",
+  reserved.mode === "OPTIN" && exitCapturesLead(reserved),
+  reserved.mode,
+);
+expect(
+  "and can never be the exclusion event",
+  reserved.neverExclude && exitEventName(reserved) === GATE_WAITLISTED_EVENT,
+);
+expect(
+  "even if the exclusion event is typed onto it by hand",
+  exitEventName({ ...reserved, eventName: GATE_DISQUALIFIED_EVENT }) === null,
+);
+
 // --- The bands ---------------------------------------------------------------------
 // The real rule, asked about a respondent who scored exactly `score`: a one-question
 // gate carrying the same bands, answered with an option worth that many points.
@@ -174,7 +245,9 @@ expect(
   !unbanded.bands.enabled,
   "which is every gate built before bands existed",
 );
-expect("and still shows its answers on the result page", unbanded.showGateOnResult === true);
+// The gate's own result is OFF unless a funnel asks for it, and asking for it is behind
+// a release switch. A gate routes; it does not grade, and nobody is owed a score.
+expect("and shows the respondent no gate result", unbanded.showResultOfGate === false);
 
 // --- The lockout flag remembers the route -------------------------------------------
 const flag = writeGateRejection(1700000000000, "b");

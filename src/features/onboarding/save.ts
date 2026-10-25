@@ -13,6 +13,8 @@ import { updateBookingUrl } from "@/features/workspace/actions/booking";
 import { updateSupportEmail } from "@/features/workspace/actions/support";
 import { DEFAULT_THEME_COLORS } from "@/features/workspace/theme-colors";
 import { EMAIL_PRESETS } from "@/features/onboarding/steps";
+import { notifyTemplateGap } from "@/features/onboarding/notify-gap";
+import { seedCapiEvents } from "@/lib/meta/seed-events";
 
 /**
  * WHERE EACH ANSWER ACTUALLY GOES.
@@ -37,7 +39,16 @@ import { EMAIL_PRESETS } from "@/features/onboarding/steps";
  * acknowledgement at the end of the sequence.
  */
 
-export type SaveResult = { ok: true } | { ok: false; error: string };
+/**
+ * `note` is a receipt shown to the tenant once, under the question they just answered.
+ *
+ * Only one step has anything to report: saving the Conversions API token also puts three
+ * events on their pixel, and that is worth telling somebody about, because it is the
+ * part they cannot see and the part that makes their setup call worth having. It is
+ * optional because every other step's success is self-evident from the sequence moving
+ * on, and a note on each of them would be noise.
+ */
+export type SaveResult = { ok: true; note?: string } | { ok: false; error: string };
 
 export async function persistStep(args: {
   tenantId: string;
@@ -59,6 +70,55 @@ export async function persistStep(args: {
       return { ok: true };
     }
 
+    /**
+     * The business profile: four answers and the industry, straight onto the tenant.
+     *
+     * No existing action owns these, because nothing in the app asked for them before.
+     * They are still columns rather than journal rows, for the reason written on the
+     * Tenant model: the sequence decides a step is done from a checkable fact, and these
+     * five are also what the setup call is prepared from and what decides which template
+     * is offered. A journal row would have made onboarding_answer the source of truth
+     * for the only answers that cannot be guessed.
+     */
+    case "whatYouSell": {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { sells: value.slice(0, 2000) } });
+      return { ok: true };
+    }
+
+    case "pricePoint": {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { pricePoint: value.slice(0, 200) } });
+      return { ok: true };
+    }
+
+    case "badLead": {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { badLead: value.slice(0, 2000) } });
+      return { ok: true };
+    }
+
+    case "afterTheYes": {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { afterTheYes: value.slice(0, 2000) } });
+      return { ok: true };
+    }
+
+    case "industry": {
+      // Choosing a real category clears any previous "something else" note, so the two
+      // columns cannot disagree about which one is the answer.
+      await prisma.tenant.update({
+        where: { id: tenantId },
+        data: { industry: value.slice(0, 120), industryOther: value === "other" ? undefined : null },
+      });
+      return { ok: true };
+    }
+
+    case "industryOther": {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { industryOther: value.slice(0, 200) } });
+      // Stored first, then told. The owner wants to know while there is still time to
+      // write them a funnel before the call, and a mail failure must not cost the
+      // answer: see notifyTemplateGap.
+      await notifyTemplateGap(tenantId);
+      return { ok: true };
+    }
+
     case "metaUse": {
       // "Not yet" is a real answer and it has a column: metaNotUsed is what stops the
       // app warning them about a pixel they have deliberately not set.
@@ -77,7 +137,27 @@ export async function persistStep(args: {
       // The pixel comes back from the same resolver the funnel reads, because passing a
       // blank one here would delete it.
       const meta = await resolveMetaConfig(tenantId);
-      return updateMetaSettings(meta.pixelId ?? "", value);
+      const r = await updateMetaSettings(meta.pixelId ?? "", value);
+      /**
+       * The token is the last thing the pixel was waiting for, so this is the moment
+       * their ad account can be given something to look at. Three sample events go out
+       * now, once ever, so that Events Manager and the custom audiences are populated
+       * by the time anybody joins their setup call - Meta can take hours to surface a
+       * new event, and an audience cannot be built on one it has never seen.
+       *
+       * Deliberately not awaited for its result beyond this: seedCapiEvents never
+       * throws and reports its own failures, and a workspace must not lose the token it
+       * just pasted because Meta's edge was slow. See lib/meta/seed-events.
+       */
+      if (!r.ok) return r;
+      const seeded = await seedCapiEvents(tenantId);
+      if (!seeded) return r;
+      // Named, not counted. "Three events sent" is a claim; the names are what they go
+      // and look for in Events Manager, and finding them there is the whole point.
+      return {
+        ok: true,
+        note: `Saved. ${seeded.names.join(", ")} have just gone to your pixel, so your ad account has data in it before we speak. Events Manager can take an hour or two to show them.`,
+      };
     }
 
     /**

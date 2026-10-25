@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { floorCreatedAt } from "@/lib/stats-floor";
 import { EVENT_LABEL } from "@/features/events/types";
 import type { WebhookRow, EventActivityRow } from "@/features/events/types";
-import { ownedWhere } from "@/lib/tenant/platform-tenant";
+import { ownedWhere, PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 
 /** Webhooks split into active/inactive, enriched with delivery count + last fired.
  *  Counts are keyed by the (event name + endpoint URL) combination, NOT by webhook
@@ -343,4 +343,64 @@ export async function listCapiLogs(
     firedAt: r.firedAt ? r.firedAt.toISOString() : null,
     createdAt: r.createdAt.toISOString(),
   }));
+}
+
+/**
+ * The event names THIS workspace has actually configured, for the CAPI tester's list.
+ *
+ * Read rather than assumed, because every one of these is editable: each booking type
+ * names its own four moments, each assessment names its payment event (defaulting to
+ * Purchase121), and the high-ticket name is a platform setting. A list built from the
+ * schema defaults would be confidently wrong for any workspace that changed one, and
+ * the operator would send a test event under a name nothing fires.
+ *
+ * Distinct and ordered, so three booking types sharing "Schedule" contribute it once.
+ */
+export async function listConfiguredEventNames(
+  tenantId: string | null,
+): Promise<{ name: string; note: string }[]> {
+  const where = ownedWhere(tenantId);
+  // BookingType.tenantId is NOT NULL - a calendar always belongs to a workspace, where an
+  // assessment may be the platform's own with a null owner. So it cannot take ownedWhere's
+  // "mine or nobody's" shape; the platform's own calendars live under the Platform tenant
+  // id, which is what that convention resolves to.
+  const calendarTenantId = tenantId ?? PLATFORM_TENANT_ID;
+  const [bookingTypes, assessments, setting] = await Promise.all([
+    prisma.bookingType.findMany({
+      where: { tenantId: calendarTenantId },
+      select: {
+        name: true,
+        metaBookedEvent: true,
+        metaCancelledEvent: true,
+        metaAttendedEvent: true,
+        metaNoShowEvent: true,
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.assessment.findMany({
+      where,
+      select: { paymentEventName: true },
+      distinct: ["paymentEventName"],
+    }),
+    prisma.appSetting.findUnique({
+      where: { id: "singleton" },
+      select: { purchaseHighTicketEventName: true },
+    }),
+  ]);
+
+  const out: { name: string; note: string }[] = [];
+  for (const b of bookingTypes) {
+    out.push({ name: b.metaBookedEvent, note: `Booked - ${b.name}` });
+    out.push({ name: b.metaCancelledEvent, note: `Cancelled - ${b.name}` });
+    out.push({ name: b.metaAttendedEvent, note: `Attended - ${b.name}` });
+    out.push({ name: b.metaNoShowEvent, note: `No-show - ${b.name}` });
+  }
+  for (const a of assessments) {
+    if (a.paymentEventName) out.push({ name: a.paymentEventName, note: "Payment on a funnel" });
+  }
+  out.push({ name: "Purchase", note: "The server-side purchase conversion" });
+  if (setting?.purchaseHighTicketEventName) {
+    out.push({ name: setting.purchaseHighTicketEventName, note: "Payment above the high-ticket threshold" });
+  }
+  return out;
 }

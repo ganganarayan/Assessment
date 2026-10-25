@@ -14,8 +14,10 @@ import {
   visibleSteps,
   schemaFor,
   STEP_BY_KEY,
+  INDUSTRY_CATEGORIES,
   type OnboardingAnswers,
 } from "../src/features/onboarding/steps";
+import { BOOKING_PREREQUISITES } from "../src/features/onboarding/prerequisites";
 
 let failures = 0;
 
@@ -150,6 +152,49 @@ for (const [name, preset] of Object.entries(EMAIL_PRESETS)) {
 check("the provider choices each have a preset or ask for the host", (() => {
   const choices = STEP_BY_KEY.emailProvider?.choices ?? [];
   return choices.every((c) => c.value === "other" || !!EMAIL_PRESETS[c.value]);
+})());
+
+/**
+ * The booking prerequisites, which the trial ribbon renders by name.
+ *
+ * Two ways this breaks silently, and both of them break the one list that tells a tenant
+ * what to go and fetch before the setup call:
+ *
+ *  - A prerequisite whose step key no longer exists is never outstanding, because
+ *    outstandingPrerequisites skips items that are not in the sequence (which is what
+ *    makes the Razorpay branch work). A renamed step would therefore light the booking
+ *    button for everybody, and nothing anywhere would say so.
+ *  - A prerequisite with no short label renders as its whole question, in a ribbon that
+ *    has room for three words, on a phone.
+ */
+console.log("");
+console.log("Booking prerequisites");
+for (const p of BOOKING_PREREQUISITES) {
+  const step = STEP_BY_KEY[p.key];
+  check(`${p.key} is a real step`, !!step);
+  if (!step) continue;
+  check(`${p.key} has a short label`, !!step.short, step.short);
+  if (p.requires !== undefined) {
+    const values = (step.choices ?? []).map((c) => c.value);
+    check(`${p.key} can be answered ${p.requires}`, values.includes(p.requires), values.join("/"));
+  }
+}
+
+/**
+ * The industry choices have to BE the template library's categories, because the import
+ * step matches on them. A category added to the library and not here leaves the tenants
+ * it describes picking "Something else" and asking us to build a template we already
+ * have.
+ */
+console.log("");
+console.log("Industry choices");
+const industryValues = (STEP_BY_KEY.industry?.choices ?? []).map((c) => c.value);
+check("every category is offered", INDUSTRY_CATEGORIES.every((c) => industryValues.includes(c)));
+check("Something else is offered last", industryValues[industryValues.length - 1] === "other");
+check("the follow-up appears only for Something else", (() => {
+  const step = STEP_BY_KEY.industryOther;
+  if (!step?.when) return false;
+  return step.when({ industry: "other" }) && !step.when({ industry: "Coaches" });
 })());
 
 console.log(failures === 0 ? "\n🟢 The sequence holds.\n" : `\n🔴 ${failures} check${failures === 1 ? "" : "s"} failed.\n`);

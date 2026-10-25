@@ -168,6 +168,20 @@ export const assessmentBodyExport = z.object({
   startButtonLabel: z.string().nullable().optional(),
   resultsButtonLabel: z.string().nullable().optional(),
   useAiStatement: z.boolean().optional(),
+  /**
+   * The funnel's OWN AI instructions, carried with it.
+   *
+   * WHY THIS FIELD EXISTS. `useAiStatement` travelled and the prompt did not, so an
+   * imported funnel arrived with the AI switched ON and nothing of its own to say. It
+   * then fell through to whatever prompt the importing tenant had, which on a travel
+   * funnel meant a coaching script complete with a crisis helpline. The flag and the
+   * instructions are one decision and have to move together.
+   *
+   * Nullable and optional, so every file written before this field still imports: the
+   * importer treats "no instructions" as "do not generate a statement" rather than as
+   * "use somebody else's".
+   */
+  aiInstructions: z.string().nullable().optional(),
   nextStep: z.enum(["PAYMENT", "DESTINATION", "RESULTS", "NO_RESULT"]).optional(),
   questionDisplayMode: z.enum(["ALL", "CATEGORY", "SINGLE"]).optional(),
   vslCountdownSeconds: z.number().int().optional(),

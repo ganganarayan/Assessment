@@ -100,6 +100,44 @@ export const qualOptionSchema = z.object({
 });
 export type QualOptionInput = z.infer<typeof qualOptionSchema>;
 
+/**
+ * THE RESERVED WAITLIST ROUTE.
+ *
+ * A waitlisted person is not a rejected person: the setup fits and the timing does not,
+ * which makes them the most expensive kind of prospect to throw away. So the waitlist is
+ * not one of the owner's named exits. It is a fixed route that this key always names,
+ * available on every paid plan, and the one exit an exclusion audience can never reach.
+ *
+ * Reserved means the key is spelled the same everywhere: an answer, a score band and the
+ * builder's dropdown all point at this constant rather than at a key somebody typed.
+ */
+export const WAITLIST_EXIT_KEY = "waitlist";
+/** Waitlisted at the gate. NEVER the exclusion event and never an optimisation target -
+ *  an ad account taught to avoid these people is avoiding its own market. */
+export const GATE_WAITLISTED_EVENT = "GateWaitlisted";
+
+/**
+ * What one answer DOES, as a single value rather than a checkbox beside a key.
+ *
+ * Disqualified and waitlisted are mutually exclusive by construction: there is one
+ * outcome per answer, so no combination of flags can claim both. Derived from the stored
+ * pair rather than stored a third time, because two fields that must agree eventually
+ * disagree, and the one that loses that argument decides who gets turned away.
+ */
+export type GateOutcome = "NONE" | "DISQUALIFY" | "WAITLIST";
+
+/** The outcome this answer carries. Pure - the builder, the runner and the verdict all
+ *  read it, so none of them needs to know how it is stored. */
+export function optionOutcome(o: { disqualifies: boolean; exitKey?: string | null }): GateOutcome {
+  if (!o.disqualifies) return "NONE";
+  return (o.exitKey ?? "").trim() === WAITLIST_EXIT_KEY ? "WAITLIST" : "DISQUALIFY";
+}
+
+/** True for the reserved waitlist route. */
+export function isWaitlistExitKey(key: string | null | undefined): boolean {
+  return (key ?? "").trim() === WAITLIST_EXIT_KEY;
+}
+
 /** One Page-1 gating question (shown one at a time).
  *  - "choice": options with qualify/disqualify (auto-advance on pick).
  *  - "text": a free-text input for MANUAL review - never qualifies/disqualifies;
@@ -157,17 +195,30 @@ export const qualificationSchema = z.object({
   enabled: z.boolean().default(false),
   questions: z.array(qualQuestionSchema).max(20).default([]),
   bands: gateBandsSchema.default(EMPTY_GATE_BANDS),
-  // Whether the respondent sees their gate answers and points on the result page.
-  // TRUE is what the app has always done, and a gate-only funnel has nothing else to
-  // show, so it stays the default. Turned off by a gate that scores people privately.
-  showGateOnResult: z.boolean().default(true),
+  /**
+   * Does the respondent ever see the GATE'S OWN result - its answers, its points, the
+   * band it put them in?
+   *
+   * OFF by default, and a clean break from the `showGateOnResult` flag it replaces. That
+   * one was a switch on the assessment's result page, where result routing already
+   * decides what a respondent is shown. This one belongs to the gate, and a gate does
+   * not grade anybody: it routes them on the choices they made. A founder who can read
+   * their own points has learned exactly what to answer next time, which is the one
+   * thing a screening question cannot survive.
+   *
+   * The old key is deliberately NOT inherited. It defaulted to true, so every gated
+   * funnel built before today shows its gate on the result page, and the decision here
+   * is that none of them should. Turning it back on is possible but sits behind the
+   * `gateResult` release switch, which is held back from customers.
+   */
+  showResultOfGate: z.boolean().default(false),
 });
 export type QualificationInput = z.infer<typeof qualificationSchema>;
 export const EMPTY_QUALIFICATION: QualificationInput = {
   enabled: false,
   questions: [],
   bands: EMPTY_GATE_BANDS,
-  showGateOnResult: true,
+  showResultOfGate: false,
 };
 
 /** True when an assessment's qualification gate is actually live (enabled + has at
@@ -281,8 +332,72 @@ export const gateExitSchema = z.object({
    * cost of a filled seat without anything looking broken.
    */
   completionEventName: z.string().trim().max(60).optional().or(z.literal("")).default(""),
+  /**
+   * 🔴 THIS EXIT IS NOT A REJECTION, AND MUST NEVER REACH THE EXCLUSION AUDIENCE.
+   *
+   * A waitlist is a timing problem, not a wrong-fit problem: those people are worth
+   * retargeting later, and an exclusion audience that contains them is an exclusion
+   * audience that locks out the very prospects it cost money to find. The damage is
+   * invisible - nothing errors, the ad account simply stops being shown to them.
+   *
+   * Config alone could not promise that. `eventName` is a free-text field that falls
+   * back to GateDisqualified when blank, so ONE cleared input - a rename half-finished,
+   * a template imported and tidied - silently re-pointed the waitlist at the exclusion
+   * event. This flag removes that fallback for this exit: blank means NOTHING is sent,
+   * and GateDisqualified is refused even when typed in by hand.
+   *
+   * Default false, so every exit that exists today behaves exactly as it does today.
+   */
+  neverExclude: z.boolean().default(false),
 });
 export type GateExitInput = z.infer<typeof gateExitSchema>;
+
+/**
+ * The event this exit reports, or null when it must report nothing.
+ *
+ * The ONE place that decision is made, so the sender, the builder's warnings and any
+ * verification script cannot disagree about it. Pure - safe on both sides.
+ */
+export function exitEventName(exit: GateExitInput): string | null {
+  const named = exit.eventName.trim();
+  if (exit.neverExclude) {
+    // Refused, not silently rewritten: an owner who typed the exclusion event onto a
+    // never-exclude route has a contradiction worth seeing in the builder, and sending
+    // nothing is the safe half of it.
+    if (!named || named === GATE_DISQUALIFIED_EVENT) return null;
+    return named;
+  }
+  return named || GATE_DISQUALIFIED_EVENT;
+}
+
+/**
+ * The reserved waitlist route, as it is created.
+ *
+ * OPTIN, not PAGE, and that is the whole correction: a waitlisted person answers the
+ * rest of the gate, gives their details and is stored against a submission, because
+ * they are a fit whose timing is wrong. A PAGE exit keeps nothing at all - no name, no
+ * email, no number - so a "waitlist" built on one is a list with nobody on it.
+ *
+ * `neverExclude` is on from birth. It is the only exit created that way, because it is
+ * the only exit whose people must never reach the exclusion audience.
+ */
+export function makeWaitlistExit(): GateExitInput {
+  return {
+    key: WAITLIST_EXIT_KEY,
+    name: "Waitlisted",
+    mode: "OPTIN",
+    heading: "Not a no. A not yet.",
+    subtext: "You are on the list. We will come back to you when the timing works.",
+    bodyHtml: "",
+    buttonLabel: "",
+    buttonUrl: "",
+    fireDisqualifiedEvent: true,
+    eventName: GATE_WAITLISTED_EVENT,
+    contentCategory: "not_yet",
+    completionEventName: "",
+    neverExclude: true,
+  };
+}
 
 /** Content of the exit page(s). The six legacy fields stay at the top level as EXIT
  *  ONE's content, written on every save, so a rollback or an in-flight cached payload
@@ -336,6 +451,9 @@ export function readExits(raw: unknown): GateExitInput[] {
       eventName: "",
       contentCategory: "",
       completionEventName: "",
+      // The legacy single page WAS the rejection, so it keeps the fallback it has
+      // always had. Only a route an owner deliberately marks is held back.
+      neverExclude: false,
     },
   ];
 }

@@ -48,6 +48,24 @@ model Tenant {
   /// the dashboard every day and none of those are a trial starting.
   startTrialFiredAt DateTime?
 
+  /// What they sell, what it costs, who wastes their time, and what happens after a
+  /// yes. Asked by the guided setup before anything is imported.
+  ///
+  /// 🟡 COLUMNS, NOT JOURNAL ROWS. The sequence's rule is that a step is done because
+  /// of a checkable fact, never because onboarding_answer has a row. These four are
+  /// also read before the setup call and decide which template is on screen, so the
+  /// journal would have been the source of truth for the only answers that matter.
+  sells       String?
+  pricePoint  String?
+  badLead     String?
+  afterTheYes String?
+
+  /// Which built-in template family fits this business: a Template.category value, or
+  /// "other" with the free text beside it. "other" is the signal that nothing in the
+  /// library fits and one has to be written for them.
+  industry      String?
+  industryOther String?
+
   id        String       @id @default(cuid())
   // Unique subdomain slug, e.g. "acme" -> acme.example.com
   slug      String       @unique
@@ -192,6 +210,13 @@ model Tenant {
   workflows            Workflow[]
   broadcasts           Broadcast[]
   tags                 Tag[]
+  /// Where this workspace is in the trial nurture sequence.
+  lifecycleProfile     LifecycleProfile?
+  /// This workspace's own file vault. Null-tenant rows belong to the platform.
+  vaultBuckets         VaultBucket[]
+  vaultFolders         VaultFolder[]
+  vaultFiles           VaultFile[]
+  vaultActivity        VaultActivity[]
 
   @@index([status])
   @@index([deletedAt])
@@ -2517,6 +2542,14 @@ model AppSetting {
   /// not set it up yet" is the mistake. Only the tenant can say which one it is.
   metaNotUsed Boolean @default(false)
 
+  /// When the three sample events were seeded onto this workspace's pixel.
+  ///
+  /// 🔴 SET ONCE AND NEVER CLEARED. The seeding puts three real conversions into a real
+  /// ad account so that Events Manager and the custom audiences have something in them
+  /// before the setup call. Re-running it on every token edit would quietly accumulate
+  /// synthetic conversions in somebody's account, so this stamp is the whole guard.
+  capiSeededAt DateTime?
+
   // Platform / app SUBSCRIPTION funnel pixel - a SEPARATE Meta pixel for Assess360's
   // own SaaS funnel: landing PageView, free-signup CompleteRegistration, and the
   // subscription Purchase. Distinct from metaPixelId above (which is the Gita
@@ -2560,6 +2593,16 @@ model AppSetting {
   /// https URL. It is operator-set and never request input, so it is not an
   /// open-redirect surface - but it IS rendered into every button, which is why the
   /// action that writes it validates the shape rather than trusting the field.
+  /// The platform's own booking link for the 30-minute setup call. SINGLETON ROW ONLY.
+  ///
+  /// Either a BookingType id, which is served publicly at /b/<slug>, or an absolute URL
+  /// for an external calendar. A chosen booking type is preferred because it cannot be
+  /// mistyped and it breaks loudly if the slug is renamed. Resolved in exactly one place
+  /// (resolveCallBookingUrl) so the trial ribbon, the welcome email and the lifecycle
+  /// nudge can never point at three different calendars.
+  callBookingTypeId String?
+  callBookingUrl    String?
+
   ctaHref       String?
   /// The trial-framed label (nav, hero secondary, the priced tiers, the SEO blocks).
   ctaTrialLabel String?
@@ -2628,6 +2671,18 @@ model AppSetting {
   // 🔴 A password is NEVER placed in this email, and there is no placeholder for one.
   // Self-serve signups choose their own, and mailing a credential turns every inbox
   // into a copy of the account. The template offers a reset LINK instead.
+  /// 🔴 THE LIFECYCLE SENDER'S MASTER SWITCH, and it is OFF.
+  ///
+  /// The release key decides whether the engine PLANS; this decides whether a plan
+  /// ever leaves the building. Two switches rather than one because they answer
+  /// different questions: "is this feature on" and "am I happy for a model to write
+  /// to my customers unattended". The owner reads a week of drafts with the first on
+  /// and this off, which is the only way to earn the second.
+  ///
+  /// Read at SEND time, never at plan time. A plan written while this was on must not
+  /// go out after it has been turned off.
+  lifecycleLive Boolean @default(false)
+
   welcomeEmailEnabled Boolean @default(false)
   welcomeEmailSubject String?
   welcomeEmailBody    String? @db.Text
@@ -3767,6 +3822,18 @@ model Appointment {
   reportedAttendedAt  DateTime?
   reportedNoShowAt    DateTime?
 
+  /// "The call's time came and went and nobody said what happened."
+  ///
+  /// Nothing emits this - no operator presses a button, no respondent clicks a link -
+  /// so a sweep finds it by looking for a BOOKED row whose end time has passed. The
+  /// stamp is what keeps the sweep from finding the same row every minute forever.
+  ///
+  /// 🔴 It is the most valuable unmarked state in the feature. An appointment left
+  /// BOOKED after its hour is the owner forgetting to mark it, which means the
+  /// attendance conversion never fires and the ad account never learns whether the
+  /// call happened. A workflow on this trigger is how the owner gets asked.
+  firedTimePassedAt DateTime?
+
   /// Set on the NEW row when a booking is moved, pointing at the row it replaced.
   rescheduledFromId String?
 
@@ -3804,6 +3871,8 @@ model Appointment {
   @@index([bookingTypeId, startAt])
   @@index([submissionId])
   @@index([status, startAt])
+  // The time-passed sweep's clause: still BOOKED, end time behind us.
+  @@index([status, endAt])
   @@map("appointment")
 }
 
@@ -4309,6 +4378,18 @@ enum WorkflowTrigger {
   GATE_QUALIFIED
   BAND_REACHED
   TAG_ADDED
+
+  /// The appointment moments. A workflow is the multi-step answer to each of them,
+  /// where an automation is the single immediate message: "booked" wants a
+  /// confirmation now and a nudge the morning of, which is a sequence.
+  APPOINTMENT_BOOKED
+  APPOINTMENT_RESCHEDULED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_ATTENDED
+  APPOINTMENT_NO_SHOW
+
+  /// The call's end time passed while it was still BOOKED. See firedTimePassedAt.
+  APPOINTMENT_TIME_PASSED
 }
 
 /// DRAFT is the shipping state of a new workflow, and the reason this is an enum
@@ -4748,4 +4829,398 @@ model ZoomAccount {
   updatedAt DateTime @updatedAt
 
   @@map("zoom_account")
+}
+
+// ---------------------------------------------------------------------------
+// LIFECYCLE - the trial nurture engine.
+//
+// Every morning the planner reads what each trialling workspace has actually DONE,
+// decides what that person should hear next, and writes one plan row with the moment
+// it is due. A separate worker sends. That split is the whole design:
+//
+//   - the planner runs ONCE a day, at 06:00 IST, and costs one AI call per person at
+//     most. It never sends anything.
+//   - the plan carries dueAt = the person's OWN opt-in minute, 24 hours on. So the
+//     06:00 job is not a blast: somebody who signed up at 21:40 hears from us at
+//     21:40, every day, until they convert or leave.
+//
+// 🔴 THE MODEL NEVER DECIDES WHEN, OR WHETHER TO SEND AT ALL. It picks a stage from a
+// fixed catalogue and writes the words for it. The timing, the caps, the suppression
+// check and the kill switch are all code. A planner that could invent its own schedule
+// is a planner that can message somebody six times on a bad morning.
+// ---------------------------------------------------------------------------
+
+/// Where a workspace is in the sequence. Only ACTIVE is planned for.
+///
+/// The four endings are kept apart rather than folded into one "stopped", because the
+/// question asked of this table a month later is never "did it stop" - it is "did the
+/// sequence work", and a workspace that converted and one that unsubscribed answer
+/// that in opposite directions.
+enum LifecycleStatus {
+  ACTIVE
+  /// They bought. The sequence ends having done its job.
+  CONVERTED
+  /// Trial ran out with no subscription. Still a lead, no longer in this sequence.
+  PARKED
+  /// They asked us to stop. Never planned for again, whatever else changes.
+  UNSUBSCRIBED
+  /// Reached the end of the catalogue with nothing left to say.
+  COMPLETED
+}
+
+/// What the planner decided for one person on one day.
+enum LifecycleVerdict {
+  SEND
+  /// Deliberately nothing today (they acted yesterday, or a cap is in the way).
+  SKIP
+  /// The planner would not back itself. Parked for the owner to answer.
+  ESCALATE
+}
+
+/// The life of one plan row.
+///
+/// NEEDS_INPUT is not a failure and is kept apart from one: the owner being asked a
+/// question is the system working as designed, and it must be visible as a queue
+/// rather than buried among things that broke.
+enum LifecyclePlanStatus {
+  /// Written, waiting for its dueAt.
+  DRAFT
+  /// Escalated. Waiting on the owner.
+  NEEDS_INPUT
+  /// The owner said yes (or edited it and said yes).
+  APPROVED
+  SENT
+  SKIPPED
+  FAILED
+}
+
+/// One workspace's place in the trial sequence. One row per tenant, forever.
+model LifecycleProfile {
+  id       String @id @default(cuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// The 24-hour clock everything hangs off: when they opted in. Their daily message
+  /// is due at this time of day, every day, not at the planner's convenience.
+  ///
+  /// Stored rather than read from Tenant.createdAt so a sequence can be restarted, or
+  /// moved off an unsociable hour, without rewriting the workspace's own history.
+  anchorAt DateTime
+
+  status     LifecycleStatus @default(ACTIVE)
+  /// Why it ended, in owner words ("subscribed on 21-10-2026").
+  stopReason String?
+
+  /// The way out, and it is per WORKSPACE rather than per address: somebody who says
+  /// stop has not said "stop the email but the WhatsApp is fine".
+  ///
+  /// Its own token and its own page, not the Contact one. A trial signup is our
+  /// customer, not a tenant's respondent, and the two must never share a row: an
+  /// owner unsubscribing from our trial sequence has not unsubscribed their own leads
+  /// from their own funnel.
+  optOutToken String @unique @default(cuid())
+
+  /// The IST day key (YYYY-MM-DD) the planner last wrote a plan for. The idempotency
+  /// guard: a cron that fires twice, or a hand-run drain, must not produce two plans
+  /// for one person for one day.
+  lastPlannedOn String?
+
+  plans LifecyclePlan[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, anchorAt])
+  @@map("lifecycle_profile")
+}
+
+/// One person, one day: the facts, the decision, and the words. The durable queue AND
+/// the audit trail, exactly like workflow_run.
+model LifecyclePlan {
+  id        String           @id @default(cuid())
+  profileId String
+  profile   LifecycleProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  /// Denormalised so the review screen reads without a join.
+  tenantId String
+
+  /// IST day key (YYYY-MM-DD). Half of the uniqueness that stops a double send.
+  planDate String
+  /// When this one is actually due: the person's own anchor minute.
+  dueAt    DateTime
+  /// Day N of the trial, 1-based, as the facts saw it. Frozen here because the copy
+  /// refers to it and a plan read back next week has to still make sense.
+  trialDay Int
+
+  stageKey String
+  verdict  LifecycleVerdict
+  status   LifecyclePlanStatus @default(DRAFT)
+
+  /// "router" or "ai". Worth storing: it is the number that says whether the model is
+  /// earning its place, and it is the first thing to look at when a cost report jumps.
+  decidedBy String
+  /// Why this stage, in one sentence. Written by whichever of the two decided.
+  reason    String?
+
+  /// The facts snapshot the decision was made from. The only way to answer "why did it
+  /// say that" after the workspace has moved on.
+  facts Json
+
+  emailSubject String?
+  emailBody    String? @db.Text
+  /// The approved template name, and the ordered values for its numbered slots.
+  /// 🔴 Short values only. A template whose body is one long variable does not survive
+  /// Meta's review, and pushing a paragraph through an approved shell is how a number
+  /// loses its quality rating.
+  waTemplate   String?
+  waVars       Json?
+
+  /// 🟡 TRUE means nothing was sent. The engine ships in dry run and stays there until
+  /// the owner has read a week of what it WOULD have said. A default of true is the
+  /// safety: a plan row that reaches the sender through some path nobody thought of
+  /// does nothing.
+  dryRun Boolean @default(true)
+
+  /// What the decision cost, when the model made it. Zero for a routed row.
+  model        String?
+  inputTokens  Int     @default(0)
+  outputTokens Int     @default(0)
+
+  sentAt DateTime?
+  error  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// ONE plan per person per day. The database says so, rather than the planner
+  /// promising to behave.
+  @@unique([profileId, planDate])
+  @@index([status, dueAt])
+  @@index([tenantId, planDate])
+  @@map("lifecycle_plan")
+}
+
+// ---------------------------------------------------------------------------
+// VAULT - the install's own file store: buckets, folders, files, on Cloudflare R2.
+//
+// WHY A SECOND STORAGE LAYER, next to lib/storage/r2. That one is the APP's
+// uploads: one bucket for the install, tenants separated by key prefix, keys composed
+// by the app and never seen by a human. The Vault is the opposite shape - a file
+// manager a person drives, with buckets they create, folders they name, and links they
+// copy out to other products (VidaPulse, an LMS, a landing page). Sharing one bucket
+// and one credential between the two would mean the app's uploads and hand-managed
+// media sit in the same namespace, and that a token scoped for one is scoped for both.
+//
+// 🔴 THE OBJECT KEY IS IMMUTABLE. VaultFile.objectKey is minted once, at upload, and
+// nothing renames it - not Rename, not a move between folders. Folders and display
+// names are DATABASE facts only, and the public link is derived from the key, so a
+// link already pasted into a landing page or an LMS keeps working no matter how the
+// file is reorganised afterwards. The naive alternative - mirroring the folder path
+// into the key - makes Rename and Move rewrite the key, which silently 404s every
+// embed already live in the wild. Moving a file BETWEEN BUCKETS is the one operation
+// that genuinely changes the link, and the UI says so before it runs.
+// ---------------------------------------------------------------------------
+
+/// R2 charges for storage two ways, and the right one depends entirely on read
+/// pattern. STANDARD for anything served (video, images): no retrieval fee, so a view
+/// costs nothing beyond the request. INFREQUENT_ACCESS is cheaper to keep ($0.01 vs
+/// $0.015 per GB-month) but bills $0.01 per GB RETRIEVED, which makes it correct for a
+/// cold archive and actively wrong for an LMS video, where every play would be a
+/// retrieval. A bucket declares which it is so uploads carry the right storage class.
+enum VaultStorageClass {
+  STANDARD
+  INFREQUENT_ACCESS
+}
+
+model VaultBucket {
+  id String @id @default(cuid())
+
+  /// What the switcher shows. Free text, the operator's own naming.
+  label String
+
+  /// The real R2 bucket name, which is what the S3 API addresses.
+  bucketName String
+
+  /// The https origin serving this bucket's objects publicly, no trailing slash, e.g.
+  /// https://cdn.example.com. Null = not public yet, so no shareable link can be
+  /// built and the UI shows the setup checklist instead of a copy button.
+  ///
+  /// 🟡 MUST BE A CUSTOM DOMAIN, never the bucket's r2.dev URL. r2.dev is rate limited
+  /// and not CDN-cached, so serving video through it stutters under load AND bills a
+  /// Class B read for every range request that a cached custom domain would absorb.
+  /// The save action rejects an r2.dev host rather than let that become the default.
+  publicBaseUrl String?
+
+  storageClass VaultStorageClass @default(STANDARD)
+
+  /// Credentials for THIS bucket, deliberately separate from the app-upload R2 config
+  /// on AppSetting. An R2 API token can be scoped to a single bucket, so the app's
+  /// token frequently cannot see a bucket created later - and a vault whose
+  /// credentials are the app's cannot be handed to a tenant without handing over
+  /// access to every tenant's uploads. The secret is encrypted at rest.
+  accountId          String
+  accessKeyId        String
+  secretAccessKeyEnc String
+
+  /// Owning workspace. ALWAYS WRITTEN, via actingConfigTenantId() - the platform's own
+  /// vault carries the PLATFORM tenant id, never null. Writing null here is exactly
+  /// what verify:owner-stamp exists to catch, and this column is on its way to NOT
+  /// NULL once the platform re-home data move runs, so a new model must not add rows
+  /// to that debt.
+  ///
+  /// Nullable only so SetNull can fire: losing a tenant must not delete the objects,
+  /// which still exist in R2 and would otherwise be bytes nobody can find. Present
+  /// from the first migration because retrofitting tenancy onto three tables and every
+  /// query later is the expensive version of this column.
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  /// Per-workspace ceiling in bytes. Null = no limit, which is every row today. Read
+  /// by nothing yet: the LMS case needs it the moment a tenant uploads, and adding the
+  /// column with the table costs nothing while a later migration costs a deploy.
+  quotaBytes BigInt?
+
+  folders  VaultFolder[]
+  files    VaultFile[]
+  /// What has happened in this bucket, including to files that are now deleted.
+  activity VaultActivity[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, bucketName])
+  @@index([tenantId])
+  @@map("vault_bucket")
+}
+
+model VaultFolder {
+  id   String @id @default(cuid())
+  name String
+
+  bucketId String
+  bucket   VaultBucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  /// Null = a folder at the bucket root.
+  parentId String?
+  parent   VaultFolder?  @relation("VaultFolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children VaultFolder[] @relation("VaultFolderTree")
+
+  files VaultFile[]
+
+  /// Denormalised from the bucket so a tenant-scoped read never has to join. Kept in
+  /// step by the actions, which always copy the bucket's value, and non-null for the
+  /// same reason as VaultBucket.tenantId.
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// 🟡 NOT a unique constraint on (bucket, parent, name). Postgres treats NULLs as
+  /// distinct, so it would not stop two root folders sharing a name - exactly the case
+  /// it looks like it covers. The actions check for a duplicate name instead, which
+  /// works at the root too.
+  @@index([bucketId, parentId])
+  @@index([tenantId])
+  @@map("vault_folder")
+}
+
+model VaultFile {
+  id String @id @default(cuid())
+
+  /// 🔴 IMMUTABLE. The R2 object key, minted once at upload. Rename and Move never
+  /// touch it, which is what keeps an already-published link alive. See the block
+  /// comment above this section.
+  objectKey String
+
+  /// The display name, and the only thing Rename edits. Starts as the uploaded
+  /// filename.
+  name String
+
+  contentType String
+  sizeBytes   BigInt
+
+  bucketId String
+  bucket   VaultBucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  /// Null = sitting at the bucket root.
+  folderId String?
+  folder   VaultFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  /// Who uploaded it. A plain audit stamp with no foreign key on purpose: it has to
+  /// survive the user being deleted, and nothing ever queries from a user to their
+  /// files.
+  uploadedById String?
+
+  /// Null = the row was reserved but the browser's upload never confirmed. A pending
+  /// row is not shown in the listing and is safe to sweep; it exists because the key
+  /// has to be minted BEFORE the presigned PUT is handed out.
+  uploadedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([bucketId, objectKey])
+  @@index([bucketId, folderId])
+  @@index([tenantId])
+  @@map("vault_file")
+}
+
+/// What happened to a file in the Vault, kept after the file itself is gone.
+///
+/// A separate table rather than columns on VaultFile, because the whole point is that
+/// it OUTLIVES the row: "which videos did I upload, and which did I delete" cannot be
+/// answered by a table whose deletes remove the evidence. Nothing cascades from the
+/// file for the same reason - fileId is a plain string, not a foreign key.
+enum VaultAction {
+  UPLOADED
+  DELETED
+  RENAMED
+  MOVED
+  /// An incomplete multipart upload aborted by cleanup. Billed parts with no object
+  /// behind them, so the log records that the bytes stopped costing money.
+  ABORTED
+}
+
+model VaultActivity {
+  id String @id @default(cuid())
+
+  action VaultAction
+
+  /// The file this concerns, as a plain id with no foreign key: the row has to survive
+  /// the file being deleted, which is most of why this table exists.
+  fileId String?
+
+  /// Copied, not joined. The name and size at the time it happened, so the log still
+  /// reads correctly after a rename, and still reads at all after a delete.
+  name        String
+  sizeBytes   BigInt
+  contentType String
+  objectKey   String
+
+  /// How long the upload took, in milliseconds. Measured server-side from the
+  /// reservation to the confirmation, so it is the real wall-clock of the transfer and
+  /// not something the browser claimed. Null on anything that is not an upload.
+  durationMs Int?
+
+  /// Free text for the detail that makes the row worth reading: the old name on a
+  /// rename, the destination on a move.
+  detail String?
+
+  bucketId String
+  bucket   VaultBucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  actorId String?
+
+  at DateTime @default(now())
+
+  @@index([bucketId, at])
+  @@index([tenantId, at])
+  @@map("vault_activity")
 }

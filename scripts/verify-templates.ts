@@ -21,6 +21,7 @@ import { qualificationSchema } from "../src/features/assessment/schemas";
 import { BUILTIN_TEMPLATE_DOCS } from "../src/features/templates/builtin";
 import { buildSpine, walk, type RouteSpec, type SpineQuestion } from "../src/lib/routing/engine";
 import type { TemplateDoc } from "../src/features/templates/schema";
+import { INDUSTRY_CATEGORIES } from "../src/features/onboarding/steps";
 
 /**
  * Branching checks for a template that routes - run against the pure engine, with the
@@ -345,6 +346,35 @@ for (const shape of ["GATE_ONLY", "GATED_ASSESSMENT", "UNGATED_ASSESSMENT"] as c
   else fail("coverage", "no built-in carries both result pages, so the import never asks which one to bring");
 }
 
+/**
+ * 🔴 NO BUILT-IN MAY SHIP A BUTTON THAT CANNOT DO ANYTHING.
+ *
+ * Both templates with a VSL page shipped "Book the 30 minutes" with an empty url and
+ * bookingCta off, and the renderer turned that into href="#": the most important button
+ * in the product, at the end of a funnel whose whole purpose is to produce that call,
+ * linking to nothing on a page that looked finished. A template cannot know the booking
+ * slug of the workspace importing it, so an empty url is legitimate - what is not is an
+ * empty url with no booking action, because then the click has nowhere to go AND
+ * nothing to record. The renderer now hides such a button; this stops one being written.
+ */
+{
+  const offenders: string[] = [];
+  for (const d of docs) {
+    for (const key of ["resultPage", "resultPagePublished"] as const) {
+      const page = d.body[key] as { blocks?: { type?: string; config?: Record<string, unknown> }[] } | null;
+      for (const b of page?.blocks ?? []) {
+        if (b?.type !== "button") continue;
+        const url = typeof b.config?.url === "string" ? b.config.url.trim() : "";
+        if (!url && b.config?.bookingCta !== true) {
+          offenders.push(`${d.slug} (${key}): "${String(b.config?.label ?? "")}"`);
+        }
+      }
+    }
+  }
+  if (offenders.length === 0) ok("result pages: every button has a destination or requests a booking");
+  else fail("buttons", `these go nowhere and record nothing:\n        ${offenders.join("\n        ")}`);
+}
+
 if (docs.some((d) => d.aiInstructions)) ok("coverage: with an AI statement");
 else fail("coverage", "no built-in template carries AI instructions");
 if (docs.some((d) => !d.aiInstructions)) ok("coverage: without an AI statement");
@@ -391,6 +421,44 @@ else fail("coverage", "every built-in template needs AI, so none works without a
     ok(`audiences: all ${TEMPLATE_CATEGORIES.length} categories have a built-in behind them`);
   } else {
     fail("audiences", `the home page lists these with no template behind them: ${empty.join(", ")}`);
+  }
+}
+
+/**
+ * The guided setup's industry question offers these same buckets, and the import step
+ * matches a tenant's answer against a template's category by equality. So the two lists
+ * have to BE the same list, minus the owner's own bucket.
+ *
+ * 🟡 WHY IT IS NOT ONE CONSTANT. The onboarding registry is client-safe and deliberately
+ * light; importing the template schema into it to share this array would pull zod and
+ * the whole assessment transfer schema into the browser bundle to save twenty-one
+ * strings. So they are two lists and this is the seam that keeps them honest.
+ *
+ * Both directions matter. A category in the library and not in the question leaves the
+ * tenants it describes picking "Something else" and asking us to build a template that
+ * already exists. One in the question and not in the library offers somebody an industry
+ * and then matches nothing, which is worse: it reads as the product being broken rather
+ * than as the library being incomplete.
+ */
+{
+  const offered = new Set<string>(INDUSTRY_CATEGORIES);
+  // "Platform" is the owner's own funnels, which no tenant should pick as their trade.
+  const library = TEMPLATE_CATEGORIES.filter((c) => c !== "Platform");
+
+  const missing = library.filter((c) => !offered.has(c));
+  if (missing.length === 0) {
+    ok(`industries: all ${library.length} library categories are offered in the setup`);
+  } else {
+    fail("industries", `in the library but never offered: ${missing.join(", ")}`);
+  }
+
+  const unknown = INDUSTRY_CATEGORIES.filter(
+    (c) => !(TEMPLATE_CATEGORIES as readonly string[]).includes(c),
+  );
+  if (unknown.length === 0) {
+    ok("industries: every offered industry exists in the library");
+  } else {
+    fail("industries", `offered in the setup but not a library category: ${unknown.join(", ")}`);
   }
 }
 

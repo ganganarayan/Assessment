@@ -1,0 +1,696 @@
+{
+  "slug": "india-trip-expectations",
+  "title": "India trip - expectations check",
+  "category": "Inbound travel",
+  "summary": "For US and UK travellers planning India. The gate turns away the enquiries nobody can deliver honestly, with a separate exit for each reason, and the twelve questions score the gap between what an agency has promised them and what will actually happen on the ground. Ships with both result pages.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "Write three or four short sentences to one traveller about their own answers.\n\nName the single biggest gap between what they have been promised and what will actually happen on the ground, and say what it will cost them on the day it surfaces - a morning lost to a carpet shop, a hotel that is not the one in the photograph, a number nobody answers. Be specific about what their answers showed. Do not list the other gaps and do not give the fix: say what is at stake, and that the order of what to fix first is worth half an hour with somebody who runs these trips. No greeting, no sign-off, no exclamation marks and no bullet points. Never say India is unsafe and never disparage their agent by name. British spelling. Never promise an outcome and never mention a price.",
+  "body": {
+    "title": "India trip - expectations check",
+    "slug": "india-trip-expectations",
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 6,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": false,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "18 questions, 6 minutes",
+    "subheadline": "An honest read on the distance between what you have been promised for India and what tends to happen once you land.",
+    "qualifiedNote": "Your read is ready. Where should we send it?",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my read",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "qualification": {
+      "enabled": true,
+      "showResultOfGate": false,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "Where does this trip start?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            { "id": "g1a", "label": "The United States", "points": 0 },
+            { "id": "g1b", "label": "The United Kingdom", "points": 0 },
+            { "id": "g1c", "label": "Canada or Ireland", "points": 0 },
+            {
+              "id": "g1d",
+              "label": "Somewhere else",
+              "points": 0,
+              "disqualifies": true,
+              "exitKey": "wrong_region"
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "Per person, what is set aside for the India part of the trip, not counting the flights to get here?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            { "id": "g2a", "label": "Over $6,000", "points": 0 },
+            { "id": "g2b", "label": "$3,000 to $6,000", "points": 0 },
+            { "id": "g2c", "label": "$1,500 to $3,000", "points": 0 },
+            {
+              "id": "g2d",
+              "label": "Under $1,500",
+              "points": 0,
+              "disqualifies": true,
+              "exitKey": "below_floor"
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "How settled are your dates?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            { "id": "g3a", "label": "Booked, the flights are in hand", "points": 0 },
+            { "id": "g3b", "label": "Decided, not yet booked", "points": 0 },
+            { "id": "g3c", "label": "A rough month", "points": 0 },
+            {
+              "id": "g3d",
+              "label": "Nothing decided, I am reading",
+              "points": 0,
+              "disqualifies": true,
+              "exitKey": "still_reading"
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "Who is travelling?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            { "id": "g4a", "label": "Just me", "points": 0 },
+            { "id": "g4b", "label": "Two of us", "points": 0 },
+            { "id": "g4c", "label": "A family, with children", "points": 0 },
+            { "id": "g4d", "label": "A group of friends or extended family", "points": 0 }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "Where are you in the process?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            { "id": "g5a", "label": "An agency has sent me an itinerary and a price", "points": 0 },
+            { "id": "g5b", "label": "I am comparing two or three quotes", "points": 0 },
+            { "id": "g5c", "label": "I have already paid a deposit", "points": 0 },
+            { "id": "g5d", "label": "I have not spoken to anybody yet", "points": 0 }
+          ]
+        },
+        {
+          "id": "g6",
+          "text": "What have you been promised so far, and by whom? If nobody has quoted you yet, say so.",
+          "type": "text",
+          "placeholder": "Private car, five-star hotels, no shopping stops, and the name of the agency. Or: nobody has quoted me yet.",
+          "required": true,
+          "options": []
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "We only handle trips starting in the US, UK, Canada and Ireland.",
+      "subtext": "Not a judgement on your trip, just the truth about ours: the time zones, the paperwork and the way we are reachable at 2am all assume you flew in from one of those four. Somebody closer to you will do this better.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true,
+      "exits": [
+        {
+          "key": "wrong_region",
+          "name": "Outside our region",
+          "mode": "PAGE",
+          "heading": "We only handle trips starting in the US, UK, Canada and Ireland.",
+          "subtext": "Not a judgement on your trip, just the truth about ours: the time zones, the paperwork and the way we are reachable at 2am all assume you flew in from one of those four. Somebody closer to you will do this better.",
+          "bodyHtml": "",
+          "buttonLabel": "",
+          "buttonUrl": "",
+          "fireDisqualifiedEvent": true,
+          "eventName": "",
+          "contentCategory": "wrong_region",
+          "completionEventName": ""
+        },
+        {
+          "key": "below_floor",
+          "name": "Under the floor",
+          "mode": "PAGE",
+          "heading": "At that budget we would have to promise you something we cannot deliver.",
+          "subtext": "India can absolutely be done for less. What cannot be done for less is the version being described to you in most quotes: the named hotel rather than 'or similar', the licensed guide rather than the driver, the private car with the air conditioning actually running, and no morning lost in a carpet shop that pays commission. An operator who agrees to all of that at this price is going to make the difference back out of your itinerary after you land. We would rather say so now.",
+          "bodyHtml": "",
+          "buttonLabel": "",
+          "buttonUrl": "",
+          "fireDisqualifiedEvent": true,
+          "eventName": "",
+          "contentCategory": "below_floor",
+          "completionEventName": ""
+        },
+        {
+          "key": "still_reading",
+          "name": "Still reading",
+          "mode": "PAGE",
+          "heading": "Come back when you have a month in mind.",
+          "subtext": "Half of what goes wrong on an India trip is decided by the season you pick, so there is not much worth saying until you have one. When you do, this takes four minutes and you will know what to ask every agency who quotes you.",
+          "bodyHtml": "",
+          "buttonLabel": "",
+          "buttonUrl": "",
+          "fireDisqualifiedEvent": true,
+          "eventName": "GateNotYet",
+          "contentCategory": "not_yet",
+          "completionEventName": ""
+        }
+      ]
+    },
+    "categories": [
+      {
+        "key": "promised",
+        "name": "What you were promised",
+        "description": "Whether the trip you were sold is a document or a conversation.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Written down",
+            "meaning": "What you were told and what you can hold somebody to are the same thing.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "Partly written",
+            "meaning": "The price survived into writing and the detail did not, which is where the day-three arguments come from.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "A conversation",
+            "meaning": "Almost all of this lives in somebody's memory of a chat. On the ground, their memory will be the one that counts.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "p1",
+            "text": "Do you have the full price in writing, with a list of what it does not cover?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Yes, a written quote that lists the exclusions",
+                "value": 0,
+                "displayOrder": 0
+              },
+              { "label": "A written price, but no list of exclusions", "value": 1, "displayOrder": 1 },
+              {
+                "label": "A number agreed in a WhatsApp or email thread",
+                "value": 2,
+                "displayOrder": 2
+              },
+              { "label": "No written price yet", "value": 3, "displayOrder": 3 }
+            ]
+          },
+          {
+            "key": "p2",
+            "text": "What does your itinerary say about the hotels?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              { "label": "Named hotels, with the room type", "value": 0, "displayOrder": 0 },
+              { "label": "Named hotels, no room type", "value": 1, "displayOrder": 1 },
+              {
+                "label": "A star rating, and the words 'or similar'",
+                "value": 2,
+                "displayOrder": 2
+              },
+              { "label": "Nothing specific", "value": 3, "displayOrder": 3 }
+            ]
+          },
+          {
+            "key": "p3",
+            "text": "What does it say about shopping stops?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              { "label": "It states in writing that there are none", "value": 0, "displayOrder": 0 },
+              { "label": "I asked, and they agreed there would be none", "value": 1, "displayOrder": 1 },
+              { "label": "It has never come up", "value": 2, "displayOrder": 2 },
+              {
+                "label": "There are 'craft demonstrations' or 'emporium visits' on it",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "p4",
+            "text": "Who is with you on the ground each day?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "A licensed guide in each city, named on the itinerary",
+                "value": 0,
+                "displayOrder": 0
+              },
+              { "label": "A guide in some cities, the driver in the rest", "value": 1, "displayOrder": 1 },
+              { "label": "The driver, who will also explain things", "value": 2, "displayOrder": 2 },
+              { "label": "I do not know", "value": 3, "displayOrder": 3 }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "expecting",
+        "name": "What you are expecting",
+        "description": "The things travellers assume are included in India because they are included at home.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Matched",
+            "meaning": "What you want and what this budget buys in India are the same trip.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "Stretched",
+            "meaning": "One or two of your expectations are above what has been quoted, and nobody has told you which.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "A different trip",
+            "meaning": "You are picturing one holiday and you have been sold another. This is the gap that ruins the first three days.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "e1",
+            "text": "How much do you want to see in the days you have?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              { "label": "A few places, with time to sit still", "value": 0, "displayOrder": 0 },
+              { "label": "The main sights, unhurried", "value": 1, "displayOrder": 1 },
+              { "label": "As much as can be fitted in", "value": 2, "displayOrder": 2 },
+              {
+                "label": "Everything on the list, this is a once-in-a-lifetime trip",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "e2",
+            "text": "How do you feel about long days in a car?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Fine, I expect four to six hours between cities",
+                "value": 0,
+                "displayOrder": 0
+              },
+              { "label": "Acceptable, as long as I know in advance", "value": 1, "displayOrder": 1 },
+              { "label": "I would rather fly or take the train", "value": 2, "displayOrder": 2 },
+              { "label": "I had not thought about the distances", "value": 3, "displayOrder": 3 }
+            ]
+          },
+          {
+            "key": "e3",
+            "text": "What do you need from the place you sleep?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              { "label": "Clean and simple is fine", "value": 0, "displayOrder": 0 },
+              { "label": "Mid-range, international standard", "value": 1, "displayOrder": 1 },
+              {
+                "label": "What I would book at home, every single night",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Heritage and five-star, and I have been shown the photographs",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "e4",
+            "text": "Food, water and health - what is the plan?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "I have read up, I will be careful, I have what I need",
+                "value": 0,
+                "displayOrder": 0
+              },
+              { "label": "I will ask the guide what is safe", "value": 1, "displayOrder": 1 },
+              { "label": "I assume the agency handles it", "value": 2, "displayOrder": 2 },
+              {
+                "label": "I have dietary or medical needs nobody has asked me about",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "protected",
+        "name": "How protected you are",
+        "description": "What you can actually do if day three is not the trip you bought.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Covered",
+            "meaning": "You paid in a way that can be reversed, and you know who answers the phone.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "Thin",
+            "meaning": "You have somebody to call and very little to hold them to.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "Exposed",
+            "meaning": "If this goes wrong after you land, the money is gone and the only person who can fix it is the person who caused it.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "s1",
+            "text": "How did the money move, or how will it?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              { "label": "Card, or a recognised payment gateway", "value": 0, "displayOrder": 0 },
+              { "label": "Bank transfer to a company account", "value": 1, "displayOrder": 1 },
+              {
+                "label": "Bank transfer to an individual's account",
+                "value": 2,
+                "displayOrder": 2
+              },
+              { "label": "Cash, on arrival", "value": 3, "displayOrder": 3 }
+            ]
+          },
+          {
+            "key": "s2",
+            "text": "What do the cancellation and change terms say?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              { "label": "I have them in writing and I have read them", "value": 0, "displayOrder": 0 },
+              { "label": "I have them, I have not read them", "value": 1, "displayOrder": 1 },
+              { "label": "I was told it is flexible", "value": 2, "displayOrder": 2 },
+              { "label": "Nothing in writing", "value": 3, "displayOrder": 3 }
+            ]
+          },
+          {
+            "key": "s3",
+            "text": "Did anybody check that the operator is actually registered?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Yes, I confirmed it with the Ministry of Tourism or IATO myself",
+                "value": 0,
+                "displayOrder": 0
+              },
+              { "label": "I saw the badges on their website", "value": 1, "displayOrder": 1 },
+              { "label": "They told me they are approved", "value": 2, "displayOrder": 2 },
+              { "label": "It has not come up", "value": 3, "displayOrder": 3 }
+            ]
+          },
+          {
+            "key": "s4",
+            "text": "Who do you ring at 11pm in Agra when something is wrong?",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "A named person in India, on a number I have tested",
+                "value": 0,
+                "displayOrder": 0
+              },
+              { "label": "A number printed on the itinerary", "value": 1, "displayOrder": 1 },
+              { "label": "The agent I have been emailing", "value": 2, "displayOrder": 2 },
+              { "label": "I do not know", "value": 3, "displayOrder": 3 }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Your trip is mostly covered",
+        "description": "What you were promised is written down, what you expect matches what has been quoted, and you know who answers the phone. Read the breakdown anyway: the one soft spot is usually the one nobody thinks to ask about.",
+        "minScore": 0,
+        "maxScore": 40,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Two gaps that usually surface on day three",
+        "description": "Nothing here says you have been misled. It says two things were settled in conversation rather than in writing, and conversation is not what you will have to hand on the road between Agra and Jaipur.",
+        "minScore": 41,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "You have been promised something that is not written down",
+        "description": "The pattern in your answers is the common one: a good price, a warm agent, and the specifics left vague. The specifics are where the margin comes from, and they get taken back after you land, one morning and one hotel at a time.",
+        "minScore": 60,
+        "maxScore": 75,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "This has the shape of a trip that goes wrong on arrival",
+        "description": "Expectations well above what the quote supports, almost nothing in writing, and no way to reverse the payment or reach anybody here. Every one of those is fixable before you fly and none of them is fixable afterwards.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "publishedPages": [
+      {
+        "id": "p1",
+        "order": 0,
+        "title": null,
+        "blocks": [
+          {
+            "id": "b1",
+            "type": "text",
+            "order": 0,
+            "config": {
+              "heading": "What your answers say about this trip",
+              "content": "This is scored on the three things that decide whether an India trip matches the brochure: how much of it is actually written down, whether what you are picturing is what the price buys, and what you can do about it once you have landed."
+            }
+          },
+          { "id": "b2", "type": "overall_band", "order": 1, "config": { "prefix": "Your exposure:" } },
+          {
+            "id": "b3",
+            "type": "band_sentence",
+            "order": 2,
+            "config": {
+              "byBand": {
+                "LOW": "The honest read: you have done this properly. Take the breakdown to your agent and close the one gap below.",
+                "MEDIUM": "You are fine on the big things and loose on two small ones, and small ones are what eat the mornings.",
+                "HIGH": "The warmth of your agent is not the problem. The vagueness is, and it is deliberate more often than it is careless.",
+                "CRITICAL": "Do not pay anything more until the three lines below are in writing with named hotels and named guides."
+              }
+            }
+          },
+          {
+            "id": "b4",
+            "type": "category_scores",
+            "order": 3,
+            "config": { "heading": "Where the exposure actually is" }
+          },
+          {
+            "id": "b5",
+            "type": "text",
+            "order": 4,
+            "config": {
+              "heading": "What this does not tell you",
+              "content": "A score says where you are exposed. It does not say which gap to close first, what to insist on in writing, or which of your dates makes the whole plan harder than it needs to be. That depends on your itinerary, and it takes a conversation rather than a form."
+            }
+          }
+        ]
+      }
+    ],
+    "resultPage": {
+      "theme": "warm_sand",
+      "blocks": [
+        { "id": "v1", "type": "eyebrow", "config": { "text": "Your India trip, read honestly" } },
+        {
+          "id": "v2",
+          "type": "headline",
+          "config": { "text": "Here is the part of this that decides your first three days" }
+        },
+        {
+          "id": "v3",
+          "type": "subhead",
+          "config": {
+            "text": "Read it through, then bring your itinerary to a call. This is the same thing we would say on one, minus your dates."
+          }
+        },
+        {
+          "id": "v4",
+          "type": "ai_statement",
+          "config": {
+            "fallback": "Your answers put the risk in one of three places: what is actually written down, the distance between the trip you are picturing and the one that was quoted, or what you can do about it after you land. Which one it is changes what you should fix this week."
+          }
+        },
+        { "id": "v5", "type": "video", "config": { "embedCode": "" } },
+        {
+          "id": "v6",
+          "type": "button",
+          "config": {
+            "label": "Book the 30 minutes",
+            "url": "",
+            "fontSize": 18,
+            "align": "center",
+            "bookingCta": true
+          }
+        },
+        {
+          "id": "v7",
+          "type": "text",
+          "config": {
+            "text": "Thirty minutes, your itinerary open in front of us, and a straight answer on what to insist on in writing before you pay the balance.",
+            "align": "center"
+          }
+        },
+        {
+          "id": "v8",
+          "type": "testimonials",
+          "config": { "heading": "What it looked like for them", "items": [] }
+        },
+        { "id": "v9", "type": "footer", "config": { "links": [], "disclaimer": "", "copyright": "" } }
+      ]
+    },
+    "resultPagePublished": {
+      "theme": "warm_sand",
+      "blocks": [
+        { "id": "v1", "type": "eyebrow", "config": { "text": "Your India trip, read honestly" } },
+        {
+          "id": "v2",
+          "type": "headline",
+          "config": { "text": "Here is the part of this that decides your first three days" }
+        },
+        {
+          "id": "v3",
+          "type": "subhead",
+          "config": {
+            "text": "Read it through, then bring your itinerary to a call. This is the same thing we would say on one, minus your dates."
+          }
+        },
+        {
+          "id": "v4",
+          "type": "ai_statement",
+          "config": {
+            "fallback": "Your answers put the risk in one of three places: what is actually written down, the distance between the trip you are picturing and the one that was quoted, or what you can do about it after you land. Which one it is changes what you should fix this week."
+          }
+        },
+        { "id": "v5", "type": "video", "config": { "embedCode": "" } },
+        {
+          "id": "v6",
+          "type": "button",
+          "config": {
+            "label": "Book the 30 minutes",
+            "url": "",
+            "fontSize": 18,
+            "align": "center",
+            "bookingCta": true
+          }
+        },
+        {
+          "id": "v7",
+          "type": "text",
+          "config": {
+            "text": "Thirty minutes, your itinerary open in front of us, and a straight answer on what to insist on in writing before you pay the balance.",
+            "align": "center"
+          }
+        },
+        {
+          "id": "v8",
+          "type": "testimonials",
+          "config": { "heading": "What it looked like for them", "items": [] }
+        },
+        { "id": "v9", "type": "footer", "config": { "links": [], "disclaimer": "", "copyright": "" } }
+      ]
+    }
+  }
+}

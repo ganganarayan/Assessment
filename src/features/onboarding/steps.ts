@@ -66,6 +66,14 @@ export interface OnboardingStepDef {
   question: string;
   /** One line under it. Say why it matters, not how to use the field. */
   hint?: string;
+  /**
+   * Two or three words naming this step where there is no room for the question.
+   *
+   * Only the booking prerequisites need one, and verify:onboarding fails the build if
+   * one of them is missing it: an unnamed prerequisite renders as a blank item in the
+   * trial ribbon, which is the one place somebody is told what to go and fetch.
+   */
+  short?: string;
   placeholder?: string;
   choices?: StepChoice[];
   /** Offers "I will do this later", which records a skip rather than an answer. */
@@ -79,6 +87,47 @@ export interface OnboardingStepDef {
    *  link, the builder) come from the view's context instead. */
   link?: { href: string; label: string };
 }
+
+/**
+ * The industries, which are the template library's own categories.
+ *
+ * 🟡 NOT A SECOND TAXONOMY. Every built-in template already carries a category, and
+ * those categories are already industry names, so this list is the matching key rather
+ * than a parallel one somebody has to keep in step. A dropdown that matches a category
+ * exactly beats fuzzy-matching a typed sentence against it, which is why this is a
+ * choice and not a text field.
+ *
+ * "other" is the one entry with no template behind it, and it is the point of the
+ * question: it is how the owner finds out a funnel has to be written for somebody.
+ */
+export const INDUSTRY_CATEGORIES: readonly string[] = [
+  "Agencies",
+  "Astrologers",
+  "B2B SaaS",
+  "Clinics",
+  "Coaches",
+  "Consultants",
+  "Course creators",
+  "Financial advisers",
+  "Franchise",
+  "Healers",
+  "Home services",
+  "Inbound travel",
+  "Insurance brokers",
+  "Interior design",
+  "IT services",
+  "Law firms",
+  "Overseas education",
+  "Real estate",
+  "Recruiters",
+  "Solar and EV",
+  "Webinars",
+];
+
+const INDUSTRY_CHOICES: StepChoice[] = [
+  ...INDUSTRY_CATEGORIES.map((c) => ({ value: c, label: c })),
+  { value: "other", label: "Something else", hint: "Tell us what it is and we will build one for you." },
+];
 
 const runsMeta = (a: OnboardingAnswers) => a.metaUse === "yes";
 const takesPayments = (a: OnboardingAnswers) => a.razorpayAccount === "gst" || a.razorpayAccount === "nongst";
@@ -108,8 +157,61 @@ export const ONBOARDING_STEPS: readonly OnboardingStepDef[] = [
     placeholder: "+91",
   },
   {
+    key: "whatYouSell",
+    kind: "text",
+    short: "What you sell",
+    question: "What do you sell, and what does a buyer actually get?",
+    hint: "One sentence. It is what your questions get written around.",
+    placeholder: "A 12-week programme, one call a week and a WhatsApp group",
+  },
+  {
+    key: "pricePoint",
+    kind: "text",
+    short: "Your price",
+    question: "What does it cost?",
+    hint: "A range is fine. It decides where the score bands sit, because a lead who can afford it and one who cannot are not the same lead.",
+    placeholder: "40,000 to 60,000",
+  },
+  {
+    key: "badLead",
+    kind: "text",
+    short: "Who wastes your time",
+    question: "Who wastes your time?",
+    // Deliberately NOT "who should the gate reject". Somebody three minutes into their
+    // first workspace does not know what a gate is yet, and asking in the product's own
+    // vocabulary gets a blank stare where asking in theirs gets the real answer.
+    hint: "The people who enquire, take up an hour and were never going to buy. In your words, not ours.",
+    placeholder: "Students with no budget, and people shopping on price alone",
+  },
+  {
+    key: "afterTheYes",
+    kind: "text",
+    short: "After a yes",
+    question: "What happens between a yes and the work starting?",
+    hint: "Payment, a form, a kickoff call. It is where a qualified lead has to be pointed next.",
+    placeholder: "They pay half, then book a kickoff call",
+    skippable: true,
+  },
+  {
+    key: "industry",
+    kind: "choice",
+    short: "Your industry",
+    question: "Which of these is closest to what you do?",
+    hint: "It decides which ready-made funnel you are offered at the end. Nothing else changes.",
+    choices: INDUSTRY_CHOICES,
+  },
+  {
+    key: "industryOther",
+    kind: "text",
+    question: "What do you call your industry?",
+    hint: "Nothing in the library fits yours, so this comes to us and we build one for you.",
+    placeholder: "Veterinary clinics",
+    when: (a) => a.industry === "other",
+  },
+  {
     key: "metaUse",
     kind: "choice",
+    short: "Meta ads",
     question: "Do you run Meta ads for this business?",
     choices: [
       { value: "yes", label: "Yes", hint: "Two more questions and your ads can optimise on qualified leads." },
@@ -119,6 +221,7 @@ export const ONBOARDING_STEPS: readonly OnboardingStepDef[] = [
   {
     key: "metaPixel",
     kind: "text",
+    short: "Pixel ID",
     question: "What is your Meta Pixel ID?",
     hint: "Events Manager, Data sources. Fifteen or sixteen digits.",
     placeholder: "1234567890123456",
@@ -127,13 +230,15 @@ export const ONBOARDING_STEPS: readonly OnboardingStepDef[] = [
   {
     key: "metaCapiToken",
     kind: "secret",
+    short: "Conversions API token",
     question: "Paste your Conversions API token.",
-    hint: "Events Manager, your dataset, Settings, Generate access token. Without it your funnel collects leads and tells your ad account nothing, which looks exactly like a funnel that is not working.",
+    hint: "Events Manager, your dataset, Settings, then Generate access token. It is stored encrypted and it is never shown again, to you or to anyone here. Paste it now and three sample events go to your pixel immediately, so your ad account has data in it by the time we speak. Without it your funnel collects leads and tells your ad account nothing, which looks exactly like a funnel that is not working.",
     when: runsMeta,
   },
   {
     key: "metaCheck",
     kind: "check",
+    short: "Meta check",
     question: "Let me check that Meta is really connected.",
     hint: "Reading the same two values your live funnel reads, so this cannot disagree with what actually fires.",
     cta: "Check it",
