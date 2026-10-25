@@ -5180,6 +5180,9 @@ enum VaultAction {
   DELETED
   RENAMED
   MOVED
+  /// An incomplete multipart upload aborted by cleanup. Billed parts with no object
+  /// behind them, so the log records that the bytes stopped costing money.
+  ABORTED
 }
 
 model VaultActivity {

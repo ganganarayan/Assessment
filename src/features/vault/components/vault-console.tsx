@@ -33,6 +33,7 @@ import {
   type VaultBucketView,
   type VaultListingView,
 } from "@/features/vault/types";
+import { Housekeeping } from "@/features/vault/components/vault-housekeeping";
 
 /**
  * The Vault: buckets, folders, files, and the link you hand to VidaPulse.
@@ -728,7 +729,12 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
             />
           ))}
 
-          <ActivityLog bucketId={bucket.id} />
+          {/* A column, not a row: collapsed these are two small buttons, but expanded
+              each is a full width panel, and a flex row would squeeze them. */}
+          <div className="flex flex-col items-stretch gap-2">
+            <ActivityLog bucketId={bucket.id} />
+            <Housekeeping bucketId={bucket.id} />
+          </div>
 
           {listing && listing.folders.length === 0 && listing.files.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -1018,9 +1024,11 @@ function ActivityLog({ bucketId }: { bucketId: string }) {
                   ? "🟢 Upload"
                   : r.action === "DELETED"
                     ? "🔴 Delete"
-                    : r.action === "RENAMED"
-                      ? "Rename"
-                      : "Move"}
+                    : r.action === "ABORTED"
+                      ? "🟡 Abort"
+                      : r.action === "RENAMED"
+                        ? "Rename"
+                        : "Move"}
               </span>
               <span
                 className={`min-w-0 flex-1 truncate ${r.stillExists ? "" : "text-muted-foreground line-through"}`}
@@ -1028,8 +1036,11 @@ function ActivityLog({ bucketId }: { bucketId: string }) {
               >
                 {r.name}
               </span>
+              {/* Blank for an abort rather than "0 B": R2's list of incomplete uploads
+                  does not report how many bytes were already sent, and a zero there
+                  would read as a fact. */}
               <span className="shrink-0 text-xs text-muted-foreground">
-                {humanBytes(r.sizeBytes)}
+                {r.action === "ABORTED" ? "" : humanBytes(r.sizeBytes)}
               </span>
               {/* The headline number for an upload. Blank for everything else rather
                   than a dash, so the column reads as "this took this long". */}

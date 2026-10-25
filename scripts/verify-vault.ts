@@ -159,12 +159,63 @@ async function checkPresignedUrlHasNoChecksum(): Promise<void> {
 }
 
 
+/**
+ * 5. Cleanup may never abort an upload that could still be running.
+ *
+ * 🔴 THE FAILURE THIS PREVENTS. Cleanup aborts incomplete multipart uploads to stop R2
+ * billing for parts that will never become a file. It cannot tell a dead upload from a
+ * slow one - only an old one from a new one - so the age cutoff is the entire safety
+ * argument. Lower it towards zero and cleanup starts destroying uploads that are still
+ * in flight, and the person watching the progress bar sees the same unreadable network
+ * error the checksum bug produced, with the cause now inside this app.
+ *
+ * A presigned part URL lives six hours, so nothing legitimate is still running at
+ * twelve. The floor is checked rather than the exact value so the cutoff can be tuned
+ * without editing this script, but not tuned into a weapon.
+ */
+const AGE_FLOOR_HOURS = 12;
+
+function checkOrphanAgeFloor(): void {
+  const typesSrc = readFileSync(join(root, "src/features/vault/types.ts"), "utf8");
+  const m = /ORPHAN_MAX_AGE_HOURS\s*=\s*(\d+)/.exec(typesSrc);
+  if (!m) {
+    problems.push(
+      `src/features/vault/types.ts: ORPHAN_MAX_AGE_HOURS is gone. Cleanup's age cutoff is the only thing stopping it aborting uploads that are still running.`,
+    );
+    return;
+  }
+  const hours = Number(m[1]);
+  if (hours < AGE_FLOOR_HOURS) {
+    problems.push(
+      `src/features/vault/types.ts: ORPHAN_MAX_AGE_HOURS is ${hours}, under the ${AGE_FLOOR_HOURS} hour floor. ` +
+        `A presigned part URL lives 6 hours, so a cutoff this low lets cleanup abort an upload that is still in flight.`,
+    );
+  }
+
+  // And the cleanup itself must still consult it. A cutoff nothing reads is decoration.
+  const actionsSrc = readFileSync(join(root, "src/features/vault/actions.ts"), "utf8");
+  const at = actionsSrc.indexOf("export async function cleanVaultOrphans");
+  if (at < 0) {
+    problems.push(`src/features/vault/actions.ts: cleanVaultOrphans is gone.`);
+    return;
+  }
+  const body = actionsSrc.slice(at, at + 3000);
+  if (!/ORPHAN_MAX_AGE_HOURS/.test(body) || !/initiatedAt/.test(body)) {
+    problems.push(
+      `src/features/vault/actions.ts: cleanVaultOrphans no longer tests an upload's age against ORPHAN_MAX_AGE_HOURS. ` +
+        `It would abort uploads that are still running.`,
+    );
+  }
+}
 
 async function main(): Promise<void> {
   await checkPresignedUrlHasNoChecksum();
+  checkOrphanAgeFloor();
 
   if (problems.length === 0) {
-    console.log("🟢 vault: object keys are minted once, and presigned uploads carry no checksum.");
+    console.log(
+      "🟢 vault: object keys are minted once, presigned uploads carry no checksum, and cleanup cannot abort a live upload.",
+    );
     process.exit(0);
   }
 

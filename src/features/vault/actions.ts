@@ -15,7 +15,10 @@ import {
   type VaultFileView,
   type VaultFolderView,
   type VaultListingView,
+  type VaultOrphanRow,
+  type VaultOrphanStatus,
   type VaultUploadTicket,
+  ORPHAN_MAX_AGE_HOURS,
 } from "./types";
 import { mintObjectKey, publicUrlFor, safeDisplayName } from "./keys";
 import {
@@ -31,6 +34,10 @@ import {
   headObject,
   loadBucketCreds,
   presignUpload,
+  listIncompleteUploads,
+  readAbortDays,
+  writeAbortDays,
+  R2_DEFAULT_ABORT_DAYS,
   VaultBucketUnusableError,
 } from "./client";
 
@@ -253,6 +260,22 @@ export async function saveVaultBucket(
           };
         }
       }
+    }
+
+    // 🟢 Every bucket the Vault touches gets the one day abort rule, not just newly
+    // created ones. Best effort and silent: a token without lifecycle permission must
+    // not turn a successful save into an error, and the housekeeping panel reports the
+    // policy it actually reads back rather than the one we hoped for.
+    try {
+      const creds = await loadBucketCreds(id);
+      const current = await readAbortDays(creds);
+      const target = Math.max(1, Math.round(ORPHAN_MAX_AGE_HOURS / 24));
+      if (current === null || current > target) await writeAbortDays(creds, target);
+    } catch (e) {
+      console.error(
+        "[vault] could not set the abort rule on save:",
+        e instanceof Error ? e.message : String(e),
+      );
     }
 
     revalidatePath("/admin/vault");
@@ -1000,11 +1023,32 @@ export async function sweepVaultPending(): Promise<ActionResult<{ removed: numbe
   try {
     const tenantId = await actingConfigTenantId();
     const cutoff = new Date(Date.now() - 6 * 60 * 60 * 1000);
-    const res = await prisma.vaultFile.deleteMany({
+    const stale = await prisma.vaultFile.findMany({
       where: { tenantId, uploadedAt: null, createdAt: { lt: cutoff } },
+      select: { id: true, bucketId: true, objectKey: true },
     });
-    // The objects are left alone on purpose: a key nothing references costs storage and
-    // is invisible, while deleting by guess could remove bytes somebody is still using.
+    if (stale.length === 0) return { ok: true, data: { removed: 0 } };
+
+    // 🟡 THE OBJECT GOES TOO, and the first version of this got that wrong. It deleted
+    // the row and left the bytes, reasoning that deleting an object "by guess" was
+    // risky - but there is no guess involved. mintObjectKey() gives every reservation
+    // its own random key, used by that upload and nothing else, so an unconfirmed row's
+    // key cannot name anybody else's file. A single PUT that reached R2 while its
+    // confirm never ran leaves exactly that: a complete, billed, publicly readable
+    // object with no row anywhere in the app pointing at it. Dropping the row alone
+    // made it permanent and unfindable.
+    //
+    // Best effort per row: a bucket that is unreachable must not block the sweep, and
+    // an object that was never there answers with the same success either way.
+    for (const row of stale) {
+      try {
+        const creds = await loadBucketCreds(row.bucketId);
+        await deleteObject(creds, row.objectKey);
+      } catch {
+        // Unreachable bucket or already gone. The row still goes, below.
+      }
+    }
+    const res = await prisma.vaultFile.deleteMany({ where: { id: { in: stale.map((r) => r.id) } } });
     return { ok: true, data: { removed: res.count } };
   } catch (e) {
     return fail(e, "Couldn't sweep stale uploads.");
@@ -1217,7 +1261,7 @@ export async function vaultMultipartThreshold(): Promise<ActionResult<{ threshol
  * would be a file the operator believes is gone and is not, or vice versa.
  */
 async function logVaultActivity(entry: {
-  action: "UPLOADED" | "DELETED" | "RENAMED" | "MOVED";
+  action: "UPLOADED" | "DELETED" | "RENAMED" | "MOVED" | "ABORTED";
   fileId: string | null;
   name: string;
   sizeBytes: bigint;
@@ -1252,7 +1296,7 @@ async function logVaultActivity(entry: {
 
 export interface VaultActivityRow {
   id: string;
-  action: "UPLOADED" | "DELETED" | "RENAMED" | "MOVED";
+  action: "UPLOADED" | "DELETED" | "RENAMED" | "MOVED" | "ABORTED";
   name: string;
   sizeBytes: number;
   contentType: string;
@@ -1317,5 +1361,179 @@ export async function listVaultActivity(
     };
   } catch (e) {
     return fail(e, "Couldn't load the activity log.");
+  }
+}
+
+/* ------------------------------------------------- orphaned part cleanup --- */
+
+/**
+ * What is stranded in the bucket, and what R2's own policy will do about it.
+ *
+ * 🔴 WHY THIS SCREEN EXISTS AT ALL. An incomplete multipart upload is parts R2 stores
+ * and bills while they belong to no object. They appear in no file listing - not in the
+ * Cloudflare browser, not in this Vault - so without asking for them by name there is
+ * no way to know they are there. They are created by any upload that dies after parts
+ * have gone up but before the abort runs: a closed tab, a crashed page, a deploy
+ * restarting the app mid upload. The browser's abort is best effort by nature, because
+ * the code that would send it is the code that just stopped.
+ *
+ * Read only, and deliberately separate from the cleanup below, so the owner sees the
+ * number before anything is destroyed.
+ */
+export async function vaultOrphanStatus(
+  bucketId: string,
+): Promise<ActionResult<VaultOrphanStatus>> {
+  await requireSuperAdmin();
+  try {
+    const tenantId = await actingConfigTenantId();
+    const bucket = await prisma.vaultBucket.findFirst({
+      where: { id: bucketId, tenantId },
+      select: { id: true },
+    });
+    if (!bucket) return { ok: false, error: "That bucket is not in this vault." };
+
+    const creds = await loadBucketCreds(bucketId);
+    const incomplete = await listIncompleteUploads(creds);
+    const now = Date.now();
+    const rows: VaultOrphanRow[] = incomplete
+      .map((u) => ({
+        objectKey: u.objectKey,
+        uploadId: u.uploadId,
+        initiatedAt: u.initiatedAt ? u.initiatedAt.toISOString() : null,
+        ageHours: u.initiatedAt
+          ? Math.round(((now - u.initiatedAt.getTime()) / 3_600_000) * 10) / 10
+          : null,
+      }))
+      .sort((a, b) => (b.ageHours ?? -1) - (a.ageHours ?? -1));
+
+    // Reading the lifecycle rule needs a broader permission than listing does, so it is
+    // allowed to fail on its own without taking the listing down with it. Cleanup still
+    // works without it; only the permanent guarantee is out of reach.
+    let abortDays: number | null = null;
+    let policyError: string | null = null;
+    try {
+      abortDays = await readAbortDays(creds);
+    } catch (e) {
+      policyError = e instanceof Error ? e.message : String(e);
+    }
+
+    return {
+      ok: true,
+      data: {
+        abortDays,
+        defaultDays: R2_DEFAULT_ABORT_DAYS,
+        policyTight: abortDays !== null && abortDays * 24 <= ORPHAN_MAX_AGE_HOURS,
+        rows,
+        cleanable: rows.filter((r) => r.ageHours !== null && r.ageHours >= ORPHAN_MAX_AGE_HOURS)
+          .length,
+        policyError,
+      },
+    };
+  } catch (e) {
+    return fail(e, "Couldn't read the bucket's incomplete uploads.");
+  }
+}
+
+/**
+ * Abort every incomplete upload older than ORPHAN_MAX_AGE_HOURS.
+ *
+ * 🔴 THE AGE TEST IS THE WHOLE SAFETY ARGUMENT. Cleanup cannot tell a dead upload from
+ * a slow one - it can only tell an old one from a new one. Aborting a live upload
+ * destroys it from under the person watching the progress bar, and they would see the
+ * same opaque failure the checksum bug produced. A presigned part URL lives six hours,
+ * so at twenty four nothing legitimate is still running. verify:vault holds the floor.
+ *
+ * An upload R2 reports with no initiation time is skipped rather than guessed about.
+ */
+export async function cleanVaultOrphans(
+  bucketId: string,
+): Promise<ActionResult<{ aborted: number; skipped: number; failed: number }>> {
+  const owner = await requireOwner();
+  if (!owner.ok) return owner;
+  try {
+    const tenantId = await actingConfigTenantId();
+    const bucket = await prisma.vaultBucket.findFirst({
+      where: { id: bucketId, tenantId },
+      select: { id: true },
+    });
+    if (!bucket) return { ok: false, error: "That bucket is not in this vault." };
+
+    const creds = await loadBucketCreds(bucketId);
+    const incomplete = await listIncompleteUploads(creds);
+    const cutoff = Date.now() - ORPHAN_MAX_AGE_HOURS * 60 * 60 * 1000;
+
+    let aborted = 0;
+    let skipped = 0;
+    let failed = 0;
+    for (const u of incomplete) {
+      if (!u.initiatedAt || u.initiatedAt.getTime() > cutoff) {
+        skipped++;
+        continue;
+      }
+      try {
+        await abortMultipart(creds, u.objectKey, u.uploadId);
+        aborted++;
+        const ageHours = Math.round((Date.now() - u.initiatedAt.getTime()) / 3_600_000);
+        // Logged so the one cost nobody can see leaves a trace that it stopped. Size is
+        // zero because ListMultipartUploads does not report the bytes already uploaded,
+        // and an invented number in a log is worse than none.
+        await logVaultActivity({
+          action: "ABORTED",
+          fileId: null,
+          name: u.objectKey.split("/").pop() ?? u.objectKey,
+          sizeBytes: 0n,
+          contentType: "",
+          objectKey: u.objectKey,
+          detail: `incomplete upload aborted, started ${ageHours} h earlier`,
+          bucketId,
+          tenantId,
+          actorId: owner.user.id,
+        });
+      } catch {
+        // One stubborn upload must not stop the rest. It stays listed, and R2's own
+        // lifecycle rule will take it.
+        failed++;
+      }
+    }
+    if (aborted > 0) revalidatePath("/admin/vault");
+    return { ok: true, data: { aborted, skipped, failed } };
+  } catch (e) {
+    return fail(e, "Couldn't clean up the incomplete uploads.");
+  }
+}
+
+/**
+ * Put R2's own lifecycle rule in charge of this, permanently.
+ *
+ * 🟢 THIS IS THE REAL FIX, and the cleanup above is only the convenience. R2 aborts
+ * incomplete uploads itself, server side, on a bucket rule: no cron, no Worker, no
+ * browser, nothing in this app that has to still be running. It keeps working when the
+ * app is down, when the tab is closed, and when nobody opens the Vault for a month -
+ * which is exactly the condition under which stranded parts accumulate unnoticed.
+ *
+ * Every bucket already has an implicit seven day default. This tightens it to one day,
+ * the floor R2's rules allow.
+ */
+export async function applyVaultOrphanPolicy(
+  bucketId: string,
+): Promise<ActionResult<{ days: number }>> {
+  const owner = await requireOwner();
+  if (!owner.ok) return owner;
+  try {
+    const tenantId = await actingConfigTenantId();
+    const bucket = await prisma.vaultBucket.findFirst({
+      where: { id: bucketId, tenantId },
+      select: { id: true },
+    });
+    if (!bucket) return { ok: false, error: "That bucket is not in this vault." };
+
+    const creds = await loadBucketCreds(bucketId);
+    // A day is the finest grain an R2 lifecycle rule takes, and it matches the Vault's
+    // own cutoff. Rounding up rather than to zero: a rule of zero days is not a rule.
+    const days = Math.max(1, Math.round(ORPHAN_MAX_AGE_HOURS / 24));
+    await writeAbortDays(creds, days);
+    return { ok: true, data: { days } };
+  } catch (e) {
+    return fail(e, "Couldn't set the bucket's cleanup rule.");
   }
 }

@@ -108,3 +108,45 @@ export interface VaultUploadTicket {
   url: string;
   objectKey: string;
 }
+
+/**
+ * How old an incomplete multipart upload must be before cleanup aborts it.
+ *
+ * 🔴 NEVER LOWER THIS NEAR ZERO. Aborting an upload that is still running destroys it
+ * from under the person watching the progress bar, and cleanup cannot tell a stalled
+ * upload from a slow one - only an old one from a new one. A presigned part URL lives
+ * six hours, so nothing legitimate is still in flight at twenty four. verify:vault
+ * enforces a floor.
+ */
+export const ORPHAN_MAX_AGE_HOURS = 24;
+
+/** An incomplete multipart upload as the Vault shows it. */
+export interface VaultOrphanRow {
+  objectKey: string;
+  uploadId: string;
+  /** ISO, or null if R2 reported no initiation time. */
+  initiatedAt: string | null;
+  /** Null when initiatedAt is null, which is the only case cleanup leaves alone. */
+  ageHours: number | null;
+}
+
+export interface VaultOrphanStatus {
+  /**
+   * Days after which R2 aborts incomplete uploads by its own lifecycle rule. Null means
+   * no rule is set on the bucket, so R2's implicit default applies.
+   */
+  abortDays: number | null;
+  /** R2's implicit default, for the "no rule set" message. */
+  defaultDays: number;
+  /** True once the bucket's own rule is at or below the Vault's target. */
+  policyTight: boolean;
+  /** Everything incomplete right now, newest first. */
+  rows: VaultOrphanRow[];
+  /** How many of those are old enough for cleanup to abort. */
+  cleanable: number;
+  /**
+   * Set when the bucket's credentials cannot read or write lifecycle rules. The listing
+   * still works, so cleanup still works - only the permanent rule is out of reach.
+   */
+  policyError: string | null;
+}

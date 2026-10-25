@@ -9,6 +9,10 @@ import {
   UploadPartCommand,
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
+  ListMultipartUploadsCommand,
+  GetBucketLifecycleConfigurationCommand,
+  PutBucketLifecycleConfigurationCommand,
+  type LifecycleRule,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "@/lib/db/prisma";
@@ -350,4 +354,183 @@ export async function abortMultipart(
       UploadId: uploadId,
     }),
   );
+}
+
+/* ------------------------------------------------- orphaned part cleanup --- */
+
+/**
+ * An incomplete multipart upload: parts sitting in R2 that never became an object.
+ *
+ * 🔴 WHY THIS IS NOT COSMETIC. R2 stores and BILLS the parts of an upload that was
+ * started and never completed, and they appear in no object listing - not in the
+ * Cloudflare file browser, not in this app. The only way to see them is to ask for them
+ * by name, which is what this does.
+ *
+ * They are created by any upload that dies after parts have gone up but before the
+ * abort call runs: a closed tab, a crashed page, a deploy restarting the app mid
+ * upload. The abort in the browser is best effort by nature, because the code that
+ * would send it is the code that just stopped running. That is exactly why the real
+ * guarantee is the LIFECYCLE RULE below and not this listing.
+ */
+export interface IncompleteUpload {
+  objectKey: string;
+  uploadId: string;
+  /** R2 reports this; null only if it ever stops doing so. */
+  initiatedAt: Date | null;
+}
+
+/**
+ * Every incomplete multipart upload in the bucket.
+ *
+ * Paginated, with a hard page ceiling: a runaway loop here would be a loop of billed
+ * Class A requests. Twenty pages is twenty thousand uploads, which is far past any
+ * state this vault can reach honestly.
+ */
+export async function listIncompleteUploads(creds: VaultBucketCreds): Promise<IncompleteUpload[]> {
+  const client = clientFor(creds);
+  const found: IncompleteUpload[] = [];
+  let keyMarker: string | undefined;
+  let uploadIdMarker: string | undefined;
+
+  for (let page = 0; page < 20; page++) {
+    const res = await client.send(
+      new ListMultipartUploadsCommand({
+        Bucket: creds.bucketName,
+        KeyMarker: keyMarker,
+        UploadIdMarker: uploadIdMarker,
+        MaxUploads: 1000,
+      }),
+    );
+    for (const u of res.Uploads ?? []) {
+      if (!u.Key || !u.UploadId) continue;
+      found.push({ objectKey: u.Key, uploadId: u.UploadId, initiatedAt: u.Initiated ?? null });
+    }
+    if (!res.IsTruncated) break;
+    keyMarker = res.NextKeyMarker;
+    uploadIdMarker = res.NextUploadIdMarker;
+    // No marker to continue from. Stopping beats asking for page one again forever.
+    if (!keyMarker && !uploadIdMarker) break;
+  }
+  return found;
+}
+
+/* ----------------------------------------------------------- lifecycle --- */
+
+/**
+ * 🟢 THE ACTUAL GUARANTEE. R2 can abort incomplete uploads itself, server side, on a
+ * bucket lifecycle rule - no cron, no Worker, no browser, nothing in this app that has
+ * to still be running. Every bucket already has an implicit 7 day default; setting this
+ * rule tightens that, and it is the only mechanism that works when the app is down,
+ * the tab is closed and nobody opens the Vault for a month.
+ *
+ * Cleanup in the app exists for the parts already stranded and for the owner who wants
+ * to see the number go to zero now. It is the convenience, not the guarantee.
+ */
+const ABORT_RULE_ID = "vault-abort-incomplete-multipart";
+
+/** What R2 does on its own when no rule says otherwise. */
+export const R2_DEFAULT_ABORT_DAYS = 7;
+
+/** A bucket with no lifecycle configuration at all is not an error, it is the default. */
+function isMissingLifecycle(e: unknown): boolean {
+  const name = e instanceof Error ? e.name : "";
+  const message = e instanceof Error ? e.message : String(e);
+  return /NoSuchLifecycleConfiguration/i.test(name) || /NoSuchLifecycleConfiguration/i.test(message);
+}
+
+/**
+ * The abort deadline the bucket's own rules impose, in days, or null for "none set, so
+ * R2's default applies".
+ *
+ * Only rules that apply to the WHOLE bucket count. A rule filtered to a prefix would
+ * leave everything outside that prefix uncovered, so reporting it as the bucket's
+ * policy would be a comforting lie.
+ */
+export async function readAbortDays(creds: VaultBucketCreds): Promise<number | null> {
+  const client = clientFor(creds);
+  let rules: LifecycleRule[] = [];
+  try {
+    const res = await client.send(
+      new GetBucketLifecycleConfigurationCommand({ Bucket: creds.bucketName }),
+    );
+    rules = res.Rules ?? [];
+  } catch (e) {
+    if (isMissingLifecycle(e)) return null;
+    throw e;
+  }
+
+  let strictest: number | null = null;
+  for (const rule of rules) {
+    if (rule.Status && rule.Status !== "Enabled") continue;
+    // A rule narrowed to a prefix, in either of the three places a prefix can hide,
+    // leaves everything outside it uncovered - so it is not this bucket's policy.
+    const prefix = rule.Filter?.Prefix ?? rule.Filter?.And?.Prefix ?? rule.Prefix ?? "";
+    if (prefix !== "") continue;
+    const days = rule.AbortIncompleteMultipartUpload?.DaysAfterInitiation;
+    if (typeof days === "number" && (strictest === null || days < strictest)) strictest = days;
+  }
+  return strictest;
+}
+
+/**
+ * Set the bucket's abort deadline.
+ *
+ * 🔴 MERGES, never replaces. PutBucketLifecycleConfiguration overwrites the entire
+ * configuration, so a blind write would silently delete every other rule on the bucket
+ * - including any storage class transition somebody set in the Cloudflare dashboard.
+ * Existing rules are read back, ours is swapped in by id, the rest are written through
+ * untouched.
+ */
+export async function writeAbortDays(creds: VaultBucketCreds, days: number): Promise<void> {
+  const client = clientFor(creds);
+  let existing: LifecycleRule[] = [];
+  try {
+    const res = await client.send(
+      new GetBucketLifecycleConfigurationCommand({ Bucket: creds.bucketName }),
+    );
+    existing = res.Rules ?? [];
+  } catch (e) {
+    if (!isMissingLifecycle(e)) throw e;
+  }
+
+  const kept = existing.filter((r) => r.ID !== ABORT_RULE_ID);
+
+  // 🟡 TWO SHAPES, TRIED IN ORDER. A whole-bucket rule is expressed as an empty Filter
+  // in the current S3 API and as a bare empty Prefix in the older one, and which of the
+  // two R2 accepts is not something this code can know without asking it. Rejecting the
+  // first is a validation error, not a permission error, so falling back costs one
+  // request and avoids a feature that fails on a detail of XML shape.
+  const shapes: LifecycleRule[] = [
+    {
+      ID: ABORT_RULE_ID,
+      Status: "Enabled",
+      Filter: { Prefix: "" },
+      AbortIncompleteMultipartUpload: { DaysAfterInitiation: days },
+    },
+    {
+      ID: ABORT_RULE_ID,
+      Status: "Enabled",
+      Prefix: "",
+      AbortIncompleteMultipartUpload: { DaysAfterInitiation: days },
+    },
+  ];
+
+  let lastError: unknown = null;
+  for (const rule of shapes) {
+    try {
+      await client.send(
+        new PutBucketLifecycleConfigurationCommand({
+          Bucket: creds.bucketName,
+          LifecycleConfiguration: { Rules: [...kept, rule] },
+        }),
+      );
+      return;
+    } catch (e) {
+      lastError = e;
+      // An access problem will not be fixed by a different rule shape, so stop.
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/accessdenied|forbidden|unauthorized|invalidaccesskey/i.test(msg)) break;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
