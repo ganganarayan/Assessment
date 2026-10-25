@@ -1,5 +1,5 @@
 import { requireSuperAdmin } from "@/lib/auth/guards";
-import { listVaultBuckets } from "@/features/vault/actions";
+import { listVaultBuckets, sweepVaultPending } from "@/features/vault/actions";
 import { VaultConsole } from "@/features/vault/components/vault-console";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +13,18 @@ export const dynamic = "force-dynamic";
  */
 export default async function VaultPage() {
   await requireSuperAdmin();
+
+  // 🔴 THIS CALL WAS MISSING. sweepVaultPending was written to run here and nothing
+  // ever called it, so reservations whose upload died were never cleared at all - they
+  // sat in the database forever, and the objects behind any that had actually reached
+  // R2 sat there billed. A presigned ticket lives six hours, so anything older than
+  // that can never be completed by anybody and is safe to drop.
+  //
+  // Awaited rather than fired and forgotten: it is one indexed query when there is
+  // nothing to do, which is almost always, and a page that silently races its own
+  // cleanup is how the ghost file counts happened in the first place.
+  await sweepVaultPending();
+
   const buckets = await listVaultBuckets();
 
   return (

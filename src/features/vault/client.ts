@@ -10,6 +10,8 @@ import {
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
   ListMultipartUploadsCommand,
+  ListObjectsV2Command,
+  ListPartsCommand,
   GetBucketLifecycleConfigurationCommand,
   PutBucketLifecycleConfigurationCommand,
   type LifecycleRule,
@@ -533,4 +535,112 @@ export async function writeAbortDays(creds: VaultBucketCreds, days: number): Pro
     }
   }
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+/* --------------------------------------------------------------- reconcile --- */
+
+export interface BucketObject {
+  objectKey: string;
+  sizeBytes: number;
+  lastModified: Date | null;
+}
+
+export interface BucketListing {
+  objects: BucketObject[];
+  /**
+   * 🔴 FALSE MEANS NOTHING MAY BE DELETED. Reconcile decides an object is unreferenced
+   * by not finding a row for it, and a row is missing by not finding its object. Both
+   * conclusions are only valid if the listing is COMPLETE. A listing cut short by the
+   * page ceiling would make every object past the cut look like a row with no file, and
+   * every row past it look like a file with no object - and acting on either would
+   * delete live data. So a truncated listing is reported as truncated and every
+   * destructive path refuses.
+   */
+  complete: boolean;
+}
+
+/** 50 pages of 1000. Past that the vault is not the right tool and nothing is deleted. */
+const MAX_LIST_PAGES = 50;
+
+/** Every object in the bucket, with a flag saying whether that is really every object. */
+export async function listAllObjects(creds: VaultBucketCreds): Promise<BucketListing> {
+  const client = clientFor(creds);
+  const objects: BucketObject[] = [];
+  let token: string | undefined;
+
+  for (let page = 0; page < MAX_LIST_PAGES; page++) {
+    const res = await client.send(
+      new ListObjectsV2Command({
+        Bucket: creds.bucketName,
+        ContinuationToken: token,
+        MaxKeys: 1000,
+      }),
+    );
+    for (const o of res.Contents ?? []) {
+      if (!o.Key) continue;
+      objects.push({
+        objectKey: o.Key,
+        sizeBytes: Number(o.Size ?? 0),
+        lastModified: o.LastModified ?? null,
+      });
+    }
+    if (!res.IsTruncated) return { objects, complete: true };
+    token = res.NextContinuationToken;
+    if (!token) return { objects, complete: true };
+  }
+  return { objects, complete: false };
+}
+
+/* ------------------------------------------------------- upload liveness --- */
+
+export interface PartActivity {
+  partCount: number;
+  /** When the most recent part landed, which is the only honest liveness signal. */
+  lastActivity: Date | null;
+}
+
+/**
+ * Is this multipart upload still being written to?
+ *
+ * 🔴 THE QUESTION CLEANUP MUST ASK BEFORE IT DESTROYS ANYTHING. An upload is stranded
+ * or alive, and the time it STARTED cannot tell the two apart: a 5 GB file on a slow
+ * link legitimately takes many hours, and judging it by its start time would abort a
+ * transfer that is working perfectly, losing hours of someone's bytes. What separates
+ * them is whether parts are still arriving.
+ *
+ * R2 reports each part's LastModified, so the upload answers the question itself. A
+ * recent part means a browser is still pushing; no recent part means nobody is.
+ */
+export async function partActivity(
+  creds: VaultBucketCreds,
+  objectKey: string,
+  uploadId: string,
+): Promise<PartActivity> {
+  const client = clientFor(creds);
+  let partCount = 0;
+  let lastActivity: Date | null = null;
+  let marker: number | undefined;
+
+  for (let page = 0; page < 20; page++) {
+    const res = await client.send(
+      new ListPartsCommand({
+        Bucket: creds.bucketName,
+        Key: objectKey,
+        UploadId: uploadId,
+        PartNumberMarker: marker === undefined ? undefined : String(marker),
+        MaxParts: 1000,
+      }),
+    );
+    for (const part of res.Parts ?? []) {
+      partCount++;
+      if (part.LastModified && (!lastActivity || part.LastModified > lastActivity)) {
+        lastActivity = part.LastModified;
+      }
+    }
+    if (!res.IsTruncated) break;
+    const next = res.NextPartNumberMarker;
+    if (next === undefined || next === null) break;
+    marker = Number(next);
+  }
+  return { partCount, lastActivity };
 }

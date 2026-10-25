@@ -208,13 +208,195 @@ function checkOrphanAgeFloor(): void {
   }
 }
 
+
+/**
+ * 6. Reconcile's delete path must stay narrow.
+ *
+ * 🔴 THE FAILURE THIS PREVENTS. deleteVaultUnreferenced destroys real bytes, decided by
+ * absence: an object with no database row. Four things keep that honest, and losing any
+ * one of them turns it into a tool that deletes the owner's data.
+ *
+ *   - It must take NO key list. Accepting keys from the browser makes it an endpoint
+ *     that deletes whatever is named to it, against a screen already minutes stale.
+ *   - It must require a COMPLETE listing. A listing cut short at the page ceiling makes
+ *     every object past the cut look unreferenced.
+ *   - It must check isMintedKey. A bucket can hold objects this app never created - a
+ *     cloud to cloud transfer, a hand upload - and those have no rows by definition.
+ *   - It must check the age cutoff, so an upload still finishing is never taken.
+ */
+function checkReconcileDeleteIsNarrow(): void {
+  const src = readFileSync(join(root, "src/features/vault/actions.ts"), "utf8");
+  const at = src.indexOf("export async function deleteVaultUnreferenced");
+  if (at < 0) {
+    problems.push(`src/features/vault/actions.ts: deleteVaultUnreferenced is gone.`);
+    return;
+  }
+
+  const openParen = src.indexOf("(", at);
+  const params = balanced(src, openParen, "(", ")") ?? "";
+  // One parameter, the bucket id. A second one is almost certainly a key list. Split and
+  // drop the empties, because a multi-line signature carries a trailing comma and the
+  // first version of this check counted that as a second parameter and failed the build.
+  const paramCount = params
+    .slice(1, -1)
+    .split(",")
+    .map((x) => x.trim())
+    .filter((x) => x.length > 0).length;
+  if (paramCount > 1) {
+    problems.push(
+      `src/features/vault/actions.ts: deleteVaultUnreferenced takes more than a bucket id. ` +
+        `It must derive its own candidates - a key list from the caller makes it delete anything it is told to.`,
+    );
+  }
+
+  const body = src.slice(at, at + 5000);
+  for (const [needle, why] of [
+    ["isMintedKey", "it would delete objects this app never uploaded, such as a cloud to cloud transfer"],
+    ["listing.complete", "a truncated listing makes every object past the cut look unreferenced"],
+    ["ORPHAN_MAX_AGE_HOURS", "it would delete an object whose upload is still finishing"],
+    [
+      "vaultActivity",
+      "it would decide from absence alone, so a second install pointed at the same bucket would read every file in it as rubbish and offer to delete all of them",
+    ],
+    ["known.has", "the provenance set would be read but not applied"],
+  ] as const) {
+    if (!body.includes(needle)) {
+      problems.push(
+        `src/features/vault/actions.ts: deleteVaultUnreferenced no longer checks ${needle}, so ${why}.`,
+      );
+    }
+  }
+}
+
+/**
+ * 7. Reconcile must match rows across ALL tenants.
+ *
+ * 🔴 THE FAILURE THIS PREVENTS. Every other read in actions.ts is scoped by
+ * actingConfigTenantId(), and adding that scope here looks like a consistency fix. It
+ * is the opposite: a row belonging to another tenant sharing the bucket, or a row whose
+ * tenant was deleted and whose tenantId is therefore null, would drop out of the
+ * reference set - and its object would be reported as unreferenced and offered for
+ * deletion. A live file, on a live page, deleted for tidiness.
+ */
+function checkReconcileMatchesEveryTenant(): void {
+  const src = readFileSync(join(root, "src/features/vault/actions.ts"), "utf8");
+  for (const fn of ["vaultReconcile", "deleteVaultUnreferenced"]) {
+    const at = src.indexOf(`export async function ${fn}`);
+    if (at < 0) continue;
+    const body = src.slice(at, at + 4000);
+    const findAt = body.indexOf("prisma.vaultFile.findMany");
+    if (findAt < 0) {
+      problems.push(
+        `src/features/vault/actions.ts: ${fn} no longer reads the vault file rows it compares against.`,
+      );
+      continue;
+    }
+    const call = balanced(body, body.indexOf("(", findAt), "(", ")");
+    if (!call) continue;
+    const whereAt = call.search(/\bwhere\s*:\s*\{/);
+    if (whereAt < 0) continue;
+    const whereBlock = balanced(call, call.indexOf("{", whereAt), "{", "}");
+    // 🟡 The bare word, not "tenantId:". Object shorthand is how this would really be
+    // written - where: { bucketId, tenantId } - and a check that insisted on a colon
+    // missed exactly that. A planted violation proved it before this shipped.
+    if (whereBlock && /\btenantId\b/.test(whereBlock)) {
+      problems.push(
+        `src/features/vault/actions.ts: ${fn} filters its row set by tenantId. ` +
+          `Another tenant's file, or a file whose tenant was deleted, would then look unreferenced and be deleted. ` +
+          `The BUCKET is checked against the acting tenant; the row set must not be.`,
+      );
+    }
+  }
+}
+
+
+/**
+ * 8. Cleanup must ask whether an upload is still running.
+ *
+ * 🔴 THE FAILURE THIS PREVENTS. An abort destroys every part uploaded so far, and those
+ * parts are pieces of a real file. Age cannot tell a stranded upload from a working
+ * one: a large file on a slow link legitimately takes longer than any cutoff worth
+ * setting, and aborting it throws away hours of someone's transfer with no way back.
+ *
+ * R2 timestamps every part, so the upload can be asked directly. Age only opens the
+ * question; a recent part answers it. Remove the liveness check and the cutoff becomes
+ * a timer that kills slow uploads.
+ */
+function checkCleanupAsksLiveness(): void {
+  const src = readFileSync(join(root, "src/features/vault/actions.ts"), "utf8");
+  const at = src.indexOf("export async function cleanVaultOrphans");
+  if (at < 0) {
+    problems.push(`src/features/vault/actions.ts: cleanVaultOrphans is gone.`);
+    return;
+  }
+  const body = src.slice(at, at + 5000);
+  if (!/partActivity/.test(body) || !/UPLOAD_QUIET_HOURS/.test(body)) {
+    problems.push(
+      `src/features/vault/actions.ts: cleanVaultOrphans no longer checks whether an upload is still receiving parts. ` +
+        `Age alone would abort a large file that is uploading normally and discard every part of it.`,
+    );
+  }
+
+  const typesSrc = readFileSync(join(root, "src/features/vault/types.ts"), "utf8");
+  const q = /UPLOAD_QUIET_HOURS\s*=\s*(\d+)/.exec(typesSrc);
+  if (!q || Number(q[1]) < 1) {
+    problems.push(
+      `src/features/vault/types.ts: UPLOAD_QUIET_HOURS is missing or under an hour. A window that short reads a brief network stall as an abandoned upload.`,
+    );
+  }
+}
+
+/**
+ * 9. The stale-reservation sweep must recover, not delete.
+ *
+ * 🔴 THE FAILURE THIS PREVENTS. A reservation still marked pending after its ticket
+ * expired does NOT mean the upload failed. A PUT that reached R2 while its confirmation
+ * never ran - a closed tab, a dropped reply, a deploy restarting the app - leaves a
+ * complete, valid file behind a row that still says pending. An earlier version of the
+ * sweep deleted that object along with the row. It must HEAD the key first and confirm
+ * the row when the object is there, so a good file is never destroyed to tidy a row.
+ */
+function checkSweepRecoversFirst(): void {
+  const src = readFileSync(join(root, "src/features/vault/actions.ts"), "utf8");
+  const at = src.indexOf("export async function sweepVaultPending");
+  if (at < 0) {
+    problems.push(`src/features/vault/actions.ts: sweepVaultPending is gone.`);
+    return;
+  }
+  const body = src.slice(at, at + 4500);
+  if (!/headObject/.test(body)) {
+    problems.push(
+      `src/features/vault/actions.ts: sweepVaultPending no longer asks R2 whether the object is there before acting. ` +
+        `A complete upload whose confirmation never ran would be treated as a failure.`,
+    );
+  }
+  if (/deleteObject/.test(body)) {
+    problems.push(
+      `src/features/vault/actions.ts: sweepVaultPending deletes an object. It must only ever delete the ROW - ` +
+        `the object at a pending key may be a complete upload that simply never got confirmed.`,
+    );
+  }
+
+  // And it has to actually be called, or none of the above runs. It was dead code once.
+  const pageSrc = readFileSync(join(root, "src/app/admin/vault/page.tsx"), "utf8");
+  if (!/sweepVaultPending\s*\(/.test(pageSrc)) {
+    problems.push(
+      `src/app/admin/vault/page.tsx: nothing calls sweepVaultPending. It was written to run here and for a while nothing did, so reservations were never cleared at all.`,
+    );
+  }
+}
+
 async function main(): Promise<void> {
   await checkPresignedUrlHasNoChecksum();
   checkOrphanAgeFloor();
+  checkReconcileDeleteIsNarrow();
+  checkReconcileMatchesEveryTenant();
+  checkCleanupAsksLiveness();
+  checkSweepRecoversFirst();
 
   if (problems.length === 0) {
     console.log(
-      "🟢 vault: object keys are minted once, presigned uploads carry no checksum, and cleanup cannot abort a live upload.",
+      "🟢 vault: keys minted once, uploads carry no checksum, a live upload cannot be aborted, a landed upload is recovered not deleted, and nothing is removed without proof this install put it there.",
     );
     process.exit(0);
   }

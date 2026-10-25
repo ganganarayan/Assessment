@@ -17,10 +17,13 @@ import {
   type VaultListingView,
   type VaultOrphanRow,
   type VaultOrphanStatus,
+  type VaultReconcileReport,
+  type VaultUnreferencedObject,
   type VaultUploadTicket,
   ORPHAN_MAX_AGE_HOURS,
+  UPLOAD_QUIET_HOURS,
 } from "./types";
-import { mintObjectKey, publicUrlFor, safeDisplayName } from "./keys";
+import { isMintedKey, mintObjectKey, publicUrlFor, safeDisplayName } from "./keys";
 import {
   abortMultipart,
   completeMultipart,
@@ -34,7 +37,9 @@ import {
   headObject,
   loadBucketCreds,
   presignUpload,
+  listAllObjects,
   listIncompleteUploads,
+  partActivity,
   readAbortDays,
   writeAbortDays,
   R2_DEFAULT_ABORT_DAYS,
@@ -262,7 +267,7 @@ export async function saveVaultBucket(
       }
     }
 
-    // 🟢 Every bucket the Vault touches gets the one day abort rule, not just newly
+    // 🟢 Every bucket the Vault touches gets the abort rule, not just newly
     // created ones. Best effort and silent: a token without lifecycle permission must
     // not turn a successful save into an error, and the housekeeping panel reports the
     // policy it actually reads back rather than the one we hoped for.
@@ -292,7 +297,13 @@ export async function deleteVaultBucket(bucketId: string): Promise<ActionResult>
     const tenantId = await actingConfigTenantId();
     const row = await prisma.vaultBucket.findFirst({
       where: { id: bucketId, tenantId },
-      select: { _count: { select: { files: true } } },
+      select: {
+        // 🟡 FILTERED, and it has to be. The count was unfiltered, so a bucket holding
+        // nothing but dead reservations refused to be deleted, citing files the owner
+        // could neither see nor delete - the same ghost count that made a folder read
+        // "2 files" and open empty, in a second place.
+        _count: { select: { files: { where: { uploadedAt: { not: null } } } } },
+      },
     });
     if (!row) return { ok: false, error: "That bucket is not in this vault." };
     // 🔴 Refuses while files are listed, rather than cascading. The rows would go; the
@@ -305,6 +316,12 @@ export async function deleteVaultBucket(bucketId: string): Promise<ActionResult>
         error: `This bucket still lists ${row._count.files} file(s). Delete those first - removing the bucket here would leave the objects in R2 with live links and nothing tracking them.`,
       };
     }
+
+    // The reservations the count above ignores are rows with no confirmed bytes, and
+    // the cascade on the bucket row takes them. Their OBJECTS are deliberately left:
+    // one of them may be a complete upload whose confirmation never ran, and deleting
+    // bytes to tidy a row is exactly the mistake the sweep above was rewritten to stop
+    // making. Anything genuinely stranded is surfaced by reconcile, with proof, later.
     await prisma.vaultBucket.delete({ where: { id: bucketId } });
     revalidatePath("/admin/vault");
     return { ok: true };
@@ -1009,47 +1026,99 @@ export async function discardVaultUpload(fileId: string): Promise<ActionResult> 
 }
 
 /**
- * Delete reservations that can no longer complete.
+ * Settle reservations whose upload was never confirmed, by asking R2 what happened.
  *
- * A presigned upload URL lives six hours, so a row still unconfirmed after that can
- * never be finished by anybody - the browser that held the ticket is long gone. Run on
- * the page load that lists buckets, which is cheap and keeps the vault self-healing
- * rather than needing a cron for a handful of rows.
+ * A presigned ticket lives six hours, so a row still unconfirmed after that will never
+ * be confirmed by the browser that held it. 🔴 But "unconfirmed" is not "failed", and
+ * conflating the two is how a good file gets destroyed: a PUT that reached R2 while its
+ * reply never got back - a closed tab, a dropped connection, a deploy restarting the
+ * app mid request - leaves a complete, valid upload behind a row that still says
+ * pending. So each one is settled by evidence rather than by assumption:
  *
- * Returns how many it removed so a caller can say so; the page ignores it.
+ *   - the object is there  -> the file is real and the row is merely behind. Confirm it,
+ *     exactly as the browser would have, and it appears in the vault where it belongs.
+ *   - the object is absent -> the upload never landed, so the row records nothing and
+ *     only the row is removed.
+ *
+ * Nothing here ever deletes an object. Runs on the Vault page load, which keeps the
+ * vault self-healing without a cron for a handful of rows.
  */
-export async function sweepVaultPending(): Promise<ActionResult<{ removed: number }>> {
-  await requireSuperAdmin();
+export async function sweepVaultPending(): Promise<
+  ActionResult<{ recovered: number; removed: number; left: number }>
+> {
+  const me = await requireSuperAdmin();
   try {
     const tenantId = await actingConfigTenantId();
     const cutoff = new Date(Date.now() - 6 * 60 * 60 * 1000);
     const stale = await prisma.vaultFile.findMany({
       where: { tenantId, uploadedAt: null, createdAt: { lt: cutoff } },
-      select: { id: true, bucketId: true, objectKey: true },
+      select: {
+        id: true,
+        bucketId: true,
+        objectKey: true,
+        name: true,
+        contentType: true,
+        createdAt: true,
+      },
     });
-    if (stale.length === 0) return { ok: true, data: { removed: 0 } };
+    if (stale.length === 0) return { ok: true, data: { recovered: 0, removed: 0, left: 0 } };
 
-    // 🟡 THE OBJECT GOES TOO, and the first version of this got that wrong. It deleted
-    // the row and left the bytes, reasoning that deleting an object "by guess" was
-    // risky - but there is no guess involved. mintObjectKey() gives every reservation
-    // its own random key, used by that upload and nothing else, so an unconfirmed row's
-    // key cannot name anybody else's file. A single PUT that reached R2 while its
-    // confirm never ran leaves exactly that: a complete, billed, publicly readable
-    // object with no row anywhere in the app pointing at it. Dropping the row alone
-    // made it permanent and unfindable.
-    //
-    // Best effort per row: a bucket that is unreachable must not block the sweep, and
-    // an object that was never there answers with the same success either way.
+    let recovered = 0;
+    let removed = 0;
+    let left = 0;
+
     for (const row of stale) {
-      try {
-        const creds = await loadBucketCreds(row.bucketId);
-        await deleteObject(creds, row.objectKey);
-      } catch {
-        // Unreachable bucket or already gone. The row still goes, below.
+      // Bucket unusable: leave the row rather than destroy a record that cannot be
+      // checked. A row costs nothing; being wrong about it could cost a file.
+      const creds = await loadBucketCreds(row.bucketId).catch(() => null);
+      if (!creds) {
+        left++;
+        continue;
       }
+
+      // 🔴 RECOVER FIRST, and this is the whole point of the rewrite. An earlier version
+      // deleted the object along with the row, on the argument that an unconfirmed row's
+      // key cannot name anybody else's file. True, and beside the point: it can name
+      // THIS person's file. A PUT that reached R2 while its confirmation never ran - a
+      // closed tab, a dropped reply, a deploy restarting the app - leaves a complete,
+      // valid upload sitting there with a row that still says pending. Deleting it
+      // destroyed a good file to tidy up a database row.
+      //
+      // So the object is asked about before anything happens to it. If it is there, the
+      // file is real and the row is simply behind: confirm it, exactly as the browser
+      // would have, and the file appears in the vault as it should always have.
+      const head = await headObject(creds, row.objectKey);
+      if (head) {
+        const finishedAt = new Date();
+        await prisma.vaultFile.update({
+          where: { id: row.id },
+          data: { sizeBytes: BigInt(head.size), uploadedAt: finishedAt },
+        });
+        await logVaultActivity({
+          action: "UPLOADED",
+          fileId: row.id,
+          name: row.name,
+          sizeBytes: BigInt(head.size),
+          contentType: row.contentType,
+          objectKey: row.objectKey,
+          durationMs: finishedAt.getTime() - row.createdAt.getTime(),
+          detail: "recovered by sweep: the upload landed but its confirmation never ran",
+          bucketId: row.bucketId,
+          tenantId,
+          actorId: me.id,
+        });
+        recovered++;
+        continue;
+      }
+
+      // Nothing at the key. The upload never landed, so the row records nothing and the
+      // only thing being removed is a row with no bytes behind it.
+      await prisma.vaultFile.delete({ where: { id: row.id } });
+      removed++;
     }
-    const res = await prisma.vaultFile.deleteMany({ where: { id: { in: stale.map((r) => r.id) } } });
-    return { ok: true, data: { removed: res.count } };
+
+    if (recovered > 0 || removed > 0) revalidatePath("/admin/vault");
+    return { ok: true, data: { recovered, removed, left } };
   } catch (e) {
     return fail(e, "Couldn't sweep stale uploads.");
   }
@@ -1395,6 +1464,27 @@ export async function vaultOrphanStatus(
     const creds = await loadBucketCreds(bucketId);
     const incomplete = await listIncompleteUploads(creds);
     const now = Date.now();
+    const quietBefore = now - UPLOAD_QUIET_HOURS * 60 * 60 * 1000;
+
+    // Which of these are still receiving parts. Asked only of the ones old enough to be
+    // candidates, so a vault with nothing stranded costs no extra requests.
+    const live = new Set<string>();
+    for (const u of incomplete) {
+      if (!u.initiatedAt || u.initiatedAt.getTime() > now - ORPHAN_MAX_AGE_HOURS * 3_600_000) {
+        continue;
+      }
+      try {
+        const activity = await partActivity(creds, u.objectKey, u.uploadId);
+        if (activity.lastActivity && activity.lastActivity.getTime() > quietBefore) {
+          live.add(u.uploadId);
+        }
+      } catch {
+        // Unknown counts as live, because the only safe unknown is the one that
+        // protects the bytes.
+        live.add(u.uploadId);
+      }
+    }
+
     const rows: VaultOrphanRow[] = incomplete
       .map((u) => ({
         objectKey: u.objectKey,
@@ -1424,8 +1514,13 @@ export async function vaultOrphanStatus(
         defaultDays: R2_DEFAULT_ABORT_DAYS,
         policyTight: abortDays !== null && abortDays * 24 <= ORPHAN_MAX_AGE_HOURS,
         rows,
-        cleanable: rows.filter((r) => r.ageHours !== null && r.ageHours >= ORPHAN_MAX_AGE_HOURS)
-          .length,
+        // Old AND quiet. An upload still receiving parts is never cleanable, whatever
+        // its age, so this number can never include somebody's running transfer.
+        cleanable: rows.filter(
+          (r) =>
+            r.ageHours !== null && r.ageHours >= ORPHAN_MAX_AGE_HOURS && !live.has(r.uploadId),
+        ).length,
+        activeUploads: live.size,
         policyError,
       },
     };
@@ -1462,6 +1557,8 @@ export async function cleanVaultOrphans(
     const incomplete = await listIncompleteUploads(creds);
     const cutoff = Date.now() - ORPHAN_MAX_AGE_HOURS * 60 * 60 * 1000;
 
+    const quietBefore = Date.now() - UPLOAD_QUIET_HOURS * 60 * 60 * 1000;
+
     let aborted = 0;
     let skipped = 0;
     let failed = 0;
@@ -1470,6 +1567,27 @@ export async function cleanVaultOrphans(
         skipped++;
         continue;
       }
+
+      // 🔴 OLD IS NOT THE SAME AS ABANDONED, and treating it as such would destroy
+      // hours of a working transfer. A large file on a slow link legitimately takes
+      // longer than the cutoff, and its parts are pieces of a good file. So before
+      // anything is aborted the upload is asked whether it is still moving: R2
+      // timestamps every part, and a part that landed recently means a browser is still
+      // pushing right now. Age opens the question; silence answers it.
+      try {
+        const activity = await partActivity(creds, u.objectKey, u.uploadId);
+        if (activity.lastActivity && activity.lastActivity.getTime() > quietBefore) {
+          skipped++;
+          continue;
+        }
+      } catch {
+        // 🔴 Cannot tell whether it is alive, so it is left alone. The cost of guessing
+        // wrong in this direction is a few cents of storage R2's own rule will reclaim.
+        // The other direction costs somebody their upload.
+        skipped++;
+        continue;
+      }
+
       try {
         await abortMultipart(creds, u.objectKey, u.uploadId);
         aborted++;
@@ -1511,8 +1629,8 @@ export async function cleanVaultOrphans(
  * app is down, when the tab is closed, and when nobody opens the Vault for a month -
  * which is exactly the condition under which stranded parts accumulate unnoticed.
  *
- * Every bucket already has an implicit seven day default. This tightens it to one day,
- * the floor R2's rules allow.
+ * Every bucket already has an implicit seven day default. This tightens it to the
+ * Vault's own cutoff, derived from ORPHAN_MAX_AGE_HOURS rather than written twice.
  */
 export async function applyVaultOrphanPolicy(
   bucketId: string,
@@ -1535,5 +1653,280 @@ export async function applyVaultOrphanPolicy(
     return { ok: true, data: { days } };
   } catch (e) {
     return fail(e, "Couldn't set the bucket's cleanup rule.");
+  }
+}
+
+/* ----------------------------------------------------------------- reconcile --- */
+
+/**
+ * Compare the bucket against the database, both directions, read only.
+ *
+ * Multipart cleanup above handles parts that never became a file. This handles the
+ * other four ways the two sides drift apart, which no lifecycle rule can ever reach
+ * because R2 has no idea what this app believes:
+ *
+ *   - an object with no row: billed, invisible here, still answering its public URL
+ *   - 🔴 a row with no object: the file list shows it, the link 404s, and every page
+ *     that pasted that link is broken with nothing in this app saying so
+ *   - a reservation that never completed, past the six hour ticket life
+ *   - a row left with no tenant by a tenant deletion, invisible to every query here
+ *     while its bytes go on being billed
+ *
+ * 🔴 ROW MATCHING IS NOT TENANT SCOPED, and that is deliberate rather than sloppy.
+ * Every other read in this file filters by actingConfigTenantId(). Here, filtering
+ * would hide the rows of any other tenant sharing the bucket and of any row whose
+ * tenant was deleted - and their objects would then come back as unreferenced and be
+ * offered up for deletion. Matching against every row for the bucket is what makes the
+ * delete path safe. The BUCKET is still checked against the acting tenant, so this
+ * cannot be pointed at a bucket the caller does not own.
+ */
+export async function vaultReconcile(
+  bucketId: string,
+): Promise<ActionResult<VaultReconcileReport>> {
+  await requireSuperAdmin();
+  try {
+    const tenantId = await actingConfigTenantId();
+    const bucket = await prisma.vaultBucket.findFirst({
+      where: { id: bucketId, tenantId },
+      select: { id: true },
+    });
+    if (!bucket) return { ok: false, error: "That bucket is not in this vault." };
+
+    const creds = await loadBucketCreds(bucketId);
+    const listing = await listAllObjects(creds);
+
+    // Deliberately unfiltered by tenant. See the note above - this set is what stops
+    // another tenant's file being read as rubbish.
+    const rows = await prisma.vaultFile.findMany({
+      where: { bucketId },
+      select: {
+        id: true,
+        name: true,
+        objectKey: true,
+        uploadedAt: true,
+        createdAt: true,
+        tenantId: true,
+      },
+    });
+
+    const inBucket = new Set(listing.objects.map((o) => o.objectKey));
+    const referenced = new Set(rows.map((r) => r.objectKey));
+    const now = Date.now();
+    const ticketCutoff = now - 6 * 60 * 60 * 1000;
+
+    const describe = (o: {
+      objectKey: string;
+      sizeBytes: number;
+      lastModified: Date | null;
+    }): VaultUnreferencedObject => ({
+      objectKey: o.objectKey,
+      sizeBytes: o.sizeBytes,
+      lastModified: o.lastModified ? o.lastModified.toISOString() : null,
+      ageHours: o.lastModified
+        ? Math.round(((now - o.lastModified.getTime()) / 3_600_000) * 10) / 10
+        : null,
+    });
+
+    // 🔴 POSITIVE PROOF, because absence proves nothing. Every key this database has
+    // ever logged anything about, which is the only evidence available that THIS
+    // install put an object in this bucket. Point a second install at the same bucket -
+    // staging beside production, say - and its database has no rows for any of these
+    // files, so "unreferenced" would be true of every one of them and the delete button
+    // would have offered to wipe the lot. An activity row naming the key is what turns
+    // an absence into a fact.
+    const known = new Set(
+      (
+        await prisma.vaultActivity.findMany({
+          where: { bucketId },
+          select: { objectKey: true },
+        })
+      ).map((a) => a.objectKey),
+    );
+
+    const deletable: VaultUnreferencedObject[] = [];
+    const unprovable: VaultUnreferencedObject[] = [];
+    const foreign: VaultUnreferencedObject[] = [];
+    const tooNew: VaultUnreferencedObject[] = [];
+    for (const o of listing.objects) {
+      if (referenced.has(o.objectKey)) continue;
+      const row = describe(o);
+      // Not ours by shape: a transfer, a hand upload, another tool sharing the bucket.
+      // Accounted for so the storage adds up, never touched.
+      if (!isMintedKey(o.objectKey)) {
+        foreign.push(row);
+        continue;
+      }
+      // Minted but young: an upload could be finishing right now, in the gap between
+      // its object landing and its row being confirmed.
+      if (row.ageHours === null || row.ageHours < ORPHAN_MAX_AGE_HOURS) {
+        tooNew.push(row);
+        continue;
+      }
+      // Minted and old, but this database has never heard of it. Almost certainly
+      // another environment's file. Shown, never offered.
+      if (!known.has(o.objectKey)) {
+        unprovable.push(row);
+        continue;
+      }
+      deletable.push(row);
+    }
+
+    const missing = rows
+      .filter((r) => r.uploadedAt !== null && !inBucket.has(r.objectKey))
+      .map((r) => ({
+        fileId: r.id,
+        name: r.name,
+        objectKey: r.objectKey,
+        uploadedAt: r.uploadedAt ? r.uploadedAt.toISOString() : null,
+      }));
+
+    return {
+      ok: true,
+      data: {
+        complete: listing.complete,
+        objectCount: listing.objects.length,
+        rowCount: rows.length,
+        deletable: deletable.sort((a, b) => b.sizeBytes - a.sizeBytes),
+        unprovable: unprovable.sort((a, b) => b.sizeBytes - a.sizeBytes),
+        foreign: foreign.sort((a, b) => b.sizeBytes - a.sizeBytes),
+        tooNew,
+        missing,
+        stalePending: rows.filter(
+          (r) => r.uploadedAt === null && r.createdAt.getTime() < ticketCutoff,
+        ).length,
+        unowned: rows.filter((r) => r.tenantId === null).length,
+      },
+    };
+  } catch (e) {
+    return fail(e, "Couldn't reconcile the bucket against the database.");
+  }
+}
+
+/**
+ * Delete the objects reconcile found unreferenced.
+ *
+ * 🔴 IT TAKES NO KEY LIST. The candidates are derived here, from R2 and the database,
+ * at the moment of deletion. Accepting keys from the browser would turn this into an
+ * endpoint that deletes any object named to it, and by then the screen's list is
+ * seconds or minutes old - a file uploaded in between would be on it.
+ *
+ * Four conditions, all re-tested here: the listing was complete, no row anywhere
+ * references the key, the key is one this app minted, and the object is older than the
+ * cutoff. Failing any of them it is left alone.
+ */
+export async function deleteVaultUnreferenced(
+  bucketId: string,
+): Promise<ActionResult<{ deleted: number; bytes: number; failed: number }>> {
+  const owner = await requireOwner();
+  if (!owner.ok) return owner;
+  try {
+    const tenantId = await actingConfigTenantId();
+    const bucket = await prisma.vaultBucket.findFirst({
+      where: { id: bucketId, tenantId },
+      select: { id: true },
+    });
+    if (!bucket) return { ok: false, error: "That bucket is not in this vault." };
+
+    const creds = await loadBucketCreds(bucketId);
+    const listing = await listAllObjects(creds);
+    if (!listing.complete) {
+      return {
+        ok: false,
+        error:
+          "This bucket holds more objects than one pass can list, so an object missing from that list cannot be read as unreferenced. Nothing was deleted.",
+      };
+    }
+
+    const rows = await prisma.vaultFile.findMany({
+      where: { bucketId },
+      select: { objectKey: true },
+    });
+    const referenced = new Set(rows.map((r) => r.objectKey));
+    // 🔴 The proof, re-derived here rather than carried from the screen. See the note in
+    // vaultReconcile: without it, a database that simply does not know about this bucket
+    // would read every file in it as rubbish.
+    const known = new Set(
+      (
+        await prisma.vaultActivity.findMany({
+          where: { bucketId },
+          select: { objectKey: true },
+        })
+      ).map((a) => a.objectKey),
+    );
+    if (known.size === 0) {
+      return {
+        ok: false,
+        error:
+          "This database has no record of ever handling an object in this bucket, so nothing in it can be shown to be a leftover of this install. Nothing was deleted.",
+      };
+    }
+    const cutoff = Date.now() - ORPHAN_MAX_AGE_HOURS * 60 * 60 * 1000;
+
+    let deleted = 0;
+    let bytes = 0;
+    let failed = 0;
+    for (const o of listing.objects) {
+      if (referenced.has(o.objectKey)) continue;
+      if (!isMintedKey(o.objectKey)) continue;
+      if (!known.has(o.objectKey)) continue;
+      if (!o.lastModified || o.lastModified.getTime() > cutoff) continue;
+      try {
+        await deleteObject(creds, o.objectKey);
+        deleted++;
+        bytes += o.sizeBytes;
+        await logVaultActivity({
+          action: "DELETED",
+          fileId: null,
+          name: o.objectKey.split("/").pop() ?? o.objectKey,
+          sizeBytes: BigInt(o.sizeBytes),
+          contentType: "",
+          objectKey: o.objectKey,
+          detail: "unreferenced object removed by reconcile",
+          bucketId,
+          tenantId,
+          actorId: owner.user.id,
+        });
+      } catch {
+        failed++;
+      }
+    }
+    if (deleted > 0) revalidatePath("/admin/vault");
+    return { ok: true, data: { deleted, bytes, failed } };
+  } catch (e) {
+    return fail(e, "Couldn't remove the unreferenced objects.");
+  }
+}
+
+/**
+ * Give rows with no tenant back to the acting tenant.
+ *
+ * A tenant deletion sets this column null rather than cascading, so the files outlive
+ * the workspace. Every read here filters by tenant, so from that moment the rows are
+ * invisible in the Vault while their objects go on being billed and go on answering
+ * their public links. Adopting them is the repair: nothing is destroyed, the files
+ * simply become visible and manageable again. Deleting would be the wrong default,
+ * because those links may still be live on somebody's page.
+ */
+export async function adoptVaultUnownedRows(
+  bucketId: string,
+): Promise<ActionResult<{ adopted: number }>> {
+  const owner = await requireOwner();
+  if (!owner.ok) return owner;
+  try {
+    const tenantId = await actingConfigTenantId();
+    const bucket = await prisma.vaultBucket.findFirst({
+      where: { id: bucketId, tenantId },
+      select: { id: true },
+    });
+    if (!bucket) return { ok: false, error: "That bucket is not in this vault." };
+
+    const res = await prisma.vaultFile.updateMany({
+      where: { bucketId, tenantId: null },
+      data: { tenantId },
+    });
+    if (res.count > 0) revalidatePath("/admin/vault");
+    return { ok: true, data: { adopted: res.count } };
+  } catch (e) {
+    return fail(e, "Couldn't adopt the unowned rows.");
   }
 }

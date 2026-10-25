@@ -64,3 +64,25 @@ export function publicUrlFor(publicBaseUrl: string | null, objectKey: string): s
 export function safeDisplayName(input: string): string {
   return (input ?? "").trim().replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 120);
 }
+
+/**
+ * Does this key look like one the Vault minted?
+ *
+ * 🔴 THE SAFETY TEST FOR RECONCILE. Reconcile compares what is in a bucket against what
+ * the database knows, and anything in the bucket with no row is a candidate for
+ * deletion - but only if the Vault put it there. A bucket can hold objects this app
+ * never created: a cloud to cloud transfer, a hand upload in the Cloudflare dashboard,
+ * another tool sharing the bucket. None of those have rows, and deleting them because
+ * of that would destroy data the owner deliberately put there.
+ *
+ * So the rule is the opposite of trusting the database: an object is only ever
+ * deletable if its key matches the shape mintObjectKey produces AND nothing references
+ * it. Everything else is reported and left strictly alone.
+ *
+ * Kept next to mintObjectKey so the two cannot drift. If the minted shape ever changes,
+ * this must learn the old shape as well, or reconcile will start calling every existing
+ * file foreign and stop protecting anything.
+ */
+export function isMintedKey(key: string): boolean {
+  return /^v\/[0-9a-f]{12}\/[^/]+$/.test(key);
+}

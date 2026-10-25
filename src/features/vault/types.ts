@@ -110,15 +110,32 @@ export interface VaultUploadTicket {
 }
 
 /**
+ * How quiet an upload must be before cleanup will treat it as abandoned.
+ *
+ * 🔴 THIS, NOT AGE, IS WHAT MAKES CLEANUP SAFE. A 5 GB file on a slow link can take
+ * many hours, so the time an upload STARTED says nothing about whether it is alive.
+ * What separates a stranded upload from a working one is whether parts are still
+ * arriving. R2 timestamps every part, so cleanup asks the upload itself: if a part
+ * landed within this window, something is still pushing and nothing is touched - no
+ * matter how old the upload is.
+ */
+export const UPLOAD_QUIET_HOURS = 2;
+
+/**
  * How old an incomplete multipart upload must be before cleanup aborts it.
  *
  * 🔴 NEVER LOWER THIS NEAR ZERO. Aborting an upload that is still running destroys it
- * from under the person watching the progress bar, and cleanup cannot tell a stalled
- * upload from a slow one - only an old one from a new one. A presigned part URL lives
- * six hours, so nothing legitimate is still in flight at twenty four. verify:vault
- * enforces a floor.
+ * from under the person watching the progress bar, and age alone cannot tell a stalled
+ * upload from a slow one. verify:vault enforces a floor.
+ *
+ * Two days, not one, and the reason is R2 rather than this app. Cleanup here consults
+ * UPLOAD_QUIET_HOURS and will never touch a live upload at any age, but the bucket
+ * lifecycle rule derived from this number runs inside R2 and cannot: it sees only the
+ * initiation time. One day would have R2 drop a genuine upload still running after
+ * twenty five hours. Two days costs one extra day of storage on abandoned parts and
+ * removes that cliff.
  */
-export const ORPHAN_MAX_AGE_HOURS = 24;
+export const ORPHAN_MAX_AGE_HOURS = 48;
 
 /** An incomplete multipart upload as the Vault shows it. */
 export interface VaultOrphanRow {
@@ -142,11 +159,91 @@ export interface VaultOrphanStatus {
   policyTight: boolean;
   /** Everything incomplete right now, newest first. */
   rows: VaultOrphanRow[];
-  /** How many of those are old enough for cleanup to abort. */
+  /**
+   * How many are old enough AND quiet enough for cleanup to abort. An upload still
+   * receiving parts is never counted here, whatever its age.
+   */
   cleanable: number;
+  /** Uploads still receiving parts right now. Never touched, at any age. */
+  activeUploads: number;
   /**
    * Set when the bucket's credentials cannot read or write lifecycle rules. The listing
    * still works, so cleanup still works - only the permanent rule is out of reach.
    */
   policyError: string | null;
+}
+
+/* --------------------------------------------------------------- reconcile --- */
+
+/** An object in R2 that no database row points at. */
+export interface VaultUnreferencedObject {
+  objectKey: string;
+  sizeBytes: number;
+  /** ISO, or null if R2 reported none. */
+  lastModified: string | null;
+  ageHours: number | null;
+}
+
+/** A row whose object is not in the bucket. Its public link is dead. */
+export interface VaultMissingObject {
+  fileId: string;
+  name: string;
+  objectKey: string;
+  /** ISO. */
+  uploadedAt: string | null;
+}
+
+/**
+ * The two-way comparison between what is in the bucket and what the database believes.
+ *
+ * 🔴 EVERY DESTRUCTIVE PATH IS GATED ON `complete`. Both halves of this report are
+ * conclusions drawn from absence - an object with no row, a row with no object - and
+ * absence only means anything if the listing was exhaustive.
+ */
+export interface VaultReconcileReport {
+  complete: boolean;
+  objectCount: number;
+  rowCount: number;
+  /**
+   * 🔴 THE ONLY OBJECTS THE VAULT WILL EVER DELETE, and every condition is required:
+   * unreferenced by any row, minted by this app, older than the cutoff, AND named in
+   * THIS database's activity log.
+   *
+   * That last one is the difference between evidence and a guess. "No row points at
+   * this object" is an ABSENCE, and absence is exactly what a wrong database produces:
+   * point a second install at the same bucket and every file in it has no row there, so
+   * absence alone would have condemned all of them. An activity row naming the key is
+   * POSITIVE proof that this install handled this object, and only then is its being
+   * unreferenced meaningful.
+   */
+  deletable: VaultUnreferencedObject[];
+  /**
+   * Unreferenced and minted, but this database has never logged anything about them, so
+   * there is no proof they belong to this install. Reported and left strictly alone -
+   * this is where another environment's files would land, and where they stay safe.
+   */
+  unprovable: VaultUnreferencedObject[];
+  /**
+   * Unreferenced but NOT minted by this app: a cloud to cloud transfer, a hand upload,
+   * another tool sharing the bucket. Reported so the storage is accounted for, never
+   * offered for deletion, because the owner put them there on purpose.
+   */
+  foreign: VaultUnreferencedObject[];
+  /** Unreferenced, minted, but newer than the age cutoff. Left alone for now. */
+  tooNew: VaultUnreferencedObject[];
+  /**
+   * 🔴 Rows whose object is gone. These are the ones that actually hurt: the file list
+   * shows them, the public link 404s, and anything that pasted that link is broken.
+   * Never deleted automatically - the row is the only remaining record of the file, and
+   * the right repair is usually a re-upload under the same row.
+   */
+  missing: VaultMissingObject[];
+  /** Reservations that never completed and are now past the six hour ticket life. */
+  stalePending: number;
+  /**
+   * Rows left with no tenant, which happens when a tenant is deleted and the SetNull on
+   * the relation fires. Every normal query filters by tenant, so these become invisible
+   * while their objects keep being billed. Adoptable rather than deletable.
+   */
+  unowned: number;
 }
