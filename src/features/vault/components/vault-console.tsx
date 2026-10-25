@@ -72,6 +72,35 @@ function humanDuration(ms: number): string {
   return `${m}m ${s.toString().padStart(2, "0")}s`;
 }
 
+/**
+ * The live transfer meter for one upload, deliberately OUTSIDE React state.
+ *
+ * 🔴 Progress events arrive many times a second for each part in flight. A setState
+ * per event would re-render the whole console dozens of times a second to move a
+ * number no human can read at that rate. The elapsed clock already re-renders once a
+ * second; this is simply what that render reads.
+ */
+interface UploadMeter {
+  /** Bytes handed to the socket so far. Written by the progress events. */
+  sent: number;
+  total: number;
+  /** Smoothed bytes per second, recomputed once a second by the clock. */
+  bps: number;
+  /** What `sent` was at the previous tick, to difference against. */
+  lastSent: number;
+  /** When bytes last actually moved. This is what separates slow from stuck. */
+  lastMoveAt: number;
+  /**
+   * What the uploader is doing right now.
+   *
+   * 🟡 Worth showing because the bar does not move during the pauses BETWEEN parts
+   * either, and "stuck at 95%" reads identically whether the connection died or the
+   * app is waiting on a round trip of its own. Naming the phase makes those two
+   * different pictures instead of the same one.
+   */
+  phase: string;
+}
+
 interface UploadState {
   name: string;
   percent: number;
@@ -163,6 +192,36 @@ const PART_CONCURRENCY = 4;
 /** Per part, not per file - which is the whole point of doing it this way. */
 const PART_ATTEMPTS = 4;
 
+
+/** How long bytes can stop moving before that is worth saying out loud. */
+const STALL_SECONDS = 15;
+
+/**
+ * A transfer rate, in both units that matter.
+ *
+ * MB/s is what the file feels like. Mbps is what the connection was sold as, and the
+ * factor of eight between them is the single most common reason someone thinks an
+ * upload is ten times slower than their line.
+ */
+function humanRate(bytesPerSecond: number): string {
+  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return "0 MB/s";
+  const mbs = bytesPerSecond / (1024 * 1024);
+  const mbps = (bytesPerSecond * 8) / 1_000_000;
+  const shown = mbs >= 10 ? mbs.toFixed(0) : mbs.toFixed(1);
+  return `${shown} MB/s (${mbps.toFixed(0)} Mbps)`;
+}
+
+/** Rough time left at the current rate, or null when there is nothing to go on. */
+function etaText(meter: { sent: number; total: number; bps: number }): string | null {
+  if (meter.bps <= 0 || meter.total <= meter.sent) return null;
+  const seconds = Math.round((meter.total - meter.sent) / meter.bps);
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  if (seconds < 60) return `${seconds}s left`;
+  const m = Math.floor(seconds / 60);
+  if (m < 60) return `${m}m ${seconds % 60}s left`;
+  return `${Math.floor(m / 60)}h ${m % 60}m left`;
+}
+
 /** PUT one part and return its ETag, which R2 needs to stitch the file back together. */
 function putPart(url: string, blob: Blob, onDelta: (bytes: number) => void): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -218,6 +277,8 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
   // is not re-rendering once a second for nothing.
   const [now, setNow] = useState(() => Date.now());
   const anyInFlight = uploads.some((u) => !u.done && !u.error);
+  /** One meter per upload row, by index. See UploadMeter for why this is not state. */
+  const meters = useRef<(UploadMeter | undefined)[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(
@@ -247,7 +308,20 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
 
   useEffect(() => {
     if (!anyInFlight) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => {
+      const at = Date.now();
+      for (const m of meters.current) {
+        if (!m) continue;
+        const delta = m.sent - m.lastSent;
+        if (delta > 0) m.lastMoveAt = at;
+        // Smoothed rather than raw. Raw swings wildly as parts start and finish, and a
+        // number that jumps between 2 and 40 every second tells you less than one that
+        // settles. Roughly a three second window.
+        m.bps = m.bps === 0 ? delta : m.bps * 0.6 + delta * 0.4;
+        m.lastSent = m.sent;
+      }
+      setNow(at);
+    }, 1000);
     return () => clearInterval(t);
   }, [anyInFlight]);
 
@@ -280,6 +354,14 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
         finishedMs: null,
       })),
     );
+    meters.current = list.map((f) => ({
+      sent: 0,
+      total: f.size,
+      bps: 0,
+      lastSent: 0,
+      lastMoveAt: Date.now(),
+      phase: "starting",
+    }));
 
     for (let i = 0; i < list.length; i++) {
       const file = list[i];
@@ -308,7 +390,7 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
       // together. Anything larger goes in parts, which is what makes it survivable -
       // a drop then costs one part instead of the whole file.
       if (file.size > PART_SIZE) {
-        await uploadInParts(file, bucketId, folderId, setOne);
+        await uploadInParts(file, bucketId, folderId, setOne, meters.current[i]);
         continue;
       }
 
@@ -331,11 +413,16 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
       }
       const fileId = ticket.data.fileId;
       setOne({ fileId });
+      const meter = meters.current[i];
+      if (meter) meter.phase = "uploading";
       try {
         await putWithProgress(
           ticket.data.url,
           file,
-          (percent) => setOne({ percent }),
+          (percent) => {
+            if (meter) meter.sent = Math.round((percent / 100) * file.size);
+            setOne({ percent });
+          },
           (abort) => setOne({ abort }),
         );
       } catch (e) {
@@ -371,8 +458,13 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
     targetBucket: string,
     targetFolder: string | null,
     setOne: (patch: Partial<UploadState>) => void,
+    meter: UploadMeter | undefined,
   ): Promise<void> => {
     const startedAt = Date.now();
+    const phase = (what: string) => {
+      if (meter) meter.phase = what;
+    };
+    phase("opening the upload");
     const started = await startVaultMultipart({
       bucketId: targetBucket,
       folderId: targetFolder,
@@ -404,19 +496,37 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
     let sent = 0;
     const bumpSent = (delta: number) => {
       sent += delta;
+      if (meter) meter.sent = sent;
       setOne({ percent: Math.min(99, Math.round((sent / file.size) * 100)) });
     };
 
     const etags: { partNumber: number; etag: string }[] = [];
 
+    // Signatures are fetched in batches rather than one per part: a 1 GB file is 128
+    // parts, and a round trip each would undo the robustness this is here for.
+    const batches: number[][] = [];
+    for (let offset = 0; offset < partNumbers.length; offset += 64) {
+      batches.push(partNumbers.slice(offset, offset + 64));
+    }
+
     try {
-      // Signatures are fetched in batches rather than one per part: a 1 GB file is 128
-      // parts, and a round trip each would undo the robustness this is here for.
-      for (let offset = 0; offset < partNumbers.length; offset += 64) {
+      // 🔴 THE NEXT BATCH IS SIGNED WHILE THIS ONE UPLOADS. Fetching signatures only
+      // after the previous batch finished left a gap with nothing in flight: every 512
+      // MiB the transfer stopped dead for a round trip to the server, the bar froze,
+      // and on a slow or wedged server action it froze indefinitely at a percentage
+      // that looked like a dead connection. Overlapping it means the only way the bar
+      // sits still is that bytes really are not moving.
+      let nextSigned = batches.length > 0 ? signVaultParts(fileId, uploadId, batches[0]!) : null;
+
+      for (let b = 0; b < batches.length; b++) {
         if (cancelled) throw new Error("aborted");
-        const batch = partNumbers.slice(offset, offset + 64);
-        const signed = await signVaultParts(fileId, uploadId, batch);
+        phase(b === 0 ? "preparing" : "uploading");
+        const signed = await nextSigned!;
         if (!signed.ok || !signed.data) throw new Error(signed.ok ? "No URLs returned." : signed.error);
+        // Start the next one BEFORE uploading this one, not after.
+        nextSigned =
+          b + 1 < batches.length ? signVaultParts(fileId, uploadId, batches[b + 1]!) : null;
+        phase("uploading");
 
         const queue = [...signed.data];
         const workers = Array.from({ length: Math.min(PART_CONCURRENCY, queue.length) }, async () => {
@@ -448,10 +558,16 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
         await Promise.all(workers);
       }
 
+      // 🟡 The bar sits at 99% here, and this step is not instant: R2 stitches the
+      // parts together and the row is confirmed. Naming it stops that looking like a
+      // stall at the very end, which is where it is most alarming.
+      phase("finishing at R2");
       const done = await completeVaultMultipart(fileId, uploadId, etags);
       if (!done.ok) throw new Error(done.error);
+      phase("done");
       setOne({ percent: 100, done: true, abort: null, finishedMs: Date.now() - startedAt });
     } catch (e) {
+      phase("failed");
       const msg = e instanceof Error ? e.message : String(e);
       setOne({
         error: msg === "aborted" ? "Cancelled. Nothing was stored." : msg,
@@ -679,12 +795,24 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
                     ) : null}
                   </div>
                   {!u.error && !u.done ? (
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--muted)]">
-                      <div
-                        className="h-full bg-green-600 transition-all"
-                        style={{ width: `${u.percent}%` }}
-                      />
-                    </div>
+                    <>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--muted)]">
+                        <div
+                          className="h-full bg-green-600 transition-all"
+                          style={{ width: `${u.percent}%` }}
+                        />
+                      </div>
+                      <UploadMeterLine meter={meters.current[i]} now={now} />
+                    </>
+                  ) : null}
+                  {u.done && meters.current[i] ? (
+                    <span className="text-xs text-muted-foreground">
+                      {humanBytes(meters.current[i]!.total)} at an average of{" "}
+                      {humanRate(
+                        meters.current[i]!.total /
+                          Math.max(1, (u.finishedMs ?? 1) / 1000),
+                      )}
+                    </span>
                   ) : null}
                   {u.error ? <span className="text-xs text-destructive">{u.error}</span> : null}
                 </div>
@@ -1101,6 +1229,45 @@ function SetupChecklist({ bucket }: { bucket: VaultBucketView }) {
   );
 }
 
+
+
+/**
+ * The live line under the bar: how fast, how far, how much longer.
+ *
+ * 🔴 This exists because "stuck at 95%" is not a diagnosis. A bar that does not move
+ * looks identical whether the connection died, the server is slow to answer, or the
+ * file is simply large and the line is slow. One number settles it, and until there
+ * was one, the only way to tell was to wait and guess.
+ *
+ * Re-rendered by the one second clock, reading values the progress events wrote to a
+ * ref. Nothing here triggers a render of its own.
+ */
+function UploadMeterLine({ meter, now }: { meter: UploadMeter | undefined; now: number }) {
+  if (!meter) return null;
+  const stalledFor = Math.round((now - meter.lastMoveAt) / 1000);
+  const eta = etaText(meter);
+
+  // A phase that is not "uploading" explains its own pause, so a wait there is normal
+  // rather than alarming. Only a silent wait DURING the transfer is a stall.
+  const quiet = meter.phase === "uploading" && stalledFor >= STALL_SECONDS;
+
+  return (
+    <span className="text-xs text-muted-foreground">
+      {quiet ? (
+        <span className="text-foreground">
+          🟡 No data has moved for {stalledFor}s. The transfer may be wedged rather than slow
+          - cancel and start it again if this keeps climbing.
+        </span>
+      ) : (
+        <>
+          {humanRate(meter.bps)} · {humanBytes(meter.sent)} of {humanBytes(meter.total)}
+          {eta ? ` · ${eta}` : ""}
+        </>
+      )}
+      {meter.phase !== "uploading" ? ` · ${meter.phase}` : ""}
+    </span>
+  );
+}
 
 /* ------------------------------------------------------------- readiness --- */
 
