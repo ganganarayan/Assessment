@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { requireSuperAdmin, isStaff, type AuthUser } from "@/lib/auth/guards";
@@ -15,6 +16,7 @@ import {
   type VaultFileView,
   type VaultFolderView,
   type VaultListingView,
+  type VaultBucketReadiness,
   type VaultOrphanRow,
   type VaultOrphanStatus,
   type VaultReconcileReport,
@@ -42,6 +44,10 @@ import {
   partActivity,
   readAbortDays,
   writeAbortDays,
+  readCors,
+  writeCorsOrigin,
+  corsAllowsUpload,
+  readBucketLocation,
   R2_DEFAULT_ABORT_DAYS,
   VaultBucketUnusableError,
 } from "./client";
@@ -147,6 +153,10 @@ const bucketInput = z.object({
   accessKeyId: z.string().min(1, "The access key id is required.").max(200),
   /** Blank on an edit leaves the stored secret alone. */
   secretAccessKey: z.string().max(400),
+  /** Another bucket in this vault whose stored secret to reuse. An account-scoped R2
+   *  token works for every bucket in the account, and Cloudflare shows a secret once,
+   *  so re-pasting it is asking for something the operator may not still have. */
+  copyCredsFrom: z.string().max(60),
   /** True = also create the bucket in R2. False = it exists already, just register it. */
   createInR2: z.boolean(),
   /** R2 location hint, used ONLY when creating. Fixed forever at creation, and the
@@ -199,12 +209,32 @@ export async function saveVaultBucket(
     publicBaseUrl = `${url.protocol}//${url.host}`;
   }
 
-  if (!v.id && !v.secretAccessKey.trim()) {
+  if (!v.id && !v.secretAccessKey.trim() && !v.copyCredsFrom) {
     return { ok: false, error: "Paste the secret access key for this bucket." };
   }
 
   try {
     const tenantId = await actingConfigTenantId();
+
+    // Reuse before validate: the secret is read from the named bucket and never
+    // travels to the browser, so the form can offer "same token as that one" without
+    // ever showing or asking for the key again.
+    let accountId = v.accountId.trim();
+    let accessKeyId = v.accessKeyId.trim();
+    let secret = v.secretAccessKey.trim();
+    if (v.copyCredsFrom && !secret) {
+      const src = await prisma.vaultBucket.findFirst({
+        where: { id: v.copyCredsFrom, tenantId },
+        select: { id: true },
+      });
+      if (!src) {
+        return { ok: false, error: "The bucket to copy credentials from is not in this vault." };
+      }
+      const srcCreds = await loadBucketCreds(src.id);
+      accountId = srcCreds.accountId;
+      accessKeyId = srcCreds.accessKeyId;
+      secret = srcCreds.secretAccessKey;
+    }
 
     const data: {
       label: string;
@@ -219,11 +249,11 @@ export async function saveVaultBucket(
       bucketName: v.bucketName.trim(),
       publicBaseUrl,
       storageClass: v.storageClass,
-      accountId: v.accountId.trim(),
-      accessKeyId: v.accessKeyId.trim(),
+      accountId,
+      accessKeyId,
     };
-    if (v.secretAccessKey.trim()) {
-      data.secretAccessKeyEnc = encryptWithSecret(v.secretAccessKey.trim(), env.BETTER_AUTH_SECRET);
+    if (secret) {
+      data.secretAccessKeyEnc = encryptWithSecret(secret, env.BETTER_AUTH_SECRET);
     }
 
     let id: string;
@@ -279,6 +309,23 @@ export async function saveVaultBucket(
     } catch (e) {
       console.error(
         "[vault] could not set the abort rule on save:",
+        e instanceof Error ? e.message : String(e),
+      );
+    }
+
+    // 🟢 And its CORS rule, for the same reason: a fresh bucket allows no browser at
+    // all, and the next thing the operator does is try to upload. Best effort and
+    // silent, like the lifecycle write above - the bucket panel reports what it reads
+    // back rather than what we hoped for, and there is a button when this cannot run.
+    try {
+      const creds = await loadBucketCreds(id);
+      const origin = await currentOrigin();
+      if (!corsAllowsUpload(await readCors(creds), origin)) {
+        await writeCorsOrigin(creds, origin);
+      }
+    } catch (e) {
+      console.error(
+        "[vault] could not set the CORS rule on save:",
         e instanceof Error ? e.message : String(e),
       );
     }
@@ -1929,4 +1976,105 @@ export async function adoptVaultUnownedRows(
   } catch (e) {
     return fail(e, "Couldn't adopt the unowned rows.");
   }
+}
+
+/* --------------------------------------------------------------- readiness --- */
+
+/**
+ * Can a browser on this page actually upload to this bucket, and where does the bucket
+ * live?
+ *
+ * Both answers come from R2 rather than from what the row says, because both are things
+ * this app cannot know by looking at itself. A missing CORS rule is invisible until an
+ * upload dies at zero per cent, and a bucket's region is fixed at creation by whoever
+ * made the create call, which may have been a container on another continent.
+ */
+export async function vaultBucketReadiness(
+  bucketId: string,
+): Promise<ActionResult<VaultBucketReadiness>> {
+  const owner = await requireOwner();
+  if (!owner.ok) return owner;
+  try {
+    const tenantId = await actingConfigTenantId();
+    const bucket = await prisma.vaultBucket.findFirst({
+      where: { id: bucketId, tenantId },
+      select: { id: true },
+    });
+    if (!bucket) return { ok: false, error: "That bucket is not in this vault." };
+
+    const origin = await currentOrigin();
+    const creds = await loadBucketCreds(bucketId);
+
+    let corsOrigins: string[] = [];
+    let corsConfigured = false;
+    let corsOk = false;
+    let location: string | null = null;
+    let error: string | null = null;
+
+    try {
+      const rules = await readCors(creds);
+      corsConfigured = rules !== null;
+      corsOk = corsAllowsUpload(rules, origin);
+      corsOrigins = Array.from(new Set((rules ?? []).flatMap((r) => r.AllowedOrigins ?? [])));
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    }
+
+    // Location is a nice-to-have, so a token without permission to read it must not
+    // take the CORS answer down with it.
+    try {
+      location = await readBucketLocation(creds);
+    } catch {
+      location = null;
+    }
+
+    return { ok: true, data: { origin, corsOk, corsConfigured, corsOrigins, location, error } };
+  } catch (e) {
+    return fail(e, "Couldn't check the bucket.");
+  }
+}
+
+/**
+ * Allow browser uploads to this bucket from this site.
+ *
+ * This replaces a checklist that told the operator to paste JSON into the Cloudflare
+ * dashboard. PutBucketCors is part of R2's S3 API, so the bucket's own stored token can
+ * do it, and the instruction to do it by hand was simply wrong. Merges, so running it
+ * from staging and then production allows both.
+ */
+export async function applyVaultCors(
+  bucketId: string,
+): Promise<ActionResult<{ origin: string; origins: string[] }>> {
+  const owner = await requireOwner();
+  if (!owner.ok) return owner;
+  try {
+    const tenantId = await actingConfigTenantId();
+    const bucket = await prisma.vaultBucket.findFirst({
+      where: { id: bucketId, tenantId },
+      select: { id: true },
+    });
+    if (!bucket) return { ok: false, error: "That bucket is not in this vault." };
+
+    const origin = await currentOrigin();
+    const creds = await loadBucketCreds(bucketId);
+    const origins = await writeCorsOrigin(creds, origin);
+    return { ok: true, data: { origin, origins } };
+  } catch (e) {
+    return fail(e, "Couldn't set the bucket's CORS policy.");
+  }
+}
+
+/**
+ * The origin this request arrived on, which is exactly what a CORS rule has to name.
+ *
+ * Taken from the request rather than from configuration on purpose: the bucket is
+ * shared between staging and production, and the origin that needs allowing is
+ * whichever one the operator is standing on. Asking them to type it is how a trailing
+ * slash or an http becomes a CORS failure nobody can explain.
+ */
+async function currentOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host")?.split(",")[0]?.trim() || h.get("host") || "";
+  const proto = h.get("x-forwarded-proto")?.split(",")[0]?.trim() === "http" ? "http" : "https";
+  return `${proto}://${host}`;
 }

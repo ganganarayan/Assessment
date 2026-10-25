@@ -386,6 +386,53 @@ function checkSweepRecoversFirst(): void {
   }
 }
 
+
+/**
+ * 7. Setting CORS must MERGE, not replace.
+ *
+ * PutBucketCors overwrites the bucket's entire CORS configuration, exactly like the
+ * lifecycle writer. A blind write deletes every rule somebody else set, and the damage
+ * is invisible from this app: the vault's own uploads keep working, so nothing here
+ * ever reports that another site's access was revoked. The merge is the whole safety
+ * property, so it is asserted rather than trusted.
+ */
+function checkCorsWriteMerges(): void {
+  const src = readFileSync(join(root, "src/features/vault/client.ts"), "utf8");
+  const at = src.indexOf("export async function writeCorsOrigin");
+  if (at < 0) {
+    problems.push(
+      "src/features/vault/client.ts: writeCorsOrigin is gone. If CORS moved elsewhere, move this check with it.",
+    );
+    return;
+  }
+  const end = src.indexOf("\nexport ", at + 10);
+  const body = src.slice(at, end < 0 ? src.length : end);
+
+  if (!/readCors\s*\(/.test(body)) {
+    problems.push(
+      "src/features/vault/client.ts: writeCorsOrigin does not read the existing CORS rules first. " +
+        "PutBucketCors replaces the whole configuration, so writing without reading silently deletes " +
+        "every rule this app did not create.",
+    );
+  }
+  // 🔴 Not "is there a filter somewhere": there is another one in this function, over
+  // the origin list, and it made this check pass while the merge was gone. The property
+  // is that the EXISTING RULES are filtered by our id, so that is what is matched.
+  if (!/existing\.filter\([\s\S]{0,60}?ID\s*!==\s*CORS_RULE_ID/.test(body)) {
+    problems.push(
+      "src/features/vault/client.ts: writeCorsOrigin does not keep the rules it does not own. " +
+        "It must filter the existing rules by CORS_RULE_ID and write the rest back untouched.",
+    );
+  }
+  if (!/ExposeHeaders/.test(body) || !/ETag/.test(body)) {
+    problems.push(
+      "src/features/vault/client.ts: the CORS rule does not expose ETag. R2 would accept every part " +
+        "of a multipart upload and the browser could not read the tags needed to complete it, so the " +
+        "upload fails AFTER all the bytes have been sent.",
+    );
+  }
+}
+
 async function main(): Promise<void> {
   await checkPresignedUrlHasNoChecksum();
   checkOrphanAgeFloor();
@@ -393,6 +440,7 @@ async function main(): Promise<void> {
   checkReconcileMatchesEveryTenant();
   checkCleanupAsksLiveness();
   checkSweepRecoversFirst();
+  checkCorsWriteMerges();
 
   if (problems.length === 0) {
     console.log(

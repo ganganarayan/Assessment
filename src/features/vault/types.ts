@@ -73,6 +73,22 @@ export interface VaultBucketView {
   totalBytes: number;
 }
 
+/** Whether a browser on this page can upload to a bucket, and where the bucket lives. */
+export interface VaultBucketReadiness {
+  /** The origin this page was served from, which is exactly what CORS must allow. */
+  origin: string;
+  /** False when an upload from this origin would fail before any bytes move. */
+  corsOk: boolean;
+  /** False = the bucket has no CORS configuration at all, which is a fresh bucket. */
+  corsConfigured: boolean;
+  /** Every origin any rule on the bucket allows, so a second environment is visible. */
+  corsOrigins: string[];
+  /** As R2 reports it, e.g. APAC. Null = the default region, or not readable. */
+  location: string | null;
+  /** Why the CORS check could not run, if it could not. */
+  error: string | null;
+}
+
 export interface VaultFolderView {
   id: string;
   name: string;
