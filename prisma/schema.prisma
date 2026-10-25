@@ -2869,6 +2869,15 @@ model AppSetting {
   // Kept so the card can say "60% in, 1,284 messages so far" instead of going quiet
   // for an hour while batches arrive. Progress is Meta's number; the counts are ours.
   wabaHistoryProgress    Json?
+  // The WABA dashboard snapshot: what Meta said about this number the last time it was
+  // asked. Quality rating, sending tier, health roll-up, 30 days of sent/delivered,
+  // conversations, cost by category, and whichever panels Meta refused, with the
+  // refusals kept per panel. Shape in lib/whatsapp/snapshot.
+  //
+  // Stored rather than read live because these edges are rate limited and a dashboard
+  // is the screen people reload. Spending somebody's quota on them re-reading the same
+  // figures would throttle the sending that actually matters.
+  wabaDashboard          Json?
   // The Nurture messages + on/off toggles, as JSON:
   //   { email: { enabled, subject, body }, waba: { enabled, template, lang, vars: string[] } }
   nurtureConfig          Json?

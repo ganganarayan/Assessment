@@ -123,6 +123,9 @@ const SECTIONS: NavSection[] = [
       // the thing you decide to send today.
       { href: "/admin/broadcasts", label: "Broadcasts" },
       { href: "/admin/nurture", label: "Nurture" },
+      // After the senders, because it is the state of the channel they all send on:
+      // the first place to look when something did not go out.
+      { href: "/admin/whatsapp", label: "WhatsApp health" },
       // Last of the senders, and the only one pointed at our OWN customers rather
       // than a tenant's respondents. It sits here because it is automation; it reads
       // differently from everything above it because the audience is different.

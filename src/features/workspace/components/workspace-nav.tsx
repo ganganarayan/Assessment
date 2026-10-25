@@ -87,6 +87,9 @@ const SECTIONS: NavSection[] = [
       // the thing you decide to send today.
       { href: "/w/broadcasts", label: "Broadcasts" },
       { href: "/w/nurture", label: "Nurture" },
+      // After the senders, because it is the state of the channel they all send on:
+      // the first place to look when something did not go out.
+      { href: "/w/whatsapp", label: "WhatsApp health" },
       { href: "/w/webhooks", label: "Webhooks", exact: true },
       { href: "/w/webhooks/logs", label: "Webhook Logs" },
     ],

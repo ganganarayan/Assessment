@@ -78,7 +78,9 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     // The Meta app still needs Tech Provider approval, so a customer who connected
     // would hit a wall that is not theirs to fix.
     defaultReleased: false,
-    routes: [],
+    // The health screen, which reads the workspace's own Meta token. The connect card
+    // lives in Settings and is hidden by the switch rather than by a route.
+    routes: ["/w/whatsapp"],
   },
   {
     key: "automations",

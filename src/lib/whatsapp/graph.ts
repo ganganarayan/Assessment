@@ -30,12 +30,16 @@ interface MetaErrorBody {
 /**
  * One Graph request, with Meta's error body turned into a sentence.
  *
+ * Exported so the insights module can reuse the same error handling rather than grow
+ * a second opinion about what a Meta failure reads like. Still not a general wrapper:
+ * callers name their own documented endpoint.
+ *
  * Every failure here ends up in front of a non-technical business owner, so the
  * message keeps Meta's own wording (it is usually specific and actionable, e.g. "the
  * code has expired") and appends the trace id, which is the only thing Meta support
  * will ask for.
  */
-async function graph<T>(
+export async function graph<T>(
   path: string,
   init: RequestInit & { token?: string },
 ): Promise<GraphResult<{ data: T }>> {
