@@ -191,6 +191,43 @@ export async function subscribeAppToWaba(args: {
 }
 
 /**
+ * Which pile of the owner's own data to ask for.
+ *
+ * Meta's names, kept rather than prettified, because these strings go on the wire and
+ * a rename here would be a silent wrong-sync. "smb_app_state_sync" is the contacts in
+ * their phone's address book; "history" is up to six months of their 1:1 chats.
+ */
+export type SmbSyncType = "smb_app_state_sync" | "history";
+
+/**
+ * Step 4, coexistence only: ask the phone to send its contacts or its past chats.
+ *
+ * 🔴 ONCE EACH, and inside roughly 24 hours of onboarding. Meta refuses a second
+ * request, and after the window the business has to offboard and redo the whole flow
+ * to get another chance. So this is never called speculatively, never retried on a
+ * refusal, and never called to "check" anything.
+ *
+ * Nothing useful comes back in the response. Success means Meta accepted the request;
+ * the data arrives afterwards over the webhook, in chunks, and only if the business
+ * agreed to share it on their phone - they may well have declined after we asked,
+ * which arrives as an error inside the history webhook rather than here.
+ */
+export async function startSmbSync(args: {
+  phoneNumberId: string;
+  token: string;
+  version: string;
+  syncType: SmbSyncType;
+}): Promise<{ ok: true } | GraphFailure> {
+  const r = await graph<{ success?: boolean }>(`${args.version}/${args.phoneNumberId}/smb_app_data`, {
+    method: "POST",
+    token: args.token,
+    body: JSON.stringify({ messaging_product: "whatsapp", sync_type: args.syncType }),
+  });
+  if (!r.ok) return r;
+  return { ok: true };
+}
+
+/**
  * Undo step 3, so a disconnected WABA stops sending us webhooks.
  *
  * Best-effort by design: the local row is cleared whether or not Meta agrees, because
