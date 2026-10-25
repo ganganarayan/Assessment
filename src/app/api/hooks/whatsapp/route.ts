@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { resolveMetaAppConfig } from "@/lib/settings/meta-app";
+import { ingestWhatsAppWebhook, type WhatsAppWebhookBody } from "@/lib/whatsapp/inbound";
 
 /**
  * Meta's webhook for the WhatsApp app.
@@ -11,11 +12,13 @@ import { resolveMetaAppConfig } from "@/lib/settings/meta-app";
  * smb_message_echoes. So this endpoint exists to satisfy the contract and to prove the
  * callback is alive.
  *
- * 🟡 It deliberately does NOT act on message content yet. Inbound replies, contact
- * history import and message echoes are their own feature with their own storage and
- * consent questions; pretending to handle them here would mean quietly keeping other
- * people's WhatsApp conversations in our database. Events are acknowledged, counted by
- * field name, and dropped.
+ * Coexistence deliveries are stored: the owner's address book, their own past chats
+ * and the echo of anything they send from the phone. That work is in lib/whatsapp
+ * /inbound, including the rule that matters most - none of those people have opted in,
+ * so none of them reach a broadcast audience unless the sender ticks them on.
+ *
+ * Anything else is still acknowledged and dropped. A field we do not handle is named
+ * in the log and otherwise ignored, so a new Meta field cannot look like a failure.
  *
  * GET  = Meta's one-time verification handshake (hub.challenge).
  * POST = events, signed with the app secret.
@@ -57,10 +60,6 @@ function signatureMatches(expected: string, received: string): boolean {
   return timingSafeEqual(a, b);
 }
 
-interface WebhookEntry {
-  changes?: Array<{ field?: string }>;
-}
-
 export async function POST(req: Request) {
   // The signature is over the RAW body, so it has to be read as text before any
   // JSON.parse - re-serializing changes the bytes and every signature fails.
@@ -77,20 +76,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bad signature" }, { status: 401 });
   }
 
-  // Signed and genuine. Count what arrived by FIELD NAME only: that is enough to see
-  // in the logs that the subscription is live, and it carries nobody's message text,
-  // phone number or name.
+  // Signed and genuine. Store it, and log COUNTS and field names only - never the
+  // payload, which is somebody's conversation and a log is the easiest place to leak
+  // one.
+  //
+  // 🔴 Every failure below still answers 200. Meta retries anything that is not a
+  // 2xx, so a bug here would have it redeliver the same chunk until the sync window
+  // runs out, which turns our bug into the owner losing their chat history.
   try {
-    const body = JSON.parse(raw) as { entry?: WebhookEntry[] };
-    const fields = (body.entry ?? [])
-      .flatMap((e) => e.changes ?? [])
-      .map((c) => c.field ?? "unknown")
-      .join(",");
-    if (fields) console.log("[whatsapp-hook] received:", fields);
-  } catch {
-    // A body we cannot parse is still Meta's, and still gets a 200 - retrying it
-    // would not make it parseable.
-    console.warn("[whatsapp-hook] signed body was not JSON");
+    const body = JSON.parse(raw) as WhatsAppWebhookBody;
+    const r = await ingestWhatsAppWebhook(body);
+    console.log(
+      "[whatsapp-hook] contacts=" +
+        r.contacts +
+        " messages=" +
+        r.messages +
+        (r.skipped.length ? " skipped=" + r.skipped.join(",") : ""),
+    );
+  } catch (e) {
+    console.error("[whatsapp-hook] delivery dropped:", e instanceof Error ? e.message : String(e));
   }
 
   return OK();

@@ -16,6 +16,9 @@ function audienceView(raw: unknown): AudienceView {
     bands: arr(a.bands),
     createdFrom: typeof a.createdFrom === "string" ? a.createdFrom : null,
     createdTo: typeof a.createdTo === "string" ? a.createdTo : null,
+    // Anything other than an explicit true reads as false, so a broadcast saved
+    // before this existed keeps excluding the people who never opted in.
+    includeImported: a.includeImported === true,
   };
 }
 

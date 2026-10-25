@@ -75,6 +75,14 @@ export interface WabaSyncView {
   windowOpen: boolean;
   /** The last refusal, verbatim from Meta. A failed sync is not a failed connection. */
   lastError: string | null;
+  /**
+   * How the history import is going, in words: "60% in, 1,284 messages so far", or
+   * that the business declined to share. Null when nothing has arrived yet.
+   *
+   * Worth showing because the import takes a while and arrives in batches, and an
+   * hour of silence looks identical to a sync that never started.
+   */
+  historyNote: string | null;
 }
 
 /** Which pile of their own data the owner asked for. */
