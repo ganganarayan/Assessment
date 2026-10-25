@@ -14,12 +14,14 @@ import {
   exchangeCodeForBusinessToken,
   getPhoneNumber,
   listWabaPhoneNumbers,
+  startSmbSync,
   subscribeAppToWaba,
   unsubscribeAppFromWaba,
   type WabaPhoneNumber,
 } from "@/lib/whatsapp/graph";
+import { describeTimeLeft, syncWindowClosesAt, syncWindowOpen } from "@/lib/whatsapp/sync-window";
 import { type ActionResult } from "@/features/assessment/actions/shared";
-import { embeddedSignupSchema, type WhatsAppConnectView } from "@/features/whatsapp/types";
+import { embeddedSignupSchema, syncKindSchema, type WhatsAppConnectView } from "@/features/whatsapp/types";
 
 /**
  * One-click WhatsApp onboarding, server half.
@@ -81,6 +83,9 @@ export async function getWhatsAppConnectInfo(): Promise<WhatsAppConnectView> {
         wabaIsOnBizApp: true,
         wabaOnboardedAt: true,
         wabaOnboardError: true,
+        wabaContactsSyncAt: true,
+        wabaHistorySyncAt: true,
+        wabaSyncError: true,
       },
     }),
   ]);
@@ -104,6 +109,19 @@ export async function getWhatsAppConnectInfo(): Promise<WhatsAppConnectView> {
           : s.wabaIsOnBizApp
             ? ("COEXISTENCE" as const)
             : ("CLOUD_API" as const),
+        sync: {
+          // Only a number still living on a phone has anything to hand over.
+          available: Boolean(s.wabaOnboardedAt && s.wabaIsOnBizApp),
+          contactsAt: s.wabaContactsSyncAt ? formatIST(s.wabaContactsSyncAt) : null,
+          historyAt: s.wabaHistorySyncAt ? formatIST(s.wabaHistorySyncAt) : null,
+          closesAt: (() => {
+            const c = syncWindowClosesAt(s.wabaOnboardedAt);
+            return c ? formatIST(c) : null;
+          })(),
+          timeLeft: describeTimeLeft(s.wabaOnboardedAt),
+          windowOpen: syncWindowOpen(s.wabaOnboardedAt),
+          lastError: s.wabaSyncError ?? null,
+        },
       }
     : null;
 
@@ -241,6 +259,111 @@ export async function completeWhatsAppConnect(input: unknown): Promise<ActionRes
 }
 
 /**
+ * Ask the phone for the owner's own contacts, or their own past chats.
+ *
+ * 🔴 ONE ATTEMPT EACH, per onboarding, inside about 24 hours. That single fact shapes
+ * everything below:
+ *
+ *   - The local stamp is checked BEFORE Meta is called. A second press is always a
+ *     mistake, and finding out by spending the attempt is the one outcome there is no
+ *     way back from.
+ *   - A refusal is recorded and shown, never retried. Retrying a sync is how one
+ *     attempt becomes none.
+ *   - The 24 hours are a WARNING, not a gate. Meta enforces the window; our clock
+ *     could be wrong, so a closed window still lets the owner try. Denying somebody
+ *     their only chance on the strength of our own arithmetic would be worse than
+ *     letting Meta say no.
+ *
+ * Accepted does not mean arrived. The contacts and chats come back later over the
+ * webhook, in chunks, and the business can still decline on their phone after we have
+ * asked - which turns up as an error inside the history webhook, not here.
+ */
+export async function startWhatsAppSync(input: unknown): Promise<ActionResult<{ note?: string }>> {
+  const scope = await resolveActingScope();
+  const denied = scopeEditDenied(scope);
+  if (denied) return denied;
+  const held = await featureDenied("whatsapp", scope.tenantId);
+  if (held) return held;
+
+  const parsed = syncKindSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "That is not something we can ask Meta for." };
+  const kind = parsed.data;
+
+  const [app, s] = await Promise.all([
+    resolveMetaAppConfig(),
+    prisma.appSetting.findUnique({
+      where: appSettingWhere(scope.tenantId) as Prisma.AppSettingWhereUniqueInput,
+      select: {
+        wabaPhoneNumberId: true,
+        wabaAccessTokenEnc: true,
+        wabaApiVersion: true,
+        wabaIsOnBizApp: true,
+        wabaOnboardedAt: true,
+        wabaContactsSyncAt: true,
+        wabaHistorySyncAt: true,
+      },
+    }),
+  ]);
+
+  if (!s?.wabaAccessTokenEnc || !s.wabaPhoneNumberId) {
+    return { ok: false, error: "No WhatsApp number is connected here yet." };
+  }
+  if (!s.wabaIsOnBizApp) {
+    return {
+      ok: false,
+      error:
+        "This is a Cloud API number, so there is no phone to copy from. Only a number you also use in the WhatsApp Business app can bring its contacts and chats across.",
+    };
+  }
+
+  const already = kind === "CONTACTS" ? s.wabaContactsSyncAt : s.wabaHistorySyncAt;
+  if (already) {
+    return {
+      ok: false,
+      error:
+        (kind === "CONTACTS" ? "Contacts were" : "Past chats were") +
+        " already requested on " +
+        formatIST(already) +
+        " IST. Meta allows this once per connection, so asking again would be refused. If nothing arrived, disconnect and connect the number again to get a fresh attempt.",
+    };
+  }
+
+  const token = decryptWithSecret(s.wabaAccessTokenEnc, env.BETTER_AUTH_SECRET);
+  if (!token) {
+    return { ok: false, error: "The stored WhatsApp token could not be read. Reconnect the number." };
+  }
+
+  const started = await startSmbSync({
+    phoneNumberId: s.wabaPhoneNumberId,
+    token,
+    // The version this connection was made against, not today's platform default.
+    version: s.wabaApiVersion || app.version,
+    syncType: kind === "CONTACTS" ? "smb_app_state_sync" : "history",
+  });
+
+  if (!started.ok) {
+    await upsertSettings(scope.tenantId, { wabaSyncError: started.error.slice(0, 1000) });
+    revalidateBoth();
+    return { ok: false, error: started.error };
+  }
+
+  await upsertSettings(scope.tenantId, {
+    ...(kind === "CONTACTS" ? { wabaContactsSyncAt: new Date() } : { wabaHistorySyncAt: new Date() }),
+    wabaSyncError: null,
+  });
+  revalidateBoth();
+
+  // Said every time, because the two failure modes left are both on the owner's side
+  // and both silent: closing WhatsApp mid-copy, and having declined the share.
+  const note =
+    kind === "CONTACTS"
+      ? "Asked Meta for your contacts. Keep WhatsApp open on the phone until they stop arriving."
+      : "Asked Meta for your past chats. They arrive in batches over the next while, up to about six months of 1:1 conversations, and only if you agreed to share them on the phone. Keep WhatsApp open.";
+  const left = describeTimeLeft(s.wabaOnboardedAt);
+  return { ok: true, data: { note: left ? note + " (" + left + " to ask for the other one.)" : note } };
+}
+
+/**
  * Hand the number back.
  *
  * Unsubscribes our app first so their WABA stops sending us webhooks, then clears
@@ -281,6 +404,11 @@ export async function disconnectWhatsApp(): Promise<ActionResult> {
     wabaIsOnBizApp: false,
     wabaOnboardedAt: null,
     wabaOnboardError: null,
+    // Cleared too, so reconnecting genuinely does give a fresh attempt at each sync
+    // rather than leaving the card refusing on the strength of the old connection.
+    wabaContactsSyncAt: null,
+    wabaHistorySyncAt: null,
+    wabaSyncError: null,
   });
 
   revalidateBoth();

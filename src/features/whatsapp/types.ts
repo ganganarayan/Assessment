@@ -51,7 +51,34 @@ export interface ConnectedWaba {
    * history, and only a coexistence number keeps answering on somebody's phone.
    */
   source: "COEXISTENCE" | "CLOUD_API" | "MANUAL";
+  sync: WabaSyncView;
 }
+
+/**
+ * The one chance to bring the owner's own contacts and chats off their phone.
+ *
+ * Everything here is about a decision that cannot be taken twice, so the card needs
+ * enough to say WHY a button is not offered, rather than just hiding it: a cloud number
+ * can never sync, a sync already asked for cannot be asked for again, and the 24 hours
+ * run from the moment they connected.
+ */
+export interface WabaSyncView {
+  /** False for a cloud or hand-typed number, which has no phone to sync from. */
+  available: boolean;
+  /** When we asked, DD-MM-YYYY HH:MM IST. Null means never asked. */
+  contactsAt: string | null;
+  historyAt: string | null;
+  /** When the chance runs out, DD-MM-YYYY HH:MM IST. */
+  closesAt: string | null;
+  /** "about 7 hours left", or that the 24 hours are up. */
+  timeLeft: string | null;
+  windowOpen: boolean;
+  /** The last refusal, verbatim from Meta. A failed sync is not a failed connection. */
+  lastError: string | null;
+}
+
+/** Which pile of their own data the owner asked for. */
+export type SyncKind = "CONTACTS" | "HISTORY";
 
 export interface WhatsAppConnectView {
   /**
@@ -91,6 +118,12 @@ export const embeddedSignupSchema = z.object({
   // still connects instead of failing on a field used only for one warning.
   flow: z.enum(["COEXISTENCE", "CLOUD"]).default("CLOUD"),
 });
+
+/**
+ * Which sync, validated rather than trusted: it decides which of two single-use
+ * requests gets spent, so a malformed value must never fall through to a default.
+ */
+export const syncKindSchema = z.enum(["CONTACTS", "HISTORY"]);
 
 /**
  * The platform owner's view of the Meta app behind every tenant's connect button.

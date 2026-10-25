@@ -2847,6 +2847,22 @@ model AppSetting {
   // the dangerous state, so the reason is kept rather than swallowed into a log nobody
   // reads. Cleared on the next success.
   wabaOnboardError       String?
+  // ---- Coexistence sync (contacts and past chats off the phone) -------------
+  // 🔴 Each of these can be asked for ONCE per onboarding, inside about 24 hours of it,
+  // and there is no second chance without the business offboarding and starting over.
+  // That is the whole reason the request is stamped rather than merely attempted: the
+  // stamp is what lets the screen refuse a second press instead of spending somebody's
+  // only attempt to find out Meta will refuse it.
+  //
+  // These record the REQUEST, not the arrival. The data itself comes back later over
+  // webhooks, in chunks, and may be declined by the business on their phone after we
+  // have already asked - so a stamp here means "we asked", never "it is here".
+  wabaContactsSyncAt     DateTime?
+  wabaHistorySyncAt      DateTime?
+  // Last sync refusal, verbatim from Meta, shown on the card. Separate from
+  // wabaOnboardError because a failed sync leaves a perfectly working connection, and
+  // mixing the two would make a connected number look broken.
+  wabaSyncError          String?
   // The Nurture messages + on/off toggles, as JSON:
   //   { email: { enabled, subject, body }, waba: { enabled, template, lang, vars: string[] } }
   nurtureConfig          Json?

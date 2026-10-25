@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Script from "next/script";
 import { Button } from "@/components/ui/button";
 import { completeWhatsAppConnect, disconnectWhatsApp } from "@/features/whatsapp/actions";
+import { WhatsAppSync } from "@/features/whatsapp/components/whatsapp-sync";
 import { type SignupFlow, type WhatsAppConnectView } from "@/features/whatsapp/types";
 
 /**
@@ -227,6 +228,7 @@ export function WhatsAppConnect({ initial, canEdit = true }: { initial: WhatsApp
               {connected.onboardedAt ? ` Connected ${connected.onboardedAt} IST.` : ""}
             </p>
           </div>
+          <WhatsAppSync sync={connected.sync} canEdit={canEdit} />
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="outline" onClick={launch} disabled={pending || !canEdit}>
               Reconnect
