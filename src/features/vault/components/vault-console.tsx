@@ -27,9 +27,12 @@ import {
   completeVaultMultipart,
   abortVaultMultipart,
   testVaultBucket,
+  vaultBucketReadiness,
+  applyVaultCors,
 } from "@/features/vault/actions";
 import {
   ALLOWED_CONTENT_TYPES,
+  type VaultBucketReadiness,
   type VaultBucketView,
   type VaultListingView,
 } from "@/features/vault/types";
@@ -536,6 +539,7 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
             {bucket.publicBaseUrl ?? "no public domain yet"}
           </p>
         ) : null}
+        {bucket ? <BucketReadiness bucketId={bucket.id} /> : null}
       </div>
 
       {error ? (
@@ -553,6 +557,7 @@ export function VaultConsole({ initialBuckets }: { initialBuckets: VaultBucketVi
         <BucketForm
           key={editingBucket?.id ?? "new"}
           existing={editingBucket}
+          siblings={buckets}
           onSaved={async (savedId) => {
             setShowBucketForm(false);
             setEditingBucket(null);
@@ -1072,22 +1077,9 @@ function ActivityLog({ bucketId }: { bucketId: string }) {
  * paste them, do not pretend to own the step.
  */
 function SetupChecklist({ bucket }: { bucket: VaultBucketView }) {
-  const cors = JSON.stringify(
-    [
-      {
-        AllowedOrigins: [typeof window === "undefined" ? "https://your-app-domain" : window.location.origin],
-        AllowedMethods: ["PUT", "GET", "HEAD"],
-        AllowedHeaders: ["content-type"],
-        ExposeHeaders: ["ETag"],
-        MaxAgeSeconds: 3600,
-      },
-    ],
-    null,
-    2,
-  );
   return (
     <div className="flex flex-col gap-3 rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-3 text-sm">
-      <p className="font-medium">🟡 Two steps left, in Cloudflare</p>
+      <p className="font-medium">🟡 One step left, in Cloudflare</p>
       <ol className="flex list-decimal flex-col gap-2 pl-5">
         <li>
           <span className="font-medium">Attach a custom domain.</span> R2 → {bucket.bucketName} →
@@ -1095,11 +1087,6 @@ function SetupChecklist({ bucket }: { bucket: VaultBucketView }) {
           account, then paste it into this bucket&apos;s Public URL above. Do not enable the r2.dev
           URL: it is rate limited and uncached, so video through it stutters and every request
           bills a read.
-        </li>
-        <li>
-          <span className="font-medium">Set the CORS policy</span>, or browser uploads fail with a
-          status the browser will not explain. Same Settings page, CORS policy:
-          <pre className="mt-1 overflow-x-auto rounded bg-muted p-2 text-xs">{cors}</pre>
         </li>
         {bucket.storageClass === "INFREQUENT_ACCESS" ? (
           <li>
@@ -1114,14 +1101,101 @@ function SetupChecklist({ bucket }: { bucket: VaultBucketView }) {
   );
 }
 
+
+/* ------------------------------------------------------------- readiness --- */
+
+/**
+ * Whether a browser here can upload to this bucket, and where the bucket lives.
+ *
+ * 🔴 CORS IS PER BUCKET, so a bucket created five minutes ago allows no browser at all
+ * and its first upload dies at 0% with an error the browser will not explain. This
+ * strip exists so that is a sentence and a button instead of a debugging session.
+ *
+ * The region is shown beside it because it is the single largest factor in upload
+ * speed, it is fixed at creation and cannot be changed, and until now the only way to
+ * find out was to go and look in Cloudflare.
+ */
+function BucketReadiness({ bucketId }: { bucketId: string }) {
+  const [state, setState] = useState<VaultBucketReadiness | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setState(null);
+    setProblem(null);
+    const r = await vaultBucketReadiness(bucketId);
+    if (r.ok && r.data) setState(r.data);
+    else setProblem(r.ok ? "No answer." : r.error);
+  }, [bucketId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const allow = async () => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      const r = await applyVaultCors(bucketId);
+      if (!r.ok) setProblem(r.error);
+      else await load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (problem) return <p className="text-xs text-destructive">🔴 {problem}</p>;
+  if (!state) return <p className="text-xs text-muted-foreground">Checking the bucket…</p>;
+
+  // An unreadable policy is not a failed one. Saying "not allowed" when the truth is
+  // "this token cannot read the policy" would send the operator to fix the wrong thing.
+  if (state.error) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        🟡 Could not read this bucket&apos;s CORS policy: {state.error}. The token may lack
+        permission for it, which does not stop uploads if the policy is already right.
+      </p>
+    );
+  }
+
+  const others = state.corsOrigins.filter((o) => o !== state.origin);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <span>Region {state.location ?? "default"}</span>
+      <span>·</span>
+      {state.corsOk ? (
+        <span>
+          🟢 Uploads allowed from this site
+          {others.length > 0 ? ` and ${others.length} other origin(s)` : ""}
+        </span>
+      ) : (
+        <>
+          <span className="text-foreground">
+            🟡 {state.corsConfigured
+              ? "This bucket's CORS policy does not cover this site, so an upload would fail before any bytes move."
+              : "This bucket has no CORS policy, so no browser can upload to it yet."}
+          </span>
+          <Button size="sm" variant="outline" onClick={() => void allow()} disabled={busy}>
+            {busy ? "Allowing…" : "Allow uploads from this site"}
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ----------------------------------------------------------------- bucket form --- */
 
 function BucketForm({
   existing,
+  siblings,
   onSaved,
   onDeleted,
 }: {
   existing: VaultBucketView | null;
+  /** The other buckets already here, whose stored token this one can borrow. */
+  siblings: VaultBucketView[];
   onSaved: (id: string) => void | Promise<void>;
   onDeleted: (id: string) => void;
 }) {
@@ -1134,6 +1208,11 @@ function BucketForm({
   const [accountId, setAccountId] = useState(existing?.accountId ?? "");
   const [accessKeyId, setAccessKeyId] = useState(existing?.accessKeyId ?? "");
   const [secretAccessKey, setSecretAccessKey] = useState("");
+  // 🟢 An R2 API token scoped to the account works for every bucket under it, and
+  // Cloudflare shows a secret exactly once. Asking the operator to paste it again for
+  // a second bucket in the same account asks for something they probably no longer
+  // have, so they can point at a bucket here instead and the server reuses its secret.
+  const [copyCredsFrom, setCopyCredsFrom] = useState("");
   const [createInR2, setCreateInR2] = useState(false);
   // Only meaningful on create. R2 fixes a bucket location permanently, and it is the
   // dominant factor in upload speed, so it is asked rather than defaulted.
@@ -1155,6 +1234,7 @@ function BucketForm({
         accountId,
         accessKeyId,
         secretAccessKey,
+        copyCredsFrom,
         createInR2,
         locationHint: createInR2 ? (locationHint as "apac") : "",
       });
@@ -1244,6 +1324,38 @@ function BucketForm({
             read, so it is wrong for anything played often.
           </p>
         </div>
+        {!existing && siblings.length > 0 ? (
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label htmlFor="v-copy">Credentials</Label>
+            <select
+              id="v-copy"
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              value={copyCredsFrom}
+              onChange={(e) => {
+                const id = e.target.value;
+                setCopyCredsFrom(id);
+                const src = siblings.find((b) => b.id === id);
+                if (src) {
+                  setAccountId(src.accountId);
+                  setAccessKeyId(src.accessKeyId);
+                  setSecretAccessKey("");
+                }
+              }}
+            >
+              <option value="">Paste a new token below</option>
+              {siblings.map((b) => (
+                <option key={b.id} value={b.id}>
+                  Same token as {b.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">
+              An account-scoped R2 token works for every bucket in the account, so a second
+              bucket needs no new one. The secret is read on the server and never shown here.
+              Pick &quot;paste a new token&quot; only if the existing one is scoped to one bucket.
+            </p>
+          </div>
+        ) : null}
         {field(
           "v-account",
           "Cloudflare account id",
@@ -1265,7 +1377,9 @@ function BucketForm({
           "Secret access key",
           existing?.hasSecret
             ? "A secret is stored. Leave blank to keep it, or paste a new one to replace it."
-            : "Shown once by Cloudflare when the token is created.",
+            : copyCredsFrom
+              ? "Not needed - the token above is being reused."
+              : "Shown once by Cloudflare when the token is created.",
           secretAccessKey,
           setSecretAccessKey,
           existing?.hasSecret ? "•••••••• stored" : "",

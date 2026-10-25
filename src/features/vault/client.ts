@@ -14,6 +14,10 @@ import {
   ListPartsCommand,
   GetBucketLifecycleConfigurationCommand,
   PutBucketLifecycleConfigurationCommand,
+  GetBucketCorsCommand,
+  PutBucketCorsCommand,
+  GetBucketLocationCommand,
+  type CORSRule,
   type LifecycleRule,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -643,4 +647,120 @@ export async function partActivity(
     marker = Number(next);
   }
   return { partCount, lastActivity };
+}
+
+/* ------------------------------------------------------------------- cors --- */
+
+/**
+ * The CORS policy a browser upload needs, written by the app rather than pasted by
+ * hand.
+ *
+ * 🔴 CORS IS PER BUCKET. It is not inherited from the account, so a brand new bucket
+ * has none and every browser upload to it fails at zero bytes, before the body moves,
+ * with a message the browser refuses to explain. That is not a quirk of this app; it
+ * is how R2 works.
+ *
+ * What IS a quirk of this app is that it used to tell the operator to go and paste JSON
+ * into the Cloudflare dashboard. PutBucketCors is part of R2's S3 API and the bucket's
+ * own token can call it, so the step was never manual. The checklist that said
+ * otherwise was wrong.
+ */
+const CORS_RULE_ID = "vault-browser-upload";
+
+/** A bucket with no CORS configuration is not an error, it is a fresh bucket. */
+function isMissingCors(e: unknown): boolean {
+  const text = e instanceof Error ? `${e.name} ${e.message}` : String(e);
+  return /NoSuchCORSConfiguration/i.test(text);
+}
+
+/** The bucket's CORS rules, or null when it has no configuration at all. */
+export async function readCors(creds: VaultBucketCreds): Promise<CORSRule[] | null> {
+  const client = clientFor(creds);
+  try {
+    const res = await client.send(new GetBucketCorsCommand({ Bucket: creds.bucketName }));
+    return res.CORSRules ?? [];
+  } catch (e) {
+    if (isMissingCors(e)) return null;
+    throw e;
+  }
+}
+
+/**
+ * Whether these rules actually let a browser at this origin run a multipart upload.
+ *
+ * Three things have to be true together, and checking only the origin is how a policy
+ * that looks right fails anyway: the origin must be allowed, PUT must be allowed, and
+ * ETag must be readable. Without the last one R2 accepts every part and the upload
+ * still cannot be completed, because the browser cannot see the tags needed to stitch
+ * the file back together. That failure arrives after all the bytes have gone up, which
+ * makes it the most expensive one to get wrong.
+ */
+export function corsAllowsUpload(rules: CORSRule[] | null, origin: string): boolean {
+  if (!rules) return false;
+  return rules.some((r) => {
+    const origins = r.AllowedOrigins ?? [];
+    if (!origins.includes("*") && !origins.includes(origin)) return false;
+    const methods = (r.AllowedMethods ?? []).map((m) => m.toUpperCase());
+    if (!methods.includes("PUT")) return false;
+    const exposed = (r.ExposeHeaders ?? []).map((h) => h.toLowerCase());
+    return exposed.includes("etag") || exposed.includes("*");
+  });
+}
+
+/**
+ * Allow browser uploads from this origin.
+ *
+ * 🔴 MERGES, never replaces, for the same reason the lifecycle writer does: PutBucketCors
+ * overwrites the whole configuration, so a blind write would delete rules somebody else
+ * set. Rules with other ids are written through untouched, and the origins already in
+ * OUR rule are kept, so running this from staging and then from production leaves both
+ * allowed rather than the second replacing the first.
+ */
+export async function writeCorsOrigin(
+  creds: VaultBucketCreds,
+  origin: string,
+): Promise<string[]> {
+  const client = clientFor(creds);
+  const existing = (await readCors(creds)) ?? [];
+  const kept = existing.filter((r) => r.ID !== CORS_RULE_ID);
+  const ours = existing.find((r) => r.ID === CORS_RULE_ID);
+
+  const origins = Array.from(new Set([...(ours?.AllowedOrigins ?? []), origin])).filter(
+    (o) => o !== "",
+  );
+
+  const rule: CORSRule = {
+    ID: CORS_RULE_ID,
+    AllowedOrigins: origins,
+    // GET and HEAD are not upload methods, but the vault reads objects back through
+    // this same origin when it verifies a landed upload, and a policy that allows the
+    // write while blocking the read is a confusing half-working state.
+    AllowedMethods: ["PUT", "GET", "HEAD"],
+    AllowedHeaders: ["content-type"],
+    ExposeHeaders: ["ETag"],
+    MaxAgeSeconds: 3600,
+  };
+
+  await client.send(
+    new PutBucketCorsCommand({
+      Bucket: creds.bucketName,
+      CORSConfiguration: { CORSRules: [...kept, rule] },
+    }),
+  );
+  return origins;
+}
+
+/**
+ * Where R2 actually put this bucket, as R2 reports it rather than as anyone intended.
+ *
+ * Worth reading rather than assuming: a location hint is best effort, it is honoured
+ * only the first time a bucket of that name is created, and it cannot be changed
+ * afterwards. A bucket created from a container in another continent lands there, and
+ * nothing in the dashboard shouts about it. An empty response means the default region.
+ */
+export async function readBucketLocation(creds: VaultBucketCreds): Promise<string | null> {
+  const client = clientFor(creds);
+  const res = await client.send(new GetBucketLocationCommand({ Bucket: creds.bucketName }));
+  const raw = res.LocationConstraint;
+  return raw && String(raw).trim() !== "" ? String(raw) : null;
 }
