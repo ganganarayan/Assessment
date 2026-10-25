@@ -2863,6 +2863,12 @@ model AppSetting {
   // wabaOnboardError because a failed sync leaves a perfectly working connection, and
   // mixing the two would make a connected number look broken.
   wabaSyncError          String?
+  // Where the history import got to, as Meta reports it on each chunk:
+  //   { phase, progress, chunks, threads, messages, declined?: { code, message },
+  //     updatedAt }
+  // Kept so the card can say "60% in, 1,284 messages so far" instead of going quiet
+  // for an hour while batches arrive. Progress is Meta's number; the counts are ours.
+  wabaHistoryProgress    Json?
   // The Nurture messages + on/off toggles, as JSON:
   //   { email: { enabled, subject, body }, waba: { enabled, template, lang, vars: string[] } }
   nurtureConfig          Json?
@@ -4271,15 +4277,27 @@ model Contact {
   /// takes an irreversible action with no login.
   optOutToken String @unique
 
-  /// Where the person first came from: "SUBMISSION" | "SPLIT_GATE" | "ADMIN".
+  /// Where the person first came from: "SUBMISSION" | "SPLIT_GATE" | "ADMIN" |
+  /// "WHATSAPP_IMPORT" (a name out of the owner's phone address book) | "WHATSAPP_CHAT"
+  /// (somebody who actually messaged the business).
+  ///
+  /// 🔴 The last two have given NO marketing consent, and the broadcast audience
+  /// excludes them unless the sender ticks it on. A phone book is not an opt-in list,
+  /// and templates sent to one are how a WhatsApp number gets its quality rating cut.
   source     String?
   lastSeenAt DateTime @default(now())
+
+  /// When a real WhatsApp message last passed between them and the business, from the
+  /// synced history or an echo off the phone. Distinct from lastSeenAt, which moves
+  /// when they fill in a form: this one says whether there is a conversation at all.
+  lastMessageAt DateTime?
 
   tags                ContactTag[]
   workflowRuns        WorkflowRun[]
   broadcastRecipients BroadcastRecipient[]
   submissions         Submission[]
   gateEntries         GateEntry[]
+  whatsappMessages    WhatsAppMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4292,6 +4310,54 @@ model Contact {
   @@index([tenantId, createdAt])
   @@index([tenantId, marketingOptOutAt])
   @@map("contact")
+}
+
+/// A WhatsApp message that came off the owner's own phone.
+///
+/// Two sources, both coexistence-only: the one-off history import, and the echo of
+/// every message they send from the phone afterwards. Both exist so that this app can
+/// tell whether there is a real conversation with somebody before it adds them to a
+/// sequence, and so the owner can see it without switching to their phone.
+///
+/// 🔴 No tenantId. The owner is whoever owns the CONTACT, which is one fact in one
+/// place: a second copy of the tenant here would be a second answer to the same
+/// question, and the day the two disagreed somebody would read another workspace's
+/// conversations. Tenant-wide queries go through the contact.
+///
+/// 🟡 Text only. Media is never fetched or stored. Pulling somebody's business photos
+/// and voice notes into our bucket is a storage, consent and retention decision of its
+/// own, and nothing here needs it: the type is recorded, so an image shows as an image.
+model WhatsAppMessage {
+  id String @id @default(cuid())
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  /// Meta's own id (wamid...). Unique PER CONTACT, which is what makes ingest
+  /// idempotent: webhooks redeliver, history arrives in overlapping chunks, and an
+  /// echo can turn up twice. Scoped to the contact rather than globally so that a
+  /// number connected in two workspaces duplicates a row instead of silently moving
+  /// one workspace's message into another's.
+  waMessageId String
+
+  /// "IN" = the customer sent it. "OUT" = the business did, from the phone or from here.
+  direction String
+  /// Meta's own type: text, image, audio, document, sticker, ...
+  type String
+  /// The text, when there is text. Null for media, which is recorded by type alone.
+  body String? @db.Text
+
+  /// Meta's timestamp, never ours. A history import is mostly old messages, and
+  /// stamping them with the import time would destroy the only thing they are for.
+  sentAt DateTime
+  /// "HISTORY" = the one-off import. "ECHO" = sent from the phone after connecting.
+  origin String
+
+  createdAt DateTime @default(now())
+
+  @@unique([contactId, waMessageId])
+  @@index([contactId, sentAt])
+  @@map("whatsapp_message")
 }
 
 /// A label the workspace invents. Named per tenant, so two workspaces can both have

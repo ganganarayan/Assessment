@@ -169,9 +169,18 @@ export function ContactsScreen({
                     Added {c.createdAt} IST · {c.submissionCount} submission
                     {c.submissionCount === 1 ? "" : "s"}
                     {c.consented ? " · consented" : ""}
+                    {c.lastMessageAt ? ` · last message ${c.lastMessageAt} IST` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {c.imported ? (
+                    <span
+                      className="rounded-full border border-dashed px-2 py-0.5 text-xs text-[var(--muted-foreground)]"
+                      title={c.sourceLabel + ". Not opted in, so broadcasts skip them unless you say otherwise."}
+                    >
+                      {c.sourceLabel}
+                    </span>
+                  ) : null}
                   {c.optedOut ? (
                     <span className="rounded-full border border-amber-500/60 px-2 py-0.5 text-xs text-amber-600 dark:text-amber-400">
                       Unsubscribed{c.optOutSource ? ` (${c.optOutSource.toLowerCase()})` : ""}

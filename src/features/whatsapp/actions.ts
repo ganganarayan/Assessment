@@ -60,6 +60,28 @@ function revalidateBoth() {
   revalidatePath("/w/nurture");
 }
 
+/**
+ * The history import, in a sentence.
+ *
+ * Not exported: a "use server" module may export async functions only, and this is
+ * display text rather than an action. The counts come from our own rows; the
+ * percentage is Meta's own figure from the last chunk it sent.
+ */
+function describeHistoryProgress(raw: unknown): string | null {
+  if (!raw || typeof raw !== "object") return null;
+  const p = raw as { progress?: number; messages?: number; declined?: { message?: string } };
+  if (p.declined) {
+    return "Your past chats were not shared from the phone, so only new messages will appear here.";
+  }
+  const bits: string[] = [];
+  if (typeof p.progress === "number" && p.progress > 0) bits.push(Math.round(p.progress) + "% in");
+  if (typeof p.messages === "number" && p.messages > 0) {
+    // Locale named explicitly, never left to the server's own: on Railway that is US.
+    bits.push(p.messages.toLocaleString("en-IN") + " messages so far");
+  }
+  return bits.length ? bits.join(", ") : null;
+}
+
 /** Record WHY a connect failed, so the card can say it instead of going quiet. */
 async function recordFailure(tenantId: string | null, error: string): Promise<ActionResult<{ note?: string }>> {
   await upsertSettings(tenantId, { wabaOnboardError: error.slice(0, 1000) });
@@ -86,6 +108,7 @@ export async function getWhatsAppConnectInfo(): Promise<WhatsAppConnectView> {
         wabaContactsSyncAt: true,
         wabaHistorySyncAt: true,
         wabaSyncError: true,
+        wabaHistoryProgress: true,
       },
     }),
   ]);
@@ -121,6 +144,7 @@ export async function getWhatsAppConnectInfo(): Promise<WhatsAppConnectView> {
           timeLeft: describeTimeLeft(s.wabaOnboardedAt),
           windowOpen: syncWindowOpen(s.wabaOnboardedAt),
           lastError: s.wabaSyncError ?? null,
+          historyNote: describeHistoryProgress(s.wabaHistoryProgress),
         },
       }
     : null;

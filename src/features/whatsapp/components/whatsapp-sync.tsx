@@ -99,6 +99,10 @@ export function WhatsAppSync({ sync, canEdit = true }: { sync: WabaSyncView; can
       {row("CONTACTS", sync.contactsAt)}
       {row("HISTORY", sync.historyAt)}
 
+      {sync.historyNote ? (
+        <p className="text-xs text-[var(--muted-foreground)]">🟢 Chats: {sync.historyNote}.</p>
+      ) : null}
+
       {msg ? <p className="text-sm text-[var(--muted-foreground)]">{msg}</p> : null}
       {sync.lastError ? (
         <p className="text-sm text-[var(--muted-foreground)]">🟡 Meta last said: {sync.lastError}</p>

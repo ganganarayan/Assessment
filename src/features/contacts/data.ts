@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
 import { formatIST } from "@/lib/date";
 import { contactTenantOf } from "@/lib/contacts/upsert";
+import { describeSource, isUnconsentedSource } from "@/lib/contacts/sources";
 
 /**
  * Reading the contacts list.
@@ -37,6 +38,17 @@ export interface ContactRow {
   consented: boolean;
   tags: { id: string; name: string; color: string | null }[];
   submissionCount: number;
+  /** Where they came from, in words. */
+  sourceLabel: string;
+  /**
+   * 🔴 True for somebody who arrived off a connected phone and has opted in to
+   * nothing. Shown as a badge, because otherwise an imported address book is
+   * indistinguishable from a list of leads and the owner cannot understand why a
+   * broadcast skipped half their contacts.
+   */
+  imported: boolean;
+  /** When a real WhatsApp message last passed, DD-MM-YYYY HH:MM IST. */
+  lastMessageAt: string | null;
 }
 
 export interface ContactsView {
@@ -98,6 +110,8 @@ export async function listContacts(
         marketingOptOutAt: true,
         optOutSource: true,
         consentAt: true,
+        source: true,
+        lastMessageAt: true,
         tags: { select: { tag: { select: { id: true, name: true, color: true } } } },
         _count: { select: { submissions: true } },
       },
@@ -126,6 +140,9 @@ export async function listContacts(
       consented: c.consentAt != null,
       tags: c.tags.map((t) => t.tag),
       submissionCount: c._count.submissions,
+      sourceLabel: describeSource(c.source),
+      imported: isUnconsentedSource(c.source),
+      lastMessageAt: c.lastMessageAt ? formatIST(c.lastMessageAt) : null,
     })),
     total,
     page,

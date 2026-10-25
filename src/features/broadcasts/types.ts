@@ -37,6 +37,8 @@ export interface AudienceView {
   bands: string[];
   createdFrom: string | null;
   createdTo: string | null;
+  /** Reach the people who came off a connected phone and never opted in. */
+  includeImported: boolean;
 }
 
 export interface BroadcastView {
@@ -87,6 +89,9 @@ export const audienceSchema = z.object({
   bands: z.array(z.string().max(40)).max(20),
   createdFrom: z.string().nullable(),
   createdTo: z.string().nullable(),
+  // Defaulted to false rather than required, so an audience saved before this existed
+  // keeps excluding the people who never opted in. The safe reading of silence.
+  includeImported: z.boolean().default(false),
 });
 
 export const createBroadcastSchema = z.object({

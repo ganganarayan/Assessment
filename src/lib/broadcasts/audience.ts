@@ -2,6 +2,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { contactTenantOf } from "@/lib/contacts/upsert";
+import { UNCONSENTED_SOURCES } from "@/lib/contacts/sources";
 
 /**
  * Who a broadcast goes to.
@@ -22,6 +23,12 @@ export interface AudienceFilter {
   /** ISO instants. Contacts first seen within the window. */
   createdFrom?: string | null;
   createdTo?: string | null;
+  /**
+   * 🔴 Include the people who arrived off a connected phone - the owner's address book
+   * and anybody who once messaged them. They gave NO marketing consent, so this is
+   * false unless the sender deliberately turns it on, and absent means false.
+   */
+  includeImported?: boolean;
 }
 
 export type BroadcastChannelValue = "EMAIL" | "WABA";
@@ -33,6 +40,11 @@ export type BroadcastChannelValue = "EMAIL" | "WABA";
  * chooses, because they are not preferences. Anybody who has opted out is excluded,
  * always. And a contact with no address on the channel being used is excluded, because
  * a recipient row that can only ever be skipped is a row that makes the count a lie.
+ *
+ * 🔴 A third is negotiable but defaults to OFF: the people who arrived off a connected
+ * phone, who never opted in to anything. Including them is a decision the sender has
+ * to make on purpose, because the cost of it being wrong lands on the WhatsApp number
+ * rather than on us.
  */
 export function audienceWhere(
   tenantId: string,
@@ -55,6 +67,13 @@ export function audienceWhere(
     // ALL of the chosen tags, not any: "tagged hot AND tagged india" is the useful
     // reading, and an OR is one careless click away from messaging everybody.
     ...(tagIds.length ? { AND: tagIds.map((id) => ({ tags: { some: { tagId: id } } })) } : {}),
+    // 🔴 Written as an OR rather than a bare notIn, which is NULL-unsafe: in SQL a
+    // NULL source is not "not in" anything, so a plain notIn would silently exclude
+    // every contact captured before the column was being written - which is almost
+    // all of them, and the bug would look like a broadcast reaching nobody.
+    ...(f.includeImported
+      ? {}
+      : { OR: [{ source: null }, { source: { notIn: UNCONSENTED_SOURCES } }] }),
     ...(Object.keys(submissionFilter).length ? { submissions: { some: submissionFilter } } : {}),
     ...(f.createdFrom || f.createdTo
       ? {

@@ -222,6 +222,28 @@ export function BroadcastEditor({
           </label>
         </div>
 
+        <label className="flex items-start gap-2 rounded-md border border-dashed p-3">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            disabled={locked}
+            checked={v.audience.includeImported}
+            onChange={(e) => {
+              setV({ ...v, audience: { ...v.audience, includeImported: e.target.checked } });
+              if (!locked) save();
+            }}
+          />
+          <span className="flex flex-col gap-1">
+            <span className="text-xs font-medium">Include people from your phone</span>
+            <span className="text-xs text-[var(--muted-foreground)]">
+              🔴 Off by default. These are contacts copied from your WhatsApp address book, or
+              people who once messaged you. They never opted in to anything. Sending templates to
+              them is what gets a WhatsApp number marked down and then limited, so turn this on
+              only for people you know expect to hear from you.
+            </span>
+          </span>
+        </label>
+
         <div className="flex flex-wrap items-center gap-3">
           <Button size="sm" variant="outline" disabled={pending} onClick={check}>
             {pending ? "Counting..." : "Count them"}

@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:calendar && npm run verify:automations && npm run verify:releases && npm run verify:billing-ledger && npm run verify:workflow-queue && npm run verify:vault && next build",
+    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:calendar && npm run verify:automations && npm run verify:releases && npm run verify:billing-ledger && npm run verify:workflow-queue && npm run verify:vault && npm run verify:contact-consent && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -98,7 +98,8 @@
     "verify:releases": "tsx scripts/verify-feature-releases.ts",
     "verify:workflow-queue": "tsx --conditions=react-server scripts/verify-workflow-queue.ts",
     "verify:schema-migrations": "tsx scripts/verify-schema-migrations.ts",
-    "verify:vault": "tsx scripts/verify-vault.ts"
+    "verify:vault": "tsx scripts/verify-vault.ts",
+    "verify:contact-consent": "tsx --conditions=react-server scripts/verify-contact-consent.ts"
   },
   "prisma": {
     "seed": "tsx --conditions=react-server prisma/seed.ts"
