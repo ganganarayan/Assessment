@@ -111,7 +111,15 @@ export interface WhatsAppConnectView {
  */
 export const embeddedSignupSchema = z.object({
   code: z.string().trim().min(10).max(2000),
-  wabaId: z.string().trim().regex(/^\d{5,25}$/, "That is not a WhatsApp Business Account id."),
+  // Optional, because Meta does not always post it back. A generic Login for Business
+  // configuration never sends one, and a domain missing from the redirect URI list
+  // stops the flow returning anything to the opening window. The code is still good in
+  // both cases, so the server asks the token which account it covers instead.
+  wabaId: z
+    .string()
+    .trim()
+    .regex(/^\d{5,25}$/, "That is not a WhatsApp Business Account id.")
+    .nullish(),
   phoneNumberId: z
     .string()
     .trim()

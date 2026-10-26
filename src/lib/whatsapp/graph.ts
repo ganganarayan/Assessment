@@ -107,6 +107,48 @@ export async function exchangeCodeForBusinessToken(args: {
   return { ok: true, token };
 }
 
+/**
+ * Step 1b: ask the TOKEN which WhatsApp accounts it was granted.
+ *
+ * Embedded Signup is supposed to post the WABA id to the opening window, and when it
+ * does we use that. It does not always: a configuration that is a plain business login
+ * rather than the WhatsApp variation never posts one, and Meta's own docs warn that a
+ * domain missing from the redirect URI list stops the flow returning data at all. In
+ * both cases the code we were handed is perfectly good, and refusing it on the strength
+ * of a missing browser message throws away a connection that Meta already granted.
+ *
+ * So the question is asked of the token instead, which is the authority anyway: the
+ * granular scopes name the exact accounts this grant covers. One account is the answer;
+ * several are reported rather than picked between, because connecting the wrong WABA
+ * sends somebody else's customers our messages.
+ */
+export async function listGrantedWabas(args: {
+  appId: string;
+  appSecret: string;
+  token: string;
+  version: string;
+}): Promise<GraphResult<{ wabaIds: string[] }>> {
+  const qs = new URLSearchParams({
+    input_token: args.token,
+    // debug_token authenticates with the APP token, which is the documented contract
+    // for this edge: it is the app asking about its own grant.
+    access_token: `${args.appId}|${args.appSecret}`,
+  });
+  const r = await graph<{
+    data?: { granular_scopes?: { scope?: string; target_ids?: string[] }[] };
+  }>(`${args.version}/debug_token?${qs}`, { method: "GET" });
+  if (!r.ok) return r;
+
+  const ids = new Set<string>();
+  for (const s of r.data.data?.granular_scopes ?? []) {
+    // Both WhatsApp scopes are targeted at WABAs, and a grant may carry either or
+    // both. Reading only one of them would miss a perfectly valid connection.
+    if (s.scope !== "whatsapp_business_management" && s.scope !== "whatsapp_business_messaging") continue;
+    for (const id of s.target_ids ?? []) ids.add(id);
+  }
+  return { ok: true, wabaIds: [...ids] };
+}
+
 export interface WabaPhoneNumber {
   id: string;
   displayPhone: string;

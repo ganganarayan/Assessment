@@ -13,6 +13,7 @@ import { resolveMetaAppConfig, metaAppReady } from "@/lib/settings/meta-app";
 import {
   exchangeCodeForBusinessToken,
   getPhoneNumber,
+  listGrantedWabas,
   listWabaPhoneNumbers,
   startSmbSync,
   subscribeAppToWaba,
@@ -186,7 +187,10 @@ export async function completeWhatsAppConnect(input: unknown): Promise<ActionRes
   if (!parsed.success) {
     return recordFailure(scope.tenantId, "Meta sent back something we could not read. Try connecting again.");
   }
-  const { code, wabaId, phoneNumberId, businessId, flow } = parsed.data;
+  const { code, phoneNumberId, businessId, flow } = parsed.data;
+  // Null when the browser never told us. Resolved from the token below, once there is
+  // a token to ask.
+  let wabaId: string | null = parsed.data.wabaId ?? null;
 
   const app = await resolveMetaAppConfig();
   if (!metaAppReady(app) || !app.appId || !app.appSecret) {
@@ -205,6 +209,30 @@ export async function completeWhatsAppConnect(input: unknown): Promise<ActionRes
   });
   if (!exchanged.ok) return recordFailure(scope.tenantId, exchanged.error);
   const token = exchanged.token;
+
+  // WHICH ACCOUNT, when the popup did not say. Asked of the grant itself rather than
+  // guessed, and never picked between when there is more than one.
+  if (!wabaId) {
+    const granted = await listGrantedWabas({
+      appId: app.appId,
+      appSecret: app.appSecret,
+      token,
+      version,
+    });
+    if (!granted.ok) return recordFailure(scope.tenantId, granted.error);
+    const only = granted.wabaIds.length === 1 ? granted.wabaIds[0] : null;
+    if (!only) {
+      return recordFailure(
+        scope.tenantId,
+        granted.wabaIds.length === 0
+          ? "Meta granted access but named no WhatsApp Business Account. That usually means the Login for Business configuration is a general one rather than the WhatsApp Embedded Signup variation. Nothing was saved."
+          : "That grant covers more than one WhatsApp Business Account (" +
+              granted.wabaIds.join(", ") +
+              "), and Meta did not say which one to use, so nothing was saved. Connect again from a configuration that selects a single account.",
+      );
+    }
+    wabaId = only;
+  }
 
   // WHICH number. The coexistence finish event carries the WABA and often no number,
   // so the WABA is asked. One number is taken; several are reported rather than

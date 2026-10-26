@@ -78,6 +78,9 @@ export function WhatsAppConnect({ initial, canEdit = true }: { initial: WhatsApp
   const session = useRef<SignupMessage["data"] | null>(null);
   // Which finish event closed the popup. A hint for the server, never the record.
   const flow = useRef<SignupFlow>("CLOUD");
+  // Armed when Meta reports it finished, cleared when the login callback arrives. What
+  // it exists to catch is the gap between those two, which is otherwise silent.
+  const watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Meta's own guidance: ignore anything that is not from Facebook. Without this an
   // unrelated page in another tab could hand us ids we would then send to the server.
@@ -102,7 +105,20 @@ export function WhatsAppConnect({ initial, canEdit = true }: { initial: WhatsApp
       // says the business connected the number from their phone rather than taking a
       // fresh cloud number. Meta documents its payload as carrying the WABA alone,
       // which is why the phone number id is looked up server-side instead.
-      if (parsed.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") flow.current = "COEXISTENCE";
+      if (parsed.event?.startsWith("FINISH")) {
+        if (parsed.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") flow.current = "COEXISTENCE";
+        // Meta says it finished. The login callback carries the code and should follow
+        // within a second or two; if it never does, the whole connection is lost in
+        // silence, which looks exactly like a page that ignored the click. Twenty
+        // seconds is long enough that a slow callback is not accused, and short enough
+        // that nobody sits staring at an unchanged screen.
+        if (watchdog.current) clearTimeout(watchdog.current);
+        watchdog.current = setTimeout(() => {
+          setMsg(
+            "Meta finished, but your browser never handed the result back, so nothing was saved. In the Meta app, under Facebook Login for Business > Settings, this site has to appear in BOTH Allowed Domains for the JavaScript SDK and Valid OAuth Redirect URIs.",
+          );
+        }, 20_000);
+      }
       // A CANCEL carries why, and the step they left on. Showing it beats a silent
       // nothing-happened, which is what an abandoned popup looks like otherwise.
       if (parsed.event === "CANCEL") {
@@ -111,7 +127,10 @@ export function WhatsAppConnect({ initial, canEdit = true }: { initial: WhatsApp
       }
     };
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      if (watchdog.current) clearTimeout(watchdog.current);
+    };
   }, []);
 
   const initSdk = useCallback(() => {
@@ -130,8 +149,15 @@ export function WhatsAppConnect({ initial, canEdit = true }: { initial: WhatsApp
     setLaunched(true);
     session.current = null;
     flow.current = "CLOUD";
+    if (watchdog.current) clearTimeout(watchdog.current);
     window.FB.login(
       (res) => {
+        // The callback arrived, so whatever it says is the truth and the watchdog has
+        // nothing left to report.
+        if (watchdog.current) {
+          clearTimeout(watchdog.current);
+          watchdog.current = null;
+        }
         const code = res?.authResponse?.code;
         if (!code) {
           // No code means they closed it or declined. The CANCEL message handler has
@@ -140,18 +166,16 @@ export function WhatsAppConnect({ initial, canEdit = true }: { initial: WhatsApp
           return;
         }
         const s = session.current;
-        if (!s?.waba_id) {
-          setMsg(
-            "Meta did not tell us which WhatsApp account was connected, so nothing was saved. Try again, and keep this tab open until the window closes by itself.",
-          );
-          return;
-        }
+        // A missing waba_id is no longer fatal. Meta posts one only from a WhatsApp
+        // Embedded Signup configuration, and only to a domain it is allowed to post to;
+        // the code in hand is good either way, so the server asks the token which
+        // account the grant covers rather than throwing a real connection away.
         start(async () => {
           const r = await completeWhatsAppConnect({
             code,
-            wabaId: s.waba_id,
-            phoneNumberId: s.phone_number_id ?? null,
-            businessId: s.business_id ?? null,
+            wabaId: s?.waba_id ?? null,
+            phoneNumberId: s?.phone_number_id ?? null,
+            businessId: s?.business_id ?? null,
             flow: flow.current,
           });
           if (!r.ok) {
