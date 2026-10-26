@@ -5,6 +5,7 @@ import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
 import { listTemplatesForTenant } from "@/features/templates/data";
 import { wabaVisible } from "@/lib/nurture/waba-visible";
 import {
+  EMAIL_PRESETS,
   ONBOARDING_STEPS,
   visibleSteps,
   type OnboardingAnswers,
@@ -120,6 +121,8 @@ export async function getOnboardingView(
         razorpayNonGstKeyId: true,
         razorpayNonGstKeySecretEnc: true,
         razorpayNonGstWebhookSecretEnc: true,
+        emailProvider: true,
+        emailApiKeyEnc: true,
         smtpHost: true,
         smtpPort: true,
         smtpUser: true,
@@ -196,12 +199,15 @@ export async function getOnboardingView(
     razorpayKeyId: rzp.keyId,
     razorpayKeySecret: rzp.secret ? "saved" : null,
     razorpayWebhookSecret: rzp.webhook ? "saved" : null,
-    emailProvider: providerFromHost(settings?.smtpHost ?? null),
+    emailProvider: providerFromSettings(settings?.emailProvider ?? null, settings?.smtpHost ?? null),
     smtpHost: settings?.smtpHost ?? null,
     smtpPort: settings?.smtpPort != null ? String(settings.smtpPort) : null,
     smtpUser: settings?.smtpUser ?? null,
     emailFrom: settings?.smtpFromEmail ?? null,
-    emailToken: settings?.smtpPassEnc ? "saved" : null,
+    // Either column counts as answered: an HTTPS provider stores the credential as an
+    // API key and never writes the SMTP password, so checking one alone would ask a
+    // configured workspace for a token it already gave.
+    emailToken: settings?.emailApiKeyEnc || settings?.smtpPassEnc ? "saved" : null,
     /**
      * Already connected, or impossible to connect on this install: either way there is
      * nothing to ask. An install with no Meta app configured cannot run the one-click
@@ -271,8 +277,19 @@ export async function getOnboardingView(
   };
 }
 
-/** Which preset a stored host corresponds to, so a configured workspace is not asked. */
-function providerFromHost(host: string | null): string | null {
+/**
+ * Which preset a configured workspace already matches, so it is not asked again.
+ *
+ * The stored provider id is the answer where there is one. The host sniff is kept
+ * underneath it for a row that has SMTP settings but no provider yet, which is any row
+ * read between the migration running and this deploy going out.
+ */
+function providerFromSettings(provider: string | null, host: string | null): string | null {
+  if (provider) {
+    const match = Object.entries(EMAIL_PRESETS).find(([, p]) => p.providerId === provider);
+    // Only "SMTP" has no preset, and "other" is what the question calls it.
+    return match ? match[0] : "other";
+  }
   if (!host) return null;
   if (/zeptomail\.in$/i.test(host)) return "zeptomail-in";
   if (/zeptomail\.com$/i.test(host)) return "zeptomail-com";

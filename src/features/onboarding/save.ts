@@ -13,6 +13,7 @@ import { updateBookingUrl } from "@/features/workspace/actions/booking";
 import { updateSupportEmail } from "@/features/workspace/actions/support";
 import { DEFAULT_THEME_COLORS } from "@/features/workspace/theme-colors";
 import { EMAIL_PRESETS } from "@/features/onboarding/steps";
+import { emailProviderOption } from "@/lib/email/catalog";
 import { notifyTemplateGap } from "@/features/onboarding/notify-gap";
 import { seedCapiEvents } from "@/lib/meta/seed-events";
 
@@ -197,9 +198,13 @@ export async function persistStep(args: {
       if (!preset) return { ok: true };
       return updateSmtpSettings({
         ...current,
-        host: preset.host,
-        port: String(preset.port),
-        secure: preset.secure,
+        provider: preset.providerId,
+        // Only the ZeptoMail presets carry a host. For the rest there is nothing to
+        // connect to, so whatever is already stored is left alone rather than
+        // overwritten with a placeholder somebody would later have to disbelieve.
+        ...(preset.host
+          ? { host: preset.host, port: String(preset.port ?? ""), secure: preset.secure ?? false }
+          : {}),
       });
     }
 
@@ -237,7 +242,14 @@ export async function persistStep(args: {
 
     case "emailToken": {
       const current = await smtpNow(tenantId);
-      return updateSmtpSettings({ ...current, pass: value });
+      // 🔴 One question, two columns. An HTTPS provider reads the API key and never
+      // looks at the SMTP password; Custom SMTP is the other way round. Writing it to
+      // the wrong one is the kind of mistake that saves cleanly, says nothing, and
+      // sends no mail, so the transport decides rather than a guess.
+      const https = emailProviderOption(current.provider).transport === "HTTPS";
+      return updateSmtpSettings(
+        https ? { ...current, apiKey: value } : { ...current, pass: value },
+      );
     }
 
     case "brandColor": {
@@ -283,6 +295,8 @@ async function razorpayKeyId(tenantId: string, nonGst: boolean): Promise<string>
 /** The sender as stored, in the shape updateSmtpSettings takes. `pass` is blank, which
  *  that action reads as "keep the stored one". */
 async function smtpNow(tenantId: string): Promise<{
+  provider: string;
+  apiKey: string;
   host: string;
   port: string;
   secure: boolean;
@@ -294,6 +308,7 @@ async function smtpNow(tenantId: string): Promise<{
   const s = await prisma.appSetting.findUnique({
     where: { tenantId },
     select: {
+      emailProvider: true,
       smtpHost: true,
       smtpPort: true,
       smtpSecure: true,
@@ -303,6 +318,10 @@ async function smtpNow(tenantId: string): Promise<{
     },
   });
   return {
+    provider: s?.emailProvider ?? "",
+    // Write-only, like the password beside it: blank means keep whatever is stored, so
+    // a later onboarding step never wipes a key an earlier one saved.
+    apiKey: "",
     host: s?.smtpHost ?? "",
     port: s?.smtpPort != null ? String(s.smtpPort) : "",
     secure: s?.smtpSecure ?? false,

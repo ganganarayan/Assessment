@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updateSmtpSettings, updateWabaSettings, sendSmtpTest, type NurtureSettingsView } from "@/features/nurture/actions";
+import { EMAIL_PROVIDER_OPTIONS, DEFAULT_PROVIDER_ID, emailProviderOption } from "@/lib/email/catalog";
 import { WhatsAppConnect } from "@/features/whatsapp/components/whatsapp-connect";
 import { type WhatsAppConnectView } from "@/features/whatsapp/types";
 
@@ -53,18 +54,30 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+/**
+ * The email card.
+ *
+ * 🔴 The provider comes FIRST and the fields follow from it, rather than a wall of SMTP
+ * boxes with an API key bolted on. Railway blocks outbound SMTP, so the common case is
+ * an API key and a From address, and showing somebody host, port, username, password
+ * and a TLS checkbox when none of them apply is how you get a support ticket that says
+ * "I filled everything in and nothing sends".
+ */
 function SmtpForm({ initial }: { initial: NurtureSettingsView["smtp"] }) {
   const [v, setV] = useState({
+    provider: initial.provider || DEFAULT_PROVIDER_ID, apiKey: "",
     host: initial.host, port: initial.port != null ? String(initial.port) : "", secure: initial.secure,
     user: initial.user, pass: "", fromName: initial.fromName, fromEmail: initial.fromEmail,
   });
+  const chosen = emailProviderOption(v.provider);
+  const isSmtp = chosen.transport === "SMTP";
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const save = () =>
     start(async () => {
       setMsg(null);
       const r = await updateSmtpSettings(v);
-      setMsg(r.ok ? "Email (SMTP) settings saved." : r.error);
+      setMsg(r.ok ? "Email settings saved." : r.error);
     });
 
   const [testTo, setTestTo] = useState(initial.fromEmail);
@@ -79,21 +92,62 @@ function SmtpForm({ initial }: { initial: NurtureSettingsView["smtp"] }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm font-medium">Email - SMTP</p>
+      <p className="text-sm font-medium">Email</p>
+
+      <Field label="Who sends your email">
+        <select
+          value={v.provider}
+          onChange={(e) => setV({ ...v, provider: e.target.value })}
+          className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm"
+        >
+          {EMAIL_PROVIDER_OPTIONS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <p className="text-xs text-[var(--muted-foreground)]">{chosen.keyHint}</p>
+
+      {isSmtp ? (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          🔴 This app is hosted on Railway, which blocks outbound SMTP. Your own mail server
+          almost certainly will not connect from here, and the failure looks like a wrong
+          password. Pick one of the providers above it, or use the test button below to find
+          out in ten seconds.
+        </p>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Host"><Input value={v.host} placeholder="smtp.yourhost.com" onChange={(e) => setV({ ...v, host: e.target.value })} /></Field>
-        <Field label="Port"><Input value={v.port} placeholder="587" inputMode="numeric" onChange={(e) => setV({ ...v, port: e.target.value })} /></Field>
-        <Field label="Username"><Input value={v.user} onChange={(e) => setV({ ...v, user: e.target.value })} /></Field>
-        <Field label={`Password ${initial.hasPass ? "(saved - leave blank to keep)" : ""}`}>
-          <Input type="password" value={v.pass} placeholder={initial.hasPass ? "••••••••" : ""} onChange={(e) => setV({ ...v, pass: e.target.value })} />
-        </Field>
+        {isSmtp ? (
+          <>
+            <Field label="Host"><Input value={v.host} placeholder="smtp.yourhost.com" onChange={(e) => setV({ ...v, host: e.target.value })} /></Field>
+            <Field label="Port"><Input value={v.port} placeholder="587" inputMode="numeric" onChange={(e) => setV({ ...v, port: e.target.value })} /></Field>
+            <Field label="Username"><Input value={v.user} onChange={(e) => setV({ ...v, user: e.target.value })} /></Field>
+            <Field label={`Password ${initial.hasPass ? "(saved - leave blank to keep)" : ""}`}>
+              <Input type="password" value={v.pass} placeholder={initial.hasPass ? "••••••••" : ""} onChange={(e) => setV({ ...v, pass: e.target.value })} />
+            </Field>
+          </>
+        ) : (
+          <Field label={`${chosen.keyLabel} ${initial.hasApiKey ? "(saved - leave blank to keep)" : ""}`}>
+            <Input type="password" value={v.apiKey} placeholder={initial.hasApiKey ? "••••••••" : ""} onChange={(e) => setV({ ...v, apiKey: e.target.value })} />
+          </Field>
+        )}
         <Field label="From name"><Input value={v.fromName} placeholder="Ganga Narayan Das" onChange={(e) => setV({ ...v, fromName: e.target.value })} /></Field>
         <Field label="From email"><Input value={v.fromEmail} placeholder="hello@yourdomain.com" onChange={(e) => setV({ ...v, fromEmail: e.target.value })} /></Field>
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={v.secure} onChange={(e) => setV({ ...v, secure: e.target.checked })} />
-        Use TLS/SSL (secure) - usually on for port 465, off for 587
-      </label>
+      {isSmtp ? (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={v.secure} onChange={(e) => setV({ ...v, secure: e.target.checked })} />
+          Use TLS/SSL (secure) - usually on for port 465, off for 587
+        </label>
+      ) : (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          🟡 The From address has to be on a domain you have verified with {chosen.label}.
+          A provider will not send for a domain it cannot authenticate, and a free mailbox
+          address such as gmail.com can never be one.
+        </p>
+      )}
       <div>
         <Button size="sm" onClick={save} disabled={pending}>Save email settings</Button>
       </div>

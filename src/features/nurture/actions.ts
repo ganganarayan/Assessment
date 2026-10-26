@@ -8,6 +8,7 @@ import { encryptWithSecret } from "@/lib/crypto";
 import { resolveActingScope, tenantScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
 import { appSettingWhere, tenantAppSettingId } from "@/lib/settings/tenant-row";
 import { resolveWabaConfig } from "@/lib/settings/config";
+import { EMAIL_PROVIDER_OPTIONS, DEFAULT_PROVIDER_ID } from "@/lib/email/catalog";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { readNurtureConfig, fillPlaceholders, toE164Digits, type NurtureConfig } from "@/features/nurture/config";
 import { sendEmail, sendWaba, sendTrackedEmail, sendNurtureForSubmission } from "@/lib/nurture/send";
@@ -34,6 +35,8 @@ async function upsert(tenantId: string | null, data: Record<string, unknown>) {
 
 export interface NurtureSettingsView {
   smtp: {
+    /** Registry id from lib/email/providers. Blank means never chosen, which is SMTP. */
+    provider: string; hasApiKey: boolean;
     host: string; port: number | null; secure: boolean; user: string;
     fromName: string; fromEmail: string; hasPass: boolean;
   };
@@ -47,6 +50,7 @@ export async function getNurtureSettings(): Promise<NurtureSettingsView> {
   const s = await prisma.appSetting.findUnique({
     where: rowWhere(scope.tenantId) as Prisma.AppSettingWhereUniqueInput,
     select: {
+      emailProvider: true, emailApiKeyEnc: true,
       smtpHost: true, smtpPort: true, smtpSecure: true, smtpUser: true, smtpPassEnc: true,
       smtpFromName: true, smtpFromEmail: true,
       wabaPhoneNumberId: true, wabaBusinessAccountId: true, wabaAccessTokenEnc: true, wabaApiVersion: true, wabaDefaultCountryCode: true,
@@ -55,6 +59,7 @@ export async function getNurtureSettings(): Promise<NurtureSettingsView> {
   });
   return {
     smtp: {
+      provider: s?.emailProvider ?? "", hasApiKey: !!s?.emailApiKeyEnc,
       host: s?.smtpHost ?? "", port: s?.smtpPort ?? null, secure: s?.smtpSecure ?? false,
       user: s?.smtpUser ?? "", fromName: s?.smtpFromName ?? "", fromEmail: s?.smtpFromEmail ?? "",
       hasPass: !!s?.smtpPassEnc,
@@ -69,6 +74,7 @@ export async function getNurtureSettings(): Promise<NurtureSettingsView> {
 }
 
 export async function updateSmtpSettings(input: {
+  provider: string; apiKey: string;
   host: string; port: string; secure: boolean; user: string; pass: string;
   fromName: string; fromEmail: string;
 }): Promise<ActionResult> {
@@ -78,7 +84,18 @@ export async function updateSmtpSettings(input: {
   const portNum = input.port.trim() ? Number(input.port) : null;
   if (portNum != null && (!Number.isInteger(portNum) || portNum <= 0 || portNum > 65535))
     return { ok: false, error: "Port must be a number between 1 and 65535." };
+  // 🔴 Validated against the registry rather than stored as typed. This value decides
+  // which host a credential is sent to, so an id this build does not know is refused
+  // here instead of silently falling back to SMTP at send time, where the only symptom
+  // would be mail that stops.
+  const providerId = input.provider.trim() || DEFAULT_PROVIDER_ID;
+  const known = EMAIL_PROVIDER_OPTIONS.find((p) => p.id === providerId);
+  if (!known) return { ok: false, error: "That email provider is not one this app knows." };
   await upsert(scope.tenantId, {
+    emailProvider: providerId,
+    // Same rule as the password below: blank keeps whatever is stored, so re-saving
+    // the form to change a From name never wipes a working key.
+    ...(input.apiKey.trim() ? { emailApiKeyEnc: enc(input.apiKey.trim()) } : {}),
     smtpHost: input.host.trim() || null,
     smtpPort: portNum,
     smtpSecure: input.secure,
@@ -106,8 +123,8 @@ export async function sendSmtpTest(to: string): Promise<ActionResult> {
     return { ok: false, error: "Enter a valid email address to send the test to." };
   }
   const html = `<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;color:#111">
-    <p style="font-size:16px">✅ Your SMTP settings are working.</p>
-    <p>This is a test email from your Assessment app, sent to confirm the mail server configuration.
+    <p style="font-size:16px">✅ Your email settings are working.</p>
+    <p>This is a test email from your Assessment app, sent to confirm the sending configuration.
     If you received it, password-reset and nurture emails will send from here.</p>
   </div>`;
   const err = await sendEmail(scope.tenantId, dest, "SMTP test - your settings work", html);

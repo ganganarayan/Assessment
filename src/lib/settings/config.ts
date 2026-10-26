@@ -279,7 +279,17 @@ export interface RazorpayConfig {
   webhookSecret: string | null;
 }
 
-export interface SmtpConfig {
+/**
+ * How this tenant sends email: which provider, its key, and the SMTP fields that only
+ * the Custom SMTP provider reads.
+ *
+ * Named for email rather than SMTP because SMTP is now one of ten answers and the least
+ * likely to work - see lib/email/providers.ts.
+ */
+export interface EmailConfig {
+  /** Registry id. Null means a row written before providers existed, which was SMTP. */
+  provider: string | null;
+  apiKey: string | null;
   host: string | null;
   port: number | null;
   secure: boolean;
@@ -289,10 +299,12 @@ export interface SmtpConfig {
   fromEmail: string | null;
 }
 
-/** Resolve a tenant's SMTP config (its own row; singleton for platform). No env
+/** Resolve a tenant's email config (its own row; singleton for platform). No env
  *  fallback - an unconfigured tenant simply cannot send email. */
-export async function resolveSmtpConfig(tenantId: string | null): Promise<SmtpConfig> {
+export async function resolveEmailConfig(tenantId: string | null): Promise<EmailConfig> {
   const s = (await settingRow(tenantId, {
+    emailProvider: true,
+    emailApiKeyEnc: true,
     smtpHost: true,
     smtpPort: true,
     smtpSecure: true,
@@ -301,6 +313,8 @@ export async function resolveSmtpConfig(tenantId: string | null): Promise<SmtpCo
     smtpFromName: true,
     smtpFromEmail: true,
   })) as {
+    emailProvider: string | null;
+    emailApiKeyEnc: string | null;
     smtpHost: string | null;
     smtpPort: number | null;
     smtpSecure: boolean;
@@ -310,6 +324,11 @@ export async function resolveSmtpConfig(tenantId: string | null): Promise<SmtpCo
     smtpFromEmail: string | null;
   } | null;
   return {
+    provider: s?.emailProvider?.trim() || null,
+    // Trimmed for exactly the reason the password below is. An API key pasted out of a
+    // provider console is the single most likely credential in this app to carry a
+    // trailing newline, and every one of these providers sends it verbatim.
+    apiKey: safeDecrypt(s?.emailApiKeyEnc)?.trim() || null,
     host: s?.smtpHost?.trim() || null,
     port: s?.smtpPort ?? null,
     secure: s?.smtpSecure ?? false,

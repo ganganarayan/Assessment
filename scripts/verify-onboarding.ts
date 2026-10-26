@@ -17,6 +17,7 @@ import {
   INDUSTRY_CATEGORIES,
   type OnboardingAnswers,
 } from "../src/features/onboarding/steps";
+import { EMAIL_PROVIDER_OPTIONS } from "../src/lib/email/catalog";
 import { BOOKING_PREREQUISITES } from "../src/features/onboarding/prerequisites";
 
 let failures = 0;
@@ -138,16 +139,22 @@ for (const [key, value, expected] of cases) {
 }
 
 /**
- * 🔴 THE RAILWAY TRAP. The sender switches to ZeptoMail's HTTPS API when the host
- * matches this pattern, and only then; outbound SMTP is blocked on Railway, so a preset
- * host that stops matching does not fail loudly, it hangs for two minutes and reports a
- * connection timeout nobody can trace back to a preset.
+ * 🔴 THE RAILWAY TRAP. Outbound SMTP is blocked there, so every provider offered during
+ * onboarding except "my own SMTP server" has to be one that posts over HTTPS. A preset
+ * pointing at an id the registry does not carry falls back to SMTP at send time, where
+ * the failure is not an error anybody can trace back to here: it is a two-minute hang
+ * and a connection timeout, on a workspace that answered every question correctly.
  */
 console.log("\nEmail presets");
-const zeptoPattern = /(^|\.)zeptomail\./i;
 for (const [name, preset] of Object.entries(EMAIL_PRESETS)) {
-  check(`${name} sends over HTTPS, not blocked SMTP`, zeptoPattern.test(preset.host), preset.host);
-  check(`${name} carries a port`, preset.port > 0 && preset.port < 65536);
+  const option = EMAIL_PROVIDER_OPTIONS.find((p) => p.id === preset.providerId);
+  check(`${name} names a provider the app has`, !!option, preset.providerId);
+  check(`${name} sends over HTTPS, not blocked SMTP`, option?.transport === "HTTPS", preset.providerId);
+  // A host is optional now - only ZeptoMail keeps one - but a host without a usable
+  // port would leave the SMTP fields half-filled behind anybody who later switches.
+  if (preset.host) {
+    check(`${name} carries a port with its host`, !!preset.port && preset.port > 0 && preset.port < 65536);
+  }
 }
 check("the provider choices each have a preset or ask for the host", (() => {
   const choices = STEP_BY_KEY.emailProvider?.choices ?? [];

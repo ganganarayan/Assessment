@@ -287,7 +287,16 @@ export const ONBOARDING_STEPS: readonly OnboardingStepDef[] = [
     choices: [
       { value: "zeptomail-in", label: "ZeptoMail India", hint: "zeptomail.in. Sends over HTTPS, so nothing is blocked." },
       { value: "zeptomail-com", label: "ZeptoMail global", hint: "zeptomail.com, for an account outside India." },
-      { value: "other", label: "Another provider", hint: "Any SMTP server. Three more questions." },
+      { value: "resend", label: "Resend", hint: "An API key and a verified domain. Nothing else to answer." },
+      { value: "brevo", label: "Brevo", hint: "Formerly Sendinblue. One API key." },
+      { value: "sendgrid", label: "SendGrid", hint: "One API key, with Mail Send permission." },
+      { value: "postmark", label: "Postmark", hint: "The server token, not the account token." },
+      { value: "mailgun", label: "Mailgun", hint: "US region. Your From domain must be verified there." },
+      { value: "mailgun-eu", label: "Mailgun EU", hint: "The EU region, for a domain verified there." },
+      { value: "smtp2go", label: "SMTP2GO", hint: "One API key, despite the name. Sends over HTTPS." },
+      // 🔴 Last, and described honestly. Everything above it posts over HTTPS on 443;
+      // this is the only choice that opens a mail port, and Railway blocks those.
+      { value: "other", label: "My own SMTP server", hint: "Three more questions, and blocked on most hosts." },
     ],
   },
   {
@@ -449,15 +458,29 @@ export function visibleSteps(answers: OnboardingAnswers): OnboardingStepDef[] {
 /**
  * ZeptoMail's two regions, as presets.
  *
- * The host is the whole decision: the sender rewrites `smtp.` to `api.` and posts over
- * HTTPS when it sees a zeptomail host, which is what makes mail work on Railway at all
- * (outbound SMTP ports are blocked there, and the failure is a two-minute timeout
- * rather than an error anybody can read). The port is stored because the sender
- * requires one, not because a ZeptoMail send ever opens it.
+ * 🔴 THE PROVIDER ID IS THE DECISION NOW, not the host. The sender used to sniff for a
+ * zeptomail hostname and quietly switch to HTTPS, because outbound SMTP is blocked on
+ * Railway and the failure is a two-minute timeout rather than an error anybody can
+ * read. That guess is gone: lib/email/catalog names the provider and the stored id
+ * picks the sender. The host and port are still written so the SMTP fields are not left
+ * blank behind somebody who later switches to Custom SMTP, and because a region is
+ * easier to recognise there than in an id.
  */
-export const EMAIL_PRESETS: Record<string, { host: string; port: number; secure: boolean }> = {
-  "zeptomail-in": { host: "smtp.zeptomail.in", port: 587, secure: false },
-  "zeptomail-com": { host: "smtp.zeptomail.com", port: 587, secure: false },
+export const EMAIL_PRESETS: Record<
+  string,
+  { providerId: string; host?: string; port?: number; secure?: boolean }
+> = {
+  "zeptomail-in": { providerId: "ZEPTOMAIL_IN", host: "smtp.zeptomail.in", port: 587, secure: false },
+  "zeptomail-com": { providerId: "ZEPTOMAIL_COM", host: "smtp.zeptomail.com", port: 587, secure: false },
+  // No host at all for the rest: there is nothing to connect to, only an endpoint the
+  // sender already knows. Writing a fake one would be a lie the SMTP fields then show.
+  resend: { providerId: "RESEND" },
+  brevo: { providerId: "BREVO" },
+  sendgrid: { providerId: "SENDGRID" },
+  postmark: { providerId: "POSTMARK" },
+  mailgun: { providerId: "MAILGUN" },
+  "mailgun-eu": { providerId: "MAILGUN_EU" },
+  smtp2go: { providerId: "SMTP2GO" },
 };
 
 /** Per-kind validation, shared so the dialog and the server refuse the same things. */

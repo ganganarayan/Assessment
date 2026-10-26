@@ -2812,6 +2812,12 @@ model AppSetting {
   // SMTP transactional email. Password ENCRYPTED at rest, never returned to the
   // client. Each tenant has its OWN sender; the singleton row is the platform/Gita
   // sender. No env fallback (new feature) - unconfigured => that channel just no-ops.
+  // WHICH provider carries the mail, and its API key. See lib/email/providers.ts for
+  // why HTTPS is the default answer: Railway blocks outbound SMTP, so the smtp* columns
+  // below only work off a PaaS. Null provider reads as "SMTP", which is what every row
+  // written before this existed meant. The key is ENCRYPTED, like every other secret.
+  emailProvider          String?
+  emailApiKeyEnc         String?
   smtpHost               String?
   smtpPort               Int?
   smtpSecure             Boolean   @default(false)

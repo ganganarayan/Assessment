@@ -1,11 +1,11 @@
 import "server-only";
 import { unsubscribeUrlFor } from "@/lib/contacts/dnd";
 import { randomUUID } from "node:crypto";
-import nodemailer from "nodemailer";
 import { prisma } from "@/lib/db/prisma";
 import { wabaVisible } from "@/lib/nurture/waba-visible";
 import { env } from "@/lib/env";
-import { resolveSmtpConfig, resolveWabaConfig, resolveNurtureConfig, type SmtpConfig } from "@/lib/settings/config";
+import { emailProviderById } from "@/lib/email/providers";
+import { resolveEmailConfig, resolveWabaConfig, resolveNurtureConfig } from "@/lib/settings/config";
 import { fillPlaceholders, toE164Digits, type LeadFields, type NurtureConfig } from "@/features/nurture/config";
 import { pickResultUrl, vidapulseParamForTenant } from "@/lib/events/completion";
 import { instrumentEmailLinks } from "@/lib/nurture/tracking";
@@ -93,7 +93,13 @@ export interface SendEmailOptions {
   replyTo?: string | null;
 }
 
-/** Send one email through the tenant's SMTP. Returns an error string, or null on success. */
+/**
+ * Send one email on the tenant's own account. Returns an error string, or null.
+ *
+ * The signature is unchanged from when this only knew about SMTP, and deliberately so:
+ * sixteen call sites send mail and none of them should know or care which provider is
+ * behind it. Choosing one is a setting, not a code path.
+ */
 export async function sendEmail(
   tenantId: string | null,
   to: string,
@@ -101,78 +107,29 @@ export async function sendEmail(
   htmlBody: string,
   opts?: SendEmailOptions,
 ): Promise<string | null> {
-  const smtp = await resolveSmtpConfig(tenantId);
-  if (!smtp.host || !smtp.port || !smtp.fromEmail) return "SMTP is not configured.";
-
-  // ZeptoMail: PaaS hosts (Railway) often block outbound SMTP ports, which shows
-  // up as "Connection timeout". Send via ZeptoMail's HTTPS API (port 443, never
-  // blocked) instead - same Send-Mail token as the SMTP password.
-  if (/(^|\.)zeptomail\./i.test(smtp.host)) {
-    return sendViaZeptoMailApi(smtp, to, subject, htmlBody, opts);
-  }
-
+  const cfg = await resolveEmailConfig(tenantId);
+  if (!cfg.fromEmail) return "Email is not configured: no From address.";
+  const provider = emailProviderById(cfg.provider);
+  // 🔴 The credential a provider reads differs by transport, and the fallback is what
+  // carries every row written before providers existed: ZeptoMail customers had their
+  // Send Mail token in the SMTP password column, and the migration moved it, but a row
+  // mid-deploy or restored from an old backup may still only have it there.
+  const apiKey = cfg.apiKey ?? cfg.pass;
   try {
-    const transport = nodemailer.createTransport({
-      host: smtp.host,
-      port: smtp.port,
-      secure: smtp.secure,
-      auth: smtp.user && smtp.pass ? { user: smtp.user, pass: smtp.pass } : undefined,
-      // Fail fast with a clear error instead of hanging for ~2 minutes.
-      connectionTimeout: 10_000,
-      greetingTimeout: 10_000,
-      socketTimeout: 15_000,
-      // On 587 (secure=false) enforce the STARTTLS upgrade.
-      ...(smtp.secure ? {} : { requireTLS: true }),
-    });
-    await transport.sendMail({
-      from: smtp.fromName ? `"${smtp.fromName}" <${smtp.fromEmail}>` : smtp.fromEmail,
-      to,
-      subject,
-      html: htmlBody,
-      ...(opts?.replyTo ? { replyTo: opts.replyTo } : {}),
-    });
-    return null;
-  } catch (e) {
-    return e instanceof Error ? e.message : String(e);
-  }
-}
-
-/** Send via the ZeptoMail HTTPS API (bypasses blocked SMTP ports). The API key is
- *  the same "Send Mail" token stored as the SMTP password. Returns error or null. */
-async function sendViaZeptoMailApi(
-  smtp: SmtpConfig,
-  to: string,
-  subject: string,
-  htmlBody: string,
-  opts?: SendEmailOptions,
-): Promise<string | null> {
-  if (!smtp.host) return "SMTP host is not set.";
-  if (!smtp.pass) return "ZeptoMail token (the SMTP password) is not set.";
-  if (!smtp.fromEmail) return "From email is not set.";
-  // smtp.zeptomail.in -> api.zeptomail.in (handles .in / .com); already-api hosts stay.
-  const apiHost = smtp.host.replace(/^smtp\./i, "api.");
-  const auth = /^zoho-enczapikey\s/i.test(smtp.pass) ? smtp.pass : `Zoho-enczapikey ${smtp.pass}`;
-  try {
-    const res = await fetch(`https://${apiHost}/v1.1/email`, {
-      method: "POST",
-      headers: { Authorization: auth, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        from: { address: smtp.fromEmail, ...(smtp.fromName ? { name: smtp.fromName } : {}) },
-        to: [{ email_address: { address: to } }],
+    return await provider.send(
+      { apiKey, host: cfg.host, port: cfg.port, secure: cfg.secure, user: cfg.user, pass: cfg.pass },
+      {
+        to,
         subject,
-        htmlbody: htmlBody,
-        ...(opts?.replyTo ? { reply_to: [{ address: opts.replyTo }] } : {}),
-      }),
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (res.ok) return null;
-    const text = (await res.text()).slice(0, 400);
-    // Name the host that answered. A 401 here is usually one of two config mistakes,
-    // and the host is what tells them apart: the wrong REGION (an account on
-    // zeptomail.com answering api.zeptomail.in rejects a perfectly good token), or
-    // the SMTP password used where the Mail Agent's Send Mail Token belongs.
-    return `ZeptoMail API ${res.status} (${apiHost}): ${text}`;
+        html: htmlBody,
+        fromEmail: cfg.fromEmail,
+        fromName: cfg.fromName,
+        replyTo: opts?.replyTo ?? null,
+      },
+    );
   } catch (e) {
+    // A provider that throws rather than returning is still just a failed send: the
+    // caller is a queue row, and it must get a string it can store and show.
     return e instanceof Error ? e.message : String(e);
   }
 }
