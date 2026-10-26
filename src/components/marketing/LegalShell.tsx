@@ -26,6 +26,10 @@ export function LegalShell({
         <nav className="mb-8 flex flex-wrap gap-x-4 gap-y-2 text-sm">
           <Link href="/terms" className="text-[var(--muted-foreground)] hover:underline">Terms</Link>
           <Link href="/privacy" className="text-[var(--muted-foreground)] hover:underline">Privacy</Link>
+          {/* Next to Privacy rather than at the end: Meta's reviewer opens the URL we
+              give them and looks for the deletion route on the first screen, and every
+              policy page is a URL somebody might give them. */}
+          <Link href="/data-deletion" className="text-[var(--muted-foreground)] hover:underline">Data deletion</Link>
           <Link href="/refund" className="text-[var(--muted-foreground)] hover:underline">Refunds</Link>
           <Link href="/shipping" className="text-[var(--muted-foreground)] hover:underline">Shipping</Link>
           <Link href="/contact" className="text-[var(--muted-foreground)] hover:underline">Contact</Link>

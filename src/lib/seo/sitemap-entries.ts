@@ -44,6 +44,7 @@ const STATIC_PAGES: ReadonlyArray<SitemapEntry> = [
   { path: "/answers", updated: "2026-10-02", changeFrequency: "weekly", priority: 0.6 },
   { path: "/contact", updated: "2026-09-01", changeFrequency: "yearly", priority: 0.4 },
   { path: "/privacy", updated: "2026-09-01", changeFrequency: "yearly", priority: 0.2 },
+  { path: "/data-deletion", updated: "2026-10-27", changeFrequency: "yearly", priority: 0.2 },
   { path: "/terms", updated: "2026-09-01", changeFrequency: "yearly", priority: 0.2 },
   { path: "/refund", updated: "2026-09-01", changeFrequency: "yearly", priority: 0.2 },
   { path: "/shipping", updated: "2026-09-01", changeFrequency: "yearly", priority: 0.2 },

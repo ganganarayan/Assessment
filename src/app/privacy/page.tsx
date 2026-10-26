@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { platformPageMetadata } from "@/lib/seo/site";
 import { getLegalConfig } from "@/lib/legal/config";
@@ -92,6 +93,11 @@ export default async function PrivacyPage() {
       <P>
         Subject to law, you may request access to, correction of, or erasure of your personal data,
         and may nominate another person to exercise your rights. To make a request, contact us below.
+      </P>
+      <P>
+        To have your data deleted, see{" "}
+        <Link href="/data-deletion" className="underline">Data Deletion</Link>, which sets out what
+        we remove, what we are obliged to keep, and how long it takes.
       </P>
 
       <H2>10. Grievance Officer</H2>
