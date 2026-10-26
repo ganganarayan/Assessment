@@ -4,7 +4,8 @@
  *  - Re-arms the CRM resend drip if a batch was left active, so a deploy or restart
  *    never strands a long-running send.
  *  - Starts the automation heartbeat, which is what makes a reminder arrive at all,
- *    and which also sends the trial lifecycle as each message falls due. It lives here
+ *    which advances every workflow sequence a step, and which also sends the trial
+ *    lifecycle as each message falls due. It lives here
  *    rather than in an external cron because the product cannot depend on somebody
  *    having configured one; see lib/automation/scheduler.ts for why that is safe with
  *    several replicas.

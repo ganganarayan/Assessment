@@ -1,5 +1,6 @@
 import "server-only";
 import { runDueAutomations } from "@/lib/automation/run";
+import { runDueWorkflows } from "@/lib/workflows/run";
 import { pruneAutomationHistory } from "@/lib/automation/retention";
 import { syncDueAppointments } from "@/lib/google/calendar";
 import { sweepTimePassedAppointments } from "@/lib/calendar/time-passed";
@@ -63,11 +64,46 @@ async function drain(): Promise<void> {
   }
 }
 
+/**
+ * The workflow queue, drained on the same beat.
+ *
+ * 🔴 IT HAD NO RUNNER AT ALL. Sequences were enrolled correctly on every trigger and
+ * then sat there, because the only caller of runDueWorkflows was /api/cron/workflows
+ * and that route fails closed without CRON_SECRET. Nothing was lost - a run is a row
+ * holding a cursor - but no step after the first ever came due, which is indistinguishable
+ * from a workflow that does not work.
+ *
+ * The argument at the top of this file was always meant to cover both engines: a
+ * sequence cannot depend on somebody having remembered to create a cron. The HTTP route
+ * stays, for anyone who wants an outside kick.
+ *
+ * Draining stops on a pass that claimed nothing rather than on a short batch, because a
+ * run can be passed over without being claimed - the release switch skips it and leaves
+ * it PENDING on purpose - and a short batch would then read as an empty queue while
+ * work remained.
+ */
+async function drainWorkflows(): Promise<void> {
+  for (let pass = 0; pass < MAX_PASSES; pass++) {
+    const summary = await runDueWorkflows();
+    if (summary.claimed === 0) return;
+  }
+}
+
 async function tick(): Promise<void> {
   try {
     await drain();
   } catch (e) {
     console.error("[automation-scheduler] drain failed:", e instanceof Error ? e.message : String(e));
+  }
+
+  // Its own try, so a failure in one engine's queue never costs the other its beat.
+  try {
+    await drainWorkflows();
+  } catch (e) {
+    console.error(
+      "[automation-scheduler] workflow drain failed:",
+      e instanceof Error ? e.message : String(e),
+    );
   }
 
   /**
