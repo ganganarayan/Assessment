@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
-import { getTenantContext, getCurrentTenant } from "@/lib/tenant/context";
+import { getCurrentTenant } from "@/lib/tenant/context";
 import { rootAssessmentSlugFor } from "@/features/assessment/root-assessment";
-import { buttonVariants } from "@/components/ui/button";
 import { Landing } from "@/components/marketing/Landing";
 import { getLandingVideos } from "@/features/platform/landing-videos";
 import { MARKETING } from "@/lib/marketing/content";
@@ -41,8 +39,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const { slug, source } = await getTenantContext();
-
   // Whose host is this? A tenant's, if the Domain table (or a subdomain, when one is
   // configured) says so - otherwise the platform's. Asking the data instead of
   // comparing against a configured root is what lets the platform move hosts, or run
@@ -66,53 +62,12 @@ export default async function HomePage() {
   {
     const funnelSlug = await rootAssessmentSlugFor(tenant.id, tenant.primaryAssessmentId);
     if (funnelSlug) redirect(`/a/${funnelSlug}`);
-    // No published assessment, or several with none chosen: fall through to the generic
-    // page rather than guessing which one a visitor should see.
+    // No published assessment, or several with none chosen. There is nothing
+    // tenant-relevant to render at the bare domain, so route by session instead of
+    // showing a generic "foundation ready" placeholder: signed in → the app
+    // (/dashboard forwards to /w), signed out → the staff sign-in door.
   }
 
   const session = await getSession();
-
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-8 px-6 py-16 text-center">
-      <div className="flex flex-col items-center gap-3">
-        <span className="rounded-full border px-3 py-1 text-xs font-medium text-[var(--muted-foreground)]">
-          Phase 1 deployed successfully
-        </span>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Assess360 Foundation Ready
-        </h1>
-        <p className="max-w-md text-sm text-[var(--muted-foreground)] sm:text-base">
-          Multi-tenant foundation is live: authentication, tenant resolution,
-          storage, and database schema are configured.
-        </p>
-      </div>
-
-      <div className="flex w-full max-w-xs flex-col gap-3 sm:flex-row sm:justify-center">
-        {session ? (
-          <Link href="/dashboard" className={buttonVariants()}>
-            Go to dashboard
-          </Link>
-        ) : (
-          // Sign in only. This is a TENANT's host, and a tenant's domain is their
-          // shop front rather than a place to sell the product from - the platform
-          // owner takes the signups. The button is the visible half; the endpoint
-          // refuses it too, which is the half that matters.
-          <Link href="/sign-in" className={buttonVariants()}>
-            Sign In
-          </Link>
-        )}
-      </div>
-
-      <div className="rounded-lg border bg-[var(--muted)] px-4 py-3 text-xs text-[var(--muted-foreground)]">
-        Tenant context · source:{" "}
-        <span className="font-mono text-[var(--foreground)]">{source}</span>
-        {slug ? (
-          <>
-            {" "}· slug:{" "}
-            <span className="font-mono text-[var(--foreground)]">{slug}</span>
-          </>
-        ) : null}
-      </div>
-    </main>
-  );
+  redirect(session ? "/dashboard" : "/sign-in");
 }
