@@ -97,6 +97,19 @@ export async function saveGoogleApp(clientId: string, clientSecret: string): Pro
   const id = clientId.trim();
   const secret = clientSecret.trim();
   if (!id) return { ok: false, error: "The client ID is required." };
+  // 🟡 The commonest wrong paste is the Google ACCOUNT (an email address), because that is
+  // what the words "client id" suggest to anyone who has not been inside Google Cloud. It
+  // saves happily and then fails as invalid_client after the redirect, which reads like a
+  // broken integration rather than a typo. Every web client id ends the same way, so say so
+  // here instead.
+  if (!id.endsWith(".apps.googleusercontent.com")) {
+    return {
+      ok: false,
+      error:
+        "That is not a Google client ID. It comes from Google Cloud Console under APIs and services, " +
+        "Credentials, and always ends in .apps.googleusercontent.com. An email address will not work.",
+    };
+  }
 
   await prisma.appSetting.upsert({
     where: appSettingWhere(null) as Prisma.AppSettingWhereUniqueInput,

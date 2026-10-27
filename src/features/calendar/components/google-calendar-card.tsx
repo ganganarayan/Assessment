@@ -65,10 +65,16 @@ export function GoogleCalendarCard({
   return (
     <section className="flex flex-col gap-3 rounded-lg border p-4">
       <div className="flex flex-col gap-1">
-        <h2 className="text-sm font-semibold">Google Calendar</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-semibold">Google Calendar</h2>
+          <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+            Optional
+          </span>
+        </div>
         <p className="text-xs text-[var(--muted-foreground)]">
-          Bookings appear in the connected calendar and move when they move. What is already in
-          that calendar blocks a slot, so nobody can book you while you are busy.
+          Booking links work on their own without this. Connect a Google account and bookings also
+          appear in that calendar and move when they move, and whatever is already in it blocks a
+          slot so nobody can book you while you are busy.
         </p>
       </div>
 
