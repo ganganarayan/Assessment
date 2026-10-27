@@ -271,6 +271,32 @@ export const TRIGGER_LABEL: Record<WorkflowTrigger, string> = Object.fromEntries
   TRIGGERS.map((t) => [t.value, t.label]),
 ) as Record<WorkflowTrigger, string>;
 
+export type WorkflowRunStatusValue = "PENDING" | "SENDING" | "DONE" | "FAILED" | "CANCELLED";
+
+/**
+ * What a run's state is called on a log anybody reads.
+ *
+ * 🔴 CANCELLED IS NOT A FAILURE and must not be coloured like one. A run is cancelled
+ * when the product decided not to send - they unsubscribed, the workflow was switched
+ * off, a step ended the sequence - and every one of those is the system working. Red
+ * next to it sends somebody looking for a bug that is not there.
+ */
+export const RUN_STATUS_LABEL: Record<WorkflowRunStatusValue, string> = {
+  PENDING: "In progress",
+  SENDING: "Sending",
+  DONE: "Finished",
+  FAILED: "Failed",
+  CANCELLED: "Stopped",
+};
+
+export const RUN_STATUS_CLASS: Record<WorkflowRunStatusValue, string> = {
+  PENDING: "border-[var(--field-border)] text-[var(--muted-foreground)]",
+  SENDING: "border-[var(--field-border)] text-[var(--foreground)]",
+  DONE: "border-emerald-500/60 text-emerald-600 dark:text-emerald-400",
+  FAILED: "border-red-500/60 text-red-600 dark:text-red-400",
+  CANCELLED: "border-amber-500/60 text-amber-600 dark:text-amber-400",
+};
+
 export const STATUS_LABEL: Record<WorkflowStatus, string> = {
   DRAFT: "Draft",
   PUBLISHED: "Live",

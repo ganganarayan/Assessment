@@ -119,6 +119,9 @@ const SECTIONS: NavSection[] = [
       // Above Nurture: a sequence is the thing most workspaces want, and the
       // one-shot below it is the special case of a sequence with one step.
       { href: "/admin/workflows", label: "Workflows" },
+      // Directly under the builder: the first thing you want after publishing one is
+      // whether anybody actually went through it.
+      { href: "/admin/workflows/logs", label: "Workflow logs" },
       // Under Workflows: a sequence is the thing you set up once, a broadcast is
       // the thing you decide to send today.
       { href: "/admin/broadcasts", label: "Broadcasts" },
