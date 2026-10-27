@@ -352,6 +352,40 @@ model Subscription {
   razorpaySubscriptionId String? @unique
   razorpayPlanId         String?
 
+  /// The Razorpay subscription this one REPLACES, parked here while the replacement is
+  /// paid for, and cancelled + cleared by the activation.
+  ///
+  /// 🔴 THIS COLUMN EXISTS BECAUSE THE OLD ID WAS BEING THROWN AWAY. Razorpay cannot move
+  /// a subscription between plans, so an upgrade and a monthly-to-yearly switch are both a
+  /// NEW subscription; the old one has to be cancelled or the customer is charged by both.
+  /// The cancellation used to compare the row's razorpaySubscriptionId against the one
+  /// being activated - but checkout had already overwritten that column with the new id,
+  /// so the two were always equal and the branch never ran. Nothing failed and nothing
+  /// logged; the only symptom was a second charge the customer was never told about
+  /// (customer_notify is 0). So the id is kept in a column of its own, and the comparison
+  /// is gone.
+  ///
+  /// Not @unique: it holds the same value razorpaySubscriptionId held a moment ago, and a
+  /// unique constraint across the two would reject the handover.
+  priorRazorpaySubscriptionId String?
+
+  /// WHAT THE OPEN CHECKOUT IS BUYING, which is not yet what the tenant HAS.
+  ///
+  /// Checkout used to write the new plan, term, status and limits snapshot straight onto
+  /// this row before a rupee moved, which did two things to a paying customer the moment
+  /// they clicked upgrade: it set status PENDING (entitledPlan maps that to null, so they
+  /// were parked on a plan they had already paid for), and it stamped the TARGET plan and
+  /// its limits on them, so abandoning the Razorpay modal left them entitled to a tier
+  /// they never bought. Both were invisible: no error, no log.
+  ///
+  /// So the intent lives here and the entitlement columns are left alone. The activation
+  /// promotes these and clears them. The webhook does not need them (Razorpay carries the
+  /// same pair in the subscription's `notes`), but /verify does: it must activate without
+  /// depending on anything outside this database, which is the whole reason it exists
+  /// alongside the webhook.
+  pendingPlan Plan?
+  pendingTerm BillingTerm?
+
   /// Monthly or yearly. Set when checkout is opened and never changed in place: a term
   /// switch is a NEW Razorpay subscription (the provider cannot move a subscription
   /// between plans), so this is rewritten by the activation that replaces it.

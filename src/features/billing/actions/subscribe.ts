@@ -24,7 +24,6 @@ import {
   isPaidPlan,
   paidChargeUsd,
   platformKeyId,
-  type PaidPlanId,
 } from "@/lib/billing/razorpay-subscriptions";
 import { EventType } from "@prisma/client";
 import { emitEvent } from "@/lib/events/emit";
@@ -209,28 +208,46 @@ export async function verifySubscriptionPayment(input: VerifyInput): Promise<Act
   // The subscription must belong to THIS tenant (set at creation).
   const sub = await prisma.subscription.findUnique({
     where: { tenantId: scope.tenantId },
-    select: { razorpaySubscriptionId: true, razorpayPlanId: true, term: true },
+    select: {
+      razorpaySubscriptionId: true,
+      razorpayPlanId: true,
+      term: true,
+      pendingPlan: true,
+      pendingTerm: true,
+    },
   });
   if (sub?.razorpaySubscriptionId !== input.razorpay_subscription_id) {
     return { ok: false, error: "Subscription does not belong to this workspace." };
   }
 
-  // THE TERM COMES OFF OUR OWN ROW, never from the browser. createSubscription wrote it
-  // before Checkout opened, so this is the term the server chose and the one the Razorpay
-  // plan was actually built on. Taking it from the client would let a request claim
-  // "yearly" against a monthly charge and move the renewal date eleven months out.
-  const term = toTerm(sub.term);
-  const chargedUsd = paidChargeUsd(plan, term);
+  /**
+   * THE PLAN AND THE TERM BOTH COME OFF OUR OWN ROW, never from the browser.
+   *
+   * createSubscription recorded them as the pending intent before Checkout opened, so
+   * these are what the server chose and what the Razorpay plan was actually built on.
+   *
+   * The term was already read this way. The PLAN was not: it was taken from the request
+   * body, so a client could present a genuine signature for a $39 Gate charge while
+   * claiming AGENCY, and activation would have granted the tier the payment did not buy.
+   * The signature proves a payment happened, not what it was for.
+   *
+   * `term` falls back to the row's own column and `plan` to the (validated) request for
+   * one case only: a checkout opened before this column existed and paid after the deploy.
+   */
+  const term = toTerm(sub.pendingTerm ?? sub.term);
+  const intendedPlan = sub.pendingPlan ? toPlanId(sub.pendingPlan) : null;
+  const charged = intendedPlan && isPaidPlan(intendedPlan) ? intendedPlan : plan;
+  const chargedUsd = paidChargeUsd(charged, term);
 
   // Idempotent: if the webhook already activated at this tier or higher, just confirm.
   const current = await resolvePlan(scope.tenantId);
-  if (current.status === "ACTIVE" && (current.plan ? PLAN_ORDER[current.plan] : 0) >= PLAN_ORDER[plan]) {
+  if (current.status === "ACTIVE" && (current.plan ? PLAN_ORDER[current.plan] : 0) >= PLAN_ORDER[charged]) {
     return { ok: true };
   }
 
   await activateSubscription({
     tenantId: scope.tenantId,
-    plan: plan as PaidPlanId,
+    plan: charged,
     term,
     razorpaySubscriptionId: input.razorpay_subscription_id,
     razorpayPlanId: sub?.razorpayPlanId ?? null,
@@ -251,7 +268,7 @@ export async function verifySubscriptionPayment(input: VerifyInput): Promise<Act
     email: scope.user.email,
     value,
     eventId: input.razorpay_payment_id,
-    planLabel: `Assess360 ${PLAN_LABEL[plan]} (${TERM_LABEL[term]})`,
+    planLabel: `Assess360 ${PLAN_LABEL[charged]} (${TERM_LABEL[term]})`,
   });
   const { pixelId } = await resolvePlatformMetaConfig();
 

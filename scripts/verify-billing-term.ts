@@ -256,6 +256,122 @@ expect(
   "the schema and the database disagree, so the first read of subscription.term fails in production",
 );
 
+// --- 7. Switching term must not take away the plan already paid for --------
+/**
+ * 🔴 TWO BUGS THAT LEFT NO TRACE, both reachable the moment annual became buyable.
+ *
+ * Checkout writes the Subscription row before the customer pays. It used to write the
+ * whole entitlement there - plan, term, status, limits - which did two things to someone
+ * who was already paying:
+ *
+ *   (a) status PENDING, and entitledPlan maps PENDING to null, so an active customer was
+ *       parked on the plan they had already paid for the instant the modal opened. Close
+ *       the modal and they stayed parked.
+ *   (b) the TARGET plan and its limits were stamped on them, so abandoning the modal left
+ *       them entitled to a tier they never bought.
+ *
+ * And because the same write overwrote razorpaySubscriptionId with the new id, the
+ * cancellation in activateSubscription - which compared that column against the id being
+ * activated - was comparing the new id with itself. It never fired. The replaced
+ * subscription stayed live and charged alongside the new one, to a customer that
+ * `customer_notify: 0` guaranteed heard nothing about.
+ *
+ * Nothing threw and nothing logged in any of the three. The symptoms were a support
+ * message about a plan that vanished, and a second charge nobody expected. So they are
+ * asserted at the source.
+ */
+const subscribeSrc = readFileSync(join(process.cwd(), "src/features/billing/actions/subscribe.ts"), "utf8");
+
+expect(
+  "checkout reads what the tenant already holds",
+  /entitledPlan\(existing\.plan, existing\.status\)/.test(subsSrc),
+  "without this read, checkout cannot tell a new subscriber from a paying customer",
+);
+expect(
+  "checkout decides by the resolver's own rule, not its own copy of it",
+  /import \{ entitledPlan \} from "@\/lib\/billing\/plan-grant"/.test(subsSrc),
+  "a second definition of what a status entitles will drift from the one the gates use",
+);
+expect(
+  "an entitled row keeps plan, term, status and limits at checkout start",
+  /update: holdsAPlan\s*\n?\s*\? \{ \.\.\.ids, \.\.\.intent \}/.test(subsSrc),
+  "writing the entitlement before the payment parks a paying customer and gives away the target tier",
+);
+expect(
+  "the open checkout's plan and term are recorded as intent",
+  /pendingPlan: plan, pendingTerm: term/.test(subsSrc),
+  "/verify has to read the term from our own row; with nowhere to put it, it would trust the browser",
+);
+expect(
+  "the replaced subscription id is captured at checkout start",
+  /priorRazorpaySubscriptionId: prior/.test(subsSrc),
+  "the old id is overwritten by the new one, so unless it is kept here it is gone",
+);
+expect(
+  "activation cancels the id from its own column",
+  /select: \{ priorRazorpaySubscriptionId: true \}[\s\S]{0,200}?existing\?\.priorRazorpaySubscriptionId/.test(subsSrc),
+  "reading razorpaySubscriptionId instead compares the new id against itself and never cancels",
+);
+/**
+ * The id must be cleared in exactly ONE place, and that place must come after the cancel
+ * succeeded. Asserted by position rather than by a window around the text: the first
+ * version of this check looked for the clear within 400 characters of the transaction and
+ * quietly passed when the entitlement object was long enough to push it out of range, so
+ * the check that was meant to catch the regression could not see it.
+ */
+const clears = (subsSrc.match(/priorRazorpaySubscriptionId: null/g) ?? []).length;
+const cancelAt = subsSrc.indexOf("await cancelRazorpaySubscription(prior);");
+const clearAt = subsSrc.indexOf("priorRazorpaySubscriptionId: null");
+expect(
+  "a failed cancel keeps the id instead of forgetting it",
+  clears === 1 && cancelAt !== -1 && clearAt > cancelAt,
+  "cleared alongside the entitlement, a refused cancel leaves a subscription charging that nothing points at",
+);
+expect(
+  "a failed cancel is logged rather than swallowed",
+  /cancelRazorpaySubscription\(prior\)[\s\S]{0,400}?console\.error/.test(subsSrc),
+  "a silent catch here is the original bug in a new place: money moves and nothing records it",
+);
+expect(
+  "the intent is cleared when it is granted",
+  /pendingPlan: null,\s*\n\s*pendingTerm: null,/.test(subsSrc),
+  "a row still claiming a pending upgrade makes /verify read a stale term on the next charge",
+);
+expect(
+  "/verify takes the term from the intent, not the browser",
+  /toTerm\(sub\.pendingTerm \?\? sub\.term\)/.test(subscribeSrc),
+  "the term decides the renewal date and the amount; from the browser it is a claim, not a fact",
+);
+expect(
+  "/verify takes the PLAN from the intent too",
+  /sub\.pendingPlan \? toPlanId\(sub\.pendingPlan\) : null/.test(subscribeSrc) &&
+    /plan: charged,/.test(subscribeSrc),
+  "a signature proves a payment happened, not what tier it bought, so a request could claim a higher one",
+);
+expect(
+  "the schema carries the intent and the replaced id",
+  /priorRazorpaySubscriptionId String\?/.test(schema) &&
+    /pendingPlan Plan\?/.test(schema) &&
+    /pendingTerm BillingTerm\?/.test(schema),
+);
+expect(
+  "a migration adds all three columns",
+  migrations.some((d) => {
+    let sql = "";
+    try {
+      sql = readFileSync(join(process.cwd(), "prisma/migrations", d, "migration.sql"), "utf8");
+    } catch {
+      return false;
+    }
+    return (
+      sql.includes('ADD COLUMN "priorRazorpaySubscriptionId"') &&
+      sql.includes('ADD COLUMN "pendingPlan"') &&
+      sql.includes('ADD COLUMN "pendingTerm"')
+    );
+  }),
+  "the schema and the database disagree, and the first checkout after deploy fails on a missing column",
+);
+
 console.log(failures === 0 ? "\nAll annual-billing checks passed.\n" : `\n${failures} check(s) failed.\n`);
 process.exit(failures === 0 ? 0 : 1);
 

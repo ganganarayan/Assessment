@@ -14,6 +14,9 @@ import {
   type PlanId,
 } from "@/lib/billing/plans";
 import { snapshotFor } from "@/lib/billing/entitlements";
+// The one rule for "does this status entitle a plan". Imported, never restated: checkout
+// has to answer it exactly as the gates do, or it will take away a plan a gate still honours.
+import { entitledPlan } from "@/lib/billing/plan-grant";
 
 /**
  * SaaS subscription billing on the PLATFORM-OWNER's Razorpay account (USD). Ported
@@ -192,6 +195,20 @@ export async function createSubscription(
   ]);
   const { totalCount } = razorpayCycle(term);
 
+  /**
+   * WHAT THE TENANT HOLDS RIGHT NOW, read before anything is written.
+   *
+   * `entitledPlan` is the same rule the resolver uses, imported rather than restated, so
+   * "does this tenant currently have a plan" cannot be answered differently here than it
+   * is answered when a gate checks. A row that entitles something is one a customer has
+   * paid for, and this function must not take it away to sell them an upgrade.
+   */
+  const existing = await prisma.subscription.findUnique({
+    where: { tenantId: tenant.id },
+    select: { plan: true, status: true, razorpaySubscriptionId: true },
+  });
+  const holdsAPlan = existing ? entitledPlan(existing.plan, existing.status) !== null : false;
+
   const sub = await razorpayRequest<RazorpaySubscriptionCreated>("POST", "/subscriptions", await platformKeys(), {
     plan_id: planId,
     customer_id: customerId,
@@ -201,6 +218,24 @@ export async function createSubscription(
     notes: { tenantId: tenant.id, plan, term },
   });
 
+  /**
+   * The subscription being REPLACED, parked for the activation to cancel.
+   *
+   * Carried for an abandoned PENDING row too, not just a live one: that row points at a
+   * Razorpay subscription that was created and never paid, and cancelling an unpaid
+   * subscription costs nothing while leaving it live is one more thing that could charge.
+   */
+  const prior =
+    existing?.razorpaySubscriptionId && existing.razorpaySubscriptionId !== sub.id
+      ? existing.razorpaySubscriptionId
+      : null;
+
+  // What the open checkout is buying. Always recorded, whether or not the entitlement
+  // columns move, because /verify reads the term back from here rather than trusting the
+  // browser for the number it is about to charge against.
+  const intent = { pendingPlan: plan, pendingTerm: term, priorRazorpaySubscriptionId: prior };
+  const ids = { razorpaySubscriptionId: sub.id, razorpayPlanId: planId };
+
   await prisma.subscription.upsert({
     where: { tenantId: tenant.id },
     create: {
@@ -208,18 +243,17 @@ export async function createSubscription(
       plan,
       term,
       status: "PENDING",
-      razorpaySubscriptionId: sub.id,
-      razorpayPlanId: planId,
+      ...ids,
+      ...intent,
       limitsSnapshot: snapshotFor(plan),
     },
-    update: {
-      plan,
-      term,
-      status: "PENDING",
-      razorpaySubscriptionId: sub.id,
-      razorpayPlanId: planId,
-      limitsSnapshot: snapshotFor(plan),
-    },
+    // 🔴 A TENANT WHO HOLDS A PLAN KEEPS IT until the new one is paid for. Only the
+    // razorpay ids and the intent move; plan, term, status and limitsSnapshot are the
+    // entitlement, and rewriting them here is what parked a paying customer the moment
+    // they opened the modal and handed them the target tier for free if they closed it.
+    update: holdsAPlan
+      ? { ...ids, ...intent }
+      : { plan, term, status: "PENDING", ...ids, ...intent, limitsSnapshot: snapshotFor(plan) },
   });
 
   return { subscriptionId: sub.id, shortUrl: sub.short_url };
@@ -293,11 +327,21 @@ export interface ActivateInput {
  * the switch is confirmed.
  */
 export async function activateSubscription(input: ActivateInput): Promise<void> {
+  /**
+   * 🔴 THE PRIOR ID COMES OFF ITS OWN COLUMN, never from razorpaySubscriptionId.
+   *
+   * This used to read razorpaySubscriptionId and cancel it when it differed from the one
+   * being activated. It never differed: checkout had already overwritten that column with
+   * the new id before the customer paid, so the comparison was the new id against itself
+   * and the cancellation below was unreachable. An upgrade and a monthly-to-yearly switch
+   * both left the old subscription live, and two subscriptions charged a customer that
+   * `customer_notify: 0` guaranteed heard nothing about it.
+   */
   const existing = await prisma.subscription.findUnique({
     where: { tenantId: input.tenantId },
-    select: { razorpaySubscriptionId: true },
+    select: { priorRazorpaySubscriptionId: true },
   });
-  const prior = existing?.razorpaySubscriptionId ?? null;
+  const prior = existing?.priorRazorpaySubscriptionId ?? null;
 
   // The billing record the app owns. Computed here rather than copied from Razorpay,
   // so it exists whether or not a webhook ever arrives - see lib/billing/renewal.ts.
@@ -310,6 +354,14 @@ export async function activateSubscription(input: ActivateInput): Promise<void> 
     razorpaySubscriptionId: input.razorpaySubscriptionId,
     razorpayPlanId: input.razorpayPlanId ?? undefined,
     limitsSnapshot: snapshotFor(input.plan),
+    // The intent has been promoted into the columns above, so it stops being pending.
+    // Cleared in the SAME transaction that grants the entitlement: a row still claiming a
+    // pending upgrade it has already received would have /verify re-read a stale term on
+    // the next charge.
+    //
+    // priorRazorpaySubscriptionId is deliberately NOT cleared here - see below.
+    pendingPlan: null,
+    pendingTerm: null,
     paidAt,
     // A yearly subscription renews in twelve months, not one. nextRenewal takes the
     // month count, so there is one implementation of the month-end clamp for both.
@@ -359,8 +411,31 @@ export async function activateSubscription(input: ActivateInput): Promise<void> 
       .catch(() => {});
   }
 
-  if (prior && input.razorpaySubscriptionId && prior !== input.razorpaySubscriptionId) {
-    await cancelRazorpaySubscription(prior).catch(() => {});
+  /**
+   * Cancel the subscription this one replaced, and only then forget it.
+   *
+   * 🔴 THE ID IS CLEARED AFTER A SUCCESSFUL CANCEL, NOT WITH THE ENTITLEMENT. Clearing it
+   * in the transaction above would discard the id whenever Razorpay refused the call, and
+   * the customer would go on being charged by a subscription nothing in the database still
+   * points at. Left set, it is retried: this function is idempotent and runs again from
+   * the webhook and from every later renewal.
+   *
+   * A failure is logged rather than swallowed. The cancel must still never throw back at
+   * the caller, because the caller is a customer who has just paid and is owed their
+   * entitlement whatever Razorpay thinks of the old subscription.
+   */
+  if (prior && prior !== input.razorpaySubscriptionId) {
+    try {
+      await cancelRazorpaySubscription(prior);
+      await prisma.subscription
+        .update({ where: { tenantId: input.tenantId }, data: { priorRazorpaySubscriptionId: null } })
+        .catch(() => {});
+    } catch (e) {
+      console.error(
+        `[billing] could not cancel replaced subscription ${prior} for tenant ${input.tenantId} - it may still charge:`,
+        e instanceof Error ? e.message : String(e),
+      );
+    }
   }
 }
 
