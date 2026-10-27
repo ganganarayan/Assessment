@@ -71,12 +71,13 @@ export function page(): string {
     <h2>Everything</h2>
     <div class="row">
       <button data-job="all" class="primary">Run all test funnels</button>
+      <button data-job="screens">Check the owner's screens</button>
       <button data-job="seed">Seed test funnels</button>
       <button data-job="unseed">Remove them</button>
       <button data-job="setup">Install the browser</button>
       <button id="stop">Stop</button>
     </div>
-    <p><code>npm run qa:all&nbsp; · &nbsp;npm run qa:seed&nbsp; · &nbsp;npx playwright install chromium</code></p>
+    <p><code>npm run qa:all&nbsp; · &nbsp;npm run qa:screens&nbsp; · &nbsp;npm run qa:seed&nbsp; · &nbsp;npx playwright install chromium</code></p>
   </div>
 
   <div class="card">

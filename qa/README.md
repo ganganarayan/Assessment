@@ -193,6 +193,50 @@ The rows a sweep writes are left in place, because they are the evidence a failu
 argued from. Pass `--cleanup` to remove that run's own submissions, gate entries and
 rejections afterwards.
 
+## The screens that are not funnels
+
+The newest work has no respondent to drive: a WhatsApp dashboard reading somebody else's
+API, a provider dropdown that decides whether mail leaves at all, a contacts table
+holding people who consented to nothing, and two policy pages a Meta reviewer opens. No
+case can be derived for any of it, but each is still a screen that can be blank,
+redirected, or confidently wrong.
+
+```bash
+npm run qa:screens
+npm run qa:screens -- --only=legal,whatsapp
+npm run qa:screens -- --headed --slow=250 --desktop
+```
+
+Five groups: `legal`, `email-providers`, `whatsapp`, `contacts`, `vault`. It signs in
+once, reads, and writes the same HTML report as a sweep, with a full-page screenshot per
+group. Nothing is written to the database or sent to Meta.
+
+What it asserts is only what a browser can know:
+
+- the screen answers, signed in, and is not a redirect to `/sign-in`
+- the app's own error boundary did not render
+- **every date a person reads is DD-MM-YYYY.** The test is sound rather than clever: in
+  d-d-yyyy a second component above 12 cannot be a month, so the string must be
+  month-first. That is the bare `toLocaleString()` this rule exists to catch, and on
+  Railway it renders in US order. Ambiguous dates are left alone instead of guessed at.
+- nothing leaked through the template: no `Invalid Date`, no `NaN`, no raw source enum
+  where a described source belongs
+- and where the contents ARE derivable, they match the app's own list: every provider in
+  `lib/email/catalog` is in the dropdown, in the catalog's order, with the one transport
+  Railway blocks offered last
+
+`legal` runs with no credentials at all. The groups that need the owner's login skip
+with the reason when `qa/.env.qa` has none.
+
+**Its other half is in the build.** The invariants that need no browser are asserted by
+`scripts/verify-*.ts`, which the Railway build runs before `next build`, so a regression
+fails the deploy rather than the screen: `verify:email-providers` (every provider
+reaches its own region over HTTPS and refuses to send without a key),
+`verify:whatsapp` (no `/register`, a good signup code is never thrown away, each sync can
+only be spent once, a metric Meta did not report stays null), `verify:legal` (both policy
+pages exist, every header link resolves, nothing company-specific is hardcoded),
+`verify:contact-consent`, `verify:vault` and `verify:workflow-queue`.
+
 ## What it does not cover
 
 Whether Meta actually received and attributed an event, real email or WhatsApp delivery,

@@ -79,6 +79,12 @@ const JOBS: Record<string, Job> = {
     shown: () => "npm run qa:all",
     args: () => [join(QA_ROOT, "src", "all.ts")],
   },
+  // The owner's screens rather than a funnel: no slug, because none of these belong to
+  // one. The policy pages in it run with no credentials at all.
+  screens: {
+    shown: () => "npm run qa:screens",
+    args: () => [join(QA_ROOT, "src", "screens", "cli.ts")],
+  },
   abandon: {
     shown: (s) => `npm run qa:abandon -- --slug=${s}`,
     args: (s) => [join(QA_ROOT, "src", "abandon.ts"), `--slug=${s}`],
