@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { NURTURE_PLACEHOLDERS } from "@/features/nurture/config";
+import { PlaceholderChips } from "@/components/placeholder-chips";
 import { fetchWabaTemplates, type WabaTemplateOption } from "@/features/nurture/actions";
 import { disconnectZoom, saveZoomApp } from "@/features/automation/zoom";
 import {
@@ -540,17 +541,18 @@ function AutomationForm({
           </div>
         </div>
 
-        <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-xs text-[var(--muted-foreground)]">
-          {/* Deduped: unsubscribeUrl is offered by both lists, since the contacts module
-              added it for nurture drafts and it is just as useful here. */}
-          Placeholders:{" "}
-          {[...new Set([...NURTURE_PLACEHOLDERS, ...APPOINTMENT_PLACEHOLDERS])]
-            .map((p) => `{{${p}}}`)
-            .join("  ")}
-          . <strong>{"{{manageUrl}}"}</strong> opens their own booking with Move and Cancel on it, which
-          is how a reminder turns a silent no-show into a freed slot. Put it in every reminder.
-        </p>
-
+        {/* Deduped: unsubscribeUrl is offered by both lists, since the contacts module
+            added it for nurture drafts and it is just as useful here. */}
+        <PlaceholderChips
+          placeholders={[...new Set([...NURTURE_PLACEHOLDERS, ...APPOINTMENT_PLACEHOLDERS])]}
+          note={
+            <>
+              <strong>{"{{manageUrl}}"}</strong> opens their own booking with Move and Cancel on it,
+              which is how a reminder turns a silent no-show into a freed slot. Put it in every
+              reminder.
+            </>
+          }
+        >
         {d.actions.map((a, i) => (
           <div key={i} className="flex flex-col gap-2 rounded-md border p-3">
             <div className="flex items-center justify-between">
@@ -571,22 +573,27 @@ function AutomationForm({
                 <div className="flex flex-col gap-1">
                   <Label className="text-xs">Subject</Label>
                   <Input
+                    data-ph="1"
                     value={a.subject}
                     placeholder="Your call is tomorrow, {{firstName}}"
                     onChange={(e) => setAction(i, { subject: e.target.value })}
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <Label className="text-xs">Body (HTML allowed)</Label>
+                  <Label className="text-xs">Body</Label>
                   <Textarea
-                    rows={6}
-                    spellCheck={false}
+                    rows={7}
                     value={a.body}
                     placeholder={
-                      "<p>Hi {{firstName}},</p>\n<p>Your {{bookingName}} is on {{appointmentDate}} at {{appointmentTime}} IST.</p>\n<p><a href=\"{{meetingLink}}\">Join here</a> · <a href=\"{{icsUrl}}\">Add to calendar</a></p>\n<p>Need to change it? <a href=\"{{manageUrl}}\">Move or cancel your booking</a></p>"
+                      "Hi {{firstName}},\n\nYour {{bookingName}} is on {{appointmentDate}} at {{appointmentTime}} IST.\n\nJoin here: {{meetingLink}}\nAdd it to your calendar: {{icsUrl}}\n\nNeed to change it? {{manageUrl}}"
                     }
+                    data-ph="1"
                     onChange={(e) => setAction(i, { body: e.target.value })}
                   />
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Write it as you would an ordinary email. A blank line starts a new paragraph,
+                    and a link becomes a link. HTML still works if you paste some in.
+                  </p>
                 </div>
               </>
             ) : a.channel === "ZOOM_MEETING" ? (
@@ -599,6 +606,7 @@ function AutomationForm({
                 <div className="flex flex-col gap-1">
                   <Label className="text-xs">What the meeting is called in Zoom</Label>
                   <Input
+                    data-ph="1"
                     value={a.zoomTopic}
                     placeholder="Meeting with {{firstName}}"
                     onChange={(e) => setAction(i, { zoomTopic: e.target.value })}
@@ -617,6 +625,7 @@ function AutomationForm({
             )}
           </div>
         ))}
+        </PlaceholderChips>
       </div>
 
       <label className="flex items-center gap-2 text-sm">
@@ -722,6 +731,7 @@ function WabaAction({
         <div key={i} className="flex flex-col gap-1">
           <Label className="text-xs">{`Variable {{${i + 1}}}`}</Label>
           <Input
+            data-ph="1"
             value={v}
             placeholder={i === 0 ? "{{firstName}}" : "{{appointmentTime}}"}
             onChange={(e) =>

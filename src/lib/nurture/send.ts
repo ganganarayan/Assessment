@@ -1,4 +1,5 @@
 import "server-only";
+import { renderEmailBody } from "@/lib/automation/body";
 import { unsubscribeUrlFor } from "@/lib/contacts/dnd";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
@@ -63,7 +64,11 @@ export async function sendTrackedEmailWithLog(
   htmlBody: string,
 ): Promise<{ error: string | null; logId: string }> {
   const logId = randomUUID();
-  const html = instrumentEmailLinks(htmlBody, logId, env.NEXT_PUBLIC_APP_URL);
+  // Prose in, HTML out. BEFORE instrumenting on purpose: a plain-text body carries its
+  // links as bare URLs, and only once renderEmailBody has turned them into anchors is
+  // there anything for the click tracker to rewrite. A body that was already HTML comes
+  // back untouched, so every message written before this existed is unaffected.
+  const html = instrumentEmailLinks(renderEmailBody(htmlBody), logId, env.NEXT_PUBLIC_APP_URL);
   const err = await sendEmail(tenantId, to, subject, html);
   await prisma.nurtureLog
     .create({
@@ -121,7 +126,10 @@ export async function sendEmail(
       {
         to,
         subject,
-        html: htmlBody,
+        // The same conversion for the paths that do not track clicks (the welcome mail,
+        // the qualification mails). Already-HTML bodies pass straight through, so a body
+        // the tracked path converted a moment ago is not converted twice.
+        html: renderEmailBody(htmlBody),
         fromEmail: cfg.fromEmail,
         fromName: cfg.fromName,
         replyTo: opts?.replyTo ?? null,
