@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { createTag } from "@/features/contacts/actions";
+import { PlaceholderChips } from "@/components/placeholder-chips";
 import {
   addWorkflowStep,
   deleteWorkflow,
@@ -19,8 +21,7 @@ import {
   STATUS_CLASS,
   STATUS_LABEL,
   TRIGGERS,
-  OFFERED_STEP_KINDS,
-  STEP_KIND_LABEL,
+  STEP_MENU,
   type OfferedStepKind,
   WORKFLOW_PLACEHOLDERS,
   publishProblems,
@@ -254,7 +255,7 @@ export function WorkflowBuilder({
       {workflow.steps.map((step, i) => (
         <div key={step.id} className="flex flex-col items-stretch gap-0">
           <Connector />
-          <Inserter pending={pending} onAdd={(k) => runAndSelect(() => addWorkflowStep(workflow.id, k, i))} />
+          <Inserter pending={pending} onAdd={(k, ch) => runAndSelect(() => addWorkflowStep(workflow.id, k, i, ch))} />
           <Connector />
           <StepNode
             step={step}
@@ -269,7 +270,7 @@ export function WorkflowBuilder({
       <Connector />
       <Inserter
         pending={pending}
-        onAdd={(k) => runAndSelect(() => addWorkflowStep(workflow.id, k, workflow.steps.length))}
+        onAdd={(k, ch) => runAndSelect(() => addWorkflowStep(workflow.id, k, workflow.steps.length, ch))}
       />
       <Connector />
       <EndNode />
@@ -279,6 +280,12 @@ export function WorkflowBuilder({
           describes while the sequence scrolls past it. */}
       <aside className="mt-5 flex flex-col gap-3 md:sticky md:top-4 md:mt-0">
         {selected ? (
+          // Wrapped so the chips type into whichever field was last touched. Fields opt
+          // in with data-ph="1"; nothing else here needs wiring.
+          <PlaceholderChips
+            placeholders={WORKFLOW_PLACEHOLDERS}
+            note="Click one to drop it where your cursor is. They are filled in when the message is sent."
+          >
           <StepCard
             key={selected.id}
             step={selected}
@@ -295,6 +302,7 @@ export function WorkflowBuilder({
               run(() => deleteWorkflowStep(workflow.id, selected.id));
             }}
           />
+          </PlaceholderChips>
         ) : (
           <div className="rounded-lg border p-4 text-sm text-[var(--muted-foreground)]">
             <p className="font-medium text-[var(--foreground)]">The trigger</p>
@@ -304,9 +312,6 @@ export function WorkflowBuilder({
             </p>
           </div>
         )}
-        <p className="text-xs text-[var(--muted-foreground)]">
-          Placeholders: {WORKFLOW_PLACEHOLDERS.map((p) => `{{${p}}}`).join(" · ")}
-        </p>
       </aside>
       </div>
     </div>
@@ -336,7 +341,7 @@ function Connector() {
 function kindLabel(s: WorkflowStepView): string {
   if (s.kind === "DELAY") return "WAIT";
   if (s.kind === "TAG") return "TAG";
-  if (s.kind === "SUBFLOW") return "HAND OVER";
+  if (s.kind === "SUBFLOW") return "CALL WORKFLOW";
   if (s.kind === "WEBHOOK") return "WEBHOOK";
   if (s.kind === "UNSUBSCRIBE") return "UNSUBSCRIBE";
   if (s.kind === "NOTIFY_OWNER") return "NOTIFY ME";
@@ -491,7 +496,7 @@ function Inserter({
   onAdd,
 }: {
   pending: boolean;
-  onAdd: (kind: OfferedStepKind) => void;
+  onAdd: (kind: OfferedStepKind, channel?: "EMAIL" | "WABA") => void;
 }) {
   const [open, setOpen] = useState(false);
   if (!open) {
@@ -510,18 +515,18 @@ function Inserter({
   }
   return (
     <div className="flex flex-wrap items-center justify-center gap-2 rounded-md border border-dashed p-2">
-      {OFFERED_STEP_KINDS.map((k) => (
+      {STEP_MENU.map((m) => (
         <Button
-          key={k}
+          key={m.id}
           size="sm"
           variant="outline"
           disabled={pending}
           onClick={() => {
             setOpen(false);
-            onAdd(k);
+            onAdd(m.kind, m.channel);
           }}
         >
-          {STEP_KIND_LABEL[k]}
+          {m.label}
         </Button>
       ))}
       <button
@@ -531,6 +536,98 @@ function Inserter({
       >
         Cancel
       </button>
+    </div>
+  );
+}
+
+/**
+ * Pick a tag, or type one that does not exist yet.
+ *
+ * 🔴 WHY CREATE IS HERE AND NOT ONLY ON THE CONTACTS PAGE. The moment somebody needs a
+ * tag is the moment they are building the step that applies it. Sending them to
+ * another screen to make one loses the sequence they were halfway through writing,
+ * and the list they come back to is the one the page was rendered with - so the tag
+ * they just made is not in it, which reads as the feature being broken.
+ *
+ * Creating returns the row, so the new tag is selected immediately and added to the
+ * local list. No refresh, and nothing to find afterwards.
+ */
+function TagPicker({
+  tags,
+  value,
+  onPick,
+}: {
+  tags: { id: string; name: string }[];
+  value: string | null;
+  onPick: (id: string) => void;
+}) {
+  // Seeded from the server list and grown locally, so a tag made here appears at once
+  // AND survives the refresh that follows.
+  const [known, setKnown] = useState(tags);
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Merge rather than replace: a tag created a moment ago must not vanish because
+    // the server list that came back was rendered before it existed.
+    setKnown((cur) => {
+      const byId = new Map(cur.map((t) => [t.id, t]));
+      for (const t of tags) byId.set(t.id, t);
+      return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+    });
+  }, [tags]);
+
+  const create = async () => {
+    const name = typed.trim();
+    if (!name || busy) return;
+    setBusy(true);
+    setErr(null);
+    const r = await createTag(name);
+    setBusy(false);
+    if (!r.ok) {
+      setErr(r.error);
+      return;
+    }
+    if (r.data) {
+      setKnown((cur) => (cur.some((t) => t.id === r.data!.id) ? cur : [...cur, r.data!]));
+      onPick(r.data.id);
+      setTyped("");
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Field label="Tag">
+        <Select
+          value={value ?? ""}
+          placeholder={known.length === 0 ? "None yet - type one below" : "Pick a tag"}
+          options={known.map((t) => ({ value: t.id, label: t.name }))}
+          onChange={onPick}
+        />
+      </Field>
+      <div className="flex items-end gap-2">
+        <Field label="Or make a new one">
+          <Input
+            value={typed}
+            placeholder="Hot lead"
+            disabled={busy}
+            onChange={(e) => setTyped(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter inside a builder full of auto-saving fields should make the tag,
+              // not submit whatever form the browser decides it is in.
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void create();
+              }
+            }}
+          />
+        </Field>
+        <Button size="sm" variant="outline" disabled={busy || !typed.trim()} onClick={() => void create()}>
+          Add
+        </Button>
+      </div>
+      {err ? <p className="text-xs text-red-500">{err}</p> : null}
     </div>
   );
 }
@@ -585,6 +682,14 @@ function StepCard({
           </Button>
           <Button size="sm" variant="ghost" disabled={pending} onClick={onDelete}>
             Remove
+          </Button>
+          {/* 🟡 Every field here already saves itself on change or on leaving the box, so
+              this button is not what makes the work persist. It is here because a form
+              with no Save reads as a form that has not saved, and somebody who closes a
+              builder wondering is somebody who retypes it tomorrow. It writes the whole
+              step, so it is also the way out of a field that never fired its blur. */}
+          <Button size="sm" disabled={pending} onClick={() => onSave(v)}>
+            Save
           </Button>
         </div>
       </div>
@@ -646,22 +751,14 @@ function StepCard({
               }}
             />
           </Field>
-          <Field label="Tag">
-            <Select
-              value={v.tagId ?? ""}
-              placeholder="Pick a tag"
-              options={options.tags.map((t) => ({ value: t.id, label: t.name }))}
-              onChange={(id) => {
-                set({ tagId: id });
-                onSave({ tagId: id, tagAction: v.tagAction });
-              }}
-            />
-          </Field>
-          {options.tags.length === 0 ? (
-            <p className="text-xs text-[var(--muted-foreground)]">
-              No tags yet. Create one on the Contacts page.
-            </p>
-          ) : null}
+          <TagPicker
+            tags={options.tags}
+            value={v.tagId}
+            onPick={(id) => {
+              set({ tagId: id });
+              onSave({ tagId: id, tagAction: v.tagAction });
+            }}
+          />
         </div>
       ) : null}
 
@@ -737,6 +834,7 @@ function StepCard({
           </p>
           <Field label="Subject">
             <Input
+              data-ph="1"
               value={v.subject}
               placeholder="{{firstName}} reached the end of the sequence"
               onChange={(e) => set({ subject: e.target.value })}
@@ -745,6 +843,7 @@ function StepCard({
           </Field>
           <Field label="What to say">
             <Textarea
+              data-ph="1"
               rows={4}
               value={v.body}
               placeholder={"{{firstName}} ({{email}}) finished the sequence and did not book."}

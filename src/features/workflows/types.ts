@@ -372,18 +372,33 @@ export const OFFERED_STEP_KINDS = [
 
 export type OfferedStepKind = (typeof OFFERED_STEP_KINDS)[number];
 
-/** What each one is called on the + menu. */
-export const STEP_KIND_LABEL: Record<OfferedStepKind, string> = {
-  MESSAGE: "Message",
-  DELAY: "Wait",
-  TAG: "Tag",
-  SUBFLOW: "Hand to another sequence",
-  WEBHOOK: "Call a webhook",
-  NOTIFY_OWNER: "Notify me",
-  UNSUBSCRIBE: "Unsubscribe them",
-  EXIT: "End the sequence",
-};
+/**
+ * The + menu.
+ *
+ * 🔴 ENTRIES, NOT KINDS, and the two are deliberately not the same list. Email and
+ * WhatsApp are both a MESSAGE step; what separates them is the channel, and asking
+ * somebody to add a "Message" and then discover a channel dropdown inside it is a
+ * step nobody finds. The menu says the two things people actually want, and the
+ * entry carries the channel the step starts with.
+ */
+export interface StepMenuEntry {
+  id: string;
+  label: string;
+  kind: OfferedStepKind;
+  channel?: WorkflowChannel;
+}
 
+export const STEP_MENU: StepMenuEntry[] = [
+  { id: "email", label: "Email", kind: "MESSAGE", channel: "EMAIL" },
+  { id: "whatsapp", label: "WhatsApp", kind: "MESSAGE", channel: "WABA" },
+  { id: "delay", label: "Wait", kind: "DELAY" },
+  { id: "tag", label: "Tag", kind: "TAG" },
+  { id: "subflow", label: "Call workflow", kind: "SUBFLOW" },
+  { id: "webhook", label: "Call a webhook", kind: "WEBHOOK" },
+  { id: "notify", label: "Notify me", kind: "NOTIFY_OWNER" },
+  { id: "unsub", label: "Unsubscribe them", kind: "UNSUBSCRIBE" },
+  { id: "exit", label: "End the sequence", kind: "EXIT" },
+];
 export interface BuilderOptions {
   assessments: { id: string; title: string }[];
   tags: { id: string; name: string }[];
@@ -426,7 +441,11 @@ export const workflowSettingsSchema = z.object({
 
 export const stepSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum(["MESSAGE", "DELAY", "TAG"]),
+  // 🔴 DERIVED FROM THE REGISTRY, NEVER LISTED AGAIN. This was a hand-written list of
+  // three while the builder offered eight, so every new kind saved in the browser and
+  // was refused by the server with a zod error nobody could act on. A second copy of a
+  // list is a second copy that goes stale.
+  kind: z.enum(OFFERED_STEP_KINDS),
   channel: z.enum(["EMAIL", "WABA"]).nullable(),
   subject: z.string().max(200),
   body: z.string().max(20000),

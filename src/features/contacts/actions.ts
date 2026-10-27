@@ -48,20 +48,33 @@ function refresh() {
   revalidatePath("/w/contacts");
 }
 
-export async function createTag(name: string, color: string | null = null): Promise<ActionResult> {
+export async function createTag(
+  name: string,
+  color: string | null = null,
+): Promise<ActionResult<{ id: string; name: string }>> {
   const s = await ownerScope();
   if (!s.ok) return s.result;
   const clean = name.trim().slice(0, 40);
   if (!clean) return { ok: false, error: "Give the tag a name." };
   try {
-    await prisma.tag.create({ data: { tenantId: s.tenantId, name: clean, color } });
+    const t = await prisma.tag.create({
+      data: { tenantId: s.tenantId, name: clean, color },
+      select: { id: true, name: true },
+    });
+    refresh();
+    return { ok: true, data: t };
   } catch {
-    // The unique key is (tenant, name), so the only realistic failure is a duplicate,
-    // and a duplicate tag is not an error worth a red box - it already exists.
-    return { ok: false, error: "You already have a tag with that name." };
+    // 🟡 The unique key is (tenant, name), so the only realistic failure is a duplicate -
+    // and typing a name that already exists MEANS that tag, it is not a mistake. Handing
+    // back the existing row lets a picker create-or-choose in one action instead of
+    // showing a red box and asking somebody to go and find it.
+    const existing = await prisma.tag.findFirst({
+      where: { tenantId: s.tenantId, name: clean },
+      select: { id: true, name: true },
+    });
+    if (existing) return { ok: true, data: existing };
+    return { ok: false, error: "That tag could not be created." };
   }
-  refresh();
-  return { ok: true };
 }
 
 export async function renameTag(tagId: string, name: string): Promise<ActionResult> {

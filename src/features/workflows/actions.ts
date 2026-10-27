@@ -139,6 +139,8 @@ export async function addWorkflowStep(
    * canvas had a + between boxes. 0 puts it immediately after the trigger.
    */
   atIndex?: number,
+  /** Which channel a MESSAGE step starts on. Ignored by every other kind. */
+  channel?: "EMAIL" | "WABA",
 ): Promise<ActionResult<{ id: string }>> {
   const s = await scoped();
   if (!s.ok) return s.result;
@@ -173,7 +175,7 @@ export async function addWorkflowStep(
       kind,
       // Sensible starting points, so a new step is a thing you edit rather than a
       // blank that has to be filled before it means anything.
-      ...(kind === "MESSAGE" ? { channel: "EMAIL" as const } : {}),
+      ...(kind === "MESSAGE" ? { channel: channel ?? ("EMAIL" as const) } : {}),
       ...(kind === "DELAY" ? { delayAmount: 1, delayUnit: "DAYS" as const } : {}),
       ...(kind === "TAG" ? { tagAction: "ADD" as const } : {}),
       // NOTIFY_OWNER borrows the message columns, so it needs the same channel default:
