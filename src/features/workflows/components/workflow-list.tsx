@@ -6,7 +6,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createWorkflow } from "@/features/workflows/actions";
-import { STATUS_CLASS, STATUS_LABEL, TRIGGERS, TRIGGER_LABEL, type WorkflowListRow } from "@/features/workflows/types";
+import {
+  STATUS_CLASS,
+  STATUS_LABEL,
+  TRIGGER_LABEL,
+  offerableTriggers,
+  type WorkflowListRow,
+} from "@/features/workflows/types";
 
 /**
  * The list of sequences, and the one place a new one is started.
@@ -15,11 +21,26 @@ import { STATUS_CLASS, STATUS_LABEL, TRIGGERS, TRIGGER_LABEL, type WorkflowListR
  * things that cannot be changed by looking at the thing afterwards. Everything else is
  * a decision better made with the sequence in front of you.
  */
-export function WorkflowList({ rows, basePath }: { rows: WorkflowListRow[]; basePath: string }) {
+export function WorkflowList({
+  rows,
+  basePath,
+  isPlatform,
+}: {
+  rows: WorkflowListRow[];
+  basePath: string;
+  /**
+   * 🔴 Platform scope sees the triggers that are about a WORKSPACE as well as the ones
+   * about a lead. A tenant must not: offered "a workspace publishes a funnel" they
+   * would build a sequence that can never fire for them, and nothing anywhere would
+   * say why.
+   */
+  isPlatform: boolean;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [name, setName] = useState("");
-  const [trigger, setTrigger] = useState<string>(TRIGGERS[0]!.value);
+  const triggers = offerableTriggers(isPlatform);
+  const [trigger, setTrigger] = useState<string>(triggers[0]!.value);
   const [msg, setMsg] = useState<string | null>(null);
 
   return (
@@ -37,7 +58,7 @@ export function WorkflowList({ rows, basePath }: { rows: WorkflowListRow[]; base
             onChange={(e) => setTrigger(e.target.value)}
             className="rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-2 py-1 text-sm"
           >
-            {TRIGGERS.map((t) => (
+            {triggers.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
               </option>
@@ -59,7 +80,7 @@ export function WorkflowList({ rows, basePath }: { rows: WorkflowListRow[]; base
           </Button>
         </div>
         <p className="text-xs text-[var(--muted-foreground)]">
-          {TRIGGERS.find((t) => t.value === trigger)?.hint}
+          {triggers.find((t) => t.value === trigger)?.hint}
         </p>
         <p className="text-xs text-[var(--muted-foreground)]">
           It starts as a draft. Nothing is sent until you publish it.

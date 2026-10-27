@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { fireTenantWorkflowTrigger } from "@/lib/workflows/enqueue";
 import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 import { invalidatePublicAssessmentById } from "@/features/assessment/data";
 import { Prisma } from "@prisma/client";
@@ -403,6 +404,8 @@ export async function updateAssessment(
   });
 
   await invalidatePublicAssessmentById(id);
+
+
   revalidatePath("/admin/assessments");
   revalidatePath(`/admin/assessments/${id}`);
   revalidatePath("/w/assessments");
@@ -465,6 +468,13 @@ export async function setAssessmentStatus(
       publishedAt: publish ? new Date() : null,
     },
   });
+  // 🟡 Publishing their first funnel is the step the platform nurtures a workspace
+  // toward, so it starts a TENANT workflow about them. Publish only: unpublishing is
+  // not an achievement to congratulate somebody for. Best-effort, like every other
+  // trigger - a sequence that failed to start must not fail the publish.
+  if (publish && scope.tenantId) {
+    await fireTenantWorkflowTrigger("TENANT_ASSESSMENT_PUBLISHED", scope.tenantId);
+  }
   // The one invalidation that matters most: publish and unpublish change whether the
   // funnel is reachable at all, so a stale copy here either hides a live funnel or keeps
   // serving one that was taken down.

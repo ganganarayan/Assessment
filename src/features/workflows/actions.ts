@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isPlatformScope } from "@/lib/tenant/platform-tenant";
+import { TRIGGERS, triggerAudience, triggerIsLive } from "@/features/workflows/types";
 import { prisma } from "@/lib/db/prisma";
 import { syncEdges } from "@/lib/workflows/edges";
 import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
@@ -61,10 +63,26 @@ export async function createWorkflow(input: unknown): Promise<ActionResult<{ id:
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the name and trigger." };
   }
+  // 🔴 The audience comes from the TRIGGER, never from the request. A workflow about a
+  // workspace and one about a lead enrol different things and read different
+  // placeholders, so letting the client say which it is would let a tenant-audience
+  // sequence be created against a lead trigger and then message nobody.
+  const spec = TRIGGERS.find((t) => t.value === parsed.data.trigger);
+  const audience = triggerAudience(spec ?? { value: parsed.data.trigger, label: "", hint: "" });
+
+  // The picker already hides these outside the platform scope. Checked again here,
+  // because a hidden option is presentation and this is the permission.
+  if (audience === "TENANT" && !isPlatformScope(s.tenantId)) {
+    return { ok: false, error: "That trigger is about a workspace, so it belongs to the platform." };
+  }
+  if (spec && !triggerIsLive(spec)) {
+    return { ok: false, error: "Nothing emits that trigger yet, so a sequence on it would never run." };
+  }
+
   // DRAFT by default, from the schema. A workflow that could send on the day it was
   // created would make "let me just try it" an outgoing message to real people.
   const w = await prisma.workflow.create({
-    data: { tenantId: s.tenantId, name: parsed.data.name, trigger: parsed.data.trigger },
+    data: { tenantId: s.tenantId, name: parsed.data.name, trigger: parsed.data.trigger, audience },
     select: { id: true },
   });
   refresh();

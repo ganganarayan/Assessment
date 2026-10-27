@@ -25,7 +25,7 @@ export default async function WorkspaceWorkflowsPage() {
           unsubscribe.
         </p>
       </div>
-      <WorkflowList rows={rows} basePath="/w/workflows" />
+      <WorkflowList rows={rows} basePath="/w/workflows" isPlatform={false} />
     </div>
   );
 }

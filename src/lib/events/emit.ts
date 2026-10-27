@@ -7,6 +7,7 @@ import { buildEnvelope, shapePayload, withDeliveredName } from "@/lib/events/pay
 import { ownedWhere } from "@/lib/tenant/platform-tenant";
 import { enqueueAutomationsForEvent } from "@/lib/automation/enqueue";
 import { processRuns } from "@/lib/automation/run";
+import { enqueueWorkflowsForEvent } from "@/lib/workflows/enqueue";
 
 /**
  * Central event service.
@@ -69,6 +70,15 @@ export async function emitEvent(type: EventType, input: EmitInput): Promise<void
     }
   } catch (e) {
     console.error("[emit] automation enqueue failed:", e instanceof Error ? e.message : String(e));
+  }
+
+  // Workflows, from the same place and for the same reason. Awaited rather than fired
+  // and forgotten: it only writes rows, the sending happens on the queue, and an
+  // un-awaited promise in a request path is a row that sometimes does not get written.
+  try {
+    await enqueueWorkflowsForEvent(type, input.submissionId);
+  } catch (e) {
+    console.error("[emit] workflow enqueue failed:", e instanceof Error ? e.message : String(e));
   }
 
   // 3) ENQUEUE a durable delivery per matching webhook (awaited, so it survives a

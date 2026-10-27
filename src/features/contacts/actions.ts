@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { fireWorkflowTrigger } from "@/lib/workflows/enqueue";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { featureDenied } from "@/lib/features/release";
@@ -120,6 +121,13 @@ export async function setContactTag(
   } else {
     await prisma.contactTag.deleteMany({ where: { contactId, tagId } });
   }
+  // The other half of handing somebody between sequences. Fired after the write so a
+  // workflow reading the tags sees the one that just changed.
+  await fireWorkflowTrigger(on ? "TAG_ADDED" : "TAG_REMOVED", {
+    tenantId: s.tenantId,
+    contactId,
+    tagId,
+  });
   refresh();
   return { ok: true };
 }
@@ -145,6 +153,10 @@ export async function setContactDnd(contactId: string, optOut: boolean): Promise
       where: { id: contactId },
       data: { marketingOptOutAt: new Date(), optOutSource: "ADMIN" },
     });
+    // 🔴 Nothing started here may MESSAGE them - the runner stops any run whose subject
+    // is suppressed, and that check happens per step. This exists for the rest: taking
+    // tags off, telling a CRM, tidying up after somebody who left.
+    await fireWorkflowTrigger("CONTACT_UNSUBSCRIBED", { tenantId: s.tenantId, contactId });
   } else {
     await unsuppressContact(contactId);
   }

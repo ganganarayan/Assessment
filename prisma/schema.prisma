@@ -4542,6 +4542,35 @@ enum WorkflowTrigger {
 
   /// The call's end time passed while it was still BOOKED. See firedTimePassedAt.
   APPOINTMENT_TIME_PASSED
+
+  /// Everything the funnel already emits as an EventType. Wired through the event bus
+  /// rather than by a call at each site: emitEvent is where these happen, and a hand-
+  /// placed call at nineteen sites is eighteen that stay and one that gets deleted.
+  ASSESSMENT_COMPLETED_PAID
+  ASSESSMENT_COMPLETED_UNPAID
+  ASSESSMENT_ABANDONED
+  RESULT_GENERATED
+  RESULT_VIEWED
+  RESULT_LINK_REQUESTED
+  CTA_CLICKED
+
+  /// Lead lifecycle outside the funnel.
+  TAG_REMOVED
+  CONTACT_UNSUBSCRIBED
+  PAYMENT_RECEIVED
+
+  /// 🔴 TENANT-AUDIENCE ONLY. These fire about a WORKSPACE, not about a lead, and a
+  /// workflow using one enrols the workspace rather than a contact. Offering them to a
+  /// tenant would be offering a trigger that can never fire for them.
+  TENANT_ASSESSMENT_PUBLISHED
+  TENANT_RESULT_PAGE_PUBLISHED
+  TENANT_TEMPLATE_IMPORTED
+  TENANT_TRIAL_STARTED
+  TENANT_TRIAL_EXPIRING
+  TENANT_SUBSCRIPTION_ACTIVATED
+  TENANT_SUBSCRIPTION_CHARGED
+  TENANT_SUBSCRIPTION_HALTED
+  TENANT_SUBSCRIPTION_CANCELLED
 }
 
 /// DRAFT is the shipping state of a new workflow, and the reason this is an enum

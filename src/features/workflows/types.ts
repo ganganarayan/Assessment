@@ -17,11 +17,31 @@ import type {
  * not a new screen.
  */
 
+/**
+ * Who a trigger is about.
+ *
+ * 🔴 THE FILTER THIS DRIVES IS NOT COSMETIC. A TENANT trigger fires about a workspace
+ * - it published something, its trial started - and the workflow enrols that
+ * workspace. Shown to a tenant, "subscription activated" reads as THEIR customer
+ * subscribing to something. They would build a sequence on it and it would never fire,
+ * with nothing anywhere to say why.
+ */
+export type TriggerAudience = "LEAD" | "TENANT";
+
 export interface TriggerSpec {
   value: WorkflowTrigger;
   label: string;
   /** What it fires on, in the owner's words. Shown under the choice. */
   hint: string;
+  /** LEAD unless stated: about a respondent rather than about a workspace. */
+  audience?: TriggerAudience;
+  /**
+   * 🟡 False while the enum value exists but nothing emits it yet. Such a trigger is
+   * HIDDEN rather than shown greyed out: a workflow somebody can select, publish and
+   * watch do nothing is worse than a trigger they never saw. Flip it in the same
+   * change that adds the emit, never before.
+   */
+  live?: boolean;
   /** True when the trigger needs a band picked alongside it. */
   needsBand?: boolean;
   /** True when it needs a tag picked alongside it. */
@@ -86,6 +106,127 @@ export const TRIGGERS: TriggerSpec[] = [
     label: "The call's time passes, unmarked",
     hint: "The hour came and went and nobody said what happened. Use it to ask yourself.",
   },
+
+  /* ----------------------------------------------- the rest of the funnel --- */
+
+  {
+    value: "ASSESSMENT_COMPLETED_PAID",
+    label: "They finish and pay",
+    hint: "Paid funnels only. They unlocked the result, so they are a buyer, not a lead.",
+  },
+  {
+    value: "ASSESSMENT_COMPLETED_UNPAID",
+    label: "They finish and do not pay",
+    hint: "Paid funnels only, half an hour after they finished. The nudge that recovers a sale.",
+  },
+  {
+    value: "ASSESSMENT_ABANDONED",
+    label: "They give up partway",
+    hint: "They started answering and stopped. They are interested and something put them off.",
+  },
+  {
+    value: "RESULT_GENERATED",
+    label: "Their result is ready",
+    hint: "The scoring finished. Earlier than them looking at it.",
+  },
+  {
+    value: "RESULT_VIEWED",
+    label: "They open their result",
+    hint: "They actually read it, which is the strongest signal a funnel produces.",
+  },
+  {
+    value: "RESULT_LINK_REQUESTED",
+    label: "They ask for their result again",
+    hint: "Somebody came back and asked to be sent their old result. They are still thinking about it.",
+  },
+  {
+    value: "CTA_CLICKED",
+    label: "They click the booking button",
+    hint: "They clicked through from the result page. Intent, whether or not they then booked.",
+  },
+
+  /* ------------------------------------------------- the person, not the funnel --- */
+
+  {
+    value: "TAG_REMOVED",
+    label: "A tag is removed",
+    hint: "The other half of handing somebody between sequences.",
+    needsTag: true,
+  },
+  {
+    value: "CONTACT_UNSUBSCRIBED",
+    label: "They unsubscribe",
+    hint: "🔴 Nothing here may message them. Useful for tidying up: remove tags, tell a CRM.",
+  },
+  {
+    value: "PAYMENT_RECEIVED",
+    label: "They pay",
+    hint: "Any payment from a respondent: an unlock, or something sold on a pay link.",
+    live: false,
+  },
+
+  /* ------------------------------------------- about a workspace, not a lead --- */
+
+  {
+    value: "TENANT_ASSESSMENT_PUBLISHED",
+    label: "A workspace publishes a funnel",
+    hint: "Their first real step. The moment to push them toward testing it and running traffic.",
+    audience: "TENANT",
+  },
+  {
+    value: "TENANT_RESULT_PAGE_PUBLISHED",
+    label: "A workspace publishes a result page",
+    hint: "They have built the page respondents land on.",
+    audience: "TENANT",
+  },
+  {
+    value: "TENANT_TEMPLATE_IMPORTED",
+    label: "A workspace imports a template",
+    hint: "They took something off the shelf. The follow-up is getting it live.",
+    audience: "TENANT",
+  },
+  {
+    value: "TENANT_TRIAL_STARTED",
+    label: "A trial starts",
+    hint: "They signed up. Day zero of the sequence that decides whether they stay.",
+    audience: "TENANT",
+    live: false,
+  },
+  {
+    value: "TENANT_TRIAL_EXPIRING",
+    label: "A trial is about to end",
+    hint: "The last chance to show them what they have not used yet.",
+    audience: "TENANT",
+    live: false,
+  },
+  {
+    value: "TENANT_SUBSCRIPTION_ACTIVATED",
+    label: "A workspace subscribes",
+    hint: "They paid. Onboarding proper starts here.",
+    audience: "TENANT",
+    live: false,
+  },
+  {
+    value: "TENANT_SUBSCRIPTION_CHARGED",
+    label: "A subscription renews",
+    hint: "The recurring charge went through.",
+    audience: "TENANT",
+    live: false,
+  },
+  {
+    value: "TENANT_SUBSCRIPTION_HALTED",
+    label: "A payment fails",
+    hint: "The card stopped working. Reaching them quickly is what saves the account.",
+    audience: "TENANT",
+    live: false,
+  },
+  {
+    value: "TENANT_SUBSCRIPTION_CANCELLED",
+    label: "A workspace cancels",
+    hint: "They asked to stop. What you send now is the only thing that might change it.",
+    audience: "TENANT",
+    live: false,
+  },
 ];
 
 /**
@@ -95,6 +236,28 @@ export const TRIGGERS: TriggerSpec[] = [
  * the BOOKING LINK belongs to, not one somebody filled in. Kept as a set so the
  * builder and the queue agree on which ones those are.
  */
+/** A trigger is about a lead unless it says otherwise. */
+export function triggerAudience(t: TriggerSpec): TriggerAudience {
+  return t.audience ?? "LEAD";
+}
+
+/** A trigger is live unless it says otherwise. */
+export function triggerIsLive(t: TriggerSpec): boolean {
+  return t.live !== false;
+}
+
+/**
+ * The triggers worth OFFERING in a given scope.
+ *
+ * Platform scope sees both audiences, because the owner runs sequences about leads
+ * and about their own customers. A workspace sees lead triggers only.
+ */
+export function offerableTriggers(isPlatform: boolean): TriggerSpec[] {
+  return TRIGGERS.filter(
+    (t) => triggerIsLive(t) && (isPlatform || triggerAudience(t) === "LEAD"),
+  );
+}
+
 export const APPOINTMENT_TRIGGERS = new Set<WorkflowTrigger>([
   "APPOINTMENT_BOOKED",
   "APPOINTMENT_RESCHEDULED",

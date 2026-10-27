@@ -25,6 +25,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isStale, STALE_AFTER_MS } from "../src/lib/workflows/schedule";
+import { TRIGGERS, offerableTriggers, triggerAudience, triggerIsLive } from "../src/features/workflows/types";
 import { STALE_AFTER_MS as REMINDER_STALE_AFTER_MS } from "../src/lib/automation/schedule";
 import { DEAD_AFTER_MS, SEND_KEEP_MS, TERMINAL_KEEP_MS } from "../src/lib/workflows/retention";
 
@@ -279,6 +280,52 @@ expect(
   "a run with nobody left to reach stops instead of retrying",
   /Nobody left to send this to/.test(runSrc),
   "a deleted contact or a workspace with no login does not improve by trying again in a minute",
+);
+
+/* --------------------------------------------- the trigger vocabulary --- */
+
+// 🔴 THE REGISTRY AND THE ENUM MUST BE THE SAME SET. A trigger the schema has and the
+// registry forgot is one nobody can choose; one the registry offers and the schema
+// lacks throws at the database on create. Neither shows up in a typecheck, because the
+// registry is data rather than types.
+const trigEnumBlock = /enum WorkflowTrigger \{([\s\S]*?)\n\}/.exec(graphSchemaSrc)?.[1] ?? "";
+const trigSchemaTriggers = new Set(
+  trigEnumBlock
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => /^[A-Z][A-Z0-9_]*$/.test(l)),
+);
+const trigRegistryTriggers = new Set(TRIGGERS.map((t) => t.value as string));
+for (const v of trigSchemaTriggers) {
+  expect(`the builder knows about ${v}`, trigRegistryTriggers.has(v), "a trigger the schema has and the registry does not is one nobody can choose");
+}
+for (const v of trigRegistryTriggers) {
+  expect(`the schema knows about ${v}`, trigSchemaTriggers.has(v), "a trigger the registry offers and the schema lacks throws at the database on create");
+}
+
+for (const t of TRIGGERS) {
+  if (triggerAudience(t) !== "TENANT") continue;
+  expect(
+    `${t.value} is named for the audience it belongs to`,
+    t.value.startsWith("TENANT_"),
+    "the prefix is what makes the lead/workspace split auditable by reading the enum alone; an unprefixed tenant trigger is one somebody will later assume is about a lead",
+  );
+}
+
+expect(
+  "a workspace is never offered a trigger about a workspace",
+  offerableTriggers(false).every((t) => triggerAudience(t) === "LEAD"),
+  "offered one, a tenant would build a sequence that can never fire for them and nothing anywhere would say why",
+);
+expect(
+  "nothing not yet emitted is offered to anybody",
+  offerableTriggers(true).every(triggerIsLive),
+  "a trigger you can select, publish and then watch do nothing is worse than one you never saw",
+);
+expect(
+  "the platform can still build sequences about workspaces",
+  offerableTriggers(true).some((t) => triggerAudience(t) === "TENANT"),
+  "the whole point of the split is that the owner CAN nurture their own customers",
 );
 
 console.log(failures === 0 ? "\nAll workflow queue checks passed.\n" : `\n${failures} check(s) failed.\n`);
