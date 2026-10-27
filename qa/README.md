@@ -266,6 +266,31 @@ report success while staging still had no such login.
 - The provider dropdown is on **/admin/settings**, not `/admin/nurture`. Nurture is the
   messages; Settings holds the connection, which is what the page itself says.
 
+🔴 **A fourth, which the per-check detail below caught in one line:** waiting for the
+network to go quiet after clicking a server action is not waiting for the action.
+`enterTenant` sets the impersonation cookie and then redirects, and
+`waitForLoadState("networkidle")` can return the instant it is called, so the next
+navigation aborted the action mid-request and the cookie was never written. Every `/w`
+check then ran against the platform console - and passed, because `arrived()` only asked
+whether the destination was not `/sign-in`. Both halves are fixed: entering and exiting
+wait for the redirect each action performs and confirm the state from the product's own
+"Acting as tenant" banner, and `arrived()` now asserts that the screen which answered is
+the screen that was asked for.
+
+### Both sides, and the one screen that must not have a second side
+
+Settings, contacts and broadcasts are checked on `/admin` **and** on `/w`, inside an
+entered tenant, because the tenant's copy is the one a customer actually looks at. The
+vault is the exception and gets the opposite assertion: there is no `/w/vault`, because it
+browses the platform's own R2 bucket where every tenant's files live, so what is checked is
+that a workspace cannot reach it at all. It answers 404, and if it ever answers with a file
+browser that is the most serious thing this pass can find.
+
+**result.json now carries the detail**, not only the counts: the host it ran against, every
+case, and every check with its expected and observed values. The counts stay exactly where
+they were, so anything already reading them is unaffected. A red run can now be read
+without opening the HTML, which is how the aborted-action bug above was found.
+
 **Its other half is in the build.** The invariants that need no browser are asserted by
 `scripts/verify-*.ts`, which the Railway build runs before `next build`, so a regression
 fails the deploy rather than the screen: `verify:email-providers` (every provider

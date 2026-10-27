@@ -21,7 +21,7 @@
  *
  * Nothing here writes. It signs in, reads, and closes.
  */
-import type { Page } from "playwright";
+import type { Locator, Page } from "playwright";
 import type { Check } from "../assert/compare.js";
 import { EMAIL_PROVIDER_OPTIONS } from "../../../src/lib/email/catalog.js";
 import {
@@ -73,13 +73,22 @@ async function visit(page: Page, baseUrl: string, path: string): Promise<Visit> 
 }
 
 /**
- * Did the screen answer, and is it the screen that was asked for.
+ * Did the screen answer, and is it THE SCREEN THAT WAS ASKED FOR.
  *
- * A redirect to /sign-in is reported as its own failure rather than as a missing
- * heading: it means the session died or the route is gated differently than the page
- * it sits beside, and that reads nothing like a broken screen.
+ * 🔴 The second half is the one that matters, and it was missing. This used to assert only
+ * that the destination was not /sign-in, so a redirect anywhere else passed: an owner
+ * session bounced from /w/settings back to the platform console scored four green checks
+ * for a screen it never opened, and the group went on to assert things about the console.
+ * A test that quietly examines a different page than it names is worse than no test.
  */
 function arrived(v: Visit, path: string): Check[] {
+  const landed = (() => {
+    try {
+      return new URL(v.url).pathname.replace(/\/+$/, "") || "/";
+    } catch {
+      return v.url;
+    }
+  })();
   const checks: Check[] = [];
   checks.push(ok(`${path} answers`, v.status > 0 && v.status < 400, "2xx or 3xx", String(v.status)));
   checks.push(
@@ -87,7 +96,15 @@ function arrived(v: Visit, path: string): Check[] {
       `${path} is not a redirect to sign-in`,
       !v.url.includes("/sign-in"),
       path,
-      new URL(v.url).pathname + new URL(v.url).search,
+      landed,
+    ),
+  );
+  checks.push(
+    ok(
+      `${path} is the screen that answered`,
+      landed === path.replace(/\/+$/, ""),
+      path,
+      landed === path.replace(/\/+$/, "") ? path : `redirected to ${landed}`,
     ),
   );
   checks.push(
@@ -98,6 +115,7 @@ function arrived(v: Visit, path: string): Check[] {
   );
   return checks;
 }
+
 
 /**
  * 🔴 THE DATE RULE, checked where a person actually reads it.
@@ -213,6 +231,23 @@ const legal: ScreenGroup = {
   },
 };
 
+/**
+ * The one select on this screen that offers every provider, found by its CONTENTS rather
+ * than by an id, so a markup change does not read as a missing provider. Shared, because
+ * the same dropdown has to exist on the platform's settings screen and on a tenant's.
+ */
+async function providerSelect(page: Page): Promise<{ labels: string[]; select: Locator }> {
+  const selects = page.locator("select");
+  const count = await selects.count();
+  for (let i = 0; i < count; i++) {
+    const cleaned = (await selects.nth(i).locator("option").allInnerTexts()).map((t) => t.trim());
+    if (EMAIL_PROVIDER_OPTIONS.some((p) => cleaned.includes(p.label))) {
+      return { labels: cleaned, select: selects.nth(i) };
+    }
+  }
+  return { labels: [], select: selects.first() };
+}
+
 const emailProviders: ScreenGroup = {
   id: "email-providers",
   title: "The email provider dropdown, against the app's own catalog",
@@ -223,28 +258,14 @@ const emailProviders: ScreenGroup = {
     checks.push(...arrived(v, "/admin/settings"), ...datesAreIndian(v, "/admin/settings"));
     if (v.crashed || v.url.includes("/sign-in")) return checks;
 
-    // The one select that offers every provider, found by its CONTENTS rather than by
-    // an id, so a markup change does not read as a missing provider.
-    const selects = page.locator("select");
-    const count = await selects.count();
-    let labels: string[] = [];
-    let provider = selects.first();
-    for (let i = 0; i < count; i++) {
-      const texts = await selects.nth(i).locator("option").allInnerTexts();
-      const cleaned = texts.map((t) => t.trim());
-      if (EMAIL_PROVIDER_OPTIONS.some((p) => cleaned.includes(p.label))) {
-        labels = cleaned;
-        provider = selects.nth(i);
-        break;
-      }
-    }
+    const { labels, select: provider } = await providerSelect(page);
 
     checks.push(
       ok(
         "the provider dropdown is on the screen",
         labels.length > 0,
         "a select listing the providers",
-        `${count} select(s), none of them the provider list`,
+        `${labels.length} option(s), none of them the provider list`,
       ),
     );
     if (labels.length === 0) return checks;
@@ -330,21 +351,60 @@ const emailProviders: ScreenGroup = {
         ),
       );
     }
+
+    /**
+     * And the same dropdown on a tenant's own settings screen.
+     *
+     * A workspace sends its own mail with its own credentials, so a provider only the
+     * platform can choose leaves a tenant stuck on whatever the default is - and since
+     * both screens are built from the same catalog, a divergence means one of them has
+     * stopped reading it. Nothing is saved here either: it is read, not chosen.
+     */
+    checks.push(
+      ...(await withTenant(page, baseUrl, async () => {
+        const w = await visit(page, baseUrl, "/w/settings");
+        const out = [...arrived(w, "/w/settings"), ...datesAreIndian(w, "/w/settings")];
+        if (w.crashed) return out;
+        const { labels: tenantLabels } = await providerSelect(page);
+        const tenantMissing = EMAIL_PROVIDER_OPTIONS.filter((p) => !tenantLabels.includes(p.label)).map(
+          (p) => p.label,
+        );
+        out.push(
+          ok(
+            "a tenant is offered the same providers as the platform",
+            tenantLabels.length > 0 && tenantMissing.length === 0,
+            `${EMAIL_PROVIDER_OPTIONS.length} providers`,
+            tenantLabels.length === 0
+              ? "no provider dropdown on the workspace settings screen"
+              : tenantMissing.length
+                ? `missing ${tenantMissing.join(", ")}`
+                : "all present",
+          ),
+        );
+        return out;
+      })),
+    );
     return checks;
   },
 };
+
 
 /**
  * Enter a tenant, which is the only way the platform owner reaches a /w screen.
  *
  * A super admin has no workspace of their own: /w resolves an ACTING tenant, and with
- * none entered it bounces back to the console to pick one. So a /w check run by an owner
- * session would otherwise report "redirected" and read as a broken screen, when the
- * screen was never asked for. Entering is a signed cookie and nothing else - no row is
- * written, and the session is closed at the end of the pass.
+ * none entered it bounces back to the console. Entering is a signed cookie and nothing
+ * else - no row is written, and the session is handed back at the end of the group.
  *
- * Returns the name of the tenant entered, so the report says WHOSE workspace was read,
- * or null when the console offers none.
+ * 🔴 WAIT FOR THE REDIRECT THE ACTION PERFORMS, NOT FOR THE NETWORK TO GO QUIET.
+ * enterTenant() is a server action that sets the cookie and then redirects to /admin.
+ * waitForLoadState("networkidle") can return the instant it is called - there is nothing
+ * in flight yet - so the next navigation ABORTS the action mid-request and the cookie is
+ * never written. Everything then looks like a tenant that refuses to be entered, with no
+ * error anywhere. So the wait is for the destination, and the state is confirmed from the
+ * product's own banner rather than assumed from a click that appeared to land.
+ *
+ * Returns the name of the tenant entered, or null when it could not be entered at all.
  */
 async function enterFirstTenant(page: Page, baseUrl: string): Promise<string | null> {
   await page.goto(`${baseUrl}/platform`, { waitUntil: "domcontentloaded", timeout: 60_000 });
@@ -355,10 +415,101 @@ async function enterFirstTenant(page: Page, baseUrl: string): Promise<string | n
   if ((await enter.count()) === 0) return null;
   const row = enter.locator("xpath=ancestor::tr[1]");
   const name = (await row.locator("td").first().innerText().catch(() => "")).trim().split("\n")[0] ?? "";
-  await enter.click();
-  // enterTenant() redirects to the console; what matters is the cookie it leaves behind.
-  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-  return name || "a tenant";
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await enter.click().catch(() => {});
+    const moved = await page
+      .waitForURL((u) => u.pathname === "/admin", { timeout: 20_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (moved) break;
+    // Not hydrated yet, or the click missed. Give the page a moment and ask again.
+    await page.waitForTimeout(2000);
+  }
+
+  // The product says so itself when impersonation is on. Without this, a group would go on
+  // to assert things about whatever page it is actually looking at.
+  const banner = await page.locator("body").innerText().catch(() => "");
+  return /Acting as tenant/i.test(banner) ? name || "a tenant" : null;
+}
+
+
+/**
+ * Do the work of a group inside a tenant's workspace, and always come back out.
+ *
+ * Both halves matter. A /w screen is unreachable for the owner until a tenant is entered,
+ * and anything run AFTER a group that entered one would silently read that tenant's data
+ * instead of the platform's - green for the wrong scope, which is worse than red. The
+ * exit is in a finally so a thrown selector cannot leave the rest of the pass impersonating
+ * somebody.
+ */
+async function withTenant(
+  page: Page,
+  baseUrl: string,
+  body: (tenant: string) => Promise<Check[]>,
+): Promise<Check[]> {
+  const tenant = await enterFirstTenant(page, baseUrl);
+  if (!tenant) {
+    return [
+      warn(
+        "the workspace copy was not read",
+        "the platform console offered no tenant to enter, so every /w screen in this group was skipped",
+      ),
+    ];
+  }
+  try {
+    return [pass("entered a tenant to read the workspace copy", tenant), ...(await body(tenant))];
+  } finally {
+    const exit = page.getByRole("button", { name: /Exit to platform/i }).first();
+    if ((await exit.count()) > 0) {
+      await exit.click().catch(() => {});
+      // The same race as entering: exitTenant redirects to /platform, and waiting for the
+      // network to go quiet instead would let the next navigation abort the action, leaving
+      // the whole rest of the pass still impersonating.
+      await page.waitForURL((u) => u.pathname === "/platform", { timeout: 20_000 }).catch(() => {});
+    }
+  }
+}
+
+/** The assertions that hold on either copy of the WhatsApp screen. */
+async function whatsappScreen(page: Page, baseUrl: string, path: string): Promise<Check[]> {
+  const checks: Check[] = [];
+  const v = await visit(page, baseUrl, path);
+  checks.push(...arrived(v, path), ...datesAreIndian(v, path));
+  if (v.crashed) return checks;
+
+  // A dashboard built on somebody else's API has two honest states: a snapshot with the
+  // time it was taken, or a named reason why a panel is not there. A zero where Meta
+  // reported nothing is the state this must never be in.
+  const hasSnapshot = /as of|Refresh|Not reported/i.test(v.text);
+  const hasConnect = /Connect|not connected|Connect WhatsApp/i.test(v.text);
+  checks.push(
+    ok(
+      `${path} shows either a connection or a way to make one`,
+      hasSnapshot || hasConnect,
+      "a dashboard or a connect card",
+      v.text.slice(0, 120).replace(/\s+/g, " "),
+    ),
+  );
+  if (hasSnapshot) {
+    checks.push(
+      ok(
+        `${path} says when its numbers were taken`,
+        /as of/i.test(v.text) || /\b\d{2}-\d{2}-\d{4}\b/.test(v.text),
+        "an 'as of' time",
+        "a snapshot with no time on it, which reads as live",
+      ),
+    );
+  }
+  checks.push(
+    ok(
+      `${path} does not offer to register the number`,
+      !/\bregister\b/i.test(v.text),
+      "no register button",
+      "the word 'register' is on a coexistence screen, and registering takes the number off the owner's phone",
+    ),
+  );
+  return checks;
 }
 
 const whatsapp: ScreenGroup = {
@@ -366,106 +517,92 @@ const whatsapp: ScreenGroup = {
   title: "The WhatsApp screens, on both sides of the platform",
   needsAdmin: true,
   async run(page, baseUrl) {
-    const checks: Check[] = [];
     // Both copies, because every super-admin feature belongs on the workspace side too
     // unless it is deliberately platform-only, and the two drift apart silently.
-    for (const path of ["/admin/whatsapp", "/w/whatsapp"]) {
-      if (path.startsWith("/w")) {
-        const tenant = await enterFirstTenant(page, baseUrl);
-        if (!tenant) {
-          checks.push(
-            warn(
-              path + " was not opened",
-              "the platform console offered no tenant to enter, so the workspace copy of this screen was not read",
-            ),
-          );
-          continue;
-        }
-        checks.push(pass("entered a tenant to reach " + path, tenant));
-      }
-      const v = await visit(page, baseUrl, path);
-      checks.push(...arrived(v, path), ...datesAreIndian(v, path));
-      if (v.crashed) continue;
-
-      // A dashboard built on somebody else's API has two honest states: a snapshot with
-      // the time it was taken, or a named reason why a panel is not there. A zero where
-      // Meta reported nothing is the state this must never be in.
-      const hasSnapshot = /as of|Refresh|Not reported/i.test(v.text);
-      const hasConnect = /Connect|not connected|Connect WhatsApp/i.test(v.text);
-      checks.push(
-        ok(
-          `${path} shows either a connection or a way to make one`,
-          hasSnapshot || hasConnect,
-          "a dashboard or a connect card",
-          v.text.slice(0, 120).replace(/\s+/g, " "),
-        ),
-      );
-      if (hasSnapshot) {
-        checks.push(
-          ok(
-            `${path} says when its numbers were taken`,
-            /as of/i.test(v.text) || /\b\d{2}-\d{2}-\d{4}\b/.test(v.text),
-            "an 'as of' time",
-            "a snapshot with no time on it, which reads as live",
-          ),
-        );
-      }
-      checks.push(
-        ok(
-          `${path} does not offer to register the number`,
-          !/\bregister\b/i.test(v.text),
-          "no register button",
-          "the word 'register' is on a coexistence screen, and registering takes the number off the owner's phone",
-        ),
-      );
-    }
-    // Hand the session back to the platform scope. The groups after this one read the
-    // OWNER's screens, and an acting cookie left set would quietly show them one tenant's
-    // data instead - green for the wrong scope. The product's own control does it, rather
-    // than the harness deleting a cookie the app is entitled to trust.
-    const exit = page.getByRole("button", { name: /Exit to platform/i }).first();
-    if ((await exit.count()) > 0) {
-      await exit.click();
-      await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-    }
-    return checks;
+    return [
+      ...(await whatsappScreen(page, baseUrl, "/admin/whatsapp")),
+      ...(await withTenant(page, baseUrl, () => whatsappScreen(page, baseUrl, "/w/whatsapp"))),
+    ];
   },
 };
+
+
+/** The assertions that hold on either copy of the contacts screens. */
+async function contactScreen(page: Page, baseUrl: string, path: string): Promise<Check[]> {
+  const v = await visit(page, baseUrl, path);
+  const checks = [...arrived(v, path), ...datesAreIndian(v, path)];
+  if (!v.crashed) checks.push(noRawEnums(v, path));
+  return checks;
+}
 
 const contacts: ScreenGroup = {
   id: "contacts",
   title: "Contacts and broadcasts, where consent is visible or it is not there",
   needsAdmin: true,
   async run(page, baseUrl) {
-    const checks: Check[] = [];
-    const v = await visit(page, baseUrl, "/admin/contacts");
-    checks.push(...arrived(v, "/admin/contacts"), ...datesAreIndian(v, "/admin/contacts"));
-    if (!v.crashed) checks.push(noRawEnums(v, "/admin/contacts"));
-
-    const b = await visit(page, baseUrl, "/admin/broadcasts");
-    checks.push(...arrived(b, "/admin/broadcasts"), ...datesAreIndian(b, "/admin/broadcasts"));
-    if (!b.crashed) checks.push(noRawEnums(b, "/admin/broadcasts"));
-    return checks;
+    return [
+      ...(await contactScreen(page, baseUrl, "/admin/contacts")),
+      ...(await contactScreen(page, baseUrl, "/admin/broadcasts")),
+      // The workspace copies. A tenant's contacts are the people who answered THEIR
+      // funnels, so the consent wording and the described source have to survive on this
+      // side too - and this is the side a customer actually looks at.
+      ...(await withTenant(page, baseUrl, async () => [
+        ...(await contactScreen(page, baseUrl, "/w/contacts")),
+        ...(await contactScreen(page, baseUrl, "/w/broadcasts")),
+      ])),
+    ];
   },
 };
 
+
 const vault: ScreenGroup = {
   id: "vault",
-  title: "The vault, whose activity log is all timestamps",
+  title: "The vault, and the fact that a workspace cannot reach it",
   needsAdmin: true,
   async run(page, baseUrl) {
     const v = await visit(page, baseUrl, "/admin/vault");
     const checks = [...arrived(v, "/admin/vault"), ...datesAreIndian(v, "/admin/vault")];
     if (!v.crashed) {
-      checks.push(
-        pass(
-          "the file store answered",
-          `${v.text.slice(0, 80).replace(/\s+/g, " ")}...`,
-        ),
-      );
+      checks.push(pass("the file store answered", `${v.text.slice(0, 80).replace(/\s+/g, " ")}...`));
     }
+
+    /**
+     * 🔴 THE VAULT IS PLATFORM-ONLY, AND THIS IS WHERE THAT EITHER HOLDS OR DOES NOT.
+     *
+     * There is no /w/vault page, by decision: the vault browses the platform's own R2
+     * bucket, which holds every tenant's files. So the parity question here is not whether
+     * the workspace copy looks right - it is whether the route can be reached from inside a
+     * workspace at all. A tenant who could open it would be reading other businesses'
+     * uploads, which is the worst thing in this pass, and it is one route file away at any
+     * time. Checked from an entered tenant, which is as close to a tenant's own session as
+     * this pass can honestly get.
+     */
+    checks.push(
+      ...(await withTenant(page, baseUrl, async () => {
+        const w = await visit(page, baseUrl, "/w/vault");
+        const looksLikeTheVault = /\bvault\b|bucket|object key|upload/i.test(w.text);
+        const reachable = w.status < 400 && looksLikeTheVault;
+        return [
+          ok(
+            "the platform file store is not reachable from a workspace",
+            !reachable,
+            "no workspace copy of the vault",
+            reachable
+              ? `/w/vault answered ${w.status} with a file browser on it`
+              : `/w/vault offers nothing (status ${w.status})`,
+          ),
+          ok(
+            "/w/vault does not fall over on its way to saying no",
+            !w.crashed,
+            "a not-found page or a redirect",
+            "the app's error boundary, so the refusal is a crash",
+          ),
+        ];
+      })),
+    );
     return checks;
   },
 };
+
 
 export const GROUPS: ScreenGroup[] = [legal, emailProviders, whatsapp, contacts, vault];

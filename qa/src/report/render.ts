@@ -114,17 +114,57 @@ function caseSection(c: CaseResult): string {
 }
 
 /** The tally, for anything that runs sweeps and needs the answer rather than the page. */
+/**
+ * The machine-readable result.
+ *
+ * It used to carry the counts alone, which meant anything automated could see that a run
+ * went red and not what broke: the only copy of that was the HTML, for a person to open.
+ * So every case and every check is written out too, with the host it ran against - that
+ * last one because a result is meaningless without knowing which deployment answered, and
+ * a run pointed at the wrong environment looks exactly like a passing run.
+ *
+ * The counts stay at the top level, unchanged, so anything already reading them still
+ * works. Only the funnel sweep's heavy per-case payloads (the expectation, the row and
+ * event observations) are left out; they are an internal shape, and the HTML has them.
+ */
 export function writeResultJson(r: SweepResult): string {
   const counts = { pass: 0, fail: 0, warn: 0, skip: 0 };
   for (const c of r.results) counts[c.verdict] += 1;
   const path = join(r.outDir, "result.json");
   writeFileSync(
     path,
-    JSON.stringify({ slug: r.slug, runId: r.runId, seconds: r.seconds, cases: r.results.length, ...counts }, null, 2),
+    JSON.stringify(
+      {
+        slug: r.slug,
+        runId: r.runId,
+        baseUrl: r.baseUrl,
+        startedAt: r.startedAt,
+        seconds: r.seconds,
+        cases: r.results.length,
+        ...counts,
+        results: r.results.map((c) => ({
+          id: c.id,
+          kind: c.kind,
+          title: c.title,
+          verdict: c.verdict,
+          ...(c.unreachable ? { unreachable: c.unreachable } : {}),
+          ...(c.identityEmail ? { identityEmail: c.identityEmail } : {}),
+          checks: c.checks.map((k) => ({
+            verdict: k.verdict,
+            what: k.what,
+            ...(k.expected === undefined ? {} : { expected: k.expected }),
+            ...(k.observed === undefined ? {} : { observed: k.observed }),
+          })),
+        })),
+      },
+      null,
+      2,
+    ),
     "utf8",
   );
   return path;
 }
+
 
 export function writeHtml(r: SweepResult): string {
   const counts = { pass: 0, fail: 0, warn: 0, skip: 0 };
