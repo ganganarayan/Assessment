@@ -342,5 +342,100 @@ for (const k of OFFERED_STEP_KINDS) {
   );
 }
 
+/* ------------------------------------- what each new step actually does --- */
+
+// Source-level assertions, in the house style of the checks above: these are
+// behaviours no type can express and no unit test can reach without a database, and
+// every one of them failed silently rather than loudly when it was wrong.
+
+const actionsSrc = readFileSync(join(process.cwd(), "src", "features", "workflows", "actions.ts"), "utf8");
+const builderSrc2 = readFileSync(
+  join(process.cwd(), "src", "features", "workflows", "components", "workflow-builder.tsx"),
+  "utf8",
+);
+const wfTypesSrc = readFileSync(join(process.cwd(), "src", "features", "workflows", "types.ts"), "utf8");
+const logsSrc = readFileSync(join(process.cwd(), "src", "features", "workflows", "logs-data.ts"), "utf8");
+const edgesSrc = readFileSync(join(process.cwd(), "src", "lib", "workflows", "edges.ts"), "utf8");
+
+expect(
+  "the zod step kind is derived from the registry, never listed again",
+  /kind:\s*z\.enum\(OFFERED_STEP_KINDS\)/.test(wfTypesSrc),
+  "it was hand-listed as three while the builder offered eight, so every new kind saved in the browser and was refused by the server with an error nobody could act on",
+);
+expect(
+  "inserting a step opens the gap before filling it",
+  /displayOrder: \{ gte: at \}[\s\S]{0,120}increment: 1[\s\S]{0,400}const order = at;/.test(actionsSrc),
+  "writing at an occupied displayOrder and tidying up after leaves two steps sharing a position, and that position is what the runner's cursor holds",
+);
+expect(
+  "every step mutation rewrites the edges",
+  (actionsSrc.match(/await syncEdges\(workflowId\)/g) ?? []).length >= 3,
+  "add, move and delete all change the order; an edge table maintained by two of the three is worse than none, because the day the runner reads it the order is wrong and nothing says why",
+);
+expect(
+  "the edge rewrite is wholesale, not diffed",
+  /deleteMany\(\{ where: \{ workflowId \} \}\)/.test(edgesSrc),
+  "diffing a reorder by hand is how an edge ends up pointing at a step in another workflow",
+);
+
+expect(
+  "a Meta event is never sent without something to match on",
+  /if \(!who\.email && !who\.mobile\)[\s\S]{0,200}No email or mobile to match on/.test(runSrc),
+  "Meta accepts an event with no user data and attributes it to nobody, which inflates the count and teaches the ad account nothing",
+);
+expect(
+  "a preview run never reaches Meta",
+  /isPreview: true[\s\S]{0,300}Preview run - not sent to Meta/.test(runSrc),
+  "everything else about a preview is real on purpose, so a preview booking enrols a contact and walks the same sequence; without the guard the owner testing their own funnel fires a live conversion and Meta learns to find more people like them",
+);
+expect(
+  "each Meta event carries its own id",
+  /eventId: randomUUID\(\)/.test(runSrc),
+  "a shared id makes Meta count the whole sequence once; there is no browser event to deduplicate against, because the browser was never there",
+);
+expect(
+  "a workflow conversion is logged beside every other one",
+  /sendAndLogLifecycleCapi/.test(runSrc),
+  "a second sender would mean a conversion that does not appear in the CAPI log, which is the one place anybody looks when Meta shows nothing",
+);
+expect(
+  "the event is picked from a list, not typed",
+  /options\.capiEvents\.map/.test(builderSrc2),
+  "a typo in an event name does not fail: it sends a real conversion under a name nothing else uses, and Events Manager then shows a number no funnel will ever add to again",
+);
+
+expect(
+  "the Zoom link is written to the run, not the step",
+  /prisma\.workflowRun[\s\S]{0,160}meetingLink: made\.joinUrl/.test(runSrc),
+  "a step is shared by everybody who passes through the sequence; storing the meeting on it hands the second person the first person's call",
+);
+expect(
+  "the Zoom step is hidden where Zoom is not connected",
+  /needsZoom: true/.test(wfTypesSrc) && /offerableSteps\(/.test(builderSrc2),
+  "a step that cannot work is worse than one that is missing: it saves, publishes, and then fails for every person who reaches it with nothing on screen to say why",
+);
+
+expect(
+  "the log reads the step kind from the step",
+  /s\.step\?\.kind/.test(logsSrc),
+  "WorkflowSend.channel is required, so a tag change and a webhook call both record themselves as EMAIL - harmless in the database and a lie on a screen",
+);
+expect(
+  "a stopped run says why on the closed row",
+  /r\.stopReason \?/.test(
+    readFileSync(
+      join(process.cwd(), "src", "features", "workflows", "components", "workflow-logs.tsx"),
+      "utf8",
+    ),
+  ),
+  "\"Stopped\" alone is the thing somebody came to the log to ask about; making them click to find out why is the difference between a log and a log nobody opens",
+);
+
+expect(
+  "placeholder chips have fields to type into",
+  (builderSrc2.match(/data-ph="1"/g) ?? []).length >= 3,
+  "the chips insert into the last focused field that opted in; with none opted in they are decoration",
+);
+
 console.log(failures === 0 ? "\nAll workflow queue checks passed.\n" : `\n${failures} check(s) failed.\n`);
 process.exit(failures === 0 ? 0 : 1);

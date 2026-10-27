@@ -9,6 +9,8 @@ import { defaultCountryCodeFor } from "@/lib/contacts/upsert";
 import { resolveRecipient } from "@/lib/workflows/subject";
 import { deliverWebhook } from "@/lib/webhooks/dispatch";
 import { createLooseZoomMeeting } from "@/lib/zoom/meetings";
+import { sendAndLogLifecycleCapi } from "@/lib/meta/capi-log";
+import { randomUUID } from "node:crypto";
 import { dueAfter, isStale } from "@/lib/workflows/schedule";
 
 /**
@@ -257,6 +259,15 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
     return false;
   }
 
+  if (step.kind === "CAPI_EVENT") {
+    await fireCapiStep(step, run.tenantId, run.workflowId, run.subjectId, who);
+    await prisma.workflowRun.update({
+      where: { id: runId },
+      data: { status: "PENDING", currentStep: run.currentStep + 1, dueAt: now, attempts: 0 },
+    });
+    return false;
+  }
+
   // 🟡 BRANCH and LOOP have no handler, and the builder offers none of
   // them. A row carrying one did not come from this product, so it is logged and
   // stepped over rather than crashing a sequence somebody else is halfway through.
@@ -424,6 +435,94 @@ async function logSend(
       error: error?.slice(0, 500) ?? null,
     },
   });
+}
+
+/**
+ * Fire one Meta conversion for the person going through this sequence.
+ *
+ * 🔴 WHAT THIS IS FOR, beyond reporting. Meta builds custom audiences from the events
+ * it receives, so a sequence that fires StartTrial and later Purchase is also building
+ * the retargeting and exclusion lists in Ads Manager without anybody uploading
+ * anything. That is why there is no separate "add to audience" step: the audience is a
+ * consequence of the event, not a thing to maintain.
+ *
+ * 🔴 THE EVENT ID IS FRESH EVERY TIME AND THAT IS CORRECT HERE. Dedup against the
+ * browser pixel exists so one real-world moment reported twice counts once; a workflow
+ * step is a moment the browser was never present for, so there is nothing to collide
+ * with. Reusing an id across people would make Meta count the whole sequence once.
+ *
+ * 🟡 Sent through the SAME sender and log as the funnel, so a workflow conversion shows
+ * up in the CAPI log beside every other one rather than in a place nobody checks.
+ */
+async function fireCapiStep(
+  step: WorkflowStep,
+  tenantId: string,
+  workflowId: string,
+  submissionId: string | null,
+  who: { contactId: string | null; email: string | null; mobile: string | null; firstName: string | null; lastName: string | null },
+) {
+  const eventName = step.capiEventName?.trim();
+  if (!eventName) {
+    await logSend(tenantId, workflowId, step, who.contactId, "SKIPPED", null, "No event chosen.");
+    return;
+  }
+  // 🟡 Matching needs something to match ON. Meta accepts an event with no user data
+  // and attributes it to nobody, which is worse than not sending: it inflates the
+  // count and teaches the ad account nothing.
+  if (!who.email && !who.mobile) {
+    await logSend(tenantId, workflowId, step, who.contactId, "SKIPPED", null, "No email or mobile to match on.");
+    return;
+  }
+
+  // 🔴 A PREVIEW MUST NOT REACH META, AND A WORKFLOW IS HOW IT NEARLY DID. Everything
+  // else about a preview run is real on purpose - the submission, the pixel, the
+  // webhook - so a preview booking enrols a contact like any other and walks the same
+  // sequence. Without this the owner testing their own funnel would fire a live
+  // conversion, and Meta would learn to find more people like them. The submission is
+  // the only thing that knows, so it is asked.
+  let preview = false;
+  if (submissionId) {
+    const sub = await prisma.submission
+      .findUnique({ where: { id: submissionId }, select: { isPreview: true } })
+      .catch(() => null);
+    preview = sub?.isPreview === true;
+  }
+  if (preview) {
+    await logSend(tenantId, workflowId, step, who.contactId, "SKIPPED", eventName, "Preview run - not sent to Meta.");
+    return;
+  }
+
+  const outcome = await sendAndLogLifecycleCapi(
+    {
+      eventName,
+      eventId: randomUUID(),
+      eventTimeMs: Date.now(),
+      user: {
+        email: who.email,
+        phone: who.mobile,
+        firstName: who.firstName,
+        lastName: who.lastName,
+      },
+    },
+    {
+      tenantId,
+      submissionId,
+      // The workspace default. A sequence is not bound to one funnel, so there is no
+      // funnel-specific ad account to read - unlike a submission, which has one.
+      adAccountId: null,
+      name: [who.firstName, who.lastName].filter(Boolean).join(" ") || null,
+    },
+  );
+
+  await logSend(
+    tenantId,
+    workflowId,
+    step,
+    who.contactId,
+    outcome.ok ? "SENT" : "FAILED",
+    eventName,
+    outcome.ok ? null : (outcome.error ?? "Meta refused the event."),
+  );
 }
 
 /** The lead fields a placeholder can use, from whichever subject this run has. */

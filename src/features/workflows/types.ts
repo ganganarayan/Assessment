@@ -349,6 +349,8 @@ export interface WorkflowStepView {
   webhookId: string | null;
   /** ZOOM_MEETING: what the meeting is called in Zoom. Placeholders allowed. */
   zoomTopic: string | null;
+  /** CAPI_EVENT: the Meta event name to fire. */
+  capiEventName: string | null;
   sentCount: number;
   failedCount: number;
   skippedCount: number;
@@ -396,6 +398,7 @@ export const OFFERED_STEP_KINDS = [
   "NOTIFY_OWNER",
   "UNSUBSCRIBE",
   "ZOOM_MEETING",
+  "CAPI_EVENT",
   "EXIT",
 ] as const;
 
@@ -431,6 +434,7 @@ export const STEP_MENU: StepMenuEntry[] = [
   // and then fails for every person who reaches it with nothing on screen to say why.
   { id: "zoom", label: "Get a Zoom link", kind: "ZOOM_MEETING", needsZoom: true },
   { id: "notify", label: "Notify me", kind: "NOTIFY_OWNER" },
+  { id: "capi", label: "Fire a Meta event", kind: "CAPI_EVENT" },
   { id: "unsub", label: "Unsubscribe them", kind: "UNSUBSCRIBE" },
   { id: "exit", label: "End the sequence", kind: "EXIT" },
 ];
@@ -454,6 +458,14 @@ export interface BuilderOptions {
   webhooks: { id: string; name: string }[];
   /** Whether this workspace has connected Zoom, which is what offers the Zoom step. */
   zoomConnected: boolean;
+  /**
+   * Every Meta event name this app can send, with a line explaining each.
+   *
+   * 🔴 A LIST, NOT A FREE-TEXT BOX. A typo in an event name does not fail - it sends a
+   * real conversion under a name nothing else uses, and Events Manager then shows a
+   * number no funnel will ever add to again. Worse than no event at all.
+   */
+  capiEvents: { name: string; note: string }[];
 }
 
 /* ------------------------------------------------------------- validation --- */
@@ -505,6 +517,7 @@ export const stepSchema = z.object({
   targetWorkflowId: z.string().nullable().optional(),
   webhookId: z.string().nullable().optional(),
   zoomTopic: z.string().max(200).nullable().optional(),
+  capiEventName: z.string().max(80).nullable().optional(),
 });
 
 /**

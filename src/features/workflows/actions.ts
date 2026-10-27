@@ -248,6 +248,7 @@ export async function updateWorkflowStep(workflowId: string, input: unknown): Pr
       targetWorkflowId: v.targetWorkflowId || null,
       webhookId: v.webhookId || null,
       zoomTopic: v.zoomTopic || null,
+      capiEventName: v.capiEventName || null,
     },
   });
   refresh(workflowId);

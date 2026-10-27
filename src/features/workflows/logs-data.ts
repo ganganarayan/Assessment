@@ -91,7 +91,13 @@ export async function listJourneys(scopeTenantId: string | null, limit = 100): P
   // journeys would otherwise be a hundred round trips to draw one screen.
   const sends = await prisma.workflowSend.findMany({
     where: { tenantId, workflowId: { in: [...new Set(runs.map((r) => r.workflowId))] } },
-    orderBy: { createdAt: "asc" },
+    // 🔴 CAPPED, AND NEWEST FIRST. Unbounded, a popular sequence with months of history
+    // would pull every send it had ever made to draw one page of a hundred journeys -
+    // a screen that gets slower every week and eventually does not load at all. Newest
+    // first so the cap drops the oldest rows, which are the ones nobody opened the page
+    // to read; the steps within a journey are put back in order below.
+    orderBy: { createdAt: "desc" },
+    take: 2000,
     select: {
       id: true,
       contactId: true,
@@ -139,7 +145,7 @@ export async function listJourneys(scopeTenantId: string | null, limit = 100): P
       // Only meaningful while it is still going; a finished run's dueAt is just the
       // last time it was touched, and showing that as "next" would read as stuck.
       dueLabel: r.status === "PENDING" || r.status === "SENDING" ? formatIST(r.dueAt) : null,
-      sends: mine.map(
+      sends: [...mine].reverse().map(
         (s): JourneySend => ({
           id: s.id,
           what: stepWhat(s.step?.kind ?? "", s.step?.channel ?? s.channel),

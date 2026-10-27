@@ -346,6 +346,7 @@ function kindLabel(s: WorkflowStepView): string {
   if (s.kind === "WEBHOOK") return "WEBHOOK";
   if (s.kind === "UNSUBSCRIBE") return "UNSUBSCRIBE";
   if (s.kind === "NOTIFY_OWNER") return "NOTIFY ME";
+  if (s.kind === "CAPI_EVENT") return "META EVENT";
   if (s.kind === "ZOOM_MEETING") return "ZOOM";
   if (s.kind === "EXIT") return "END";
   if (s.kind !== "MESSAGE") return s.kind;
@@ -369,6 +370,7 @@ const KIND_CLASS: Record<WorkflowStepView["kind"], string> = {
   // them; ZOOM_MEETING waits for a workflow that has an appointment to put a link on.
   BRANCH: "border-dashed border-[var(--field-border)]",
   LOOP: "border-dashed border-[var(--field-border)]",
+  CAPI_EVENT: "border-fuchsia-500/40",
   ZOOM_MEETING: "border-cyan-500/40",
 };
 
@@ -404,6 +406,9 @@ function stepSummary(s: WorkflowStepView, options: BuilderOptions): string {
   if (s.kind === "ZOOM_MEETING") {
     return s.zoomTopic?.trim() ? `Zoom: ${s.zoomTopic}` : "Make a Zoom link for them";
   }
+  if (s.kind === "CAPI_EVENT") {
+    return s.capiEventName ? `Tell Meta: ${s.capiEventName}` : "No event picked yet";
+  }
   if (s.kind === "UNSUBSCRIBE") return "Take them off the list";
   if (s.kind === "EXIT") return "Stop here. Nothing below this runs.";
   if (s.channel === "WABA") {
@@ -419,6 +424,7 @@ function stepIncomplete(s: WorkflowStepView): boolean {
   if (s.kind === "TAG") return !s.tagId;
   if (s.kind === "SUBFLOW") return !s.targetWorkflowId;
   if (s.kind === "WEBHOOK") return !s.webhookId;
+  if (s.kind === "CAPI_EVENT") return !s.capiEventName;
   if (s.kind === "NOTIFY_OWNER") return !s.subject.trim() || !s.body.trim();
   // Neither takes any configuration, so neither can be unfinished.
   if (s.kind === "UNSUBSCRIBE" || s.kind === "EXIT" || s.kind === "ZOOM_MEETING") return false;
@@ -816,6 +822,33 @@ function StepCard({
               your registered endpoints rather than a URL typed here, on purpose.
             </p>
           )}
+        </div>
+      ) : null}
+
+      {step.kind === "CAPI_EVENT" ? (
+        <div className="mt-3 flex flex-col gap-2">
+          <Field label="Event">
+            <Select
+              value={v.capiEventName ?? ""}
+              placeholder="Pick an event"
+              options={options.capiEvents.map((e) => ({ value: e.name, label: e.name }))}
+              onChange={(name) => {
+                set({ capiEventName: name });
+                onSave({ capiEventName: name });
+              }}
+            />
+          </Field>
+          {v.capiEventName ? (
+            <p className="text-xs text-[var(--muted-foreground)]">
+              {options.capiEvents.find((e) => e.name === v.capiEventName)?.note}
+            </p>
+          ) : null}
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Sent server-side for this person, using the email and mobile already on them. Meta
+            also builds custom audiences from the events it receives, so firing StartTrial here
+            and Purchase later is what assembles your retargeting and exclusion lists in Ads
+            Manager. Nothing else to set up.
+          </p>
         </div>
       ) : null}
 

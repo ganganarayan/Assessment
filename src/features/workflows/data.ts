@@ -1,4 +1,5 @@
 import "server-only";
+import { buildEventChoices } from "@/lib/meta/event-catalog";
 import { prisma } from "@/lib/db/prisma";
 import { formatIST } from "@/lib/date";
 import { contactTenantOf } from "@/lib/contacts/upsert";
@@ -26,6 +27,7 @@ function stepView(s: {
   targetWorkflowId: string | null;
   webhookId: string | null;
   zoomTopic: string | null;
+  capiEventName: string | null;
   sentCount: number;
   failedCount: number;
   skippedCount: number;
@@ -47,6 +49,7 @@ function stepView(s: {
     targetWorkflowId: s.targetWorkflowId,
     webhookId: s.webhookId,
     zoomTopic: s.zoomTopic,
+    capiEventName: s.capiEventName,
     sentCount: s.sentCount,
     failedCount: s.failedCount,
     skippedCount: s.skippedCount,
@@ -162,5 +165,16 @@ export async function builderOptions(scopeTenantId: string | null): Promise<Buil
     }
   }
 
-  return { assessments, tags, wabaTemplates, wabaAvailable, workflows, webhooks, zoomConnected: !!zoom };
+  return {
+    assessments,
+    tags,
+    wabaTemplates,
+    wabaAvailable,
+    workflows,
+    webhooks,
+    zoomConnected: !!zoom,
+    // The whole vocabulary: what the funnel fires, then Meta's own standard names.
+    // The owner asked for everything for now and will narrow it once the shape is clear.
+    capiEvents: buildEventChoices(),
+  };
 }

@@ -4628,6 +4628,7 @@ enum WorkflowStepKind {
   /// Things a step can DO that are not a message. Each one exists because a sequence
   /// that can only send is a sequence you have to leave halfway through to go and do
   /// the obvious next thing by hand.
+  CAPI_EVENT
   SUBFLOW
   ZOOM_MEETING
   WEBHOOK
@@ -4758,6 +4759,14 @@ model WorkflowStep {
   /// so, which is recoverable, instead of a hole in a live workflow.
   targetWorkflowId String?
   targetWorkflow   Workflow? @relation("WorkflowSubflowTarget", fields: [targetWorkflowId], references: [id], onDelete: SetNull)
+
+  /// CAPI_EVENT: the Meta event name to fire, exactly as Meta will receive it.
+  ///
+  /// 🔴 A PLAIN STRING, NOT AN ENUM. Meta takes any name it is given, the funnel already
+  /// fires custom ones, and each workspace configures its own. An enum here would mean a
+  /// migration every time somebody invents an event, which is the thing that drives
+  /// people back to typing names by hand and misspelling them.
+  capiEventName String?
 
   /// ZOOM_MEETING: what the meeting is called in Zoom. Placeholders allowed.
   zoomTopic String?
