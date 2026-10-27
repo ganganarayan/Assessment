@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:calendar && npm run verify:automations && npm run verify:releases && npm run verify:billing-term && npm run verify:billing-ledger && npm run verify:workflow-queue && npm run verify:vault && npm run verify:contact-consent && npm run verify:email-providers && npm run verify:whatsapp && npm run verify:legal && npm run verify:ai && npm run verify:platform-capi && next build",
+    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:calendar && npm run verify:automations && npm run verify:releases && npm run verify:billing-term && npm run verify:billing-ledger && npm run verify:workflow-queue && npm run verify:vault && npm run verify:contact-consent && npm run verify:email-providers && npm run verify:whatsapp && npm run verify:wa-templates && npm run verify:legal && npm run verify:ai && npm run verify:platform-capi && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -102,6 +102,7 @@
     "verify:vault": "tsx scripts/verify-vault.ts",
     "verify:contact-consent": "tsx --conditions=react-server scripts/verify-contact-consent.ts",
     "verify:email-providers": "tsx --conditions=react-server scripts/verify-email-providers.ts",
+    "verify:wa-templates": "tsx scripts/verify-wa-templates.ts",
     "verify:whatsapp": "tsx --conditions=react-server scripts/verify-whatsapp.ts",
     "verify:legal": "tsx scripts/verify-legal.ts",
     "qa:screens": "tsx qa/src/screens/cli.ts",

@@ -123,6 +123,9 @@ const SECTIONS: NavSection[] = [
       // the thing you decide to send today.
       { href: "/admin/broadcasts", label: "Broadcasts" },
       { href: "/admin/nurture", label: "Nurture" },
+      // The wording Meta has to approve before any of the senders above can reach
+      // somebody on WhatsApp who has not written in first.
+      { href: "/admin/wa-templates", label: "WA Templates" },
       // After the senders, because it is the state of the channel they all send on:
       // the first place to look when something did not go out.
       { href: "/admin/whatsapp", label: "WhatsApp health" },

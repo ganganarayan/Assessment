@@ -37,6 +37,7 @@ export const FEATURE_RELEASE_KEYS = [
   "calendar",
   "contacts",
   "broadcasts",
+  "waTemplates",
   "gateResult",
   "lifecycle",
 ] as const;
@@ -130,6 +131,18 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
     // and the owner has to be able to release one without the other.
     defaultReleased: false,
     routes: ["/w/broadcasts"],
+  },
+  {
+    key: "waTemplates",
+    label: "WhatsApp templates",
+    blurb: "Draft a message template, check it against Meta rules, and submit it for review.",
+    whileHeld:
+      "The menu item and page go, and drafting or submitting is refused. Templates Meta has already approved keep sending - this switch is about who may WRITE one, never about what is already live.",
+    // Its own key rather than part of the whatsapp one: connecting a number and
+    // submitting content for Meta review are different risks. A workspace that submits
+    // bad templates damages the account standing of the number, which is shared.
+    defaultReleased: false,
+    routes: ["/w/wa-templates"],
   },
   {
     key: "gateResult",

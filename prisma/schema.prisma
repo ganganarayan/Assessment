@@ -217,6 +217,8 @@ model Tenant {
   vaultFolders         VaultFolder[]
   vaultFiles           VaultFile[]
   vaultActivity        VaultActivity[]
+  /// WhatsApp message templates drafted in this workspace and submitted to Meta.
+  waTemplates          WaTemplate[]
 
   @@index([status])
   @@index([deletedAt])
@@ -4408,9 +4410,9 @@ model WhatsAppMessage {
   /// "IN" = the customer sent it. "OUT" = the business did, from the phone or from here.
   direction String
   /// Meta's own type: text, image, audio, document, sticker, ...
-  type String
+  type      String
   /// The text, when there is text. Null for media, which is recorded by type alone.
-  body String? @db.Text
+  body      String? @db.Text
 
   /// Meta's timestamp, never ours. A history import is mostly old messages, and
   /// stamping them with the import time would destroy the only thing they are for.
@@ -5370,4 +5372,95 @@ model VaultActivity {
   @@index([bucketId, at])
   @@index([tenantId, at])
   @@map("vault_activity")
+}
+
+// ---------------------------------------------------------------------------
+// WhatsApp message templates
+// ---------------------------------------------------------------------------
+
+/// Where a template stands with Meta.
+///
+/// 🔴 LOCAL AND REMOTE ARE NOT THE SAME THING, and conflating them is the whole trap
+/// here. DRAFT is ours alone: it has never been sent to Meta and Meta has never heard
+/// of it. Everything from PENDING onward is Meta's verdict, copied here on the last
+/// sync and stale the moment Meta changes its mind - a template APPROVED on Monday can
+/// be PAUSED on Friday because recipients blocked the number, and nothing tells us.
+///
+/// So the send path must never trust this column as permission. It is what the owner
+/// looks at; the picker that feeds the senders still reads Meta directly.
+enum WaTemplateStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  PAUSED
+  DISABLED
+}
+
+/// What a template is for. Meta's own three, and the choice matters commercially:
+/// UTILITY is cheaper and may be sent inside an existing conversation, MARKETING is
+/// dearer and is what an unsolicited follow-up has to be.
+enum WaTemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
+/// A WhatsApp message template, drafted here and submitted to Meta.
+///
+/// WHY DRAFTS LIVE HERE AT ALL. Meta has no concept of a draft: a template is either
+/// submitted for review or it does not exist. An owner writing one has to get the name,
+/// the category, the body and an example for every variable right in a single shot, and
+/// a rejection costs hours of review time to find out. A local draft is where that gets
+/// worked out, and submission is the deliberate act at the end of it.
+///
+/// Unique on (tenant, name, language) because that is Meta's own key: one template name
+/// may exist once per language, and re-submitting the same pair is an edit, not a second
+/// template.
+model WaTemplate {
+  id String @id @default(cuid())
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// Meta's rules, enforced in the builder: lowercase letters, digits and underscores
+  /// only. Not a display name - it is the identifier the sender quotes.
+  name     String
+  /// BCP-47 as Meta spells it: en, en_US, hi.
+  language String             @default("en")
+  category WaTemplateCategory @default(UTILITY)
+
+  /// The three optional parts and the one required one. Header and footer are plain
+  /// text here; a media header is a different shape and is deliberately not offered
+  /// yet, because an owner who picks one then has to supply a sample asset.
+  headerText String?
+  bodyText   String
+  footerText String?
+
+  /// One sample value per {{n}} in the body, in order. Meta REQUIRES these: a template
+  /// whose variables have no example is rejected without review, and the reason it
+  /// gives does not say so plainly.
+  sampleValues Json @default("[]")
+
+  status WaTemplateStatus @default(DRAFT)
+
+  /// Meta's id for the submitted template, and what Meta last said about it. Null until
+  /// the first successful submission.
+  metaId         String?
+  /// Meta's own status string, kept verbatim alongside our enum so an unfamiliar value
+  /// is visible rather than flattened into the nearest match.
+  metaStatus     String?
+  /// Why it was turned down, in Meta's words. Kept after a later resubmission so the
+  /// owner can see what they are fixing.
+  rejectedReason String?
+
+  submittedAt DateTime?
+  syncedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, name, language])
+  @@index([tenantId, status])
+  @@map("wa_template")
 }
