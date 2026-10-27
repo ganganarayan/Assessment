@@ -9,6 +9,7 @@ import { submitTemplate, listTemplateStatuses } from "@/lib/whatsapp/templates";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { waTemplateSchema } from "@/features/wa-templates/schemas";
 import {
+  NEW_TEMPLATE_GRACE_MS,
   templateIssues,
   variableCount,
   type TemplateDraft,
@@ -239,8 +240,17 @@ export async function syncWaTemplates(): Promise<ActionResult<{ updated: number 
   for (const row of mine) {
     const seen = res.byKey.get(`${row.name}::${row.language}`);
     if (!seen) {
-      // Submitted here, gone at Meta: somebody deleted it in Business Manager. Say so
-      // rather than leaving it reading APPROVED forever.
+      // 🔴 ABSENT IS NOT THE SAME AS DELETED FOR THE FIRST FEW MINUTES. Meta's list
+      // endpoint does not return a template the instant it is submitted, so an owner who
+      // submits and then presses Refresh - which is exactly what somebody does - would
+      // see their brand new template marked "Deleted at Meta". It is not deleted, it is
+      // not indexed yet, and the words would send them to Business Manager hunting for
+      // something that was never there.
+      const justSubmitted =
+        row.submittedAt != null && now.getTime() - row.submittedAt.getTime() < NEW_TEMPLATE_GRACE_MS;
+      if (justSubmitted) continue;
+      // Past the grace window and still absent: somebody deleted it in Business Manager.
+      // Say so rather than leaving it reading APPROVED forever.
       await prisma.waTemplate
         .update({
           where: { id: row.id },

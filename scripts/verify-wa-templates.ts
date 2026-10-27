@@ -12,8 +12,11 @@
  *
  * Exits non-zero on the first failure, like the other verify-* scripts.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   NAME_RE,
+  NEW_TEMPLATE_GRACE_MS,
   normaliseName,
   previewWith,
   templateIssues,
@@ -46,6 +49,26 @@ const base: TemplateDraft = {
 };
 
 /* ------------------------------------------------------------ the names --- */
+
+/* ------------------------------------------- absent is not deleted yet --- */
+
+console.log("\nThe sync's grace window");
+check("a template submitted a moment ago is inside the window", 30_000 < NEW_TEMPLATE_GRACE_MS);
+check("one submitted an hour ago is outside it", 3_600_000 > NEW_TEMPLATE_GRACE_MS);
+check("the window is minutes, not days", NEW_TEMPLATE_GRACE_MS < 86_400_000);
+
+const syncSrc = readFileSync(
+  join(process.cwd(), "src", "features", "wa-templates", "actions.ts"),
+  "utf8",
+);
+check(
+  "a just-submitted template is not reported as deleted",
+  /justSubmitted[\s\S]{0,120}if \(justSubmitted\) continue;/.test(syncSrc),
+);
+check(
+  "one that really is gone still gets said so",
+  /status: "DISABLED"[\s\S]{0,120}Deleted at Meta/.test(syncSrc),
+);
 
 console.log("\nTemplate names");
 check("a good name passes", NAME_RE.test("booking_confirmation"));

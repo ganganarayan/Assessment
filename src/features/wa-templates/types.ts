@@ -61,6 +61,15 @@ export const CATEGORIES: { value: WaTemplateCategoryValue; label: string; hint: 
   },
 ];
 
+/**
+ * How long after submitting a template its absence from Meta's list means nothing.
+ *
+ * Meta does not return a template from the list endpoint the instant it is accepted.
+ * Inside this window "not there" is "not indexed yet"; outside it, it is "somebody
+ * deleted it", and the two must not be reported the same way.
+ */
+export const NEW_TEMPLATE_GRACE_MS = 10 * 60_000;
+
 /** Meta's limits, in characters. */
 export const MAX_HEADER = 60;
 export const MAX_BODY = 1024;
