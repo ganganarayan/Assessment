@@ -6,6 +6,7 @@ import { sendEmail, sendWaba } from "@/lib/nurture/send";
 import { fillPlaceholders, toE164Digits, type LeadFields } from "@/features/nurture/config";
 import { isSuppressed, unsubscribeUrlFor } from "@/lib/contacts/dnd";
 import { defaultCountryCodeFor } from "@/lib/contacts/upsert";
+import { resolveRecipient } from "@/lib/workflows/subject";
 import { dueAfter, isStale } from "@/lib/workflows/schedule";
 
 /**
@@ -97,6 +98,8 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
       dueAt: true,
       subjectId: true,
       workflowId: true,
+      contactId: true,
+      subjectTenantId: true,
       contact: {
         select: {
           id: true,
@@ -137,6 +140,16 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
     return true;
   }
 
+  // Who this run is writing to: a contact, or the owner of the workspace being
+  // nurtured. Resolved once rather than at each of the four places below that need it.
+  const who = await resolveRecipient(run);
+  if (!who) {
+    // Not a failure to retry. The contact was deleted, or the workspace has no login
+    // left to write to, and neither improves by trying again in a minute.
+    await stop(runId, "Nobody left to send this to.");
+    return true;
+  }
+
   if (step.kind === "DELAY") {
     // A delay does not wait; it SETS the next due time and hands the run back to the
     // queue. Nothing sleeps, so nothing is lost to a restart.
@@ -149,7 +162,10 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
   }
 
   if (step.kind === "TAG") {
-    await applyTag(step, run.contact.id, run.tenantId);
+    // 🟡 A tenant-nurture run has no contact to tag. Skipped with a reason rather than
+    // failed: the rest of the sequence is still worth sending.
+    if (who.taggable && who.contactId) await applyTag(step, who.contactId, run.tenantId);
+    else await logSend(run.tenantId, run.workflowId, step, null, "SKIPPED", null, "Nothing to tag on a workspace.");
     await prisma.workflowRun.update({
       where: { id: runId },
       data: { status: "PENDING", currentStep: run.currentStep + 1, dueAt: now, attempts: 0 },
@@ -164,7 +180,7 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
   // then delivers a message whose timing was the point. The step is SKIPPED and the
   // sequence carries on, so nobody is dropped out of it for having been late.
   if (isStale(run.dueAt, now)) {
-    await logSend(run.tenantId, run.workflowId, step, run.contact.id, "SKIPPED", null, "Overdue - not sent.");
+    await logSend(run.tenantId, run.workflowId, step, who.contactId, "SKIPPED", null, "Overdue - not sent.");
     await bump(step.id, "skippedCount");
     await prisma.workflowRun.update({
       where: { id: runId },
@@ -175,10 +191,9 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
 
   // MESSAGE. The suppression check is per step and per send.
   const suppressed =
-    run.contact.marketingOptOutAt != null ||
-    (await isSuppressed(run.tenantId, { email: run.contact.email, mobile: run.contact.mobile }));
+    who.optedOut || (await isSuppressed(run.tenantId, { email: who.email, mobile: who.mobile }));
   if (suppressed) {
-    await logSend(run.tenantId, run.workflowId, step, run.contact.id, "SKIPPED", null, "Unsubscribed.");
+    await logSend(run.tenantId, run.workflowId, step, who.contactId, "SKIPPED", null, "Unsubscribed.");
     await prisma.workflowStep.update({
       where: { id: step.id },
       data: { skippedCount: { increment: 1 } },
@@ -191,13 +206,13 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
   }
 
   await sendStep(step, run.tenantId, run.workflowId, {
-    id: run.contact.id,
-    firstName: run.contact.firstName,
-    lastName: run.contact.lastName,
-    email: run.contact.email,
-    mobile: run.contact.mobile,
-    profession: run.contact.profession,
-    optOutToken: run.contact.optOutToken,
+    id: who.contactId,
+    firstName: who.firstName,
+    lastName: who.lastName,
+    email: who.email,
+    mobile: who.mobile,
+    profession: who.profession,
+    optOutToken: who.optOutToken,
   });
 
   await prisma.workflowRun.update({
@@ -235,7 +250,9 @@ async function applyTag(step: WorkflowStep, contactId: string, tenantId: string)
 }
 
 interface SendContact extends LeadFields {
-  id: string;
+  /// Null on a tenant-nurture run: the send is logged without a contact, because there
+  /// is not one. Everything else a message needs is the same either way.
+  id: string | null;
   optOutToken: string;
 }
 
@@ -285,7 +302,8 @@ async function logSend(
   tenantId: string,
   workflowId: string,
   step: WorkflowStep,
-  contactId: string,
+  /// Null on a tenant-nurture run: there is no contact, and the log says so.
+  contactId: string | null,
   status: string,
   toAddress: string | null,
   error: string | null,

@@ -229,5 +229,57 @@ expect(
   "instrumentation runs once on server start; a timer armed from a request path is a timer per request",
 );
 
+/* ------------------------------------------------- the graph, phase 1 --- */
+
+// The three node kinds that exist in the schema so the canvas can grow into them
+// without a migration against live rows. The whole value of that decision is that
+// they stay OUT of the builder until the canvas can draw them - a half-offered BRANCH
+// is a workflow somebody can save and the runner cannot walk.
+const builderSrc = readFileSync(
+  join(process.cwd(), "src", "features", "workflows", "components", "workflow-builder.tsx"),
+  "utf8",
+);
+for (const kind of ["BRANCH", "LOOP", "EXIT"]) {
+  expect(
+    `the builder does not offer ${kind} yet`,
+    !new RegExp(`kind:\\s*"${kind}"`).test(builderSrc),
+    `${kind} is schema-only until the canvas can draw it. A step saved with it would be a workflow the runner has no rule for.`,
+  );
+}
+
+const graphSchemaSrc = readFileSync(join(process.cwd(), "prisma", "schema.prisma"), "utf8");
+expect(
+  "a run carries exactly one subject, and the database says so",
+  /workflow_run_one_subject/.test(
+    readFileSync(
+      join(process.cwd(), "prisma", "migrations", "20261027230100_workflow_graph", "migration.sql"),
+      "utf8",
+    ),
+  ),
+  "a run with neither subject sits in the queue forever with nobody to send to; one with both sends the same sequence to two different people",
+);
+expect(
+  "the one-run-per-person-ever unique is gone",
+  !/@@unique\(\[workflowId, contactId\]\)/.test(graphSchemaSrc),
+  "it meant a lead who came back next quarter silently got no follow-up, and the only evidence was an enrolment that never happened",
+);
+
+const enqueueSrc = readFileSync(join(process.cwd(), "src", "lib", "workflows", "enqueue.ts"), "utf8");
+expect(
+  "the enroller refuses only while a run is still live",
+  /status:\s*\{\s*in:\s*\["PENDING",\s*"SENDING"\]\s*\}/.test(enqueueSrc),
+  "with the unique key gone this query IS the dedup. Without it every trigger starts another copy of the same sequence.",
+);
+expect(
+  "the runner resolves its subject once rather than per step",
+  /const who = await resolveRecipient\(run\)/.test(runSrc),
+  "the suppression check, the stale check, the tag step and the send each need the subject; branching at all four is three places handled and one forgotten",
+);
+expect(
+  "a run with nobody left to reach stops instead of retrying",
+  /Nobody left to send this to/.test(runSrc),
+  "a deleted contact or a workspace with no login does not improve by trying again in a minute",
+);
+
 console.log(failures === 0 ? "\nAll workflow queue checks passed.\n" : `\n${failures} check(s) failed.\n`);
 process.exit(failures === 0 ? 0 : 1);

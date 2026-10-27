@@ -71,27 +71,40 @@ export async function fireWorkflowTrigger(trigger: WorkflowTrigger, ctx: Trigger
 }
 
 /**
- * One person, one workflow, one run - ever.
+ * Start one person on one workflow, unless they are already on it.
  *
- * createMany with skipDuplicates rather than an upsert: the unique key is doing the
- * work, and the intent here is "start them if they have never been started". An upsert
- * would quietly reset somebody who is three days into the sequence back to step zero
- * the next time they filled in a form.
+ * 🔴 THE GUARD USED TO BE A UNIQUE KEY AND IS NOW A QUERY, and the difference is the
+ * point. (workflow, contact) unique meant one run per person EVER: a lead who came
+ * back the next quarter, booked again and deserved the same follow-up was silently
+ * skipped, and the only evidence was an enrolment that did not happen. What was
+ * actually wanted is "not while they are still in it", which a unique key cannot say.
+ *
+ * 🟡 Two requests arriving together can both pass this check and create two runs. That
+ * is accepted rather than locked against: the cost is one duplicate sequence in a rare
+ * race, and the cure - a unique key - is the bug above. The worker tolerates it.
  */
 async function startRun(workflowId: string, tenantId: string, ctx: TriggerContext): Promise<void> {
-  await prisma.workflowRun.createMany({
-    data: [
-      {
-        workflowId,
-        contactId: ctx.contactId,
-        tenantId,
-        subjectId: ctx.subjectId ?? null,
-        currentStep: 0,
-        // Due now. The first step runs on the next worker pass, or inline when the
-        // caller chooses to drain immediately.
-        dueAt: new Date(),
-      },
-    ],
-    skipDuplicates: true,
+  const live = await prisma.workflowRun.findFirst({
+    where: {
+      workflowId,
+      contactId: ctx.contactId,
+      status: { in: ["PENDING", "SENDING"] },
+    },
+    select: { id: true },
+  });
+  if (live) return;
+
+  await prisma.workflowRun.create({
+    data: {
+      workflowId,
+      contactId: ctx.contactId,
+      tenantId,
+      subjectId: ctx.subjectId ?? null,
+      currentStep: 0,
+      // Due now. The first step runs on the next worker pass, or inline when the
+      // caller chooses to drain immediately.
+      dueAt: new Date(),
+    },
   });
 }
+

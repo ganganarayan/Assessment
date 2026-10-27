@@ -219,6 +219,9 @@ model Tenant {
   vaultActivity        VaultActivity[]
   /// WhatsApp message templates drafted in this workspace and submitted to Meta.
   waTemplates          WaTemplate[]
+  /// Runs of a TENANT workflow that are nurturing THIS workspace. Distinct from the
+  /// workflow rows this workspace owns, which hang off Workflow.tenantId.
+  nurtureRuns          WorkflowRun[]           @relation("WorkflowRunSubjectTenant")
 
   @@index([status])
   @@index([deletedAt])
@@ -4551,10 +4554,48 @@ enum WorkflowStatus {
   PAUSED
 }
 
+/// WHO a workflow is about, which decides what gets enrolled in it.
+///
+/// 🔴 THE DISTINCTION IS NOT COSMETIC. A LEAD workflow enrols a Contact: somebody the
+/// workspace is selling to. A TENANT workflow enrols a workspace, and messages whoever
+/// owns it - that is the platform nudging its own customers through setting the product
+/// up, which is why its triggers are things like 'they published their first assessment'
+/// rather than anything a respondent did.
+///
+/// They share one engine and one builder, and the trigger list is filtered by this. A
+/// tenant offered 'subscription started' would read it as their own customer subscribing
+/// to something, build a sequence on it, and watch it never fire.
+enum WorkflowAudience {
+  LEAD
+  TENANT
+}
+
+/// What an edge means when it leaves a node that has more than one way out.
+///
+/// NEXT is the only one the canvas draws today; a straight line is all NEXT edges. YES
+/// and NO belong to BRANCH and exist for the same reason BRANCH does - so the day the
+/// canvas grows a condition, the edges it needs are already a column rather than a
+/// migration against live rows.
+enum WorkflowEdgeLabel {
+  NEXT
+  YES
+  NO
+}
+
 enum WorkflowStepKind {
   MESSAGE
   DELAY
   TAG
+
+  /// 🔴 THE THREE BELOW ARE SCHEMA ONLY, AND DELIBERATELY SO. The canvas draws a
+  /// straight line and offers none of them yet. They are here because the shape of
+  /// the table is what a migration costs: adding a branch to the model later means
+  /// migrating live workflow rows on a running deploy, while adding it to a UI that
+  /// already stores edges costs nothing. The engine refuses a workflow containing
+  /// one, so a row that somehow carries a kind nobody can draw cannot quietly run.
+  BRANCH
+  LOOP
+  EXIT
 }
 
 enum WorkflowChannel {
@@ -4594,6 +4635,10 @@ model Workflow {
   trigger WorkflowTrigger
   status  WorkflowStatus  @default(DRAFT)
 
+  /// Whose sequence this is. LEAD for everything that existed before this column, which
+  /// is what every row written until now meant.
+  audience WorkflowAudience @default(LEAD)
+
   /// Which funnel this watches. Null means every one in the workspace.
   ///
   /// A plain id and NOT a foreign key, on purpose. A relation would force a choice
@@ -4612,6 +4657,7 @@ model Workflow {
   triggerTagId String?
 
   steps WorkflowStep[]
+  edges WorkflowEdge[]
   runs  WorkflowRun[]
   sends WorkflowSend[]
 
@@ -4630,8 +4676,18 @@ model WorkflowStep {
   workflowId String
   workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
+  /// 🔴 STILL THE ORDER THE ENGINE WALKS. The edges below describe the same sequence as
+  /// a graph, but nothing reads them yet: changing what the runner follows is a separate
+  /// change from being able to describe it, and doing both at once would put live runs on
+  /// an untested path. Until the engine moves, displayOrder is the truth and the edge rows
+  /// are written to match it.
   displayOrder Int              @default(0)
   kind         WorkflowStepKind
+
+  /// Where the box sits on the canvas. Null for every step drawn before the canvas
+  /// existed, which the builder lays out top to bottom by displayOrder.
+  canvasX Int?
+  canvasY Int?
 
   /// MESSAGE
   channel      WorkflowChannel?
@@ -4658,7 +4714,10 @@ model WorkflowStep {
   failedCount  Int @default(0)
   skippedCount Int @default(0)
 
-  sends WorkflowSend[]
+  sends    WorkflowSend[]
+  /// The edges on each side of this box, so deleting a step takes its wiring with it.
+  edgesOut WorkflowEdge[] @relation("WorkflowEdgeFrom")
+  edgesIn  WorkflowEdge[] @relation("WorkflowEdgeTo")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4677,8 +4736,15 @@ model WorkflowRun {
   workflowId String
   workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
-  contactId String
-  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  /// EXACTLY ONE of these is set, and a CHECK constraint in the migration says so rather
+  /// than trusting every writer to remember. contactId for a LEAD workflow, subjectTenantId
+  /// for a TENANT one.
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  /// The workspace being nurtured, on a TENANT workflow. Messages go to whoever owns it.
+  subjectTenantId String?
+  subjectTenant   Tenant? @relation("WorkflowRunSubjectTenant", fields: [subjectTenantId], references: [id], onDelete: Cascade)
 
   /// Denormalised so the log reads without a join, exactly like automation_run.
   tenantId String
@@ -4706,7 +4772,14 @@ model WorkflowRun {
   /// ONE run per person per workflow, forever. A second opt-in moves nothing and
   /// queues nothing: somebody three days into a sequence must not be put back at the
   /// start by filling the form again.
-  @@unique([workflowId, contactId])
+  /// 🔴 THE UNIQUE IS GONE ON PURPOSE. It was (workflow, contact), which meant a person
+  /// could pass through a given sequence exactly once for as long as the row survived -
+  /// so a lead who came back the next quarter, booked again and deserved the same
+  /// follow-up silently got nothing, and the only trace was an enrolment that did not
+  /// happen. Re-enrolment is now allowed and the guard moved into the enroller, which
+  /// refuses a second run only while one is still ACTIVE.
+  @@index([workflowId, contactId])
+  @@index([workflowId, subjectTenantId])
   @@index([status, dueAt])
   @@index([tenantId, startedAt])
   @@map("workflow_run")
@@ -5463,4 +5536,35 @@ model WaTemplate {
   @@unique([tenantId, name, language])
   @@index([tenantId, status])
   @@map("wa_template")
+}
+
+/// One arrow between two boxes.
+///
+/// A row rather than a column on the step, because a node may have several ways out (a
+/// BRANCH has two) and several ways in (anything a LOOP jumps back to). A `from` of null
+/// is the edge leaving the trigger, which is the one box the canvas always draws and the
+/// one that is not a step.
+model WorkflowEdge {
+  id         String   @id @default(cuid())
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  /// Null = this edge leaves the trigger.
+  fromStepId String?
+  fromStep   WorkflowStep? @relation("WorkflowEdgeFrom", fields: [fromStepId], references: [id], onDelete: Cascade)
+
+  toStepId String
+  toStep   WorkflowStep @relation("WorkflowEdgeTo", fields: [toStepId], references: [id], onDelete: Cascade)
+
+  label WorkflowEdgeLabel @default(NEXT)
+
+  createdAt DateTime @default(now())
+
+  /// One edge per (from, label): a node cannot have two different NEXT steps, and a BRANCH
+  /// cannot have two YES arms. The database says so because a duplicate here is a fork the
+  /// runner has no rule for.
+  @@unique([workflowId, fromStepId, label])
+  @@index([workflowId])
+  @@index([toStepId])
+  @@map("workflow_edge")
 }

@@ -288,13 +288,21 @@ function Connector() {
 function kindLabel(s: WorkflowStepView): string {
   if (s.kind === "DELAY") return "WAIT";
   if (s.kind === "TAG") return "TAG";
+  if (s.kind === "BRANCH" || s.kind === "LOOP" || s.kind === "EXIT") return s.kind;
   return s.channel === "WABA" ? "WHATSAPP" : "EMAIL";
 }
 
+// 🟡 BRANCH, LOOP and EXIT are in the enum but the builder offers none of them, so a
+// step can only carry one if it was written by something other than this screen. They
+// are listed here because the map has to be total, and given a colour that reads as
+// "not one of ours" rather than a fourth ordinary kind.
 const KIND_CLASS: Record<WorkflowStepView["kind"], string> = {
   MESSAGE: "border-sky-500/40",
   DELAY: "border-amber-500/40",
   TAG: "border-violet-500/40",
+  BRANCH: "border-dashed border-[var(--field-border)]",
+  LOOP: "border-dashed border-[var(--field-border)]",
+  EXIT: "border-dashed border-[var(--field-border)]",
 };
 
 /**
