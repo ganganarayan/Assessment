@@ -99,7 +99,8 @@
     "verify:workflow-queue": "tsx --conditions=react-server scripts/verify-workflow-queue.ts",
     "verify:schema-migrations": "tsx scripts/verify-schema-migrations.ts",
     "verify:vault": "tsx scripts/verify-vault.ts",
-    "verify:contact-consent": "tsx --conditions=react-server scripts/verify-contact-consent.ts"
+    "verify:contact-consent": "tsx --conditions=react-server scripts/verify-contact-consent.ts",
+    "probe:zoom": "tsx --env-file=.env --conditions=react-server scripts/probe-zoom-recordings.ts"
   },
   "prisma": {
     "seed": "tsx --conditions=react-server prisma/seed.ts"
