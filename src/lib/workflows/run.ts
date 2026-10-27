@@ -8,6 +8,7 @@ import { isSuppressed, unsubscribeUrlFor } from "@/lib/contacts/dnd";
 import { defaultCountryCodeFor } from "@/lib/contacts/upsert";
 import { resolveRecipient } from "@/lib/workflows/subject";
 import { deliverWebhook } from "@/lib/webhooks/dispatch";
+import { createLooseZoomMeeting } from "@/lib/zoom/meetings";
 import { dueAfter, isStale } from "@/lib/workflows/schedule";
 
 /**
@@ -100,6 +101,7 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
       subjectId: true,
       workflowId: true,
       contactId: true,
+      meetingLink: true,
       subjectTenantId: true,
       contact: {
         select: {
@@ -234,7 +236,28 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
     return false;
   }
 
-  // 🟡 BRANCH, LOOP and ZOOM_MEETING have no handler, and the builder offers none of
+  if (step.kind === "ZOOM_MEETING") {
+    const topic = fillPlaceholders(step.zoomTopic?.trim() || "Call with {{firstName}}", lead(who), {});
+    const made = await createLooseZoomMeeting({ tenantId: run.tenantId, topic });
+    if ("error" in made) {
+      await logSend(run.tenantId, run.workflowId, step, who.contactId, "FAILED", null, made.error);
+    } else {
+      // 🔴 Written to the RUN, which is what every later step reads {{meetingLink}} from.
+      // Without this the link exists only in Zoom and nothing can say it.
+      await prisma.workflowRun
+        .update({ where: { id: runId }, data: { meetingLink: made.joinUrl } })
+        .catch(() => {});
+      run.meetingLink = made.joinUrl;
+      await logSend(run.tenantId, run.workflowId, step, who.contactId, "SENT", made.joinUrl, null);
+    }
+    await prisma.workflowRun.update({
+      where: { id: runId },
+      data: { status: "PENDING", currentStep: run.currentStep + 1, dueAt: now, attempts: 0 },
+    });
+    return false;
+  }
+
+  // 🟡 BRANCH and LOOP have no handler, and the builder offers none of
   // them. A row carrying one did not come from this product, so it is logged and
   // stepped over rather than crashing a sequence somebody else is halfway through.
   if (step.kind !== "MESSAGE") {
@@ -279,6 +302,7 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
   }
 
   await sendStep(step, run.tenantId, run.workflowId, {
+    meetingLink: run.meetingLink,
     id: who.contactId,
     firstName: who.firstName,
     lastName: who.lastName,
@@ -323,6 +347,10 @@ async function applyTag(step: WorkflowStep, contactId: string, tenantId: string)
 }
 
 interface SendContact extends LeadFields {
+  /// The Zoom link this run made, if a ZOOM_MEETING step ran above. Null otherwise,
+  /// which leaves {{meetingLink}} visible in the message rather than blank - a
+  /// placeholder that silently empties is how a message goes out saying "join here:".
+  meetingLink?: string | null;
   /// Null on a tenant-nurture run: the send is logged without a contact, because there
   /// is not one. Everything else a message needs is the same either way.
   id: string | null;
@@ -331,7 +359,10 @@ interface SendContact extends LeadFields {
 
 async function sendStep(step: WorkflowStep, tenantId: string, workflowId: string, contact: SendContact) {
   const unsubscribeUrl = await unsubscribeUrlFor(tenantId, contact.optOutToken);
-  const extra = { unsubscribeUrl };
+  const extra = {
+    unsubscribeUrl,
+    ...(contact.meetingLink ? { meetingLink: contact.meetingLink } : {}),
+  };
   const channel = step.channel ?? "EMAIL";
 
   if (channel === "EMAIL") {
@@ -393,6 +424,23 @@ async function logSend(
       error: error?.slice(0, 500) ?? null,
     },
   });
+}
+
+/** The lead fields a placeholder can use, from whichever subject this run has. */
+function lead(who: {
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  mobile: string | null;
+  profession: string | null;
+}): LeadFields {
+  return {
+    firstName: who.firstName,
+    lastName: who.lastName,
+    email: who.email,
+    mobile: who.mobile,
+    profession: who.profession,
+  };
 }
 
 /**

@@ -347,6 +347,8 @@ export interface WorkflowStepView {
   targetWorkflowId: string | null;
   /** WEBHOOK: which registered endpoint to post to. */
   webhookId: string | null;
+  /** ZOOM_MEETING: what the meeting is called in Zoom. Placeholders allowed. */
+  zoomTopic: string | null;
   sentCount: number;
   failedCount: number;
   skippedCount: number;
@@ -393,6 +395,7 @@ export const OFFERED_STEP_KINDS = [
   "WEBHOOK",
   "NOTIFY_OWNER",
   "UNSUBSCRIBE",
+  "ZOOM_MEETING",
   "EXIT",
 ] as const;
 
@@ -412,6 +415,8 @@ export interface StepMenuEntry {
   label: string;
   kind: OfferedStepKind;
   channel?: WorkflowChannel;
+  /** Offered only where Zoom is connected. */
+  needsZoom?: boolean;
 }
 
 export const STEP_MENU: StepMenuEntry[] = [
@@ -421,10 +426,19 @@ export const STEP_MENU: StepMenuEntry[] = [
   { id: "tag", label: "Tag", kind: "TAG" },
   { id: "subflow", label: "Call workflow", kind: "SUBFLOW" },
   { id: "webhook", label: "Call a webhook", kind: "WEBHOOK" },
+  // 🔴 needsZoom, so it is HIDDEN unless this workspace has actually connected Zoom.
+  // A step that cannot work is worse than one that is missing: it saves, publishes,
+  // and then fails for every person who reaches it with nothing on screen to say why.
+  { id: "zoom", label: "Get a Zoom link", kind: "ZOOM_MEETING", needsZoom: true },
   { id: "notify", label: "Notify me", kind: "NOTIFY_OWNER" },
   { id: "unsub", label: "Unsubscribe them", kind: "UNSUBSCRIBE" },
   { id: "exit", label: "End the sequence", kind: "EXIT" },
 ];
+/** The menu entries this workspace can actually use. */
+export function offerableSteps(zoomConnected: boolean): StepMenuEntry[] {
+  return STEP_MENU.filter((m) => !m.needsZoom || zoomConnected);
+}
+
 export interface BuilderOptions {
   assessments: { id: string; title: string }[];
   tags: { id: string; name: string }[];
@@ -438,6 +452,8 @@ export interface BuilderOptions {
   workflows: { id: string; name: string }[];
   /** Registered endpoints. A step posts to one of these, never to a typed URL. */
   webhooks: { id: string; name: string }[];
+  /** Whether this workspace has connected Zoom, which is what offers the Zoom step. */
+  zoomConnected: boolean;
 }
 
 /* ------------------------------------------------------------- validation --- */
@@ -488,6 +504,7 @@ export const stepSchema = z.object({
   // plain id from a form is a request to touch a row, not permission to.
   targetWorkflowId: z.string().nullable().optional(),
   webhookId: z.string().nullable().optional(),
+  zoomTopic: z.string().max(200).nullable().optional(),
 });
 
 /**

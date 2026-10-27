@@ -25,6 +25,7 @@ function stepView(s: {
   tagAction: WorkflowStepView["tagAction"];
   targetWorkflowId: string | null;
   webhookId: string | null;
+  zoomTopic: string | null;
   sentCount: number;
   failedCount: number;
   skippedCount: number;
@@ -45,6 +46,7 @@ function stepView(s: {
     tagAction: s.tagAction,
     targetWorkflowId: s.targetWorkflowId,
     webhookId: s.webhookId,
+    zoomTopic: s.zoomTopic,
     sentCount: s.sentCount,
     failedCount: s.failedCount,
     skippedCount: s.skippedCount,
@@ -122,7 +124,7 @@ export async function getWorkflow(scopeTenantId: string | null, id: string): Pro
  */
 export async function builderOptions(scopeTenantId: string | null): Promise<BuilderOptions> {
   const tenantId = contactTenantOf(scopeTenantId);
-  const [assessments, tags, waba, visible, workflows, webhooks] = await Promise.all([
+  const [assessments, tags, waba, visible, workflows, zoom, webhooks] = await Promise.all([
     prisma.assessment.findMany({
       where: tenantId === "platform" ? { OR: [{ tenantId: null }, { tenantId }] } : { tenantId },
       orderBy: { title: "asc" },
@@ -138,6 +140,7 @@ export async function builderOptions(scopeTenantId: string | null): Promise<Buil
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    prisma.zoomAccount.findUnique({ where: { tenantId }, select: { tenantId: true } }),
     prisma.webhook.findMany({
       where: { tenantId },
       orderBy: { name: "asc" },
@@ -159,5 +162,5 @@ export async function builderOptions(scopeTenantId: string | null): Promise<Buil
     }
   }
 
-  return { assessments, tags, wabaTemplates, wabaAvailable, workflows, webhooks };
+  return { assessments, tags, wabaTemplates, wabaAvailable, workflows, webhooks, zoomConnected: !!zoom };
 }

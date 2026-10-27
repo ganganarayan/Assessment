@@ -247,6 +247,7 @@ export async function updateWorkflowStep(workflowId: string, input: unknown): Pr
       tagAction: v.tagAction,
       targetWorkflowId: v.targetWorkflowId || null,
       webhookId: v.webhookId || null,
+      zoomTopic: v.zoomTopic || null,
     },
   });
   refresh(workflowId);

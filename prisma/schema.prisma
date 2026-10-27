@@ -4817,6 +4817,14 @@ model WorkflowRun {
   subjectId String?
 
   /// displayOrder of the NEXT step to run. A sequence advances by moving this.
+  /// The Zoom link a ZOOM_MEETING step made for this person, for every step after it to
+  /// put in a message as {{meetingLink}}.
+  ///
+  /// 🔴 ON THE RUN, NOT ON THE STEP. A step is shared by everybody who passes through
+  /// the sequence; the meeting belongs to ONE of them. Storing it on the step would hand
+  /// the second person the first person's call.
+  meetingLink String?
+
   currentStep Int @default(0)
 
   /// When that step is due. Now for an immediate one, the delay out for a waited one.

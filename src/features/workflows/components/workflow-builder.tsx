@@ -21,7 +21,7 @@ import {
   STATUS_CLASS,
   STATUS_LABEL,
   TRIGGERS,
-  STEP_MENU,
+  offerableSteps,
   type OfferedStepKind,
   WORKFLOW_PLACEHOLDERS,
   publishProblems,
@@ -255,7 +255,7 @@ export function WorkflowBuilder({
       {workflow.steps.map((step, i) => (
         <div key={step.id} className="flex flex-col items-stretch gap-0">
           <Connector />
-          <Inserter pending={pending} onAdd={(k, ch) => runAndSelect(() => addWorkflowStep(workflow.id, k, i, ch))} />
+          <Inserter pending={pending} zoomConnected={options.zoomConnected} onAdd={(k, ch) => runAndSelect(() => addWorkflowStep(workflow.id, k, i, ch))} />
           <Connector />
           <StepNode
             step={step}
@@ -270,6 +270,7 @@ export function WorkflowBuilder({
       <Connector />
       <Inserter
         pending={pending}
+        zoomConnected={options.zoomConnected}
         onAdd={(k, ch) => runAndSelect(() => addWorkflowStep(workflow.id, k, workflow.steps.length, ch))}
       />
       <Connector />
@@ -345,6 +346,7 @@ function kindLabel(s: WorkflowStepView): string {
   if (s.kind === "WEBHOOK") return "WEBHOOK";
   if (s.kind === "UNSUBSCRIBE") return "UNSUBSCRIBE";
   if (s.kind === "NOTIFY_OWNER") return "NOTIFY ME";
+  if (s.kind === "ZOOM_MEETING") return "ZOOM";
   if (s.kind === "EXIT") return "END";
   if (s.kind !== "MESSAGE") return s.kind;
   return s.channel === "WABA" ? "WHATSAPP" : "EMAIL";
@@ -367,7 +369,7 @@ const KIND_CLASS: Record<WorkflowStepView["kind"], string> = {
   // them; ZOOM_MEETING waits for a workflow that has an appointment to put a link on.
   BRANCH: "border-dashed border-[var(--field-border)]",
   LOOP: "border-dashed border-[var(--field-border)]",
-  ZOOM_MEETING: "border-dashed border-[var(--field-border)]",
+  ZOOM_MEETING: "border-cyan-500/40",
 };
 
 /**
@@ -399,6 +401,9 @@ function stepSummary(s: WorkflowStepView, options: BuilderOptions): string {
     return name ? `Call: ${name}` : "No endpoint picked yet";
   }
   if (s.kind === "NOTIFY_OWNER") return s.subject.trim() || "No subject yet";
+  if (s.kind === "ZOOM_MEETING") {
+    return s.zoomTopic?.trim() ? `Zoom: ${s.zoomTopic}` : "Make a Zoom link for them";
+  }
   if (s.kind === "UNSUBSCRIBE") return "Take them off the list";
   if (s.kind === "EXIT") return "Stop here. Nothing below this runs.";
   if (s.channel === "WABA") {
@@ -416,7 +421,7 @@ function stepIncomplete(s: WorkflowStepView): boolean {
   if (s.kind === "WEBHOOK") return !s.webhookId;
   if (s.kind === "NOTIFY_OWNER") return !s.subject.trim() || !s.body.trim();
   // Neither takes any configuration, so neither can be unfinished.
-  if (s.kind === "UNSUBSCRIBE" || s.kind === "EXIT") return false;
+  if (s.kind === "UNSUBSCRIBE" || s.kind === "EXIT" || s.kind === "ZOOM_MEETING") return false;
   return s.channel === "WABA" ? !s.wabaTemplate : !s.subject.trim() || !s.body.trim();
 }
 
@@ -493,9 +498,11 @@ function StepNode({
  */
 function Inserter({
   pending,
+  zoomConnected,
   onAdd,
 }: {
   pending: boolean;
+  zoomConnected: boolean;
   onAdd: (kind: OfferedStepKind, channel?: "EMAIL" | "WABA") => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -515,7 +522,7 @@ function Inserter({
   }
   return (
     <div className="flex flex-wrap items-center justify-center gap-2 rounded-md border border-dashed p-2">
-      {STEP_MENU.map((m) => (
+      {offerableSteps(zoomConnected).map((m) => (
         <Button
           key={m.id}
           size="sm"
@@ -809,6 +816,24 @@ function StepCard({
               your registered endpoints rather than a URL typed here, on purpose.
             </p>
           )}
+        </div>
+      ) : null}
+
+      {step.kind === "ZOOM_MEETING" ? (
+        <div className="mt-3 flex flex-col gap-2">
+          <Field label="What the meeting is called in Zoom">
+            <Input
+              data-ph="1"
+              value={v.zoomTopic ?? ""}
+              placeholder="Call with {{firstName}}"
+              onChange={(e) => set({ zoomTopic: e.target.value })}
+              onBlur={() => onSave({ zoomTopic: v.zoomTopic })}
+            />
+          </Field>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Makes a Zoom meeting for this person and hands the link to every step below as
+            {" "}{"{{meetingLink}}"}. Put it above the message that sends the link.
+          </p>
         </div>
       ) : null}
 

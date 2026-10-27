@@ -122,3 +122,48 @@ async function note(appointmentId: string, message: string): Promise<void> {
     .update({ where: { id: appointmentId }, data: { zoomError: message.slice(0, 300) } })
     .catch(() => {});
 }
+
+/**
+ * Make a Zoom meeting that belongs to no appointment.
+ *
+ * The function above exists because a booked call HAS a time and a row to write the
+ * link onto. A workflow has neither: a sequence step fires when it fires, for whoever
+ * is going through it, and the link it makes is handed to the messages below it rather
+ * than to a calendar entry.
+ *
+ * 🟡 Scheduled an hour out and an hour long, because Zoom insists on a start time and
+ * a sequence has no opinion about one. join_before_host is on for the same reason as
+ * above: somebody following a link from an email should not sit in a waiting room
+ * wondering whether they are in the right place.
+ */
+export async function createLooseZoomMeeting(args: {
+  tenantId: string;
+  topic: string;
+}): Promise<{ joinUrl: string } | { error: string }> {
+  const token = await zoomAccessToken(args.tenantId);
+  if (!token) return { error: "Zoom is not connected for this workspace." };
+  try {
+    const res = await fetch(`${API}/users/me/meetings`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        topic: args.topic.slice(0, 200),
+        type: 2,
+        start_time: new Date(Date.now() + 3600_000).toISOString(),
+        duration: 60,
+        timezone: "Asia/Kolkata",
+        settings: { join_before_host: true, waiting_room: false },
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const text = await res.text();
+    const data = (text ? JSON.parse(text) : {}) as CreatedMeeting & { message?: string };
+    if (!res.ok || !data.join_url) return { error: data.message ?? `Zoom returned ${res.status}` };
+    await prisma.zoomAccount
+      .updateMany({ where: { tenantId: args.tenantId }, data: { lastUsedAt: new Date(), lastError: null } })
+      .catch(() => {});
+    return { joinUrl: data.join_url };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}

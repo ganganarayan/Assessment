@@ -246,11 +246,11 @@ const builderSrc = readFileSync(
   join(process.cwd(), "src", "features", "workflows", "components", "workflow-builder.tsx"),
   "utf8",
 );
-for (const kind of ["BRANCH", "LOOP", "ZOOM_MEETING"]) {
+for (const kind of ["BRANCH", "LOOP"]) {
   expect(
     `the builder does not offer ${kind} yet`,
     !new RegExp(`kind:\\s*"${kind}"`).test(builderSrc),
-    `${kind} is schema-only: BRANCH and LOOP until the canvas can draw them, ZOOM_MEETING until a sequence has an appointment to put the link on. A step saved with one is a workflow the runner has no rule for.`,
+    `${kind} is schema-only: BRANCH and LOOP until the canvas can draw them, A step saved with one is a workflow the runner has no rule for.`,
   );
 }
 
