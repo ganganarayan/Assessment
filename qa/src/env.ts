@@ -44,7 +44,13 @@ const file = readEnvFile(resolve(QA_ROOT, ".env.qa"));
 
 function pick(...keys: string[]): string {
   for (const k of keys) {
-    const v = file[k] ?? process.env[k];
+    // The ENVIRONMENT wins over the file, which is the way round every other tool does
+    // it: the file is the standing default, and a variable set for one command is a
+    // deliberate override for that run. The other way round, QA_BASE_URL=<prod> in front
+    // of the command is silently ignored and the run reads staging instead, with nothing
+    // but the printed host to give it away - which is exactly how a "prod" check turned
+    // out to have been a staging check.
+    const v = process.env[k] ?? file[k];
     if (v && v.trim()) return v.trim();
   }
   return "";
