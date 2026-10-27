@@ -40,6 +40,7 @@ export interface ScreenGroup {
 }
 
 const pass = (what: string, observed?: string): Check => ({ verdict: "pass", what, observed });
+const fail = (what: string, observed?: string): Check => ({ verdict: "fail", what, observed });
 const ok = (what: string, cond: boolean, expected: string, observed: string): Check => ({
   verdict: cond ? "pass" : "fail",
   what,
@@ -605,4 +606,51 @@ const vault: ScreenGroup = {
 };
 
 
-export const GROUPS: ScreenGroup[] = [legal, emailProviders, whatsapp, contacts, vault];
+/**
+ * The screens built for the workflow builder, and the release switch that hides their
+ * workspace copies.
+ *
+ * 🔴 WHY A SCREEN CHECK AND NOT ONLY A UNIT ONE. Everything these pages do is a server
+ * component reading the database and rendering: a wrong column name, a null nobody
+ * expected, a Prisma select that does not match the type, all typecheck perfectly and
+ * then throw on the first real row. Nothing short of visiting the page finds that, and
+ * the pages are behind a release switch, so nobody will visit them by accident.
+ */
+const workflowScreens: ScreenGroup = {
+  id: "workflows",
+  title: "The workflow builder's own screens, and what a workspace may not see",
+  needsAdmin: true,
+  async run(page, baseUrl) {
+    const checks = [];
+    for (const path of ["/admin/workflows", "/admin/workflows/logs", "/admin/wa-templates"]) {
+      const v = await visit(page, baseUrl, path);
+      checks.push(...arrived(v, path), ...datesAreIndian(v, path));
+    }
+
+    // 🔴 The half that matters most. Workflows and WhatsApp templates are held back from
+    // customers by their release switches, and a hidden menu item is presentation, not a
+    // permission. If a workspace can reach the page by typing the address, the switch is
+    // decoration - and this is the only check that would ever notice.
+    checks.push(
+      ...(await withTenant(page, baseUrl, async () => {
+        const out = [];
+        for (const path of ["/w/workflows/logs", "/w/wa-templates"]) {
+          const v = await visit(page, baseUrl, path);
+          const held = v.crashed || !v.url.includes(path);
+          out.push(
+            held
+              ? pass(`${path} is not reachable while the feature is held back`, v.url)
+              : fail(
+                  `${path} opened for a workspace`,
+                  "the release switch is off, so this page should have redirected. A hidden link is not a permission.",
+                ),
+          );
+        }
+        return out;
+      })),
+    );
+    return checks;
+  },
+};
+
+export const GROUPS: ScreenGroup[] = [legal, emailProviders, whatsapp, contacts, vault, workflowScreens];
