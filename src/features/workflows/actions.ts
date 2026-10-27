@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
+import { syncEdges } from "@/lib/workflows/edges";
 import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { contactTenantOf } from "@/lib/contacts/upsert";
 import { featureDenied } from "@/lib/features/release";
@@ -110,19 +111,39 @@ export async function updateWorkflowSettings(input: unknown): Promise<ActionResu
 export async function addWorkflowStep(
   workflowId: string,
   kind: "MESSAGE" | "DELAY" | "TAG",
-): Promise<ActionResult> {
+  /**
+   * Where to put it. Undefined appends, which is what every caller meant before the
+   * canvas had a + between boxes. 0 puts it immediately after the trigger.
+   */
+  atIndex?: number,
+): Promise<ActionResult<{ id: string }>> {
   const s = await scoped();
   if (!s.ok) return s.result;
   if (!(await own(s.tenantId, workflowId))) return { ok: false, error: "That workflow is not in this workspace." };
 
-  const last = await prisma.workflowStep.findFirst({
+  const existing = await prisma.workflowStep.findMany({
     where: { workflowId },
-    orderBy: { displayOrder: "desc" },
-    select: { displayOrder: true },
+    orderBy: { displayOrder: "asc" },
+    select: { id: true },
   });
-  const order = last ? last.displayOrder + 1 : 0;
+  // Clamped rather than trusted: the index comes from a screen that may be a moment
+  // behind the data, and an out-of-range insert would silently land somewhere else.
+  const at =
+    atIndex === undefined ? existing.length : Math.max(0, Math.min(Math.trunc(atIndex), existing.length));
 
-  await prisma.workflowStep.create({
+  // 🔴 SHIFT FIRST, THEN INSERT. Writing the new step at an occupied displayOrder and
+  // tidying up afterwards leaves two steps sharing a position in between, and the
+  // runner's cursor is that position - a run landing there mid-insert would take the
+  // wrong step. The gap is opened before anything occupies it.
+  if (at < existing.length) {
+    await prisma.workflowStep.updateMany({
+      where: { workflowId, displayOrder: { gte: at } },
+      data: { displayOrder: { increment: 1 } },
+    });
+  }
+  const order = at;
+
+  const created = await prisma.workflowStep.create({
     data: {
       workflowId,
       displayOrder: order,
@@ -134,8 +155,11 @@ export async function addWorkflowStep(
       ...(kind === "TAG" ? { tagAction: "ADD" as const } : {}),
     },
   });
+  await syncEdges(workflowId);
   refresh(workflowId);
-  return { ok: true };
+  // The id travels back so the builder can select the box it just made. Adding a step
+  // and being left to find it is the small friction that makes a builder feel inert.
+  return { ok: true, data: { id: created.id } };
 }
 
 export async function updateWorkflowStep(workflowId: string, input: unknown): Promise<ActionResult> {
@@ -204,6 +228,7 @@ export async function moveWorkflowStep(workflowId: string, stepId: string, direc
     prisma.workflowStep.update({ where: { id: a.id }, data: { displayOrder: b.displayOrder } }),
     prisma.workflowStep.update({ where: { id: b.id }, data: { displayOrder: a.displayOrder } }),
   ]);
+  await syncEdges(workflowId);
   refresh(workflowId);
   return { ok: true };
 }
@@ -224,6 +249,7 @@ export async function deleteWorkflowStep(workflowId: string, stepId: string): Pr
   await prisma.$transaction(
     rest.map((r, idx) => prisma.workflowStep.update({ where: { id: r.id }, data: { displayOrder: idx } })),
   );
+  await syncEdges(workflowId);
   refresh(workflowId);
   return { ok: true };
 }

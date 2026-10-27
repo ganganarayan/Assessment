@@ -59,12 +59,33 @@ export function WorkflowBuilder({
   const live = workflow.status === "PUBLISHED";
   const problems = publishProblems(workflow);
 
+  // Which box the right-hand panel is describing. The trigger is selected by default,
+  // because it is the one node that always exists and the one a new workflow needs
+  // filled in first.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Derived rather than held: a step deleted or reordered under us must not leave the
+  // panel editing a row that is no longer there.
+  const selected = workflow.steps.find((x) => x.id === selectedId) ?? null;
+
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) =>
     start(async () => {
       setMsg(null);
       const r = await fn();
       if (!r.ok) setMsg(r.error ?? "That did not work.");
       else router.refresh();
+    });
+
+  /** Run an action that MAKES a step, and select the box it made. */
+  const runAndSelect = (fn: () => Promise<{ ok: boolean; error?: string; data?: { id: string } }>) =>
+    start(async () => {
+      setMsg(null);
+      const r = await fn();
+      if (!r.ok) {
+        setMsg(r.error ?? "That did not work.");
+        return;
+      }
+      if (r.data?.id) setSelectedId(r.data.id);
+      router.refresh();
     });
 
   return (
@@ -143,6 +164,12 @@ export function WorkflowBuilder({
         {msg ? <p className="text-sm text-red-500">{msg}</p> : null}
       </div>
 
+      {/* The sequence on the left, whatever is selected on the right. On a phone the
+          grid collapses and the panel falls underneath the box it describes, which is
+          the only honest thing a column of boxes can do at that width. */}
+      <div className="md:grid md:grid-cols-[minmax(0,1fr)_21rem] md:items-start md:gap-6">
+      <div className="flex flex-col gap-0">
+
       {/* The start node. Solid and coloured rather than dashed: it is the one box on
           the screen that is not optional, and a dashed border reads as a placeholder. */}
       <div className="rounded-lg border-2 border-emerald-500/50 bg-emerald-500/5 p-4">
@@ -218,49 +245,65 @@ export function WorkflowBuilder({
         </div>
       </div>
 
-      {/* Steps */}
+      {/* Every gap has a + in it, so a step goes where it is needed rather than onto
+          the end and then walked up with Up four times. */}
       {workflow.steps.map((step, i) => (
         <div key={step.id} className="flex flex-col items-stretch gap-0">
           <Connector />
-          <StepCard
+          <Inserter pending={pending} onAdd={(k) => runAndSelect(() => addWorkflowStep(workflow.id, k, i))} />
+          <Connector />
+          <StepNode
             step={step}
             index={i}
-            total={workflow.steps.length}
             options={options}
-            pending={pending}
-            onSave={(patch) => run(() => updateWorkflowStep(workflow.id, { ...step, ...patch }))}
-            onMove={(d) => run(() => moveWorkflowStep(workflow.id, step.id, d))}
-            onDelete={() => {
-              if (!confirm("Delete this step?")) return;
-              run(() => deleteWorkflowStep(workflow.id, step.id));
-            }}
+            selected={selectedId === step.id}
+            onSelect={() => setSelectedId(step.id)}
           />
         </div>
       ))}
 
       <Connector />
-
-      <div className="flex flex-wrap gap-2 rounded-lg border border-dashed p-3">
-        <span className="w-full text-xs text-[var(--muted-foreground)]">Add a step</span>
-        {(["MESSAGE", "DELAY", "TAG"] as const).map((k) => (
-          <Button
-            key={k}
-            size="sm"
-            variant="outline"
-            disabled={pending}
-            onClick={() => run(() => addWorkflowStep(workflow.id, k))}
-          >
-            {k === "MESSAGE" ? "Message" : k === "DELAY" ? "Wait" : "Tag"}
-          </Button>
-        ))}
-      </div>
-
+      <Inserter
+        pending={pending}
+        onAdd={(k) => runAndSelect(() => addWorkflowStep(workflow.id, k, workflow.steps.length))}
+      />
       <Connector />
       <EndNode />
+      </div>
 
-      <p className="text-xs text-[var(--muted-foreground)]">
-        Placeholders: {WORKFLOW_PLACEHOLDERS.map((p) => `{{${p}}}`).join(" · ")}
-      </p>
+      {/* The properties panel. Sticky on a wide screen so it stays beside the box it
+          describes while the sequence scrolls past it. */}
+      <aside className="mt-5 flex flex-col gap-3 md:sticky md:top-4 md:mt-0">
+        {selected ? (
+          <StepCard
+            key={selected.id}
+            step={selected}
+            index={workflow.steps.findIndex((x) => x.id === selected.id)}
+            total={workflow.steps.length}
+            options={options}
+            pending={pending}
+            onSave={(patch) => run(() => updateWorkflowStep(workflow.id, { ...selected, ...patch }))}
+            onMove={(d) => run(() => moveWorkflowStep(workflow.id, selected.id, d))}
+            onDelete={() => {
+              if (!confirm("Delete this step?")) return;
+              setSelectedId(null);
+              run(() => deleteWorkflowStep(workflow.id, selected.id));
+            }}
+          />
+        ) : (
+          <div className="rounded-lg border p-4 text-sm text-[var(--muted-foreground)]">
+            <p className="font-medium text-[var(--foreground)]">The trigger</p>
+            <p className="mt-1 text-xs">
+              What starts this sequence, and what it is narrowed to, is set on the green box
+              itself. Click any step to edit it here.
+            </p>
+          </div>
+        )}
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Placeholders: {WORKFLOW_PLACEHOLDERS.map((p) => `{{${p}}}`).join(" · ")}
+        </p>
+      </aside>
+      </div>
     </div>
   );
 }
@@ -349,6 +392,116 @@ function EndNode() {
   );
 }
 
+/**
+ * One box in the column.
+ *
+ * It shows what the step DOES, never how it is configured: the whole point of moving
+ * the form into a panel is that the column stays readable as a sequence. A box you can
+ * read at a glance is what makes a missing step obvious, and a missing step is the
+ * commonest fault in a sequence nobody can see.
+ */
+function StepNode({
+  step,
+  index,
+  options,
+  selected,
+  onSelect,
+}: {
+  step: WorkflowStepView;
+  index: number;
+  options: BuilderOptions;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const incomplete = stepIncomplete(step);
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-current={selected ? "true" : undefined}
+      className={`w-full rounded-lg border-2 p-4 text-left transition ${KIND_CLASS[step.kind]} ${
+        selected ? "ring-2 ring-[var(--ring,theme(colors.sky.500))] ring-offset-1 ring-offset-[var(--background)]" : "hover:bg-[var(--muted)]/40"
+      }`}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[var(--muted-foreground)]">
+          {index + 1} · {kindLabel(step)}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">{stepSummary(step, options)}</span>
+        {/* 🔴 Said on the BOX, not only in the panel. An unfinished step is why a
+            published workflow does nothing, and the owner has to be able to see which
+            one it is without opening all five. */}
+        {incomplete ? (
+          <span className="shrink-0 rounded-full border border-amber-500/60 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+            Unfinished
+          </span>
+        ) : null}
+      </div>
+      {step.kind === "MESSAGE" && step.sentCount + step.failedCount > 0 ? (
+        <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+          Sent {step.sentCount} · failed {step.failedCount} · skipped {step.skippedCount}
+        </p>
+      ) : null}
+    </button>
+  );
+}
+
+/**
+ * The + that lives in a gap.
+ *
+ * Collapsed to a single + until it is wanted, because a row of three buttons repeated
+ * in every gap is more chrome than sequence. Opening it in place is what makes "put a
+ * wait between these two" one click rather than add-then-move-up-four-times.
+ */
+function Inserter({
+  pending,
+  onAdd,
+}: {
+  pending: boolean;
+  onAdd: (kind: "MESSAGE" | "DELAY" | "TAG") => void;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <div className="flex justify-center">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Add a step here"
+          className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed text-sm leading-none text-[var(--muted-foreground)] hover:border-solid hover:bg-[var(--muted)]"
+        >
+          +
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-2 rounded-md border border-dashed p-2">
+      {(["MESSAGE", "DELAY", "TAG"] as const).map((k) => (
+        <Button
+          key={k}
+          size="sm"
+          variant="outline"
+          disabled={pending}
+          onClick={() => {
+            setOpen(false);
+            onAdd(k);
+          }}
+        >
+          {k === "MESSAGE" ? "Message" : k === "DELAY" ? "Wait" : "Tag"}
+        </Button>
+      ))}
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="text-xs text-[var(--muted-foreground)] underline"
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 function StepCard({
   step,
   index,
@@ -369,31 +522,24 @@ function StepCard({
   onDelete: () => void;
 }) {
   const [v, setV] = useState(step);
-  // A finished step is a box you read; an unfinished one is a form you have to fill,
-  // so it opens itself rather than hiding behind a summary that implies it is done.
-  const [open, setOpen] = useState(() => stepIncomplete(step));
+  // 🟡 Always open. This card now lives in the properties panel, which only ever shows
+  // the one step you selected, so a collapse toggle would hide the only thing the
+  // panel is for. The summary that used to need expanding is on the box instead.
+  const open = true;
   const set = (patch: Partial<WorkflowStepView>) => setV((x) => ({ ...x, ...patch }));
   const template = options.wabaTemplates.find((t) => t.name === v.wabaTemplate);
 
   return (
     <div className={`rounded-lg border-2 p-4 ${KIND_CLASS[step.kind]}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
-        >
+        <div className="flex min-w-0 flex-1 items-center gap-2 text-left">
           <span className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[var(--muted-foreground)]">
             {index + 1} · {kindLabel(v)}
           </span>
           <span className="min-w-0 flex-1 truncate text-sm font-medium">
             {stepSummary(v, options)}
           </span>
-          <span className="shrink-0 text-xs text-[var(--muted-foreground)]">
-            {open ? "Close" : "Edit"}
-          </span>
-        </button>
+        </div>
         <div className="flex items-center gap-1">
           <Button size="sm" variant="ghost" disabled={pending || index === 0} onClick={() => onMove(-1)}>
             Up
