@@ -105,6 +105,7 @@
     "verify:whatsapp": "tsx --conditions=react-server scripts/verify-whatsapp.ts",
     "verify:legal": "tsx scripts/verify-legal.ts",
     "qa:screens": "tsx qa/src/screens/cli.ts",
+    "qa:admin": "tsx --conditions=react-server scripts/create-qa-admin.ts",
     "probe:zoom": "tsx --env-file=.env --conditions=react-server scripts/probe-zoom-recordings.ts",
     "verify:industries": "tsx scripts/verify-industries.ts"
   },

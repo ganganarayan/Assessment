@@ -57,10 +57,13 @@ interface Visit {
 
 /** Open a screen and bring back the four things every check below is built on. */
 async function visit(page: Page, baseUrl: string, path: string): Promise<Visit> {
-  const res = await page.goto(`${baseUrl}${path}`, { waitUntil: "domcontentloaded" });
-  // Client-rendered panels settle after the document does. A short settle is enough:
-  // nothing here waits on a network round trip to Meta, which is read from a snapshot.
-  await page.waitForTimeout(1200);
+  const res = await page.goto(`${baseUrl}${path}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  // Client-rendered panels settle after the document does, and anything this pass then
+  // CLICKS - a provider dropdown, an Enter button - is dead until React has hydrated, so
+  // idle is waited for rather than guessed at. The short settle stays behind it for the
+  // panels that paint one frame later.
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+  await page.waitForTimeout(800);
   return {
     status: res?.status() ?? 0,
     url: page.url(),
@@ -216,8 +219,8 @@ const emailProviders: ScreenGroup = {
   needsAdmin: true,
   async run(page, baseUrl) {
     const checks: Check[] = [];
-    const v = await visit(page, baseUrl, "/admin/nurture");
-    checks.push(...arrived(v, "/admin/nurture"), ...datesAreIndian(v, "/admin/nurture"));
+    const v = await visit(page, baseUrl, "/admin/settings");
+    checks.push(...arrived(v, "/admin/settings"), ...datesAreIndian(v, "/admin/settings"));
     if (v.crashed || v.url.includes("/sign-in")) return checks;
 
     // The one select that offers every provider, found by its CONTENTS rather than by
@@ -331,6 +334,33 @@ const emailProviders: ScreenGroup = {
   },
 };
 
+/**
+ * Enter a tenant, which is the only way the platform owner reaches a /w screen.
+ *
+ * A super admin has no workspace of their own: /w resolves an ACTING tenant, and with
+ * none entered it bounces back to the console to pick one. So a /w check run by an owner
+ * session would otherwise report "redirected" and read as a broken screen, when the
+ * screen was never asked for. Entering is a signed cookie and nothing else - no row is
+ * written, and the session is closed at the end of the pass.
+ *
+ * Returns the name of the tenant entered, so the report says WHOSE workspace was read,
+ * or null when the console offers none.
+ */
+async function enterFirstTenant(page: Page, baseUrl: string): Promise<string | null> {
+  await page.goto(`${baseUrl}/platform`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  // The console's table is a client component, and its buttons do nothing until it has
+  // hydrated - the same race that used to look like a refused password.
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+  const enter = page.getByRole("button", { name: /^Enter/ }).first();
+  if ((await enter.count()) === 0) return null;
+  const row = enter.locator("xpath=ancestor::tr[1]");
+  const name = (await row.locator("td").first().innerText().catch(() => "")).trim().split("\n")[0] ?? "";
+  await enter.click();
+  // enterTenant() redirects to the console; what matters is the cookie it leaves behind.
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+  return name || "a tenant";
+}
+
 const whatsapp: ScreenGroup = {
   id: "whatsapp",
   title: "The WhatsApp screens, on both sides of the platform",
@@ -340,6 +370,19 @@ const whatsapp: ScreenGroup = {
     // Both copies, because every super-admin feature belongs on the workspace side too
     // unless it is deliberately platform-only, and the two drift apart silently.
     for (const path of ["/admin/whatsapp", "/w/whatsapp"]) {
+      if (path.startsWith("/w")) {
+        const tenant = await enterFirstTenant(page, baseUrl);
+        if (!tenant) {
+          checks.push(
+            warn(
+              path + " was not opened",
+              "the platform console offered no tenant to enter, so the workspace copy of this screen was not read",
+            ),
+          );
+          continue;
+        }
+        checks.push(pass("entered a tenant to reach " + path, tenant));
+      }
       const v = await visit(page, baseUrl, path);
       checks.push(...arrived(v, path), ...datesAreIndian(v, path));
       if (v.crashed) continue;
@@ -375,6 +418,15 @@ const whatsapp: ScreenGroup = {
           "the word 'register' is on a coexistence screen, and registering takes the number off the owner's phone",
         ),
       );
+    }
+    // Hand the session back to the platform scope. The groups after this one read the
+    // OWNER's screens, and an acting cookie left set would quietly show them one tenant's
+    // data instead - green for the wrong scope. The product's own control does it, rather
+    // than the harness deleting a cookie the app is entitled to trust.
+    const exit = page.getByRole("button", { name: /Exit to platform/i }).first();
+    if ((await exit.count()) > 0) {
+      await exit.click();
+      await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
     }
     return checks;
   },
