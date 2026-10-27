@@ -1,13 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   RECLAIM_SHARE,
   WRONG_FIT_BANDS,
   type IndustryLeakSpec,
-} from "@/lib/marketing/industries";
+} from "@/lib/marketing/industries/types";
+import {
+  INR_PER_USD,
+  convertDefault,
+  count,
+  currencyWord,
+  inWords,
+  money,
+  roundNice,
+  type Currency,
+} from "@/lib/marketing/currency";
 
 /**
  * The leak calculator. Two sides: what today costs, and what the same budget
@@ -29,17 +39,83 @@ import {
  *  3. The one modelled figure, RECLAIM_SHARE, is named in the footnote. It is
  *     deliberately low, because a number an operator can pick apart is worth
  *     less than a smaller one they cannot.
+ *
+ * It imports its constants from industries/types rather than from the registry,
+ * which is what keeps twenty-one industries' page copy out of the client bundle.
  */
-export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
+export function IndustryLeak({
+  spec,
+  initialCurrency,
+  currencyResolved,
+}: {
+  spec: IndustryLeakSpec;
+  initialCurrency: Currency;
+  /** False when no country header reached the server, so the client may guess. */
+  currencyResolved: boolean;
+}) {
   const defaultBand =
     WRONG_FIT_BANDS.find((b) => b.id === spec.wrongFitDefaultBand) ?? WRONG_FIT_BANDS[1];
 
+  const [currency, setCurrency] = useState<Currency>(initialCurrency);
+  const [currencyChosen, setCurrencyChosen] = useState(false);
   const [enquiries, setEnquiries] = useState(String(spec.enquiriesDefault));
   const [outcomes, setOutcomes] = useState(String(spec.outcomesDefault));
-  const [value, setValue] = useState(String(spec.valueDefault));
-  const [spend, setSpend] = useState(String(spec.spendDefault));
+  const [value, setValue] = useState(String(convertDefault(spec.valueDefault, initialCurrency)));
+  const [spend, setSpend] = useState(String(convertDefault(spec.spendDefault, initialCurrency)));
   const [bandId, setBandId] = useState<string>(defaultBand.id);
   const [wrongFitPct, setWrongFitPct] = useState(String(defaultBand.pct));
+
+  /**
+   * Move the two money fields to another currency, converting what is in them.
+   *
+   * Converting the typed values rather than re-seeding the defaults is the only
+   * behaviour that does not throw away work: somebody who has entered their real
+   * ad spend and then switches currency means the same amount of money, not the
+   * example one. A round trip drifts slightly, because each leg rounds to two
+   * significant figures, and that is the right trade for a prefill nobody is
+   * reconciling against a bank statement.
+   */
+  function switchCurrency(next: Currency) {
+    setCurrencyChosen(true);
+    if (next === currency) return;
+    const convert = (raw: string) => {
+      const n = Number(raw.replace(/[^0-9.]/g, ""));
+      if (!Number.isFinite(n) || n <= 0) return raw;
+      return String(roundNice(next === "USD" ? n / INR_PER_USD : n * INR_PER_USD));
+    };
+    setValue(convert(value));
+    setSpend(convert(spend));
+    setCurrency(next);
+  }
+
+  /**
+   * The second guess at the visitor's currency, made in the browser.
+   *
+   * The server's only country signal is Cloudflare's cf-ipcountry, which is
+   * absent on any request that did not come through Cloudflare. Rather than show
+   * a reader in Toronto a page denominated in rupees, fall back to the one
+   * region signal the browser always has: its own timezone. India stays on
+   * rupees, an unknown timezone stays on rupees, and everything else moves to
+   * dollars.
+   *
+   * Runs once, only when the server did not resolve a country, and never over
+   * the top of a choice the visitor has already made with the toggle.
+   */
+  useEffect(() => {
+    if (currencyResolved || currencyChosen) return;
+    let tz = "";
+    try {
+      tz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+    } catch {
+      return;
+    }
+    if (!tz) return;
+    if (tz === "Asia/Kolkata" || tz === "Asia/Calcutta") return;
+    switchCurrency("USD");
+    // Deliberately mount-only: this is a one-shot fallback, and re-running it
+    // when the visitor edits a field would fight the toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function pickBand(id: string, pct: number) {
     setBandId(id);
@@ -51,13 +127,13 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
       const x = Number(v.replace(/[^0-9.]/g, ""));
       return Number.isFinite(x) && x > 0 ? x : 0;
     };
-    const count = n(enquiries);
+    const total = n(enquiries);
     const pct = Math.min(n(wrongFitPct), 100);
     const perSale = n(value);
     const adSpend = n(spend);
 
-    const wrongFit = Math.round((count * pct) / 100);
-    const qualified = Math.max(count - wrongFit, 0);
+    const wrongFit = Math.round((total * pct) / 100);
+    const qualified = Math.max(total - wrongFit, 0);
 
     // Their close rate, from their own two numbers. Capped at 1: somebody who
     // types more sales than qualified enquiries has misread a label, and a
@@ -80,7 +156,7 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
     const costPerSaleAfter = salesAfter > 0 ? adSpend / salesAfter : 0;
 
     return {
-      count,
+      count: total,
       pct,
       perSale,
       adSpend,
@@ -102,11 +178,43 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
   }, [enquiries, outcomes, value, spend, wrongFitPct]);
 
   const nothingToCatch = r.wrongFit === 0;
+  const amount = (v: number) => money(v, currency);
+  const whole = (v: number) => count(v, currency);
+  const inCurrency = `, in ${currencyWord(currency)}`;
 
   return (
     <div className="flex flex-col gap-8">
       {/* ---- Inputs --------------------------------------------------- */}
       <div className="rounded-xl border p-5 sm:p-6">
+        {/* The currency, and a way to correct it.
+
+            Opened by the server from the visitor's country, or by the browser's
+            timezone when no country header arrived. Both are guesses, so the
+            toggle is not a preference panel, it is the page admitting it might
+            be wrong about where the reader is. */}
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b pb-5">
+          <p className="text-sm text-[var(--muted-foreground)]">
+            Figures shown in {currencyWord(currency)}
+          </p>
+          <div className="flex gap-2" role="group" aria-label="Currency">
+            {(["INR", "USD"] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-pressed={currency === c}
+                onClick={() => switchCurrency(c)}
+                className={
+                  currency === c
+                    ? "rounded-md border-2 border-green-600 bg-green-600/10 px-3 py-1.5 text-sm font-medium"
+                    : "rounded-md border px-3 py-1.5 text-sm transition-colors hover:border-green-600"
+                }
+              >
+                {c === "INR" ? "₹ INR" : "$ USD"}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid gap-5 sm:grid-cols-2">
           <Field id="leak-enquiries" label={spec.enquiriesLabel}>
             <Input
@@ -124,7 +232,7 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
               onChange={(e) => setOutcomes(e.target.value)}
             />
           </Field>
-          <Field id="leak-value" label={spec.valueLabel} hint={spec.valueHint}>
+          <Field id="leak-value" label={`${spec.valueLabel}${inCurrency}`} hint={spec.valueHint}>
             <Input
               id="leak-value"
               inputMode="numeric"
@@ -132,7 +240,7 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
               onChange={(e) => setValue(e.target.value)}
             />
           </Field>
-          <Field id="leak-spend" label={spec.spendLabel} hint={spec.spendHint}>
+          <Field id="leak-spend" label={`${spec.spendLabel}${inCurrency}`} hint={spec.spendHint}>
             <Input
               id="leak-spend"
               inputMode="numeric"
@@ -193,31 +301,33 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
           Ad spend buying {plural(spec.unit)} that can never become a {spec.outcomeUnit}
         </p>
         <p className="mt-2 text-3xl font-bold text-amber-600 sm:text-4xl dark:text-amber-400">
-          {rupees(r.wastedSpend)}{" "}
+          {amount(r.wastedSpend)}{" "}
           <span className="text-base font-medium text-[var(--muted-foreground)]">
             a month, lost
           </span>
         </p>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          {rupees(r.wastedSpend * 12)} a year
-          {inWords(r.wastedSpend * 12) ? `. ${inWords(r.wastedSpend * 12)}` : ""}
+          {amount(r.wastedSpend * 12)} a year
+          {inWords(r.wastedSpend * 12, currency)
+            ? `. ${inWords(r.wastedSpend * 12, currency)}`
+            : ""}
         </p>
 
         {/* Two tiles, both losses. An earlier version put today's revenue here
             as a third, marked neither loss nor gain, which is not a thing a
-            figure in this row can be: a reader scanning three rupee amounts in
+            figure in this row can be: a reader scanning three amounts in
             identical type reads all three as the damage. The baseline belongs
             in the working below, where it is context rather than a headline. */}
         <div className="mt-6 grid gap-6 sm:grid-cols-2">
           <Stat
             label={`Wrong-fit ${plural(spec.unit)} a month`}
-            value={`${num(r.wrongFit)} of ${num(r.count)}`}
+            value={`${whole(r.wrongFit)} of ${whole(r.count)}`}
             tone="loss"
             sub="Paid for, and they reach your team anyway"
           />
           <Stat
             label={`What each ${spec.outcomeUnit} costs you today`}
-            value={rupees(r.costPerSale)}
+            value={amount(r.costPerSale)}
             tone="loss"
             sub="Inflated by everyone who could never buy"
           />
@@ -225,27 +335,27 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
 
         <Working>
           <Line>
-            {num(r.count)} {plural(spec.unit)} × {num(r.pct)}% that can never buy ={" "}
+            {whole(r.count)} {plural(spec.unit)} × {whole(r.pct)}% that can never buy ={" "}
             <Em>
-              {num(r.wrongFit)} wrong-fit, {num(r.qualified)} qualified
+              {whole(r.wrongFit)} wrong-fit, {whole(r.qualified)} qualified
             </Em>
           </Line>
           <Line>
-            {rupees(r.adSpend)} ad spend × {num(r.pct)}% ={" "}
-            <Em>{rupees(r.wastedSpend)} lost a month</Em>
+            {amount(r.adSpend)} ad spend × {whole(r.pct)}% ={" "}
+            <Em>{amount(r.wastedSpend)} lost a month</Em>
           </Line>
           <Detail>
             <Line>
-              {rupees(r.adSpend)} ÷ {num(r.sales)} {pluralOutcome(spec, r.sales)} ={" "}
-              <Em>{rupees(r.costPerSale)}</Em> per {spec.outcomeUnit} today
+              {amount(r.adSpend)} ÷ {whole(r.sales)} {pluralOutcome(spec, r.sales)} ={" "}
+              <Em>{amount(r.costPerSale)}</Em> per {spec.outcomeUnit} today
             </Line>
             <Line>
-              {num(r.sales)} ÷ {num(r.qualified)} qualified = <Em>{pct(r.closeRate)}</Em> close
+              {whole(r.sales)} ÷ {whole(r.qualified)} qualified = <Em>{pct(r.closeRate)}</Em> close
               rate on a qualified {spec.unit}, which is your number, not ours
             </Line>
             <Line>
-              {num(r.sales)} {pluralOutcome(spec, r.sales)} × {rupees(r.perSale)} ={" "}
-              <Em>{rupees(r.revenueToday)}</Em> a month, the baseline everything above is
+              {whole(r.sales)} {pluralOutcome(spec, r.sales)} × {amount(r.perSale)} ={" "}
+              <Em>{amount(r.revenueToday)}</Em> a month, the baseline everything above is
               measured against
             </Line>
           </Detail>
@@ -273,14 +383,16 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
               Extra revenue from the same ad budget
             </p>
             <p className="mt-2 text-3xl font-bold text-green-600 sm:text-4xl">
-              {rupees(r.extraRevenue)}{" "}
+              {amount(r.extraRevenue)}{" "}
               <span className="text-base font-medium text-[var(--muted-foreground)]">
                 a month, gained
               </span>
             </p>
             <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-              {rupees(r.extraRevenue * 12)} a year
-              {inWords(r.extraRevenue * 12) ? `. ${inWords(r.extraRevenue * 12)}` : ""}
+              {amount(r.extraRevenue * 12)} a year
+              {inWords(r.extraRevenue * 12, currency)
+                ? `. ${inWords(r.extraRevenue * 12, currency)}`
+                : ""}
             </p>
 
             <div className="mt-6 grid gap-6 sm:grid-cols-3">
@@ -288,7 +400,7 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
                 label={`Wrong-fit ${plural(spec.unit)} reaching your team`}
                 value="0"
                 tone="gain"
-                sub={`${num(r.wrongFit)} a month never become a lead`}
+                sub={`${whole(r.wrongFit)} a month never become a lead`}
               />
               <Stat
                 label={`Extra ${spec.outcomeUnitPlural} a month`}
@@ -298,29 +410,29 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
               />
               <Stat
                 label={`What each ${spec.outcomeUnit} costs you`}
-                value={rupees(r.costPerSaleAfter)}
+                value={amount(r.costPerSaleAfter)}
                 tone="gain"
-                sub={`Down from ${rupees(r.costPerSale)}`}
+                sub={`Down from ${amount(r.costPerSale)}`}
               />
             </div>
 
             <Working tone="green">
               <Line>
-                {rupees(r.wastedSpend)} lost × {Math.round(RECLAIM_SHARE * 100)}% reclaimed ={" "}
-                <Em>{rupees(r.reclaimed)}</Em> a month redirected
+                {amount(r.wastedSpend)} lost × {Math.round(RECLAIM_SHARE * 100)}% reclaimed ={" "}
+                <Em>{amount(r.reclaimed)}</Em> a month redirected
               </Line>
               <Line>
-                {r.extraSales.toFixed(1)} more {spec.outcomeUnitPlural} × {rupees(r.perSale)} ={" "}
-                <Em>{rupees(r.extraRevenue)} gained a month</Em>
+                {r.extraSales.toFixed(1)} more {spec.outcomeUnitPlural} × {amount(r.perSale)} ={" "}
+                <Em>{amount(r.extraRevenue)} gained a month</Em>
               </Line>
               <Detail>
                 <Line>
-                  {rupees(r.adSpend)} ÷ {num(r.qualified)} qualified ={" "}
-                  <Em>{rupees(r.costPerQualified)}</Em>, what a qualified {spec.unit} costs you
+                  {amount(r.adSpend)} ÷ {whole(r.qualified)} qualified ={" "}
+                  <Em>{amount(r.costPerQualified)}</Em>, what a qualified {spec.unit} costs you
                   today
                 </Line>
                 <Line>
-                  {rupees(r.reclaimed)} ÷ {rupees(r.costPerQualified)} ={" "}
+                  {amount(r.reclaimed)} ÷ {amount(r.costPerQualified)} ={" "}
                   <Em>
                     {r.extraQualified.toFixed(1)} more qualified {plural(spec.unit)}
                   </Em>{" "}
@@ -330,6 +442,13 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
                   </Em>
                 </Line>
                 <Line>{spec.reclaimNote}</Line>
+                {currency === "USD" ? (
+                  <Line>
+                    The figures this page prefilled were written in rupees and converted at{" "}
+                    {INR_PER_USD} to the dollar, rounded. Everything above is derived from what you
+                    typed, so the rate moves the starting point and never the answer.
+                  </Line>
+                ) : null}
               </Detail>
             </Working>
           </>
@@ -341,36 +460,8 @@ export function IndustryLeak({ spec }: { spec: IndustryLeakSpec }) {
   );
 }
 
-/** Rupees, Indian digit grouping, no paise. */
-function rupees(v: number): string {
-  return `₹${Math.round(v).toLocaleString("en-IN")}`;
-}
-
-/** Plain integers in the working, grouped the same way as the money. */
-function num(v: number): string {
-  return Math.round(v).toLocaleString("en-IN");
-}
-
 function pct(v: number): string {
   return `${(v * 100).toFixed(1)}%`;
-}
-
-/**
- * The annual figure in lakh or crore, which is how the reader actually holds it.
- *
- * Returns an empty string below a lakh rather than writing "₹40,000 in words",
- * because at that size the digits are already the clearest form.
- */
-function inWords(v: number): string {
-  if (v >= 10000000) {
-    const cr = v / 10000000;
-    return `About ₹${cr.toFixed(cr < 10 ? 2 : 1)} crore`;
-  }
-  if (v >= 100000) {
-    const lakh = v / 100000;
-    return `About ₹${lakh.toFixed(lakh < 10 ? 2 : 1)} lakh`;
-  }
-  return "";
 }
 
 function plural(unit: string): string {
@@ -403,7 +494,7 @@ function Line({ children }: { children: React.ReactNode }) {
  * These lines are how the model gets from one visible figure to the next: the
  * unit price of a qualified enquiry, the division back out into a count. They
  * are methodology, and on the face of the page they read as notes to ourselves
- * rather than as anything a consultancy owner came here for.
+ * rather than as anything a business owner came here for.
  *
  * Folded, not deleted. The page's own rule is that no number appears without
  * its arithmetic, so hiding the working would be worse than showing too much
@@ -444,8 +535,8 @@ function Em({ children }: { children: React.ReactNode }) {
 /**
  * A figure, and what KIND of figure it is.
  *
- * The tone word is not decoration. Rupee amounts sitting in a row in identical
- * type are genuinely ambiguous, and a cost that falls reads as a cost unless
+ * The tone word is not decoration. Amounts sitting in a row in identical type
+ * are genuinely ambiguous, and a cost that falls reads as a cost unless
  * something says otherwise.
  *
  * Loss or gain, and nothing else. There was briefly a third tone for figures

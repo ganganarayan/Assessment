@@ -1,6 +1,18 @@
 import { ANSWERS, PAGES } from "./registry";
 import { publishedCaseStudies } from "@/content/case-studies";
+import { INDUSTRY_PAGES } from "@/lib/marketing/industries";
 import { answerPath, seoPath } from "./urls";
+
+/**
+ * When the by-industry set last materially changed.
+ *
+ * One date for all of them, unlike the content registry's per-page `updatedAt`,
+ * because these pages are written and revised as a set: the mechanism copy they
+ * share lives in one module, so a change to it changes every page at once. A
+ * per-page date here would be twenty-one dates that are always identical and
+ * eventually a lie.
+ */
+const INDUSTRIES_UPDATED = "2026-10-27";
 
 export type SitemapEntry = {
   path: string;
@@ -27,11 +39,10 @@ const STATIC_PAGES: ReadonlyArray<SitemapEntry> = [
   // Ungated, answers a question people actually type ("what does a bad sales call
   // cost"), and asks for nothing. It is the cheapest entry point on the site.
   { path: "/wasted-call-calculator", updated: "2026-10-09", changeFrequency: "monthly", priority: 0.8 },
-  // The two By-industry pages: where an emailed funnel audit lands, and the only
-  // pages that argue the mechanism in one industry's own words. Ranked with /build
-  // rather than with the keyword pages, because they are campaign destinations.
-  { path: "/industries/study-abroad", updated: "2026-10-09", changeFrequency: "monthly", priority: 0.9 },
-  { path: "/industries/clinics", updated: "2026-10-09", changeFrequency: "monthly", priority: 0.9 },
+  // The By-industry pages are NOT here. They are appended below, derived from the
+  // registry, because there are twenty-one of them and a hand-typed list of that
+  // length fails the same way every time: a page ships, nobody adds the line, and
+  // the only symptom is a URL that never gets crawled.
   { path: "/sign-up", updated: "2026-10-01", changeFrequency: "monthly", priority: 0.6 },
   { path: "/pricing", updated: "2026-10-06", changeFrequency: "monthly", priority: 0.8 },
   // The offers page. Weekly, because its contents change when an offer opens or closes,
@@ -55,6 +66,15 @@ const STATIC_PAGES: ReadonlyArray<SitemapEntry> = [
 export function publicSitemapEntries(): SitemapEntry[] {
   return [
     ...STATIC_PAGES,
+    // The By-industry pages: where an emailed funnel audit lands, and the only pages
+    // that argue the mechanism in one industry's own words. Ranked with /build rather
+    // than with the keyword pages, because they are campaign destinations.
+    ...INDUSTRY_PAGES.map((p) => ({
+      path: p.path,
+      updated: INDUSTRIES_UPDATED,
+      changeFrequency: "monthly" as const,
+      priority: 0.9,
+    })),
     // Content entries carry their OWN updatedAt, straight from the module that holds the
     // words. That is why lastmod can be trusted here: it changes when the text changes,
     // because it lives in the same file as the text.

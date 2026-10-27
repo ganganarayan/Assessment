@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { MARKETING } from "@/lib/marketing/content";
-import { BY_INDUSTRY_LEAD_SLUGS, INDUSTRY_PAGES } from "@/lib/marketing/industries";
+import {
+  BY_INDUSTRY_LEAD_SLUGS,
+  INDUSTRY_KEYWORD_SLUGS,
+  INDUSTRY_PAGES,
+} from "@/lib/marketing/industries";
 import { PAGES } from "@/lib/seo/registry";
 import type { PageKind } from "@/lib/seo/types";
 import { seoPath } from "@/lib/seo/urls";
@@ -26,14 +30,23 @@ type FooterLink = { href: string; label: string; featured: boolean };
 /**
  * The By industry column, ordered on purpose rather than by when each page was written.
  *
- * The two pages with their own industry write-up come first and render emphasised,
+ * The pages with their own industry write-up come first and render emphasised,
  * then the industries that matter commercially, then everything else in registry
  * order. That tail is DERIVED rather than listed, so a new industry page appears
  * here the moment it ships: a hand-kept second list fails by silently dropping a
  * page out of the only navigation that reaches it, and nothing errors when it does.
+ *
+ * A keyword page whose audience already has an industry page is dropped from the
+ * tail, not from the site. Both exist on purpose, both stay in the sitemap, and
+ * both still rank: one answers a search, the other is where an emailed audit
+ * lands. But "Agencies" appearing twice in one column, four rows apart, reads as
+ * a bug rather than as two different pages, and the industry page is the better
+ * destination for somebody browsing rather than searching.
  */
 function byIndustryLinks(): FooterLink[] {
-  const keywordPages = PAGES.filter((p) => p.kind === "use-case");
+  const keywordPages = PAGES.filter(
+    (p) => p.kind === "use-case" && !INDUSTRY_KEYWORD_SLUGS.has(p.slug),
+  );
   const rank = (slug: string) => {
     const i = BY_INDUSTRY_LEAD_SLUGS.indexOf(slug);
     return i === -1 ? BY_INDUSTRY_LEAD_SLUGS.length : i;

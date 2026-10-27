@@ -64,6 +64,15 @@ export const TEMPLATE_CATEGORIES = [
   "Platform",
 ] as const;
 
+/**
+ * One category name from the shelf.
+ *
+ * Exported so the marketing side can key an industry page to a category and have
+ * a renamed category fail the build rather than quietly break a link. Imported
+ * there as `import type`, so naming it costs nothing in any bundle.
+ */
+export type TemplateCategory = (typeof TEMPLATE_CATEGORIES)[number];
+
 export const templateDocSchema = z.object({
   slug: z
     .string()

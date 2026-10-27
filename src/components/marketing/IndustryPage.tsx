@@ -7,6 +7,7 @@ import { Tick } from "./Emphasised";
 import { IndustryLeak } from "./IndustryLeak";
 import { OFFER, TRIAL_NOTE } from "@/lib/marketing/content";
 import { INDUSTRY_EYEBROW, type IndustrySpec } from "@/lib/marketing/industries";
+import { detectCurrency } from "@/lib/marketing/region";
 
 /**
  * One renderer for every By-industry page.
@@ -23,6 +24,10 @@ import { INDUSTRY_EYEBROW, type IndustrySpec } from "@/lib/marketing/industries"
  */
 export async function IndustryPage({ spec }: { spec: IndustrySpec }) {
   const cta = await getCta();
+  // Rupees unless the visitor's country says otherwise. `resolved` tells the
+  // calculator whether a country header actually arrived, so it knows whether it
+  // is allowed to second-guess this from the browser's timezone.
+  const { currency, resolved } = await detectCurrency();
 
   return (
     <>
@@ -86,7 +91,11 @@ export async function IndustryPage({ spec }: { spec: IndustrySpec }) {
             </p>
 
             <div className="mt-10 max-w-3xl">
-              <IndustryLeak spec={spec.leak} />
+              <IndustryLeak
+                spec={spec.leak}
+                initialCurrency={currency}
+                currencyResolved={resolved}
+              />
             </div>
 
             <div className="mt-14 max-w-3xl border-t pt-10">

@@ -3,7 +3,7 @@ import { AUDIENCES } from "@/lib/marketing/content";
 import { TEMPLATE_CATEGORIES } from "@/features/templates/schema";
 import { getCta } from "@/lib/settings/cta";
 import { CtaLink } from "./CtaLink";
-import { INDUSTRY_PAGES } from "@/lib/marketing/industries";
+import { FEATURED_INDUSTRIES, INDUSTRY_BY_CATEGORY } from "@/lib/marketing/industries";
 
 /**
  * The twenty audiences, under "why this exists".
@@ -31,17 +31,18 @@ export async function WhoItIsFor() {
         </p>
 
         {/*
-          The two audiences with a page of their own, above the list and visibly
+          The audiences we point ads and email at, above the list and visibly
           heavier than it.
 
-          They are the two we point ads and email at, so they are the two a
-          visitor should be able to click. Rendering them inside the grid as two
-          more names among twenty would make the page true and useless: the whole
-          point of writing those pages was that these readers get the industry's
-          own words rather than the generic ones.
+          FEATURED rather than every industry page, and that distinction now
+          earns its keep: there is a page for all twenty-one categories, and
+          rendering twenty-one identical green cards here would be a wall that
+          tells a visitor nothing about where to start. The featured few get the
+          weight, and every other audience is one click away in the grid below,
+          where its own name is the link.
         */}
         <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-          {INDUSTRY_PAGES.map((p) => (
+          {FEATURED_INDUSTRIES.map((p) => (
             <li key={p.path}>
               <Link
                 href={p.path}
@@ -57,15 +58,40 @@ export async function WhoItIsFor() {
           ))}
         </ul>
 
+        {/*
+          The categories, each a link when a page exists for it.
+
+          The list still comes from the template library rather than from the
+          industry registry, so the section can never advertise an audience the
+          product has no scorecard for. What the registry decides is only whether
+          a name is clickable: a category with a page of its own gets the arrow
+          and the hover, and one without stays a plain name. That way neither
+          list has to be kept in step with the other by hand, and a new industry
+          page lights up its own row the moment it ships.
+        */}
         <ul className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {TEMPLATE_CATEGORIES.map((c) => (
-            <li
-              key={c}
-              className="rounded-lg border bg-[var(--background)] px-4 py-3 text-sm font-medium"
-            >
-              {c}
-            </li>
-          ))}
+          {TEMPLATE_CATEGORIES.map((c) => {
+            const industry = INDUSTRY_BY_CATEGORY.get(c);
+            return (
+              <li key={c}>
+                {industry ? (
+                  <Link
+                    href={industry.path}
+                    className="flex items-center justify-between gap-2 rounded-lg border bg-[var(--background)] px-4 py-3 text-sm font-medium transition-colors hover:border-green-600"
+                  >
+                    {c}
+                    <span aria-hidden="true" className="text-[var(--muted-foreground)]">
+                      &rarr;
+                    </span>
+                  </Link>
+                ) : (
+                  <span className="block rounded-lg border bg-[var(--background)] px-4 py-3 text-sm font-medium">
+                    {c}
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ul>
 
         <p className="mt-6 max-w-2xl leading-relaxed text-[var(--muted-foreground)]">
