@@ -39,7 +39,7 @@ export default async function PlatformAccountsPage({
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-6 p-4 md:p-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Accounts</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Revenue</h1>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
           What each workspace has paid us, what it has cost us in AI, and the difference.
           Subscription payments only: money a tenant collects through their own funnel is
