@@ -24,6 +24,8 @@ export default async function AdminAvailabilityPage() {
         </Link>
       </div>
 
+      <AvailabilityManager {...props} />
+
       <Suspense fallback={null}>
         <GoogleCalendarCard
           calendars={props.googleCalendars}
@@ -33,8 +35,6 @@ export default async function AdminAvailabilityPage() {
           canEdit={props.canEdit}
         />
       </Suspense>
-
-      <AvailabilityManager {...props} />
     </div>
   );
 }

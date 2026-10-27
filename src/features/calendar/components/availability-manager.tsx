@@ -167,68 +167,6 @@ export function AvailabilityManager({
         <p className="rounded-md bg-[var(--muted)]/40 px-3 py-2 text-sm text-[var(--muted-foreground)]">{msg}</p>
       ) : null}
 
-      {/* The subscription feed */}
-      <section className="flex flex-col gap-3 rounded-lg border p-4">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-sm font-semibold">See these bookings in your own calendar</h2>
-          <p className="text-xs text-[var(--muted-foreground)]">
-            Add this address to Google Calendar, Apple Calendar or Outlook as a subscribed calendar and
-            your bookings show up there. It is read-only, and anyone with the link can read it, so
-            rotate it if it ever gets out.
-          </p>
-        </div>
-        {url ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Input readOnly value={url} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
-            {canEdit ? (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={pending}
-                onClick={() =>
-                  start(async () => {
-                    const r = await rotateCalendarFeed();
-                    if (r.ok && r.data) {
-                      setPath(r.data.path);
-                      setMsg("New link generated. The old one stops working now.");
-                    } else if (!r.ok) {
-                      setMsg(r.error);
-                    }
-                  })
-                }
-              >
-                Rotate
-              </Button>
-            ) : null}
-          </div>
-        ) : canEdit ? (
-          <div>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={pending}
-              onClick={() =>
-                start(async () => {
-                  const r = await rotateCalendarFeed();
-                  if (r.ok && r.data) {
-                    setPath(r.data.path);
-                    setMsg("Feed link generated.");
-                  } else if (!r.ok) {
-                    setMsg(r.error);
-                  }
-                })
-              }
-            >
-              Generate feed link
-            </Button>
-          </div>
-        ) : (
-          <p className="text-xs text-[var(--muted-foreground)]">
-            No feed link yet. An admin can generate one from this page.
-          </p>
-        )}
-      </section>
-
       {/* Booking links */}
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -417,6 +355,68 @@ export function AvailabilityManager({
             ) : null}
           </article>
         ))}
+      </section>
+
+      {/* The subscription feed */}
+      <section className="flex flex-col gap-3 rounded-lg border p-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-sm font-semibold">See these bookings in your own calendar</h2>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Add this address to Google Calendar, Apple Calendar or Outlook as a subscribed calendar and
+            your bookings show up there. It is read-only, and anyone with the link can read it, so
+            rotate it if it ever gets out.
+          </p>
+        </div>
+        {url ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Input readOnly value={url} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
+            {canEdit ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={() =>
+                  start(async () => {
+                    const r = await rotateCalendarFeed();
+                    if (r.ok && r.data) {
+                      setPath(r.data.path);
+                      setMsg("New link generated. The old one stops working now.");
+                    } else if (!r.ok) {
+                      setMsg(r.error);
+                    }
+                  })
+                }
+              >
+                Rotate
+              </Button>
+            ) : null}
+          </div>
+        ) : canEdit ? (
+          <div>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  const r = await rotateCalendarFeed();
+                  if (r.ok && r.data) {
+                    setPath(r.data.path);
+                    setMsg("Feed link generated.");
+                  } else if (!r.ok) {
+                    setMsg(r.error);
+                  }
+                })
+              }
+            >
+              Generate feed link
+            </Button>
+          </div>
+        ) : (
+          <p className="text-xs text-[var(--muted-foreground)]">
+            No feed link yet. An admin can generate one from this page.
+          </p>
+        )}
       </section>
     </div>
   );
