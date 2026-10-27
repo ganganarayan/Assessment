@@ -7,6 +7,7 @@ import { fillPlaceholders, toE164Digits, type LeadFields } from "@/features/nurt
 import { isSuppressed, unsubscribeUrlFor } from "@/lib/contacts/dnd";
 import { defaultCountryCodeFor } from "@/lib/contacts/upsert";
 import { resolveRecipient } from "@/lib/workflows/subject";
+import { deliverWebhook } from "@/lib/webhooks/dispatch";
 import { dueAfter, isStale } from "@/lib/workflows/schedule";
 
 /**
@@ -173,6 +174,78 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
     return false;
   }
 
+  // 🔴 EXIT stops the run where it stands, and every step after it never happens.
+  // Worth having in a straight line even without branching: it is how the tail of a
+  // sequence is parked without deleting the steps and losing what they said.
+  if (step.kind === "EXIT") {
+    await stop(runId, "A step ended the sequence here.");
+    return true;
+  }
+
+  if (step.kind === "UNSUBSCRIBE") {
+    // 🟡 Only a contact can be unsubscribed. On a tenant-nurture run this is skipped
+    // rather than silently doing nothing to a workspace, because "we took them off the
+    // list" and "we did not" must not look the same in the log.
+    if (who.contactId) {
+      await prisma.contact
+        .update({
+          where: { id: who.contactId },
+          data: { marketingOptOutAt: new Date(), optOutSource: "WORKFLOW" },
+        })
+        .catch(() => {});
+      await logSend(run.tenantId, run.workflowId, step, who.contactId, "SENT", null, null);
+    } else {
+      await logSend(run.tenantId, run.workflowId, step, null, "SKIPPED", null, "A workspace has no marketing consent to withdraw.");
+    }
+    // Carries on rather than stopping. The suppression check at the top of the next
+    // MESSAGE step is what ends the run, and letting it do that keeps one rule in one
+    // place instead of two that can disagree.
+    await prisma.workflowRun.update({
+      where: { id: runId },
+      data: { status: "PENDING", currentStep: run.currentStep + 1, dueAt: now, attempts: 0 },
+    });
+    return false;
+  }
+
+  if (step.kind === "SUBFLOW") {
+    await runSubflow(step, run.tenantId, run.workflowId, who.contactId);
+    await prisma.workflowRun.update({
+      where: { id: runId },
+      data: { status: "PENDING", currentStep: run.currentStep + 1, dueAt: now, attempts: 0 },
+    });
+    return false;
+  }
+
+  if (step.kind === "WEBHOOK") {
+    await fireStepWebhook(step, run.tenantId, run.workflowId, who);
+    await prisma.workflowRun.update({
+      where: { id: runId },
+      data: { status: "PENDING", currentStep: run.currentStep + 1, dueAt: now, attempts: 0 },
+    });
+    return false;
+  }
+
+  if (step.kind === "NOTIFY_OWNER") {
+    await notifyOwner(step, run.tenantId, run.workflowId, who);
+    await prisma.workflowRun.update({
+      where: { id: runId },
+      data: { status: "PENDING", currentStep: run.currentStep + 1, dueAt: now, attempts: 0 },
+    });
+    return false;
+  }
+
+  // 🟡 BRANCH, LOOP and ZOOM_MEETING have no handler, and the builder offers none of
+  // them. A row carrying one did not come from this product, so it is logged and
+  // stepped over rather than crashing a sequence somebody else is halfway through.
+  if (step.kind !== "MESSAGE") {
+    await logSend(run.tenantId, run.workflowId, step, who.contactId, "SKIPPED", null, `Nothing here knows how to run a ${step.kind} step.`);
+    await prisma.workflowRun.update({
+      where: { id: runId },
+      data: { status: "PENDING", currentStep: run.currentStep + 1, dueAt: now, attempts: 0 },
+    });
+    return false;
+  }
+
   // MESSAGE. Too late to be worth sending? Recorded rather than sent.
   //
   // The case this exists for: the run was paused mid-sequence - the feature held back,
@@ -320,4 +393,141 @@ async function logSend(
       error: error?.slice(0, 500) ?? null,
     },
   });
+}
+
+/**
+ * Hand somebody to another sequence.
+ *
+ * 🔴 THE TARGET IS CHECKED AGAINST THIS WORKSPACE EVERY TIME. A step holds a plain id,
+ * and a workflow moved or deleted since the step was written would otherwise be a way
+ * to enrol one tenant's contact into another tenant's sequence.
+ *
+ * 🟡 No loop guard beyond "already running". Two sequences that call each other settle
+ * because the enroller refuses a second run while one is live, so the pair bounces once
+ * and stops rather than running away.
+ */
+async function runSubflow(
+  step: WorkflowStep,
+  tenantId: string,
+  workflowId: string,
+  contactId: string | null,
+) {
+  if (!step.targetWorkflowId) {
+    await logSend(tenantId, workflowId, step, contactId, "SKIPPED", null, "No sequence chosen.");
+    return;
+  }
+  if (!contactId) {
+    await logSend(tenantId, workflowId, step, null, "SKIPPED", null, "Only a contact can be handed to another sequence.");
+    return;
+  }
+  const target = await prisma.workflow.findFirst({
+    where: { id: step.targetWorkflowId, tenantId, status: "PUBLISHED" },
+    select: { id: true, steps: { select: { id: true }, take: 1 } },
+  });
+  if (!target || target.steps.length === 0) {
+    await logSend(tenantId, workflowId, step, contactId, "SKIPPED", null, "That sequence is gone, empty or not published.");
+    return;
+  }
+  const live = await prisma.workflowRun.findFirst({
+    where: { workflowId: target.id, contactId, status: { in: ["PENDING", "SENDING"] } },
+    select: { id: true },
+  });
+  if (live) {
+    await logSend(tenantId, workflowId, step, contactId, "SKIPPED", null, "They are already in that sequence.");
+    return;
+  }
+  await prisma.workflowRun.create({
+    data: { workflowId: target.id, contactId, tenantId, currentStep: 0, dueAt: new Date() },
+  });
+  await logSend(tenantId, workflowId, step, contactId, "SENT", null, null);
+}
+
+/** POST this person to one of the workspace's registered endpoints. */
+async function fireStepWebhook(
+  step: WorkflowStep,
+  tenantId: string,
+  workflowId: string,
+  who: { contactId: string | null; email: string | null; mobile: string | null; firstName: string | null; lastName: string | null },
+) {
+  if (!step.webhookId) {
+    await logSend(tenantId, workflowId, step, who.contactId, "SKIPPED", null, "No endpoint chosen.");
+    return;
+  }
+  // Scoped to the workspace, like every other id on a step.
+  const hook = await prisma.webhook.findFirst({
+    where: { id: step.webhookId, tenantId },
+    select: { url: true, secret: true },
+  });
+  if (!hook) {
+    await logSend(tenantId, workflowId, step, who.contactId, "SKIPPED", null, "That endpoint is gone.");
+    return;
+  }
+  // deliverWebhook takes the body already serialised, because what it signs has to be
+  // byte-for-byte what it sends. Serialising it twice is how a signature stops matching.
+  const res = await deliverWebhook({
+    url: hook.url,
+    secret: hook.secret,
+    eventName: "workflow.step",
+    tenantId,
+    body: JSON.stringify({
+      event: "workflow.step",
+      workflowId,
+      stepId: step.id,
+      contact: {
+        id: who.contactId,
+        email: who.email,
+        mobile: who.mobile,
+        firstName: who.firstName,
+        lastName: who.lastName,
+      },
+    }),
+  });
+  await logSend(
+    tenantId,
+    workflowId,
+    step,
+    who.contactId,
+    res.success ? "SENT" : "FAILED",
+    hook.url,
+    res.success ? null : `Endpoint answered ${res.responseStatus ?? "nothing"}.`,
+  );
+}
+
+/**
+ * Tell the OWNER, not the person in the sequence.
+ *
+ * 🔴 THE RECIPIENT IS THE WHOLE POINT AND THE EASIEST THING TO GET WRONG. Every other
+ * step on this screen writes to the lead. This one writes to whoever runs the
+ * workspace, which is why it does not go near the suppression check: an owner who once
+ * unsubscribed from a newsletter has not asked to stop being told that a lead just
+ * scored 90.
+ */
+async function notifyOwner(
+  step: WorkflowStep,
+  tenantId: string,
+  workflowId: string,
+  who: { contactId: string | null; firstName: string | null; lastName: string | null; email: string | null; mobile: string | null; profession: string | null; optOutToken: string },
+) {
+  const owner = await prisma.user.findFirst({
+    where: { tenantId, deletedAt: null, staffPermission: null },
+    orderBy: { createdAt: "asc" },
+    select: { email: true },
+  });
+  if (!owner?.email) {
+    await logSend(tenantId, workflowId, step, who.contactId, "SKIPPED", null, "No owner login to notify.");
+    return;
+  }
+  const lead: LeadFields = {
+    firstName: who.firstName,
+    lastName: who.lastName,
+    email: who.email,
+    mobile: who.mobile,
+    profession: who.profession,
+  };
+  // The placeholders still describe the LEAD, which is what makes the notification
+  // worth reading: "{{firstName}} just finished" is the message, sent to the owner.
+  const subject = fillPlaceholders(step.subject?.trim() || "A workflow wants you to know", lead, {});
+  const body = fillPlaceholders(step.body ?? "", lead, {});
+  const err = await sendEmail(tenantId, owner.email, subject, body);
+  await logSend(tenantId, workflowId, step, who.contactId, err ? "FAILED" : "SENT", owner.email, err);
 }

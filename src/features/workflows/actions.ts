@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { isPlatformScope } from "@/lib/tenant/platform-tenant";
-import { TRIGGERS, triggerAudience, triggerIsLive } from "@/features/workflows/types";
+import {
+  TRIGGERS,
+  triggerAudience,
+  triggerIsLive,
+  type OfferedStepKind,
+} from "@/features/workflows/types";
 import { prisma } from "@/lib/db/prisma";
 import { syncEdges } from "@/lib/workflows/edges";
 import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
@@ -128,7 +133,7 @@ export async function updateWorkflowSettings(input: unknown): Promise<ActionResu
 
 export async function addWorkflowStep(
   workflowId: string,
-  kind: "MESSAGE" | "DELAY" | "TAG",
+  kind: OfferedStepKind,
   /**
    * Where to put it. Undefined appends, which is what every caller meant before the
    * canvas had a + between boxes. 0 puts it immediately after the trigger.
@@ -171,6 +176,9 @@ export async function addWorkflowStep(
       ...(kind === "MESSAGE" ? { channel: "EMAIL" as const } : {}),
       ...(kind === "DELAY" ? { delayAmount: 1, delayUnit: "DAYS" as const } : {}),
       ...(kind === "TAG" ? { tagAction: "ADD" as const } : {}),
+      // NOTIFY_OWNER borrows the message columns, so it needs the same channel default:
+      // without it the step renders as WhatsApp and asks for a template it will not use.
+      ...(kind === "NOTIFY_OWNER" ? { channel: "EMAIL" as const } : {}),
     },
   });
   await syncEdges(workflowId);
@@ -200,6 +208,28 @@ export async function updateWorkflowStep(workflowId: string, input: unknown): Pr
     if (!t) return { ok: false, error: "That tag is not in this workspace." };
   }
 
+  // 🔴 EVERY ID FROM THE FORM IS CHECKED AGAINST THIS WORKSPACE. A step holds a plain
+  // id, and the form that sent it is a request rather than permission: without these,
+  // a crafted save would point one tenant's step at another tenant's sequence or
+  // endpoint, and the runner would dutifully follow it.
+  if (v.targetWorkflowId) {
+    if (v.targetWorkflowId === workflowId) {
+      return { ok: false, error: "A sequence cannot hand somebody to itself." };
+    }
+    const w = await prisma.workflow.findFirst({
+      where: { id: v.targetWorkflowId, tenantId: s.tenantId },
+      select: { id: true },
+    });
+    if (!w) return { ok: false, error: "That sequence is not in this workspace." };
+  }
+  if (v.webhookId) {
+    const h = await prisma.webhook.findFirst({
+      where: { id: v.webhookId, tenantId: s.tenantId },
+      select: { id: true },
+    });
+    if (!h) return { ok: false, error: "That endpoint is not in this workspace." };
+  }
+
   await prisma.workflowStep.update({
     where: { id: v.id },
     data: {
@@ -213,6 +243,8 @@ export async function updateWorkflowStep(workflowId: string, input: unknown): Pr
       delayUnit: v.delayUnit,
       tagId: v.tagId || null,
       tagAction: v.tagAction,
+      targetWorkflowId: v.targetWorkflowId || null,
+      webhookId: v.webhookId || null,
     },
   });
   refresh(workflowId);

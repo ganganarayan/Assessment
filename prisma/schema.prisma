@@ -2123,6 +2123,9 @@ model Webhook {
   // Block an exact duplicate endpoint for the same tenant. NOTE: Postgres treats
   // NULLs as distinct, so this does NOT catch dupes among null-tenant (platform)
   // rows - createWebhook/editWebhook enforce that case at the application layer.
+  /// Workflow steps that post to this endpoint.
+  workflowSteps WorkflowStep[] @relation("WorkflowStepWebhook")
+
   @@unique([tenantId, name, url])
   @@index([status])
   @@index([eventType, status])
@@ -4622,6 +4625,15 @@ enum WorkflowStepKind {
   /// migrating live workflow rows on a running deploy, while adding it to a UI that
   /// already stores edges costs nothing. The engine refuses a workflow containing
   /// one, so a row that somehow carries a kind nobody can draw cannot quietly run.
+  /// Things a step can DO that are not a message. Each one exists because a sequence
+  /// that can only send is a sequence you have to leave halfway through to go and do
+  /// the obvious next thing by hand.
+  SUBFLOW
+  ZOOM_MEETING
+  WEBHOOK
+  UNSUBSCRIBE
+  NOTIFY_OWNER
+
   BRANCH
   LOOP
   EXIT
@@ -4685,10 +4697,12 @@ model Workflow {
   /// deleted tag should quieten the workflow, never delete it.
   triggerTagId String?
 
-  steps WorkflowStep[]
-  edges WorkflowEdge[]
-  runs  WorkflowRun[]
-  sends WorkflowSend[]
+  steps          WorkflowStep[]
+  edges          WorkflowEdge[]
+  /// Steps in OTHER sequences that hand people to this one.
+  subflowSources WorkflowStep[] @relation("WorkflowSubflowTarget")
+  runs           WorkflowRun[]
+  sends          WorkflowSend[]
 
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
@@ -4735,6 +4749,26 @@ model WorkflowStep {
   /// TAG: a plain tag id, and what to do with it.
   tagId     String?
   tagAction WorkflowTagAction?
+
+  /// SUBFLOW: the sequence to hand them to.
+  ///
+  /// 🔴 SetNull rather than Cascade, and not a required relation. Deleting the target
+  /// must not delete the step that pointed at it, because that step sits inside
+  /// somebody else's published sequence; it becomes a step that does nothing and says
+  /// so, which is recoverable, instead of a hole in a live workflow.
+  targetWorkflowId String?
+  targetWorkflow   Workflow? @relation("WorkflowSubflowTarget", fields: [targetWorkflowId], references: [id], onDelete: SetNull)
+
+  /// ZOOM_MEETING: what the meeting is called in Zoom. Placeholders allowed.
+  zoomTopic String?
+
+  /// WEBHOOK: which registered endpoint to post to.
+  ///
+  /// 🔴 A REGISTERED ENDPOINT, NEVER A TYPED URL. A free URL field on a step is a
+  /// server-side request to anywhere the person typing can reach, including this
+  /// machine's own network. The endpoints are already a screen with its own checks.
+  webhookId String?
+  webhook   Webhook? @relation("WorkflowStepWebhook", fields: [webhookId], references: [id], onDelete: SetNull)
 
   /// LIFETIME tallies for this one step. Counters rather than a COUNT over the log,
   /// because the log is pruned and "sent 1,482 since you wrote it" is a different

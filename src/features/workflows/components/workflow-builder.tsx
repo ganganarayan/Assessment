@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   addWorkflowStep,
   deleteWorkflow,
@@ -18,6 +19,9 @@ import {
   STATUS_CLASS,
   STATUS_LABEL,
   TRIGGERS,
+  OFFERED_STEP_KINDS,
+  STEP_KIND_LABEL,
+  type OfferedStepKind,
   WORKFLOW_PLACEHOLDERS,
   publishProblems,
   type BuilderOptions,
@@ -278,6 +282,7 @@ export function WorkflowBuilder({
           <StepCard
             key={selected.id}
             step={selected}
+            workflowId={workflow.id}
             index={workflow.steps.findIndex((x) => x.id === selected.id)}
             total={workflow.steps.length}
             options={options}
@@ -331,7 +336,12 @@ function Connector() {
 function kindLabel(s: WorkflowStepView): string {
   if (s.kind === "DELAY") return "WAIT";
   if (s.kind === "TAG") return "TAG";
-  if (s.kind === "BRANCH" || s.kind === "LOOP" || s.kind === "EXIT") return s.kind;
+  if (s.kind === "SUBFLOW") return "HAND OVER";
+  if (s.kind === "WEBHOOK") return "WEBHOOK";
+  if (s.kind === "UNSUBSCRIBE") return "UNSUBSCRIBE";
+  if (s.kind === "NOTIFY_OWNER") return "NOTIFY ME";
+  if (s.kind === "EXIT") return "END";
+  if (s.kind !== "MESSAGE") return s.kind;
   return s.channel === "WABA" ? "WHATSAPP" : "EMAIL";
 }
 
@@ -343,9 +353,16 @@ const KIND_CLASS: Record<WorkflowStepView["kind"], string> = {
   MESSAGE: "border-sky-500/40",
   DELAY: "border-amber-500/40",
   TAG: "border-violet-500/40",
+  SUBFLOW: "border-teal-500/40",
+  WEBHOOK: "border-slate-500/40",
+  UNSUBSCRIBE: "border-rose-500/40",
+  NOTIFY_OWNER: "border-indigo-500/40",
+  EXIT: "border-rose-500/40",
+  // Still nothing the builder offers. BRANCH and LOOP wait for a canvas that can draw
+  // them; ZOOM_MEETING waits for a workflow that has an appointment to put a link on.
   BRANCH: "border-dashed border-[var(--field-border)]",
   LOOP: "border-dashed border-[var(--field-border)]",
-  EXIT: "border-dashed border-[var(--field-border)]",
+  ZOOM_MEETING: "border-dashed border-[var(--field-border)]",
 };
 
 /**
@@ -368,6 +385,17 @@ function stepSummary(s: WorkflowStepView, options: BuilderOptions): string {
     const name = options.tags.find((t) => t.id === s.tagId)?.name;
     return name ? `${verb}: ${name}` : `${verb} (none picked yet)`;
   }
+  if (s.kind === "SUBFLOW") {
+    const name = options.workflows.find((w) => w.id === s.targetWorkflowId)?.name;
+    return name ? `Hand them to: ${name}` : "No sequence picked yet";
+  }
+  if (s.kind === "WEBHOOK") {
+    const name = options.webhooks.find((w) => w.id === s.webhookId)?.name;
+    return name ? `Call: ${name}` : "No endpoint picked yet";
+  }
+  if (s.kind === "NOTIFY_OWNER") return s.subject.trim() || "No subject yet";
+  if (s.kind === "UNSUBSCRIBE") return "Take them off the list";
+  if (s.kind === "EXIT") return "Stop here. Nothing below this runs.";
   if (s.channel === "WABA") {
     return s.wabaTemplate ? `Template: ${s.wabaTemplate}` : "No template picked yet";
   }
@@ -379,6 +407,11 @@ function stepSummary(s: WorkflowStepView, options: BuilderOptions): string {
 function stepIncomplete(s: WorkflowStepView): boolean {
   if (s.kind === "DELAY") return s.delayUnit === null;
   if (s.kind === "TAG") return !s.tagId;
+  if (s.kind === "SUBFLOW") return !s.targetWorkflowId;
+  if (s.kind === "WEBHOOK") return !s.webhookId;
+  if (s.kind === "NOTIFY_OWNER") return !s.subject.trim() || !s.body.trim();
+  // Neither takes any configuration, so neither can be unfinished.
+  if (s.kind === "UNSUBSCRIBE" || s.kind === "EXIT") return false;
   return s.channel === "WABA" ? !s.wabaTemplate : !s.subject.trim() || !s.body.trim();
 }
 
@@ -458,7 +491,7 @@ function Inserter({
   onAdd,
 }: {
   pending: boolean;
-  onAdd: (kind: "MESSAGE" | "DELAY" | "TAG") => void;
+  onAdd: (kind: OfferedStepKind) => void;
 }) {
   const [open, setOpen] = useState(false);
   if (!open) {
@@ -477,7 +510,7 @@ function Inserter({
   }
   return (
     <div className="flex flex-wrap items-center justify-center gap-2 rounded-md border border-dashed p-2">
-      {(["MESSAGE", "DELAY", "TAG"] as const).map((k) => (
+      {OFFERED_STEP_KINDS.map((k) => (
         <Button
           key={k}
           size="sm"
@@ -488,7 +521,7 @@ function Inserter({
             onAdd(k);
           }}
         >
-          {k === "MESSAGE" ? "Message" : k === "DELAY" ? "Wait" : "Tag"}
+          {STEP_KIND_LABEL[k]}
         </Button>
       ))}
       <button
@@ -507,6 +540,7 @@ function StepCard({
   index,
   total,
   options,
+  workflowId,
   pending,
   onSave,
   onMove,
@@ -516,6 +550,8 @@ function StepCard({
   index: number;
   total: number;
   options: BuilderOptions;
+  /** So a hand-over step cannot be pointed at the sequence it lives in. */
+  workflowId: string;
   pending: boolean;
   onSave: (patch: Partial<WorkflowStepView>) => void;
   onMove: (d: -1 | 1) => void;
@@ -626,6 +662,96 @@ function StepCard({
               No tags yet. Create one on the Contacts page.
             </p>
           ) : null}
+        </div>
+      ) : null}
+
+      {step.kind === "SUBFLOW" ? (
+        <div className="mt-3 flex flex-col gap-2">
+          <Field label="Hand them to">
+            <Select
+              value={v.targetWorkflowId ?? ""}
+              placeholder="Pick a sequence"
+              options={options.workflows
+                // Never itself. A sequence that hands somebody to itself is the one
+                // mistake the enroller's guard turns into silence rather than a loop.
+                .filter((w) => w.id !== workflowId)
+                .map((w) => ({ value: w.id, label: w.name }))}
+              onChange={(id) => {
+                set({ targetWorkflowId: id });
+                onSave({ targetWorkflowId: id });
+              }}
+            />
+          </Field>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Only published sequences appear here. They carry on through this one as well, so
+            put an End step below if this is meant to be a handover rather than a copy.
+          </p>
+        </div>
+      ) : null}
+
+      {step.kind === "WEBHOOK" ? (
+        <div className="mt-3 flex flex-col gap-2">
+          <Field label="Call">
+            <Select
+              value={v.webhookId ?? ""}
+              placeholder="Pick an endpoint"
+              options={options.webhooks.map((w) => ({ value: w.id, label: w.name }))}
+              onChange={(id) => {
+                set({ webhookId: id });
+                onSave({ webhookId: id });
+              }}
+            />
+          </Field>
+          {options.webhooks.length === 0 ? (
+            <p className="text-xs text-[var(--muted-foreground)]">
+              No endpoints yet. Add one on the Webhooks page first.
+            </p>
+          ) : (
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Posts this person to the endpoint, signed, as a workflow.step event. It is one of
+              your registered endpoints rather than a URL typed here, on purpose.
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {step.kind === "UNSUBSCRIBE" ? (
+        <p className="mt-3 text-xs text-[var(--muted-foreground)]">
+          Takes them off the list, exactly as if they had clicked unsubscribe themselves.
+          Nothing below this will reach them, and that is the point.
+        </p>
+      ) : null}
+
+      {step.kind === "EXIT" ? (
+        <p className="mt-3 text-xs text-[var(--muted-foreground)]">
+          Stops the sequence here. Every step below this one is left alone rather than
+          deleted, which is how a tail is parked without losing what it said.
+        </p>
+      ) : null}
+
+      {step.kind === "NOTIFY_OWNER" ? (
+        <div className="mt-3 flex flex-col gap-3">
+          <p className="text-xs text-[var(--muted-foreground)]">
+            🔴 This one goes to YOU, not to them. The placeholders still describe the lead, so
+            {" "}{"{{firstName}}"} is who the sequence is about.
+          </p>
+          <Field label="Subject">
+            <Input
+              value={v.subject}
+              placeholder="{{firstName}} reached the end of the sequence"
+              onChange={(e) => set({ subject: e.target.value })}
+              onBlur={() => onSave({ subject: v.subject })}
+            />
+          </Field>
+          <Field label="What to say">
+            <Textarea
+              rows={4}
+              value={v.body}
+              placeholder={"{{firstName}} ({{email}}) finished the sequence and did not book."}
+              onChange={(e) => set({ body: e.target.value })}
+              onBlur={() => onSave({ body: v.body })}
+            />
+          </Field>
         </div>
       ) : null}
 

@@ -25,7 +25,13 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isStale, STALE_AFTER_MS } from "../src/lib/workflows/schedule";
-import { TRIGGERS, offerableTriggers, triggerAudience, triggerIsLive } from "../src/features/workflows/types";
+import {
+  TRIGGERS,
+  OFFERED_STEP_KINDS,
+  offerableTriggers,
+  triggerAudience,
+  triggerIsLive,
+} from "../src/features/workflows/types";
 import { STALE_AFTER_MS as REMINDER_STALE_AFTER_MS } from "../src/lib/automation/schedule";
 import { DEAD_AFTER_MS, SEND_KEEP_MS, TERMINAL_KEEP_MS } from "../src/lib/workflows/retention";
 
@@ -240,11 +246,11 @@ const builderSrc = readFileSync(
   join(process.cwd(), "src", "features", "workflows", "components", "workflow-builder.tsx"),
   "utf8",
 );
-for (const kind of ["BRANCH", "LOOP", "EXIT"]) {
+for (const kind of ["BRANCH", "LOOP", "ZOOM_MEETING"]) {
   expect(
     `the builder does not offer ${kind} yet`,
     !new RegExp(`kind:\\s*"${kind}"`).test(builderSrc),
-    `${kind} is schema-only until the canvas can draw it. A step saved with it would be a workflow the runner has no rule for.`,
+    `${kind} is schema-only: BRANCH and LOOP until the canvas can draw them, ZOOM_MEETING until a sequence has an appointment to put the link on. A step saved with one is a workflow the runner has no rule for.`,
   );
 }
 
@@ -327,6 +333,14 @@ expect(
   offerableTriggers(true).some((t) => triggerAudience(t) === "TENANT"),
   "the whole point of the split is that the owner CAN nurture their own customers",
 );
+
+for (const k of OFFERED_STEP_KINDS) {
+  expect(
+    `the runner knows what to do with a ${k} step`,
+    k === "MESSAGE" || new RegExp(`step\.kind === "${k}"`).test(runSrc),
+    "a kind the builder offers and the runner does not handle is a step that silently does nothing in a live sequence",
+  );
+}
 
 console.log(failures === 0 ? "\nAll workflow queue checks passed.\n" : `\n${failures} check(s) failed.\n`);
 process.exit(failures === 0 ? 0 : 1);

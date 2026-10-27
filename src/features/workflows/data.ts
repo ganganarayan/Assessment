@@ -23,6 +23,8 @@ function stepView(s: {
   delayUnit: WorkflowStepView["delayUnit"];
   tagId: string | null;
   tagAction: WorkflowStepView["tagAction"];
+  targetWorkflowId: string | null;
+  webhookId: string | null;
   sentCount: number;
   failedCount: number;
   skippedCount: number;
@@ -41,6 +43,8 @@ function stepView(s: {
     delayUnit: s.delayUnit,
     tagId: s.tagId,
     tagAction: s.tagAction,
+    targetWorkflowId: s.targetWorkflowId,
+    webhookId: s.webhookId,
     sentCount: s.sentCount,
     failedCount: s.failedCount,
     skippedCount: s.skippedCount,
@@ -118,7 +122,7 @@ export async function getWorkflow(scopeTenantId: string | null, id: string): Pro
  */
 export async function builderOptions(scopeTenantId: string | null): Promise<BuilderOptions> {
   const tenantId = contactTenantOf(scopeTenantId);
-  const [assessments, tags, waba, visible] = await Promise.all([
+  const [assessments, tags, waba, visible, workflows, webhooks] = await Promise.all([
     prisma.assessment.findMany({
       where: tenantId === "platform" ? { OR: [{ tenantId: null }, { tenantId }] } : { tenantId },
       orderBy: { title: "asc" },
@@ -127,6 +131,18 @@ export async function builderOptions(scopeTenantId: string | null): Promise<Buil
     prisma.tag.findMany({ where: { tenantId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     resolveWabaConfig(scopeTenantId),
     wabaVisible(scopeTenantId),
+    // Only PUBLISHED sequences can be handed to. A draft would accept people and never
+    // send, which is the quietest way to lose a lead there is.
+    prisma.workflow.findMany({
+      where: { tenantId, status: "PUBLISHED" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.webhook.findMany({
+      where: { tenantId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
   const wabaAvailable = visible && !!waba.phoneNumberId && !!waba.accessToken;
@@ -143,5 +159,5 @@ export async function builderOptions(scopeTenantId: string | null): Promise<Buil
     }
   }
 
-  return { assessments, tags, wabaTemplates, wabaAvailable };
+  return { assessments, tags, wabaTemplates, wabaAvailable, workflows, webhooks };
 }

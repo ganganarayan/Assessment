@@ -317,6 +317,10 @@ export interface WorkflowStepView {
   delayUnit: WorkflowDelayUnit | null;
   tagId: string | null;
   tagAction: WorkflowTagAction | null;
+  /** SUBFLOW: the sequence to hand them to. */
+  targetWorkflowId: string | null;
+  /** WEBHOOK: which registered endpoint to post to. */
+  webhookId: string | null;
   sentCount: number;
   failedCount: number;
   skippedCount: number;
@@ -347,6 +351,39 @@ export interface WorkflowListRow {
   createdAt: string;
 }
 
+/**
+ * The step kinds the builder OFFERS, in the order they are worth reaching for.
+ *
+ * 🔴 Not every WorkflowStepKind. BRANCH and LOOP wait for a canvas that can draw
+ * them; ZOOM_MEETING waits for a workflow that has an appointment to put the link on,
+ * which a sequence about a contact does not. Listed here so the picker, the zod
+ * schema and the verify gate cannot disagree about what exists.
+ */
+export const OFFERED_STEP_KINDS = [
+  "MESSAGE",
+  "DELAY",
+  "TAG",
+  "SUBFLOW",
+  "WEBHOOK",
+  "NOTIFY_OWNER",
+  "UNSUBSCRIBE",
+  "EXIT",
+] as const;
+
+export type OfferedStepKind = (typeof OFFERED_STEP_KINDS)[number];
+
+/** What each one is called on the + menu. */
+export const STEP_KIND_LABEL: Record<OfferedStepKind, string> = {
+  MESSAGE: "Message",
+  DELAY: "Wait",
+  TAG: "Tag",
+  SUBFLOW: "Hand to another sequence",
+  WEBHOOK: "Call a webhook",
+  NOTIFY_OWNER: "Notify me",
+  UNSUBSCRIBE: "Unsubscribe them",
+  EXIT: "End the sequence",
+};
+
 export interface BuilderOptions {
   assessments: { id: string; title: string }[];
   tags: { id: string; name: string }[];
@@ -356,6 +393,10 @@ export interface BuilderOptions {
   wabaTemplates: { name: string; varCount: number }[];
   /** False when WhatsApp is held back or unconfigured: the channel is not offered. */
   wabaAvailable: boolean;
+  /** The OTHER published sequences this one can hand somebody to. Never itself. */
+  workflows: { id: string; name: string }[];
+  /** Registered endpoints. A step posts to one of these, never to a typed URL. */
+  webhooks: { id: string; name: string }[];
 }
 
 /* ------------------------------------------------------------- validation --- */
@@ -398,6 +439,10 @@ export const stepSchema = z.object({
   delayUnit: z.enum(["MINUTES", "HOURS", "DAYS", "MONTHS"]).nullable(),
   tagId: z.string().trim().nullable(),
   tagAction: z.enum(["ADD", "REMOVE"]).nullable(),
+  // Ids only, and only ever checked against the acting workspace on the server. A
+  // plain id from a form is a request to touch a row, not permission to.
+  targetWorkflowId: z.string().nullable().optional(),
+  webhookId: z.string().nullable().optional(),
 });
 
 /**
