@@ -59,9 +59,9 @@ export function Pricing({ cta }: { cta: CtaConfig }) {
                 <span className="text-4xl font-bold tracking-tight">{tier.price}</span>
                 <span className="text-sm text-[var(--muted-foreground)]">{tier.period}</span>
               </div>
-              <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                {tier.amount === null ? "quoted, billed monthly" : "billed monthly"}
-              </p>
+              {/* Flat, not a conditional: every tier is billed monthly, Enterprise
+                  included, and its "from" prefix is what says the figure is quoted. */}
+              <p className="mt-1 text-xs text-[var(--muted-foreground)]">billed monthly</p>
 
               <p className="mt-3 min-h-12 text-sm leading-relaxed text-[var(--muted-foreground)]">
                 {tier.blurb}
