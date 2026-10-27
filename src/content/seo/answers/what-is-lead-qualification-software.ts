@@ -24,7 +24,7 @@ export const answer: Answer = {
       ],
       bullets: [
         "Points per answer, so a near-miss scores differently from a dealbreaker",
-        "Weights per category, so budget can matter more than, say, team size",
+        "A weight per question, so budget can matter more than, say, team size",
         "A score threshold that decides what counts as qualified",
       ],
     },

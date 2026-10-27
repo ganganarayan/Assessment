@@ -33,7 +33,7 @@ export const TOPICS: ReadonlyArray<Topic> = [
     heading: "Lead scoring, the Assess360 way",
     pillarSlug: "lead-scoring",
     blurb:
-      "Turning answers into a number that means something - points, category weights, and the threshold that defines qualified.",
+      "Turning answers into a number that means something - points, question weights, and the threshold that defines qualified.",
   },
   {
     id: "scorecards",

@@ -24,8 +24,8 @@ export function ComparisonTable({ table }: { table: NonNullable<SeoPage["compari
         {MARKETING.name} and {table.competitor}, side by side
       </h2>
       <p className="mt-3 text-[var(--muted-foreground)]">
-        Where {table.competitor} is genuinely better, the row says so. A table that was all
-        ticks in one column would not be worth reading.
+        Rows both products handle are marked as matched, and rows {table.competitor} wins say
+        so. A table that was all ticks in one column would not be worth reading.
       </p>
 
       {/* Stacked cards on a phone. */}
@@ -43,6 +43,7 @@ export function ComparisonTable({ table }: { table: NonNullable<SeoPage["compari
                 <dd className={r.themWins ? "font-semibold" : undefined}>
                   {r.them}
                   {r.themWins ? <ThemWins /> : null}
+                  {r.tie ? <Matched /> : null}
                 </dd>
               </div>
             </dl>
@@ -79,6 +80,7 @@ export function ComparisonTable({ table }: { table: NonNullable<SeoPage["compari
                 >
                   {r.them}
                   {r.themWins ? <ThemWins /> : null}
+                  {r.tie ? <Matched /> : null}
                 </td>
               </tr>
             ))}
@@ -101,6 +103,91 @@ function ThemWins() {
     <span className="ml-2 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
       They win
     </span>
+  );
+}
+
+/**
+ * Both products do this.
+ *
+ * Deliberately quieter than the "they win" badge: a draw is not a concession, it is the
+ * answer to "what do I lose if I move", and most of the table should be able to carry it.
+ */
+function Matched() {
+  return (
+    <span className="ml-2 whitespace-nowrap rounded-full border border-dashed px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+      Matched
+    </span>
+  );
+}
+
+/**
+ * THE PARITY BLOCK - the ordinary capabilities this product also has.
+ *
+ * It goes ABOVE the head-to-head table, which is the whole point of it. The table states
+ * differences; a reader who meets the differences first has been told what is special
+ * before being told what is covered, and the question they actually arrived with - if I
+ * leave the tool I pay for, what stops working - goes unanswered until they have stopped
+ * reading. So the floor comes first and the differences stand on it.
+ */
+export function ParityBlock({
+  competitor,
+  block,
+}: {
+  competitor: string;
+  block: NonNullable<SeoPage["parity"]>;
+}) {
+  return (
+    <section id="also-does" className="scroll-mt-20">
+      <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+        What it does that {competitor} also does
+      </h2>
+      <p className="mt-3 leading-relaxed text-[var(--muted-foreground)]">{block.intro}</p>
+      <dl className="mt-6 grid gap-x-8 gap-y-5 sm:grid-cols-2">
+        {block.items.map((c) => (
+          <div key={c.label}>
+            <dt className="text-sm font-semibold">{c.label}</dt>
+            <dd className="mt-1 text-sm leading-relaxed text-[var(--muted-foreground)]">
+              {c.detail}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+/**
+ * THE LIMITS BLOCK - what this product does not do, against this competitor.
+ *
+ * Below the table and above `betterWhen`, because the order is an argument: here is the
+ * floor, here is the difference, here is what the difference costs you, and here is when
+ * you should buy the other thing. Removing this block would not make the page more
+ * persuasive, it would make the rest of it unverifiable.
+ *
+ * The heading says only what WE do not do, and never "and they do". The two are not the
+ * same list: no free plan is an absence on every page, and on a page about a competitor
+ * who also has no free plan, a heading promising they have one would be a new false
+ * claim introduced by the honesty section. Which of these the competitor covers belongs
+ * in the intro, where the page can say it accurately.
+ */
+export function LimitsBlock({ block }: { block: NonNullable<SeoPage["limits"]> }) {
+  return (
+    <section id="does-not-do" className="scroll-mt-20 rounded-xl border p-6 sm:p-8">
+      <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+        What {MARKETING.name} does not do
+      </h2>
+      <p className="mt-3 leading-relaxed text-[var(--muted-foreground)]">{block.intro}</p>
+      <dl className="mt-6 flex flex-col gap-5">
+        {block.items.map((c) => (
+          <div key={c.label}>
+            <dt className="text-sm font-semibold">{c.label}</dt>
+            <dd className="mt-1 text-sm leading-relaxed text-[var(--muted-foreground)]">
+              {c.detail}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 

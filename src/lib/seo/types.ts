@@ -117,6 +117,19 @@ export const comparisonRowSchema = z.object({
   // Optional, not .default(false): a default makes it REQUIRED in the inferred type,
   // so every honest row would have to spell out that it is not a concession.
   themWins: z.boolean().optional(),
+  /**
+   * The row is a DRAW: both products do this, and neither deserves the credit.
+   *
+   * It exists because a table made only of wins and losses answers the wrong question.
+   * A reader leaving another tool is not asking which product has more ticks, they are
+   * asking whether this one can do the ordinary job the old one did - and a comparison
+   * that omits every matched capability reads as a bolt-on for one trick rather than a
+   * product you could move onto. The matched rows are what make it a real alternative,
+   * so they are stated rather than left out.
+   */
+  tie: z.boolean().optional(),
+}).refine((r) => !(r.themWins && r.tie), {
+  message: "a row cannot be both a draw and a win for the competitor",
 });
 export type ComparisonRow = z.infer<typeof comparisonRowSchema>;
 
@@ -128,6 +141,69 @@ export const comparisonTableSchema = z.object({
   source: z.string().min(4).optional(),
   rows: z.array(comparisonRowSchema).min(5),
 });
+
+/**
+ * One named capability, in the two lengths every claim on these pages carries: what it
+ * is, and what it actually does here.
+ *
+ * Shared by the parity list and the limits list, because a thing we do and a thing we do
+ * not do are the same kind of statement and should be written to the same standard. A
+ * bare label ("Webhooks: yes") is a tick in a feature grid and persuades nobody; the
+ * detail is what a reader checks us against.
+ */
+export const capabilitySchema = z.object({
+  /** The capability as a buyer would name it, e.g. "Conditional logic". */
+  label: z.string().min(3).max(60),
+  /**
+   * What it does here, specifically. No adjectives.
+   *
+   * The ceiling is generous because the LIMITS list needs it: "no multi-select" is a
+   * tick in a grid, while the sentence that also rules out rating scales, matrices and
+   * file uploads is the one that stops a reader buying the wrong tool. A cap tight
+   * enough to force the short version would make the honest half of the page vaguer
+   * than the half that sells.
+   */
+  detail: z.string().min(25).max(420),
+});
+export type Capability = z.infer<typeof capabilitySchema>;
+
+/**
+ * THE PARITY BLOCK - the ordinary things this product also does.
+ *
+ * Every comparison page used to make one argument: here is what we do that they do not.
+ * Read by someone who already pays for the other tool, that argument fails in a way the
+ * page cannot see, because their question is not "what is different" but "if I move, what
+ * do I lose". A page that answers only the first reads as a single-feature add-on they
+ * would have to run ALONGSIDE what they already have, which is a harder sale than a
+ * replacement and not what is being offered.
+ *
+ * So the matched capabilities are listed, with a floor of eight, before any difference is
+ * claimed. It costs the page its cleanest line and buys the only thing that matters on a
+ * page titled "alternative": that it is one.
+ */
+export const parityBlockSchema = z.object({
+  /** Why the list is here, in the page's own voice. */
+  intro: z.string().min(80).max(700),
+  items: z.array(capabilitySchema).min(8, "parity is proved by a list, not by three examples"),
+});
+export type ParityBlock = z.infer<typeof parityBlockSchema>;
+
+/**
+ * THE LIMITS BLOCK - what this product does not do, named per competitor.
+ *
+ * Not a softer `betterWhen`. That paragraph says when somebody else is the better
+ * choice, which is a judgement; this is a list of absences, which is a fact. A reader
+ * can verify a fact in ten minutes of using the trial, and the ones they find that the
+ * page did not admit cost more than the ones it did.
+ *
+ * Two is the floor rather than one, because exactly one admitted shortcoming reads as a
+ * rhetorical device - the weakness chosen for being harmless.
+ */
+export const limitsBlockSchema = z.object({
+  intro: z.string().min(60).max(700),
+  items: z.array(capabilitySchema).min(2, "one admitted gap is a sales technique, not a disclosure"),
+});
+export type LimitsBlock = z.infer<typeof limitsBlockSchema>;
 
 export const pageKindSchema = z.enum(["pillar", "use-case", "comparison", "glossary"]);
 export type PageKind = z.infer<typeof pageKindSchema>;
@@ -178,6 +254,10 @@ export const seoPageSchema = z.object({
   factsCheckedOn: isoDate.optional(),
   /** The head-to-head table. Comparison pages only; a pillar has nobody to compare to. */
   comparison: comparisonTableSchema.optional(),
+  /** What this product ALSO does - the matched capabilities. See parityBlockSchema. */
+  parity: parityBlockSchema.optional(),
+  /** What it does NOT do, against this competitor. See limitsBlockSchema. */
+  limits: limitsBlockSchema.optional(),
   /**
    * When the OTHER product is the better choice. One short paragraph, deliberately
    * capped: it is what makes everything above it believable, and at a third of the page

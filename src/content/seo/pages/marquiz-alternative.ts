@@ -1,10 +1,11 @@
 import type { SeoPage } from "@/lib/seo/types";
+import { caps, lacks } from "../capabilities";
 
 export const page: SeoPage = {
   slug: "marquiz-alternative",
   kind: "comparison",
   intent:
-    "A performance marketer running cheap quiz funnels on paid traffic who is getting volume but not customers, and needs the quiz to filter and to feed the ad platform a better signal.",
+    "A performance marketer running cheap quiz funnels on paid traffic who is getting volume but not customers, and needs the quiz to filter and to feed the ad platform a signal about quality rather than completion.",
   primaryKeyword: "marquiz alternative",
   secondaryKeywords: [
     "marquiz alternative for lead qualification",
@@ -13,13 +14,13 @@ export const page: SeoPage = {
   ],
   title: "Marquiz Alternative for Lead Qualification",
   description:
-    "How Assess360 differs from a quiz funnel builder: it is built to reduce lead volume and raise lead value, and to report qualification back to the ad platform.",
+    "Assess360 against Marquiz: both send server-side Meta events, only one gates before the opt-in and reports qualification rather than completion.",
   h1: "Assess360 as a Marquiz alternative",
   shortName: "vs Marquiz",
-  factsCheckedOn: "2026-10-09",
+  factsCheckedOn: "2026-10-27",
   lede:
-    "Quiz funnel builders are popular with paid traffic for a good reason: they lift conversion rate cheaply. The catch arrives later, when the extra volume turns out to be made of people the sales team cannot sell to, and the campaign has been learning from them all along.",
-  updatedAt: "2026-10-06",
+    "Marquiz is the most capable cheap quiz builder on this list, and the one closest to us on measurement: it supports the Meta Conversions API, untiered, alongside the pixel. So the difference here is not whether events reach the server. It is what the events say, and whether a wrong-fit visitor is counted and billed before anybody has decided they were wrong.",
+  updatedAt: "2026-10-27",
   internalLinks: ["meta-ads-lead-qualification", "lead-qualification-quiz", "lead-qualification-software"],
   sections: [
     {
@@ -29,6 +30,7 @@ export const page: SeoPage = {
         "Every unqualified conversion you report is an instruction to the ad platform to find more people like that one.",
       paragraphs: [
         "This is the part that compounds. A quiz funnel that converts well on a cheap event does not just produce bad leads once; it retrains delivery towards the audience that produces them, and the account gets worse at finding buyers over time.",
+        "Marquiz fires its events by quiz stage: a view-content event per question step, and a lead event on finish, on contacts, and on payment. Through the Conversions API those reach Meta from the server, which is genuinely better than most of this category. But a stage is not a verdict. Nothing in that set distinguishes a lead worth calling from a lead who answered fast, so the algorithm is being told how far people got, not who was worth having.",
       ],
       bullets: [],
     },
@@ -39,12 +41,13 @@ export const page: SeoPage = {
         "Report qualification instead of completion, and exclude the people who were turned away.",
       paragraphs: [
         "Assess360 runs the gate before the opt-in, so the disqualified never become leads, and sends the qualified completion server-side as the event campaigns optimise on. The rejections populate an exclusion audience rather than disappearing.",
+        "Marquiz can get close to one half of this by accident: a result can be shown before the contact form, and the contact form can be disabled entirely. But that is a configuration side-effect rather than a gate, there is no named disqualification, and their own analytics documentation says that with the form disabled the leads-received figure counts everybody who completed the quiz. The people you were trying not to count are counted.",
       ],
       bullets: [
         "Fewer leads, each worth more, with the cost difference visible per qualified lead",
         "An exclusion audience built from real rejections, carrying no personal data",
-        "Server-side events, so blocked pixels do not decide what gets counted",
-        "The funnel on your own domain, with your own branding",
+        "A qualified-only event, distinct from a completion, rather than a stage event",
+        "The funnel on your own domain from $79, with your own branding",
       ],
     },
     {
@@ -52,7 +55,7 @@ export const page: SeoPage = {
       heading: "What it means to be billed per lead",
       answer: "A plan priced in lead blocks charges you more in exactly the months your targeting got worse.",
       paragraphs: [
-        "That is not a criticism of Marquiz so much as a description of the model. Leads are the unit, so a month of broad traffic and weak targeting is a month that costs more, and the tool has no reason to care whether those leads were any good.",
+        "That is not a criticism of Marquiz so much as a description of the model. Leads are the unit, so a month of broad traffic and weak targeting is a month that costs more, and the tool has no reason to care whether those leads were any good. The blocks are also small: ten free, thirty on their entry paid plan, a hundred at the price where custom domains and branding removal unlock, with unused credits forfeited on a plan change and leads collected while unpaid locked until you renew.",
         "Metering qualified responses only inverts that. Tighten the gate and your bill goes down, not up, which is the only version of this where the vendor and the customer want the same thing.",
       ],
       bullets: [
@@ -62,71 +65,184 @@ export const page: SeoPage = {
       ],
     },
   ],
+  parity: {
+    intro:
+      "Marquiz covers all of this too, and on question variety and distribution it covers more than we do. This is the page where the gap is narrowest, so the list matters most: the argument has to rest on what the events mean and what gets metered, not on capability.",
+    items: caps(
+      "points",
+      "weights",
+      "bands",
+      "logic",
+      "pacing",
+      "resultPage",
+      "pdf",
+      "resultLink",
+      "redirect",
+      "aiReport",
+      "payments",
+      "captureOrder",
+      "domain",
+      "branding",
+      "templates",
+      "importer",
+      "retakes",
+      "webhooks",
+      "export",
+      "submissions",
+      "emailSending",
+      "pixel",
+      "stats",
+      "utm",
+      "seats",
+      "unsubscribe",
+    ),
+  },
+  limits: {
+    intro:
+      "Marquiz is wider than us in most directions and cheaper to start. The question types, the embed options, the languages and the in-quiz cart are all real advantages it has and we do not.",
+    items: lacks(
+      "questionTypes",
+      "fileUpload",
+      "embeds",
+      "languages",
+      "abTesting",
+      "zapier",
+      "api",
+      "aiQuestions",
+      "prefill",
+      "questionStats",
+      "compliance",
+      "freePlan",
+      "annual",
+    ),
+  },
   comparison: {
     competitor: "Marquiz",
-    source: "read from their own pricing page on 9 October 2026. Several vendors price by region, so the figure you are shown may differ",
+    source:
+      "read from their own pricing page and help centre on 27 October 2026. Their prices are shown excluding VAT, they publish no annual price, and no per-lead price above their 100-lead tier is listed on the page",
     rows: [
-    {
-      label: "Gate runs before the opt-in",
-      us: "Yes, before the opt-in. A failed gate stores no lead, no submission and no result.",
-      them: "No pre-opt-in gate. The quiz collects, then you sort the leads.",
-    },
-    {
-      label: "Are disqualified visitors metered?",
-      us: "Never. Only qualified responses count against the plan.",
-      them: "Leads are the metered unit, and the plans are priced in lead blocks.",
-    },
-    {
-      label: "Weighted category scoring",
-      us: "Yes. Weighted categories, a weighted total, and named result bands.",
-      them: "Branching and results. No weighted categories with their own bands.",
-    },
-    {
-      label: "Qualified-only conversion event",
-      us: "Yes. Qualified completions fire their own conversion event.",
-      them: "No qualified-only conversion event.",
-    },
-    {
-      label: "Server-side exclusion audience",
-      us: "Yes. Server-side exclusion audience via the Conversions API.",
-      them: "No server-side exclusion audience.",
-    },
-    {
-      label: "First-party match keys",
-      us: "Yes, on every Pixel and CAPI event.",
-      them: "Standard pixel integrations.",
-    },
-    {
-      label: "Custom domain",
-      us: "Yes, from $79/mo.",
-      them: "On paid plans.",
-    },
-    {
-      label: "Entry price",
-      us: "$39/mo, or $32 billed annually.",
-      them: "Free for 10 leads a month, $19/mo Start for 30, Plus from $39/mo in lead blocks.",
-      themWins: true,
-    },
+      {
+        label: "Gate runs before the opt-in",
+        us: "Yes. A failed gate stores no lead, no submission and no result, and fires an exclusion event.",
+        them: "No named gate. A result can be shown before the contact form and the form can be disabled, but that is configuration, not disqualification.",
+      },
+      {
+        label: "Are disqualified visitors metered?",
+        us: "Never. Only qualified completions count, and previews are unmetered.",
+        them: "Metered in leads per month, pooled across quizzes. With the form disabled their own analytics counts everybody who completed the quiz.",
+      },
+      {
+        label: "Qualified-only conversion event",
+        us: "Yes, a distinct event for people who cleared your bar, plus an exclusion signal for everybody who did not.",
+        them: "No. Events are keyed to quiz stages: a view per question step, and a lead on finish, contacts and payment.",
+      },
+      {
+        label: "Server-side Conversions API",
+        us: "Yes, on every paid plan including the $39 one, deduplicated against the browser pixel.",
+        them: "Yes, with an access token you paste in, a test event code and a gateway option, and it is not tier-gated. Genuinely equal footing.",
+        tie: true,
+      },
+      {
+        label: "Points per answer",
+        us: "Points per option, a weight per question, and a score per category with its own bands.",
+        them: "Yes, points per answer option on every tier including free. Category scoring is built from answer-letter conditions rather than a weighted category.",
+        tie: true,
+      },
+      {
+        label: "Score ranges choosing a result",
+        us: "Named bands on the percentage, overall and per category, with overlaps refused at save time.",
+        them: "Each result carries a points rule, evaluated in priority order with the first match winning, and a default result as the fallback.",
+        tie: true,
+      },
+      {
+        label: "Conditional logic",
+        us: "Answer-based skip, jump, converge and cascade into a different assessment.",
+        them: "Branching logic on every tier including free, and questions can read earlier answers.",
+        tie: true,
+      },
+      {
+        label: "Webhooks",
+        us: "Signed webhooks with a durable retry queue, on every paid plan.",
+        them: "Yes, on every tier including free.",
+        tie: true,
+      },
+      {
+        label: "Custom domain",
+        us: "Yes, from $79/mo, with the certificate provisioned.",
+        them: "Yes, on their Plus tier, from $39/mo at the 100-lead level.",
+        tie: true,
+      },
+      {
+        label: "Branded PDF report",
+        us: "Yes, on every paid plan, built from the stored snapshot.",
+        them: "Not documented.",
+      },
+      {
+        label: "Per-question drop-off",
+        us: "No. Stats are per stage, so you never learn which screen lost somebody.",
+        them: "Yes, a per-question funnel conversion rate on their paid tiers.",
+        themWins: true,
+      },
+      {
+        label: "Question types",
+        us: "Two: single-select and free text.",
+        them: "Twelve, including file upload, date and time, rating, slider, dropdown, emoji and image-based choices.",
+        themWins: true,
+      },
+      {
+        label: "Embed in a page you already have",
+        us: "No. The funnel is a hosted page on your own domain, distributed as a link.",
+        them: "Five: button, pop-up banner, pop-up overlay, HTML block and widget, with install guides for a dozen site builders.",
+        themWins: true,
+      },
+      {
+        label: "More than one language",
+        us: "No. One language per funnel.",
+        them: "Quizzes can be built in 38 or more languages.",
+        themWins: true,
+      },
+      {
+        label: "A/B testing",
+        us: "No. Two variants means two funnels and two ad sets.",
+        them: "Yes, on their Plus tier, serving several variations under one link.",
+        themWins: true,
+      },
+      {
+        label: "Payments and cart",
+        us: "A paid step through Razorpay, in rupees.",
+        them: "An in-quiz cart with product details, variants, discounting and Stripe, on every tier including free.",
+        themWins: true,
+      },
+      {
+        label: "Free plan and entry price",
+        us: "No free plan. 14 days of the full product, then $39/mo for 150 qualified responses.",
+        them: "Free with 10 leads a month, then $19/mo for 30 leads, and Plus from $39/mo for 100.",
+        themWins: true,
+      },
     ],
   },
   betterWhen:
-    "Marquiz is quick, cheap and specifically good at the thing it sells: turning cold traffic into quiz leads, with a free tier you can actually test on. If you are starting out and want to know whether a quiz funnel works for your offer at all, it will tell you that for almost nothing, faster than we will.",
+    "Marquiz is the closest competitor on this site for anybody buying Meta traffic, because it has the Conversions API and does not charge extra for it. It is also wider than us: twelve question types, five embed modes, 38 languages, an in-quiz cart, A/B testing, per-question drop-off and a free plan. Choose it if you want volume cheaply and are content for the ad platform to learn from completions. Choose Assess360 only because you want the events to mean qualified rather than finished, and because you do not want to pay for the leads you are trying not to get.",
   faqs: [
     {
-      q: "Marquiz already meters leads. Isn't that the same promise?",
-      a: "It is the opposite one. Marquiz charges by leads collected, so a month full of unqualified enquiries is a more expensive month. Here a disqualified visitor is never stored and never metered, so filtering harder costs you less rather than more.",
+      q: "Marquiz has the Conversions API too. So what is actually different?",
+      a: "What the events say. Marquiz fires stage events: a view per question step, and a lead on finish, on contacts and on payment. Those are facts about progress. Here the gate runs before the opt-in, so a wrong-fit visitor never becomes a lead, the qualified completion fires as its own event, and everybody turned away fires an exclusion signal. One tells the algorithm how far people got; the other tells it who to go and find, and who to stop showing the ad to.",
     },
     {
-      q: "Is the free tier comparable?",
-      a: "There is no free tier here, only a 14-day trial, so for pure testing Marquiz is the cheaper way to find out whether a quiz funnel suits your offer.",
+      q: "Is Marquiz not far cheaper?",
+      a: "At the bottom, yes: a free tier with ten leads and nineteen dollars for thirty. But the lead blocks are small and pooled across quizzes, unused credits are forfeited when you change plan, and leads collected while unpaid are locked until you renew, so a working campaign forces repeated tier purchases. Here the thing being metered is qualified responses, so tightening the gate lowers the bill rather than raising it.",
     },
     {
-      q: "When is it worth moving?",
-      a: "When you are spending on ads and the lead blocks have started to feel like a tax on traffic you did not want. That is usually the month somebody works out what a wrong-fit call costs.",
+      q: "What would I lose by moving?",
+      a: "Ten question types including file upload, rating and sliders, the five embed modes, 38 languages, A/B testing, per-question drop-off analytics, the in-quiz cart with Stripe, the AI quiz generator, Zapier, and the free plan. On breadth Marquiz wins, and it is the page on this site where we concede the most.",
+    },
+    {
+      q: "Can I move my Marquiz quiz across?",
+      a: "Single-select questions and typed answers move by pasting them into the plain-text importer. Sliders, ratings, dates, uploads and image choices do not, because we have no equivalent. Send us the live link and we will rebuild it with a gate in front of it, free, then take it live with you on one 30-minute call.",
     },
   ],
   cta: {
     heading: "Stop teaching the algorithm to find bad leads",
-    body: "Qualify before the opt-in, report only what qualified, and exclude the rest.",
+    body: "Report qualified rather than finished, exclude the people you turned away, and stop paying for the leads you did not want.",
   },
 };

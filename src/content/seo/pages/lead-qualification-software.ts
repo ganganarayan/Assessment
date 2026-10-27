@@ -40,7 +40,7 @@ export const page: SeoPage = {
       ],
       bullets: [
         "Gate, before the questions start, so wrong-fit traffic never becomes a lead",
-        "Score, with points per answer and weights per category, so fit has a number",
+        "Score, with points per answer and a weight per question, so fit has a number",
         "Review, with free-text fields a human reads, for what a score cannot judge",
         "Signal, back to the ad platform, so the next click is better than the last",
       ],

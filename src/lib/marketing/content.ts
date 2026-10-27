@@ -1012,11 +1012,15 @@ export const PILLARS: ReadonlyArray<Pillar> = [
     name: "Score",
     tagline: "The rest get ranked, and told the truth",
     body: "Everyone who passes the gate is scored against the criteria you weight, and gets a result that names where they actually stand and what to do next. Ranking your pipeline and being useful to the respondent are the same act.",
+    // 🔴 "AI question generation" was in this list and is NOT BUILT. The importer
+    // parses text you paste and calls no model. The CAPABILITIES card above carries
+    // `soon: true`, which renders as held back; this list has no such marker, so the
+    // same words here were a flat claim with nothing behind them. Removed rather than
+    // marked, because this list is titles only and has nowhere to put a caveat.
     titles: [
       "Weighted scoring engine",
       "Result interpretation & bands",
       "Dynamic result pages",
-      "AI question generation",
       "AI-written result reports",
       "Branded PDF reports",
     ],

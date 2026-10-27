@@ -150,6 +150,47 @@ function main(): void {
     failures.push(`marketing description is ${MARKETING.description.length} chars; aim for 165 or fewer`);
   }
 
+  /**
+   * A comparison page has to carry the honest half, and the schema cannot force it
+   * because both blocks are optional - they have to be, since a pillar page has nobody
+   * to compare itself to.
+   *
+   * The three rules are the ones that keep an "alternative" page from quietly turning
+   * back into an advertisement, which is what all thirteen of them were before this
+   * check existed:
+   *
+   *  - PARITY, because a reader leaving another tool is asking what stops working if
+   *    they move, and a page that answers only "here is what is different" is offering
+   *    a bolt-on rather than a replacement.
+   *  - LIMITS, because every absence a reader discovers for themselves discredits the
+   *    rows they cannot check.
+   *  - at least two MATCHED rows and at least one the competitor WINS, because a table
+   *    of eight wins in one column is read as marketing by anyone who has used the other
+   *    product, and then none of it counts.
+   */
+  for (const page of PAGES) {
+    if (page.kind !== "comparison") continue;
+    const where = `page/${page.slug}`;
+    if (!page.comparison) {
+      failures.push(`${where}: a comparison page with no comparison table`);
+      continue;
+    }
+    if (!page.parity) {
+      failures.push(`${where}: no parity block - the page never says what it also does`);
+    }
+    if (!page.limits) {
+      failures.push(`${where}: no limits block - the page never says what it does not do`);
+    }
+    const matched = page.comparison.rows.filter((r) => r.tie).length;
+    const conceded = page.comparison.rows.filter((r) => r.themWins).length;
+    if (matched < 2) {
+      failures.push(`${where}: ${matched} matched row(s) in the table; a real alternative matches more than that`);
+    }
+    if (conceded < 1) {
+      failures.push(`${where}: no row the competitor wins, which is not credible`);
+    }
+  }
+
   mkdirSync(dirname(MAP_PATH), { recursive: true });
   writeFileSync(MAP_PATH, JSON.stringify(map, null, 2) + "\n", "utf8");
   console.log(`keyword map: ${Object.keys(map.index).length} terms -> ${MAP_PATH}`);

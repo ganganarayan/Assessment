@@ -6,7 +6,14 @@ import { SectionBody } from "./section-body";
 import { AnswerList } from "./answer-list";
 import { OnThisPage } from "./on-this-page";
 import { SeoCta } from "./seo-cta";
-import { ComparisonTable, MigrationBlock, BetterWhen, PageFaqs } from "./comparison-table";
+import {
+  ComparisonTable,
+  MigrationBlock,
+  BetterWhen,
+  PageFaqs,
+  ParityBlock,
+  LimitsBlock,
+} from "./comparison-table";
 import { DfyOffer } from "./dfy-offer";
 import type { Answer, SeoPage } from "@/lib/seo/types";
 import { seoPath } from "@/lib/seo/urls";
@@ -59,7 +66,13 @@ export function SeoPageShell({
         <OnThisPage
           sections={page.sections}
           extra={[
+            ...(page.comparison && page.parity
+              ? [{ id: "also-does", label: "What it also does" }]
+              : []),
             ...(page.comparison ? [{ id: "side-by-side", label: "Side by side" }] : []),
+            ...(page.comparison && page.limits
+              ? [{ id: "does-not-do", label: "What it does not do" }]
+              : []),
             ...(page.betterWhen && page.comparison
               ? [{ id: "better-when", label: `When ${page.comparison.competitor} is better` }]
               : []),
@@ -74,11 +87,21 @@ export function SeoPageShell({
             <SectionBody key={s.id} section={s} />
           ))}
 
-          {/* Order is deliberate: the table states the difference, the concession makes
-              the table believable, and the migration offer is what to do about it. An
-              offer placed before the concession reads as a pitch interrupting an
-              argument. */}
+          {/* Order is deliberate, and it is the argument the page is making.
+              Parity first: what a reader loses by moving, answered before anything is
+              claimed, because on a page titled "alternative" that is the actual question
+              and a page that leads with differences reads as a bolt-on rather than a
+              replacement. Then the table states the differences. Then the absences, in
+              plain words, which is what makes the table above them worth believing. Then
+              when the other product is the better buy. Then the offer - placed before the
+              concessions it would read as a pitch interrupting an argument. */}
+          {page.comparison && page.parity ? (
+            <ParityBlock competitor={page.comparison.competitor} block={page.parity} />
+          ) : null}
           {page.comparison ? <ComparisonTable table={page.comparison} /> : null}
+          {page.comparison && page.limits ? (
+            <LimitsBlock block={page.limits} />
+          ) : null}
           {page.comparison && page.betterWhen ? (
             <BetterWhen competitor={page.comparison.competitor} body={page.betterWhen} />
           ) : null}

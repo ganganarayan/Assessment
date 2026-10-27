@@ -33,7 +33,7 @@ export const page: SeoPage = {
       ],
       bullets: [
         "A question editor with real answer types, not only text fields",
-        "Points per answer and weights per category",
+        "Points per answer and a weight per question",
         "Bands or thresholds that turn a number into a meaning",
         "A hosted result page, so nothing has to be rebuilt on your own site",
       ],
@@ -49,12 +49,17 @@ export const page: SeoPage = {
       bullets: [],
     },
     {
+      // 🔴 This section used to be headed "Assess360 drafts your questions with AI".
+      // It does not: the importer parses the text you paste and calls no model. The
+      // claim was corrected rather than softened, because it is the one sentence on
+      // this page a reader could disprove inside the trial.
       id: "ai-questions",
-      heading: "Assess360 drafts your questions with AI, you keep the scoring",
+      heading: "Draft the questions anywhere, then paste them in",
       answer:
-        "AI is good at producing a first draft of questions and answer options in minutes; it is not good at knowing which answers should score well for your business.",
+        "AI is good at producing a first draft of questions and answer options in minutes, and nothing here stops you using it, but the drafting happens in your model of choice rather than inside this product.",
       paragraphs: [
-        "Treat generated questions as a starting point to edit, not output to publish. The scoring is the part that encodes your judgement about what a good customer looks like, and that judgement is the asset - it is not something a model can infer from a prompt about your industry.",
+        "To be plain about it: there is no AI question generator in Assess360. What there is, on every plan, is a plain-text importer that reads a pasted list of questions, options and bands and builds the whole scorecard from it, with a preview before it saves. So the workflow people actually use is to draft in whatever model they already pay for and paste the result in.",
+        "Treat generated questions as a starting point to edit either way. The scoring is the part that encodes your judgement about what a good customer looks like, and that judgement is the asset - it is not something a model can infer from a prompt about your industry. The AI in this product writes the report at the end, from the respondent's own answers, using your own provider key.",
       ],
       bullets: [],
     },
@@ -62,15 +67,15 @@ export const page: SeoPage = {
       id: "how-assess360-does-it",
       heading: "Where Assess360 fits in the qualification loop",
       answer:
-        "Draft the questions with AI, edit them, set the points and weights yourself, and publish to a hosted link that scores every answer and returns a personalised result.",
+        "Paste or write the questions, set the points and weights yourself, and publish to a hosted link that scores every answer and returns a personalised result.",
       paragraphs: [
-        "The division of labour is deliberate. Generation handles the part that is tedious and generic - a first pass at questions and answer options - while the scoring, the weights and the bands stay yours, because those encode what a good customer looks like for your business and nothing can infer that from a prompt.",
+        "The division of labour is deliberate. The tedious, generic part - a first pass at questions and answer options - can come from anywhere, including a model you already use, and the importer takes it as pasted text. The scoring, the weights and the bands stay yours, because those encode what a good customer looks like for your business and nothing can infer that from a prompt.",
         "Result reports can be written by AI too, using your own OpenAI, Claude or Gemini key rather than ours. That keeps the model choice and the cost with you, and the reports are generated under your own account rather than pooled through someone else's.",
       ],
       bullets: [
-        "AI-drafted questions and options, edited by you",
+        "A plain-text importer that builds the whole scorecard from a pasted list",
         "Conditional branching, so each person sees only what applies",
-        "Points per answer and weights per category",
+        "Points per answer and a weight per question",
         "Named result bands, each with its own interpretation",
         "Hosted result pages plus a branded PDF",
         "AI-written reports using your own provider key",
@@ -80,6 +85,6 @@ export const page: SeoPage = {
   cta: {
     heading: "Draft your assessment, then make the scoring yours",
     body:
-      "Generate a first pass of the questions, edit them, and set the scoring that reflects what actually predicts a good customer for you.",
+      "Paste in a first pass of the questions, edit them, and set the scoring that reflects what actually predicts a good customer for you.",
   },
 };
