@@ -103,6 +103,15 @@ async function run(argv: string[]): Promise<number> {
   mkdirSync(outDir, { recursive: true });
 
   const haveAdmin = !!env.adminEmail && !!env.adminPassword;
+  // Which half is missing is worth saying out loud: adding a password line is a
+  // different job from creating the file, and a report that says only "no credentials"
+  // sends somebody looking for a file that is already sitting there.
+  const missingCreds =
+    !env.adminEmail && !env.adminPassword
+      ? "qa/.env.qa has neither QA_ADMIN_EMAIL nor QA_ADMIN_PASSWORD"
+      : !env.adminEmail
+        ? "QA_ADMIN_EMAIL is empty in qa/.env.qa"
+        : "QA_ADMIN_PASSWORD is empty in qa/.env.qa";
   const browser: Browser = await chromium.launch({ headless: !args.headed, slowMo: args.slow });
   const context = await browser.newContext({
     viewport: args.desktop ? { width: 1440, height: 900 } : { width: 390, height: 844 },
@@ -144,11 +153,11 @@ async function run(argv: string[]): Promise<number> {
           kind: "screens",
           title: group.title,
           verdict: "skip",
-          unreachable: "no QA_ADMIN_EMAIL / QA_ADMIN_PASSWORD in qa/.env.qa, so the owner's screens were not opened",
+          unreachable: `${missingCreds}, so the owner's screens were not opened`,
           checks: [],
           seconds: 0,
         });
-        console.log("  skipped: no admin credentials");
+        console.log(`  skipped: ${missingCreds}`);
         continue;
       }
       if (group.needsAdmin && signInProblem) {
