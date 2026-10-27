@@ -175,12 +175,58 @@ expect(
     enumValues.includes(v),
   ),
 );
+const schedulerSrc = readFileSync(join(process.cwd(), "src", "lib", "automation", "scheduler.ts"), "utf8");
+
 expect(
   "the trigger nothing emits has a sweep behind it",
-  readFileSync(join(process.cwd(), "src", "lib", "automation", "scheduler.ts"), "utf8").includes(
-    "sweepTimePassedAppointments",
-  ),
+  schedulerSrc.includes("sweepTimePassedAppointments"),
   "APPOINTMENT_TIME_PASSED is found, not emitted - with no sweep on the heartbeat it never fires at all",
+);
+
+/**
+ * 🔴 SOMETHING HAS TO DRAIN THE QUEUE. This is the fault that shipped, and it is worth
+ * reading in full because it is indistinguishable from a broken feature.
+ *
+ * Sequences were enrolled correctly on every trigger and then sat there. The only caller
+ * of runDueWorkflows was /api/cron/workflows, which fails closed without CRON_SECRET, so
+ * no step after the first ever came due. Nothing was lost - a run is a row holding a
+ * cursor - but every workflow in the product silently stopped after its first message,
+ * which reads exactly like a workflow engine that does not work.
+ *
+ * The fix was to put the drain on the heartbeat the app already has. Four separate
+ * things have to stay true for that to keep working, and each one is a plausible tidy-up.
+ */
+expect(
+  "the workflow queue has a drain",
+  /runDueWorkflows\(/.test(schedulerSrc),
+  "with no caller on the heartbeat, the only runner left is an HTTP route that fails closed without CRON_SECRET - and the product cannot depend on somebody having created a cron",
+);
+expect(
+  "the drain is actually on the beat",
+  /async function tick\(\)[\s\S]*?drainWorkflows\(/.test(schedulerSrc),
+  "a drain function nothing calls is the same outage with more code in it",
+);
+expect(
+  "the workflow drain cannot cost the other engine its beat",
+  /try \{\s*await drainWorkflows\(\);/.test(schedulerSrc),
+  "both queues ride one timer. An unguarded throw in either stops reminders and sequences together, and the next tick is only scheduled at the end of this one.",
+);
+expect(
+  "the drain stops on a pass that claimed nothing, not on a short batch",
+  /drainWorkflows[\s\S]{0,400}summary\.claimed === 0/.test(schedulerSrc),
+  "a run can be passed over WITHOUT being claimed - the release switch skips it and leaves it PENDING on purpose - so a short batch would read as an empty queue while work remained",
+);
+
+const bootSrc = readFileSync(join(process.cwd(), "src", "instrumentation.ts"), "utf8");
+expect(
+  "the heartbeat is started on boot",
+  /startAutomationScheduler\(\)/.test(bootSrc),
+  "nothing else starts it. Without this line every queue in the product is full and still, and no error is reported anywhere.",
+);
+expect(
+  "the heartbeat is started once per process, not per request",
+  /NEXT_RUNTIME === "nodejs"/.test(bootSrc),
+  "instrumentation runs once on server start; a timer armed from a request path is a timer per request",
 );
 
 console.log(failures === 0 ? "\nAll workflow queue checks passed.\n" : `\n${failures} check(s) failed.\n`);
