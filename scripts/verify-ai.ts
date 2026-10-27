@@ -86,7 +86,13 @@ console.log("AI feature verification\n");
   // Invariants EVERY prompt version must satisfy.
   for (const v of PROMPT_VERSIONS) {
     const { system } = bsm(sample, v);
-    expect(`[${v.id}] sets 200-280 words`, system.includes("200") && system.includes("280"));
+    // 🟡 A RANGE, not two specific numbers. This asserted "200" and "280" literally,
+    // which were v1 and v2's configurable bounds; v3-bridge is `minimal: true`, takes no
+    // word argument and states its own 180 to 240 because it is a bridge to the paid
+    // call rather than a summary. The invariant that actually matters is that every
+    // version tells the model a length at all - without one the model writes until it
+    // stops, and the message runs past the fold on a phone.
+    expect(`[${v.id}] states a word range`, /\b\d{2,4}\s+to\s+\d{2,4}\s+words\b/i.test(system));
     expect(`[${v.id}] addresses by name`, /name/i.test(system));
     expect(`[${v.id}] points to the training video`, /video/i.test(system) || /training/i.test(system));
     expect(`[${v.id}] human tone, not an AI`, /not an ai/i.test(system));

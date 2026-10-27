@@ -48,9 +48,28 @@ expect(
   "`void` discards the outcome, so a failed send would go unrecorded",
 );
 expect(
-  "registration send is awaited",
-  /await sendAndLogPlatformCapi\(\s*\{\s*eventName: "CompleteRegistration"/.test(platformEvents),
-  "the row has to exist before firePlatformRegistration returns",
+  "the trial send is awaited",
+  /await sendAndLogPlatformCapi\(\s*\{\s*eventName: "StartTrial"/.test(platformEvents),
+  "the row has to exist before fireStartTrial returns",
+);
+/**
+ * 🔴 THE EVENT THIS STEP MUST NOT FIRE.
+ *
+ * This used to assert that the step sent CompleteRegistration, and it was changed on
+ * purpose (153c9b3): the funnel opt-in already fires that name, so two senders were
+ * emitting one event name seconds apart for the same person with different event ids.
+ * Meta cannot deduplicate those, because they are not the same event. Every lead
+ * counted twice and cost per result read about 40% below the truth, which is the kind
+ * of wrong number nobody questions because it flatters.
+ *
+ * So the check is now its own opposite, and that is the point: the regression here is
+ * somebody reinstating the name, and the symptom is a metric that looks better.
+ */
+expect(
+  "the platform funnel never fires CompleteRegistration",
+  !platformEvents.includes("CompleteRegistration") ||
+    !/eventName: "CompleteRegistration"/.test(platformEvents),
+  "the funnel opt-in owns that name; a second sender double-counts every lead",
 );
 expect(
   "purchase send is awaited",
@@ -71,15 +90,21 @@ expect(
 );
 
 // --- The two funnels must stay separated in the log views ---
+/**
+ * 🟡 Both of these used to read the inline `where` inside listCapiLogs. The scope
+ * default and the filter moved into capiLogWhere, which is strictly better - the list
+ * and the count behind the pager now cannot drift apart - so the checks follow the
+ * behaviour rather than the shape it used to have.
+ */
 expect(
-  "listCapiLogs defaults to the assessment funnel",
-  /scope: "assessment" \| "platform" = "assessment"/.test(eventsData),
+  "the log query defaults to the assessment funnel",
+  /scope: q\.scope \?\? \("assessment" as const\)/.test(eventsData),
   "the existing Conversions views must keep showing respondent events only",
 );
 expect(
-  "listCapiLogs filters by scope",
-  /where: \{ tenantId, scope \}/.test(eventsData),
-  "without the filter a SaaS signup and an assessment opt-in are the same row",
+  "both log queries go through the same where",
+  (eventsData.match(/where: capiLogWhere\(tenantId, q\)/g) ?? []).length >= 2,
+  "without the filter a SaaS signup and an assessment opt-in are the same row, and a count that filters differently from its list pages into nothing",
 );
 
 // --- Scope strings are load-bearing: a typo silently splits the log in two, and the

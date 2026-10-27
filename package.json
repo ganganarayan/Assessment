@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:calendar && npm run verify:automations && npm run verify:releases && npm run verify:billing-ledger && npm run verify:workflow-queue && npm run verify:vault && npm run verify:contact-consent && npm run verify:email-providers && npm run verify:whatsapp && npm run verify:legal && next build",
+    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:calendar && npm run verify:automations && npm run verify:releases && npm run verify:billing-ledger && npm run verify:workflow-queue && npm run verify:vault && npm run verify:contact-consent && npm run verify:email-providers && npm run verify:whatsapp && npm run verify:legal && npm run verify:ai && npm run verify:platform-capi && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
