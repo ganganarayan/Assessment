@@ -201,8 +201,8 @@ export function OfferDetail({
             <div className="mt-6 rounded-xl border bg-[var(--muted)] p-5">
               <h4 className="font-semibold">The plans, so you know what you are choosing</h4>
               <p className="mt-2 text-sm leading-relaxed text-[var(--muted-foreground)]">
-                You pick one when the trial ends, not now. Prices are per month, and the
-                second figure is the per-month price when it is billed yearly.
+                You pick one when the trial ends, not now. Every price is per month and
+                billed monthly; there is no yearly term to choose.
               </p>
               <ul className="mt-5 grid gap-3 sm:grid-cols-2">
                 {TIERS.map((t) => (
@@ -214,11 +214,6 @@ export function OfferDetail({
                         <span className="text-[var(--muted-foreground)]">{t.period}</span>
                       </p>
                     </div>
-                    {t.annual ? (
-                      <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                        {t.annual} / month billed yearly
-                      </p>
-                    ) : null}
                     <p className="mt-2 text-sm leading-relaxed text-[var(--muted-foreground)]">
                       {t.blurb}
                     </p>

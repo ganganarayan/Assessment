@@ -404,7 +404,16 @@ export const PLAN_PRICE_USD: Record<PlanId, number> = {
   ENTERPRISE: 599,
 };
 
-/** Annual price PER MONTH (billed yearly). Enterprise is quoted, never published. */
+/**
+ * Annual price PER MONTH (billed yearly). Enterprise is quoted, never published.
+ *
+ * RENDERED NOWHERE, ON PURPOSE (27-10-2026). Nothing may publish these until checkout can
+ * charge them: getOrCreatePlan below builds every Razorpay plan as
+ * `period: "monthly", interval: 1`, and no step of the flow offers a yearly term, so a
+ * price on a page would be a price nobody can pay. The numbers stay here because they are
+ * agreed and should not have to be re-decided; putting one back on a page is part of
+ * building annual billing, not a copy edit.
+ */
 export const PLAN_PRICE_USD_ANNUAL: Record<PlanId, number | null> = {
   GATE: 32,
   SIGNAL: 69,

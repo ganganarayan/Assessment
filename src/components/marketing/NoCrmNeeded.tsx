@@ -15,10 +15,11 @@ import { Emphasised, Tick } from "./Emphasised";
  * Placed immediately after Metering, which is the other structural claim on the page, so
  * the two money arguments sit together and the capability grid below can stay evidence.
  *
- * The note is not decoration. Four of the six bullets are features the release catalog
- * is still holding back, and the cards further down say "Coming soon" on exactly those -
- * a section that asserted them flat would contradict the page it sits on. It comes out
- * when the switches are flipped, along with `soon` on the cards.
+ * The note is not decoration. Five of the six bullets are features the release catalog is
+ * still holding back - only the payment step is switched on - and the cards further down
+ * say "Coming soon" on exactly those, so a section that asserted them flat would
+ * contradict the page it sits on. It comes out when the PRODUCTION switches are flipped,
+ * along with `soon` on the cards; staging going green is not that moment.
  */
 export async function NoCrmNeeded() {
   const cta = await getCta();
