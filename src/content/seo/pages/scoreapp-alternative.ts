@@ -19,7 +19,7 @@ export const page: SeoPage = {
   shortName: "vs ScoreApp",
   factsCheckedOn: "2026-10-27",
   lede:
-    "ScoreApp is the closest thing to a peer on this site, and most of what it does, this does too: weighted categories, score tiers, multiple result pages, PDF reports, a results builder, the result emailed to the respondent. The difference is a gate that runs before the opt-in, and a conversion event that fires only for the people who passed it.",
+    "ScoreApp is the closest thing to a peer on this site, and most of what it does, this does too: per-answer points, score tiers, multiple result pages, PDF reports, a results builder, the result emailed to the respondent. The difference is a gate that runs before the opt-in, and a conversion event that fires only for the people who passed it.",
   updatedAt: "2026-10-27",
   internalLinks: ["lead-qualification-software", "meta-ads-lead-qualification", "scorecard"],
   sections: [

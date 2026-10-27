@@ -30,7 +30,7 @@ const CHECKLIST: ReadonlyArray<{ group: string; items: ReadonlyArray<string> }> 
     items: [
       "Read their 'who is a bad lead' answer first. The gate is written from it, and nothing else on the form tells you anything the website would not.",
       "Build the gate questions. Gate on capacity, fit and timing, never on role - role is a lead-form field, not a filter.",
-      "Write the scored questions in weighted categories, and check the weights sum to what you intended.",
+      "Write the scored questions in categories, set each question's weight, and check the weights sum to what you intended.",
       "Set three result bands that tile 0 to 100 with no gap, and give each one a named next step rather than encouragement.",
       "Write the AI result instructions, or turn the AI statement off. Do not leave it on with no instructions.",
       "Leave it in DRAFT. The draft is what they see in their dashboard before the call starts.",
