@@ -263,6 +263,13 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+// How often a subscription is charged. Values are byte-identical to BILLING_TERMS in
+// lib/billing/plans.ts, so the catalog type and this enum are interchangeable.
+enum BillingTerm {
+  MONTHLY
+  YEARLY
+}
+
 // Metered usage dimensions. Only RESPONSES is metered per-period (the hot path,
 // incremented on each submission). Assessments and seats are COUNT()ed on demand,
 // so they are NOT enumerated here.
@@ -344,6 +351,15 @@ model Subscription {
   // checkout completes and the webhook fills them in.
   razorpaySubscriptionId String? @unique
   razorpayPlanId         String?
+
+  /// Monthly or yearly. Set when checkout is opened and never changed in place: a term
+  /// switch is a NEW Razorpay subscription (the provider cannot move a subscription
+  /// between plans), so this is rewritten by the activation that replaces it.
+  ///
+  /// Defaults MONTHLY, which is what every subscription that existed before annual was
+  /// buyable actually is. It is read by the renewal maths (+1 month or +12) and by the
+  /// usage-period key, where getting it wrong caps an annual customer for a year.
+  term BillingTerm @default(MONTHLY)
 
   // Current billing period, copied from Razorpay. Also the window the RESPONSES
   // usage counter resets on for a paid tenant (Free tenants use the calendar month).

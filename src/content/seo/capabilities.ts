@@ -323,9 +323,9 @@ export const LACKS = {
       "150 qualified responses a month at $39 and 1,000 at $79, where tools priced for list growth give you several thousand for similar money. Nothing is ever rejected over the cap, but completions past it are held back, including from your export, until the plan is raised.",
   },
   followUp: {
-    label: "The follow-up half is still being released",
+    label: "Half the follow-up chain is still in final testing",
     detail:
-      "Contacts, automations, multi-step sequences, broadcasts, WhatsApp sending and the appointment calendar are built and behind a release switch that is off, so they reach nobody today. Treat them as arriving, not as something you are buying.",
+      "The booking calendar, the Google Calendar sync and the payment step are live. Contacts, automations, multi-step sequences, broadcasts and WhatsApp sending are built and in final testing, switched on per release rather than on the day you sign up. Buy for the gate and the Meta signal; treat those five as arriving.",
   },
 } as const satisfies Record<string, Capability>;
 

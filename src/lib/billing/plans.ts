@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { monthlyWindowStart } from "@/lib/billing/renewal";
 
 /**
  * Billing plan catalog - the SOURCE OF TRUTH for what each tier grants. Pure and
@@ -407,12 +408,10 @@ export const PLAN_PRICE_USD: Record<PlanId, number> = {
 /**
  * Annual price PER MONTH (billed yearly). Enterprise is quoted, never published.
  *
- * RENDERED NOWHERE, ON PURPOSE (27-10-2026). Nothing may publish these until checkout can
- * charge them: getOrCreatePlan below builds every Razorpay plan as
- * `period: "monthly", interval: 1`, and no step of the flow offers a yearly term, so a
- * price on a page would be a price nobody can pay. The numbers stay here because they are
- * agreed and should not have to be re-decided; putting one back on a page is part of
- * building annual billing, not a copy edit.
+ * 🔴 PER MONTH, NOT PER YEAR. $32 is what a Gate customer on the annual term pays per
+ * month; the card is charged 32 x 12 = $384 once. Reading this as the yearly figure
+ * undercharges by a factor of twelve, which is why nothing multiplies it by hand - every
+ * caller goes through `chargeUsd` below.
  */
 export const PLAN_PRICE_USD_ANNUAL: Record<PlanId, number | null> = {
   GATE: 32,
@@ -420,6 +419,52 @@ export const PLAN_PRICE_USD_ANNUAL: Record<PlanId, number | null> = {
   AGENCY: 219,
   ENTERPRISE: null,
 };
+
+export const MONTHS_PER_YEAR = 12;
+
+/**
+ * How often a subscription is charged. Stored on Subscription.term, carried in the
+ * Razorpay subscription's notes, and byte-identical to the Prisma `BillingTerm` enum so
+ * the two are interchangeable without a cast.
+ */
+export const BILLING_TERMS = ["MONTHLY", "YEARLY"] as const;
+export type BillingTerm = (typeof BILLING_TERMS)[number];
+
+export function isBillingTerm(value: unknown): value is BillingTerm {
+  return typeof value === "string" && (BILLING_TERMS as readonly string[]).includes(value);
+}
+
+/** Human label for a term, for buttons and receipts. */
+export const TERM_LABEL: Record<BillingTerm, string> = {
+  MONTHLY: "monthly",
+  YEARLY: "yearly",
+};
+
+/**
+ * WHAT THE CARD IS CHARGED PER CYCLE, in whole USD. The one answer to that question.
+ *
+ * 🔴 Every amount that reaches Razorpay, the Payment ledger or a Meta Purchase value goes
+ * through here. Before annual existed those three all read PLAN_PRICE_USD directly, which
+ * on a yearly charge would have reported $32 against a $384 payment: a ledger that does
+ * not reconcile, and a conversion value one twelfth of reality teaching the ad account
+ * that a subscriber is worth $32.
+ *
+ * Null only for a tier with no published annual price - Enterprise, which is quoted and
+ * never charged through this flow at all. Callers that know they hold a chargeable tier
+ * should refuse rather than fall back to a number, because every fallback here is the
+ * wrong price.
+ */
+export function chargeUsd(plan: PlanId, term: BillingTerm): number | null {
+  if (term === "MONTHLY") return PLAN_PRICE_USD[plan];
+  const perMonth = PLAN_PRICE_USD_ANNUAL[plan];
+  return perMonth === null ? null : perMonth * MONTHS_PER_YEAR;
+}
+
+/** What a yearly buyer saves against twelve monthly charges, in whole USD. */
+export function annualSavingUsd(plan: PlanId): number | null {
+  const yearly = chargeUsd(plan, "YEARLY");
+  return yearly === null ? null : PLAN_PRICE_USD[plan] * MONTHS_PER_YEAR - yearly;
+}
 
 /** The plan a trial grants, and how long it runs. */
 export const TRIAL_PLAN: PlanId = "SIGNAL";
@@ -574,16 +619,34 @@ export function calendarMonthKey(d: Date): string {
   return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`;
 }
 
+function dayKey(d: Date): string {
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+}
+
 /**
- * The usage-period key for RESPONSES metering. A paid tenant meters against its
- * Razorpay billing period (keyed by the period-start date, "YYYY-MM-DD"); a Free
- * tenant (no period start) meters against the calendar month. Pure.
+ * The usage-period key for RESPONSES metering. A paid tenant meters against its billing
+ * period (keyed by the period-start date, "YYYY-MM-DD"); a tenant with no period start
+ * meters against the calendar month. Pure.
+ *
+ * 🔴 THE ALLOWANCE IS MONTHLY ON EVERY TERM. "150 qualified responses / month" is what
+ * the page sells, so a yearly subscriber gets 150 a month and not 150 a year. Razorpay
+ * rewrites currentPeriodStart once per CHARGE, which on a yearly subscription is once
+ * per year, so keying off it directly would hold one key for twelve months and the
+ * counter would never roll over. For YEARLY the window is therefore stepped forward in
+ * whole months from the period start (monthlyWindowStart, which reuses the renewal
+ * clamp), and it keeps rolling over on time even if no webhook ever lands again.
+ *
+ * MONTHLY is untouched: its period start already moves every cycle, and deriving windows
+ * for it would replace a fact from the provider with arithmetic of our own.
  */
-export function usagePeriodKey(periodStart: Date | null, now: Date): string {
-  if (periodStart) {
-    return `${periodStart.getUTCFullYear()}-${pad2(periodStart.getUTCMonth() + 1)}-${pad2(periodStart.getUTCDate())}`;
-  }
-  return calendarMonthKey(now);
+export function usagePeriodKey(
+  periodStart: Date | null,
+  now: Date,
+  term: BillingTerm = "MONTHLY",
+): string {
+  if (!periodStart) return calendarMonthKey(now);
+  if (term === "YEARLY") return dayKey(monthlyWindowStart(periodStart, now));
+  return dayKey(periodStart);
 }
 
 /**

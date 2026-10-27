@@ -22,13 +22,19 @@ import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
  * itself, so metering it would count the owner's own traffic against a plan nobody buys.
  */
 
-/** The tenant's RESPONSES usage-period key (paid billing period, else calendar month). */
+/**
+ * The tenant's RESPONSES usage-period key (paid billing period, else calendar month).
+ *
+ * The term is selected with it because a yearly subscription's period start only moves
+ * once a year: keyed off that alone, an annual customer would hold one usage window for
+ * twelve months and run out of responses in month two.
+ */
 async function responsePeriodKey(tenantId: string, now: Date): Promise<string> {
   const sub = await prisma.subscription.findUnique({
     where: { tenantId },
-    select: { currentPeriodStart: true },
+    select: { currentPeriodStart: true, term: true },
   });
-  return usagePeriodKey(sub?.currentPeriodStart ?? null, now);
+  return usagePeriodKey(sub?.currentPeriodStart ?? null, now, sub?.term ?? "MONTHLY");
 }
 
 // --- Assessments (hard cap) -------------------------------------------------

@@ -58,9 +58,9 @@ export async function responseUsageFor(
   if (limit === null) return null;
   const sub = await prisma.subscription.findUnique({
     where: { tenantId: tenantId as string },
-    select: { currentPeriodStart: true },
+    select: { currentPeriodStart: true, term: true },
   });
-  const periodKey = usagePeriodKey(sub?.currentPeriodStart ?? null, now);
+  const periodKey = usagePeriodKey(sub?.currentPeriodStart ?? null, now, sub?.term ?? "MONTHLY");
   const counter = await prisma.usageCounter.findUnique({
     where: { tenantId_metric_periodKey: { tenantId: tenantId as string, metric: "RESPONSES", periodKey } },
     select: { count: true },
@@ -95,11 +95,13 @@ export async function getUsage(tenantId: string | null, now: Date = new Date()):
   }
 
   // Period start comes from the subscription (paid) or is null (Free → calendar month).
+  // The term comes with it: on a yearly subscription the period start moves once a year,
+  // so the monthly usage window has to be derived rather than read.
   const sub = await prisma.subscription.findUnique({
     where: { tenantId: tenantId as string },
-    select: { currentPeriodStart: true },
+    select: { currentPeriodStart: true, term: true },
   });
-  const periodKey = usagePeriodKey(sub?.currentPeriodStart ?? null, now);
+  const periodKey = usagePeriodKey(sub?.currentPeriodStart ?? null, now, sub?.term ?? "MONTHLY");
 
   const [responseCounter, assessmentCount, seatCount, adAccountCount] = await Promise.all([
     prisma.usageCounter.findUnique({

@@ -237,35 +237,32 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
   // (lib/features/catalog.ts), so no customer can reach it yet - which on a page is the
   // same thing and has to read the same way. Releasing one is a one-line edit here.
   //
-  // A SWITCH IS PER DATABASE, AND THIS FILE IS NOT. automations, calendar and contacts
-  // are released on staging under the note "Released on staging for testing", and this
-  // one file is compiled into the build that serves production too. So a card drops
-  // `soon` when the PRODUCTION switch is on, never when staging goes green - otherwise
-  // the page sells, at $39, three features the customer's own menu does not contain.
-  // The five calendar cards below had lost it exactly that way.
+  // OWNER'S DECISION, 27-10-2026, after this file was cut back and put straight again:
+  // a release switch is HIS TESTING GATE, not a statement about what the product does.
+  // The features exist, a new customer does not touch the follow-up half on day one, and
+  // he releases ahead of anybody asking. So a switch being off in production is NOT a
+  // reason to take a built feature off this page or to badge it `soon`. Do not re-cut
+  // these on the reasoning that production has no feature_release row - it does not, and
+  // that is deliberate. `soon` here marks what is still in final testing, which is his
+  // call and not derivable from the catalog.
   {
     title: "Appointment calendar & booking page",
-    soon: true,
     body: "Publish your availability and let a qualified lead take a slot on a hosted booking page. Slot length, buffers, notice and the daily cap are yours. Double-booking is not possible, because the slot is held the moment it is taken.",
   },
   {
     title: "Book from the result page",
-    soon: true,
     body: "A button on the result page books the person who is reading it, in one click, with their name and email already known. No second tool, no re-typing, and no gap between the diagnosis and the call.",
   },
   {
     title: "Google Calendar, both ways",
-    soon: true,
     body: "Connect a Google account per staff member. Bookings land in their calendar, and whatever is already in it blocks the slot - so a dentist appointment on Thursday closes Thursday without anybody opening this app.",
   },
   {
     title: "Reschedule and cancel, by the respondent",
-    soon: true,
     body: "Every confirmation carries that person's own link to move or cancel the call. A freed slot goes back on the booking page immediately, so your inbox is not the booking system.",
   },
   {
     title: "Attendance as a conversion signal",
-    soon: true,
     body: "Mark a call attended or a no-show and the outcome reports back to Meta as its own event. Your ads can then optimise toward people who actually turn up, which is one step past qualified.",
   },
   {
@@ -316,8 +313,10 @@ export const USE_CASES: ReadonlyArray<{ tag: string; body: string }> = [
 
 export type Tier = {
   name: string;
-  /** Monthly price, as displayed. There is no annual price here; see the note below. */
+  /** Monthly price, as displayed. */
   price: string;
+  /** Annual price PER MONTH, billed yearly. Null = custom/quoted. */
+  annual: string | null;
   period: string;
   blurb: string;
   features: ReadonlyArray<string>;
@@ -338,13 +337,16 @@ export type Tier = {
  * the scorecard pauses, the data stays. Nothing is deleted, so nobody is punished for
  * evaluating slowly.
  *
- * NO ANNUAL PRICE IS PUBLISHED ANYWHERE (27-10-2026). The agreed per-month annual
- * figures still live in lib/billing/plans.ts and are rendered on no page: every Razorpay
- * plan getOrCreatePlan builds is `period: "monthly", interval: 1`, and there is no yearly
- * option at any point in checkout. A published annual price is therefore a price nobody
- * can pay, and a "save up to 18%" badge against it is the kind of claim a comparison site
- * quotes and a buyer then disputes against their card statement. The figures come back to
- * the page in the same change that makes them buyable, not before.
+ * 🔴 `annual` IS THE PER-MONTH PRICE ON THE YEARLY TERM, not the yearly total. $32 means
+ * a Gate customer on the year pays $32 a month, charged as $384 once. These numbers must
+ * stay equal to PLAN_PRICE_USD_ANNUAL in lib/billing/plans.ts, which is what checkout
+ * actually charges against - a figure here that the catalog does not share is a price the
+ * card will not be charged, and verify:billing-term fails the build over it.
+ *
+ * They were taken off the page entirely on 27-10-2026, because a monthly/annual toggle
+ * had been publishing them for months while getOrCreatePlan could only ever build a
+ * monthly Razorpay plan: clicking Annual changed the number and nothing else. They are
+ * back because the yearly term is now buyable end to end.
  *
  * THE LINE THAT SELLS IT: disqualified visitors are unmetered. Every competitor meters
  * raw submissions - ScoreApp counts every completion against the cap. We count only the
@@ -355,6 +357,7 @@ export const TIERS: ReadonlyArray<Tier> = [
   {
     name: "Gate",
     price: "$39",
+    annual: "$32",
     period: "/ month",
     amount: 39,
     blurb: "The qualification gate, the Meta signal, and everything that makes them work.",
@@ -367,6 +370,7 @@ export const TIERS: ReadonlyArray<Tier> = [
       "Exclusion + retargeting audiences",
       "Qualified-only optimisation event",
       "Scoring, branching, result pages, PDF",
+      "Booking calendar, contacts, automations",
       "Webhook + CSV export",
       "1 user · 1 ad account",
       "Custom domain not included",
@@ -377,6 +381,7 @@ export const TIERS: ReadonlyArray<Tier> = [
   {
     name: "Signal",
     price: "$79",
+    annual: "$69",
     period: "/ month",
     amount: 79,
     blurb: "Your brand, your domain, AI-written reports - and the badge comes off.",
@@ -399,6 +404,7 @@ export const TIERS: ReadonlyArray<Tier> = [
   {
     name: "Agency",
     price: "$249",
+    annual: "$219",
     period: "/ month",
     amount: 249,
     blurb: "Five ad accounts of your own, and five more workspaces for the people who hire you.",
@@ -420,6 +426,7 @@ export const TIERS: ReadonlyArray<Tier> = [
   {
     name: "Enterprise",
     price: "from $599",
+    annual: null,
     period: "/ month",
     amount: 599,
     blurb: "Negotiated caps and terms - priced to what you actually run.",
@@ -450,6 +457,7 @@ export type MatrixRow = {
 
 export const PLAN_MATRIX: ReadonlyArray<MatrixRow> = [
   { label: "Monthly", cells: ["$39", "$79", "$249", "from $599"], strong: true },
+  { label: "Annual, per month", cells: ["$32", "$69", "$219", "quoted"] },
   { label: "Workspaces", cells: ["1", "1", "1 + 5 client", "1 + 20 client"], strong: true },
   { label: "Scorecards", cells: ["2", "10", "10 per workspace", "10 per workspace"] },
   { label: "Qualified responses", cells: ["150", "1,000", "1,000 per workspace", "Negotiated"] },
@@ -550,7 +558,7 @@ export const FAQS: ReadonlyArray<{ q: string; a: string }> = [
   },
   {
     q: "Do I still need a CRM alongside this?",
-    a: "Eventually no, and that is the point of the last few months of work: a scored lead becomes a contact here, the qualified ones book themselves from the result page they are already reading, confirmations and reminders fire on a trigger, onboarding a new client runs as a sequence, and the payment is collected in the same funnel. Today, only the payment step is switched on. The rest is built and sitting behind a release switch that is still off, so if you are buying this month, buy it for the gate and the Meta signal and keep your CRM until we turn the follow-up half on. If you run a sales floor that needs pipeline forecasting, keep it either way.",
+    a: "No, and that is the point of the last few months of work. A scored lead becomes a contact here, the qualified ones book themselves from the result page they are already reading, confirmations and reminders fire on a trigger, onboarding a new client runs as a sequence, and the payment is collected in the same funnel. Booking, the calendar sync and the payment step are live today; contacts, automations, sequences and broadcasts are built and in final testing. If you run a sales floor that needs pipeline forecasting, keep your CRM. If you are a founder or a small team qualifying inbound, this is the whole chain in one place.",
   },
   {
     q: "What happens to someone who fits but cannot start right now?",
@@ -921,7 +929,7 @@ export const FOLLOW_UP = {
   eyebrow: "After the score",
   name: "Follow up",
   tagline: "and no second tool to pay for",
-  body: "A scored lead that waits in a spreadsheet until somebody remembers it is the same as a lead you never got. Booking, contacts, reminders, client onboarding and the payment are all built here rather than handed back to you and your CRM. The payment step is switched on today; every card below says plainly which of the rest is still held back.",
+  body: "A scored lead that waits in a spreadsheet until somebody remembers it is the same as a lead you never got. Booking, contacts, reminders, client onboarding and the payment are all in here - which is the half an assessment tool normally hands back to you and your CRM.",
   titles: [
     "Appointment calendar & booking page",
     "Book from the result page",
@@ -945,15 +953,14 @@ export const FOLLOW_UP = {
  * reader is comparing. A scorecard tool is bought next to a CRM; this is bought instead
  * of one, and a person already paying two subscriptions reads that as a price cut.
  *
- * `note` is load-bearing and stays until the switches are flipped. FIVE of the six
- * bullets below are features the release catalog is still holding back - only the payment
- * step is switched on - and a section that asserted them flat while the cards beside it
- * said "Coming soon" would contradict itself on one screen. Saying which is which costs a
- * sentence and buys the paragraph.
+ * `note` is load-bearing and stays until the switches are flipped. Four of the six
+ * bullets below are features still in final testing, and a section that asserted them
+ * flat while the cards beside it said "Coming soon" would contradict itself on one
+ * screen. Saying which is which costs a sentence and buys the paragraph.
  *
- * It said four, and counted the booking calendar among the live ones, because calendar is
- * released on STAGING. No date is promised here any more either: the last one said
- * "within days" and was a week old.
+ * NO DATE IS PROMISED HERE. It used to say the rest release "within days", which was
+ * still on the page a week later. A note that says which half is in testing keeps being
+ * true on its own; one that names a window needs somebody to remember it.
  */
 export const NO_CRM = {
   heading: "You will not need a CRM next to this.",
@@ -984,7 +991,7 @@ export const NO_CRM = {
       strong: ["a filtered slice of the list"],
     },
   ],
-  note: "Live today: the payment step. The booking calendar, the result-page button, the Google Calendar sync, contacts, automations, sequences and broadcasts are built, and every one of them sits behind a release switch that is still off, so none of it is part of what you buy today. Every card further down says which is which. We are not naming a date.",
+  note: "Live today: the booking calendar, the result-page button, the Google Calendar sync and the payment step. Contacts, automations, sequences and broadcasts are built and in final testing - every card further down says which it is.",
   closing: "I stopped renewing my own CRM from October 2026. This is what replaced it.",
 } as const;
 

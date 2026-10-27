@@ -2,7 +2,16 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { verifyWebhookSignature } from "@/lib/payments/razorpay";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
-import { PLAN_IDS, PLAN_LABEL, PLAN_PRICE_USD, type PlanId } from "@/lib/billing/plans";
+import {
+  chargeUsd,
+  isBillingTerm,
+  PLAN_IDS,
+  PLAN_LABEL,
+  PLAN_PRICE_USD,
+  TERM_LABEL,
+  type BillingTerm,
+  type PlanId,
+} from "@/lib/billing/plans";
 import {
   activateSubscription,
   markPastDue,
@@ -52,6 +61,19 @@ function asDateFromUnix(v: unknown): Date | null {
 }
 function asCount(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.trunc(v) : null;
+}
+/**
+ * The amount Razorpay actually charged, in whole USD.
+ *
+ * 🔴 READ FROM THE CHARGE, NOT FROM THE CATALOG. This used to be PLAN_PRICE_USD[plan],
+ * which was right while monthly was the only term and is wrong by a factor of twelve the
+ * moment one yearly subscription exists: a $384 payment recorded as $32, and a Meta
+ * Purchase value that teaches the ad account an annual subscriber is worth $32. The
+ * payment entity carries the real number in the smallest currency unit, which for these
+ * USD subscriptions is cents.
+ */
+function asAmountUsd(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? v / 100 : null;
 }
 function toPaidPlan(v: unknown): PaidPlanId | null {
   const s = asStr(v);
@@ -166,21 +188,38 @@ export async function POST(req: Request) {
     }
     if (!plan) return NextResponse.json({ ok: true, warning: "plan not resolved" });
 
+    // Term from notes, else the stored row. Defaulting to MONTHLY is safe here and only
+    // here: a subscription created before the term column existed IS monthly, and the
+    // amount below is read from the charge rather than derived from the term anyway.
+    let term: BillingTerm = isBillingTerm(notes.term) ? notes.term : "MONTHLY";
+    if (!isBillingTerm(notes.term)) {
+      const row = await prisma.subscription.findUnique({ where: { tenantId }, select: { term: true } });
+      if (row && isBillingTerm(row.term)) term = row.term;
+    }
+
     // The payment id is read BEFORE activation now, because activation records the
     // ledger row and stamps the paid/renewal dates from it. A renewal arriving here
     // is what moves those dates on, so this is the path that keeps them true for the
     // life of the subscription rather than only at the first charge.
     const paymentId = asStr(paymentEntity.id);
 
+    // The charge itself first, the catalog second. The last link cannot be reached - a
+    // tier with no price on its term is Enterprise alone and Enterprise is not a
+    // PaidPlanId - and it is there so this handler cannot throw AFTER the idempotency
+    // row has been written, which would turn Razorpay's retry into a silent no-op and
+    // lose the activation.
+    const chargedUsd = asAmountUsd(paymentEntity.amount) ?? chargeUsd(plan, term) ?? PLAN_PRICE_USD[plan];
+
     await activateSubscription({
       tenantId,
       plan,
+      term,
       razorpaySubscriptionId,
       razorpayPlanId: asStr(subEntity.plan_id),
       currentPeriodStart: asDateFromUnix(subEntity.current_start),
       currentPeriodEnd: asDateFromUnix(subEntity.current_end),
       paymentId,
-      amountUsd: PLAN_PRICE_USD[plan],
+      amountUsd: chargedUsd,
       method: asStr(paymentEntity.method),
     });
 
@@ -190,9 +229,9 @@ export async function POST(req: Request) {
       await firePlatformPurchase({
         email: asStr(paymentEntity.email),
         phone: asStr(paymentEntity.contact),
-        value: PLAN_PRICE_USD[plan],
+        value: chargedUsd,
         eventId: paymentId,
-        planLabel: `Assess360 ${PLAN_LABEL[plan]}`,
+        planLabel: `Assess360 ${PLAN_LABEL[plan]} (${TERM_LABEL[term]})`,
       });
     }
     return NextResponse.json({ ok: true, activated: true });

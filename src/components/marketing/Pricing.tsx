@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { CtaLink } from "./CtaLink";
 import { cn } from "@/lib/utils";
@@ -15,22 +18,25 @@ import {
 /**
  * Pricing.
  *
- * 🟢 THE PRICE AND THE WHOLE COMPARISON MATRIX ARE IN THE MARKUP, not behind an
- * interaction. The `"use client"` directive went with the toggle - there is no state on
- * this page any more, and CtaLink carries its own. That is deliberate: AI answer engines and comparison sites quote pricing
- * pages constantly, and they read markup, not React state. ScoreApp's totals are
- * script-rendered and comparison sites complain they cannot be read, so rendering ours
- * flat is a free win on the single page most likely to be cited.
+ * 🟢 BOTH PRICES ARE ALWAYS IN THE HTML. The monthly/annual toggle hides one with CSS
+ * rather than removing it from the tree, and the whole comparison matrix is rendered
+ * server-side. That is deliberate: AI answer engines and comparison sites quote pricing
+ * pages constantly, and they read markup, not React state. ScoreApp annual totals are
+ * script-rendered and comparison sites complain they cannot be read - rendering both is
+ * a free win on the single page most likely to be cited.
  *
- * THE MONTHLY/ANNUAL TOGGLE IS GONE (27-10-2026). It published a per-month annual price
- * for every tier beside a "save up to 18%" badge, and checkout cannot sell one:
- * getOrCreatePlan creates every Razorpay plan as `period: "monthly", interval: 1`, and no
- * step of the flow offers a yearly term. Clicking Annual changed the number on the page
- * and nothing else, which on the page most likely to be quoted is the worst place on the
- * site to be wrong. The figures are kept in lib/billing/plans.ts and come back here in
- * the same change that makes them buyable.
+ * So: never replace this with a conditional that renders only the active price.
+ *
+ * 🔴 THE TOGGLE WAS REMOVED ON 27-10-2026 AND PUT BACK THE SAME DAY. It had been
+ * publishing an annual price for months that checkout could not sell: every Razorpay plan
+ * getOrCreatePlan built was `period: "monthly"`, so clicking Annual changed the number
+ * here and nothing anywhere else. It is back because the yearly term is now built end to
+ * end - plan, subscription, renewal maths, usage window, ledger and Purchase value. If
+ * annual billing is ever switched off again, this toggle goes with it the same day.
  */
 export function Pricing({ cta }: { cta: CtaConfig }) {
+  const [annual, setAnnual] = useState(false);
+
   return (
     <section id="pricing" className="scroll-mt-20 border-b bg-[var(--muted)]">
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
@@ -39,7 +45,38 @@ export function Pricing({ cta }: { cta: CtaConfig }) {
           <p className="mt-4 text-lg text-[var(--muted-foreground)]">{PRICING_SUB}</p>
         </div>
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-4">
+        {/* Billing toggle */}
+        <div className="mt-10 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setAnnual(false)}
+            aria-pressed={!annual}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              !annual
+                ? "bg-green-600 text-white"
+                : "border text-[var(--muted-foreground)] hover:bg-[var(--background)]",
+            )}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            onClick={() => setAnnual(true)}
+            aria-pressed={annual}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              annual
+                ? "bg-green-600 text-white"
+                : "border text-[var(--muted-foreground)] hover:bg-[var(--background)]",
+            )}
+          >
+            Annual
+            <span className="ml-1.5 text-xs opacity-80">save up to 18%</span>
+          </button>
+        </div>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-4">
           {TIERS.map((tier) => (
             <div
               key={tier.name}
@@ -56,12 +93,22 @@ export function Pricing({ cta }: { cta: CtaConfig }) {
               <h3 className="text-lg font-semibold">{tier.name}</h3>
 
               <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-4xl font-bold tracking-tight">{tier.price}</span>
+                {/* Both rendered, one hidden with CSS. See the note at the top of this file. */}
+                <span className={cn("text-4xl font-bold tracking-tight", annual && "hidden")}>
+                  {tier.price}
+                </span>
+                <span className={cn("text-4xl font-bold tracking-tight", !annual && "hidden")}>
+                  {tier.annual ?? tier.price}
+                </span>
                 <span className="text-sm text-[var(--muted-foreground)]">{tier.period}</span>
               </div>
-              {/* Flat, not a conditional: every tier is billed monthly, Enterprise
-                  included, and its "from" prefix is what says the figure is quoted. */}
-              <p className="mt-1 text-xs text-[var(--muted-foreground)]">billed monthly</p>
+              <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                {tier.annual
+                  ? annual
+                    ? `billed yearly · ${tier.price} month-to-month`
+                    : `or ${tier.annual}/mo billed yearly`
+                  : "quoted, billed monthly"}
+              </p>
 
               <p className="mt-3 min-h-12 text-sm leading-relaxed text-[var(--muted-foreground)]">
                 {tier.blurb}

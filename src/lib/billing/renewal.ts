@@ -52,6 +52,35 @@ export function nextRenewal(paidAt: Date, months = 1): Date {
 }
 
 /**
+ * The start of the WHOLE-MONTH window containing `now`, stepping from a fixed anchor.
+ *
+ * 🔴 THIS EXISTS FOR YEARLY BILLING, and it is the difference between a working annual
+ * plan and a customer silently capped for a year. Response metering keys off
+ * `Subscription.currentPeriodStart`, which Razorpay rewrites on every charge - once a
+ * MONTH on a monthly subscription, once a YEAR on a yearly one. Key an annual
+ * subscriber's usage off that and the counter never rolls over: they get one month's
+ * allowance for twelve months, and the only symptom is a customer who paid up front
+ * being told in February that they are out of responses.
+ *
+ * So the yearly case derives its own monthly windows from the anchor instead of waiting
+ * for a charge to move it. `nextRenewal` is the stepper, which is the point of reusing
+ * it: the month-end clamp is defined once, so a subscription anchored on the 31st gets
+ * the same arithmetic here as on the renewal date the customer was shown.
+ *
+ * Returns the anchor itself when `now` is before the first step. The loop is bounded so
+ * a row left years stale cannot spin.
+ */
+export function monthlyWindowStart(anchor: Date, now: Date): Date {
+  let start = anchor;
+  for (let n = 1; n <= 1200; n += 1) {
+    const next = nextRenewal(anchor, n);
+    if (next.getTime() > now.getTime()) break;
+    start = next;
+  }
+  return start;
+}
+
+/**
  * Has the renewal date passed?
  *
  * Deliberately NOT used to withhold anything. Access is decided by the subscription's

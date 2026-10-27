@@ -4,7 +4,15 @@ import { prisma } from "@/lib/db/prisma";
 import { nextRenewal } from "@/lib/billing/renewal";
 import { razorpayRequest, type RazorpayKeys } from "@/lib/payments/razorpay";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
-import { agencyTenantExtraUsd, PLAN_LABEL, PLAN_PRICE_USD, type PlanId } from "@/lib/billing/plans";
+import {
+  agencyTenantExtraUsd,
+  chargeUsd,
+  MONTHS_PER_YEAR,
+  PLAN_LABEL,
+  TERM_LABEL,
+  type BillingTerm,
+  type PlanId,
+} from "@/lib/billing/plans";
 import { snapshotFor } from "@/lib/billing/entitlements";
 
 /**
@@ -25,6 +33,41 @@ import { snapshotFor } from "@/lib/billing/entitlements";
 export type PaidPlanId = Exclude<PlanId, "ENTERPRISE">;
 export function isPaidPlan(plan: PlanId): plan is PaidPlanId {
   return plan !== "ENTERPRISE";
+}
+
+/**
+ * What a chargeable tier costs for one cycle on a term, in whole USD.
+ *
+ * Throws rather than returning a fallback, because every fallback price here is the wrong
+ * price: a yearly charge quoted at the monthly figure undercharges by twelve, and the
+ * other direction overcharges by twelve. It can only throw for a tier with no published
+ * annual price, which is Enterprise alone - and Enterprise is not a PaidPlanId, so the
+ * throw is unreachable from the paths that take money. It exists so that adding a tier
+ * without an annual price fails loudly at checkout instead of charging the wrong amount.
+ */
+export function paidChargeUsd(plan: PaidPlanId, term: BillingTerm): number {
+  const usd = chargeUsd(plan, term);
+  if (usd === null) throw new Error(`No ${TERM_LABEL[term]} price is published for ${plan}.`);
+  return usd;
+}
+
+/**
+ * The RazorpayPlan cache key for a tier on a term.
+ *
+ * 🔴 MONTHLY KEEPS THE BARE TIER NAME. The rows cached before annual existed are keyed
+ * "GATE", "SIGNAL", "AGENCY", and they are monthly plans; suffixing both terms would
+ * orphan them and create a second monthly plan at the same price on the next checkout.
+ * Only the new term carries a suffix.
+ */
+export function planCacheKey(plan: PaidPlanId, term: BillingTerm): string {
+  return term === "YEARLY" ? `${plan}_YEARLY` : plan;
+}
+
+/** Razorpay's own period word, and how many cycles 10 years is. */
+function razorpayCycle(term: BillingTerm): { period: "monthly" | "yearly"; totalCount: number } {
+  return term === "YEARLY"
+    ? { period: "yearly", totalCount: 10 }
+    : { period: "monthly", totalCount: 120 };
 }
 
 /** The platform-owner's Razorpay API keys (app settings singleton → env fallback). */
@@ -53,29 +96,36 @@ interface RazorpayPlanCreated {
  * environment. What they created was a way for the published price and the charged price
  * to disagree in silence: pin a tier to a Plan made at an old amount, change the catalog,
  * and the page says $249 while the card is charged $199 with nothing anywhere reporting
- * a problem. The price now has exactly one source, PLAN_PRICE_USD, and the credentials
- * come from Settings (platformKeys, below).
+ * a problem. The price now has exactly one source, chargeUsd, and the credentials come
+ * from Settings (platformKeys, below).
+ *
+ * ONE PLAN PER TIER PER TERM. Razorpay prices a plan, not a subscription, and a plan's
+ * period is fixed at creation, so monthly and yearly are two different Razorpay plans
+ * and two different cache rows.
  */
-export async function getOrCreatePlan(plan: PaidPlanId): Promise<string> {
-  const amountCents = PLAN_PRICE_USD[plan] * 100;
-  const cached = await prisma.razorpayPlan.findUnique({ where: { planKey: plan } });
+export async function getOrCreatePlan(plan: PaidPlanId, term: BillingTerm = "MONTHLY"): Promise<string> {
+  const amountCents = paidChargeUsd(plan, term) * 100;
+  const planKey = planCacheKey(plan, term);
+  const { period } = razorpayCycle(term);
+
+  const cached = await prisma.razorpayPlan.findUnique({ where: { planKey } });
   if (cached && cached.amountCents === amountCents && cached.currency === "USD") {
     return cached.razorpayPlanId;
   }
 
   const created = await razorpayRequest<RazorpayPlanCreated>("POST", "/plans", await platformKeys(), {
-    period: "monthly",
+    period,
     interval: 1,
     item: {
-      name: `Assess360 ${PLAN_LABEL[plan]}`,
+      name: `Assess360 ${PLAN_LABEL[plan]} (${TERM_LABEL[term]})`,
       amount: amountCents,
       currency: "USD",
     },
   });
 
   await prisma.razorpayPlan.upsert({
-    where: { planKey: plan },
-    create: { planKey: plan, razorpayPlanId: created.id, amountCents, currency: "USD" },
+    where: { planKey },
+    create: { planKey, razorpayPlanId: created.id, amountCents, currency: "USD" },
     update: { razorpayPlanId: created.id, amountCents, currency: "USD" },
   });
   return created.id;
@@ -122,21 +172,33 @@ export interface CreatedCheckout {
 
 /**
  * Create a Razorpay Subscription for a tenant on a paid tier and return the id +
- * hosted url. Also upserts a PENDING Subscription row (razorpay ids + frozen limits
- * snapshot) so the record exists before payment; entitlement stays FREE until the
- * webhook/verify flips it to ACTIVE. `notes` carry {tenantId, plan} so the webhook
- * can resolve the tenant even when it fires before our row is read.
+ * hosted url. Also upserts a PENDING Subscription row (razorpay ids + term + frozen
+ * limits snapshot) so the record exists before payment; entitlement stays FREE until the
+ * webhook/verify flips it to ACTIVE. `notes` carry {tenantId, plan, term} so the webhook
+ * can resolve all three even when it fires before our row is read.
+ *
+ * THE TERM IS WRITTEN HERE, BEFORE THE MONEY. /verify reads it back off this row rather
+ * than taking it from the browser, so the term that decides the renewal date and the
+ * usage window is one the server chose.
  */
-export async function createSubscription(tenant: TenantForBilling, plan: PaidPlanId): Promise<CreatedCheckout> {
-  const [customerId, planId] = await Promise.all([getOrCreateCustomer(tenant), getOrCreatePlan(plan)]);
+export async function createSubscription(
+  tenant: TenantForBilling,
+  plan: PaidPlanId,
+  term: BillingTerm = "MONTHLY",
+): Promise<CreatedCheckout> {
+  const [customerId, planId] = await Promise.all([
+    getOrCreateCustomer(tenant),
+    getOrCreatePlan(plan, term),
+  ]);
+  const { totalCount } = razorpayCycle(term);
 
   const sub = await razorpayRequest<RazorpaySubscriptionCreated>("POST", "/subscriptions", await platformKeys(), {
     plan_id: planId,
     customer_id: customerId,
     quantity: 1,
-    total_count: 120, // up to 10 years of monthly cycles - effectively perpetual
+    total_count: totalCount, // 10 years of cycles either way - effectively perpetual
     customer_notify: 0, // we handle comms ourselves
-    notes: { tenantId: tenant.id, plan },
+    notes: { tenantId: tenant.id, plan, term },
   });
 
   await prisma.subscription.upsert({
@@ -144,6 +206,7 @@ export async function createSubscription(tenant: TenantForBilling, plan: PaidPla
     create: {
       tenantId: tenant.id,
       plan,
+      term,
       status: "PENDING",
       razorpaySubscriptionId: sub.id,
       razorpayPlanId: planId,
@@ -151,6 +214,7 @@ export async function createSubscription(tenant: TenantForBilling, plan: PaidPla
     },
     update: {
       plan,
+      term,
       status: "PENDING",
       razorpaySubscriptionId: sub.id,
       razorpayPlanId: planId,
@@ -187,6 +251,13 @@ export async function cancelRazorpaySubscription(
 export interface ActivateInput {
   tenantId: string;
   plan: PaidPlanId;
+  /**
+   * Monthly or yearly. REQUIRED, with no default, on purpose: a default would be read as
+   * MONTHLY by whichever caller forgot it, and a yearly subscription activated as monthly
+   * gets a renewal date eleven months early and a usage window keyed the wrong way. Every
+   * caller already knows the answer - the webhook from its notes, /verify from the row.
+   */
+  term: BillingTerm;
   razorpaySubscriptionId: string | null;
   razorpayPlanId?: string | null;
   currentPeriodStart?: Date | null;
@@ -210,10 +281,16 @@ export interface ActivateInput {
 
 /**
  * Activate (or renew) a tenant's paid subscription: freeze the plan's limits, set
- * ACTIVE + the billing period, and set Tenant.plan so resolvePlan reads the paid
- * tier and the gates enforce it. Idempotent - safe to call from both /verify and the
+ * ACTIVE + the billing period + the term, and set Tenant.plan so resolvePlan reads the
+ * paid tier and the gates enforce it. Idempotent - safe to call from both /verify and the
  * webhook. If the tenant had a DIFFERENT active Razorpay subscription, cancel it so
  * an upgrade never leaves two live subscriptions charging.
+ *
+ * That cancellation is also how a TERM SWITCH works: Razorpay cannot move a subscription
+ * between plans, so monthly-to-yearly is a new subscription here and the old one is
+ * cancelled the moment the new one is paid. Nobody is charged twice, and nothing
+ * pro-rates the days left on the monthly cycle, which is why the UI has to say so before
+ * the switch is confirmed.
  */
 export async function activateSubscription(input: ActivateInput): Promise<void> {
   const existing = await prisma.subscription.findUnique({
@@ -228,12 +305,15 @@ export async function activateSubscription(input: ActivateInput): Promise<void> 
 
   const data = {
     plan: input.plan,
+    term: input.term,
     status: "ACTIVE" as const,
     razorpaySubscriptionId: input.razorpaySubscriptionId,
     razorpayPlanId: input.razorpayPlanId ?? undefined,
     limitsSnapshot: snapshotFor(input.plan),
     paidAt,
-    renewsAt: nextRenewal(paidAt),
+    // A yearly subscription renews in twelve months, not one. nextRenewal takes the
+    // month count, so there is one implementation of the month-end clamp for both.
+    renewsAt: nextRenewal(paidAt, input.term === "YEARLY" ? MONTHS_PER_YEAR : 1),
     ...(input.paymentId ? { lastPaymentId: input.paymentId } : {}),
     ...(input.currentPeriodStart ? { currentPeriodStart: input.currentPeriodStart } : {}),
     ...(input.currentPeriodEnd ? { currentPeriodEnd: input.currentPeriodEnd } : {}),

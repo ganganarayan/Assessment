@@ -8,12 +8,21 @@ import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { firePlatformPurchase } from "@/lib/billing/platform-events";
-import { PLAN_IDS, PLAN_LABEL, PLAN_PRICE_USD, PAID_PLAN_NAMES, type PlanId } from "@/lib/billing/plans";
+import {
+  isBillingTerm,
+  PLAN_IDS,
+  PLAN_LABEL,
+  PAID_PLAN_NAMES,
+  TERM_LABEL,
+  type BillingTerm,
+  type PlanId,
+} from "@/lib/billing/plans";
 import {
   createSubscription,
   activateSubscription,
   cancelRazorpaySubscription,
   isPaidPlan,
+  paidChargeUsd,
   platformKeyId,
   type PaidPlanId,
 } from "@/lib/billing/razorpay-subscriptions";
@@ -44,21 +53,40 @@ function toPlanId(value: unknown): PlanId | null {
   return typeof value === "string" && (PLAN_IDS as readonly string[]).includes(value) ? (value as PlanId) : null;
 }
 
+/** An unrecognised term is monthly, which is the cheaper of the two to charge wrongly. */
+function toTerm(value: unknown): BillingTerm {
+  return isBillingTerm(value) ? value : "MONTHLY";
+}
+
 export interface CheckoutStart {
   subscriptionId: string;
   /** PUBLIC Razorpay key - safe to expose; the client opens Checkout with it. */
   keyId: string;
   /** Hosted Razorpay payment page - the fallback when in-page Checkout can't open. */
   shortUrl: string;
+  /** The term the SERVER created the subscription on, echoed back so the modal's own
+   *  description cannot disagree with what is about to be charged. */
+  term: BillingTerm;
+  /** What the card will be charged for this one cycle, whole USD. */
+  amountUsd: number;
 }
 
 /**
  * Create a Razorpay subscription for the acting tenant on a paid tier and return the
- * ids the client needs to open Razorpay Checkout in-page. Upgrade-only: a same-tier or
- * downgrade request is refused. The platform owner (super admin, no tenant) has nothing
- * to subscribe. Nothing is entitled until /verify or the webhook activates it.
+ * ids the client needs to open Razorpay Checkout in-page. The platform owner (super
+ * admin, no tenant) has nothing to subscribe. Nothing is entitled until /verify or the
+ * webhook activates it.
+ *
+ * Upgrade-only, with ONE same-tier exception: monthly to yearly on the tier already held.
+ * That is a longer commitment at a lower price per month rather than a downgrade, and
+ * refusing it - which the rank check did - is what made annual unbuyable for exactly the
+ * customers most likely to want it. Yearly back to monthly stays refused like any
+ * downgrade: the year has been paid for.
  */
-export async function startSubscriptionCheckout(planInput: string): Promise<ActionResult<CheckoutStart>> {
+export async function startSubscriptionCheckout(
+  planInput: string,
+  termInput: string = "MONTHLY",
+): Promise<ActionResult<CheckoutStart>> {
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
@@ -68,6 +96,7 @@ export async function startSubscriptionCheckout(planInput: string): Promise<Acti
 
   const plan = toPlanId(planInput);
   if (!plan || !isPaidPlan(plan)) return { ok: false, error: `Pick a paid plan (${PAID_PLAN_NAMES}).` };
+  const term = toTerm(termInput);
 
   const keyId = await platformKeyId();
   if (!keyId) return { ok: false, error: "Payments are not configured. Add Razorpay keys in Settings first." };
@@ -84,13 +113,36 @@ export async function startSubscriptionCheckout(planInput: string): Promise<Acti
     };
   }
 
-  // Upgrade-only: block same-tier / downgrade.
   // Parked or trialing has NO purchased plan, so rank 0 - every tier is an upgrade from
   // there. Using Gate as the fallback would block a parked tenant from buying Gate, which
   // is the one thing they are most likely to want.
   const currentRank = current.plan ? PLAN_ORDER[current.plan] : 0;
-  if (PLAN_ORDER[plan] <= currentRank) {
-    return { ok: false, error: `You're already on ${current.plan ?? "a higher plan"} or higher.` };
+  const targetRank = PLAN_ORDER[plan];
+
+  // The term they are on now. A PENDING row from an abandoned checkout must not count,
+  // so this is only read when a plan is actually held.
+  const held = current.plan
+    ? await prisma.subscription.findUnique({ where: { tenantId: scope.tenantId }, select: { term: true } })
+    : null;
+  const currentTerm = toTerm(held?.term);
+
+  if (targetRank < currentRank) {
+    return {
+      ok: false,
+      error: `You're on ${current.plan}. Moving to a lower plan isn't self-serve - talk to us and we'll sort it.`,
+    };
+  }
+  if (targetRank === currentRank) {
+    const switching = term === "YEARLY" && currentTerm === "MONTHLY";
+    if (!switching) {
+      return {
+        ok: false,
+        error:
+          term === "YEARLY"
+            ? `You're already on ${current.plan} billed yearly.`
+            : `You're already on ${current.plan}. Moving from yearly back to monthly isn't self-serve - talk to us.`,
+      };
+    }
   }
 
   const tenant = await prisma.tenant.findUnique({
@@ -103,8 +155,9 @@ export async function startSubscriptionCheckout(planInput: string): Promise<Acti
     const { subscriptionId, shortUrl } = await createSubscription(
       { id: tenant.id, name: tenant.name, razorpayCustomerId: tenant.razorpayCustomerId, ownerEmail: scope.user.email },
       plan,
+      term,
     );
-    return { ok: true, data: { subscriptionId, keyId, shortUrl } };
+    return { ok: true, data: { subscriptionId, keyId, shortUrl, term, amountUsd: paidChargeUsd(plan, term) } };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not start checkout. Please try again." };
   }
@@ -156,11 +209,18 @@ export async function verifySubscriptionPayment(input: VerifyInput): Promise<Act
   // The subscription must belong to THIS tenant (set at creation).
   const sub = await prisma.subscription.findUnique({
     where: { tenantId: scope.tenantId },
-    select: { razorpaySubscriptionId: true, razorpayPlanId: true },
+    select: { razorpaySubscriptionId: true, razorpayPlanId: true, term: true },
   });
   if (sub?.razorpaySubscriptionId !== input.razorpay_subscription_id) {
     return { ok: false, error: "Subscription does not belong to this workspace." };
   }
+
+  // THE TERM COMES OFF OUR OWN ROW, never from the browser. createSubscription wrote it
+  // before Checkout opened, so this is the term the server chose and the one the Razorpay
+  // plan was actually built on. Taking it from the client would let a request claim
+  // "yearly" against a monthly charge and move the renewal date eleven months out.
+  const term = toTerm(sub.term);
+  const chargedUsd = paidChargeUsd(plan, term);
 
   // Idempotent: if the webhook already activated at this tier or higher, just confirm.
   const current = await resolvePlan(scope.tenantId);
@@ -171,6 +231,7 @@ export async function verifySubscriptionPayment(input: VerifyInput): Promise<Act
   await activateSubscription({
     tenantId: scope.tenantId,
     plan: plan as PaidPlanId,
+    term,
     razorpaySubscriptionId: input.razorpay_subscription_id,
     razorpayPlanId: sub?.razorpayPlanId ?? null,
     // The payment id was already here: it was used as the Meta Purchase event id and
@@ -178,17 +239,19 @@ export async function verifySubscriptionPayment(input: VerifyInput): Promise<Act
     // kept now, and it is what gives this subscription a paid date and a renewal date
     // without waiting on a webhook that may never come.
     paymentId: input.razorpay_payment_id,
-    amountUsd: PLAN_PRICE_USD[plan],
+    amountUsd: chargedUsd,
   });
 
   // SaaS funnel: fire Purchase on the platform pixel (server CAPI), keyed by the
   // Razorpay payment id so the webhook + the browser event dedup to one Purchase.
-  const value = PLAN_PRICE_USD[plan];
+  // The VALUE is the cycle's charge, so a yearly subscriber reports the year rather than
+  // a twelfth of it - the ad account optimises on this number.
+  const value = chargedUsd;
   await firePlatformPurchase({
     email: scope.user.email,
     value,
     eventId: input.razorpay_payment_id,
-    planLabel: `Assess360 ${PLAN_LABEL[plan]}`,
+    planLabel: `Assess360 ${PLAN_LABEL[plan]} (${TERM_LABEL[term]})`,
   });
   const { pixelId } = await resolvePlatformMetaConfig();
 

@@ -5,7 +5,16 @@ import { resolvePlan, getUsage } from "@/lib/billing/entitlements";
 import { formatISTDate } from "@/lib/date";
 import { agencyTenantUsage } from "@/lib/billing/gate";
 import { UsageMeters } from "@/features/billing/components/usage-meters";
-import { PLAN_IDS, PLAN_LABEL, PLAN_LIMITS, PLAN_PRICE_USD, TRIAL_PLAN, type PlanId } from "@/lib/billing/plans";
+import {
+  chargeUsd,
+  PLAN_IDS,
+  PLAN_LABEL,
+  PLAN_LIMITS,
+  PLAN_PRICE_USD,
+  PLAN_PRICE_USD_ANNUAL,
+  TRIAL_PLAN,
+  type PlanId,
+} from "@/lib/billing/plans";
 import { BillingPlans } from "@/features/billing/components/billing-plans";
 import { CancelPlan } from "@/features/billing/components/cancel-plan";
 import { prisma } from "@/lib/db/prisma";
@@ -77,6 +86,9 @@ export default async function BillingPage() {
       paidAt: true,
       renewsAt: true,
       lastPaymentId: true,
+      // Monthly or yearly, so the cards can offer the switch to anybody still on
+      // monthly and offer nothing to somebody already on the year.
+      term: true,
     },
   });
 
@@ -154,6 +166,10 @@ export default async function BillingPage() {
     id,
     name: PLAN_LABEL[id],
     priceUsd: PLAN_PRICE_USD[id],
+    // Both annual numbers, because the card shows one and charges the other: the
+    // per-month figure is what a buyer compares, the total is what leaves the card.
+    annualPerMonthUsd: PLAN_PRICE_USD_ANNUAL[id],
+    annualTotalUsd: chargeUsd(id, "YEARLY"),
     rank: RANK[id],
     features: featuresFor(id),
   }));
@@ -240,10 +256,14 @@ export default async function BillingPage() {
         </div>
       ) : null}
 
+      {/* currentTerm null means nothing is purchased - a trial or a parked workspace.
+          It is NOT the same as "monthly": there is no monthly period to give up, so the
+          cards must not offer a term switch or warn about losing one. */}
       <BillingPlans
         plans={plans}
         currentPlan={currentPlan}
         currentRank={RANK[currentPlan]}
+        currentTerm={purchased ? (subRow?.term ?? "MONTHLY") : null}
         prefill={{ name: user?.name ?? "", email: user?.email ?? "" }}
       />
 
