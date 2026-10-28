@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   WorkflowChannel,
   WorkflowDelayUnit,
+  WorkflowAudience,
   WorkflowStatus,
   WorkflowStepKind,
   WorkflowTagAction,
@@ -46,6 +47,15 @@ export interface TriggerSpec {
   needsBand?: boolean;
   /** True when it needs a tag picked alongside it. */
   needsTag?: boolean;
+  /**
+   * 🟡 True for a trigger that does not arrive with a funnel, so the "on which
+   * assessment" narrowing is hidden rather than offered and ignored.
+   *
+   * Set only on triggers whose emit site has been read: these fire from the contact
+   * paths, which have no submission in hand. The default (undefined) keeps the field,
+   * which is how every trigger behaved before this flag existed.
+   */
+  noFunnelScope?: boolean;
 }
 
 export const TRIGGERS: TriggerSpec[] = [
@@ -53,6 +63,18 @@ export const TRIGGERS: TriggerSpec[] = [
     value: "CONTACT_OPTED_IN",
     label: "They opt in",
     hint: "The moment somebody gives their details. The start of everything.",
+  },
+  {
+    value: "CONTACT_CREATED",
+    label: "They first appear",
+    hint: "A new contact row. Not the same as opting in: a split gate creates somebody who consented to nothing.",
+    noFunnelScope: true,
+  },
+  {
+    value: "CONTACT_UPDATED",
+    label: "Their details change",
+    hint: "Their name, email, mobile or profession actually changes. Not a repeat visit.",
+    noFunnelScope: true,
   },
   {
     value: "ASSESSMENT_COMPLETED",
@@ -75,6 +97,7 @@ export const TRIGGERS: TriggerSpec[] = [
     label: "A tag is added",
     hint: "How one sequence hands somebody to the next.",
     needsTag: true,
+    noFunnelScope: true,
   },
   {
     value: "APPOINTMENT_BOOKED",
@@ -152,11 +175,13 @@ export const TRIGGERS: TriggerSpec[] = [
     label: "A tag is removed",
     hint: "The other half of handing somebody between sequences.",
     needsTag: true,
+    noFunnelScope: true,
   },
   {
     value: "CONTACT_UNSUBSCRIBED",
     label: "They unsubscribe",
     hint: "🔴 Nothing here may message them. Useful for tidying up: remove tags, tell a CRM.",
+    noFunnelScope: true,
   },
   {
     value: "PAYMENT_RECEIVED",
@@ -252,6 +277,18 @@ export function triggerIsLive(t: TriggerSpec): boolean {
  * Platform scope sees both audiences, because the owner runs sequences about leads
  * and about their own customers. A workspace sees lead triggers only.
  */
+/**
+ * The triggers another box on THIS workflow may use.
+ *
+ * Filtered by the workflow's own audience rather than by who is asking, which is the
+ * stricter of the two: a sequence about a workspace exists only in the platform scope
+ * already, and a sequence about a lead must never be handed a trigger that enrols a
+ * company. The server checks the same thing again in addWorkflowTrigger.
+ */
+export function triggersForAudience(audience: WorkflowAudience): TriggerSpec[] {
+  return TRIGGERS.filter((t) => triggerIsLive(t) && triggerAudience(t) === audience);
+}
+
 export function offerableTriggers(isPlatform: boolean): TriggerSpec[] {
   return TRIGGERS.filter(
     (t) => triggerIsLive(t) && (isPlatform || triggerAudience(t) === "LEAD"),
@@ -356,14 +393,26 @@ export interface WorkflowStepView {
   skippedCount: number;
 }
 
+/** One trigger box: a way in, and what narrows it. */
+export interface WorkflowTriggerView {
+  id: string;
+  trigger: WorkflowTrigger;
+  assessmentId: string | null;
+  bandKey: string | null;
+  tagId: string | null;
+  displayOrder: number;
+}
+
 export interface WorkflowView {
   id: string;
   name: string;
-  trigger: WorkflowTrigger;
   status: WorkflowStatus;
-  assessmentId: string | null;
-  bandKey: string | null;
-  triggerTagId: string | null;
+  /** LEAD or TENANT. Set from the first trigger and never mixed; see addWorkflowTrigger. */
+  audience: WorkflowAudience;
+  /** Every way in, in the order they are stacked. Empty while somebody is mid-build. */
+  triggers: WorkflowTriggerView[];
+  /** False = once per person, ever. See Workflow.allowReentry. */
+  allowReentry: boolean;
   steps: WorkflowStepView[];
   /** People currently partway through, and people who finished. */
   activeRuns: number;
@@ -373,7 +422,8 @@ export interface WorkflowView {
 export interface WorkflowListRow {
   id: string;
   name: string;
-  trigger: WorkflowTrigger;
+  /** Every trigger it watches. The list shows the first and counts the rest. */
+  triggers: WorkflowTrigger[];
   status: WorkflowStatus;
   stepCount: number;
   activeRuns: number;
@@ -488,9 +538,27 @@ export const createWorkflowSchema = z.object({
 export const workflowSettingsSchema = z.object({
   id: z.string().min(1),
   name: z.string().trim().min(1, "Give it a name.").max(80),
+  /**
+   * 🔴 THE FUNNEL, BAND AND TAG ARE GONE FROM HERE, and that is not a tidy-up. They
+   * belong to one trigger box now, so a workflow-wide save carrying them would quietly
+   * apply one box's tag to all of them. They move to triggerSettingsSchema.
+   */
+  allowReentry: z.boolean(),
+});
+
+/** Adding a box to the stack. The parameters are set afterwards, on the box itself. */
+export const addTriggerSchema = z.object({
+  workflowId: z.string().min(1),
+  trigger: z.enum(TRIGGER_VALUES),
+});
+
+/** One box's own narrowing. */
+export const triggerSettingsSchema = z.object({
+  workflowId: z.string().min(1),
+  id: z.string().min(1),
   assessmentId: z.string().trim().nullable(),
   bandKey: z.string().trim().max(40).nullable(),
-  triggerTagId: z.string().trim().nullable(),
+  tagId: z.string().trim().nullable(),
 });
 
 export const stepSchema = z.object({
@@ -528,17 +596,24 @@ export const stepSchema = z.object({
  * server decides, and these are the reasons it would say no.
  */
 export function publishProblems(w: {
-  trigger: WorkflowTrigger;
-  bandKey: string | null;
-  triggerTagId: string | null;
+  triggers: WorkflowTriggerView[];
   steps: WorkflowStepView[];
 }): string[] {
   const out: string[] = [];
+  // Asked first, because it is the only problem that makes the whole sequence inert
+  // rather than incomplete: nothing can ever start it.
+  if (w.triggers.length === 0) out.push("It has no trigger yet. Add at least one way in.");
   if (w.steps.length === 0) out.push("It has no steps yet.");
-  if (w.trigger === "BAND_REACHED" && !w.bandKey) out.push("Pick which band starts it.");
-  if (w.trigger === "TAG_ADDED" && !w.triggerTagId) out.push("Pick which tag starts it.");
   if (!w.steps.some((s) => s.kind === "MESSAGE")) {
     out.push("It never sends anything. Add at least one message.");
+  }
+  for (const t of w.triggers) {
+    const spec = TRIGGERS.find((x) => x.value === t.trigger);
+    const label = spec?.label ?? t.trigger;
+    // Named by its trigger rather than numbered: the boxes are a set, not a sequence,
+    // and "trigger 2" means nothing to somebody looking at five of them.
+    if (spec?.needsBand && !t.bandKey) out.push(`"${label}" has no band picked.`);
+    if (spec?.needsTag && !t.tagId) out.push(`"${label}" has no tag picked.`);
   }
   for (const s of w.steps) {
     const n = s.displayOrder + 1;

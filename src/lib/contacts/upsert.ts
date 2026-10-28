@@ -2,7 +2,8 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { generateId } from "@/lib/ids";
 import { toE164Digits } from "@/features/nurture/config";
-import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
+import { fireWorkflowTrigger } from "@/lib/workflows/enqueue";
+import { contactTenantOf } from "@/lib/contacts/tenant";
 
 /**
  * Turning a captured lead into a CONTACT.
@@ -30,19 +31,18 @@ export interface LeadIdentity {
   profession?: string | null;
 }
 
+/** Re-exported from its own leaf module; see contacts/tenant.ts for why it moved. */
+export { contactTenantOf };
+
 /**
- * Who owns this contact.
+ * The fields whose change means "this contact was updated".
  *
- * Contacts are a NEW table, so they skip the transitional spelling the older tables
- * carry: a platform funnel owns its contacts as the Platform tenant rather than as
- * null. That is not cosmetic. Postgres treats NULLs as distinct, so a nullable owner
- * would make the (tenant, mobile) key stop deduplicating for exactly the scope the
- * owner runs their own funnels in - every repeat visitor a second contact, and every
- * broadcast reaching them twice.
+ * Deliberately short, and deliberately not "every column". lastSeenAt and lastMessageAt
+ * are housekeeping - one moves on every submission, the other every time a WhatsApp
+ * message passes - and consent has its own trigger. A person would recognise every
+ * field in this list as theirs.
  */
-export function contactTenantOf(tenantId: string | null | undefined): string {
-  return tenantId ?? PLATFORM_TENANT_ID;
-}
+const WATCHED_FIELDS = ["firstName", "lastName", "profession", "email", "mobile"] as const;
 
 const clean = (v: string | null | undefined): string | null => {
   const t = (v ?? "").trim();
@@ -95,10 +95,22 @@ export async function upsertContactFromLead(
   const mobile = toE164Digits(clean(lead.mobile), cc);
   if (!mobile && !email) return null;
 
+  // The profile fields come back as well as the identity ones, because CONTACT_UPDATED
+  // can only be answered by comparing before with after. See WATCHED_FIELDS below.
+  const pick = {
+    id: true,
+    email: true,
+    mobile: true,
+    consentAt: true,
+    firstName: true,
+    lastName: true,
+    profession: true,
+  } as const;
+
   const existing = mobile
     ? await prisma.contact.findUnique({
         where: { tenantId_mobile: { tenantId: tenantId, mobile } },
-        select: { id: true, email: true, consentAt: true },
+        select: pick,
       })
     : null;
 
@@ -106,7 +118,7 @@ export async function upsertContactFromLead(
     !existing && email
       ? await prisma.contact.findUnique({
           where: { tenantId_email: { tenantId: tenantId, email } },
-          select: { id: true, mobile: true, consentAt: true },
+          select: pick,
         })
       : null;
 
@@ -146,10 +158,22 @@ export async function upsertContactFromLead(
       });
       if (!taken) widen.email = email;
     }
-    await prisma.contact.update({
-      where: { id: found.id },
-      data: { ...fill, ...widen, ...consent, lastSeenAt: now },
+    const data = { ...fill, ...widen, ...consent, lastSeenAt: now };
+    await prisma.contact.update({ where: { id: found.id }, data });
+
+    // 🔴 WHAT COUNTS AS AN UPDATE IS DECIDED HERE, FIELD BY FIELD, and the reason is
+    // volume. This function runs on EVERY submission and always moves lastSeenAt, so a
+    // trigger that fired whenever the row was written would fire on nearly every form
+    // fill - and with re-entry on, replay a seven-day sequence to somebody who did
+    // nothing but revisit. Only a field the person would call theirs counts, and only
+    // when its value actually changes.
+    const changed = WATCHED_FIELDS.filter((k) => {
+      const next = (data as Record<string, unknown>)[k];
+      return next !== undefined && next !== (found as Record<string, unknown>)[k];
     });
+    if (changed.length) {
+      await fireWorkflowTrigger("CONTACT_UPDATED", { tenantId, contactId: found.id });
+    }
     return found.id;
   }
 
@@ -168,6 +192,7 @@ export async function upsertContactFromLead(
     },
     select: { id: true },
   });
+  await fireWorkflowTrigger("CONTACT_CREATED", { tenantId, contactId: created.id });
   return created.id;
 }
 

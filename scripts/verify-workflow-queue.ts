@@ -273,9 +273,9 @@ expect(
 
 const enqueueSrc = readFileSync(join(process.cwd(), "src", "lib", "workflows", "enqueue.ts"), "utf8");
 expect(
-  "the enroller refuses only while a run is still live",
-  /status:\s*\{\s*in:\s*\["PENDING",\s*"SENDING"\]\s*\}/.test(enqueueSrc),
-  "with the unique key gone this query IS the dedup. Without it every trigger starts another copy of the same sequence.",
+  "the enroller refuses while a run is still live",
+  /status:\s*\{\s*in:\s*\["PENDING",\s*"SENDING"\]\s*(?:as const\s*)?\}/.test(enqueueSrc),
+  "with the unique key gone this query IS the dedup. Without it every trigger starts another copy of the same sequence. It is now the floor rather than the whole rule: re-entry off widens it to any run ever, and that is checked separately.",
 );
 expect(
   "the runner resolves its subject once rather than per step",
@@ -435,6 +435,110 @@ expect(
   "placeholder chips have fields to type into",
   (builderSrc2.match(/data-ph="1"/g) ?? []).length >= 3,
   "the chips insert into the last focused field that opted in; with none opted in they are decoration",
+);
+
+/* ------------------------------------------- many ways into one sequence --- */
+
+const upsertSrc = readFileSync(join(process.cwd(), "src", "lib", "contacts", "upsert.ts"), "utf8");
+const bindingBlock = /model WorkflowTriggerBinding \{([\s\S]*?)\n\}/.exec(graphSchemaSrc)?.[1] ?? "";
+const wfBlock = /model Workflow \{([\s\S]*?)\n\}/.exec(graphSchemaSrc)?.[1] ?? "";
+
+expect(
+  "the trigger parameters live on the box, not on the workflow",
+  /bandKey/.test(bindingBlock) &&
+    /tagId/.test(bindingBlock) &&
+    /assessmentId/.test(bindingBlock) &&
+    !/bandKey|triggerTagId/.test(wfBlock),
+  "two boxes on one sequence need their own tag and their own band; one pair of columns on the workflow cannot say which belongs to which, and leaving them there would apply one box's tag to all of them",
+);
+expect(
+  "the matcher reads the boxes",
+  /prisma\.workflowTriggerBinding\.findMany/.test(enqueueSrc) && !/prisma\.workflow\.findMany/.test(enqueueSrc),
+  "the trigger column is gone from the workflow: a matcher still querying it would compile against the old client and match nobody",
+);
+expect(
+  "several matching boxes enrol somebody once",
+  /new Set<string>\(\)/.test(enqueueSrc) && (enqueueSrc.match(/seen\.(has|add)/g) ?? []).length >= 2,
+  "a sequence can watch the same trigger twice with different parameters; somebody who satisfies both must start it once, and deduping here keeps that true even for a person who has already finished it once",
+);
+expect(
+  "re-entry is the owner's choice, per workflow",
+  /allowReentry/.test(wfBlock) &&
+    /allowReentry \? \{ status: \{ in: \["PENDING", "SENDING"\] as const \} \} : \{\}/.test(enqueueSrc),
+  "with one trigger, re-entry after finishing was almost always right; with five - one of them their details changed - the same person qualifies again every week and would be sent the whole sequence each time",
+);
+expect(
+  "re-entry applies to a workspace as well as a lead",
+  (enqueueSrc.match(/allowReentry \?/g) ?? []).length >= 2,
+  "the tenant matcher is a separate function with its own run guard: a fix applied to one arm and not the other is the kind of gap nobody finds until a customer is messaged twice",
+);
+expect(
+  "the run records which way in started it",
+  /startedByTrigger/.test(graphSchemaSrc) && (enqueueSrc.match(/startedByTrigger: trigger/g) ?? []).length >= 2,
+  "with five boxes on a sequence nothing else on a log row can answer why this person is in here, and the event that enrolled them is long gone by the time anybody asks",
+);
+expect(
+  "the log shows it",
+  /startedBy/.test(logsSrc) && /r\.startedBy/.test(
+    readFileSync(join(process.cwd(), "src", "features", "workflows", "components", "workflow-logs.tsx"), "utf8"),
+  ),
+  "a column nothing displays is a column that silently stops being written",
+);
+expect(
+  "a workflow is created with its first box",
+  /triggers: \{ create: \{ trigger: parsed\.data\.trigger/.test(actionsSrc),
+  "a workflow with no way in cannot be published, so creating one in that state makes everybody's first screen an error they did not cause",
+);
+expect(
+  "one workflow, one audience",
+  /triggerAudienceClash/.test(actionsSrc) && /const clash = await triggerAudienceClash/.test(actionsSrc),
+  "a sequence enrols either a lead or a workspace and the two read different placeholders off different subjects; one box of each would send a message written about a person to a company with every placeholder blank",
+);
+expect(
+  "the last way in cannot be pulled from a live sequence",
+  /count <= 1 && w\.status === "PUBLISHED"/.test(actionsSrc),
+  "it would keep its live badge and its queue and start nobody ever again, which reads as a broken engine rather than a choice somebody made",
+);
+expect(
+  "the adder offers only this sequence's own audience",
+  /triggersForAudience/.test(wfTypesSrc) && /triggersForAudience\(audience\)/.test(builderSrc2),
+  "the server refuses the mismatch anyway, and an option that is always refused is a trap rather than a choice",
+);
+expect(
+  "the funnel narrowing is hidden where nothing carries a funnel",
+  /noFunnelScope/.test(wfTypesSrc) && /spec\?\.noFunnelScope \? null :/.test(builderSrc2),
+  "the contact triggers fire from paths with no submission in hand, so the assessment filter looked like a narrowing and was ignored",
+);
+
+/* --------------------------------------- a contact appearing and changing --- */
+
+expect(
+  "both contact triggers exist and are offered",
+  /CONTACT_CREATED/.test(trigEnumBlock) &&
+    /CONTACT_UPDATED/.test(trigEnumBlock) &&
+    /CONTACT_CREATED/.test(registryBlock) &&
+    /CONTACT_UPDATED/.test(registryBlock),
+  "an enum value with no registry entry is a trigger nobody can pick; a registry entry with no emit is one that never fires",
+);
+expect(
+  "both are actually emitted",
+  /fireWorkflowTrigger\("CONTACT_CREATED"/.test(upsertSrc) && /fireWorkflowTrigger\("CONTACT_UPDATED"/.test(upsertSrc),
+  "the registry says live, so a trigger with no emit site would be offered, published and watched doing nothing",
+);
+expect(
+  "what counts as an update is decided field by field",
+  /WATCHED_FIELDS/.test(upsertSrc) && /changed\.length/.test(upsertSrc),
+  "this function runs on EVERY submission and always moves lastSeenAt, so a trigger that fired whenever the row was written would fire on nearly every form fill and replay a seven-day sequence to somebody who only revisited",
+);
+expect(
+  "the housekeeping columns are not watched",
+  !/lastSeenAt|lastMessageAt|updatedAt/.test(/const WATCHED_FIELDS = \[[^\]]*\]/.exec(upsertSrc)?.[0] ?? ""),
+  "lastSeenAt moves on every submission and lastMessageAt every time a WhatsApp message passes; either one in the watched set turns an update trigger into a firehose",
+);
+expect(
+  "the queue does not import the contact upsert",
+  !/from "@\/lib\/contacts\/upsert"/.test(enqueueSrc) && /from "@\/lib\/contacts\/tenant"/.test(enqueueSrc),
+  "the upsert now fires triggers and the queue reads contactTenantOf: upsert -> enqueue -> upsert is an import cycle that resolves to undefined at module-init time if the wrong file loads first",
 );
 
 console.log(failures === 0 ? "\nAll workflow queue checks passed.\n" : `\n${failures} check(s) failed.\n`);

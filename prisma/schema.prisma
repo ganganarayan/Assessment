@@ -4529,6 +4529,14 @@ model AiCostDay {
 // whoever finishes last, not something to do while both are being built.
 enum WorkflowTrigger {
   CONTACT_OPTED_IN
+  /// A contact row first appearing. Distinct from opting in: a SPLIT gate or an
+  /// import creates somebody who has consented to nothing.
+  CONTACT_CREATED
+  /// A field a person would call theirs actually changing - name, email, mobile,
+  /// profession. 🔴 Never the housekeeping columns: lastSeenAt moves on every single
+  /// submission, so an "updated" trigger that watched it would fire on nearly every
+  /// form fill and replay the sequence to somebody who only filled in a form.
+  CONTACT_UPDATED
   ASSESSMENT_COMPLETED
   GATE_QUALIFIED
   BAND_REACHED
@@ -4673,30 +4681,28 @@ model Workflow {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  name    String
-  trigger WorkflowTrigger
-  status  WorkflowStatus  @default(DRAFT)
+  name   String
+  status WorkflowStatus @default(DRAFT)
 
   /// Whose sequence this is. LEAD for everything that existed before this column, which
   /// is what every row written until now meant.
   audience WorkflowAudience @default(LEAD)
 
-  /// Which funnel this watches. Null means every one in the workspace.
+  /// MAY SOMEBODY WHO HAS FINISHED THIS SEQUENCE BE STARTED ON IT AGAIN?
   ///
-  /// A plain id and NOT a foreign key, on purpose. A relation would force a choice
-  /// between cascade-deleting a workflow when somebody deletes a funnel, and setting
-  /// this to null - which silently WIDENS the audience from one assessment to all of
-  /// them. Neither is acceptable, and the plain id gives the safe third behaviour for
-  /// free: events only ever arrive carrying a live assessment id, so a workflow
-  /// pointing at a deleted one simply never matches again.
-  assessmentId String?
+  /// True is what every row written before this column meant, and it was the right
+  /// answer while a workflow had exactly one way in: a lead who came back next quarter
+  /// and booked again deserved the same follow-up. With several triggers it is the
+  /// wrong default for most sequences - "they were updated" can fire every time
+  /// somebody edits a row, and each firing would replay the whole seven days to a
+  /// person who has already had them.
+  ///
+  /// False means once per person, ever. The live-run guard in enqueue.ts is separate
+  /// and always applies: this one is about re-entry AFTER finishing.
+  allowReentry Boolean @default(true)
 
-  /// For BAND_REACHED: which band. Null on every other trigger.
-  bandKey String?
-
-  /// For TAG_ADDED: which tag. A plain id for the same reason as assessmentId - a
-  /// deleted tag should quieten the workflow, never delete it.
-  triggerTagId String?
+  /// Every way in. One row per trigger box on the canvas.
+  triggers WorkflowTriggerBinding[]
 
   steps          WorkflowStep[]
   edges          WorkflowEdge[]
@@ -4710,8 +4716,55 @@ model Workflow {
   updatedAt   DateTime  @updatedAt
 
   @@index([tenantId])
-  @@index([trigger, status])
   @@map("workflow")
+}
+
+/// ONE WAY IN. A workflow has as many of these as it has trigger boxes.
+///
+/// 🔴 THE PARAMETERS LIVE HERE AND NOT ON THE WORKFLOW, which is the whole reason this
+/// table exists rather than an array column. They used to be workflow-wide, and that
+/// only holds while there is one trigger: "tag added: hot lead" and "band reached:
+/// HIGH" in the same sequence need their own tag and their own band, and a single
+/// pair of columns cannot say which belongs to which.
+///
+/// 🟡 NO UNIQUE KEY on (workflow, trigger), on purpose. The same trigger twice with
+/// different parameters is a legitimate thing to want - two tags, two bands, two
+/// funnels - so a unique key would refuse the useful case to prevent a harmless one.
+/// An exact duplicate is refused by the add action instead, and the matcher enrols
+/// once per workflow however many of its boxes matched.
+model WorkflowTriggerBinding {
+  id         String   @id @default(cuid())
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  trigger WorkflowTrigger
+
+  /// Which funnel this box watches. Null means every one in the workspace.
+  ///
+  /// A plain id and NOT a foreign key, on purpose. A relation would force a choice
+  /// between cascade-deleting a workflow when somebody deletes a funnel, and setting
+  /// this to null - which silently WIDENS the audience from one assessment to all of
+  /// them. Neither is acceptable, and the plain id gives the safe third behaviour for
+  /// free: events only ever arrive carrying a live assessment id, so a box pointing at
+  /// a deleted one simply never matches again.
+  assessmentId String?
+
+  /// For BAND_REACHED: which band. Null on every other trigger.
+  bandKey String?
+
+  /// For TAG_ADDED and TAG_REMOVED: which tag. A plain id for the same reason as
+  /// assessmentId - a deleted tag should quieten the box, never delete it.
+  tagId String?
+
+  /// Where the box sits in the stack above the first step. Presentation only.
+  displayOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  /// The matcher's own index: every incoming event asks "which boxes watch this".
+  @@index([trigger])
+  @@index([workflowId, displayOrder])
+  @@map("workflow_trigger_binding")
 }
 
 /// One step. Ordered, and the order IS the sequence.
@@ -4833,6 +4886,14 @@ model WorkflowRun {
   /// the sequence; the meeting belongs to ONE of them. Storing it on the step would hand
   /// the second person the first person's call.
   meetingLink String?
+
+  /// WHICH TRIGGER STARTED THIS RUN. Null on every row written before there was more
+  /// than one way in, and on a run somebody started by hand.
+  ///
+  /// Not derivable afterwards: with five boxes on a workflow, the logs page cannot
+  /// answer "why is this person in here" from the run alone, and the event that
+  /// enrolled them is long gone by the time anybody asks.
+  startedByTrigger WorkflowTrigger?
 
   currentStep Int @default(0)
 

@@ -9,24 +9,29 @@ import { createTag } from "@/features/contacts/actions";
 import { PlaceholderChips } from "@/components/placeholder-chips";
 import {
   addWorkflowStep,
+  addWorkflowTrigger,
   deleteWorkflow,
   deleteWorkflowStep,
+  deleteWorkflowTrigger,
   moveWorkflowStep,
   setWorkflowStatus,
   updateWorkflowSettings,
   updateWorkflowStep,
+  updateWorkflowTrigger,
 } from "@/features/workflows/actions";
 import {
   DELAY_UNITS,
   STATUS_CLASS,
   STATUS_LABEL,
   TRIGGERS,
+  triggersForAudience,
   offerableSteps,
   type OfferedStepKind,
   WORKFLOW_PLACEHOLDERS,
   publishProblems,
   type BuilderOptions,
   type WorkflowStepView,
+  type WorkflowTriggerView,
   type WorkflowView,
 } from "@/features/workflows/types";
 
@@ -56,11 +61,7 @@ export function WorkflowBuilder({
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [name, setName] = useState(workflow.name);
-  const [assessmentId, setAssessmentId] = useState(workflow.assessmentId ?? "");
-  const [bandKey, setBandKey] = useState(workflow.bandKey ?? "");
-  const [triggerTagId, setTriggerTagId] = useState(workflow.triggerTagId ?? "");
 
-  const spec = TRIGGERS.find((t) => t.value === workflow.trigger);
   const live = workflow.status === "PUBLISHED";
   const problems = publishProblems(workflow);
 
@@ -104,22 +105,36 @@ export function WorkflowBuilder({
               onChange={(e) => setName(e.target.value)}
               onBlur={() => {
                 if (name.trim() && name !== workflow.name) {
-                  run(() =>
-                    updateWorkflowSettings({
-                      id: workflow.id,
-                      name,
-                      assessmentId: assessmentId || null,
-                      bandKey: bandKey || null,
-                      triggerTagId: triggerTagId || null,
-                    }),
-                  );
+                  run(() => updateWorkflowSettings({ id: workflow.id, name, allowReentry: workflow.allowReentry }));
                 }
               }}
               className="text-lg font-semibold"
             />
-            <span className={`w-fit rounded-full border px-2 py-0.5 text-xs ${STATUS_CLASS[workflow.status]}`}>
-              {STATUS_LABEL[workflow.status]}
-            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className={`w-fit rounded-full border px-2 py-0.5 text-xs ${STATUS_CLASS[workflow.status]}`}>
+                {STATUS_LABEL[workflow.status]}
+              </span>
+              {/* Phrased as the restriction rather than the permission, because that is
+                  the decision somebody is making: several ways in means the same person
+                  can qualify again next week, and most sequences should only run once. */}
+              <label className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
+                <input
+                  type="checkbox"
+                  checked={!workflow.allowReentry}
+                  disabled={pending}
+                  onChange={(e) =>
+                    run(() =>
+                      updateWorkflowSettings({
+                        id: workflow.id,
+                        name: name.trim() || workflow.name,
+                        allowReentry: !e.target.checked,
+                      }),
+                    )
+                  }
+                />
+                Only once per person
+              </label>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -175,80 +190,40 @@ export function WorkflowBuilder({
       <div className="md:grid md:grid-cols-[minmax(0,1fr)_21rem] md:items-start md:gap-6">
       <div className="flex flex-col gap-0">
 
-      {/* The start node. Solid and coloured rather than dashed: it is the one box on
-          the screen that is not optional, and a dashed border reads as a placeholder. */}
-      <div className="rounded-lg border-2 border-emerald-500/50 bg-emerald-500/5 p-4">
-        <span className="rounded-full border border-emerald-500/50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-700 dark:text-emerald-400">
-          START
-        </span>
-        <p className="mt-2 text-sm font-medium">When {(spec?.label ?? workflow.trigger).toLowerCase()}</p>
-        <p className="text-xs text-[var(--muted-foreground)]">{spec?.hint}</p>
-
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <Field label="On which assessment">
-            <Select
-              value={assessmentId}
-              placeholder="Any assessment"
-              options={options.assessments.map((a) => ({ value: a.id, label: a.title }))}
-              onChange={(v) => {
-                setAssessmentId(v);
-                run(() =>
-                  updateWorkflowSettings({
-                    id: workflow.id,
-                    name,
-                    assessmentId: v || null,
-                    bandKey: bandKey || null,
-                    triggerTagId: triggerTagId || null,
-                  }),
-                );
-              }}
-            />
-          </Field>
-
-          {spec?.needsBand ? (
-            <Field label="Which band">
-              <Input
-                value={bandKey}
-                placeholder="e.g. HIGH"
-                onChange={(e) => setBandKey(e.target.value)}
-                onBlur={() =>
-                  run(() =>
-                    updateWorkflowSettings({
-                      id: workflow.id,
-                      name,
-                      assessmentId: assessmentId || null,
-                      bandKey: bandKey || null,
-                      triggerTagId: triggerTagId || null,
-                    }),
-                  )
-                }
-              />
-            </Field>
-          ) : null}
-
-          {spec?.needsTag ? (
-            <Field label="Which tag">
-              <Select
-                value={triggerTagId}
-                placeholder="Pick a tag"
-                options={options.tags.map((t) => ({ value: t.id, label: t.name }))}
-                onChange={(v) => {
-                  setTriggerTagId(v);
-                  run(() =>
-                    updateWorkflowSettings({
-                      id: workflow.id,
-                      name,
-                      assessmentId: assessmentId || null,
-                      bandKey: bandKey || null,
-                      triggerTagId: v || null,
-                    }),
-                  );
-                }}
-              />
-            </Field>
-          ) : null}
+      {/* THE WAYS IN. One box per trigger, stacked, all of them leading into the first
+          step. Solid and coloured rather than dashed: these are the boxes that are not
+          optional, and a dashed border reads as a placeholder. */}
+      {workflow.triggers.map((t, i) => (
+        <div key={t.id} className="flex flex-col items-stretch gap-0">
+          {i > 0 ? <p className="py-1 text-center text-xs text-[var(--muted-foreground)]">or</p> : null}
+          <TriggerNode
+            trigger={t}
+            options={options}
+            pending={pending}
+            canRemove={workflow.triggers.length > 1 || !live}
+            onSave={(patch) =>
+              run(() =>
+                updateWorkflowTrigger({
+                  workflowId: workflow.id,
+                  id: t.id,
+                  assessmentId: t.assessmentId,
+                  bandKey: t.bandKey,
+                  tagId: t.tagId,
+                  ...patch,
+                }),
+              )
+            }
+            onRemove={() => run(() => deleteWorkflowTrigger(workflow.id, t.id))}
+          />
         </div>
-      </div>
+      ))}
+
+      <TriggerAdder
+        audience={workflow.audience}
+        taken={workflow.triggers.map((t) => t.trigger)}
+        pending={pending}
+        onAdd={(trigger) => run(() => addWorkflowTrigger({ workflowId: workflow.id, trigger }))}
+      />
 
       {/* Every gap has a + in it, so a step goes where it is needed rather than onto
           the end and then walked up with Up four times. */}
@@ -306,14 +281,172 @@ export function WorkflowBuilder({
           </PlaceholderChips>
         ) : (
           <div className="rounded-lg border p-4 text-sm text-[var(--muted-foreground)]">
-            <p className="font-medium text-[var(--foreground)]">The trigger</p>
+            <p className="font-medium text-[var(--foreground)]">The ways in</p>
             <p className="mt-1 text-xs">
-              What starts this sequence, and what it is narrowed to, is set on the green box
-              itself. Click any step to edit it here.
+              Each green box is one way somebody starts this sequence, and what narrows it is
+              set on the box itself. Click any step to edit it here.
             </p>
           </div>
         )}
       </aside>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ONE WAY IN.
+ *
+ * The narrowing lives on the box rather than in the right-hand panel, which is where
+ * it was when there was one trigger and where it still belongs: a trigger box has at
+ * most three fields, and sending somebody to a panel to set one of them would mean two
+ * clicks to answer a question the box could have asked itself.
+ */
+function TriggerNode({
+  trigger,
+  options,
+  pending,
+  canRemove,
+  onSave,
+  onRemove,
+}: {
+  trigger: WorkflowTriggerView;
+  options: BuilderOptions;
+  pending: boolean;
+  /** False for the last box of a live sequence: removing it would start nobody ever again. */
+  canRemove: boolean;
+  onSave: (patch: Partial<Pick<WorkflowTriggerView, "assessmentId" | "bandKey" | "tagId">>) => void;
+  onRemove: () => void;
+}) {
+  const spec = TRIGGERS.find((t) => t.value === trigger.trigger);
+  // Held locally only while being typed. The select fields save on change, so only the
+  // free-text band needs a draft of its own.
+  const [bandKey, setBandKey] = useState(trigger.bandKey ?? "");
+
+  return (
+    <div className="rounded-lg border-2 border-emerald-500/50 bg-emerald-500/5 p-4">
+      <div className="flex items-start justify-between gap-2">
+        <span className="rounded-full border border-emerald-500/50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-700 dark:text-emerald-400">
+          START
+        </span>
+        {canRemove ? (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={onRemove}
+            className="text-xs text-[var(--muted-foreground)] underline hover:text-red-500"
+          >
+            Remove
+          </button>
+        ) : null}
+      </div>
+      <p className="mt-2 text-sm font-medium">When {(spec?.label ?? trigger.trigger).toLowerCase()}</p>
+      <p className="text-xs text-[var(--muted-foreground)]">{spec?.hint}</p>
+
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        {/* Hidden for a trigger that does not arrive with a funnel. It used to be shown
+            on every one, where it looked like a narrowing and was ignored. */}
+        {spec?.noFunnelScope ? null : (
+          <Field label="On which assessment">
+            <Select
+              value={trigger.assessmentId ?? ""}
+              placeholder="Any assessment"
+              options={options.assessments.map((a) => ({ value: a.id, label: a.title }))}
+              onChange={(v) => onSave({ assessmentId: v || null })}
+            />
+          </Field>
+        )}
+
+        {spec?.needsBand ? (
+          <Field label="Which band">
+            <Input
+              value={bandKey}
+              placeholder="e.g. HIGH"
+              onChange={(e) => setBandKey(e.target.value)}
+              onBlur={() => {
+                if ((trigger.bandKey ?? "") !== bandKey) onSave({ bandKey: bandKey || null });
+              }}
+            />
+          </Field>
+        ) : null}
+
+        {spec?.needsTag ? (
+          <Field label="Which tag">
+            <Select
+              value={trigger.tagId ?? ""}
+              placeholder="Pick a tag"
+              options={options.tags.map((t) => ({ value: t.id, label: t.name }))}
+              onChange={(v) => onSave({ tagId: v || null })}
+            />
+          </Field>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Add another way in.
+ *
+ * The list is filtered to this sequence's own audience, so a sequence about a lead is
+ * never offered a trigger that enrols a workspace. A trigger with no parameters is
+ * disabled once it is on the sequence, because a second identical box could only ever
+ * do the same thing twice; a trigger that takes a tag or a band is NOT, because two
+ * tags is the whole reason several boxes exist.
+ */
+function TriggerAdder({
+  audience,
+  taken,
+  pending,
+  onAdd,
+}: {
+  audience: WorkflowView["audience"];
+  taken: WorkflowTriggerView["trigger"][];
+  pending: boolean;
+  onAdd: (trigger: WorkflowTriggerView["trigger"]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <div className="flex justify-center py-2">
+        <Button size="sm" variant="outline" disabled={pending} onClick={() => setOpen(true)}>
+          + Add trigger
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div className="my-2 max-h-64 overflow-y-auto rounded-md border border-dashed p-2">
+      <p className="mb-2 text-xs text-[var(--muted-foreground)]">
+        Anybody who does one of these starts the sequence.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        {triggersForAudience(audience).map((t) => {
+          const parameterless = !t.needsTag && !t.needsBand;
+          return (
+            <Button
+              key={t.value}
+              size="sm"
+              variant="outline"
+              title={t.hint}
+              disabled={pending || (parameterless && taken.includes(t.value))}
+              onClick={() => {
+                setOpen(false);
+                onAdd(t.value);
+              }}
+            >
+              {t.label}
+            </Button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-xs text-[var(--muted-foreground)] underline"
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );

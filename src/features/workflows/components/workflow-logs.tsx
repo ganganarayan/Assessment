@@ -67,6 +67,9 @@ export function WorkflowLogs({ rows, basePath }: { rows: JourneyRow[]; basePath:
               </div>
               <p className="text-xs text-[var(--muted-foreground)]">
                 Started {r.startedLabel}
+                {/* Which way in, when the run recorded one. The sequence can have several,
+                    and this is the only place that says which fired for this person. */}
+                {r.startedBy ? ` · ${r.startedBy.toLowerCase()}` : ""}
                 {r.finishedLabel ? ` · finished ${r.finishedLabel}` : ""}
                 {r.dueLabel ? ` · next step due ${r.dueLabel}` : ""}
                 {r.sends.length > 0 ? ` · ${r.sends.length} step${r.sends.length === 1 ? "" : "s"} recorded` : ""}

@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { formatIST } from "@/lib/date";
-import { contactTenantOf } from "@/lib/contacts/upsert";
+import { contactTenantOf } from "@/lib/contacts/tenant";
+import { TRIGGER_LABEL } from "@/features/workflows/types";
 import type { WorkflowRunStatusValue } from "@/features/workflows/types";
 
 /**
@@ -32,6 +33,15 @@ export interface JourneyRow {
   id: string;
   workflowId: string;
   workflowName: string;
+  /**
+   * WHICH WAY IN STARTED THEM, in the owner's words. Null on a run from before there
+   * was more than one, where guessing would be worse than saying nothing.
+   *
+   * The reason the column exists: with five trigger boxes on a sequence, nothing else
+   * on this row can answer "why is this person in here", and the event that enrolled
+   * them is long gone by the time anybody asks.
+   */
+  startedBy: string | null;
   /** Who it is about: the contact, or the workspace on a tenant-nurture sequence. */
   who: string;
   /** True when the subject is a workspace rather than a lead. */
@@ -80,6 +90,7 @@ export async function listJourneys(scopeTenantId: string | null, limit = 100): P
       startedAt: true,
       finishedAt: true,
       dueAt: true,
+      startedByTrigger: true,
       contact: { select: { id: true, firstName: true, lastName: true, email: true, mobile: true } },
       subjectTenant: { select: { name: true } },
       workflow: { select: { name: true, steps: { select: { id: true } } } },
@@ -133,6 +144,7 @@ export async function listJourneys(scopeTenantId: string | null, limit = 100): P
       id: r.id,
       workflowId: r.workflowId,
       workflowName: r.workflow.name,
+      startedBy: r.startedByTrigger ? (TRIGGER_LABEL[r.startedByTrigger] ?? null) : null,
       who,
       aboutWorkspace: !c,
       status: r.status as WorkflowRunStatusValue,

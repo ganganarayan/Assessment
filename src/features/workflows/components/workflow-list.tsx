@@ -14,6 +14,14 @@ import {
   type WorkflowListRow,
 } from "@/features/workflows/types";
 
+/** The first way in, plus how many others. Never five labels in a row on a phone. */
+function waysIn(triggers: WorkflowListRow["triggers"]): string {
+  const first = triggers[0];
+  if (!first) return "No way in yet";
+  const label = TRIGGER_LABEL[first];
+  return triggers.length === 1 ? label : `${label} + ${triggers.length - 1} more`;
+}
+
 /**
  * The list of sequences, and the one place a new one is started.
  *
@@ -107,7 +115,8 @@ export function WorkflowList({
                 </span>
               </div>
               <p className="text-xs text-[var(--muted-foreground)]">
-                {TRIGGER_LABEL[w.trigger]} · {w.stepCount} step{w.stepCount === 1 ? "" : "s"} ·{" "}
+                {waysIn(w.triggers)}{" "}
+                · {w.stepCount} step{w.stepCount === 1 ? "" : "s"} ·{" "}
                 {w.activeRuns} partway through · created {w.createdAt} IST
               </p>
             </Link>

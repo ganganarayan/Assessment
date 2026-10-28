@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { type EventType, type WorkflowTrigger } from "@prisma/client";
-import { contactTenantOf } from "@/lib/contacts/upsert";
+import { contactTenantOf } from "@/lib/contacts/tenant";
 import { featureAllowedFor } from "@/lib/features/release";
 
 /**
@@ -35,9 +35,15 @@ export interface TriggerContext {
 /**
  * Queue every published workflow that matches this trigger.
  *
- * Matching is narrow on purpose. A workflow scoped to an assessment fires only on that
+ * Matching is narrow on purpose. A box scoped to an assessment fires only on that
  * assessment; one scoped to none fires on all of them. DRAFT and PAUSED never fire,
  * which is what makes a draft safe to edit in front of a live funnel.
+ *
+ * 🔴 IT MATCHES BOXES AND ENROLS WORKFLOWS, which is why the ids are deduped. A
+ * sequence can watch the same trigger twice with different parameters ("tag added:
+ * hot", "tag added: warm"), and somebody who satisfies both must start the sequence
+ * once, not twice. Deduping here rather than trusting the run guard keeps that true
+ * even for the person who has finished it once already.
  */
 export async function fireWorkflowTrigger(trigger: WorkflowTrigger, ctx: TriggerContext): Promise<void> {
   try {
@@ -46,24 +52,30 @@ export async function fireWorkflowTrigger(trigger: WorkflowTrigger, ctx: Trigger
     // the drain: a feature nobody can see must not quietly build a backlog of people
     // waiting to be messaged, because releasing it would then send all of it at once.
     if (!(await featureAllowedFor("workflows", tenantId))) return;
-    const workflows = await prisma.workflow.findMany({
+    const boxes = await prisma.workflowTriggerBinding.findMany({
       where: {
-        tenantId,
         trigger,
-        status: "PUBLISHED",
-        // Null means every funnel. A workflow naming a funnel only fires on that one.
+        workflow: { tenantId, status: "PUBLISHED" },
+        // Null means every funnel. A box naming a funnel only fires on that one.
         ...(ctx.assessmentId ? { OR: [{ assessmentId: null }, { assessmentId: ctx.assessmentId }] } : {}),
         ...(trigger === "BAND_REACHED" && ctx.bandKey ? { bandKey: ctx.bandKey } : {}),
-        ...(trigger === "TAG_ADDED" && ctx.tagId ? { triggerTagId: ctx.tagId } : {}),
+        ...(trigger === "TAG_ADDED" && ctx.tagId ? { tagId: ctx.tagId } : {}),
+        ...(trigger === "TAG_REMOVED" && ctx.tagId ? { tagId: ctx.tagId } : {}),
       },
-      select: { id: true, steps: { select: { id: true }, take: 1 } },
+      select: {
+        workflowId: true,
+        workflow: { select: { allowReentry: true, steps: { select: { id: true }, take: 1 } } },
+      },
     });
 
-    for (const w of workflows) {
+    const seen = new Set<string>();
+    for (const b of boxes) {
+      if (seen.has(b.workflowId)) continue;
+      seen.add(b.workflowId);
       // A published workflow with no steps is somebody mid-build who hit publish. It
       // queues nothing rather than creating a run that can never finish.
-      if (w.steps.length === 0) continue;
-      await startRun(w.id, tenantId, ctx);
+      if (b.workflow.steps.length === 0) continue;
+      await startRun(b.workflowId, tenantId, ctx, trigger, b.workflow.allowReentry);
     }
   } catch (e) {
     console.error("[workflows] trigger failed:", e instanceof Error ? e.message : String(e));
@@ -79,20 +91,34 @@ export async function fireWorkflowTrigger(trigger: WorkflowTrigger, ctx: Trigger
  * skipped, and the only evidence was an enrolment that did not happen. What was
  * actually wanted is "not while they are still in it", which a unique key cannot say.
  *
+ * 🔴 AND NOW THE OWNER CHOOSES, because several ways in changed the arithmetic. With
+ * one trigger, re-entry after finishing was almost always right. With five - one of
+ * them "their details changed" - the same person can satisfy a box every week, and
+ * each time would replay the whole sequence to somebody who has already had it. So
+ * `allowReentry` false means once per person ever, and the live-run check below still
+ * applies either way.
+ *
  * 🟡 Two requests arriving together can both pass this check and create two runs. That
  * is accepted rather than locked against: the cost is one duplicate sequence in a rare
  * race, and the cure - a unique key - is the bug above. The worker tolerates it.
  */
-async function startRun(workflowId: string, tenantId: string, ctx: TriggerContext): Promise<void> {
-  const live = await prisma.workflowRun.findFirst({
+async function startRun(
+  workflowId: string,
+  tenantId: string,
+  ctx: TriggerContext,
+  trigger: WorkflowTrigger,
+  allowReentry: boolean,
+): Promise<void> {
+  const existing = await prisma.workflowRun.findFirst({
     where: {
       workflowId,
       contactId: ctx.contactId,
-      status: { in: ["PENDING", "SENDING"] },
+      // Re-entry allowed: only a live run blocks. Re-entry off: any run ever does.
+      ...(allowReentry ? { status: { in: ["PENDING", "SENDING"] as const } } : {}),
     },
     select: { id: true },
   });
-  if (live) return;
+  if (existing) return;
 
   await prisma.workflowRun.create({
     data: {
@@ -100,6 +126,7 @@ async function startRun(workflowId: string, tenantId: string, ctx: TriggerContex
       contactId: ctx.contactId,
       tenantId,
       subjectId: ctx.subjectId ?? null,
+      startedByTrigger: trigger,
       currentStep: 0,
       // Due now. The first step runs on the next worker pass, or inline when the
       // caller chooses to drain immediately.
@@ -130,10 +157,21 @@ export async function fireTenantWorkflowTrigger(
 ): Promise<void> {
   try {
     if (!subjectTenantId) return;
-    const workflows = await prisma.workflow.findMany({
-      where: { trigger, status: "PUBLISHED", audience: "TENANT" },
-      select: { id: true, tenantId: true, steps: { select: { id: true }, take: 1 } },
+    const boxes = await prisma.workflowTriggerBinding.findMany({
+      where: { trigger, workflow: { status: "PUBLISHED", audience: "TENANT" } },
+      select: {
+        workflowId: true,
+        workflow: {
+          select: { tenantId: true, allowReentry: true, steps: { select: { id: true }, take: 1 } },
+        },
+      },
     });
+
+    // Deduped for the same reason as the lead matcher: several boxes, one enrolment.
+    const seen = new Set<string>();
+    const workflows = boxes
+      .filter((b) => (seen.has(b.workflowId) ? false : seen.add(b.workflowId) && true))
+      .map((b) => ({ id: b.workflowId, ...b.workflow }));
 
     for (const w of workflows) {
       if (w.steps.length === 0) continue;
@@ -142,17 +180,24 @@ export async function fireTenantWorkflowTrigger(
       // the subject of it.
       if (!(await featureAllowedFor("workflows", w.tenantId))) continue;
 
-      const live = await prisma.workflowRun.findFirst({
-        where: { workflowId: w.id, subjectTenantId, status: { in: ["PENDING", "SENDING"] } },
+      // Same rule as a lead: a live run always blocks, and re-entry off blocks a
+      // workspace that has been through it once already.
+      const existing = await prisma.workflowRun.findFirst({
+        where: {
+          workflowId: w.id,
+          subjectTenantId,
+          ...(w.allowReentry ? { status: { in: ["PENDING", "SENDING"] as const } } : {}),
+        },
         select: { id: true },
       });
-      if (live) continue;
+      if (existing) continue;
 
       await prisma.workflowRun.create({
         data: {
           workflowId: w.id,
           subjectTenantId,
           tenantId: w.tenantId,
+          startedByTrigger: trigger,
           currentStep: 0,
           dueAt: new Date(),
         },

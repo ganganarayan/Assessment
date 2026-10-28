@@ -8,6 +8,7 @@ import {
   triggerIsLive,
   type OfferedStepKind,
 } from "@/features/workflows/types";
+import { type WorkflowTrigger } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { syncEdges } from "@/lib/workflows/edges";
 import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
@@ -15,11 +16,14 @@ import { contactTenantOf } from "@/lib/contacts/upsert";
 import { featureDenied } from "@/lib/features/release";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import {
+  addTriggerSchema,
   createWorkflowSchema,
   publishProblems,
   stepSchema,
+  triggerSettingsSchema,
   workflowSettingsSchema,
   type WorkflowStepView,
+  type WorkflowTriggerView,
 } from "@/features/workflows/types";
 
 /**
@@ -87,7 +91,15 @@ export async function createWorkflow(input: unknown): Promise<ActionResult<{ id:
   // DRAFT by default, from the schema. A workflow that could send on the day it was
   // created would make "let me just try it" an outgoing message to real people.
   const w = await prisma.workflow.create({
-    data: { tenantId: s.tenantId, name: parsed.data.name, trigger: parsed.data.trigger, audience },
+    data: {
+      tenantId: s.tenantId,
+      name: parsed.data.name,
+      audience,
+      // The first trigger box, made with the workflow rather than after it: a workflow
+      // with no way in cannot be published, and creating one in that state would make
+      // everybody's first screen an error they did not cause.
+      triggers: { create: { trigger: parsed.data.trigger, displayOrder: 0 } },
+    },
     select: { id: true },
   });
   refresh();
@@ -101,8 +113,98 @@ export async function updateWorkflowSettings(input: unknown): Promise<ActionResu
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the details." };
   }
-  const { id, name, assessmentId, bandKey, triggerTagId } = parsed.data;
+  const { id, name, allowReentry } = parsed.data;
   if (!(await own(s.tenantId, id))) return { ok: false, error: "That workflow is not in this workspace." };
+
+  await prisma.workflow.update({ where: { id }, data: { name, allowReentry } });
+  refresh(id);
+  return { ok: true };
+}
+
+/* -------------------------------------------------- the trigger boxes --- */
+
+/**
+ * ONE WORKFLOW, ONE AUDIENCE, checked on every box added.
+ *
+ * A sequence enrols either a lead or a workspace, and the two read different
+ * placeholders off different subjects. A workflow with one box of each would send a
+ * message written about a person to a company, with every placeholder in it blank.
+ */
+async function triggerAudienceClash(workflowId: string, trigger: WorkflowTrigger): Promise<string | null> {
+  const w = await prisma.workflow.findUnique({ where: { id: workflowId }, select: { audience: true } });
+  if (!w) return "That workflow is not in this workspace.";
+  const spec = TRIGGERS.find((t) => t.value === trigger);
+  const audience = triggerAudience(spec ?? { value: trigger, label: "", hint: "" });
+  if (audience === w.audience) return null;
+  return audience === "TENANT"
+    ? "That trigger is about a workspace, and this sequence is about a person."
+    : "That trigger is about a person, and this sequence is about a workspace.";
+}
+
+export async function addWorkflowTrigger(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const s = await scoped();
+  if (!s.ok) return s.result;
+  const parsed = addTriggerSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Pick a trigger." };
+  }
+  const { workflowId, trigger } = parsed.data;
+  if (!(await own(s.tenantId, workflowId))) {
+    return { ok: false, error: "That workflow is not in this workspace." };
+  }
+
+  const spec = TRIGGERS.find((t) => t.value === trigger);
+  if (spec && !triggerIsLive(spec)) {
+    return { ok: false, error: "Nothing emits that trigger yet, so it would never start anybody." };
+  }
+  // The picker hides these outside the platform scope. Checked again here, because a
+  // hidden option is presentation and this is the permission.
+  if (triggerAudience(spec ?? { value: trigger, label: "", hint: "" }) === "TENANT" && !isPlatformScope(s.tenantId)) {
+    return { ok: false, error: "That trigger is about a workspace, so it belongs to the platform." };
+  }
+  const clash = await triggerAudienceClash(workflowId, trigger);
+  if (clash) return { ok: false, error: clash };
+
+  // An EXACT duplicate is refused here rather than by a unique key, because the same
+  // trigger twice with different parameters is a legitimate thing to want: two tags,
+  // two bands, two funnels. A box with nothing set yet is what a fresh one looks like,
+  // so this only ever catches Add clicked twice.
+  const twin = await prisma.workflowTriggerBinding.findFirst({
+    where: { workflowId, trigger, assessmentId: null, bandKey: null, tagId: null },
+    select: { id: true },
+  });
+  if (twin) return { ok: false, error: "That trigger is already on this sequence. Narrow the one you have." };
+
+  const last = await prisma.workflowTriggerBinding.findFirst({
+    where: { workflowId },
+    orderBy: { displayOrder: "desc" },
+    select: { displayOrder: true },
+  });
+  const made = await prisma.workflowTriggerBinding.create({
+    data: { workflowId, trigger, displayOrder: (last?.displayOrder ?? -1) + 1 },
+    select: { id: true },
+  });
+  refresh(workflowId);
+  return { ok: true, data: { id: made.id } };
+}
+
+export async function updateWorkflowTrigger(input: unknown): Promise<ActionResult> {
+  const s = await scoped();
+  if (!s.ok) return s.result;
+  const parsed = triggerSettingsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the details." };
+  }
+  const { workflowId, id, assessmentId, bandKey, tagId } = parsed.data;
+  if (!(await own(s.tenantId, workflowId))) {
+    return { ok: false, error: "That workflow is not in this workspace." };
+  }
+  // The box must belong to the workflow the caller named, not merely exist.
+  const box = await prisma.workflowTriggerBinding.findFirst({
+    where: { id, workflowId },
+    select: { id: true },
+  });
+  if (!box) return { ok: false, error: "That trigger is not on this sequence." };
 
   // The assessment and tag are verified against the workspace before being stored.
   // They are plain ids on the row, so nothing downstream would catch a foreign one.
@@ -113,21 +215,35 @@ export async function updateWorkflowSettings(input: unknown): Promise<ActionResu
     });
     if (!a) return { ok: false, error: "That assessment is not in this workspace." };
   }
-  if (triggerTagId) {
-    const t = await prisma.tag.findFirst({ where: { id: triggerTagId, tenantId: s.tenantId }, select: { id: true } });
+  if (tagId) {
+    const t = await prisma.tag.findFirst({ where: { id: tagId, tenantId: s.tenantId }, select: { id: true } });
     if (!t) return { ok: false, error: "That tag is not in this workspace." };
   }
 
-  await prisma.workflow.update({
+  await prisma.workflowTriggerBinding.update({
     where: { id },
-    data: {
-      name,
-      assessmentId: assessmentId || null,
-      bandKey: bandKey || null,
-      triggerTagId: triggerTagId || null,
-    },
+    data: { assessmentId: assessmentId || null, bandKey: bandKey || null, tagId: tagId || null },
   });
-  refresh(id);
+  refresh(workflowId);
+  return { ok: true };
+}
+
+export async function deleteWorkflowTrigger(workflowId: string, id: string): Promise<ActionResult> {
+  const s = await scoped();
+  if (!s.ok) return s.result;
+  const w = await own(s.tenantId, workflowId);
+  if (!w) return { ok: false, error: "That workflow is not in this workspace." };
+
+  const count = await prisma.workflowTriggerBinding.count({ where: { workflowId } });
+  // A PUBLISHED sequence may not be left with no way in. It would keep its live badge
+  // and its queue and start nobody ever again, which reads as a broken engine rather
+  // than a choice somebody made. Switch it off first.
+  if (count <= 1 && w.status === "PUBLISHED") {
+    return { ok: false, error: "That is the only way in. Switch the sequence off before removing it." };
+  }
+  const { count: gone } = await prisma.workflowTriggerBinding.deleteMany({ where: { id, workflowId } });
+  if (!gone) return { ok: false, error: "That trigger is not on this sequence." };
+  refresh(workflowId);
   return { ok: true };
 }
 
@@ -329,18 +445,14 @@ export async function setWorkflowStatus(id: string, publish: boolean): Promise<A
   const w = await prisma.workflow.findUnique({
     where: { id },
     select: {
-      trigger: true,
-      bandKey: true,
-      triggerTagId: true,
+      triggers: { orderBy: { displayOrder: "asc" } },
       steps: { orderBy: { displayOrder: "asc" } },
     },
   });
   if (!w) return { ok: false, error: "That workflow is not in this workspace." };
 
   const problems = publishProblems({
-    trigger: w.trigger,
-    bandKey: w.bandKey,
-    triggerTagId: w.triggerTagId,
+    triggers: w.triggers as WorkflowTriggerView[],
     steps: w.steps.map((x) => ({
       ...x,
       subject: x.subject ?? "",
