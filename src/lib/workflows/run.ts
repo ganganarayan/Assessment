@@ -4,6 +4,12 @@ import { featureAllowedFor } from "@/lib/features/release";
 import { type WorkflowStep } from "@prisma/client";
 import { sendEmail, sendWaba } from "@/lib/nurture/send";
 import { fillPlaceholders, toE164Digits, type LeadFields } from "@/features/nurture/config";
+import {
+  ensureSystemField,
+  heldForMissingValue,
+  resolveContactValues,
+  setContactValue,
+} from "@/lib/contacts/fields";
 import { isSuppressed, unsubscribeUrlFor } from "@/lib/contacts/dnd";
 import { defaultCountryCodeFor } from "@/lib/contacts/upsert";
 import { resolveRecipient } from "@/lib/workflows/subject";
@@ -103,7 +109,6 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
       subjectId: true,
       workflowId: true,
       contactId: true,
-      meetingLink: true,
       subjectTenantId: true,
       contact: {
         select: {
@@ -243,14 +248,30 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
     const made = await createLooseZoomMeeting({ tenantId: run.tenantId, topic });
     if ("error" in made) {
       await logSend(run.tenantId, run.workflowId, step, who.contactId, "FAILED", null, made.error);
-    } else {
-      // 🔴 Written to the RUN, which is what every later step reads {{meetingLink}} from.
-      // Without this the link exists only in Zoom and nothing can say it.
-      await prisma.workflowRun
-        .update({ where: { id: runId }, data: { meetingLink: made.joinUrl } })
-        .catch(() => {});
-      run.meetingLink = made.joinUrl;
+    } else if (who.contactId) {
+      // 🔴 WRITTEN TO THE CONTACT AS A CUSTOM VALUE, which is the one place a meeting
+      // link lives now. It was on the run, where it was visible only inside the sequence
+      // that made it; on the contact it is visible to every sequence, every message and
+      // the owner. A second meeting overwrites the first, which is what "their meeting
+      // link" means to anybody reading it.
+      await ensureSystemField(run.tenantId, "meetingLink");
+      await setContactValue(run.tenantId, who.contactId, "meetingLink", made.joinUrl);
       await logSend(run.tenantId, run.workflowId, step, who.contactId, "SENT", made.joinUrl, null);
+    } else {
+      // 🟡 A sequence about a WORKSPACE has no contact to keep the link on, so the value
+      // stays empty and any message using it is held by the rule below. Deliberately not
+      // special-cased: a link kept somewhere only this run can see is what was just
+      // removed, and sending "join here:" with nothing after is the failure being
+      // prevented.
+      await logSend(
+        run.tenantId,
+        run.workflowId,
+        step,
+        null,
+        "SKIPPED",
+        made.joinUrl,
+        "There is no contact to keep the link on, so nothing can say it.",
+      );
     }
     await prisma.workflowRun.update({
       where: { id: runId },
@@ -313,7 +334,6 @@ async function advanceOne(runId: string, now: Date): Promise<boolean> {
   }
 
   await sendStep(step, run.tenantId, run.workflowId, {
-    meetingLink: run.meetingLink,
     id: who.contactId,
     firstName: who.firstName,
     lastName: who.lastName,
@@ -358,23 +378,43 @@ async function applyTag(step: WorkflowStep, contactId: string, tenantId: string)
 }
 
 interface SendContact extends LeadFields {
-  /// The Zoom link this run made, if a ZOOM_MEETING step ran above. Null otherwise,
-  /// which leaves {{meetingLink}} visible in the message rather than blank - a
-  /// placeholder that silently empties is how a message goes out saying "join here:".
-  meetingLink?: string | null;
   /// Null on a tenant-nurture run: the send is logged without a contact, because there
   /// is not one. Everything else a message needs is the same either way.
+  ///
+  /// It is also what the custom values are read against: no contact means every custom
+  /// value is empty, which the hold rule turns into a message that does not go out
+  /// rather than one with a hole in it.
   id: string | null;
   optOutToken: string;
 }
 
 async function sendStep(step: WorkflowStep, tenantId: string, workflowId: string, contact: SendContact) {
   const unsubscribeUrl = await unsubscribeUrlFor(tenantId, contact.optOutToken);
-  const extra = {
-    unsubscribeUrl,
-    ...(contact.meetingLink ? { meetingLink: contact.meetingLink } : {}),
-  };
+  const resolved = await resolveContactValues(tenantId, contact.id);
+  // The custom values go in FIRST and the engine's own placeholders on top, so nothing
+  // a workspace declares can shadow the unsubscribe link. Creating a field by one of
+  // those names is refused anyway (RESERVED_PLACEHOLDERS); this is the order that makes
+  // the refusal unnecessary rather than load-bearing.
+  const extra = { ...resolved.values, unsubscribeUrl };
   const channel = step.channel ?? "EMAIL";
+
+  // 🔴 HELD, NOT SENT WITH A HOLE. A message naming a value this person does not have
+  // is the "join here:" failure, and it reaches a customer. The log names the key, so
+  // the answer is readable rather than a ticket: "no meetingLink yet".
+  const vars = Array.isArray(step.wabaVars) ? (step.wabaVars as unknown[]) : [];
+  const missing = heldForMissingValue(
+    [
+      step.subject,
+      step.body,
+      ...vars.map((v) => (typeof v === "string" ? v : "")),
+    ],
+    resolved,
+  );
+  if (missing) {
+    await logSend(tenantId, workflowId, step, contact.id, "SKIPPED", null, `No ${missing} for them yet.`);
+    await bump(step.id, "skippedCount");
+    return;
+  }
 
   if (channel === "EMAIL") {
     const to = (contact.email ?? "").trim();
@@ -401,10 +441,8 @@ async function sendStep(step: WorkflowStep, tenantId: string, workflowId: string
     await bump(step.id, "skippedCount");
     return;
   }
-  const vars = Array.isArray(step.wabaVars)
-    ? (step.wabaVars as unknown[]).map((v) => fillPlaceholders(typeof v === "string" ? v : "", contact, extra))
-    : [];
-  const err = await sendWaba(tenantId, digits, step.wabaTemplate ?? "", step.wabaLang, vars);
+  const filled = vars.map((v) => fillPlaceholders(typeof v === "string" ? v : "", contact, extra));
+  const err = await sendWaba(tenantId, digits, step.wabaTemplate ?? "", step.wabaLang, filled);
   await logSend(tenantId, workflowId, step, contact.id, err ? "FAILED" : "SENT", digits, err);
   await bump(step.id, err ? "failedCount" : "sentCount");
 }

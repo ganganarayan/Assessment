@@ -6,7 +6,12 @@ import { contactTenantOf } from "@/lib/contacts/upsert";
 import { resolveWabaConfig } from "@/lib/settings/config";
 import { wabaVisible } from "@/lib/nurture/waba-visible";
 import { fetchWabaTemplates } from "@/features/nurture/actions";
-import type { BuilderOptions, WorkflowListRow, WorkflowStepView, WorkflowView } from "@/features/workflows/types";
+import type {
+  BuilderOptions,
+  WorkflowListRow,
+  WorkflowStepView,
+  WorkflowView,
+} from "@/features/workflows/types";
 
 /** Reading workflows. Scoped by the acting tenant, resolved by the caller. */
 
@@ -41,7 +46,9 @@ function stepView(s: {
     body: s.body ?? "",
     wabaTemplate: s.wabaTemplate ?? "",
     wabaLang: s.wabaLang,
-    wabaVars: Array.isArray(s.wabaVars) ? (s.wabaVars as unknown[]).map((v) => (typeof v === "string" ? v : "")) : [],
+    wabaVars: Array.isArray(s.wabaVars)
+      ? (s.wabaVars as unknown[]).map((v) => (typeof v === "string" ? v : ""))
+      : [],
     delayAmount: s.delayAmount,
     delayUnit: s.delayUnit,
     tagId: s.tagId,
@@ -56,7 +63,9 @@ function stepView(s: {
   };
 }
 
-export async function listWorkflows(scopeTenantId: string | null): Promise<WorkflowListRow[]> {
+export async function listWorkflows(
+  scopeTenantId: string | null,
+): Promise<WorkflowListRow[]> {
   const tenantId = contactTenantOf(scopeTenantId);
   const rows = await prisma.workflow.findMany({
     where: { tenantId },
@@ -82,7 +91,10 @@ export async function listWorkflows(scopeTenantId: string | null): Promise<Workf
   }));
 }
 
-export async function getWorkflow(scopeTenantId: string | null, id: string): Promise<WorkflowView | null> {
+export async function getWorkflow(
+  scopeTenantId: string | null,
+  id: string,
+): Promise<WorkflowView | null> {
   const tenantId = contactTenantOf(scopeTenantId);
   const w = await prisma.workflow.findFirst({
     where: { id, tenantId },
@@ -130,15 +142,33 @@ export async function getWorkflow(scopeTenantId: string | null, id: string): Pro
  * released to them AND a number connected. Offering a channel that will skip every
  * send is how somebody writes a four-step sequence that silently does nothing.
  */
-export async function builderOptions(scopeTenantId: string | null): Promise<BuilderOptions> {
+export async function builderOptions(
+  scopeTenantId: string | null,
+): Promise<BuilderOptions> {
   const tenantId = contactTenantOf(scopeTenantId);
-  const [assessments, tags, waba, visible, workflows, zoom, webhooks] = await Promise.all([
+  const [
+    assessments,
+    tags,
+    waba,
+    visible,
+    workflows,
+    zoom,
+    webhooks,
+    customPlaceholders,
+  ] = await Promise.all([
     prisma.assessment.findMany({
-      where: tenantId === "platform" ? { OR: [{ tenantId: null }, { tenantId }] } : { tenantId },
+      where:
+        tenantId === "platform"
+          ? { OR: [{ tenantId: null }, { tenantId }] }
+          : { tenantId },
       orderBy: { title: "asc" },
       select: { id: true, title: true },
     }),
-    prisma.tag.findMany({ where: { tenantId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.tag.findMany({
+      where: { tenantId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
     resolveWabaConfig(scopeTenantId),
     wabaVisible(scopeTenantId),
     // Only PUBLISHED sequences can be handed to. A draft would accept people and never
@@ -148,11 +178,19 @@ export async function builderOptions(scopeTenantId: string | null): Promise<Buil
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    prisma.zoomAccount.findUnique({ where: { tenantId }, select: { tenantId: true } }),
+    prisma.zoomAccount.findUnique({
+      where: { tenantId },
+      select: { tenantId: true },
+    }),
     prisma.webhook.findMany({
       where: { tenantId },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
+    }),
+    prisma.contactField.findMany({
+      where: { tenantId },
+      orderBy: [{ system: "asc" }, { label: "asc" }],
+      select: { key: true, label: true, holdWhenEmpty: true },
     }),
   ]);
 
@@ -164,7 +202,11 @@ export async function builderOptions(scopeTenantId: string | null): Promise<Buil
   if (wabaAvailable) {
     try {
       const r = await fetchWabaTemplates();
-      if (r.ok && r.data) wabaTemplates = r.data.map((t) => ({ name: t.name, varCount: t.varCount }));
+      if (r.ok && r.data)
+        wabaTemplates = r.data.map((t) => ({
+          name: t.name,
+          varCount: t.varCount,
+        }));
     } catch {
       wabaTemplates = [];
     }
@@ -181,5 +223,6 @@ export async function builderOptions(scopeTenantId: string | null): Promise<Buil
     // The whole vocabulary: what the funnel fires, then Meta's own standard names.
     // The owner asked for everything for now and will narrow it once the shape is clear.
     capiEvents: buildEventChoices(),
+    customPlaceholders,
   };
 }

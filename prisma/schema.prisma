@@ -207,6 +207,7 @@ model Tenant {
   zoomAccount          ZoomAccount?
   automations          Automation[]
   contacts             Contact[]
+  contactFields        ContactField[]
   workflows            Workflow[]
   broadcasts           Broadcast[]
   tags                 Tag[]
@@ -4371,6 +4372,7 @@ model Contact {
   submissions         Submission[]
   gateEntries         GateEntry[]
   whatsappMessages    WhatsAppMessage[]
+  fieldValues         ContactFieldValue[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4383,6 +4385,77 @@ model Contact {
   @@index([tenantId, createdAt])
   @@index([tenantId, marketingOptOutAt])
   @@map("contact")
+}
+
+/// A CUSTOM VALUE THIS WORKSPACE KEEPS ABOUT A PERSON: declared once here, filled in per
+/// contact, and written into a message as {{key}}.
+///
+/// 🔴 A REGISTRY, NOT A JSON BLOB ON THE CONTACT, and the registry is the point. The
+/// builder has to be able to LIST what this workspace can put in a message - a
+/// placeholder nobody can see is a placeholder nobody uses - and a blob can only answer
+/// "what does this one person have", which is the wrong question at the moment somebody
+/// is writing to five hundred of them. It also gives each field one place to say what
+/// should happen when it is empty.
+model ContactField {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  /// The placeholder name, so {{key}} in a subject, a body or a template variable.
+  /// Letters, digits and underscores, and never one of the built-in names - see
+  /// RESERVED_PLACEHOLDERS in lib/contacts/fields.ts for why that is refused at
+  /// creation rather than resolved away at send time.
+  key String
+
+  /// What the owner sees in the picker. The key is for the message, this is for people.
+  label String
+
+  /// 🔴 HOLD THE MESSAGE WHEN THIS IS EMPTY, rather than sending it with a hole.
+  ///
+  /// True by default, because the failure it prevents is the one that reaches a
+  /// customer: "join here:" with nothing after it, or "your {{plan}} renews" about
+  /// nothing. The engine already refuses to send with no email address and logs why;
+  /// this is the same rule for a value the message depends on. Set it false for a
+  /// value that is genuinely optional, like a nickname.
+  holdWhenEmpty Boolean @default(true)
+
+  /// True for a key the APP writes rather than a person: the Zoom meeting link. Its key
+  /// and label are fixed, and it cannot be deleted, because a sequence somewhere is
+  /// already saying {{meetingLink}} and a workspace is not expected to know that.
+  system Boolean @default(false)
+
+  values ContactFieldValue[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// One field per name per workspace: {{plan}} has to mean one thing.
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@map("contact_field")
+}
+
+/// One person's answer for one field. Absent means empty, which is a state the sender
+/// reads: see ContactField.holdWhenEmpty.
+model ContactFieldValue {
+  id      String       @id @default(cuid())
+  fieldId String
+  field   ContactField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  /// Text, always. A date or a number typed in here is text, formatted by whoever typed
+  /// it: this table is read by the placeholder filler, which substitutes strings, and a
+  /// typed column would promise validation that nothing on the write paths performs.
+  value String @db.Text
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([contactId, fieldId])
+  @@index([fieldId])
+  @@map("contact_field_value")
 }
 
 /// A WhatsApp message that came off the owner's own phone.
@@ -4879,14 +4952,7 @@ model WorkflowRun {
   subjectId String?
 
   /// displayOrder of the NEXT step to run. A sequence advances by moving this.
-  /// The Zoom link a ZOOM_MEETING step made for this person, for every step after it to
-  /// put in a message as {{meetingLink}}.
   ///
-  /// 🔴 ON THE RUN, NOT ON THE STEP. A step is shared by everybody who passes through
-  /// the sequence; the meeting belongs to ONE of them. Storing it on the step would hand
-  /// the second person the first person's call.
-  meetingLink String?
-
   /// WHICH TRIGGER STARTED THIS RUN. Null on every row written before there was more
   /// than one way in, and on a run somebody started by hand.
   ///

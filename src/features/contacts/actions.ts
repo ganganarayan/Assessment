@@ -7,6 +7,7 @@ import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
 import { featureDenied } from "@/lib/features/release";
 import { contactTenantOf } from "@/lib/contacts/upsert";
 import { unsuppressContact } from "@/lib/contacts/dnd";
+import { keyFromLabel, keyProblem, setContactValue } from "@/lib/contacts/fields";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 
 /**
@@ -173,6 +174,99 @@ export async function setContactDnd(contactId: string, optOut: boolean): Promise
   } else {
     await unsuppressContact(contactId);
   }
+  refresh();
+  return { ok: true };
+}
+
+/* ------------------------------------------------------- custom values --- */
+
+/**
+ * Declare a value this workspace keeps about a person.
+ *
+ * One box on screen: the name is what people read and the key is derived from it, so
+ * {{planName}} comes from typing "Plan name". The key is checked against the built-in
+ * placeholders here rather than at send time, because a field called firstName would
+ * not fail - it would silently win or lose depending on which path a message took.
+ */
+export async function createContactField(label: string): Promise<ActionResult<{ id: string; key: string }>> {
+  const s = await ownerScope();
+  if (!s.ok) return s.result;
+  const clean = label.trim().slice(0, 60);
+  if (!clean) return { ok: false, error: "Give the value a name." };
+  const key = keyFromLabel(clean);
+  const problem = keyProblem(key);
+  if (problem) return { ok: false, error: problem };
+
+  const existing = await prisma.contactField.findUnique({
+    where: { tenantId_key: { tenantId: s.tenantId, key } },
+    select: { id: true, key: true },
+  });
+  // The same name twice MEANS that field, the way it does for a tag. Handing back the
+  // existing row beats a red box that asks somebody to go and look for it.
+  if (existing) return { ok: true, data: existing };
+
+  const made = await prisma.contactField.create({
+    data: { tenantId: s.tenantId, key, label: clean },
+    select: { id: true, key: true },
+  });
+  refresh();
+  return { ok: true, data: made };
+}
+
+/** Should a message naming this value be held when the person has not got one? */
+export async function setContactFieldHold(id: string, hold: boolean): Promise<ActionResult> {
+  const s = await ownerScope();
+  if (!s.ok) return s.result;
+  const { count } = await prisma.contactField.updateMany({
+    where: { id, tenantId: s.tenantId },
+    data: { holdWhenEmpty: hold },
+  });
+  if (!count) return { ok: false, error: "That value is not in this workspace." };
+  refresh();
+  return { ok: true };
+}
+
+/**
+ * Stop keeping this value.
+ *
+ * 🔴 A SYSTEM FIELD CANNOT GO. The app writes meetingLink itself and a sequence
+ * somewhere is already saying {{meetingLink}}; a workspace is not expected to know
+ * that, so the answer is a refusal rather than a message that quietly stops filling in.
+ */
+export async function deleteContactField(id: string): Promise<ActionResult> {
+  const s = await ownerScope();
+  if (!s.ok) return s.result;
+  const field = await prisma.contactField.findFirst({
+    where: { id, tenantId: s.tenantId },
+    select: { id: true, system: true, label: true },
+  });
+  if (!field) return { ok: false, error: "That value is not in this workspace." };
+  if (field.system) {
+    return { ok: false, error: `${field.label} is filled in by the app itself, so it cannot be removed.` };
+  }
+  // The values go with it, by the cascade. Said plainly in the confirm on screen: this
+  // is the one action here that destroys something somebody typed.
+  await prisma.contactField.delete({ where: { id } });
+  refresh();
+  return { ok: true };
+}
+
+/** Fill in one person's value by hand. Blank clears it. */
+export async function setContactFieldValue(
+  contactId: string,
+  key: string,
+  value: string,
+): Promise<ActionResult> {
+  const s = await ownerScope();
+  if (!s.ok) return s.result;
+  // The contact is checked against the workspace, not just the field: an id from a
+  // browser is a request to touch a row, never permission to.
+  const c = await prisma.contact.findFirst({
+    where: { id: contactId, tenantId: s.tenantId },
+    select: { id: true },
+  });
+  if (!c) return { ok: false, error: "That contact is not in this workspace." };
+  await setContactValue(s.tenantId, contactId, key, value.slice(0, 2000));
   refresh();
   return { ok: true };
 }

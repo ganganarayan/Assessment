@@ -405,9 +405,9 @@ expect(
 );
 
 expect(
-  "the Zoom link is written to the run, not the step",
-  /prisma\.workflowRun[\s\S]{0,160}meetingLink: made\.joinUrl/.test(runSrc),
-  "a step is shared by everybody who passes through the sequence; storing the meeting on it hands the second person the first person's call",
+  "the Zoom link is written to the contact, not the step or the run",
+  /setContactValue\(run\.tenantId, who\.contactId, "meetingLink", made\.joinUrl\)/.test(runSrc),
+  "a step is shared by everybody who passes through the sequence, so storing the meeting on it hands the second person the first person's call; the run was better and still hid the link from every other sequence. It is a custom value on the contact now - see verify:contact-fields",
 );
 expect(
   "the Zoom step is hidden where Zoom is not connected",

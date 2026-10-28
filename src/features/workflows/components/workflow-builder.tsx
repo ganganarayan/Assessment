@@ -260,7 +260,14 @@ export function WorkflowBuilder({
           // Wrapped so the chips type into whichever field was last touched. Fields opt
           // in with data-ph="1"; nothing else here needs wiring.
           <PlaceholderChips
-            placeholders={WORKFLOW_PLACEHOLDERS}
+            // The built-ins, then whatever this workspace keeps about a person. Listed
+            // together because to somebody writing a message they are the same thing:
+            // a name the app will fill in. The custom ones can hold the message back
+            // when empty, which the contacts screen is where you set.
+            placeholders={[
+              ...WORKFLOW_PLACEHOLDERS,
+              ...options.customPlaceholders.map((f) => f.key),
+            ]}
             note="Click one to drop it where your cursor is. They are filled in when the message is sent."
           >
           <StepCard

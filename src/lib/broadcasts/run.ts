@@ -1,3 +1,8 @@
+import {
+  heldForMissingValue,
+  loadContactFields,
+  resolveContactValues,
+} from "@/lib/contacts/fields";
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { featureAllowedFor } from "@/lib/features/release";
@@ -101,6 +106,10 @@ export async function runDueBroadcasts(now: Date = new Date()): Promise<Broadcas
     }
 
     const cc = await defaultCountryCodeFor(b.tenantId);
+    // The registry once per batch, not once per recipient: it cannot change mid-send,
+    // and a blast to five thousand people would otherwise run five thousand copies of
+    // the same query.
+    const fields = await loadContactFields(b.tenantId);
 
     for (const r of batch) {
       const c = r.contact;
@@ -122,7 +131,36 @@ export async function runDueBroadcasts(now: Date = new Date()): Promise<Broadcas
       }
 
       const unsubscribeUrl = await unsubscribeUrlFor(b.tenantId, c.optOutToken);
-      const extra = { unsubscribeUrl };
+      const resolved = fields.length
+        ? await resolveContactValues(b.tenantId, c.id, fields)
+        : { values: {}, holdKeys: [] };
+
+      // 🔴 HELD, NOT SENT WITH A HOLE, the same rule the sequences use. It costs this
+      // person the message, which is why the reason names the value: a blast that
+      // skipped four hundred people without saying why would be indistinguishable from
+      // a broken send.
+      const held = heldForMissingValue(
+        [
+          b.subject,
+          b.body,
+          ...(Array.isArray(b.wabaVars) ? (b.wabaVars as unknown[]) : []).map((v) =>
+            typeof v === "string" ? v : "",
+          ),
+        ],
+        resolved,
+      );
+      if (held) {
+        await prisma.broadcastRecipient.update({
+          where: { id: r.id },
+          data: { status: "SKIPPED", skipReason: `No ${held} for them yet.` },
+        });
+        out.skipped++;
+        continue;
+      }
+
+      // The workspace's own values first, the engine's own placeholders on top, so
+      // nothing a workspace declares can shadow the unsubscribe link.
+      const extra = { ...resolved.values, unsubscribeUrl };
       let error: string | null = null;
       let to: string | null = null;
 

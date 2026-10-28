@@ -528,6 +528,15 @@ export interface BuilderOptions {
    * number no funnel will ever add to again. Worse than no event at all.
    */
   capiEvents: { name: string; note: string }[];
+  /**
+   * This workspace's own custom values, for the placeholder picker.
+   *
+   * Carried here rather than read in the component, because the picker has to list
+   * what a message can actually say: a placeholder nobody can see is a placeholder
+   * nobody uses, and one somebody guesses at is a literal {{planName}} in front of a
+   * customer.
+   */
+  customPlaceholders: { key: string; label: string; holdWhenEmpty: boolean }[];
 }
 
 /* ------------------------------------------------------------- validation --- */

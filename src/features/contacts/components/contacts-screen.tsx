@@ -4,7 +4,17 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createTag, deleteTag, setContactTag, setContactDnd } from "@/features/contacts/actions";
+import {
+  createContactField,
+  createTag,
+  deleteContactField,
+  deleteTag,
+  setContactDnd,
+  setContactFieldHold,
+  setContactFieldValue,
+  setContactTag,
+} from "@/features/contacts/actions";
+import { keyFromLabel } from "@/lib/contacts/field-names";
 import type { ContactsView } from "@/features/contacts/data";
 
 /**
@@ -30,6 +40,7 @@ export function ContactsScreen({
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [newTag, setNewTag] = useState("");
+  const [newField, setNewField] = useState("");
 
   const go = (next: Partial<typeof filters> & { page?: number }) => {
     const p = new URLSearchParams();
@@ -148,6 +159,96 @@ export function ContactsScreen({
         </div>
       </div>
 
+      {/* Custom values. The registry, not the values: this is where a workspace says
+          what it keeps about a person, and the boxes to fill them in are on each row. */}
+      <div className="flex flex-col gap-2 rounded-lg border p-3">
+        <p className="text-sm font-medium">Custom values</p>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Anything else you keep about a person, written into a message as a placeholder.
+        </p>
+        <div className="flex flex-col gap-2">
+          {view.fields.length === 0 ? (
+            <span className="text-xs text-[var(--muted-foreground)]">None yet.</span>
+          ) : (
+            view.fields.map((f) => (
+              <div key={f.id} className="flex flex-wrap items-center gap-2 rounded-md border px-2 py-1">
+                <span className="text-xs font-medium">{f.label}</span>
+                <code className="rounded bg-[var(--muted)] px-1 text-xs">{`{{${f.key}}}`}</code>
+                {f.system ? (
+                  <span
+                    className="rounded-full border border-dashed px-2 py-0.5 text-[10px] text-[var(--muted-foreground)]"
+                    title="Filled in by the app itself, so it cannot be renamed or removed."
+                  >
+                    automatic
+                  </span>
+                ) : null}
+                {/* 🔴 The decision that keeps a half-finished message off a customer's
+                    screen. Phrased as what it does, not as "required". */}
+                <label className="flex items-center gap-1 text-[11px] text-[var(--muted-foreground)]">
+                  <input
+                    type="checkbox"
+                    checked={f.holdWhenEmpty}
+                    disabled={pending}
+                    onChange={(e) => run(() => setContactFieldHold(f.id, e.target.checked))}
+                  />
+                  Hold the message if empty
+                </label>
+                {f.system ? null : (
+                  <button
+                    type="button"
+                    aria-label={`Delete custom value ${f.label}`}
+                    className="ml-auto text-xs text-[var(--muted-foreground)] hover:text-red-500"
+                    disabled={pending}
+                    onClick={() => {
+                      if (
+                        !confirm(
+                          `Stop keeping "${f.label}"? Every value anybody has for it goes too, and messages using ${`{{${f.key}}}`} will show the placeholder.`,
+                        )
+                      )
+                        return;
+                      run(() => deleteContactField(f.id));
+                    }}
+                  >
+                    x
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-2">
+            <Input
+              value={newField}
+              placeholder="e.g. Plan name"
+              onChange={(e) => setNewField(e.target.value)}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending || !newField.trim()}
+              onClick={() =>
+                run(async () => {
+                  const r = await createContactField(newField);
+                  if (r.ok) setNewField("");
+                  return r;
+                })
+              }
+            >
+              Add
+            </Button>
+          </div>
+          {/* The placeholder is shown BEFORE it is created, because the name somebody
+              types is not the name they will write in a message, and finding that out
+              afterwards means renaming it in every message they have already written. */}
+          {newField.trim() ? (
+            <p className="text-xs text-[var(--muted-foreground)]">
+              Messages will use <code className="rounded bg-[var(--muted)] px-1">{`{{${keyFromLabel(newField)}}}`}</code>
+            </p>
+          ) : null}
+        </div>
+      </div>
+
       {msg ? <p className="text-sm text-red-500">{msg}</p> : null}
 
       {/* Rows */}
@@ -206,6 +307,16 @@ export function ContactsScreen({
                   </Button>
                 </div>
               </div>
+
+              {view.fields.length > 0 ? (
+                <ContactValues
+                  contactId={c.id}
+                  fields={view.fields}
+                  values={c.values}
+                  pending={pending}
+                  onSave={(key, value) => run(() => setContactFieldValue(c.id, key, value))}
+                />
+              ) : null}
 
               {view.tags.length > 0 ? (
                 <div className="flex flex-wrap gap-1">
@@ -285,5 +396,94 @@ function Select({
         </option>
       ))}
     </select>
+  );
+}
+
+/**
+ * One person's custom values, collapsed until somebody asks.
+ *
+ * Collapsed because a list of contacts is read far more often than it is edited, and
+ * four boxes per row would bury the thing the page is for. Open, it shows every field
+ * the workspace keeps rather than only the filled-in ones: an empty value is the one
+ * somebody came here to type.
+ */
+function ContactValues({
+  contactId,
+  fields,
+  values,
+  pending,
+  onSave,
+}: {
+  contactId: string;
+  fields: { id: string; key: string; label: string; holdWhenEmpty: boolean; system: boolean }[];
+  values: Record<string, string>;
+  pending: boolean;
+  onSave: (key: string, value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const filled = fields.filter((f) => (values[f.key] ?? "").trim()).length;
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="w-fit text-xs text-[var(--muted-foreground)] underline"
+      >
+        Values ({filled} of {fields.length})
+      </button>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-dashed p-2">
+      {fields.map((f) => (
+        <ValueBox
+          key={`${contactId}:${f.id}`}
+          label={f.label}
+          holdWhenEmpty={f.holdWhenEmpty}
+          initial={values[f.key] ?? ""}
+          pending={pending}
+          onSave={(v) => onSave(f.key, v)}
+        />
+      ))}
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="w-fit text-xs text-[var(--muted-foreground)] underline"
+      >
+        Hide
+      </button>
+    </div>
+  );
+}
+
+/** One box, saved on blur, so nothing is lost and nothing is written per keystroke. */
+function ValueBox({
+  label,
+  holdWhenEmpty,
+  initial,
+  pending,
+  onSave,
+}: {
+  label: string;
+  holdWhenEmpty: boolean;
+  initial: string;
+  pending: boolean;
+  onSave: (value: string) => void;
+}) {
+  const [v, setV] = useState(initial);
+  return (
+    <label className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+      <span className="min-w-32 text-xs text-[var(--muted-foreground)]">{label}</span>
+      <Input
+        value={v}
+        disabled={pending}
+        placeholder={holdWhenEmpty ? "Empty holds any message that uses it" : "Optional"}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => {
+          if (v !== initial) onSave(v);
+        }}
+      />
+    </label>
   );
 }

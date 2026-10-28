@@ -49,6 +49,8 @@ export interface ContactRow {
   imported: boolean;
   /** When a real WhatsApp message last passed, DD-MM-YYYY HH:MM IST. */
   lastMessageAt: string | null;
+  /** Their custom values, keyed by placeholder name. Missing key = empty. */
+  values: Record<string, string>;
 }
 
 export interface ContactsView {
@@ -57,6 +59,12 @@ export interface ContactsView {
   page: number;
   pages: number;
   tags: { id: string; name: string; color: string | null; count: number }[];
+  /**
+   * The custom values this workspace keeps, whether or not anybody has one filled in.
+   * The registry rather than the values: this is the list the editor renders a box for,
+   * and a field nobody has filled in yet is exactly the one somebody needs to see.
+   */
+  fields: { id: string; key: string; label: string; holdWhenEmpty: boolean; system: boolean }[];
   assessments: { id: string; title: string }[];
 }
 
@@ -93,7 +101,7 @@ export async function listContacts(
   const where = whereFor(tenantId, f);
   const page = Math.max(1, f.page ?? 1);
 
-  const [total, rows, tags, assessments] = await Promise.all([
+  const [total, rows, tags, fields, assessments] = await Promise.all([
     prisma.contact.count({ where }),
     prisma.contact.findMany({
       where,
@@ -113,6 +121,7 @@ export async function listContacts(
         source: true,
         lastMessageAt: true,
         tags: { select: { tag: { select: { id: true, name: true, color: true } } } },
+        fieldValues: { select: { value: true, field: { select: { key: true } } } },
         _count: { select: { submissions: true } },
       },
     }),
@@ -120,6 +129,13 @@ export async function listContacts(
       where: { tenantId },
       orderBy: { name: "asc" },
       select: { id: true, name: true, color: true, _count: { select: { contacts: true } } },
+    }),
+    prisma.contactField.findMany({
+      where: { tenantId },
+      // System fields last: the owner's own values are what they came to look at, and
+      // the meeting link the app fills in is not something they can do anything about.
+      orderBy: [{ system: "asc" }, { label: "asc" }],
+      select: { id: true, key: true, label: true, holdWhenEmpty: true, system: true },
     }),
     prisma.assessment.findMany({
       where: tenantId === "platform" ? { OR: [{ tenantId: null }, { tenantId }] } : { tenantId },
@@ -143,11 +159,13 @@ export async function listContacts(
       sourceLabel: describeSource(c.source),
       imported: isUnconsentedSource(c.source),
       lastMessageAt: c.lastMessageAt ? formatIST(c.lastMessageAt) : null,
+      values: Object.fromEntries(c.fieldValues.map((v) => [v.field.key, v.value])),
     })),
     total,
     page,
     pages: Math.max(1, Math.ceil(total / CONTACTS_PAGE_SIZE)),
     tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color, count: t._count.contacts })),
+    fields,
     assessments,
   };
 }
