@@ -48,6 +48,13 @@ export interface TriggerSpec {
   /** True when it needs a tag picked alongside it. */
   needsTag?: boolean;
   /**
+   * 🔴 True for a trigger the SAME PERSON can set off again and again - every edit,
+   * every click, every tag change. Paired with re-entry left on, that is the one
+   * combination that sends a whole sequence to somebody twice, so the box says so on
+   * screen rather than leaving it to be discovered in a reply from a customer.
+   */
+  oftenRepeats?: boolean;
+  /**
    * 🟡 True for a trigger that does not arrive with a funnel, so the "on which
    * assessment" narrowing is hidden rather than offered and ignored.
    *
@@ -75,6 +82,7 @@ export const TRIGGERS: TriggerSpec[] = [
     label: "Their details change",
     hint: "Their name, email, mobile or profession actually changes. Not a repeat visit.",
     noFunnelScope: true,
+    oftenRepeats: true,
   },
   {
     value: "ASSESSMENT_COMPLETED",
@@ -98,6 +106,7 @@ export const TRIGGERS: TriggerSpec[] = [
     hint: "How one sequence hands somebody to the next.",
     needsTag: true,
     noFunnelScope: true,
+    oftenRepeats: true,
   },
   {
     value: "APPOINTMENT_BOOKED",
@@ -156,6 +165,7 @@ export const TRIGGERS: TriggerSpec[] = [
     value: "RESULT_VIEWED",
     label: "They open their result",
     hint: "They actually read it, which is the strongest signal a funnel produces.",
+    oftenRepeats: true,
   },
   {
     value: "RESULT_LINK_REQUESTED",
@@ -166,6 +176,7 @@ export const TRIGGERS: TriggerSpec[] = [
     value: "CTA_CLICKED",
     label: "They click the booking button",
     hint: "They clicked through from the result page. Intent, whether or not they then booked.",
+    oftenRepeats: true,
   },
 
   /* ------------------------------------------------- the person, not the funnel --- */
@@ -176,6 +187,7 @@ export const TRIGGERS: TriggerSpec[] = [
     hint: "The other half of handing somebody between sequences.",
     needsTag: true,
     noFunnelScope: true,
+    oftenRepeats: true,
   },
   {
     value: "CONTACT_UNSUBSCRIBED",

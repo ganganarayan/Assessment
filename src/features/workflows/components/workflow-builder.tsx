@@ -200,6 +200,7 @@ export function WorkflowBuilder({
             trigger={t}
             options={options}
             pending={pending}
+            allowReentry={workflow.allowReentry}
             canRemove={workflow.triggers.length > 1 || !live}
             onSave={(patch) =>
               run(() =>
@@ -306,6 +307,7 @@ function TriggerNode({
   trigger,
   options,
   pending,
+  allowReentry,
   canRemove,
   onSave,
   onRemove,
@@ -313,6 +315,8 @@ function TriggerNode({
   trigger: WorkflowTriggerView;
   options: BuilderOptions;
   pending: boolean;
+  /** The workflow's own setting, so the box can warn about the one bad pairing. */
+  allowReentry: boolean;
   /** False for the last box of a live sequence: removing it would start nobody ever again. */
   canRemove: boolean;
   onSave: (patch: Partial<Pick<WorkflowTriggerView, "assessmentId" | "bandKey" | "tagId">>) => void;
@@ -342,6 +346,15 @@ function TriggerNode({
       </div>
       <p className="mt-2 text-sm font-medium">When {(spec?.label ?? trigger.trigger).toLowerCase()}</p>
       <p className="text-xs text-[var(--muted-foreground)]">{spec?.hint}</p>
+
+      {/* The one pairing that sends a whole sequence to somebody twice. Said here, on
+          the box that causes it, rather than only beside the toggle that fixes it. */}
+      {spec?.oftenRepeats && allowReentry ? (
+        <p className="mt-2 rounded-md border border-amber-500/60 p-2 text-xs">
+          🟡 The same person can set this off again and again. While &quot;only once per person&quot;
+          is unticked, each time starts the whole sequence over.
+        </p>
+      ) : null}
 
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {/* Hidden for a trigger that does not arrive with a funnel. It used to be shown

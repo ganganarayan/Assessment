@@ -541,5 +541,11 @@ expect(
   "the upsert now fires triggers and the queue reads contactTenantOf: upsert -> enqueue -> upsert is an import cycle that resolves to undefined at module-init time if the wrong file loads first",
 );
 
+expect(
+  "a trigger that repeats says so while re-entry is on",
+  /oftenRepeats/.test(wfTypesSrc) && /spec\?\.oftenRepeats && allowReentry/.test(builderSrc2),
+  "a trigger the same person sets off weekly, paired with re-entry left on, is the one combination that sends a whole sequence to somebody twice; it should be visible on the box rather than discovered in a reply from a customer",
+);
+
 console.log(failures === 0 ? "\nAll workflow queue checks passed.\n" : `\n${failures} check(s) failed.\n`);
 process.exit(failures === 0 ? 0 : 1);

@@ -627,25 +627,41 @@ const workflowScreens: ScreenGroup = {
       checks.push(...arrived(v, path), ...datesAreIndian(v, path));
     }
 
-    // 🔴 The half that matters most. Workflows and WhatsApp templates are held back from
-    // customers by their release switches, and a hidden menu item is presentation, not a
-    // permission. If a workspace can reach the page by typing the address, the switch is
-    // decoration - and this is the only check that would ever notice.
+    // 🔴 The half that matters most: a hidden menu item is presentation, not a
+    // permission. If a workspace can reach a held-back page by typing the address, the
+    // switch is decoration, and this is the only check that would ever notice.
+    //
+    // 🟡 THE EXPECTATION IS PER FEATURE AND HAS TO BE KEPT HONEST BY HAND. Workflows and
+    // WhatsApp templates were released to customers on 28-10-2026, so asserting they
+    // redirect would now fail on a working install - a gate that lies is worse than no
+    // gate. WhatsApp itself is still held back, and for a reason that is not ours to
+    // fix (Meta Tech Provider approval), so it carries the real test. When that is
+    // released, move this to whatever is held back then rather than deleting it.
     checks.push(
       ...(await withTenant(page, baseUrl, async () => {
         const out = [];
-        for (const path of ["/w/workflows/logs", "/w/wa-templates"]) {
+        for (const path of ["/w/workflows", "/w/wa-templates"]) {
           const v = await visit(page, baseUrl, path);
-          const held = v.crashed || !v.url.includes(path);
+          const arrivedHere = !v.crashed && v.url.includes(path);
           out.push(
-            held
-              ? pass(`${path} is not reachable while the feature is held back`, v.url)
+            arrivedHere
+              ? pass(`${path} is reachable now the feature is released`, v.url)
               : fail(
-                  `${path} opened for a workspace`,
-                  "the release switch is off, so this page should have redirected. A hidden link is not a permission.",
+                  `${path} did not open for a workspace`,
+                  "the release switch is on, so a customer should reach this page. Either the switch was turned back off or the route guard is reading the wrong key.",
                 ),
           );
         }
+        const held = await visit(page, baseUrl, "/w/whatsapp");
+        const blocked = held.crashed || !held.url.includes("/w/whatsapp");
+        out.push(
+          blocked
+            ? pass("/w/whatsapp is not reachable while WhatsApp is held back", held.url)
+            : fail(
+                "/w/whatsapp opened for a workspace",
+                "WhatsApp is held back pending Meta approval, so this page should have redirected. A hidden link is not a permission.",
+              ),
+        );
         return out;
       })),
     );
