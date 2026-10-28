@@ -42,8 +42,14 @@ export default async function DashboardPage() {
   // right after self-provisioning (before the next login refreshes the session).
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { tenantId: true },
+    select: { tenantId: true, deletedAt: true },
   });
+  // A login that was removed from the platform can still authenticate (deletion is a
+  // soft delete; Better Auth does not know about it). Left alone it would fall through
+  // to the "no workspace" card below and silently provision a brand-new tenant, slipping
+  // back into onboarding as if nothing happened. Send it to the explicit welcome-back
+  // screen instead, which is the one place that offers Create (reactivate) vs. Exit.
+  if (dbUser?.deletedAt) redirect("/welcome-back");
   const tenantId = dbUser?.tenantId ?? user.tenantId ?? null;
   if (tenantId) redirect("/w");
 
