@@ -27,15 +27,28 @@ async function main() {
   if (argv.includes("--public")) await import("./public-db-url");
 
   const catalog = await import("../src/lib/features/catalog");
-  const { writeFeatureRelease, isFeatureReleased, resetFeatureReleaseCache } = await import(
-    "../src/lib/features/release"
-  );
+  const { writeFeatureRelease, resetFeatureReleaseCache } = await import("../src/lib/features/release");
+  const { prisma } = await import("../src/lib/db/prisma");
 
+  /**
+   * 🔴 THE ROWS, READ DIRECTLY, AND NO FALLBACK.
+   *
+   * isFeatureReleased() exists to keep a live app safe when the database blips: it
+   * answers with the catalog default, which is off for everything. That is the right
+   * answer to serve a customer and the wrong one to PRINT to the owner, because an
+   * unreachable database would report every feature as held back and look exactly like
+   * a state somebody chose. This is the tool people reach for to find out what is
+   * actually stored, so it either says that or fails loudly.
+   */
   const show = async (heading: string) => {
+    const rows = await prisma.featureRelease.findMany({ select: { key: true, released: true } });
+    const stored = new Map(rows.map((r) => [r.key, r.released]));
     console.log(`\n${heading}`);
     for (const f of catalog.RELEASABLE_FEATURES) {
-      const on = await isFeatureReleased(f.key);
-      console.log(`  ${on ? "ON  " : "off "} ${f.key}`);
+      const row = stored.get(f.key);
+      const mark = row === undefined ? "--  " : row ? "ON  " : "off ";
+      const note = row === undefined ? `  (no row, so customers see the default: ${f.defaultReleased ? "ON" : "off"})` : "";
+      console.log(`  ${mark} ${f.key}${note}`);
     }
   };
 
