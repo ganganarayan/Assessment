@@ -1,0 +1,1319 @@
+{
+  "slug": "senior-layer-audit",
+  "title": "The Senior Layer Audit",
+  "category": "Consultants",
+  "summary": "For CHROs, L&D heads and CEOs. Part A grades how their last senior leadership programme was bought, Part B grades the observable state of the senior layer, and the result is the collision between the two. Twenty-six scored questions plus three profile fields, about nine minutes, both result pages, and an AI report that applies five override rules.",
+  "shape": "UNGATED_ASSESSMENT",
+  "aiInstructions": "Write the report for one senior HR, L&D or business leader about their own organisation's answers. Plain paragraphs, no headings, no bullet points, no greeting, no sign-off, no exclamation marks. British spelling. Never use an em dash or en dash.\n\nHow to read the data. The four categories that start with B1 to B4 describe the state of their senior layer, and each has a band of Low, Moderate or High. The overall band (Stable, Strained, Overwhelmed or Critical) is the total of those four and nothing else. \"Part A: The decision audit\" has its own band (Ceremonial, Activity-led, Transfer-capable or Outcome-built) and describes how their last programme was bought. Its first two questions, the size of the senior layer and the spend, are profile and score nothing. \"This is our normal\" is the strongest answer in B1 to B4. Ignore every number and talk only in bands and answers.\n\nWrite these in order, one short paragraph each.\n\n1. One sentence naming their dominant pattern, built from the wording of their own answers, not from the band names.\n\n2. The overall band and the highest of B1 to B4. Then quote back, word for word in quotation marks, up to three statements they answered \"This is our normal\". If there are none, name the statements that came closest.\n\n3. Apply every rule below that is true, in this order, in plain language. Skip the paragraph if none is true.\n- B3 is High: the total is a floor, not an estimate. If there is no safe channel, every number collected from this layer is softer than reality, including this one. When true this is always the first and most important finding.\n- B4 is High: this is no longer a development question. It is a business continuity risk, whatever the total says, and it goes to the board, not to L&D.\n- B1 and B2 are both High: the layer is running on compulsion, not motivation. Call it the highest-risk pattern even when the overall band is only Strained, because compulsion holds output up right until it does not.\n- Part A is Ceremonial or Activity-led and the overall band is Overwhelmed or Critical: use this exact sentence, \"You are already spending on this and the layer is getting worse. The spend is not the problem. The axis is.\" If they chose a spend range other than \"We do not track it separately\", put that rupee range into the sentence.\n- They answered \"We do not have that line of sight\" to what their leaders say when nobody from HR is in the room, and the overall band is Overwhelmed or Critical: use this exact sentence, \"You can see the symptoms from the outside and you cannot hear them from the inside. That gap is the entire finding.\"\n\n4. The Part A band: how their last decision was made. Use at most two of these lines, only where their own answer earned it:\n- Three of the four ways a programme gets chosen are inputs. Only one is a diagnosis, and needs analysis is the strongest single predictor of whether leadership training transfers.\n- You cannot demonstrate change in anything you never measured before it started.\n- Most organisations report attendance and feedback upward. Very few reach a business number. Which one did your board see?\n- Spacing and practice in the job are what made programmes work, and they are also the first two things cut from a budget.\n- Not one of the things leaders say when HR is not in the room is a skill gap, and no curriculum reaches any of them. If they have no line of sight, that is the finding.\n- If they would not have known the programme changed nothing, the spend was unverifiable by design. Not ineffective. Unverifiable, which is a different and more expensive problem.\n\n5. The collision: method on one axis, state on the other, in two or three plain sentences. It needs no selling.\n\nNever recommend a programme, never mention a price or a fee, never promise an outcome and never diagnose any individual's health. Do not cite research and do not end with a call to action: the page does both.",
+  "body": {
+    "title": "The Senior Layer Audit",
+    "slug": "senior-layer-audit",
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 9,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": false,
+    "collectProfession": true,
+    "professionRequired": true,
+    "professionLabel": "Your role",
+    "professionPlaceholder": "Select your role",
+    "professionOptions": [
+      "CHRO or HR Head",
+      "L&D or Talent Head",
+      "Business Head or CEO",
+      "Founder",
+      "Consultant or advisor",
+      "Other"
+    ],
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "Two parts, about 9 minutes",
+    "subheadline": "Part A grades how your last senior leadership programme was decided. Part B grades the state of the leaders it was for. The finding is where the two collide.",
+    "qualifiedNote": "Your audit is ready. Where should we send it?",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start the audit",
+    "resultsButtonLabel": "See my audit",
+    "useAiStatement": true,
+    "aiInstructions": "Write the report for one senior HR, L&D or business leader about their own organisation's answers. Plain paragraphs, no headings, no bullet points, no greeting, no sign-off, no exclamation marks. British spelling. Never use an em dash or en dash.\n\nHow to read the data. The four categories that start with B1 to B4 describe the state of their senior layer, and each has a band of Low, Moderate or High. The overall band (Stable, Strained, Overwhelmed or Critical) is the total of those four and nothing else. \"Part A: The decision audit\" has its own band (Ceremonial, Activity-led, Transfer-capable or Outcome-built) and describes how their last programme was bought. Its first two questions, the size of the senior layer and the spend, are profile and score nothing. \"This is our normal\" is the strongest answer in B1 to B4. Ignore every number and talk only in bands and answers.\n\nWrite these in order, one short paragraph each.\n\n1. One sentence naming their dominant pattern, built from the wording of their own answers, not from the band names.\n\n2. The overall band and the highest of B1 to B4. Then quote back, word for word in quotation marks, up to three statements they answered \"This is our normal\". If there are none, name the statements that came closest.\n\n3. Apply every rule below that is true, in this order, in plain language. Skip the paragraph if none is true.\n- B3 is High: the total is a floor, not an estimate. If there is no safe channel, every number collected from this layer is softer than reality, including this one. When true this is always the first and most important finding.\n- B4 is High: this is no longer a development question. It is a business continuity risk, whatever the total says, and it goes to the board, not to L&D.\n- B1 and B2 are both High: the layer is running on compulsion, not motivation. Call it the highest-risk pattern even when the overall band is only Strained, because compulsion holds output up right until it does not.\n- Part A is Ceremonial or Activity-led and the overall band is Overwhelmed or Critical: use this exact sentence, \"You are already spending on this and the layer is getting worse. The spend is not the problem. The axis is.\" If they chose a spend range other than \"We do not track it separately\", put that rupee range into the sentence.\n- They answered \"We do not have that line of sight\" to what their leaders say when nobody from HR is in the room, and the overall band is Overwhelmed or Critical: use this exact sentence, \"You can see the symptoms from the outside and you cannot hear them from the inside. That gap is the entire finding.\"\n\n4. The Part A band: how their last decision was made. Use at most two of these lines, only where their own answer earned it:\n- Three of the four ways a programme gets chosen are inputs. Only one is a diagnosis, and needs analysis is the strongest single predictor of whether leadership training transfers.\n- You cannot demonstrate change in anything you never measured before it started.\n- Most organisations report attendance and feedback upward. Very few reach a business number. Which one did your board see?\n- Spacing and practice in the job are what made programmes work, and they are also the first two things cut from a budget.\n- Not one of the things leaders say when HR is not in the room is a skill gap, and no curriculum reaches any of them. If they have no line of sight, that is the finding.\n- If they would not have known the programme changed nothing, the spend was unverifiable by design. Not ineffective. Unverifiable, which is a different and more expensive problem.\n\n5. The collision: method on one axis, state on the other, in two or three plain sentences. It needs no selling.\n\nNever recommend a programme, never mention a price or a fee, never promise an outcome and never diagnose any individual's health. Do not cite research and do not end with a call to action: the page does both.",
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "key": "decision",
+        "name": "Part A: The decision audit",
+        "description": "Think of the last programme you bought for your senior leaders. Answer about that one.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Ceremonial",
+            "meaning": "The decision was made on almost none of the parameters that determine the outcome. What was bought was an event, and nothing in the design would have told you whether it worked.",
+            "minScore": 0,
+            "maxScore": 30,
+            "displayOrder": 0
+          },
+          {
+            "label": "Activity-led",
+            "meaning": "Real activity, real intent, no transfer architecture. You would not be able to prove or disprove impact if asked.",
+            "minScore": 31,
+            "maxScore": 58,
+            "displayOrder": 1
+          },
+          {
+            "label": "Transfer-capable",
+            "meaning": "The design could hold. The measurement layer is where it is thin.",
+            "minScore": 59,
+            "maxScore": 80,
+            "displayOrder": 2
+          },
+          {
+            "label": "Outcome-built",
+            "meaning": "You are in the top few per cent of buyers. The question is no longer method, it is whether the right thing is being addressed at all.",
+            "minScore": 81,
+            "maxScore": 100,
+            "displayOrder": 3
+          }
+        ],
+        "questions": [
+          {
+            "key": "p2",
+            "text": "How many people are in your senior layer, the people who carry the system?",
+            "type": "SINGLE_SELECT",
+            "weight": 0,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Under 10",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "10 to 25",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "26 to 50",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "51 to 100",
+                "value": 3,
+                "displayOrder": 3
+              },
+              {
+                "label": "Over 100",
+                "value": 4,
+                "displayOrder": 4
+              }
+            ]
+          },
+          {
+            "key": "p3",
+            "text": "Roughly what did you spend on senior leadership development in the last 12 months? Optional.",
+            "type": "SINGLE_SELECT",
+            "weight": 0,
+            "required": false,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Under ₹5L",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "₹5L to ₹25L",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "₹25L to ₹1cr",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Over ₹1cr",
+                "value": 3,
+                "displayOrder": 3
+              },
+              {
+                "label": "We do not track it separately",
+                "value": 4,
+                "displayOrder": 4
+              }
+            ]
+          },
+          {
+            "key": "a1",
+            "text": "Think of the last programme you bought for your senior leaders. What decided that purchase?",
+            "type": "SINGLE_SELECT",
+            "weight": 0.01,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "A topic a stakeholder or the business asked for",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A speaker, brand or vendor you rated",
+                "value": 0,
+                "displayOrder": 1
+              },
+              {
+                "label": "A gap in your competency framework or 360 data",
+                "value": 1,
+                "displayOrder": 2
+              },
+              {
+                "label": "A measured picture of what that specific layer was carrying",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "a2",
+            "text": "Before it ran, what did you baseline?",
+            "type": "SINGLE_SELECT",
+            "weight": 0.01,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Nothing",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A satisfaction or expectation survey",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "A skills or 360 assessment",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "The actual load, recovery and state of each leader",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "a3",
+            "text": "After it ran, what did you report upward?",
+            "type": "SINGLE_SELECT",
+            "weight": 0.01,
+            "required": true,
+            "displayOrder": 4,
+            "options": [
+              {
+                "label": "Attendance and feedback scores",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "A learning or knowledge score",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Observed behaviour change at 30 days",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "A business number that moved, attributable to it",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "a4",
+            "text": "How was it delivered?",
+            "type": "SINGLE_SELECT",
+            "weight": 0.01,
+            "required": true,
+            "displayOrder": 5,
+            "options": [
+              {
+                "label": "One or two days, once",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Modules people complete on their own",
+                "value": 0,
+                "displayOrder": 1
+              },
+              {
+                "label": "Spaced sessions over months, with practice between them",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Spaced sessions plus individual daily practice and follow-through",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "a5",
+            "text": "What do your senior leaders say when nobody from HR is in the room? Pick the one you hear most.",
+            "type": "SINGLE_SELECT",
+            "weight": 0.01,
+            "required": true,
+            "displayOrder": 6,
+            "options": [
+              {
+                "label": "Cannot switch off at night, even after hours in bed",
+                "value": 3,
+                "displayOrder": 0
+              },
+              {
+                "label": "The win no longer lands",
+                "value": 3,
+                "displayOrder": 1
+              },
+              {
+                "label": "Nobody inside here they can be fully honest with",
+                "value": 3,
+                "displayOrder": 2
+              },
+              {
+                "label": "The body has given a first warning",
+                "value": 3,
+                "displayOrder": 3
+              },
+              {
+                "label": "Physically at home, not actually present",
+                "value": 3,
+                "displayOrder": 4
+              },
+              {
+                "label": "We do not have that line of sight",
+                "value": 0,
+                "displayOrder": 5
+              }
+            ]
+          },
+          {
+            "key": "a6",
+            "text": "If that programme had changed nothing in 90 days, how would you have known?",
+            "type": "SINGLE_SELECT",
+            "weight": 0.01,
+            "required": true,
+            "displayOrder": 7,
+            "options": [
+              {
+                "label": "We would not have known",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Feedback or anecdote would have told us",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "We track behaviour, so we would have seen it",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "We defined a number up front that would have moved",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "b1",
+        "name": "B1. The system never stands down",
+        "description": "Now about the leaders themselves. These are things you can observe from outside. Answer on what you actually see, not what you hope.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Low",
+            "meaning": "This layer still switches off.",
+            "minScore": 0,
+            "maxScore": 25,
+            "displayOrder": 0
+          },
+          {
+            "label": "Moderate",
+            "meaning": "Recovery is getting skipped, and it has started to look normal.",
+            "minScore": 26,
+            "maxScore": 63,
+            "displayOrder": 1
+          },
+          {
+            "label": "High",
+            "meaning": "This layer does not stand down. Nothing in the week gives the system back what it spends.",
+            "minScore": 64,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "b1",
+            "text": "Senior leaders reply to messages or mail after 11pm or before 6am.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b2",
+            "text": "They stay reachable and keep working through their own leave.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b3",
+            "text": "Earned leave in this layer goes unused or lapses at year end.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b4",
+            "text": "They come back from a break looking exactly as they did before it.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b5",
+            "text": "Weekend work in this layer is normal and nobody flags it any more.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 4,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "b2",
+        "name": "B2. The returns no longer land",
+        "description": "Now about the leaders themselves. These are things you can observe from outside. Answer on what you actually see, not what you hope.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Low",
+            "meaning": "Wins still register with this layer.",
+            "minScore": 0,
+            "maxScore": 25,
+            "displayOrder": 0
+          },
+          {
+            "label": "Moderate",
+            "meaning": "Some rewards have stopped landing, and nobody has asked why.",
+            "minScore": 26,
+            "maxScore": 63,
+            "displayOrder": 1
+          },
+          {
+            "label": "High",
+            "meaning": "The returns no longer land. Pay, titles and wins have stopped reaching the people they are meant for.",
+            "minScore": 64,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "b6",
+            "text": "A promotion, award or major win changes nothing visible in how they carry themselves.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b7",
+            "text": "We have raised pay or titles here and seen no lift in energy or commitment.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b8",
+            "text": "Our best people describe their own achievements flatly, as if reporting someone else's.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b9",
+            "text": "We can no longer find anything that genuinely motivates this layer.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b10",
+            "text": "They are composed on the outside and we have no idea what is happening inside.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 4,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "b3",
+        "name": "B3. No safe channel",
+        "description": "Now about the leaders themselves. These are things you can observe from outside. Answer on what you actually see, not what you hope.",
+        "displayOrder": 3,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Low",
+            "meaning": "There is somewhere for strain to go.",
+            "minScore": 0,
+            "maxScore": 25,
+            "displayOrder": 0
+          },
+          {
+            "label": "Moderate",
+            "meaning": "Strain surfaces late, and usually sideways.",
+            "minScore": 26,
+            "maxScore": 63,
+            "displayOrder": 1
+          },
+          {
+            "label": "High",
+            "meaning": "There is no safe channel. Every number collected from this layer is softer than reality, including this one.",
+            "minScore": 64,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "b11",
+            "text": "If a senior leader were quietly coming apart, we would find out when they resigned.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b12",
+            "text": "Senior leaders do not bring personal strain to HR or to their own manager.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b13",
+            "text": "Things surface in exit interviews here that nobody knew while the person was still with us.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b14",
+            "text": "There is no one inside this organisation a senior leader can be fully honest with.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b15",
+            "text": "We measure engagement in this layer and we do not fully believe the scores.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 4,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "b4",
+        "name": "B4. The bill",
+        "description": "Now about the leaders themselves. These are things you can observe from outside. Answer on what you actually see, not what you hope.",
+        "displayOrder": 4,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Low",
+            "meaning": "The cost has not arrived yet.",
+            "minScore": 0,
+            "maxScore": 25,
+            "displayOrder": 0
+          },
+          {
+            "label": "Moderate",
+            "meaning": "The first invoices are in: a health warning, a sudden exit, a thin bench.",
+            "minScore": 26,
+            "maxScore": 63,
+            "displayOrder": 1
+          },
+          {
+            "label": "High",
+            "meaning": "The bill has arrived. This is a business continuity risk, not a development question, and it belongs with the board.",
+            "minScore": 64,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "b16",
+            "text": "Someone in this layer has had a health event, medical warning or long medical leave in the last 24 months.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b17",
+            "text": "We have lost a senior leader suddenly, with little or no warning.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b18",
+            "text": "If two of our top leaders left this quarter, we have no ready replacements.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b19",
+            "text": "Family or health is named when people in this layer leave or step back.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "b20",
+            "text": "Work here depends on specific individuals who cannot be taken out of the chain.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 4,
+            "options": [
+              {
+                "label": "Not true of us",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Happens occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Happens often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "This is our normal",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Stable",
+        "description": "The layer is carrying its load and still recovering from it. Hold on to whatever is making that true, because it is rarer than it looks.",
+        "minScore": 0,
+        "maxScore": 24,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Strained",
+        "description": "Output is holding and recovery is not. This is the stage where it is cheapest to act and easiest to explain away.",
+        "minScore": 25,
+        "maxScore": 49,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "Overwhelmed",
+        "description": "The layer is spending more than it gets back, and it shows from the outside. What you can see is the part that has already surfaced.",
+        "minScore": 50,
+        "maxScore": 74,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Critical",
+        "description": "The cost is no longer a forecast. Health, exits and single points of failure are already in the record, and this belongs with the board.",
+        "minScore": 75,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "publishedPages": [
+      {
+        "id": "p1",
+        "order": 0,
+        "title": null,
+        "blocks": [
+          {
+            "id": "b1",
+            "type": "text",
+            "order": 0,
+            "config": {
+              "heading": "Your Senior Layer Audit",
+              "content": "Part B is the state of the leaders. Part A is the method you used to develop them. Read them side by side."
+            }
+          },
+          {
+            "id": "b2",
+            "type": "overall_band",
+            "order": 1,
+            "config": {
+              "prefix": "Your senior layer:"
+            }
+          },
+          {
+            "id": "b3",
+            "type": "band_sentence",
+            "order": 2,
+            "config": {
+              "byBand": {
+                "LOW": "Stable. The question for you is whether your method would notice if that changed.",
+                "MEDIUM": "Strained. Output is holding up the picture, and output is the last thing to go.",
+                "HIGH": "Overwhelmed. What shows from the outside is the part that has already surfaced.",
+                "CRITICAL": "Critical. This is a continuity question now, not a development one."
+              }
+            }
+          },
+          {
+            "id": "b4",
+            "type": "category_scores",
+            "order": 3,
+            "config": {
+              "heading": "Method and state, side by side"
+            }
+          },
+          {
+            "id": "b5",
+            "type": "text",
+            "order": 4,
+            "config": {
+              "heading": "The evidence",
+              "content": "Oxford, 46,336 workers: individual wellbeing programmes, resilience training among them, left the people who attended no better off than those who did not.\n\nATD: 95% of organisations report attendance and reaction scores. 8% report a business result.\n\nMcKinsey: about one organisation in ten sees clear business impact from its leadership development.\n\nAnd the correction: leadership training does work, measurably, when it starts from a real needs analysis, is spaced over months and is practised in the job. The evidence is not against development. It is against development built the other way round."
+            }
+          },
+          {
+            "id": "b6",
+            "type": "text",
+            "order": 5,
+            "config": {
+              "heading": "What this is",
+              "content": "This audit is also your needs analysis, which the evidence says is the single strongest moderator of whether anything transfers. The next step is a conversation about this specific report. Not a programme pitch, not a price."
+            }
+          }
+        ]
+      }
+    ],
+    "resultPage": {
+      "theme": "warm_sand",
+      "blocks": [
+        {
+          "id": "v1",
+          "type": "eyebrow",
+          "config": {
+            "text": "The Senior Layer Audit"
+          }
+        },
+        {
+          "id": "v2",
+          "type": "headline",
+          "config": {
+            "text": "What your senior layer is carrying, and what you have been buying for it"
+          }
+        },
+        {
+          "id": "v3",
+          "type": "subhead",
+          "config": {
+            "text": "Method on one axis, state on the other. Read it through once before you share it."
+          }
+        },
+        {
+          "id": "v4",
+          "type": "ai_statement",
+          "config": {
+            "fallback": "Your answers sit on two axes. One is how the last programme for your senior leaders was chosen, delivered and measured. The other is what that layer is actually carrying right now. Where they collide is the finding, and it is specific to your organisation."
+          }
+        },
+        {
+          "id": "v5",
+          "type": "text",
+          "config": {
+            "text": "Oxford, 46,336 workers: individual wellbeing programmes, resilience training among them, left the people who attended no better off than those who did not.\n\nATD: 95% of organisations report attendance and reaction scores. 8% report a business result.\n\nMcKinsey: about one organisation in ten sees clear business impact from its leadership development.\n\nAnd the correction: leadership training does work, measurably, when it starts from a real needs analysis, is spaced over months and is practised in the job. The evidence is not against development. It is against development built the other way round.",
+            "align": "left"
+          }
+        },
+        {
+          "id": "v6",
+          "type": "button",
+          "config": {
+            "label": "Talk through this report",
+            "url": "",
+            "fontSize": 18,
+            "align": "center",
+            "bookingCta": true
+          }
+        },
+        {
+          "id": "v7",
+          "type": "text",
+          "config": {
+            "text": "A conversation about this specific report, with it open in front of us. Not a programme pitch and not a price. This audit is also the needs analysis, which is the first stage of anything that works.",
+            "align": "center"
+          }
+        },
+        {
+          "id": "v8",
+          "type": "footer",
+          "config": {
+            "links": [],
+            "disclaimer": "",
+            "copyright": ""
+          }
+        }
+      ]
+    },
+    "resultPagePublished": {
+      "theme": "warm_sand",
+      "blocks": [
+        {
+          "id": "v1",
+          "type": "eyebrow",
+          "config": {
+            "text": "The Senior Layer Audit"
+          }
+        },
+        {
+          "id": "v2",
+          "type": "headline",
+          "config": {
+            "text": "What your senior layer is carrying, and what you have been buying for it"
+          }
+        },
+        {
+          "id": "v3",
+          "type": "subhead",
+          "config": {
+            "text": "Method on one axis, state on the other. Read it through once before you share it."
+          }
+        },
+        {
+          "id": "v4",
+          "type": "ai_statement",
+          "config": {
+            "fallback": "Your answers sit on two axes. One is how the last programme for your senior leaders was chosen, delivered and measured. The other is what that layer is actually carrying right now. Where they collide is the finding, and it is specific to your organisation."
+          }
+        },
+        {
+          "id": "v5",
+          "type": "text",
+          "config": {
+            "text": "Oxford, 46,336 workers: individual wellbeing programmes, resilience training among them, left the people who attended no better off than those who did not.\n\nATD: 95% of organisations report attendance and reaction scores. 8% report a business result.\n\nMcKinsey: about one organisation in ten sees clear business impact from its leadership development.\n\nAnd the correction: leadership training does work, measurably, when it starts from a real needs analysis, is spaced over months and is practised in the job. The evidence is not against development. It is against development built the other way round.",
+            "align": "left"
+          }
+        },
+        {
+          "id": "v6",
+          "type": "button",
+          "config": {
+            "label": "Talk through this report",
+            "url": "",
+            "fontSize": 18,
+            "align": "center",
+            "bookingCta": true
+          }
+        },
+        {
+          "id": "v7",
+          "type": "text",
+          "config": {
+            "text": "A conversation about this specific report, with it open in front of us. Not a programme pitch and not a price. This audit is also the needs analysis, which is the first stage of anything that works.",
+            "align": "center"
+          }
+        },
+        {
+          "id": "v8",
+          "type": "footer",
+          "config": {
+            "links": [],
+            "disclaimer": "",
+            "copyright": ""
+          }
+        }
+      ]
+    }
+  }
+}

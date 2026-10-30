@@ -49,7 +49,7 @@ function fallbackBand(pct: number): { level: string; title: string } {
 }
 
 /**
- * Optional per-band "next 15 days" copy. Left null on purpose - real brand-voice
+ * Optional per-band "next 30 days" copy. Left null on purpose - real brand-voice
  * copy is dropped in here later; until then the report shows the band's own stored
  * description (the participant's existing words), never improvised text.
  */
@@ -317,10 +317,10 @@ function AssessmentReport({ data }: { data: ReportData }) {
         {/* Band description / next steps */}
         {practice ? (
           <View style={s.section} wrap={false}>
-            <Text style={[s.h2, { color: theme.deep }]}>Your next 15 days</Text>
+            <Text style={[s.h2, { color: theme.deep }]}>Your next 30 days</Text>
             <Text style={s.p}>{practice}</Text>
             <Text style={[s.p, { color: MUTE }]}>
-              Practise consistently for the next fifteen days, then take the assessment again to measure how far you have moved.
+              Practise consistently for the next thirty days, then take the assessment again to measure how far you have moved.
             </Text>
           </View>
         ) : null}

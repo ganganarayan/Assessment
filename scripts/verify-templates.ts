@@ -181,6 +181,18 @@ const fail = (name: string, detail: string) => {
   console.log(`  FAIL  ${name}\n        ${detail}`);
 };
 
+/**
+ * Questions whose spec scores two or more answers the same, deliberately, so the
+ * repeated-value guard below does not read them as a fat-fingered scale. Named one by
+ * one (`slug:questionKey`) so the guard stays on for every other question.
+ */
+const TIED_ON_PURPOSE = new Set([
+  // Two inputs both score 0, and any of five symptoms scores 3: the owner's spec.
+  "senior-layer-audit:a1",
+  "senior-layer-audit:a4",
+  "senior-layer-audit:a5",
+]);
+
 interface Band {
   minScore: number;
   maxScore: number;
@@ -280,7 +292,8 @@ for (const raw of BUILTIN_TEMPLATE_DOCS) {
         problems.push(`question "${qq.text.slice(0, 30)}" has under 2 options`);
       }
       const values = qq.options.map((o) => o.value);
-      if (!typed && scored && new Set(values).size !== values.length) {
+      const tiedOnPurpose = TIED_ON_PURPOSE.has(`${d.slug}:${qq.key ?? ""}`);
+      if (!typed && scored && !tiedOnPurpose && new Set(values).size !== values.length) {
         problems.push(`question "${qq.text.slice(0, 30)}" repeats an option value`);
       }
     }

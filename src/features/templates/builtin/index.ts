@@ -44,6 +44,10 @@ import indiaTripExpectations from "./india-trip-expectations.json";
 // passing the gate IS the trial sign-up. No assessment behind it and no result page -
 // a qualified answer hands the person to /sign-up and their workspace is built.
 import platformJunkLeadsGate from "./platform-junk-leads-gate.json";
+// Two instruments in one funnel: Part A (how the last programme was bought) carries a
+// near-zero weight so it bands on its own without moving the Part B headline, and the
+// override rules live in the AI instructions because the engine has no rule layer.
+import seniorLayerAudit from "./senior-layer-audit.json";
 
 export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   coachClientFit,
@@ -68,6 +72,7 @@ export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   candidateRoleFit,
   b2bSaas,
   indiaTripExpectations,
+  seniorLayerAudit,
   cancellationExitWhyYouLeft,
   platformJunkLeadsGate,
 ];
