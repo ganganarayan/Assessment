@@ -397,7 +397,54 @@ async function snapshot(): Promise<void> {
   expect("a snapshot from two hours ago is stale", snapshotIsStale("2026-10-27T08:00:00.000Z", now));
 }
 
+/* -------------------------------------------------------------------------- */
+/* 6. What the popup is asked for                                              */
+/* -------------------------------------------------------------------------- */
+/**
+ * 🔴 TWO VALUES IN `extras`, AND NEITHER FAILS LOUDLY IF IT GOES.
+ *
+ * featureType is the only reason Meta offers the screen that takes a number already
+ * live on somebody's phone. Without it the popup still works, still connects, and
+ * hands back a brand new cloud number - the exact opposite of the feature, reported as
+ * a success.
+ *
+ * sessionInfoVersion decides the SHAPE of the messages the component listens for. The
+ * handler reads current_step, error_message and FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING,
+ * all of which arrive only on version 3, and it read all three for a while without
+ * asking for them. Nothing threw: an abandoned popup just stopped saying why, and a
+ * coexistence finish stopped being distinguishable from an ordinary one.
+ *
+ * So the last check is the one that matters most: the fields read and the version asked
+ * for have to move together, in either direction.
+ */
+function popup(): void {
+  const src = read("src", "features", "whatsapp", "components", "whatsapp-connect.tsx");
+  const body = code(src);
+
+  expect(
+    "the popup is asked for the coexistence screen",
+    /featureType:\s*"whatsapp_business_app_onboarding"/.test(body),
+    "without it Meta runs the clean cloud onboarding and hands back a new number, which is the opposite of this feature and looks like a success",
+  );
+  expect(
+    "the popup is asked for version 3 session info",
+    /sessionInfoVersion:\s*"3"/.test(body),
+    "the handler reads v3-only fields; on an older shape they never arrive and the silence looks like a page that ignored the click",
+  );
+
+  const readsV3 =
+    body.includes("current_step") ||
+    body.includes("error_message") ||
+    body.includes("FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING");
+  expect(
+    "the fields read and the version asked for agree",
+    !readsV3 || /sessionInfoVersion:\s*"3"/.test(body),
+    "one of them was changed without the other, so the component is listening for something Meta was never asked to send",
+  );
+}
+
 async function main(): Promise<void> {
+  popup();
   await readers();
   await snapshot();
   globalThis.fetch = realFetch;

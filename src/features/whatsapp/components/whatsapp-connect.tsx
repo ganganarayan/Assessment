@@ -24,7 +24,8 @@ import { type SignupFlow, type WhatsAppConnectView } from "@/features/whatsapp/t
  *
  * The flow is pinned to Embedded Signup v4 by the CONFIGURATION id, not by anything
  * sent from here: Meta decides the version from the products that configuration
- * selects. v2 was retired on 15-10-2026.
+ * selects. v2 was retired on 15-10-2026. What IS sent from here is the session-info
+ * version, which decides the SHAPE of those window messages rather than the flow.
  *
  * 🔴 featureType is what makes COEXISTENCE possible at all. Sent with an empty setup
  * object and nothing else, Meta runs the clean Cloud API onboarding and never offers
@@ -197,6 +198,14 @@ export function WhatsAppConnect({ initial, canEdit = true }: { initial: WhatsApp
           // Offers the number already on their WhatsApp Business app. Without it Meta
           // hides that screen and only a new cloud number can be created.
           featureType: "whatsapp_business_app_onboarding",
+          // 🔴 THE SHAPE OF THE MESSAGES THE HANDLER ABOVE ALREADY READS. Version 3 is
+          // what carries current_step and error_message on a CANCEL, and the separate
+          // FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING event that is the only signal the
+          // business kept the number on their phone. All three were being read without
+          // being asked for, so an older shape would have left the handler waiting on
+          // fields that never arrive: an abandoned popup reporting nothing specific,
+          // and a coexistence finish indistinguishable from an ordinary one.
+          sessionInfoVersion: "3",
           // Empty prefill: we know their WABA name and number no better than they do,
           // and a wrong prefill in Meta's own popup is not something we can correct.
           setup: {},
