@@ -273,6 +273,14 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
     title: "Google Calendar, both ways",
     body: "Connect a Google account per staff member. Bookings land in their calendar, and whatever is already in it blocks the slot - so a dentist appointment on Thursday closes Thursday without anybody opening this app.",
   },
+  // Next to the calendar card because it is the other half of "the call is set up":
+  // the slot is held there, the room is made here. Still `soon`, because it runs as an
+  // automation step and automations are in final testing.
+  {
+    title: "Zoom, a meeting per booking",
+    soon: true,
+    body: "Connect your Zoom account once. Every booking then gets its own Zoom meeting, for that one person, made the moment the slot is taken, and the link rides in the confirmation and the reminders. Cancel the call and the meeting is removed from Zoom too.",
+  },
   {
     title: "Reschedule and cancel, by the respondent",
     body: "Every confirmation carries that person's own link to move or cancel the call. A freed slot goes back on the booking page immediately, so your inbox is not the booking system.",
@@ -294,11 +302,6 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
     title: "Automations: a trigger and what it sends",
     soon: true,
     body: "Pick the moment - a booking taken, a result delivered, a payment received - and say what goes out. Confirmations, reminders and follow-ups then fire on their own clock rather than on somebody remembering.",
-  },
-  {
-    title: "A meeting link per booking",
-    soon: true,
-    body: "A booking can mint its own video link, for that one person, at the moment it is taken, and carry it in the confirmation. Nobody shares one standing room with a queue outside it.",
   },
   {
     title: "Workflow sequences",
@@ -950,12 +953,12 @@ export const FOLLOW_UP = {
     "Appointment calendar & booking page",
     "Book from the result page",
     "Google Calendar, both ways",
+    "Zoom, a meeting per booking",
     "Reschedule and cancel, by the respondent",
     "Attendance as a conversion signal",
     "Take the payment in the funnel",
     "Contacts, one row per person",
     "Automations: a trigger and what it sends",
-    "A meeting link per booking",
     "Workflow sequences",
     "Broadcasts",
   ],
