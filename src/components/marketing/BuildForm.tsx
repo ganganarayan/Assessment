@@ -72,8 +72,15 @@ export function BuildForm() {
         setError(null);
         start(async () => {
           const r = await submitDfyRequest(v);
-          if (r.ok) setDone(true);
-          else setError(r.error);
+          if (r.ok) {
+            // The content-engine script (mounted in Nav) cannot see a submit that never
+            // leaves the page, so it is told here. Absent when that script did not load.
+            const w = window as Window & {
+              ceLeadForm?: (lead: { name: string; email: string; phone: string }) => void;
+            };
+            w.ceLeadForm?.({ name: v.business, email: v.email, phone: v.whatsapp });
+            setDone(true);
+          } else setError(r.error);
         });
       }}
     >

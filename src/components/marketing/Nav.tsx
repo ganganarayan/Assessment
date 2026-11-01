@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Script from "next/script";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { MARKETING, NAV_LINKS, SECTION_LINKS, navHref } from "@/lib/marketing/content";
@@ -63,6 +64,14 @@ export async function Nav({
     <header className="sticky top-0 z-40 border-b bg-[var(--background)]">
       <PlatformPixel pixelId={pixelId} />
       <LandingTracker />
+      {/* Content-engine DM-link attribution. Here for the same reason as the pixel: every
+          marketing page renders this nav, and only those. Sign-up, sign-in and tenant
+          funnels have no nav, so it never sees a password field or a customer's visitor.
+          It acts only on visits carrying its ?lc= link, so the query string must survive. */}
+      <Script
+        src="https://content-engine-production-230f.up.railway.app/api/v1/t/lead.js"
+        strategy="afterInteractive"
+      />
       {/* Inside the sticky header, above the nav row, so it travels with it rather than
           scrolling away - and so a new public page cannot ship without the offer on it. */}
       {showCta ? <OfferBar /> : null}
