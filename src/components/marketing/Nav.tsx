@@ -8,6 +8,8 @@ import { PlatformPixel } from "@/components/platform-pixel";
 import { LandingTracker } from "@/features/billing/components/landing-tracker";
 import { OfferBar } from "./OfferBar";
 import { CtaLink } from "./CtaLink";
+import { SectionStrip, type StripItem } from "./SectionStrip";
+import { cn } from "@/lib/utils";
 
 /**
  * `anchorBase` exists because this nav is rendered on pages that are not the landing
@@ -46,6 +48,16 @@ export async function Nav({
 }) {
   const [cta, { pixelId }] = await Promise.all([getCta(), resolvePlatformMetaConfig()]);
 
+  // The strip's own links everywhere; the first row's links and Sign in only below the
+  // breakpoint where the first row hides them.
+  const stripItems: StripItem[] = [
+    ...NAV_LINKS.map((l) => ({ label: l.label, href: navHref(l.href, anchorBase), className: "md:hidden" })),
+    ...SECTION_LINKS.map((l) => ({ label: l.label, href: navHref(l.href, anchorBase) })),
+    { label: "Answers", href: "/answers", className: "md:hidden" },
+    { label: "Offers", href: "/offers", className: "md:hidden" },
+    ...(showSignin ? [{ label: "Sign in", href: MARKETING.signinHref, className: "sm:hidden" }] : []),
+  ];
+
   return (
     <header className="sticky top-0 z-40 border-b bg-[var(--background)]">
       <PlatformPixel pixelId={pixelId} />
@@ -57,7 +69,7 @@ export async function Nav({
         className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 sm:px-8"
         aria-label="Primary"
       >
-        <a href={anchorBase ? `${anchorBase}#top` : "#top"} className="flex items-center gap-2 text-lg font-bold tracking-tight">
+        <a href={anchorBase ? `${anchorBase}#top` : "#top"} className="flex shrink-0 items-center gap-2 text-base font-bold tracking-tight sm:text-lg">
           <span
             aria-hidden="true"
             className="grid h-7 w-7 place-items-center rounded-md bg-green-600 text-white"
@@ -102,21 +114,32 @@ export async function Nav({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <ThemeToggle />
+          {/* Hidden on a phone, where the first row only has room for the logo and the
+              CTA; the theme still follows the device setting there. */}
+          <span className="hidden sm:inline-flex">
+            <ThemeToggle />
+          </span>
           {/* Returning customers had no way in from the marketing page: the only route to
               /sign-in was the footer's legal row or typing the URL. Ghost, not outline -
               a secondary action next to the trial CTA, which stays the only filled
-              button on the page. */}
+              button on the page. On a phone it moves into the strip below. */}
           {showSignin ? (
             <Link
               href={MARKETING.signinHref}
-              className={buttonVariants({ variant: "ghost", size: "sm" })}
+              className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden sm:inline-flex")}
             >
               Sign in
             </Link>
           ) : null}
+          {/* Wraps to two lines on a phone rather than running off the screen. */}
           {showCta ? (
-            <CtaLink href={cta.href} className={buttonVariants({ size: "sm" })}>
+            <CtaLink
+              href={cta.href}
+              className={cn(
+                buttonVariants({ size: "sm" }),
+                "h-auto min-h-8 max-w-[9.5rem] whitespace-normal py-1.5 text-center leading-tight sm:max-w-none sm:whitespace-nowrap",
+              )}
+            >
               {cta.trialLabel}
             </CtaLink>
           ) : null}
@@ -124,22 +147,9 @@ export async function Nav({
       </nav>
 
       {/* Second row, so the section jumps get room instead of crowding the first. On a
-          phone it scrolls sideways inside the strip (the page itself never does); from
-          lg up the eight links fit and sit centred. */}
-      <nav aria-label="Sections">
-        <ul className="mx-auto flex max-w-6xl items-center gap-x-6 overflow-x-auto whitespace-nowrap px-5 pb-2.5 [scrollbar-width:none] sm:px-8 lg:justify-center [&::-webkit-scrollbar]:hidden">
-          {SECTION_LINKS.map((l) => (
-            <li key={l.href} className="shrink-0">
-              <a
-                href={navHref(l.href, anchorBase)}
-                className="text-[13px] font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
-              >
-                {l.label}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
+          phone it also carries the first row's links, which are hidden there, and Sign
+          in, which leaves the first row room for the CTA. */}
+      <SectionStrip items={stripItems} />
     </header>
   );
 }
