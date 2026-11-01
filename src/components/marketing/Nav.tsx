@@ -9,6 +9,7 @@ import { LandingTracker } from "@/features/billing/components/landing-tracker";
 import { OfferBar } from "./OfferBar";
 import { CtaLink } from "./CtaLink";
 import { SectionStrip, type StripItem } from "./SectionStrip";
+import { BackToTop } from "./BackToTop";
 import { cn } from "@/lib/utils";
 
 /**
@@ -150,6 +151,7 @@ export async function Nav({
           phone it also carries the first row's links, which are hidden there, and Sign
           in, which leaves the first row room for the CTA. */}
       <SectionStrip items={stripItems} />
+      <BackToTop />
     </header>
   );
 }
