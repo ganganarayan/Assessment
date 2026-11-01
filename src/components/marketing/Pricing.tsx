@@ -172,7 +172,6 @@ export function Pricing({ cta }: { cta: CtaConfig }) {
             <h3 className="text-xl font-semibold tracking-tight">Compare every plan</h3>
             {table.back || table.more ? (
               <div className="flex items-center gap-1.5">
-                <span className="mr-1 text-xs text-[var(--muted-foreground)]">More plans</span>
                 <button
                   type="button"
                   aria-label="Scroll the plan table left"

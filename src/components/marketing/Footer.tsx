@@ -21,7 +21,7 @@ import { seoPath } from "@/lib/seo/urls";
 const GUIDE_GROUPS: ReadonlyArray<{ kind: PageKind; label: string; anchor: string }> = [
   { kind: "pillar", label: "Playbooks", anchor: "guides" },
   { kind: "use-case", label: "Built for your industry", anchor: "industries" },
-  { kind: "comparison", label: "How we compare", anchor: "comparisons" },
+  { kind: "comparison", label: "Comparison with brands", anchor: "comparisons" },
   { kind: "glossary", label: "Glossary", anchor: "glossary" },
 ];
 
