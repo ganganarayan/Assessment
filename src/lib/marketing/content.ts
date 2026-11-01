@@ -274,11 +274,10 @@ export const CAPABILITIES: ReadonlyArray<Capability> = [
     body: "Connect a Google account per staff member. Bookings land in their calendar, and whatever is already in it blocks the slot - so a dentist appointment on Thursday closes Thursday without anybody opening this app.",
   },
   // Next to the calendar card because it is the other half of "the call is set up":
-  // the slot is held there, the room is made here. Still `soon`, because it runs as an
-  // automation step and automations are in final testing.
+  // the slot is held there, the room is made here. No `soon`: it runs as an
+  // automation step; the owner marked it live on 01-11-2026.
   {
     title: "Zoom, a meeting per booking",
-    soon: true,
     body: "Connect your Zoom account once. Every booking then gets its own Zoom meeting, for that one person, made the moment the slot is taken, and the link rides in the confirmation and the reminders. Cancel the call and the meeting is removed from Zoom too.",
   },
   {
