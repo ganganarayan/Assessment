@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type StripItem = {
@@ -14,18 +14,22 @@ export type StripItem = {
 
 /**
  * The header's second row. It scrolls sideways when the links do not fit, and a
- * swipe-only row gives no sign that there is more, so a right arrow shows while
- * anything is still out of view: it fades the edge, scrolls on tap, and goes away at
- * the end of the row.
+ * swipe-only row gives no sign that there is more, so an arrow shows on each side
+ * while anything is still out of view that way: it fades the edge, scrolls on tap,
+ * and goes away at that end of the row.
  */
 export function SectionStrip({ items }: { items: ReadonlyArray<StripItem> }) {
   const ref = useRef<HTMLUListElement>(null);
   const [more, setMore] = useState(false);
+  const [back, setBack] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const update = () => setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    const update = () => {
+      setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+      setBack(el.scrollLeft > 4);
+    };
     update();
     el.addEventListener("scroll", update, { passive: true });
     const ro = new ResizeObserver(update);
@@ -61,6 +65,16 @@ export function SectionStrip({ items }: { items: ReadonlyArray<StripItem> }) {
         {/* Room for the arrow, so the last link can scroll fully clear of it. */}
         <li aria-hidden="true" className="w-6 shrink-0" />
       </ul>
+      {back ? (
+        <button
+          type="button"
+          aria-label="Scroll the section links left"
+          onClick={() => ref.current?.scrollBy({ left: -200, behavior: "smooth" })}
+          className="absolute inset-y-0 left-0 flex items-start bg-gradient-to-r from-[var(--background)] from-50% to-transparent pl-2 pr-6 text-[var(--foreground)]"
+        >
+          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+        </button>
+      ) : null}
       {more ? (
         <button
           type="button"
