@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useScrollEdges } from "./use-scroll-edges";
 import { buttonVariants } from "@/components/ui/button";
 import { CtaLink } from "./CtaLink";
 import { cn } from "@/lib/utils";
@@ -36,6 +38,7 @@ import {
  */
 export function Pricing({ cta }: { cta: CtaConfig }) {
   const [annual, setAnnual] = useState(false);
+  const table = useScrollEdges<HTMLDivElement>();
 
   return (
     <section id="pricing" className="scroll-mt-40 border-b bg-[var(--muted)]">
@@ -162,8 +165,36 @@ export function Pricing({ cta }: { cta: CtaConfig }) {
 
         {/* Full comparison - always in the markup, for readers and for crawlers. */}
         <div className="mt-14">
-          <h3 className="text-xl font-semibold tracking-tight">Compare every plan</h3>
-          <div className="mt-5 overflow-x-auto rounded-xl border bg-[var(--background)]">
+          {/* On a phone the table is wider than the screen and only the first plan shows,
+              with nothing saying the others are there. The arrows sit beside the heading
+              and only render while the table actually overflows. */}
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-xl font-semibold tracking-tight">Compare every plan</h3>
+            {table.back || table.more ? (
+              <div className="flex items-center gap-1.5">
+                <span className="mr-1 text-xs text-[var(--muted-foreground)]">More plans</span>
+                <button
+                  type="button"
+                  aria-label="Scroll the plan table left"
+                  disabled={!table.back}
+                  onClick={() => table.scrollBy(-240)}
+                  className="grid h-8 w-8 place-items-center rounded-full border bg-[var(--background)] transition-opacity disabled:opacity-30"
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Scroll the plan table right"
+                  disabled={!table.more}
+                  onClick={() => table.scrollBy(240)}
+                  className="grid h-8 w-8 place-items-center rounded-full border bg-green-600 text-white transition-opacity disabled:opacity-30"
+                >
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <div ref={table.ref} className="mt-5 overflow-x-auto rounded-xl border bg-[var(--background)]">
             <table className="w-full min-w-[640px] border-collapse text-sm">
               <caption className="sr-only">Assess360 plan comparison</caption>
               <thead>

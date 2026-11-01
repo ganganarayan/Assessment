@@ -19,9 +19,9 @@ import { seoPath } from "@/lib/seo/urls";
  * only navigation that reaches these pages at all.
  */
 const GUIDE_GROUPS: ReadonlyArray<{ kind: PageKind; label: string; anchor: string }> = [
-  { kind: "pillar", label: "Guides", anchor: "guides" },
-  { kind: "use-case", label: "By industry", anchor: "industries" },
-  { kind: "comparison", label: "Comparisons", anchor: "comparisons" },
+  { kind: "pillar", label: "Playbooks", anchor: "guides" },
+  { kind: "use-case", label: "Built for your industry", anchor: "industries" },
+  { kind: "comparison", label: "How we compare", anchor: "comparisons" },
   { kind: "glossary", label: "Glossary", anchor: "glossary" },
 ];
 
@@ -138,10 +138,20 @@ export function Footer() {
                 aria-label={group.label}
                 className="mt-6 scroll-mt-40 rounded-xl border bg-[var(--background)] p-5"
               >
-                <h3 className="text-sm font-semibold">{group.label}</h3>
+                {/* A heading that reads as one, and a bullet per item: on a phone the
+                    two-column grid wraps long names over three lines, and without a marker
+                    nothing said where one item ended and the next began. */}
+                <h3 className="flex items-center gap-2.5 text-base font-bold tracking-tight">
+                  <span aria-hidden="true" className="h-5 w-1 rounded-full bg-green-600" />
+                  {group.label}
+                </h3>
                 <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-6">
                   {links.map((l) => (
-                    <li key={l.href}>
+                    <li key={l.href} className="flex gap-2 leading-snug">
+                      <span
+                        aria-hidden="true"
+                        className="mt-[0.45em] h-1.5 w-1.5 shrink-0 rounded-full bg-green-600"
+                      />
                       <Link
                         href={l.href}
                         className={

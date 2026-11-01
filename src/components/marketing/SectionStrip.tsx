@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useScrollEdges } from "./use-scroll-edges";
 
 export type StripItem = {
   label: string;
@@ -19,26 +19,7 @@ export type StripItem = {
  * and goes away at that end of the row.
  */
 export function SectionStrip({ items }: { items: ReadonlyArray<StripItem> }) {
-  const ref = useRef<HTMLUListElement>(null);
-  const [more, setMore] = useState(false);
-  const [back, setBack] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = () => {
-      setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-      setBack(el.scrollLeft > 4);
-    };
-    update();
-    el.addEventListener("scroll", update, { passive: true });
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener("scroll", update);
-      ro.disconnect();
-    };
-  }, []);
+  const { ref, back, more, scrollBy } = useScrollEdges<HTMLUListElement>();
 
   const linkClass =
     "text-[13px] font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]";
@@ -69,7 +50,7 @@ export function SectionStrip({ items }: { items: ReadonlyArray<StripItem> }) {
         <button
           type="button"
           aria-label="Scroll the section links left"
-          onClick={() => ref.current?.scrollBy({ left: -200, behavior: "smooth" })}
+          onClick={() => scrollBy(-200)}
           className="absolute inset-y-0 left-0 flex items-start bg-gradient-to-r from-[var(--background)] from-50% to-transparent pl-2 pr-6 text-[var(--foreground)]"
         >
           <ChevronLeft className="h-5 w-5" aria-hidden="true" />
@@ -79,7 +60,7 @@ export function SectionStrip({ items }: { items: ReadonlyArray<StripItem> }) {
         <button
           type="button"
           aria-label="Scroll the section links right"
-          onClick={() => ref.current?.scrollBy({ left: 200, behavior: "smooth" })}
+          onClick={() => scrollBy(200)}
           className="absolute inset-y-0 right-0 flex items-start bg-gradient-to-l from-[var(--background)] from-50% to-transparent pl-6 pr-2 text-[var(--foreground)]"
         >
           <ChevronRight className="h-5 w-5" aria-hidden="true" />
