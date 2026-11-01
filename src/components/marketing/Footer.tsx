@@ -18,11 +18,11 @@ import { seoPath } from "@/lib/seo/urls";
  * future glossary page appears here on its own rather than silently vanishing from the
  * only navigation that reaches these pages at all.
  */
-const GUIDE_GROUPS: ReadonlyArray<{ kind: PageKind; label: string }> = [
-  { kind: "pillar", label: "Guides" },
-  { kind: "use-case", label: "By industry" },
-  { kind: "comparison", label: "Comparisons" },
-  { kind: "glossary", label: "Glossary" },
+const GUIDE_GROUPS: ReadonlyArray<{ kind: PageKind; label: string; anchor: string }> = [
+  { kind: "pillar", label: "Guides", anchor: "guides" },
+  { kind: "use-case", label: "By industry", anchor: "industries" },
+  { kind: "comparison", label: "Comparisons", anchor: "comparisons" },
+  { kind: "glossary", label: "Glossary", anchor: "glossary" },
 ];
 
 type FooterLink = { href: string; label: string; featured: boolean };
@@ -134,8 +134,9 @@ export function Footer() {
             return (
               <nav
                 key={group.kind}
+                id={group.anchor}
                 aria-label={group.label}
-                className="mt-6 rounded-xl border bg-[var(--background)] p-5"
+                className="mt-6 scroll-mt-40 rounded-xl border bg-[var(--background)] p-5"
               >
                 <h3 className="text-sm font-semibold">{group.label}</h3>
                 <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-6">

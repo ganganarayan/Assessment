@@ -20,7 +20,7 @@ export function NoGoodLeadLost() {
     .filter((c): c is (typeof CAPABILITIES)[number] => c !== undefined);
 
   return (
-    <section id="no-good-lead-lost" className="scroll-mt-20 border-b bg-[var(--muted)]">
+    <section id="no-good-lead-lost" className="scroll-mt-40 border-b bg-[var(--muted)]">
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
         <div className="max-w-3xl">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{NO_GOOD_LEAD.heading}</h2>

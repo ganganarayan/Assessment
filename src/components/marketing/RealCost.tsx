@@ -72,7 +72,7 @@ function Charge({
 
 export function RealCost() {
   return (
-    <section className="border-b">
+    <section id="real-cost" className="scroll-mt-40 border-b">
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
         <div className="max-w-3xl">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{REAL_COST.heading}</h2>

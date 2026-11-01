@@ -94,6 +94,22 @@ export const NAV_LINKS: ReadonlyArray<{ label: string; href: string }> = [
 ];
 
 /**
+ * The header's second row: in-page jumps to the landing sections a visitor most often
+ * scrolls looking for. Industries and Comparisons are the footer's own groups, which
+ * render on every page, so those two anchors resolve wherever the nav does.
+ */
+export const SECTION_LINKS: ReadonlyArray<{ label: string; href: string }> = [
+  { label: "Who it is for", href: "#who" },
+  { label: "Industries", href: "#industries" },
+  { label: "Comparisons", href: "#comparisons" },
+  { label: "Skip the CRM", href: "#no-crm" },
+  { label: "The real cost", href: "#real-cost" },
+  { label: "No good lead lost", href: "#no-good-lead-lost" },
+  { label: "Why it exists", href: "#why" },
+  { label: "Built with you", href: "#built-with-you" },
+];
+
+/**
  * Where a nav link actually points from a given page.
  *
  * NAV_LINKS mixes in-page anchors with real routes. An anchor needs the page prefix

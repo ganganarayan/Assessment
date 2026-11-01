@@ -2,7 +2,7 @@ import { FAQS } from "@/lib/marketing/content";
 
 export function Faq() {
   return (
-    <section id="faq" className="scroll-mt-20 border-b">
+    <section id="faq" className="scroll-mt-40 border-b">
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Questions, answered</h2>
 

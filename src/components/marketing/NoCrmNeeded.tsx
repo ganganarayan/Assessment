@@ -24,7 +24,7 @@ export async function NoCrmNeeded() {
   const cta = await getCta();
 
   return (
-    <section className="border-b">
+    <section id="no-crm" className="scroll-mt-40 border-b">
       <div className="mx-auto max-w-5xl px-5 py-16 sm:px-8 sm:py-20">
         <h2 className="text-2xl font-bold leading-tight tracking-tight sm:text-4xl">
           {NO_CRM.heading}

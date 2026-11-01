@@ -16,7 +16,7 @@ import { Emphasised, Tick } from "./Emphasised";
  */
 export function WhyThisExists() {
   return (
-    <section id="why" className="scroll-mt-20 border-b">
+    <section id="why" className="scroll-mt-40 border-b">
       <div className="mx-auto max-w-3xl px-5 py-16 sm:px-8 sm:py-20">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{WHY_EXISTS.heading}</h2>
         <p className="mt-4 text-lg leading-relaxed text-[var(--muted-foreground)]">

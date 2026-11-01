@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { MARKETING, NAV_LINKS, navHref } from "@/lib/marketing/content";
+import { MARKETING, NAV_LINKS, SECTION_LINKS, navHref } from "@/lib/marketing/content";
 import { getCta } from "@/lib/settings/cta";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
 import { PlatformPixel } from "@/components/platform-pixel";
@@ -70,7 +70,7 @@ export async function Nav({
           {MARKETING.name}
         </a>
 
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden items-center gap-6 md:flex lg:gap-8">
           {NAV_LINKS.map((l) => (
             <a
               key={l.href}
@@ -121,6 +121,24 @@ export async function Nav({
             </CtaLink>
           ) : null}
         </div>
+      </nav>
+
+      {/* Second row, so the section jumps get room instead of crowding the first. On a
+          phone it scrolls sideways inside the strip (the page itself never does); from
+          lg up the eight links fit and sit centred. */}
+      <nav aria-label="Sections" className="border-t">
+        <ul className="mx-auto flex max-w-6xl items-center gap-x-6 overflow-x-auto whitespace-nowrap px-5 py-2.5 [scrollbar-width:none] sm:px-8 lg:justify-center [&::-webkit-scrollbar]:hidden">
+          {SECTION_LINKS.map((l) => (
+            <li key={l.href} className="shrink-0">
+              <a
+                href={navHref(l.href, anchorBase)}
+                className="text-[13px] font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
+              >
+                {l.label}
+              </a>
+            </li>
+          ))}
+        </ul>
       </nav>
     </header>
   );

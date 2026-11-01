@@ -12,7 +12,7 @@ import { PILLARS } from "@/lib/marketing/content";
  */
 export function Mechanism() {
   return (
-    <section id="mechanism" className="scroll-mt-20 border-b">
+    <section id="mechanism" className="scroll-mt-40 border-b">
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
         <div className="max-w-2xl">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Gate, Score, Signal</h2>

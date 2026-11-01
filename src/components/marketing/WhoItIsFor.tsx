@@ -23,7 +23,7 @@ export async function WhoItIsFor() {
   const cta = await getCta();
 
   return (
-    <section id="who" className="scroll-mt-20 border-b bg-[var(--muted)]">
+    <section id="who" className="scroll-mt-40 border-b bg-[var(--muted)]">
       <div className="mx-auto max-w-4xl px-5 py-16 sm:px-8 sm:py-20">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{AUDIENCES.heading}</h2>
         <p className="mt-4 max-w-2xl text-lg leading-relaxed text-[var(--muted-foreground)]">

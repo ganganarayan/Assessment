@@ -26,7 +26,7 @@ export async function BuiltWithYou() {
   const [slots, cta] = await Promise.all([resolveOfferSlotsLeft().catch(() => null), getCta()]);
 
   return (
-    <section className="border-b">
+    <section id="built-with-you" className="scroll-mt-40 border-b">
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
         <div className="rounded-2xl border bg-[var(--muted)] px-8 py-14 sm:px-12">
           <div className="max-w-3xl">

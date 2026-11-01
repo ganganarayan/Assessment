@@ -38,7 +38,7 @@ export function Pricing({ cta }: { cta: CtaConfig }) {
   const [annual, setAnnual] = useState(false);
 
   return (
-    <section id="pricing" className="scroll-mt-20 border-b bg-[var(--muted)]">
+    <section id="pricing" className="scroll-mt-40 border-b bg-[var(--muted)]">
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
         <div className="max-w-3xl">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{PRICING_HEADLINE}</h2>

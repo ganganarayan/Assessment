@@ -21,7 +21,7 @@ export async function Metering() {
   const cta = await getCta();
 
   return (
-    <section className="border-b bg-[var(--muted)]">
+    <section id="metering" className="scroll-mt-40 border-b bg-[var(--muted)]">
       {/* Wider than the prose it holds, on purpose. At max-w-3xl the headline broke
           across two lines on a desktop that had room for one, which makes the single
           most checkable claim on the page read as an afterthought. The column widens

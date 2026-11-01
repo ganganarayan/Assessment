@@ -27,7 +27,7 @@ export function Capabilities({ videos }: { videos?: Record<string, string> }) {
   const supporting = supportingCapabilities();
 
   return (
-    <section id="capabilities" className="scroll-mt-20 border-b bg-[var(--muted)]">
+    <section id="capabilities" className="scroll-mt-40 border-b bg-[var(--muted)]">
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
         <div className="max-w-2xl">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Everything it does</h2>
