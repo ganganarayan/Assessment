@@ -7,10 +7,7 @@ import {
   getSlugById,
   readAssessmentForOwnerPreview,
 } from "@/features/assessment/data";
-import { prisma } from "@/lib/db/prisma";
-import { getCurrentUser } from "@/lib/auth/session";
-import { isSuperAdmin } from "@/lib/auth/guards";
-import { enteredAgencyTenant } from "@/lib/tenant/agency";
+import { funnelServedHere, mayViewAcrossTenants } from "@/lib/tenant/public-scope";
 import { pickAttribution } from "@/lib/attribution";
 import {
   AssessmentRunner,
@@ -47,35 +44,6 @@ export const dynamic = "force-dynamic";
 const planFor = cache(async (tenantId: string | null) => resolvePlan(tenantId));
 
 /**
- * May the person looking at this see an UNPUBLISHED draft of it?
- *
- * The only authorisation on an otherwise public page, and it runs on the preview path
- * only - ad traffic never reaches it, so the cached public read stays untouched.
- *
- * Deliberately returns false rather than redirecting: a stranger who guesses a draft's
- * preview URL gets the same 404 the whole page gave before, and is told nothing about
- * whether that slug exists.
- */
-async function mayPreviewDraft(assessmentTenantId: string | null): Promise<boolean> {
-  const user = await getCurrentUser();
-  if (!user) return false;
-  // The platform owner, whether or not they have entered a workspace.
-  if (isSuperAdmin(user)) return true;
-  // Fresh read: a session's tenantId can be stale if assignment changed mid-session.
-  const fresh = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { tenantId: true },
-  });
-  const own = fresh?.tenantId ?? null;
-  if (!own) return false;
-  if (own === assessmentTenantId) return true;
-  // An agency admin who has entered one of their workspaces is previewing THAT
-  // workspace's funnel, which will never match their own tenant id.
-  const entered = await enteredAgencyTenant(user.id, own);
-  return !!entered && entered === assessmentTenantId;
-}
-
-/**
  * Metadata for a public funnel. Three jobs:
  *
  * 1. A PAUSED funnel must not be indexed. The pause is temporary by definition, so
@@ -108,6 +76,11 @@ export async function generateMetadata({
 
   const a = await getPublishedAssessmentBySlug(slug);
   if (!a) return {};
+  // A funnel this host may not serve is metadata-less, exactly as an unknown slug is.
+  // The page below 404s it, but generateMetadata runs independently, and emitting
+  // another tenant's title and description on this domain is half of what the leak
+  // looked like: the <title> was theirs and the brand suffix was ours.
+  if (!(await funnelServedHere(a.tenantId))) return {};
 
   const plan = await planFor(a.tenantId);
   if (plan.parked) return { robots: { index: false, follow: false } };
@@ -152,9 +125,20 @@ export default async function PublicAssessmentPage({
     ? await readAssessmentForOwnerPreview(slug)
     : await getPublishedAssessmentBySlug(slug);
   if (!a) notFound();
+  // 🔴 WHOSE DOMAIN IS THIS? The slug is globally unique and the read above matches on
+  // it alone, so without this every funnel answered on every hostname - the platform's
+  // gate funnel under a tenant's branding, one tenant's funnel on another's domain.
+  // See lib/tenant/public-scope.ts for the rule and the production evidence.
+  //
+  // The same 404 an unknown slug gives, so slugs cannot be enumerated by probing. The
+  // staff bypass runs only after the host check has already failed, which keeps the
+  // session read off the ad path and stops the owner 404ing on his own preview.
+  if (!(await funnelServedHere(a.tenantId)) && !(await mayViewAcrossTenants(a.tenantId))) {
+    notFound();
+  }
   // Published funnels are public, so a preview link to one is not gated - that is the
   // link the publish screen shares. An UNPUBLISHED one is somebody's unfinished work.
-  if (preview && a.status !== "PUBLISHED" && !(await mayPreviewDraft(a.tenantId))) notFound();
+  if (preview && a.status !== "PUBLISHED" && !(await mayViewAcrossTenants(a.tenantId))) notFound();
 
   // PARKED → paused page, before any of the work below. Checked here rather than deeper
   // in the runner so a parked funnel costs one plan lookup instead of building the whole

@@ -544,6 +544,21 @@ function slotSourceOf(
 export { slotSourceOf };
 
 /** Everything the public page at /b/[slug] renders. Null when there is no such link. */
+/**
+ * Which tenant owns a booking link, for the host-scope check on /b/<slug>.
+ *
+ * Narrow and separate on purpose: the route has to know the owner BEFORE it builds the
+ * view, both because the slot maths is the expensive part and because the owning tenant
+ * id has no business being serialized into the page the browser receives.
+ */
+export async function bookingTypeOwner(slug: string): Promise<string | null> {
+  const t = await prisma.bookingType.findFirst({
+    where: { slug, active: true },
+    select: { tenantId: true },
+  });
+  return t?.tenantId ?? null;
+}
+
 export async function publicBookingView(slug: string, nowMs = Date.now()): Promise<PublicBookingView | null> {
   const t = await bookingTypeBySlug(slug);
   if (!t || t.tenant.status !== "ACTIVE") return null;

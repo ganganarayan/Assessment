@@ -2,15 +2,19 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { LOCATION_HINT } from "@/features/calendar/types";
-import { publicBookingView } from "@/features/calendar/data";
+import { bookingTypeOwner, publicBookingView } from "@/features/calendar/data";
+import { ownerOrPlatformServedHere } from "@/lib/tenant/public-scope";
 import { PublicBooking } from "@/features/calendar/components/public-booking";
 
 /**
  * The public booking page: /b/<slug>.
  *
  * Resolved by slug alone, like /a/<slug>, which is why BookingType.slug is globally
- * unique. Serves on whatever host the request arrived on, so a tenant's own domain
- * works with no extra routing.
+ * unique. Served on its OWNER's host, or on the platform host where its link is minted
+ * (lib/settings/config.ts builds it from NEXT_PUBLIC_APP_URL) - never on a DIFFERENT
+ * tenant's domain, which used to show that tenant's visitors another tenant's name and
+ * free appointment slots, and take a real booking into their diary. Same leak as
+ * /a/<slug>; see lib/tenant/public-host-rule.ts.
  *
  * ?t=<result token> is how a booking gets attached to the funnel that produced it: the
  * result page's CTA passes it, this page prefills the lead from it, and the booking
@@ -23,9 +27,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const t = await prisma.bookingType.findFirst({
     where: { slug, active: true },
-    select: { name: true, description: true, tenant: { select: { name: true } } },
+    select: { name: true, description: true, tenantId: true, tenant: { select: { name: true } } },
   });
-  if (!t) return { title: "Booking" };
+  // On a host that may not serve this link, say nothing: the title carries the owning
+  // tenant's NAME, which is the half of the leak that was visible without clicking.
+  if (!t || !(await ownerOrPlatformServedHere(t.tenantId))) return { title: "Booking" };
   return {
     title: `${t.name} with ${t.tenant.name}`,
     description: t.description ?? undefined,
@@ -43,6 +49,11 @@ export default async function BookingPage({
 }) {
   const { slug } = await params;
   const query = await searchParams;
+  // Whose domain is this? Asked before the view is built, because the slot maths is the
+  // expensive part. Same 404 an unknown slug gives, so slugs stay unenumerable.
+  const owner = await bookingTypeOwner(slug);
+  if (owner === null || !(await ownerOrPlatformServedHere(owner))) notFound();
+
   const view = await publicBookingView(slug);
   if (!view) notFound();
 

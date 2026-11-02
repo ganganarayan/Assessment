@@ -12,6 +12,7 @@ import { qualificationSchema } from "@/features/assessment/schemas";
 import { resultUrlFor } from "@/lib/events/completion";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isSuperAdmin } from "@/lib/auth/guards";
+import { mayViewAcrossTenants, ownerOrPlatformServedHere } from "@/lib/tenant/public-scope";
 import { isResponseLocked, supportEmailFor } from "@/lib/billing/gate";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { parseGateBreakdown, gateTotals } from "@/lib/result/gate";
@@ -180,6 +181,20 @@ export default async function ResultPage({
     },
   });
   if (!submission || submission.assessment.slug !== slug) notFound();
+  // 🔴 WHOSE DOMAIN IS THIS? Same leak as the funnel page: the submission is looked up
+  // by id alone, so one tenant's domain served another tenant's result page - their
+  // respondent's name, score and band under the wrong brand.
+  //
+  // Laxer than the funnel rule in exactly one way, and on purpose: the PLATFORM host
+  // always serves, because every result link this product has ever minted is built on
+  // it (lib/events/completion.ts). Applying the funnel rule here would 404 every link
+  // already sitting in a CRM and every one already sent. See lib/tenant/public-scope.ts.
+  if (
+    !(await ownerOrPlatformServedHere(submission.assessment.tenantId)) &&
+    !(await mayViewAcrossTenants(submission.assessment.tenantId))
+  ) {
+    notFound();
+  }
 
   const user = await getCurrentUser();
   // isSuperOwner gates the RAW ADMIN VIEW below (AI statement tools etc.) - those

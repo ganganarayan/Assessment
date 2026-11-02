@@ -32,11 +32,34 @@ everything before it. It does **not** have the workspace-parity or export-scope 
 - workspace parity: `/w/ai`, `/w/audiences`, `/w/nurture`, Export All on `/w/assessments`
 - the admin-export scope fixes (see §4)
 - **the tenancy model change (§3a/§3b), shipped 30 Sep**
-- the re-home tooling (not yet run anywhere)
+- the re-home tooling
 
-**No data has been moved in any environment.** Both databases are untouched. The
-migration in `5d9a84e` creates the Platform tenant row and nothing else, it moves no
-data, on purpose (see §3d).
+🔴 **CORRECTED 02-11-2026.** This section used to end "**No data has been moved in any
+environment. Both databases are untouched.**" That was true when it was written and has
+been false since 1 Oct, when the re-home ran against production - §3d-bis, three
+sections below, has always said so. The two statements sat in one document for a month,
+and the summary is the half people read: it was taken at face value in a later session
+and produced a wrong conclusion about the tenancy state that had to be walked back.
+
+**Measured state, 02-11-2026** (`npm run verify:tenancy`, read-only, both environments):
+
+| | production | staging |
+|---|---|---|
+| unowned `assessment` | **0** | 7 |
+| unowned `submission` | **0** | 38 |
+| total unowned rows | **20** | 1028 |
+
+Production is re-homed: the 20 are 13 `capiLog` + 4 `nurtureLog` history rows and 3
+`user` rows, which `--platform` leaves alone by design. Staging has never had the
+re-home run and still holds the pre-move shape. So the NOT NULL migration in §3f is
+gated on **staging**, not on production.
+
+The two funnels that were in play for the host-scope fix, as production has them:
+`business-heads` → the `apply-gita` tenant, `paying-for-junk-leads` → the `platform`
+tenant. Both are owned; neither is null.
+
+If this table and §3d-bis ever disagree again, run the script - it writes nothing and
+it is the only one of the three that cannot go stale.
 
 ---
 
@@ -292,15 +315,25 @@ first. Do not point a money domain at a funnel before it is built.
 Deliberately left out of `5d9a84e`. 🔴 **Why it cannot ride along with a code change:**
 Railway serves the OLD deployment until the new one passes its healthcheck, but
 `prisma migrate deploy` runs in the start command, so the constraint lands while old
-code is still taking traffic, and old code writes explicit `tenantId: null` on the funnel
-hot path. A NOT NULL column rejects those: dropped leads and dropped CAPI events, on a
-live funnel, for the length of a deploy.
+code is still taking traffic. A NOT NULL column rejects any insert that still names a
+null owner: dropped leads and dropped CAPI events, on a live funnel, for the length of
+a deploy.
+
+🟢 **Updated 02-11-2026.** This used to say "old code writes explicit `tenantId: null`
+on the funnel hot path", which is no longer true: every create goes through
+`configTenantOf(scope)` and `npm run verify:tenant-scope`'s sibling gate,
+`verify:owner-stamp`, runs in the build and passes, so nothing stamps an owner from the
+nullable scope any more. The deploy-window reasoning above still stands on its own - a
+rejected insert during a rollover does not need a null-writing code path to be
+possible - so the ordering below does not change.
 
 The safe order is: **model semantics → compatible code → data re-home → verify → NOT NULL.**
-The first two are done.
+The first two are done; the re-home is done on production and **not** on staging (§2).
 
 When the time comes, that commit should contain:
 1. `npm run verify:tenancy` reporting zero unowned rows in **both** environments first.
+   As of 02-11-2026 that means re-homing **staging** (1028 rows); production is at 20,
+   all of them deliberate.
 2. The NOT NULL migration itself.
 3. Wiring the config-tenant accessor (§3a-bis), safe only once no unowned rows remain.
 4. Deleting the `unowned` variant from `lib/tenant/scope.ts` and the null arm from
