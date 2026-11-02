@@ -17,6 +17,7 @@ import { AssessmentRowActions } from "@/features/assessment/components/admin/ass
 import {
   BuilderStep,
   BuilderStepReset,
+  BuilderStepRail,
   BuilderStepNav,
 } from "@/features/admin/components/builder-tab-context";
 import { StartFromTemplate } from "@/features/templates/components/start-from-template";
@@ -459,6 +460,11 @@ export default async function EditAssessmentPage({
           below are wrapped individually. The two page builders keep their own steps at
           the end because each has its own draft and Publish button. */}
       <BuilderStepReset assessmentId={a.id} />
+
+      {/* The steps across the top as well as down the sidebar. Same state, so either
+          one moves the same builder; the rail is simply where you are already looking
+          when you are editing. */}
+      <BuilderStepRail />
 
       <div className="flex min-w-0 flex-col gap-8">
         {assessmentTab}

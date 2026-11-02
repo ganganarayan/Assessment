@@ -191,6 +191,53 @@ export function BuilderStepReset({ assessmentId }: { assessmentId: string }) {
 }
 
 /**
+ * The steps as a rail across the top of the builder.
+ *
+ * The same steps the sidebar lists, and the same React state, so pressing either moves
+ * the same builder and neither can fall out of step with the other. Both exist on
+ * purpose: the sidebar list reads better on a phone, where this one scrolls sideways,
+ * and the rail is where you look when you are already looking at the thing you are
+ * editing - which is most of the time.
+ *
+ * Scrolls rather than wraps. Thirteen steps wrapped onto three lines push the editor
+ * below the fold on a laptop, and the step you want is nearly always next to the step
+ * you are on.
+ */
+export function BuilderStepRail({
+  tabs = BUILDER_TABS,
+  label = "Builder steps",
+}: {
+  /** Which steps to show. The template builder passes its own shorter list. */
+  tabs?: readonly { key: string; label: string }[];
+  label?: string;
+}) {
+  const ctx = useBuilderTab();
+  const active = ctx?.active ?? tabs[0]?.key;
+  return (
+    <nav className="-mx-1 flex gap-1 overflow-x-auto pb-1" aria-label={label}>
+      {tabs.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          aria-current={active === t.key ? "step" : undefined}
+          onClick={() => {
+            ctx?.setActive(t.key);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          className={`whitespace-nowrap rounded-md border px-3 py-2 text-xs font-medium ${
+            active === t.key
+              ? "border-green-600 bg-green-600 text-white"
+              : "border-[var(--border)] hover:bg-[var(--muted)]"
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+/**
  * Back / Next for the steps whose content is a manager rather than form fields.
  *
  * Those managers save themselves as you go - each row, each band, each question has

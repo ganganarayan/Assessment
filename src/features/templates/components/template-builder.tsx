@@ -15,6 +15,7 @@ import { AssessmentForm } from "@/features/assessment/components/admin/assessmen
 import {
   BuilderStep,
   BuilderStepNav,
+  BuilderStepRail,
   BuilderTabProvider,
   TEMPLATE_BUILDER_TABS,
   TEMPLATE_STEP_KEYS,
@@ -281,7 +282,7 @@ function Inner({
         ) : null}
       </Card>
 
-      <StepRail />
+      <BuilderStepRail tabs={TEMPLATE_BUILDER_TABS} label="Template builder steps" />
 
       {/* The settings steps. One component, the real one, in template mode. */}
       <AssessmentForm
@@ -375,34 +376,6 @@ const SAVE_NOTE = "Changes on this step save a moment after you make them.";
 function isGateLive(body: AssessmentBodyExport): boolean {
   const q = body.qualification as { enabled?: unknown; questions?: unknown } | null | undefined;
   return !!q && q.enabled === true && Array.isArray(q.questions) && q.questions.length > 0;
-}
-
-/** The step rail. On the page rather than in the sidebar, because the sidebar's rail
- *  belongs to the assessment builder and shows steps a template does not have. */
-function StepRail() {
-  const tab = useBuilderTab();
-  const active = tab?.active ?? TEMPLATE_STEP_KEYS[0];
-  return (
-    <nav className="-mx-1 flex gap-1 overflow-x-auto pb-1" aria-label="Template builder steps">
-      {TEMPLATE_BUILDER_TABS.map((t) => (
-        <button
-          key={t.key}
-          type="button"
-          onClick={() => {
-            tab?.setActive(t.key);
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }}
-          className={`whitespace-nowrap rounded-md border px-3 py-2 text-xs font-medium ${
-            active === t.key
-              ? "border-green-600 bg-green-600 text-white"
-              : "border-[var(--border)] hover:bg-[var(--muted)]"
-          }`}
-        >
-          {t.label}
-        </button>
-      ))}
-    </nav>
-  );
 }
 
 function StatusLine({
