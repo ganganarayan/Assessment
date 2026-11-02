@@ -48,6 +48,12 @@ import platformJunkLeadsGate from "./platform-junk-leads-gate.json";
 // near-zero weight so it bands on its own without moving the Part B headline, and the
 // override rules live in the AI instructions because the engine has no rule layer.
 import seniorLayerAudit from "./senior-layer-audit.json";
+// The business-heads instrument re-pointed at the family. The gate keeps the ownership
+// questions, because for this audience being a business head is what makes the call
+// affordable rather than what is being diagnosed, and the scored half drops every
+// business category for eight about what the child has actually taken from the parent.
+// One disqualifier carries the whole gate: the parent who thinks the child is the problem.
+import hniChildrenCultureShift from "./hni-children-culture-shift.json";
 
 export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   coachClientFit,
@@ -73,6 +79,7 @@ export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   b2bSaas,
   indiaTripExpectations,
   seniorLayerAudit,
+  hniChildrenCultureShift,
   cancellationExitWhyYouLeft,
   platformJunkLeadsGate,
 ];

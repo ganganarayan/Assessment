@@ -1,0 +1,1449 @@
+{
+  "slug": "hni-children-culture-shift",
+  "title": "HNI Children Culture Shift",
+  "category": "Coaches",
+  "summary": "For business owners abroad whose children have drifted from the family and its culture. The gate qualifies on ownership and affordability and disqualifies only the parent who thinks the child is the problem. Twenty-six statements across eight areas, about nine minutes, scored so that a higher number means more reason to call.",
+  "shape": "GATED_ASSESSMENT",
+  "aiInstructions": "You are writing the private note the parent reads immediately after finishing, before any call.\n\nWrite 220 to 300 words, second person, calm and unsentimental. Never diagnose, never promise an outcome, never mention a score as a number, never use the word seva.\n\nName the ONE area their answers point at hardest, using the area names as evidence. Then say what it is costing, specifically, in the next few years rather than today.\n\nThree rules that override everything else.\n1. Never suggest the child is the problem, whatever the answers say. The instrument is about the parent, and a parent who reads otherwise will stop.\n2. If the highest area is I cannot answer the why, or They are reading me not listening to me, say plainly that this is not a culture being lost, it is a reasoning that was never handed over, and that the parent was never given it either.\n3. If the highest area is Only formal talk is left and the child is over 24, do not imply the relationship is beyond repair. Say what is still open.\n\nDo NOT give them the resolution. Describe the shape of it clearly enough that they recognise their own house in it, then stop. The work belongs on the call.",
+  "body": {
+    "title": "What your child has actually taken from you",
+    "slug": "hni-children",
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 9,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": true,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "PRIVATE DIAGNOSTIC - 11 QUALIFIERS + 26 STATEMENTS - ABOUT 9 MINUTES",
+    "subheadline": "Twenty-six statements. They name what your child has actually taken from you, which is rarely the thing you spent the money on.",
+    "qualifiedNote": "You qualify. Tell me where to send the result.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Begin With Yourself",
+    "resultsButtonLabel": "See what it says",
+    "useAiStatement": true,
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "qualification": {
+      "enabled": true,
+      "questions": [
+        {
+          "id": "g1",
+          "text": "1. Which of these is closest to you?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g1a",
+              "label": "Founder or co-founder",
+              "points": 0
+            },
+            {
+              "id": "g1b",
+              "label": "Owner of the business I built",
+              "points": 0
+            },
+            {
+              "id": "g1c",
+              "label": "Owner of a family business I took over",
+              "points": 0
+            },
+            {
+              "id": "g1d",
+              "label": "Promoter, proprietor or managing partner",
+              "points": 0
+            },
+            {
+              "id": "g1e",
+              "label": "Chairman or Managing Director, I hold equity",
+              "points": 0
+            },
+            {
+              "id": "g1f",
+              "label": "CEO or Managing Director, professional, no equity",
+              "points": 0
+            },
+            {
+              "id": "g1g",
+              "label": "CXO or Country Head, I carry the P and L",
+              "points": 0
+            },
+            {
+              "id": "g1h",
+              "label": "Functional CXO: CTO, CMO, CFO or CHRO",
+              "points": 0
+            },
+            {
+              "id": "g1i",
+              "label": "Doctor, lawyer, banker or consultant with my own practice or a senior post",
+              "points": 0
+            },
+            {
+              "id": "g1j",
+              "label": "Salaried role with no senior responsibility",
+              "points": 0,
+              "disqualifies": true
+            },
+            {
+              "id": "g1k",
+              "label": "Between roles, or not working right now",
+              "points": 0,
+              "disqualifies": true
+            }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "2. Where do you live?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g2a",
+              "label": "India",
+              "points": 0
+            },
+            {
+              "id": "g2b",
+              "label": "Gulf: UAE, Saudi, Qatar, Oman, Kuwait, Bahrain",
+              "points": 0
+            },
+            {
+              "id": "g2c",
+              "label": "United States or Canada",
+              "points": 0
+            },
+            {
+              "id": "g2d",
+              "label": "United Kingdom or Europe",
+              "points": 0
+            },
+            {
+              "id": "g2e",
+              "label": "Singapore or South East Asia",
+              "points": 0
+            },
+            {
+              "id": "g2f",
+              "label": "Africa",
+              "points": 0
+            },
+            {
+              "id": "g2g",
+              "label": "Australia or New Zealand",
+              "points": 0
+            },
+            {
+              "id": "g2h",
+              "label": "Somewhere else",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "3. How old is the child you are here about?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g3a",
+              "label": "Under 8",
+              "points": 0
+            },
+            {
+              "id": "g3b",
+              "label": "8 to 13",
+              "points": 0
+            },
+            {
+              "id": "g3c",
+              "label": "14 to 18",
+              "points": 0
+            },
+            {
+              "id": "g3d",
+              "label": "19 to 24",
+              "points": 0
+            },
+            {
+              "id": "g3e",
+              "label": "Over 24",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "4. How would you describe the relationship right now?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g4a",
+              "label": "We talk about real things",
+              "points": 0
+            },
+            {
+              "id": "g4b",
+              "label": "Cordial, but it stays on the surface",
+              "points": 0
+            },
+            {
+              "id": "g4c",
+              "label": "Mostly formal: logistics, occasions, money",
+              "points": 0
+            },
+            {
+              "id": "g4d",
+              "label": "We barely speak",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "5. How long has it been like that?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g5a",
+              "label": "Under a year",
+              "points": 0
+            },
+            {
+              "id": "g5b",
+              "label": "1 to 3 years",
+              "points": 0
+            },
+            {
+              "id": "g5c",
+              "label": "3 to 7 years",
+              "points": 0
+            },
+            {
+              "id": "g5d",
+              "label": "More than 7 years",
+              "points": 0
+            },
+            {
+              "id": "g5e",
+              "label": "I would not say anything has changed",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g6",
+          "text": "6. What made you look at this now, rather than last year?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g6a",
+              "label": "Something happened recently that I cannot unsee",
+              "points": 0
+            },
+            {
+              "id": "g6b",
+              "label": "It has been building for years and I have hit my limit",
+              "points": 0
+            },
+            {
+              "id": "g6c",
+              "label": "My child said something that stayed with me",
+              "points": 0
+            },
+            {
+              "id": "g6d",
+              "label": "Someone close to me pushed me to look",
+              "points": 0
+            },
+            {
+              "id": "g6e",
+              "label": "Nothing in particular, I am exploring",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g7",
+          "text": "7. What have you already tried?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g7a",
+              "label": "Nothing yet",
+              "points": 0
+            },
+            {
+              "id": "g7b",
+              "label": "Reading, podcasts, content",
+              "points": 0
+            },
+            {
+              "id": "g7c",
+              "label": "Talked to a counsellor, a coach or a guru",
+              "points": 0
+            },
+            {
+              "id": "g7d",
+              "label": "Sent my child to someone",
+              "points": 0
+            },
+            {
+              "id": "g7e",
+              "label": "Many things, over years, and I stopped believing any of it works",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "id": "g8",
+          "text": "8. Which is closest to what you believe?",
+          "type": "choice",
+          "placeholder": "",
+          "required": true,
+          "options": [
+            {
+              "id": "g8a",
+              "label": "The way I live is part of this. I am willing to start with myself.",
+              "points": 0
+            },
+            {
+              "id": "g8b",
+              "label": "Both of us have a part in it. I will start with mine.",
+              "points": 0
+            },
+            {
+              "id": "g8c",
+              "label": "I am not sure I am the issue, but I am willing to find out.",
+              "points": 0
+            },
+            {
+              "id": "g8d",
+              "label": "I do not know what went wrong, but I am willing to look at my own part.",
+              "points": 0
+            },
+            {
+              "id": "g8e",
+              "label": "I have already changed some things myself. I want to know what else.",
+              "points": 0
+            },
+            {
+              "id": "g8f",
+              "label": "I want help changing my child. I am not the issue.",
+              "points": 0,
+              "disqualifies": true
+            },
+            {
+              "id": "g8g",
+              "label": "I want someone to talk sense into them.",
+              "points": 0,
+              "disqualifies": true
+            },
+            {
+              "id": "g8h",
+              "label": "I am curious what this says, I am not looking for anything.",
+              "points": 0,
+              "disqualifies": true
+            }
+          ]
+        },
+        {
+          "id": "g9",
+          "text": "9. Company name",
+          "type": "text",
+          "placeholder": "The business you run",
+          "required": false,
+          "options": []
+        },
+        {
+          "id": "g10",
+          "text": "10. Company website",
+          "type": "text",
+          "placeholder": "https://",
+          "required": false,
+          "options": []
+        },
+        {
+          "id": "g11",
+          "text": "11. In one line, what does the business do?",
+          "type": "text",
+          "placeholder": "One line is enough",
+          "required": false,
+          "options": []
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "Thank you for answering honestly.",
+      "subtext": "This instrument only works for a parent who is willing to start with themselves. On your answers that is not where you are today, so I will not take more of your time.",
+      "bodyHtml": "",
+      "buttonLabel": "",
+      "buttonUrl": "",
+      "fireDisqualifiedEvent": true
+    },
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 90,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "name": "I cannot switch off",
+        "description": "The state your child meets when you walk through the door.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This part is holding. It is not where the problem is.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Present, and it is costing something. Worth naming on the call.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "This is where it is loudest, and it is the part your child reads most clearly.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "Even after 8 hours in bed, my mind keeps running and I wake up tired.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "I come back from a holiday as tired as I went. I never actually switch off.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "I cannot wind down at night on my own. I need a drink or a screen to do it for me.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "I have lost the why",
+        "description": "Whether you can still say what any of it was for.",
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This part is holding. It is not where the problem is.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Present, and it is costing something. Worth naming on the call.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "This is where it is loudest, and it is the part your child reads most clearly.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "I have lost the why behind all this. I keep going anyway.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "I avoid sitting quietly with myself, because the things that come up, I do not want to look at.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "I am not sure I know the real purpose of my life.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "I have no one to be real with",
+        "description": "Who you would tell, if you were going to tell anyone.",
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This part is holding. It is not where the problem is.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Present, and it is costing something. Worth naming on the call.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "This is where it is loudest, and it is the part your child reads most clearly.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "There is no one I can tell the full truth to about what I am going through.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "Everyone treats me as the strong one, so nobody knows what I am actually carrying.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "I feel alone even when the room is full of people.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "I am far from the people I love",
+        "description": "What is left of you by the time you get home.",
+        "displayOrder": 3,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This part is holding. It is not where the problem is.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Present, and it is costing something. Worth naming on the call.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "This is where it is loudest, and it is the part your child reads most clearly.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "I am home in body, but my head is at work. My family gets whatever is left of me.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "I stay calm under real pressure at work, then snap at home over something small, and regret it.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "My family needed me present at important moments, and I was not there.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "I cannot answer the why",
+        "description": "What happens when the practice is questioned rather than followed.",
+        "displayOrder": 4,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This part is holding. It is not where the problem is.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Present, and it is costing something. Worth naming on the call.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "This is where it is loudest, and it is the part your child reads most clearly.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "My child asked why we do something, and the best I had was because we do.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "I keep the practices going at home without being able to say what they are for.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "If my child argued against it with a straight face, I could not win the argument.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "They are reading me, not listening to me",
+        "description": "The gap between what you say and what you are observed doing.",
+        "displayOrder": 5,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This part is holding. It is not where the problem is.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Present, and it is costing something. Worth naming on the call.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "This is where it is loudest, and it is the part your child reads most clearly.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "I say one thing about what matters, then live a week that says something else.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "I hide the pressure I am under from my children, and I assume it is working.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "My child has picked up something from me that I never meant to pass on.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Only formal talk is left",
+        "description": "What the relationship becomes once the real conversation has stopped.",
+        "displayOrder": 6,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This part is holding. It is not where the problem is.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Present, and it is costing something. Worth naming on the call.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "This is where it is loudest, and it is the part your child reads most clearly.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "We talk, and it is logistics and formalities. Nothing real passes between us.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "We are in the same room at weddings and functions, and that is most of what is left.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "I hear about my child's life from someone else rather than from them.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "If I called with nothing to discuss, it would be strange for both of us.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 3,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "I keep deciding to have the real conversation, and it keeps not happening.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 4,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "What I am actually handing over",
+        "description": "The second inheritance, the one with no professional attached to it.",
+        "displayOrder": 7,
+        "page": 1,
+        "bands": [
+          {
+            "label": "LOW",
+            "meaning": "This part is holding. It is not where the problem is.",
+            "minScore": 0,
+            "maxScore": 39,
+            "displayOrder": 0
+          },
+          {
+            "label": "MEDIUM",
+            "meaning": "Present, and it is costing something. Worth naming on the call.",
+            "minScore": 40,
+            "maxScore": 69,
+            "displayOrder": 1
+          },
+          {
+            "label": "HIGH",
+            "meaning": "This is where it is loudest, and it is the part your child reads most clearly.",
+            "minScore": 70,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "text": "The money, the structures and the schooling are handled. What goes inside them is not.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "If I were gone this year, my child would inherit everything except the reason any of it was built.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "text": "I am counting on there being time later to fix this.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Rarely",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Sometimes",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Almost Always",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Still carrying, and still reaching them",
+        "description": "Whatever brought you here, the transmission has not broken. The areas below say which one is quietly thinning, and that is a far cheaper thing to deal with now than in six years.",
+        "minScore": 0,
+        "maxScore": 40,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "One area is carrying the weight of the rest",
+        "description": "Most of this is intact. One area below is not, and it is doing more damage than the other seven together, because that is the one your child reads most clearly. It is what a first conversation should be about.",
+        "minScore": 41,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "The practice is holding and the reasoning is gone",
+        "description": "Nothing here looks like a crisis from the outside, and that is the difficulty. The house still does everything it always did. What stopped moving is the part that explains why, and your child has already noticed.",
+        "minScore": 60,
+        "maxScore": 75,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Formal on the outside, finished on the inside",
+        "description": "On your own answers, what is left between you is occasions and logistics. That is reversible, and it is not reversible by waiting, because every area below is still running in the direction it has run for years.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ]
+  }
+}
