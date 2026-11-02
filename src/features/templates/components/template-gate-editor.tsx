@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -84,6 +85,9 @@ export function TemplateGateEditor({
   const gate = readGate(body.qualification);
   const pages = readExitPages(body.disqualifiedContent);
   const exits = pages.exits;
+  // Why a refused delete is explained rather than just disabled: the reason lives on
+  // the OTHER step, so a greyed-out button would send the owner looking for it.
+  const [warning, setWarning] = useState<string | null>(null);
 
   const writeGate = (next: QualificationInput) => onChange({ ...body, qualification: next });
 
@@ -108,6 +112,28 @@ export function TemplateGateEditor({
   };
 
   if (section === "exit") {
+    /**
+     * 🔴 DELETING AN EXIT THAT ANSWERS STILL POINT AT IS NOT A SAFE DELETE.
+     *
+     * A dangling exit key does not error. It falls back to the FIRST exit, which is the
+     * rejection page - so deleting a waitlist route quietly starts sending waitlisted
+     * people to "you are not a fit", and nothing on any screen says so. Blocked, with
+     * the count, rather than discovered by a respondent.
+     */
+    const blockedReason = (exitKey: string): string | null => {
+      const answers = gate.questions.reduce(
+        (n, q) => n + q.options.filter((o) => o.disqualifies && (o.exitKey || "") === exitKey).length,
+        0,
+      );
+      if (answers > 0) {
+        return `${answers} answer${answers === 1 ? "" : "s"} still send people here. Point ${answers === 1 ? "it" : "them"} somewhere else first, on the Qualification gate step - a deleted route falls back to the first exit page, which is the rejection page.`;
+      }
+      if (gate.bands.enabled && (gate.bands.belowExitKey || "") === exitKey) {
+        return "The gate's score bands send anyone below the threshold here. Point that somewhere else first, on the Qualification gate step.";
+      }
+      return null;
+    };
+
     return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -149,6 +175,10 @@ export function TemplateGateEditor({
           </Button>
         </div>
 
+        {warning ? (
+          <p className="rounded-md border border-yellow-600/40 bg-yellow-600/5 p-3 text-sm">🟡 {warning}</p>
+        ) : null}
+
         {exits.map((exit, i) => {
           const reserved = isWaitlistExitKey(exit.key);
           const usedBy = gate.questions.reduce(
@@ -167,7 +197,15 @@ export function TemplateGateEditor({
                   count={exits.length}
                   disabled={disabled}
                   onMove={(from, to) => writePages({ ...pages, exits: move(exits, from, to) })}
-                  onRemove={() => writePages({ ...pages, exits: removeAt(exits, i) })}
+                  onRemove={() => {
+                    const blocked = blockedReason(exit.key);
+                    if (blocked) {
+                      setWarning(`"${exit.name.trim() || `${UNNAMED_EXIT} ${i + 1}`}" cannot be deleted yet: ${blocked}`);
+                      return;
+                    }
+                    setWarning(null);
+                    writePages({ ...pages, exits: removeAt(exits, i) });
+                  }}
                   removeLabel="Delete page"
                 />
               </div>
