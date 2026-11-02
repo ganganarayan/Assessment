@@ -1,0 +1,1284 @@
+{
+  "slug": "senior-layer-state-audit",
+  "title": "The Senior Layer: state audit",
+  "category": "Consultants",
+  "summary": "For the senior leaders themselves, and for the CHRO or L&D head who takes it first. Twenty-four statements across eight domains, about four minutes, answered for the last four weeks so a Day 30 re-take measures change. Individual result only, retake locked to 30 days, both result pages, and an AI report that names the attachment to credit and return without diagnosing anyone.",
+  "shape": "UNGATED_ASSESSMENT",
+  "aiInstructions": "Write the report for one senior leader about their own answers. They are reading it alone, on a phone. Plain paragraphs, no headings, no bullet points, no greeting, no sign-off, no exclamation marks. British spelling. Second person. Never use an em dash or en dash.\n\nHow to read the data. There are eight categories, numbered 1 to 8, each with three statements answered for the last four weeks on Not at all, Occasionally, Often or Most of the time. Each category has a band of Low, Moderate or High. The overall band (Steady, Running on habit, Delivering but not feeling it, or Running on empty) is the total across all eight. \"Most of the time\" is the strongest answer. Ignore every number and talk only in bands and answers.\n\nWhat the instrument is about. A person who has spent years getting every satisfaction paid out against credit (being seen) or return (getting something back) becomes excellent at delivery and progressively unable to feel the delivery. That is a trained response, trained by the job, and not a weakness. Categories 3 and 4 measure the attachment itself. Categories 1, 2, 5, 6, 7 and 8 measure what it costs.\n\nWrite these in order, one short paragraph each.\n\n1. One sentence naming their dominant pattern, built from the wording of their own answers, not from the band names.\n\n2. The overall band, and their two heaviest categories by name. Then quote back, word for word in quotation marks, up to three statements they answered \"Most of the time\". If there are none, name the statements that came closest.\n\n3. Apply every rule below that is true, in this order, in plain language. Skip the paragraph if none is true.\n- Category 3 or 4 is High and category 2 is Moderate or High: name the link directly. The wins are not landing because they are being paid out against credit or return, and a satisfaction with something attached does not stay.\n- Category 5 is High: say plainly that not being able to name it is the most common answer at this level, and that it is not a failure of self-awareness. Nothing in their working life has asked them to find out.\n- Category 7 is Moderate or High: say that adding another technique is unlikely to help, because what is wrong is not an absence of something.\n- Category 6 is High: say that from the outside this reads as calm and composure, which is why nobody around them has noticed. Do not mention resignation or leaving the organisation.\n\n4. One or two sentences on what the opposite would feel like: a satisfaction with neither credit nor return attached. Describe it, do not prescribe how to get it.\n\n5. If their role is CHRO or HR Head, L&D or Talent Head, or CEO or Managing Director, add one sentence: if this is true of them, it is worth knowing whether it is true across the layer they are responsible for. For any other role, do not mention their organisation, a programme or a next step.\n\nNever diagnose, never use clinical words (burnout, depression, anxiety, disorder, symptom), never mention religion, spirituality, a scripture, a practice or seva, and never describe any exercise, programme or debrief. Never recommend a product or mention a price. Do not cite research and do not end with a call to action: the page does both.",
+  "body": {
+    "title": "The Senior Layer: state audit",
+    "slug": "senior-layer-state-audit",
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 4,
+    "thankYouMessage": null,
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": false,
+    "mobileRequired": false,
+    "collectProfession": true,
+    "professionRequired": true,
+    "professionLabel": "Your role",
+    "professionPlaceholder": "Select your role",
+    "professionOptions": [
+      "CHRO or HR Head",
+      "L&D or Talent Head",
+      "CEO or Managing Director",
+      "Business or Functional Head",
+      "Senior leader",
+      "Other"
+    ],
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "eyebrow": "24 statements, about 4 minutes",
+    "subheadline": "Not how you are performing. Where you are actually operating from. Answer for the last four weeks, and for yourself. Your result comes to you and nobody else.",
+    "qualifiedNote": "Your result is ready. Where should we send it? It goes to you and nobody else.",
+    "leadCaptureAfter": true,
+    "startButtonLabel": "Start",
+    "resultsButtonLabel": "See my result",
+    "useAiStatement": true,
+    "aiInstructions": "Write the report for one senior leader about their own answers. They are reading it alone, on a phone. Plain paragraphs, no headings, no bullet points, no greeting, no sign-off, no exclamation marks. British spelling. Second person. Never use an em dash or en dash.\n\nHow to read the data. There are eight categories, numbered 1 to 8, each with three statements answered for the last four weeks on Not at all, Occasionally, Often or Most of the time. Each category has a band of Low, Moderate or High. The overall band (Steady, Running on habit, Delivering but not feeling it, or Running on empty) is the total across all eight. \"Most of the time\" is the strongest answer. Ignore every number and talk only in bands and answers.\n\nWhat the instrument is about. A person who has spent years getting every satisfaction paid out against credit (being seen) or return (getting something back) becomes excellent at delivery and progressively unable to feel the delivery. That is a trained response, trained by the job, and not a weakness. Categories 3 and 4 measure the attachment itself. Categories 1, 2, 5, 6, 7 and 8 measure what it costs.\n\nWrite these in order, one short paragraph each.\n\n1. One sentence naming their dominant pattern, built from the wording of their own answers, not from the band names.\n\n2. The overall band, and their two heaviest categories by name. Then quote back, word for word in quotation marks, up to three statements they answered \"Most of the time\". If there are none, name the statements that came closest.\n\n3. Apply every rule below that is true, in this order, in plain language. Skip the paragraph if none is true.\n- Category 3 or 4 is High and category 2 is Moderate or High: name the link directly. The wins are not landing because they are being paid out against credit or return, and a satisfaction with something attached does not stay.\n- Category 5 is High: say plainly that not being able to name it is the most common answer at this level, and that it is not a failure of self-awareness. Nothing in their working life has asked them to find out.\n- Category 7 is Moderate or High: say that adding another technique is unlikely to help, because what is wrong is not an absence of something.\n- Category 6 is High: say that from the outside this reads as calm and composure, which is why nobody around them has noticed. Do not mention resignation or leaving the organisation.\n\n4. One or two sentences on what the opposite would feel like: a satisfaction with neither credit nor return attached. Describe it, do not prescribe how to get it.\n\n5. If their role is CHRO or HR Head, L&D or Talent Head, or CEO or Managing Director, add one sentence: if this is true of them, it is worth knowing whether it is true across the layer they are responsible for. For any other role, do not mention their organisation, a programme or a next step.\n\nNever diagnose, never use clinical words (burnout, depression, anxiety, disorder, symptom), never mention religion, spirituality, a scripture, a practice or seva, and never describe any exercise, programme or debrief. Never recommend a product or mention a price. Do not cite research and do not end with a call to action: the page does both.",
+    "nextStep": "RESULTS",
+    "questionDisplayMode": "SINGLE",
+    "fireMetaCapi": false,
+    "platformSignup": false,
+    "retakePolicy": "DELAYED",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "categories": [
+      {
+        "key": "d1",
+        "name": "1. Never off",
+        "description": "For each statement, think about the last four weeks only. Answer for yourself, not for your team.",
+        "displayOrder": 0,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Low",
+            "meaning": "You still switch off, and come back with something.",
+            "minScore": 0,
+            "maxScore": 33,
+            "displayOrder": 0
+          },
+          {
+            "label": "Moderate",
+            "meaning": "Recovery is getting skipped, and it has started to feel normal.",
+            "minScore": 34,
+            "maxScore": 66,
+            "displayOrder": 1
+          },
+          {
+            "label": "High",
+            "meaning": "You do not stand down. Nothing in the week gives back what it spends.",
+            "minScore": 67,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "d1q1",
+            "text": "I check work messages within minutes of waking, before anything else.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d1q2",
+            "text": "Even on leave, part of my mind stays on work.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d1q3",
+            "text": "I come back from a break feeling the same as I did before it.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "d2",
+        "name": "2. Wins that do not land",
+        "description": null,
+        "displayOrder": 1,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Low",
+            "meaning": "Your wins still arrive as wins.",
+            "minScore": 0,
+            "maxScore": 33,
+            "displayOrder": 0
+          },
+          {
+            "label": "Moderate",
+            "meaning": "Some results land, more of them pass through.",
+            "minScore": 34,
+            "maxScore": 66,
+            "displayOrder": 1
+          },
+          {
+            "label": "High",
+            "meaning": "You are delivering, and not feeling the delivery.",
+            "minScore": 67,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "d2q1",
+            "text": "A recent win or recognition faded within a day or two.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d2q2",
+            "text": "I describe my own achievements flatly, as if reporting someone else's.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d2q3",
+            "text": "When I hit a target, what I mostly feel is relief that it is over.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "d3",
+        "name": "3. Running on credit",
+        "description": null,
+        "displayOrder": 2,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Low",
+            "meaning": "Your effort does not depend on being seen.",
+            "minScore": 0,
+            "maxScore": 33,
+            "displayOrder": 0
+          },
+          {
+            "label": "Moderate",
+            "meaning": "Being seen is starting to decide how much you put in.",
+            "minScore": 34,
+            "maxScore": 66,
+            "displayOrder": 1
+          },
+          {
+            "label": "High",
+            "meaning": "Credit has become the fuel. Without it, the engine idles.",
+            "minScore": 67,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "d3q1",
+            "text": "When my contribution goes unacknowledged, it stays with me.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d3q2",
+            "text": "I find it hard to put full effort into work nobody will see.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d3q3",
+            "text": "I feel uneasy when someone else gets the credit for something I shaped.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "d4",
+        "name": "4. Running on return",
+        "description": null,
+        "displayOrder": 3,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Low",
+            "meaning": "Most of what you give is not being weighed.",
+            "minScore": 0,
+            "maxScore": 33,
+            "displayOrder": 0
+          },
+          {
+            "label": "Moderate",
+            "meaning": "A quiet ledger is running in the background.",
+            "minScore": 34,
+            "maxScore": 66,
+            "displayOrder": 1
+          },
+          {
+            "label": "High",
+            "meaning": "Almost everything in the week is an exchange.",
+            "minScore": 67,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "d4q1",
+            "text": "Before I help someone, part of me weighs what it will lead to.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d4q2",
+            "text": "I keep a quiet account of who owes me and whom I owe.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d4q3",
+            "text": "Most of my week goes on things that pay back later rather than things that matter now.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "d5",
+        "name": "5. Cannot name it",
+        "description": null,
+        "displayOrder": 4,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Low",
+            "meaning": "You can still read your own state.",
+            "minScore": 0,
+            "maxScore": 33,
+            "displayOrder": 0
+          },
+          {
+            "label": "Moderate",
+            "meaning": "Something is registering that you have not put words to.",
+            "minScore": 34,
+            "maxScore": 66,
+            "displayOrder": 1
+          },
+          {
+            "label": "High",
+            "meaning": "Something is wrong and you cannot say what. That is a finding, not a failing.",
+            "minScore": 67,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "d5q1",
+            "text": "If someone asked me directly what is wrong, I would not be able to say.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d5q2",
+            "text": "I have a sense that something is off which I have not said out loud to anyone.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d5q3",
+            "text": "I find it easier to describe my team's state than my own.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "d6",
+        "name": "6. Gone quiet",
+        "description": null,
+        "displayOrder": 5,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Low",
+            "meaning": "Your voice is still in the room.",
+            "minScore": 0,
+            "maxScore": 33,
+            "displayOrder": 0
+          },
+          {
+            "label": "Moderate",
+            "meaning": "You are choosing your battles more than you used to.",
+            "minScore": 34,
+            "maxScore": 66,
+            "displayOrder": 1
+          },
+          {
+            "label": "High",
+            "meaning": "You have gone quiet. From the outside it reads as calm.",
+            "minScore": 67,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "d6q1",
+            "text": "I keep a view to myself in a meeting because raising it is not worth the effort.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d6q2",
+            "text": "I have stopped putting forward ideas I would have pushed hard a year ago.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d6q3",
+            "text": "I have thought about what leaving would look like, without telling anyone.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "d7",
+        "name": "7. Nothing added helps",
+        "description": null,
+        "displayOrder": 6,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Low",
+            "meaning": "What you add to your week still does its job.",
+            "minScore": 0,
+            "maxScore": 33,
+            "displayOrder": 0
+          },
+          {
+            "label": "Moderate",
+            "meaning": "The fixes help for a while and then wear off.",
+            "minScore": 34,
+            "maxScore": 66,
+            "displayOrder": 1
+          },
+          {
+            "label": "High",
+            "meaning": "Every addition has become one more thing to carry.",
+            "minScore": 67,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "d7q1",
+            "text": "I have tried something to feel better, an app, a course, coaching or a new habit, and it did not last.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d7q2",
+            "text": "A new technique or routine feels like one more task in the diary.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d7q3",
+            "text": "Time off, exercise or sleep rest my body but not whatever is underneath.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "d8",
+        "name": "8. The room",
+        "description": null,
+        "displayOrder": 7,
+        "page": 1,
+        "bands": [
+          {
+            "label": "Low",
+            "meaning": "You are still fully present for the decisions you make.",
+            "minScore": 0,
+            "maxScore": 33,
+            "displayOrder": 0
+          },
+          {
+            "label": "Moderate",
+            "meaning": "Some decisions are being made to clear the desk.",
+            "minScore": 34,
+            "maxScore": 66,
+            "displayOrder": 1
+          },
+          {
+            "label": "High",
+            "meaning": "Decisions are getting made to end the discomfort, not to get them right.",
+            "minScore": 67,
+            "maxScore": 100,
+            "displayOrder": 2
+          }
+        ],
+        "questions": [
+          {
+            "key": "d8q1",
+            "text": "I make some decisions mainly to get them off my desk.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 0,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d8q2",
+            "text": "I go along with a decision I disagree with to avoid the cost of the argument.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 1,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          },
+          {
+            "key": "d8q3",
+            "text": "My patience in meetings is shorter than it used to be.",
+            "type": "SINGLE_SELECT",
+            "weight": 1,
+            "required": true,
+            "displayOrder": 2,
+            "options": [
+              {
+                "label": "Not at all",
+                "value": 0,
+                "displayOrder": 0
+              },
+              {
+                "label": "Occasionally",
+                "value": 1,
+                "displayOrder": 1
+              },
+              {
+                "label": "Often",
+                "value": 2,
+                "displayOrder": 2
+              },
+              {
+                "label": "Most of the time",
+                "value": 3,
+                "displayOrder": 3
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "resultBands": [
+      {
+        "level": "LOW",
+        "title": "Steady",
+        "description": "You are still getting back some of what you spend. Satisfaction arrives, and it lands. Notice what is keeping that true.",
+        "minScore": 0,
+        "maxScore": 40,
+        "displayOrder": 0
+      },
+      {
+        "level": "MEDIUM",
+        "title": "Running on habit",
+        "description": "Output is holding and something underneath has started to thin. This is the stage that is easiest to explain away.",
+        "minScore": 41,
+        "maxScore": 59,
+        "displayOrder": 1
+      },
+      {
+        "level": "HIGH",
+        "title": "Delivering, not feeling it",
+        "description": "You are good at the job and the job has stopped giving anything back. Most of what you feel about a result is that it is done.",
+        "minScore": 60,
+        "maxScore": 75,
+        "displayOrder": 2
+      },
+      {
+        "level": "CRITICAL",
+        "title": "Running on empty",
+        "description": "The delivery is continuing on momentum. Very little of what you do arrives without credit or return attached, and very little of it lands.",
+        "minScore": 76,
+        "maxScore": 100,
+        "displayOrder": 3
+      }
+    ],
+    "publishedPages": [
+      {
+        "id": "p1",
+        "order": 0,
+        "title": null,
+        "blocks": [
+          {
+            "id": "b1",
+            "type": "text",
+            "order": 0,
+            "config": {
+              "heading": "Your state audit",
+              "content": "Eight domains, the last four weeks. This result is yours. Nobody else receives it, named or otherwise."
+            }
+          },
+          {
+            "id": "b2",
+            "type": "overall_band",
+            "order": 1,
+            "config": {
+              "prefix": "Where you are operating from:"
+            }
+          },
+          {
+            "id": "b3",
+            "type": "band_sentence",
+            "order": 2,
+            "config": {
+              "byBand": {
+                "LOW": "Steady. What you deliver still comes back to you.",
+                "MEDIUM": "Running on habit. The output is holding up the picture.",
+                "HIGH": "Delivering, not feeling it. Excellent at delivery, and less and less able to feel it.",
+                "CRITICAL": "Running on empty. The work is continuing on momentum."
+              }
+            }
+          },
+          {
+            "id": "b4",
+            "type": "category_scores",
+            "order": 3,
+            "config": {
+              "heading": "The eight domains"
+            }
+          },
+          {
+            "id": "b5",
+            "type": "text",
+            "order": 4,
+            "config": {
+              "heading": "Day 30",
+              "content": "Take this again in 30 days, on the same email address. The change between the two readings is the only number that matters.\n\nIf you are responsible for a senior layer, this is the same instrument it would take, privately, with you seeing only the aggregate. If your organisation sent you this link, there is nothing more for you to do. Your result is yours and nobody else receives it."
+            }
+          },
+          {
+            "id": "b6",
+            "type": "text",
+            "order": 5,
+            "config": {
+              "heading": "The evidence",
+              "content": "Oxford, 46,336 employees across more than 230 UK organisations: mindfulness, resilience training, wellbeing apps and coaching showed no association with better wellbeing. One category did. People who gave unrecognised time to someone who could not repay them reported better wellbeing than those who did not.\n\nWhat this does not say: it is cross-sectional survey data. It shows an association, not proof of cause, and the direction could run the other way, people who already feel well may be likelier to volunteer. What it does say is that the things usually bought for this are not separating from doing nothing.\n\nWilliam J. Fleming, Industrial Relations Journal, 2024."
+            }
+          }
+        ]
+      }
+    ],
+    "resultPage": {
+      "theme": "warm_sand",
+      "blocks": [
+        {
+          "id": "v1",
+          "type": "eyebrow",
+          "config": {
+            "text": "The Senior Layer: state audit"
+          }
+        },
+        {
+          "id": "v2",
+          "type": "headline",
+          "config": {
+            "text": "Where you are actually operating from"
+          }
+        },
+        {
+          "id": "v3",
+          "type": "subhead",
+          "config": {
+            "text": "Not how you are performing. Eight domains, the last four weeks, in your own answers."
+          }
+        },
+        {
+          "id": "v4",
+          "type": "ai_statement",
+          "config": {
+            "fallback": "Your answers describe how much of what you deliver you still get to feel. Read your two heaviest domains first. They are where the cost of the job is landing on you, and they are specific to you."
+          }
+        },
+        {
+          "id": "v5",
+          "type": "text",
+          "config": {
+            "text": "Take this again in 30 days, on the same email address. The change between the two readings is the only number that matters.\n\nIf you are responsible for a senior layer, this is the same instrument it would take, privately, with you seeing only the aggregate. If your organisation sent you this link, there is nothing more for you to do. Your result is yours and nobody else receives it.",
+            "align": "left"
+          }
+        },
+        {
+          "id": "v6",
+          "type": "button",
+          "config": {
+            "label": "Run this across my senior layer",
+            "url": "",
+            "fontSize": 18,
+            "align": "center",
+            "bookingCta": true
+          }
+        },
+        {
+          "id": "v7",
+          "type": "text",
+          "config": {
+            "text": "Thirty minutes, with your result open in front of us. Not a programme pitch. If a programme would not help, we say so.",
+            "align": "center"
+          }
+        },
+        {
+          "id": "v8",
+          "type": "text",
+          "config": {
+            "text": "Oxford, 46,336 employees across more than 230 UK organisations: mindfulness, resilience training, wellbeing apps and coaching showed no association with better wellbeing. One category did. People who gave unrecognised time to someone who could not repay them reported better wellbeing than those who did not.\n\nWhat this does not say: it is cross-sectional survey data. It shows an association, not proof of cause, and the direction could run the other way, people who already feel well may be likelier to volunteer. What it does say is that the things usually bought for this are not separating from doing nothing.\n\nWilliam J. Fleming, Industrial Relations Journal, 2024.",
+            "align": "left"
+          }
+        },
+        {
+          "id": "v9",
+          "type": "footer",
+          "config": {
+            "links": [],
+            "disclaimer": "This is a self-report baseline, not a clinical screen. It does not diagnose anything.",
+            "copyright": ""
+          }
+        }
+      ]
+    },
+    "resultPagePublished": {
+      "theme": "warm_sand",
+      "blocks": [
+        {
+          "id": "v1",
+          "type": "eyebrow",
+          "config": {
+            "text": "The Senior Layer: state audit"
+          }
+        },
+        {
+          "id": "v2",
+          "type": "headline",
+          "config": {
+            "text": "Where you are actually operating from"
+          }
+        },
+        {
+          "id": "v3",
+          "type": "subhead",
+          "config": {
+            "text": "Not how you are performing. Eight domains, the last four weeks, in your own answers."
+          }
+        },
+        {
+          "id": "v4",
+          "type": "ai_statement",
+          "config": {
+            "fallback": "Your answers describe how much of what you deliver you still get to feel. Read your two heaviest domains first. They are where the cost of the job is landing on you, and they are specific to you."
+          }
+        },
+        {
+          "id": "v5",
+          "type": "text",
+          "config": {
+            "text": "Take this again in 30 days, on the same email address. The change between the two readings is the only number that matters.\n\nIf you are responsible for a senior layer, this is the same instrument it would take, privately, with you seeing only the aggregate. If your organisation sent you this link, there is nothing more for you to do. Your result is yours and nobody else receives it.",
+            "align": "left"
+          }
+        },
+        {
+          "id": "v6",
+          "type": "button",
+          "config": {
+            "label": "Run this across my senior layer",
+            "url": "",
+            "fontSize": 18,
+            "align": "center",
+            "bookingCta": true
+          }
+        },
+        {
+          "id": "v7",
+          "type": "text",
+          "config": {
+            "text": "Thirty minutes, with your result open in front of us. Not a programme pitch. If a programme would not help, we say so.",
+            "align": "center"
+          }
+        },
+        {
+          "id": "v8",
+          "type": "text",
+          "config": {
+            "text": "Oxford, 46,336 employees across more than 230 UK organisations: mindfulness, resilience training, wellbeing apps and coaching showed no association with better wellbeing. One category did. People who gave unrecognised time to someone who could not repay them reported better wellbeing than those who did not.\n\nWhat this does not say: it is cross-sectional survey data. It shows an association, not proof of cause, and the direction could run the other way, people who already feel well may be likelier to volunteer. What it does say is that the things usually bought for this are not separating from doing nothing.\n\nWilliam J. Fleming, Industrial Relations Journal, 2024.",
+            "align": "left"
+          }
+        },
+        {
+          "id": "v9",
+          "type": "footer",
+          "config": {
+            "links": [],
+            "disclaimer": "This is a self-report baseline, not a clinical screen. It does not diagnose anything.",
+            "copyright": ""
+          }
+        }
+      ]
+    }
+  }
+}

@@ -48,6 +48,10 @@ import platformJunkLeadsGate from "./platform-junk-leads-gate.json";
 // near-zero weight so it bands on its own without moving the Part B headline, and the
 // override rules live in the AI instructions because the engine has no rule layer.
 import seniorLayerAudit from "./senior-layer-audit.json";
+// The person-level instrument the /corporate pages promise: the senior leader answers
+// for themselves, over the last four weeks, so the 30-day retake lock IS the Day 30
+// re-measure. The audit above is the buyer rating the organisation; this is the layer.
+import seniorLayerStateAudit from "./senior-layer-state-audit.json";
 // The business-heads instrument re-pointed at the family. The gate keeps the ownership
 // questions, because for this audience being a business head is what makes the call
 // affordable rather than what is being diagnosed, and the scored half drops every
@@ -79,6 +83,7 @@ export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   b2bSaas,
   indiaTripExpectations,
   seniorLayerAudit,
+  seniorLayerStateAudit,
   hniChildrenCultureShift,
   cancellationExitWhyYouLeft,
   platformJunkLeadsGate,
