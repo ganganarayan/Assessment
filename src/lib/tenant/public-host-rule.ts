@@ -48,16 +48,25 @@ export interface HostScopeInput {
  *
  * `ownerHasOwnHost` is 🔴 LOAD-BEARING, not a softening. Tenant subdomains do not
  * resolve (`<slug>.<root>` has no DNS and Railway routes no wildcard - checked
- * 02-11-2026), and `Domain` rows exist only for tenants who have brought their own. So
- * for every other tenant - which is every trial, from signup until they buy a domain -
- * THE PLATFORM HOST IS THE ONLY HOST THEIR FUNNEL HAS. "Serve a funnel on its owner's
- * host only" reads as the strict rule right up to the moment it 404s a paying tenant's
- * live funnel off the one address it ever had, with their ad spend still pointing at it.
+ * 02-11-2026), and a routed custom domain exists only for tenants who have brought one
+ * and got it attached. So for every other tenant - which is every trial, from signup
+ * until they buy a domain - THE PLATFORM HOST IS THE ONLY HOST THEIR FUNNEL HAS.
+ * "Serve a funnel on its owner's host only" reads as the strict rule right up to the
+ * moment it 404s a paying tenant's live funnel off the one address it ever had, with
+ * their ad spend still pointing at it.
  *
- * So the platform host stays the fallback home for an owner that has no home of its
- * own, and stops being it the moment they attach a domain. That is self-healing in the
- * right direction and it already matches `tenantCanonicalOrigin`, which names the
- * tenant's own domain when there is one and the platform's when there is not.
+ * 🔴 AND IT MUST MEAN ROUTED, NOT CONFIGURED. A Domain row is an intention; routing is
+ * the fact. On 02-11-2026 cosmetic-divine-leads had a row for assess.divineleads.guru
+ * with DNS pointed, and the host still answered Railway's "Application not found",
+ * because the service's custom-domain cap had been reached - so its three published
+ * funnels had exactly one working address, the platform's. Taking the row as a home
+ * would have taken all three offline. The caller therefore asks Railway's routed list,
+ * not the Domain table.
+ *
+ * So the platform host stays the fallback home for an owner that has no working home of
+ * its own, and stops being it the moment one starts routing. That is self-healing in
+ * the right direction and it matches `tenantCanonicalOrigin`, which names the tenant's
+ * own domain when there is one and the platform's when there is not.
  *
  * 🔴 A null owner is read as the PLATFORM, never as the owner's own funnel tenant. A
  * funnel created from /admin without entering a workspace is stamped null, and reading

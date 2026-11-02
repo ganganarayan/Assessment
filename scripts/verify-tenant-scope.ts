@@ -25,11 +25,17 @@ const fail = (n: string, d: string) => {
 };
 const expect = (n: string, cond: boolean, d = "") => (cond ? ok(n) : fail(n, d));
 
-/** The production cast, as the database had it on 02-11-2026. */
-const GITA = "cmr6oz0ez0001nv1y0hv2zsl1"; // apply-gita, owns assess.applygitawisdom.com
-const COSMETIC = "cmrz46xaw0038p71y5nmat293"; // cosmetic-divine-leads, owns a domain
-const TRIAL = "cmuw887ay003kli1yxd2qrvnw"; // deepak-singh, NO domain of its own
+/**
+ * The production cast, as the database and Railway had it on 02-11-2026. The third
+ * column is what `ownerHasOwnHost` is: a host RAILWAY ROUTES, not a Domain row.
+ */
+const GITA = "cmr6oz0ez0001nv1y0hv2zsl1"; // apply-gita: assess.applygitawisdom.com, routed
+const COSMETIC = "cmrz46xaw0038p71y5nmat293"; // cosmetic-divine-leads: row, NOT routed
+const TRIAL = "cmuw887ay003kli1yxd2qrvnw"; // deepak-singh: no domain at all
 const PLATFORM_HOST = null; // assess360.divineleads.guru resolves to the root host
+
+/** Whether each owner above has a WORKING host, as measured on 02-11-2026. */
+const ROUTED = { [GITA]: true, [COSMETIC]: false, [TRIAL]: false } as const;
 
 const funnel = (hostTenantId: string | null, ownerTenantId: string | null, ownerHasOwnHost: boolean) =>
   funnelVisibleOnHost({ hostTenantId, ownerTenantId, ownerHasOwnHost });
@@ -45,14 +51,14 @@ expect(
 );
 // assess360.divineleads.guru/a/business-heads - a tenant's funnel served as ours.
 expect(
-  "the platform host does NOT serve a funnel whose owner has a domain of its own",
-  !funnel(PLATFORM_HOST, GITA, true),
+  "the platform host does NOT serve a funnel whose owner has a ROUTED domain of its own",
+  !funnel(PLATFORM_HOST, GITA, ROUTED[GITA]),
 );
 
 console.log("\n=== What must keep working (the owner's paid ads point here) ===");
 expect(
   "a tenant's own domain serves its own funnel",
-  funnel(GITA, GITA, true),
+  funnel(GITA, GITA, ROUTED[GITA]),
 );
 expect(
   "the platform host serves the platform's own funnel",
@@ -60,17 +66,28 @@ expect(
 );
 expect(
   "a tenant with NO domain keeps its funnel on the platform host - its only address",
-  funnel(PLATFORM_HOST, TRIAL, false),
+  funnel(PLATFORM_HOST, TRIAL, ROUTED[TRIAL]),
+);
+
+expect(
+  "a tenant whose domain does not ROUTE yet keeps its funnels on the platform host",
+  funnel(PLATFORM_HOST, COSMETIC, ROUTED[COSMETIC]),
+  "cosmetic-divine-leads had a Domain row and no Railway route on 02-11-2026, so the " +
+    "platform host was the only working address its three published funnels had",
 );
 
 console.log("\n=== Tenant against tenant, which is the crossover that was reported ===");
 expect(
   "one tenant's domain does NOT serve another tenant's funnel",
-  !funnel(GITA, COSMETIC, true),
+  !funnel(GITA, COSMETIC, ROUTED[COSMETIC]),
 );
 expect(
   "nor a domain-less tenant's funnel, which the platform host does serve",
-  !funnel(GITA, TRIAL, false) && funnel(PLATFORM_HOST, TRIAL, false),
+  !funnel(GITA, TRIAL, ROUTED[TRIAL]) && funnel(PLATFORM_HOST, TRIAL, ROUTED[TRIAL]),
+);
+expect(
+  "an unrouted domain never becomes a host that serves other tenants' funnels either",
+  !funnel(COSMETIC, GITA, ROUTED[GITA]) && !funnel(COSMETIC, PLATFORM_TENANT_ID, false),
 );
 
 console.log("\n=== The legacy null owner ===");
@@ -86,7 +103,7 @@ expect(
 );
 expect(
   "and no tenant's domain serves it",
-  !funnel(GITA, null, false) && !funnel(COSMETIC, null, true) && !funnel(TRIAL, null, false),
+  !funnel(GITA, null, false) && !funnel(COSMETIC, null, false) && !funnel(TRIAL, null, false),
 );
 expect(
   "the two spellings of the platform are one owner, in both directions",
@@ -124,7 +141,7 @@ console.log("\n=== The rule decides on the owner, never on the funnel's reachabi
  * here is "has a Domain row", which is the same question that routing already answers.
  */
 expect(
-  "owning a domain is what moves a funnel off the platform host, nothing else",
+  "a ROUTED host is what moves a funnel off the platform host, nothing else",
   funnel(PLATFORM_HOST, TRIAL, false) && !funnel(PLATFORM_HOST, TRIAL, true),
 );
 

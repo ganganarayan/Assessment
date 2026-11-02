@@ -146,6 +146,27 @@ let routed: { hosts: string[]; at: number } | null = null;
 let routedAttemptedAt = 0;
 let routedInFlight: Promise<string[] | null> | null = null;
 
+/**
+ * Does Railway route this exact hostname to this service?
+ *
+ * Exported because it is the only honest answer to "does this tenant have a working
+ * host of its own" - a Domain row is an INTENTION, and the two come apart in practice:
+ * on 02-11-2026 assess.divineleads.guru had a row, pointed its DNS at Cloudflare, and
+ * still answered `x-railway-fallback: true` / "Application not found", because the
+ * service's custom-domain cap had been reached. A funnel whose owner has a row but no
+ * route has exactly one working address, and it is the platform's. See
+ * lib/tenant/public-host-rule.ts, which turns that into a serving decision.
+ *
+ * 🟡 Fails to FALSE (via the stale-list policy below), which is the safe direction for
+ * that caller: a Railway outage makes every owner look homeless, so the platform host
+ * keeps serving their funnels, exactly as it does today. It never makes one tenant's
+ * domain serve another's.
+ */
+export async function isRailwayRoutedHost(host: string | null | undefined): Promise<boolean> {
+  const h = normalizeHost(host);
+  return h ? railwayServes(h) : false;
+}
+
 async function railwayServes(host: string): Promise<boolean> {
   const now = Date.now();
   const stale = !routed || now - routed.at >= ROUTED_TTL_MS;

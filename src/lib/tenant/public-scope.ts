@@ -5,6 +5,7 @@ import { getCurrentTenant } from "@/lib/tenant/context";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isSuperAdmin } from "@/lib/auth/guards";
 import { enteredAgencyTenant } from "@/lib/tenant/agency";
+import { isRailwayRoutedHost } from "@/lib/tenant/served-host";
 import { PLATFORM_TENANT_ID, isBusinessTenant, isPlatformScope } from "@/lib/tenant/platform-tenant";
 import { funnelVisibleOnHost, ownerOrPlatformVisibleOnHost } from "@/lib/tenant/public-host-rule";
 
@@ -28,14 +29,30 @@ const hostOwner = cache(async (): Promise<string> => {
   return t?.id ?? PLATFORM_TENANT_ID;
 });
 
-/** Does this owning tenant have a public hostname of its own? See the rule module for
- *  why this question decides whether the platform host stands in for it. */
+/**
+ * Does this owning tenant have a WORKING public hostname of its own? See the rule
+ * module for why this question decides whether the platform host stands in for it.
+ *
+ * 🔴 NOT "does it have a Domain row". A row is an intention; routing is the fact, and
+ * the two come apart. On 02-11-2026 cosmetic-divine-leads had a row for
+ * assess.divineleads.guru with DNS pointed, and the host still answered Railway's
+ * "Application not found" because the service's custom-domain cap had been hit - so its
+ * three published funnels had exactly one working address, the platform's. Reading the
+ * row as a home would have 404'd all three off the only host they had, which is the
+ * same mistake as ignoring the carve-out altogether, just better hidden.
+ *
+ * So the question goes to Railway's own routed list, which is what decides whether a
+ * request can physically arrive on that host at all.
+ */
 const ownerHasOwnHost = cache(async (ownerTenantId: string): Promise<boolean> => {
-  const row = await prisma.domain.findFirst({
+  const rows = await prisma.domain.findMany({
     where: { tenantId: ownerTenantId },
-    select: { id: true },
+    select: { hostname: true },
   });
-  return !!row;
+  for (const r of rows) {
+    if (await isRailwayRoutedHost(r.hostname)) return true;
+  }
+  return false;
 });
 
 /** Is this request's hostname allowed to serve a funnel owned by `ownerTenantId`? */
