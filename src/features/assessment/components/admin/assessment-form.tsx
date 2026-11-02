@@ -28,7 +28,10 @@ import {
   stepLabel,
   STEP_KEYS,
   STEP_HEADINGS,
+  TEMPLATE_STEP_KEYS,
+  TEMPLATE_STEP_HEADINGS,
 } from "@/features/admin/components/builder-tab-context";
+import type { ActionResult } from "@/features/assessment/actions/shared";
 import { splitPreviewLabels } from "@/features/assessment/flow/lead-split";
 import { audienceGateRenders } from "@/features/assessment/audience-gate";
 
@@ -218,6 +221,8 @@ export function AssessmentForm({
   mode,
   id,
   initial,
+  templateMode = false,
+  onSave,
   basePath = "/admin/assessments",
   promptVersions = [],
   assessmentOptions = [],
@@ -232,6 +237,25 @@ export function AssessmentForm({
   mode: "create" | "edit";
   id?: string;
   initial?: AssessmentFormValues;
+  /**
+   * Editing a TEMPLATE rather than a live assessment.
+   *
+   * Everything about the fields stays the same - that is the whole reason this form is
+   * reused instead of copied - but the walk is shorter (a template has no "start from a
+   * template" step and no result page to bind), and the four controls whose value the
+   * portable template shape cannot carry are hidden. A switch that silently discards
+   * what you set is worse than an absent one; UNCARRIED_SETTINGS in
+   * features/templates/builder-doc.ts names them and says why.
+   */
+  templateMode?: boolean;
+  /**
+   * Where a save goes, when it is not this assessment's own row.
+   *
+   * The template builder passes a function that writes the mapped values onto the
+   * template document instead. Absent = the normal path, so nothing about the live
+   * builder changes.
+   */
+  onSave?: (payload: AssessmentInput) => Promise<ActionResult>;
   /** Where to send the user after create (edit stays in place). The tenant
    *  workspace passes /w/assessments so it never links into the admin console. */
   basePath?: string;
@@ -259,10 +283,12 @@ export function AssessmentForm({
   const tab = useBuilderTab();
   // On create there are no steps to walk - the whole form shows at once, because a
   // multi-step wizard that has not created a row yet has nothing to save between steps.
-  const step = mode === "create" ? null : (tab?.active ?? "template");
-  const next = step ? nextStepKey(step) : null;
-  const prev = step ? prevStepKey(step) : null;
-  const heading = step ? STEP_HEADINGS[step] : null;
+  const steps = templateMode ? TEMPLATE_STEP_KEYS : STEP_KEYS;
+  const headings = templateMode ? TEMPLATE_STEP_HEADINGS : STEP_HEADINGS;
+  const step = mode === "create" ? null : (tab?.active ?? steps[0] ?? "template");
+  const next = step ? nextStepKey(step, steps) : null;
+  const prev = step ? prevStepKey(step, steps) : null;
+  const heading = step ? headings[step] : null;
   // Steps whose content is a manager on the page rather than fields in this form. The
   // form still renders its navigation there, because one set of Back / Save & next
   // buttons for the whole walk is the point - two would be a question about which one
@@ -329,11 +355,12 @@ export function AssessmentForm({
   // Autosave on leaving a field. Never in create mode: a blur must not bring a row
   // into existence. The Save button below is untouched.
   const autosaveSave = useCallback(
-    (payload: AssessmentInput) => updateAssessment(id as string, payload),
-    [id],
+    (payload: AssessmentInput) =>
+      onSave ? onSave(payload) : updateAssessment(id as string, payload),
+    [id, onSave],
   );
   const autosave = useAutosave<HTMLFormElement>({
-    enabled: mode === "edit" && !!id,
+    enabled: mode === "edit" && (!!id || !!onSave),
     build: buildPayload,
     save: autosaveSave,
   });
@@ -353,8 +380,9 @@ export function AssessmentForm({
     setError(null);
     start(async () => {
       const payload = buildPayload();
-      const res =
-        mode === "create"
+      const res = onSave
+        ? await onSave(payload)
+        : mode === "create"
           ? await createAssessment(payload)
           : await updateAssessment(id as string, payload);
       if (!res.ok) {
@@ -375,7 +403,7 @@ export function AssessmentForm({
       // Only AFTER a successful save, so "Save & close" never closes on a failure and
       // leaves the error on a page nobody is looking at any more.
       then?.();
-      router.refresh();
+      if (!templateMode) router.refresh();
     });
   }
 
@@ -405,7 +433,7 @@ export function AssessmentForm({
   // show, and nothing of this form's to save. Those steps get their own navigation
   // BELOW the manager, which is where navigation belongs - a Back/Next row floating
   // above the thing you came to edit is a row you press by accident.
-  if (step && (!STEP_KEYS.includes(step) || fieldless)) return null;
+  if (step && (!steps.includes(step) || fieldless)) return null;
 
   return (
     <ShowWholeFormCtx.Provider value={mode === "create"}>
@@ -1288,17 +1316,19 @@ export function AssessmentForm({
               the result. When on, pick which system-prompt version drives it (manage under AI →
               System prompt versions).
             </p>
-            <select
-              className="h-10 max-w-md rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm disabled:opacity-50"
-              value={values.aiPromptVersionId ?? ""}
-              disabled={!values.useAiStatement}
-              onChange={(e) => set("aiPromptVersionId", e.target.value)}
-            >
-              <option value="">Tenant default</option>
-              {promptVersions.map((v) => (
-                <option key={v.id} value={v.id}>{v.label}</option>
-              ))}
-            </select>
+            {templateMode ? null : (
+              <select
+                className="h-10 max-w-md rounded-md border border-[var(--border)] bg-[var(--background)] px-2 text-sm disabled:opacity-50"
+                value={values.aiPromptVersionId ?? ""}
+                disabled={!values.useAiStatement}
+                onChange={(e) => set("aiPromptVersionId", e.target.value)}
+              >
+                <option value="">Tenant default</option>
+                {promptVersions.map((v) => (
+                  <option key={v.id} value={v.id}>{v.label}</option>
+                ))}
+              </select>
+            )}
           </div>
           </FormStep>
 
@@ -1356,7 +1386,7 @@ export function AssessmentForm({
                 </label>
               ))}
             </div>
-            {values.questionDisplayMode !== "ALL" ? (
+            {values.questionDisplayMode !== "ALL" && !templateMode ? (
               <label className="mt-1 flex items-start gap-2 border-t pt-3 text-sm">
                 <input
                   type="checkbox"
@@ -1375,6 +1405,7 @@ export function AssessmentForm({
                 </span>
               </label>
             ) : null}
+            {templateMode ? null : (
             <label className="mt-1 flex items-start gap-2 border-t pt-3 text-sm">
               <input
                 type="checkbox"
@@ -1393,6 +1424,7 @@ export function AssessmentForm({
                 </span>
               </span>
             </label>
+            )}
           </div>
           </FormStep>
 

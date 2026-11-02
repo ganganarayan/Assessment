@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:tenant-scope && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:calendar && npm run verify:automations && npm run verify:releases && npm run verify:billing-term && npm run verify:billing-ledger && npm run verify:workflow-queue && npm run verify:vault && npm run verify:contact-consent && npm run verify:contact-fields && npm run verify:client-bundle && npm run verify:email-providers && npm run verify:whatsapp && npm run verify:wa-templates && npm run verify:legal && npm run verify:ai && npm run verify:platform-capi && next build",
+    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:tenant-scope && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:template-builder && npm run verify:calendar && npm run verify:automations && npm run verify:releases && npm run verify:billing-term && npm run verify:billing-ledger && npm run verify:workflow-queue && npm run verify:vault && npm run verify:contact-consent && npm run verify:contact-fields && npm run verify:client-bundle && npm run verify:email-providers && npm run verify:whatsapp && npm run verify:wa-templates && npm run verify:legal && npm run verify:ai && npm run verify:platform-capi && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -28,6 +28,7 @@
     "verify:onboarding": "tsx scripts/verify-onboarding.ts",
     "verify:events": "tsx --conditions=react-server scripts/verify-events.ts",
     "verify:transfer": "tsx --conditions=react-server scripts/verify-transfer.ts",
+    "verify:template-builder": "tsx --conditions=react-server scripts/verify-template-builder.ts",
     "verify:webhook-payload": "tsx scripts/verify-webhook-payload.ts",
     "verify:retake": "tsx scripts/verify-retake.ts",
     "verify:result": "tsx scripts/verify-result.ts",

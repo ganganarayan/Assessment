@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -105,6 +106,16 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  /**
+   * "Edit as JSON instead", from the builder.
+   *
+   * Read off the URL once on mount rather than through useSearchParams, which would
+   * pull this whole screen into a Suspense boundary to answer a question asked once.
+   */
+  useEffect(() => {
+    const want = new URLSearchParams(window.location.search).get("json");
+    if (want) setEditing(want);
+  }, []);
   const [reward, setReward] = useState<Reward | null>(null);
   /**
    * The bulk publish, held behind one confirmation.
@@ -368,8 +379,18 @@ export function TemplatesConsole({ items, canEdit }: { items: TemplateListItem[]
                       Published
                     </label>
                     <DownloadTemplate id={t.id} />
+                    {/* Edit opens the BUILDER now. The JSON is still here, one press
+                        further in, because a document the builder cannot read has to be
+                        reachable somehow - and because reading the raw thing is
+                        occasionally the fastest way to answer a question about it. */}
+                    <Link
+                      href={`/admin/templates/${t.id}/edit`}
+                      className={cn(buttonVariants({ size: "sm", variant: "outline" }))}
+                    >
+                      Edit
+                    </Link>
                     <Button size="sm" variant="ghost" onClick={() => setEditing(editing === t.id ? null : t.id)}>
-                      {editing === t.id ? "Close" : "Edit"}
+                      {editing === t.id ? "Close" : "Order, details, JSON"}
                     </Button>
                     {!t.builtin ? (
                       <Button

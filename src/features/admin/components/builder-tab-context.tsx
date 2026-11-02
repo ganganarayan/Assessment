@@ -15,8 +15,16 @@ interface BuilderTabState {
 
 const Ctx = createContext<BuilderTabState | null>(null);
 
-export function BuilderTabProvider({ children }: { children: ReactNode }) {
-  const [active, setActive] = useState("template");
+export function BuilderTabProvider({
+  children,
+  initial = "template",
+}: {
+  children: ReactNode;
+  /** Which step to open on. The template builder has no "Start from a template" step,
+   *  so it opens on the first step it does have rather than on a blank panel. */
+  initial?: string;
+}) {
+  const [active, setActive] = useState(initial);
   return <Ctx.Provider value={{ active, setActive }}>{children}</Ctx.Provider>;
 }
 
@@ -86,18 +94,60 @@ export const STEP_KEYS = BUILDER_TABS.map((t) => t.key).filter(
   (k) => k !== "results" && k !== "resultPage",
 ) as readonly string[];
 
-/** The step after `key`, or null at the end of the walk. */
-export function nextStepKey(key: string): string | null {
-  const i = STEP_KEYS.indexOf(key);
-  return i >= 0 && i < STEP_KEYS.length - 1 ? (STEP_KEYS[i + 1] ?? null) : null;
+/**
+ * The steps a TEMPLATE has.
+ *
+ * A template is a document, not a live funnel, so three steps have nothing to act on
+ * and are left out rather than shown doing nothing:
+ *
+ *  - "Start from a template": a template IS the template. Filling one from another
+ *    would be a copy, which the library already does.
+ *  - "Results page" and "VSL result page": those bind a page from the Result pages
+ *    library to an assessment row by id. A template carries its result page inside its
+ *    own document, and there is no row to bind.
+ *
+ * Everything else is the same step with the same fields, because it is the same
+ * component - see TEMPLATE_STEP_HEADINGS for the two headings that have to differ.
+ */
+export const TEMPLATE_STEP_KEYS = STEP_KEYS.filter((k) => k !== "template") as readonly string[];
+
+/** The template builder's rail, in the order it walks. */
+export const TEMPLATE_BUILDER_TABS = BUILDER_TABS.filter((t) =>
+  TEMPLATE_STEP_KEYS.includes(t.key),
+).map((t, i) => ({ key: t.key, label: `${i + 1}. ${t.label.replace(/^\d+\.\s*/, "")}` }));
+
+/**
+ * Headings that have to say something different on a template.
+ *
+ * Only where the assessment wording would be a lie. "Tracking & rules" promises
+ * settings that travel with the template and are applied to whatever funnel is made
+ * from it, which is not the same sentence as "nobody changes these twice".
+ */
+export const TEMPLATE_STEP_HEADINGS: Record<string, { title: string; blurb: string }> = {
+  ...STEP_HEADINGS,
+  basics: {
+    title: "Hero section",
+    blurb: "The words on the first screen. The name and link become the funnel's own when a workspace starts from this template.",
+  },
+  tracking: {
+    title: "Tracking & rules",
+    blurb: "Meta events, colours, retakes - what every funnel built from this template starts with.",
+  },
+};
+
+/** The step after `key`, or null at the end of the walk. `steps` lets the template
+ *  builder walk its own shorter list without a second copy of this function. */
+export function nextStepKey(key: string, steps: readonly string[] = STEP_KEYS): string | null {
+  const i = steps.indexOf(key);
+  return i >= 0 && i < steps.length - 1 ? (steps[i + 1] ?? null) : null;
 }
 
 /** The step before `key`, or null at the start. Back exists because a walk you can
  *  only go forward through is a trap: the moment you realise the last step was wrong,
  *  your only way back is the rail you were not looking at. */
-export function prevStepKey(key: string): string | null {
-  const i = STEP_KEYS.indexOf(key);
-  return i > 0 ? (STEP_KEYS[i - 1] ?? null) : null;
+export function prevStepKey(key: string, steps: readonly string[] = STEP_KEYS): string | null {
+  const i = steps.indexOf(key);
+  return i > 0 ? (steps[i - 1] ?? null) : null;
 }
 
 /** The label for a step key, without its number - for a sentence on a button. */
@@ -151,10 +201,20 @@ export function BuilderStepReset({ assessmentId }: { assessmentId: string }) {
  * It renders BELOW the manager, because a Back/Next row above the thing you came to
  * edit is a row you press by accident.
  */
-export function BuilderStepNav({ step }: { step: string }) {
+export function BuilderStepNav({
+  step,
+  steps = STEP_KEYS,
+  note = "Changes on this step save as you make them.",
+}: {
+  step: string;
+  /** The walk this nav belongs to. The template builder passes its own shorter list. */
+  steps?: readonly string[];
+  /** The sentence beside the buttons. The template builder says where the save goes. */
+  note?: string;
+}) {
   const ctx = useBuilderTab();
-  const prev = prevStepKey(step);
-  const next = nextStepKey(step);
+  const prev = prevStepKey(step, steps);
+  const next = nextStepKey(step, steps);
   const go = (k: string | null) => {
     if (!k) return;
     ctx?.setActive(k);
@@ -181,7 +241,7 @@ export function BuilderStepNav({ step }: { step: string }) {
         </button>
       ) : null}
       <span className="text-xs text-[var(--muted-foreground)]">
-        Changes on this step save as you make them.
+        {note}
       </span>
     </div>
   );
