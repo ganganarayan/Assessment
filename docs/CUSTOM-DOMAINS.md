@@ -130,7 +130,7 @@ proxied host in the zone fails together. Workers Paid is $5/month.
 |---|---|
 | `CLOUDFLARE_API_TOKEN` | token with Zone:Read + SSL:Edit (+ DNS:Edit for the older path) |
 | `CLOUDFLARE_SAAS_ZONE_ID` | the zone id from step 1 |
-| `CLOUDFLARE_SAAS_FALLBACK` | `cname.divineleads.guru` |
+| `CLOUDFLARE_SAAS_FALLBACK` | `customhost.divineleads.guru` (the fallback origin; tenants do not point at it) |
 | `CLOUDFLARE_PROXY_SECRET` | **the same value** as the Worker's `PROXY_SECRET` |
 
 All four are optional. Missing any one and `cloudflareSaasConfigured()` is false and the
@@ -140,8 +140,31 @@ comes back.
 ## What a tenant does
 
 Add the domain in their workspace, then add **one CNAME**: `assess` →
-`cname.divineleads.guru`, DNS-only / unproxied. Cloudflare validates over HTTP once that
+`assess360.divineleads.guru`, DNS-only / unproxied. Cloudflare validates over HTTP once that
 resolves, issues the certificate, and "Check status" turns it live.
+
+🔴 **assess360.divineleads.guru must stay proxied (orange cloud).** Cloudflare routes a
+custom hostname by the hostname once the request reaches the zone and sends it on to the
+fallback origin, so the record tenants point at only has to be a proxied one in the zone.
+Grey-cloud it and every tenant's CNAME resolves past the edge.
+
+🟡 **A host inside divineleads.guru cannot be a tenant domain.** The Worker passes the whole
+zone straight through, so it never reaches the app, and `addDomain` refuses it. This is why
+assess.divineleads.guru answers Railway's "Application not found". Giving it a home takes a
+Railway custom-domain slot or a change to the Worker.
+
+## What follows the domain
+
+Once a domain answers as this app, the tenant's respondent-facing links are built on it:
+payment returns, result links, CRM payloads, booking links, click tracking, the stop link and
+the funnel's canonical tag. One function decides, `publicOriginFor` in
+`src/lib/tenant/public-origin.ts`: the Primary domain if live, else the oldest live one, else
+the platform address. It calls the host and checks the app answering, because a Domain row is
+only an intention and `verified` is only a certificate milestone.
+
+Old links keep working, since the platform host always serves result pages, pay links and the
+stop page. Meta event source URLs, sign-in, webhooks, OAuth callbacks and billing deliberately
+stay on the platform address.
 
 ## Verifying
 

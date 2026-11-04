@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { effectiveHost } from "@/lib/tenant/forwarded-host";
 import { MARKETING } from "@/lib/marketing/content";
-import { prisma } from "@/lib/db/prisma";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 
 /**
  * Host and canonical helpers for the public surfaces.
@@ -106,29 +106,14 @@ export function platformPageMetadata(input: {
  * one of them, and the right one is the tenant's own - that is the address their ads
  * send traffic to and the one they would want ranking.
  *
- * `verified` is NOT part of the lookup, matching getCurrentTenant: that flag tracks
- * certificate issuance and is known to go stale, so gating on it would drop the canonical
- * for a domain that is serving traffic perfectly well.
+ * Their live home, not simply their Domain row: a canonical naming a host that does not
+ * answer tells Google the real page is a dead one. A tenant with no working domain gets
+ * the platform address, because tenant subdomains have no DNS.
  *
  * A null tenantId means the assessment is the platform's own (the null-tenant
  * convention), so the platform domain is the canonical home.
  */
-export async function tenantCanonicalOrigin(tenantId: string | null): Promise<string | null> {
+export async function tenantCanonicalOrigin(tenantId: string | null): Promise<string> {
   if (!tenantId) return MARKETING.domain;
-
-  const domain = await prisma.domain.findFirst({
-    where: { tenantId },
-    // Primary first, then oldest - a stable choice, so the canonical does not move when
-    // a tenant adds a second domain.
-    orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
-    select: { hostname: true },
-  });
-  if (domain) return `https://${domain.hostname}`;
-
-  // No custom domain: the tenant is still reachable at their subdomain, when the install
-  // has a root domain configured.
-  const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim();
-  if (!root) return null;
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true } });
-  return tenant ? `https://${tenant.slug}.${root}` : null;
+  return publicOriginFor(tenantId);
 }

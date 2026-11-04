@@ -54,6 +54,8 @@ export interface ClinicReportData {
   bookingUrl: string | null;
   /** ₹ per enquiry used for the five-case ad-spend chain (from the engine config). */
   costPerEnquiry: number;
+  /** See lib/pdf/footer.ts. Empty prints no footer. */
+  footerLines: string[];
 }
 
 const s = StyleSheet.create({
@@ -327,9 +329,13 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
           </View>
         ) : null}
 
-        <View style={s.footer} fixed>
-          <Text style={s.footLine}>Patient Acquisition Audit - Assess360</Text>
-        </View>
+        {data.footerLines.length > 0 ? (
+          <View style={s.footer} fixed>
+            {data.footerLines.map((line, i) => (
+              <Text key={i} style={s.footLine}>{line}</Text>
+            ))}
+          </View>
+        ) : null}
       </Page>
     </Document>
   );

@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { recordCapture } from "@/lib/meta/capi-log";
 import { asRazorpayAccount } from "@/lib/settings/config";
 
@@ -125,24 +125,11 @@ export async function settlePaymentLink(input: {
 /**
  * The host a pay link is published on.
  *
- * A VERIFIED custom domain wins, so a tenant's client sees the tenant's own address
- * on the page that asks them for money rather than the platform's. Verified means
- * Railway has issued the certificate, which is the only state in which the host
- * actually serves - an unverified domain would produce a link that cannot be opened,
- * and a dead payment link is worse than an off-brand one. Everything else falls back
- * to the app's own URL.
+ * The tenant's live home wins, so a tenant's client sees the tenant's own address on
+ * the page that asks them for money rather than the platform's. A domain that does not
+ * answer would produce a link that cannot be opened, and a dead payment link is worse
+ * than an off-brand one, so anything else falls back to the app's own URL.
  */
 export async function payBaseUrl(tenantId: string | null): Promise<string> {
-  if (!tenantId) return env.NEXT_PUBLIC_APP_URL;
-  try {
-    const d = await prisma.domain.findFirst({
-      where: { tenantId, verified: true },
-      orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
-      select: { hostname: true },
-    });
-    if (d?.hostname) return `https://${d.hostname}`;
-  } catch {
-    /* fall through to the app URL */
-  }
-  return env.NEXT_PUBLIC_APP_URL;
+  return publicOriginFor(tenantId);
 }

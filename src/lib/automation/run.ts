@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { formatISTDate } from "@/lib/date";
 import { sendTrackedEmailWithLog, sendWaba } from "@/lib/nurture/send";
 import { wabaVisible } from "@/lib/nurture/waba-visible";
@@ -46,14 +46,7 @@ export interface RunSummary {
  * domain we know routes, or ours.
  */
 async function outboundOrigin(tenantId: string): Promise<string> {
-  const domain = await prisma.domain
-    .findFirst({
-      where: { tenantId },
-      orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
-      select: { hostname: true },
-    })
-    .catch(() => null);
-  return domain ? `https://${domain.hostname}` : env.NEXT_PUBLIC_APP_URL;
+  return publicOriginFor(tenantId);
 }
 
 /**

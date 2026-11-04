@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
+import { platformOrigin, publicOriginFor } from "@/lib/tenant/public-origin";
 import { verifyPaymentSignature, fetchOrder } from "@/lib/payments/razorpay";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { recordCapture } from "@/lib/meta/capi-log";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * results can't be reached for free. The submission id rides in ?submission=.
  */
 
-function vslUrl(targetUrl: string | null, slug: string, submissionId: string, token: string | null): string {
+function vslUrl(origin: string, targetUrl: string | null, slug: string, submissionId: string, token: string | null): string {
   if (targetUrl && token) {
     try {
       const u = new URL(targetUrl);
@@ -26,12 +26,12 @@ function vslUrl(targetUrl: string | null, slug: string, submissionId: string, to
       /* fall through */
     }
   }
-  return `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}`;
+  return `${origin}/a/${slug}/r/${submissionId}`;
 }
 
 export async function POST(req: Request) {
   const url = new URL(req.url);
-  const failed = NextResponse.redirect(`${env.NEXT_PUBLIC_APP_URL}/?payment=failed`, 303);
+  let failed = NextResponse.redirect(`${platformOrigin()}/?payment=failed`, 303);
 
   let form: FormData;
   try {
@@ -48,8 +48,17 @@ export async function POST(req: Request) {
   // fails). Security still binds to the order's OWN notes below.
   const claimed = url.searchParams.get("submission");
   if (!claimed) return failed;
-  const claimedSub = await prisma.submission.findUnique({ where: { id: claimed }, select: { tenantId: true } });
+  const claimedSub = await prisma.submission.findUnique({
+    where: { id: claimed },
+    select: { tenantId: true, assessment: { select: { slug: true } } },
+  });
   if (!claimedSub) return failed;
+  const origin = await publicOriginFor(claimedSub.tenantId);
+  // Back to the funnel they were paying on. A tenant host's "/" is its sign-in page,
+  // which is no place to send somebody whose payment just failed.
+  if (claimedSub.assessment) {
+    failed = NextResponse.redirect(`${origin}/a/${claimedSub.assessment.slug}?payment=failed`, 303);
+  }
   const keys = await resolveRazorpayConfig(claimedSub.tenantId);
 
   if (!verifyPaymentSignature(orderId, paymentId, signature, keys.keySecret)) return failed;
@@ -109,7 +118,7 @@ export async function POST(req: Request) {
   // CRM "completed_paid" event (once) - the paid pipeline.
   await emitCompletedPaid(submissionId);
 
-  const dest = vslUrl(s.assessment.targetUrl, s.assessment.slug, submissionId, s.resultToken);
+  const dest = vslUrl(origin, s.assessment.targetUrl, s.assessment.slug, submissionId, s.resultToken);
   const finalUrl = dest + (dest.includes("?") ? "&" : "?") + "event=1";
 
   // Server-side Purchase (CAPI) via the unified log - deduped by the Razorpay

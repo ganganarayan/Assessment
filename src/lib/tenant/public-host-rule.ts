@@ -95,25 +95,43 @@ export function funnelVisibleOnHost(
  * booking page? Laxer than the funnel rule in exactly one way: the platform host
  * always serves.
  *
- * 🔴 WHY, CONCRETELY. Those links are not typed by anyone, they are built by us from
- * `env.NEXT_PUBLIC_APP_URL` - lib/events/completion.ts (resultUrlFor,
- * shareableResultUrl), api/cta, api/payments/verify for results, and
- * lib/settings/config.ts with lib/calendar/signals.ts for bookings - and in production
- * that env value is the PLATFORM host. So the live link for all 789 Apply Gita
- * submissions, the ones sitting in the CRM and in already-sent WhatsApp and email
- * nurture, is on assess360.divineleads.guru. Applying the funnel rule here would 404
- * every one of them: a worse outcome than the leak, and not recoverable by the people
- * holding the links.
+ * 🔴 WHY, CONCRETELY. New links are built on the tenant's own home (see
+ * lib/tenant/public-origin.ts), but every link minted before that moved was built on the
+ * PLATFORM host. So the live link for all 789 Apply Gita submissions, the ones sitting in
+ * the CRM and in already-sent WhatsApp and email nurture, is on
+ * assess360.divineleads.guru. Applying the funnel rule here would 404 every one of them:
+ * a worse outcome than the leak, and not recoverable by the people holding the links.
+ * It is also where a new link lands when a tenant's own domain fails its live check.
  *
  * What this still closes is the crossover that was reported: ONE TENANT'S DOMAIN
  * SERVING ANOTHER TENANT'S page - a respondent's name and score, or another tenant's
- * name and free appointment slots. Moving the builders onto the owning tenant's origin
- * is the real fix for the branding half, and it is its own job: it changes every future
- * link and cannot change the ones already sent.
+ * name and free appointment slots.
  */
 export function ownerOrPlatformVisibleOnHost(input: HostScopeInput): boolean {
   // The platform host is where the links are made, so it is where they must work.
   if (isPlatformScope(input.hostTenantId)) return true;
   if (isPlatformScope(input.ownerTenantId)) return false;
   return input.hostTenantId === input.ownerTenantId;
+}
+
+/**
+ * Which of a tenant's hosts its links are built on: the first LIVE one, given best first
+ * (Primary, then oldest). Null sends the caller to the platform address. A configured host
+ * that is not live never wins, however highly it ranks, because a link built on it is dead.
+ */
+export function chooseHomeHost(
+  hostsBestFirst: readonly string[],
+  isLive: (host: string) => boolean,
+): string | null {
+  return hostsBestFirst.find(isLive) ?? null;
+}
+
+/**
+ * Did this body come from Assess360's own /api/version? A status code cannot answer that:
+ * a rewritten request returns a healthy 200 from the wrong app. Same test as
+ * scripts/verify-zone.ts.
+ */
+export function answersAsThisApp(body: unknown): boolean {
+  if (typeof body !== "object" || body === null) return false;
+  return "commit" in body && "branch" in body && "deploymentId" in body;
 }

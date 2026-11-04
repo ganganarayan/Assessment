@@ -45,6 +45,7 @@ async function main() {
       "### Where you stand\nYour clinic earns roughly the figures shown above from its current enquiries.\n\n### What is producing the gap\nResponse speed and follow-up depth are both costing bookings.",
     bookingUrl: "https://cal.com/example/intro",
     costPerEnquiry: DEFAULT_ENGINE_CONFIG.costPerEnquiry,
+    footerLines: ["Report by Assess360 · assess360.example.com"],
   });
 
   const okHeader = buf.subarray(0, 5).toString("latin1") === "%PDF-";

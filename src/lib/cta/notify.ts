@@ -2,7 +2,7 @@
 // retries these notifications, and that process runs outside Next, where the
 // `server-only` package does not resolve at all.
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { sendEmail } from "@/lib/nurture/send";
 import { formatIST } from "@/lib/date";
 import { ctaResultUrl } from "@/lib/cta/result-url";
@@ -75,7 +75,7 @@ export async function sendCtaNotification(clickId: string): Promise<void> {
   const name = [s.leadFirstName, s.leadLastName].filter(Boolean).join(" ") || null;
   // The FULL internal result page - what the owner reads to decide whether this person
   // qualifies. Token-bearing, so it opens without a sign-in.
-  const resultUrl = ctaResultUrl(env.NEXT_PUBLIC_APP_URL, s.assessment.slug, s.id, s.resultToken);
+  const resultUrl = ctaResultUrl(await publicOriginFor(click.tenantId), s.assessment.slug, s.id, s.resultToken);
 
   const subject = `Call requested: ${name ?? s.leadEmail ?? "someone"} - ${s.assessment.title}`;
   const html = `<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:560px;margin:0 auto;color:#111">

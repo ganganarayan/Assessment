@@ -7,6 +7,7 @@ import { listPaymentLinks, configuredPaymentAccounts, getProductSalesBySubmissio
 import { labeledAnswers } from "@/features/assessment/custom-fields";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { pickResultUrl, vidapulseParamForTenant } from "@/lib/events/completion";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { timezoneForCountry } from "@/lib/geo";
 import { formatIST } from "@/lib/date";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
@@ -31,6 +32,7 @@ export default async function WorkspaceSubmissionsPage({
   // The VSL `cid` param for this tenant - appended to each row's Result URL so the
   // "Copy" link an operator sends for nurture carries the customer id to VidaPulse.
   const vidapulseParam = await vidapulseParamForTenant(tenantId);
+  const publicOrigin = await publicOriginFor(tenantId);
   const assessmentOptions = (await listAssessments(tenantOnly(tenantId))).map((a) => ({ id: a.id, title: a.title }));
   // Submissions is always scoped to one assessment (no cross-assessment "All" view):
   // use the URL id, else default to the newest assessment (list is createdAt desc).
@@ -84,6 +86,7 @@ export default async function WorkspaceSubmissionsPage({
       status: s.status,
       resultUrl: s.status === "COMPLETED"
         ? pickResultUrl({
+            origin: publicOrigin,
             engine: s.assessment.engine,
             nextStep: s.assessment.nextStep,
             targetUrl: s.assessment.targetUrl,

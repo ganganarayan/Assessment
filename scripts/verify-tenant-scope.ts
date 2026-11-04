@@ -12,6 +12,8 @@
  *   npx tsx scripts/verify-tenant-scope.ts
  */
 import {
+  answersAsThisApp,
+  chooseHomeHost,
   funnelVisibleOnHost,
   ownerOrPlatformVisibleOnHost,
 } from "../src/lib/tenant/public-host-rule";
@@ -143,6 +145,30 @@ console.log("\n=== The rule decides on the owner, never on the funnel's reachabi
 expect(
   "a ROUTED host is what moves a funnel off the platform host, nothing else",
   funnel(PLATFORM_HOST, TRIAL, false) && !funnel(PLATFORM_HOST, TRIAL, true),
+);
+
+console.log("\n=== A tenant's links are built on a host that answers, never a dead one ===");
+const onlyLive = (...live: string[]) => (h: string) => live.includes(h);
+expect(
+  "the Primary domain wins when it is live",
+  chooseHomeHost(["primary.acme.com", "old.acme.com"], onlyLive("primary.acme.com", "old.acme.com")) === "primary.acme.com",
+);
+expect(
+  "a dead Primary loses to a live second domain",
+  chooseHomeHost(["primary.acme.com", "old.acme.com"], onlyLive("old.acme.com")) === "old.acme.com",
+);
+expect(
+  "a row with nothing answering means the platform address, not a dead link",
+  chooseHomeHost(["assess.acme.com"], onlyLive()) === null,
+);
+expect("no domain at all means the platform address", chooseHomeHost([], onlyLive()) === null);
+expect(
+  "this app's /api/version counts as live",
+  answersAsThisApp({ commit: "abc", branch: "main", deploymentId: "d" }),
+);
+expect(
+  "another app answering 200 does not count",
+  !answersAsThisApp({ sha: "abc", startedAt: "2026-11-04" }) && !answersAsThisApp(null) && !answersAsThisApp("ok"),
 );
 
 console.log(failures === 0 ? "\n🟢 All checks passed." : `\n🟡 ${failures} check(s) failed.`);

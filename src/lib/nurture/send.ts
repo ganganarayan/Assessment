@@ -4,7 +4,7 @@ import { unsubscribeUrlFor } from "@/lib/contacts/dnd";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
 import { wabaVisible } from "@/lib/nurture/waba-visible";
-import { env } from "@/lib/env";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { emailProviderById } from "@/lib/email/providers";
 import { resolveEmailConfig, resolveWabaConfig, resolveNurtureConfig } from "@/lib/settings/config";
 import { fillPlaceholders, toE164Digits, type LeadFields, type NurtureConfig } from "@/features/nurture/config";
@@ -68,7 +68,7 @@ export async function sendTrackedEmailWithLog(
   // links as bare URLs, and only once renderEmailBody has turned them into anchors is
   // there anything for the click tracker to rewrite. A body that was already HTML comes
   // back untouched, so every message written before this existed is unaffected.
-  const html = instrumentEmailLinks(renderEmailBody(htmlBody), logId, env.NEXT_PUBLIC_APP_URL);
+  const html = instrumentEmailLinks(renderEmailBody(htmlBody), logId, await publicOriginFor(tenantId));
   const err = await sendEmail(tenantId, to, subject, html);
   await prisma.nurtureLog
     .create({
@@ -246,6 +246,7 @@ export async function sendNurtureForSubmission(submissionId: string, opts?: { fo
   if (s.assessment && s.status === "COMPLETED") {
     const vidapulseParam = await vidapulseParamForTenant(s.tenantId);
     resultUrl = pickResultUrl({
+      origin: await publicOriginFor(s.tenantId),
       engine: s.assessment.engine,
       nextStep: s.assessment.nextStep,
       targetUrl: s.assessment.targetUrl,

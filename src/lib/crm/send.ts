@@ -1,7 +1,7 @@
 import "server-only";
 import { EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { buildEnvelope, shapePayload, normalizeAttribution } from "@/lib/events/payload";
 import { buildCustomPayload, type CustomFieldData } from "@/lib/crm/custom-fields";
 import { type EmitInput } from "@/features/events/types";
@@ -93,7 +93,7 @@ export async function sendScoreUpdate(submissionId: string): Promise<CrmSendResu
   const snap = (s.resultSnapshot ?? null) as ResultSnapshot | null;
   if (!snap || typeof snap.scoreRaw !== "number") return { ok: false, error: "No result snapshot." };
 
-  const baseUrl = env.NEXT_PUBLIC_APP_URL;
+  const baseUrl = await publicOriginFor(s.assessment.tenant?.id);
   const input: EmitInput = {
     submissionId,
     customerId: s.customerId,
@@ -148,12 +148,12 @@ export async function sendCustomUpdate(submissionId: string): Promise<CrmSendRes
       leadProfession: true,
       resultSnapshot: true,
       resultBand: { select: { title: true } },
-      assessment: { select: { slug: true, targetUrl: true } },
+      assessment: { select: { slug: true, targetUrl: true, tenantId: true } },
     },
   });
   if (!s) return { ok: false, error: "Submission not found." };
   const snap = (s.resultSnapshot ?? null) as ResultSnapshot | null;
-  const baseUrl = env.NEXT_PUBLIC_APP_URL;
+  const baseUrl = await publicOriginFor(s.assessment?.tenantId);
 
   const data: CustomFieldData = {
     name: [s.leadFirstName, s.leadLastName].map((p) => p?.trim() ?? "").filter(Boolean).join(" ") || null,

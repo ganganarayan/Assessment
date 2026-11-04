@@ -9,6 +9,7 @@ import { stampVidapulseCtaUrl } from "@/lib/vidapulse";
 import { stampBookingUrl } from "@/lib/calendar/slots";
 import { sendCtaNotification } from "@/lib/cta/notify";
 import { ctaResultUrl } from "@/lib/cta/result-url";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 
 /**
  * Booking-CTA click tracker + redirect.
@@ -70,6 +71,7 @@ export async function GET(
     },
   });
   if (!sub) return fallback();
+  const publicOrigin = await publicOriginFor(sub.tenantId);
 
   // Resolve the clicked button from the PUBLISHED page - the same source the page
   // rendered from, so the destination is always one the operator saved.
@@ -160,7 +162,7 @@ export async function GET(
       // Passed explicitly: the shared builder only derives a result URL when a score
       // rides along, and this event carries none. Without it the CRM gets the booking
       // request with no way back to the result the owner has to read.
-      resultUrl: ctaResultUrl(env.NEXT_PUBLIC_APP_URL, sub.assessment.slug, sub.id, sub.resultToken),
+      resultUrl: ctaResultUrl(publicOrigin, sub.assessment.slug, sub.id, sub.resultToken),
       cta: { blockId, label, destinationUrl: destination },
     });
   } catch {
@@ -181,7 +183,7 @@ export async function GET(
   // are a missing submission or a missing block, where there is no page of theirs to
   // return to.
   return NextResponse.redirect(
-    destination ?? ctaResultUrl(env.NEXT_PUBLIC_APP_URL, sub.assessment.slug, sub.id, sub.resultToken),
+    destination ?? ctaResultUrl(publicOrigin, sub.assessment.slug, sub.id, sub.resultToken),
     302,
   );
 }

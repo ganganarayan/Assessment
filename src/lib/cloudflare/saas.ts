@@ -29,7 +29,13 @@ import "server-only";
  * Config (all optional; absent = this path is simply off and the caller falls back):
  *  - CLOUDFLARE_API_TOKEN        same token the DNS module uses, plus SSL:Edit
  *  - CLOUDFLARE_SAAS_ZONE_ID     the zone custom hostnames are registered against
- *  - CLOUDFLARE_SAAS_FALLBACK    the CNAME target customers point at
+ *  - CLOUDFLARE_SAAS_FALLBACK    the fallback origin named in Cloudflare
+ *
+ * WHAT A CUSTOMER POINTS AT IS THE PLATFORM'S OWN ADDRESS, not the fallback's name.
+ * Cloudflare routes a custom hostname by the hostname itself once the request reaches
+ * the zone, so any proxied record in the zone gets it there, and it always goes on to
+ * the fallback origin. 🔴 So the platform address has to stay PROXIED (orange cloud):
+ * grey-cloud it and every customer's CNAME resolves past the edge.
  */
 
 const API = "https://api.cloudflare.com/client/v4";
@@ -54,9 +60,26 @@ export function cloudflareSaasConfigured(): boolean {
   return saasConfig() !== null;
 }
 
-/** The CNAME target a customer points their host at. Null when not configured. */
-export function cloudflareSaasFallbackOrigin(): string | null {
-  return saasConfig()?.fallbackOrigin ?? null;
+/**
+ * The zone custom hostnames are registered against, or null when not configured. The
+ * fallback origin lives directly under it, so its parent is the zone.
+ *
+ * A host inside this zone can never be a tenant's domain: the Worker passes every host in
+ * the zone straight through to its own DNS record, so it never reaches the app, and
+ * Cloudflare says not to register the zone's own name as a custom hostname.
+ */
+export function cloudflareSaasZoneHost(): string | null {
+  const fallback = saasConfig()?.fallbackOrigin;
+  return fallback ? fallback.split(".").slice(1).join(".") || null : null;
+}
+
+/** The platform's own host: what a customer's CNAME points at. */
+function customerCnameTarget(cfg: SaasConfig): string {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_APP_URL ?? "").host.toLowerCase();
+  } catch {
+    return cfg.fallbackOrigin;
+  }
 }
 
 interface CfResponse<T> {
@@ -127,7 +150,7 @@ function shape(cfg: SaasConfig, ch: CustomHostname): SaasHostnameResult {
     {
       type: "CNAME",
       name: labelOf(ch.hostname),
-      value: cfg.fallbackOrigin,
+      value: customerCnameTarget(cfg),
       purpose: "routing",
       status: ch.status ?? null,
     },

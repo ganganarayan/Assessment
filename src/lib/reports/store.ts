@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { prisma } from "@/lib/db/prisma";
 import { storage, tenantKey, isStorageConfigured } from "@/lib/storage/r2";
 
@@ -28,9 +28,18 @@ import { storage, tenantKey, isStorageConfigured } from "@/lib/storage/r2";
  * bulk deletion possible - and no tenant ever sees it.
  */
 
+/**
+ * Which footer a stored file was rendered with, carried in its name. The footer depends
+ * on the plan and on Settings, so an upgrade or an edit must not keep serving the old
+ * file, and files from before this rule have no stamp and so re-render once.
+ */
+function footerStamp(footerLines: string[]): string {
+  return createHash("sha256").update(footerLines.join("\n")).digest("hex").slice(0, 12);
+}
+
 /** Per-tenant folder, random file name. Never shown to a client. */
-function newReportKey(tenantId: string): string {
-  return tenantKey(tenantId, `reports/${randomBytes(16).toString("hex")}.pdf`);
+function newReportKey(tenantId: string, footerLines: string[]): string {
+  return tenantKey(tenantId, `reports/${randomBytes(16).toString("hex")}.${footerStamp(footerLines)}.pdf`);
 }
 
 /**
@@ -38,15 +47,24 @@ function newReportKey(tenantId: string): string {
  *
  * A key that no longer resolves in the bucket is treated as "not stored" and CLEARED,
  * so the next request re-renders instead of failing forever against a file someone
- * removed out of band.
+ * removed out of band. A file with a different footer is removed the same way: it can
+ * be rendered again from the stored result, and it should not linger as personal data.
  */
-export async function getStoredReport(submissionId: string): Promise<Uint8Array | null> {
+export async function getStoredReport(submissionId: string, footerLines: string[]): Promise<Uint8Array | null> {
   if (!(await isStorageConfigured())) return null;
 
   const row = await prisma.submission
     .findUnique({ where: { id: submissionId }, select: { reportKey: true } })
     .catch(() => null);
   if (!row?.reportKey) return null;
+
+  if (!row.reportKey.endsWith(`.${footerStamp(footerLines)}.pdf`)) {
+    await storage.delete(row.reportKey).catch(() => {});
+    await prisma.submission
+      .update({ where: { id: submissionId }, data: { reportKey: null } })
+      .catch(() => {});
+    return null;
+  }
 
   const bytes = await storage.download(row.reportKey);
   if (bytes) return bytes;
@@ -70,6 +88,7 @@ export async function putStoredReport(
   submissionId: string,
   tenantId: string | null,
   bytes: Uint8Array,
+  footerLines: string[],
 ): Promise<string | null> {
   // An unowned submission (pre re-home) has no tenant folder to write into. Rather than
   // invent one, it simply is not cached - it still renders and serves normally, and it
@@ -77,7 +96,7 @@ export async function putStoredReport(
   if (!tenantId) return null;
   if (!(await isStorageConfigured())) return null;
 
-  const key = newReportKey(tenantId);
+  const key = newReportKey(tenantId, footerLines);
   try {
     await storage.upload({ key, body: bytes, contentType: "application/pdf" });
     await prisma.submission.update({ where: { id: submissionId }, data: { reportKey: key } });

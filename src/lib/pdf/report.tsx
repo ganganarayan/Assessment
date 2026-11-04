@@ -96,6 +96,8 @@ export interface ReportData {
   categories: ReportCategory[];
   /** Admin "Add to PDF" note - appended at the very bottom. */
   reportNote: string | null;
+  /** See lib/pdf/footer.ts. Empty prints the disclaimer alone. */
+  footerLines: string[];
 }
 
 const s = StyleSheet.create({
@@ -198,13 +200,12 @@ function parseNote(text: string): NoteLine[] {
   return out;
 }
 
-function Footer() {
+function Footer({ lines }: { lines: string[] }) {
   return (
     <View style={s.footer} fixed>
-      <Text style={s.footLine}>
-        Ganga Narayan Das - the monk-engineer teaching the Bhagavad Gita as applied neuroscience for executives
-      </Text>
-      <Text style={s.footLine}>applygitawisdom.com · connect@applygitawisdom.com</Text>
+      {lines.map((line, i) => (
+        <Text key={i} style={s.footLine}>{line}</Text>
+      ))}
       <Text style={s.disclaimer}>This is an indicative self-assessment, not a clinical diagnosis.</Text>
     </View>
   );
@@ -348,7 +349,7 @@ function AssessmentReport({ data }: { data: ReportData }) {
           </View>
         ) : null}
 
-        <Footer />
+        <Footer lines={data.footerLines} />
       </Page>
     </Document>
   );

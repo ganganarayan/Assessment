@@ -10,6 +10,7 @@ import { formatIST } from "@/lib/date";
 import { labeledAnswers } from "@/features/assessment/custom-fields";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { pickResultUrl, shareableResultUrl, vidapulseParamForTenant } from "@/lib/events/completion";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { timezoneForCountry } from "@/lib/geo";
 import {
   SubmissionsTable,
@@ -45,6 +46,7 @@ export default async function SubmissionsPage({
   // assessment) - appended to each row's Result URL so the "Copy" link an operator
   // sends for nurture carries the customer id into VidaPulse.
   const vidapulseParam = await vidapulseParamForTenant(t);
+  const publicOrigin = await publicOriginFor(t);
   const assessmentOptions = (await listAssessments(dataScope)).map((a) => ({ id: a.id, title: a.title }));
   // Submissions is always scoped to one assessment (no cross-assessment "All" view):
   // use the URL id, else default to the newest assessment (list is createdAt desc).
@@ -110,6 +112,7 @@ export default async function SubmissionsPage({
       status: s.status,
       resultUrl: s.status === "COMPLETED"
         ? pickResultUrl({
+            origin: publicOrigin,
             engine: s.assessment.engine,
             nextStep: s.assessment.nextStep,
             targetUrl: s.assessment.targetUrl,
@@ -124,7 +127,7 @@ export default async function SubmissionsPage({
       // assessment has a published native page and its primary link is the external one.
       resultUrlNative:
         s.status === "COMPLETED" && hasNativeResultPage && !primaryIsNative
-          ? shareableResultUrl(s.assessment.slug, s.id, s.resultToken, s.customerId, vidapulseParam)
+          ? shareableResultUrl(publicOrigin, s.assessment.slug, s.id, s.resultToken, s.customerId, vidapulseParam)
           : null,
       paidAmount: p?.amount ?? null,
       paidAt: p?.at ?? null,

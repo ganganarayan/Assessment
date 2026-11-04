@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { headers } from "next/headers";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { computeResult, deriveInputs, resolveEngineConfig } from "@/lib/scoring/clinic-audit";
@@ -233,6 +233,7 @@ export default async function ResultPage({
   // respondent nor the tenant admin may see it (only the platform owner, who is never
   // limited, can review). Show a neutral "results unavailable - contact support" page.
   const locked = await isResponseLocked(submission.assessment.tenantId, submission.periodSeq);
+  const publicOrigin = await publicOriginFor(submission.assessment.tenantId);
   if (locked && !isSuperOwner) {
     const supportEmail = await supportEmailFor(submission.assessment.tenantId);
     return (
@@ -319,10 +320,9 @@ export default async function ResultPage({
     const liveConfig = resolveEngineConfig(snap.clinic.config);
     const liveInputs = rawAnswers.length > 0 ? deriveInputs(rawAnswers, liveConfig) : snap.clinic.inputs;
     const original = computeResult(liveInputs, liveConfig);
-    const h = await headers();
-    const host = h.get("host") ?? "";
-    const proto = h.get("x-forwarded-proto") ?? "https";
-    const resultUrl = `${proto}://${host}/a/${slug}/r/${submissionId}${
+    // The tenant's home, never the request's Host: behind Cloudflare for SaaS that header
+    // is Railway's internal address, which is what this page would hand out to share.
+    const resultUrl = `${publicOrigin}/a/${slug}/r/${submissionId}${
       token ? `?t=${encodeURIComponent(token)}` : ""
     }`;
     // Raw funnel inputs, for the internal-only block below - role, the number the
@@ -441,7 +441,7 @@ export default async function ResultPage({
             name: c.name,
             rows: c.rows.map((r) => ({ text: r.text, answerLabel: r.answerLabel, role: r.role })),
           }))}
-          retakeUrl={`${proto}://${host}/a/${slug}`}
+          retakeUrl={`${publicOrigin}/a/${slug}`}
         />
       </main>
     );
@@ -536,7 +536,7 @@ export default async function ResultPage({
                 <Field label="Customer ID">{submission.customerId || "-"}</Field>
                 <Field label="Result link">
                   {(() => {
-                    const link = resultUrlFor(submission.assessment.targetUrl, slug, submissionId, submission.resultToken);
+                    const link = resultUrlFor(publicOrigin, submission.assessment.targetUrl, slug, submissionId, submission.resultToken);
                     return (
                       <a href={link} target="_blank" rel="noreferrer" className="break-all underline">
                         {link}

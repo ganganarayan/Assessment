@@ -9,6 +9,8 @@ import { isSuperAdmin } from "@/lib/auth/guards";
 import { formatIST } from "@/lib/date";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
+import { resolvePlan } from "@/lib/billing/plan-resolve";
+import { reportFooterLines } from "@/lib/pdf/footer";
 import { renderReportPdf, type ReportData } from "@/lib/pdf/report";
 import { renderClinicReportPdf, type ClinicReportData } from "@/lib/pdf/clinic-report";
 import { computeResult, deriveInputs, resolveEngineConfig } from "@/lib/scoring/clinic-audit";
@@ -125,11 +127,21 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
   const name = [sub.leadFirstName, sub.leadLastName].map((p) => p?.trim()).filter(Boolean).join(" ") || firstName;
   const dateIST = formatIST(sub.completedAt ?? sub.createdAt);
 
+  const ownerId = sub.assessment.tenantId;
+  const footerSetting = ownerId
+    ? await prisma.appSetting.findUnique({ where: { tenantId: ownerId }, select: { reportFooter: true } })
+    : null;
+  const footerLines = reportFooterLines(
+    await resolvePlan(ownerId),
+    footerSetting?.reportFooter,
+    new URL(env.NEXT_PUBLIC_APP_URL).host,
+  );
+
   // A stored copy short-circuits everything below: no layout, no fonts, no buffering.
   // Skipped on an internal call, because the worker is being asked to RENDER - reading
   // back a stored file there would make the request a no-op.
   if (!internal) {
-    const stored = await getStoredReport(submissionId);
+    const stored = await getStoredReport(submissionId, footerLines);
     if (stored) return pdfResponse(req, stored, firstName);
 
     // Not stored: try the worker first, so react-pdf runs in a process whose
@@ -138,7 +150,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
     if (fromWorker) {
       // Store it for next time, but do not wait: the operator gets their report now,
       // and a storage hiccup costs the next request a re-render, not this one a failure.
-      void putStoredReport(submissionId, sub.assessment.tenantId, fromWorker);
+      void putStoredReport(submissionId, sub.assessment.tenantId, fromWorker, footerLines);
       return pdfResponse(req, fromWorker, firstName);
     }
     // Worker unset, down, or erroring - fall through and render here, exactly as before.
@@ -171,6 +183,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
       prose: snap.clinic.prose,
       bookingUrl: setting?.bookingUrl ?? null,
       costPerEnquiry: liveConfig.costPerEnquiry,
+      footerLines,
     };
     pdf = await renderClinicReportPdf(data);
   } else {
@@ -198,6 +211,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
       aiStatement: sub.aiStatement ?? snap.aiStatement ?? null,
       resultSuggestion: snap.resultSuggestion ?? null,
       reportNote: sub.reportNote ?? null,
+      footerLines,
       categories: orderedCats.map((c) => ({
             name: c.name,
             score: c.score,
@@ -218,7 +232,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
   // Not on an internal call - the worker returns the bytes and the APP stores them, so
   // there is one writer and the worker stays a pure renderer.
   if (!internal) {
-    void putStoredReport(submissionId, sub.assessment.tenantId, new Uint8Array(pdf));
+    void putStoredReport(submissionId, sub.assessment.tenantId, new Uint8Array(pdf), footerLines);
   }
 
   return pdfResponse(req, new Uint8Array(pdf), firstName);

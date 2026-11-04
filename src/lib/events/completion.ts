@@ -6,8 +6,8 @@
 // already make impossible in a browser build.
 import { EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
 import { emitEvent } from "@/lib/events/emit";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { type EmitInput } from "@/features/events/types";
 import { type ResultSnapshot } from "@/lib/result/snapshot";
@@ -30,6 +30,7 @@ export async function vidapulseParamForTenant(tenantId: string | null): Promise<
 }
 
 export function resultUrlFor(
+  origin: string,
   targetUrl: string | null,
   slug: string,
   submissionId: string,
@@ -37,7 +38,7 @@ export function resultUrlFor(
   customerId: string | null = null,
   vidapulseParam: string | null = null,
 ): string {
-  let url = `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}`;
+  let url = `${origin}/a/${slug}/r/${submissionId}`;
   if (targetUrl && token) {
     try {
       const u = new URL(targetUrl);
@@ -63,13 +64,14 @@ export function resultUrlFor(
  * hands the clinic owner to refer to and recalculate.
  */
 export function shareableResultUrl(
+  origin: string,
   slug: string,
   submissionId: string,
   token: string | null,
   customerId: string | null = null,
   vidapulseParam: string | null = null,
 ): string {
-  const base = `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}`;
+  const base = `${origin}/a/${slug}/r/${submissionId}`;
   // r duplicates t (same result token) so the VidaPulse ?r= reader maps this viewer.
   const withToken = token
     ? `${base}?t=${encodeURIComponent(token)}&r=${encodeURIComponent(token)}`
@@ -84,6 +86,7 @@ export function shareableResultUrl(
  * Everything else keeps the destination/VSL behaviour (targetUrl + token).
  */
 export function pickResultUrl(args: {
+  origin: string;
   engine: string | null;
   nextStep: string | null;
   targetUrl: string | null;
@@ -95,8 +98,8 @@ export function pickResultUrl(args: {
 }): string {
   const onAssess360 = args.engine === "CLINIC_AUDIT" || args.nextStep === "RESULTS";
   return onAssess360
-    ? shareableResultUrl(args.slug, args.submissionId, args.token, args.customerId ?? null, args.vidapulseParam ?? null)
-    : resultUrlFor(args.targetUrl, args.slug, args.submissionId, args.token, args.customerId ?? null, args.vidapulseParam ?? null);
+    ? shareableResultUrl(args.origin, args.slug, args.submissionId, args.token, args.customerId ?? null, args.vidapulseParam ?? null)
+    : resultUrlFor(args.origin, args.targetUrl, args.slug, args.submissionId, args.token, args.customerId ?? null, args.vidapulseParam ?? null);
 }
 
 /**
@@ -141,7 +144,7 @@ export async function loadCompletionInput(submissionId: string): Promise<EmitInp
     score: snap && typeof snap.scoreRaw === "number" ? { total: snap.scoreRaw, max: snap.max, percentage: snap.scorePercent } : null,
     resultBand: snap?.resultBandLevel ? { level: snap.resultBandLevel, title: snap.resultBand ?? "" } : null,
     categories: Array.isArray(snap?.categories) ? snap.categories : null,
-    resultUrl: resultUrlFor(s.assessment.targetUrl, s.assessment.slug, submissionId, s.resultToken, s.customerId, vidapulseParam),
+    resultUrl: resultUrlFor(await publicOriginFor(s.assessment.tenant?.id), s.assessment.targetUrl, s.assessment.slug, submissionId, s.resultToken, s.customerId, vidapulseParam),
     aiStatement: snap?.aiStatement ?? null,
     attribution: normalizeAttribution(s.attribution) ?? undefined,
   };

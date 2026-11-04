@@ -270,16 +270,19 @@ Adding one back should be an explicitly owner-only screen that asks for `ALL_TEN
 forgets the scope reads every tenant. All 16 current callers pass one explicitly -
 verified, but the defaults should go when someone is next in that file.
 
-### 3e. Domain phase, blocked on a design question
+### 3e. Domain phase
 
-The owner wants **platform payments on `divineleads.guru`** and **Apply Gita payments on
-`applygitawisdom.com`**, the apex domains, not the app subdomains. Today every payment
-URL is built from the single `NEXT_PUBLIC_APP_URL` env value, so this needs a per-tenant
-payment-domain concept. Not yet designed.
+🟢 **Decided by the owner 04-11-2026, and built on staging.** The apex plan below is dropped:
+applygitawisdom.com is a live website and assess360.divineleads.guru stays the platform's
+address, and neither is touched. Tenants point a CNAME at assess360.divineleads.guru, and once
+their domain answers, their payment, result and stop links are built on it. See "What follows
+the domain" in docs/CUSTOM-DOMAINS.md. The rest of this section is the history, and its
+"0 rows on production" was wrong by 02-11-2026: rows exist, for assess.applygitawisdom.com
+and assess.divineleads.guru at least.
 
-Also unresolved for that phase: `appHost()` (derived from `NEXT_PUBLIC_APP_URL`) is the
-CNAME target for **every** tenant custom domain, so changing the app URL orphans existing
-tenant domains until each is re-pointed.
+The owner wanted **platform payments on `divineleads.guru`** and **Apply Gita payments on
+`applygitawisdom.com`**, the apex domains, not the app subdomains. Every payment URL was built
+from the single `NEXT_PUBLIC_APP_URL` env value.
 
 **Verified state as of 1 Oct, before the revamp starts:**
 

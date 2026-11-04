@@ -21,6 +21,7 @@ async function main() {
     aiStatement:
       "Swannik, running a business means the pressure rarely ends when the day does.\n\nOne thing stood out to me: whatever you carry, you have kept it from the people closest to you.\n\nWhat caught my attention was one particular combination of your answers - on its own each looks ordinary, together they change how I read the rest.",
     resultSuggestion: "This sits in the higher range. It is getting heavy, and now is the moment to act.",
+    footerLines: ["Report by Assess360 · assess360.example.com"],
     reportNote:
       "Summary:\nStrong self-awareness; the load is mostly hidden from family.\n\nAction items:\n- 20-minute morning walk, no phone, daily\n- One honest conversation with your co-founder\n- Book the deep-dive program (Rs 46000)\n\nNext steps:\nRetake in 30 days, then we compare and adjust.",
     categories: [

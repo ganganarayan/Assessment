@@ -1,6 +1,6 @@
 import { Prisma, type EventType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { processDelivery } from "@/lib/webhooks/retry";
 import { EVENT_NAME, type EmitInput } from "@/features/events/types";
 import { buildEnvelope, shapePayload, withDeliveredName } from "@/lib/events/payload";
@@ -23,9 +23,6 @@ import { enqueueWorkflowsForEvent } from "@/lib/workflows/enqueue";
  */
 export async function emitEvent(type: EventType, input: EmitInput): Promise<void> {
   const name = EVENT_NAME[type];
-  // Shaped per event (lead.created drops nulls; assessment.started is minimal);
-  // the SAME payload is logged and delivered, so the audit matches what was sent.
-  const payload = shapePayload(type, buildEnvelope(type, input, env.NEXT_PUBLIC_APP_URL));
 
   // Resolve the owning tenant once (submission is the source of truth; Gita/platform
   // events resolve to null). Stamped on the log AND used to scope webhook delivery.
@@ -39,6 +36,10 @@ export async function emitEvent(type: EventType, input: EmitInput): Promise<void
   } else {
     tenantId = input.tenant?.id ?? null;
   }
+
+  // Shaped per event (lead.created drops nulls; assessment.started is minimal);
+  // the SAME payload is logged and delivered, so the audit matches what was sent.
+  const payload = shapePayload(type, buildEnvelope(type, input, await publicOriginFor(tenantId)));
 
   // 1) Always persist the event (source of truth), awaited. Denormalized columns
   //    are derived from the same input the payload was built from.

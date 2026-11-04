@@ -91,7 +91,7 @@ export async function generateMetadata({
     // host that reads "Clinic Growth Audit · Acme", which is theirs, not ours.
     title: a.title,
     ...(a.description ? { description: a.description } : {}),
-    ...(origin ? { alternates: { canonical: `${origin}/a/${slug}` } } : {}),
+    alternates: { canonical: `${origin}/a/${slug}` },
   };
 }
 

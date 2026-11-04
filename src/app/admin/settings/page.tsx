@@ -5,6 +5,8 @@ import { ThemeSelector } from "@/features/admin/components/theme-selector";
 import { AbandonedSetting } from "@/features/admin/components/abandoned-setting";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
 import { DomainSettings } from "@/features/workspace/components/domain-settings";
+import { ReportFooterForm } from "@/features/workspace/components/report-footer-form";
+import { getReportFooter } from "@/features/workspace/actions/report-footer";
 import {
   getIntegrationSettings,
   updateMetaSettings,
@@ -73,6 +75,8 @@ export default async function SettingsPage() {
     getNurtureSettings(),
   ]);
   const impersonating = actingId !== null;
+
+  const reportFooter = impersonating ? await getReportFooter() : null;
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
   const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn, onboardingVideoUrl, onboardingSteps, dfyScarcity, dfyWaba, bookingTypes] = await Promise.all([
@@ -388,6 +392,11 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             <DomainSettings initial={domains} />
+            {reportFooter ? (
+              <div className="mt-6 border-t pt-4">
+                <ReportFooterForm initial={reportFooter.footer} canEdit={reportFooter.canEdit} />
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       ) : (

@@ -82,7 +82,9 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
         below, then copy the <span className="font-semibold">DNS records shown for it</span> into your
         domain provider (GoDaddy, Namecheap, Cloudflare, etc.). HTTPS is issued
         <span className="font-semibold"> automatically</span> once those records resolve - click{" "}
-        <span className="font-semibold">Check status</span> and it goes live.
+        <span className="font-semibold">Check status</span> and it goes live. Once it is live, payment
+        returns, result links and stop links use it too. Use a sub-domain: your root domain usually
+        already carries your website and email.
       </div>
 
       {/* Add - paid only. Existing domains below keep working either way; only adding
@@ -141,7 +143,18 @@ export function DomainSettings({ initial }: { initial: DomainSettingsView }) {
                   {(d.certLive || d.verified) && !d.isPrimary ? (
                     <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => setPrimaryDomain(d.id), "Primary domain updated.")}>Make primary</Button>
                   ) : null}
-                  <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => removeDomain(d.id), "Domain removed.")}>Remove</Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={pending}
+                    onClick={() => {
+                      if (window.confirm(`Remove ${d.hostname}? Result and payment links already sent on this domain will stop working.`)) {
+                        run(() => removeDomain(d.id), "Domain removed.");
+                      }
+                    }}
+                  >
+                    Remove
+                  </Button>
                 </div>
               </div>
               {d.certLive || d.verified ? (

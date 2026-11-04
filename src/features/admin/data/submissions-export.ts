@@ -10,6 +10,7 @@ import { getPaidBySubmission } from "@/features/admin/data/payments";
 import { getStatsFloor } from "@/lib/stats-floor";
 import { labeledAnswers, labeledAnswersText } from "@/features/assessment/custom-fields";
 import { resultUrlFor, vidapulseParamForTenant } from "@/lib/events/completion";
+import { platformOrigin, publicOriginFor } from "@/lib/tenant/public-origin";
 
 export interface SubmissionExportCategory {
   name: string;
@@ -154,8 +155,10 @@ export async function listSubmissionsForExport(
   // in the platform view), so each row's Result URL carries the customer id alongside
   // the token - the link operators re-send for VSL nurture.
   const paramByTenant = new Map<string | null, string | null>();
+  const originByTenant = new Map<string | null, string>();
   for (const tid of new Set(subs.map((s) => s.assessment?.tenantId ?? null))) {
     paramByTenant.set(tid, await vidapulseParamForTenant(tid));
+    originByTenant.set(tid, await publicOriginFor(tid));
   }
 
   return subs.map((s) => {
@@ -216,7 +219,7 @@ export async function listSubmissionsForExport(
       gateMax: s.gateMax ?? null,
       paidAmount: p?.amount ?? null,
       paidAtIST: p?.at ? formatIST(new Date(p.at)) : null,
-      resultUrl: resultUrlFor(s.assessment.targetUrl, s.assessment.slug, s.id, s.resultToken, s.customerId, paramByTenant.get(s.assessment?.tenantId ?? null) ?? null),
+      resultUrl: resultUrlFor(originByTenant.get(s.assessment?.tenantId ?? null) ?? platformOrigin(), s.assessment.targetUrl, s.assessment.slug, s.id, s.resultToken, s.customerId, paramByTenant.get(s.assessment?.tenantId ?? null) ?? null),
       utm_source: a?.utm_source ?? null,
       utm_medium: a?.utm_medium ?? null,
       utm_campaign: a?.utm_campaign ?? null,

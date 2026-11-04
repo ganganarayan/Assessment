@@ -1,5 +1,6 @@
 "use server";
 
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireWorkspace, editDenied } from "@/lib/auth/guards";
@@ -56,17 +57,14 @@ export interface IntegrationSettingsView {
 
 export async function getIntegrationSettings(): Promise<IntegrationSettingsView> {
   const { tenantId } = await requireWorkspace();
-  const [s, tenant, domain, defaultAccount, adAccountCount] = await Promise.all([
+  const [s, tenant, base, defaultAccount, adAccountCount] = await Promise.all([
     prisma.appSetting.findUnique({ where: { tenantId } }),
     prisma.tenant.findUnique({ where: { id: tenantId }, select: { slug: true } }),
-    // The tenant's OWN domain, preferring a verified one. Razorpay must be pointed
-    // at the host the tenant actually operates on - handing them the platform's
-    // domain looks wrong and ties their payment config to someone else's hostname.
-    prisma.domain.findFirst({
-      where: { tenantId },
-      orderBy: [{ verified: "desc" }, { createdAt: "asc" }],
-      select: { hostname: true },
-    }),
+    // The tenant's OWN live home. Razorpay must be pointed at the host the tenant
+    // actually operates on - handing them the platform's domain looks wrong and ties
+    // their payment config to someone else's hostname, and naming one that does not
+    // answer loses every webhook.
+    publicOriginFor(tenantId),
     // 🔴 READ FROM THE SAME PLACE THE FUNNEL READS. The pixel moved into AdAccount when
     // the model landed, and this screen kept reading the AppSetting columns - so a
     // tenant whose row had been backfilled saw the value the resolver had stopped using.
@@ -76,7 +74,6 @@ export async function getIntegrationSettings(): Promise<IntegrationSettingsView>
     }),
     prisma.adAccount.count({ where: { tenantId } }),
   ]);
-  const base = domain?.hostname ? `https://${domain.hostname}` : env.NEXT_PUBLIC_APP_URL;
   return {
     // The default ad account is the source of truth; the legacy columns are read only
     // for a tenant that has no ad-account rows at all, which is exactly when the

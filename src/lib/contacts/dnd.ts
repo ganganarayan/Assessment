@@ -118,8 +118,12 @@ export async function unsubscribeUrlFor(
   token: string | null | undefined,
 ): Promise<string | null> {
   if (!token) return null;
-  const { tenantCanonicalOrigin } = await import("@/lib/seo/site");
-  const { env } = await import("@/lib/env");
-  const origin = (await tenantCanonicalOrigin(tenantId)) ?? env.NEXT_PUBLIC_APP_URL;
-  return `${origin.replace(/\/+$/, "")}/u/${token}`;
+  // 🔴 Must be a host that answers. This used to go through the funnel's canonical lookup,
+  // which named any Domain row, then a tenant subdomain that has no DNS, so the link that
+  // lets someone stop hearing from us could be a dead one. That lookup also imported
+  // `server-only`, which throws in the automation cron. A dead stop link is the one
+  // failure here with a legal edge, so this falls back to the platform host, which always
+  // serves /u.
+  const { publicOriginFor } = await import("@/lib/tenant/public-origin");
+  return `${await publicOriginFor(tenantId)}/u/${token}`;
 }

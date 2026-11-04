@@ -6,6 +6,8 @@ import { getBookingUrl } from "@/features/workspace/actions/booking";
 import { getSupportEmail } from "@/features/workspace/actions/support";
 import { getThemeColors } from "@/features/workspace/actions/theme";
 import { BookingSettingsForm } from "@/features/workspace/components/booking-settings-form";
+import { ReportFooterForm } from "@/features/workspace/components/report-footer-form";
+import { getReportFooter } from "@/features/workspace/actions/report-footer";
 import { SupportSettingsForm } from "@/features/workspace/components/support-settings-form";
 import { ThemeColorForm } from "@/features/workspace/components/theme-color-form";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
@@ -42,6 +44,7 @@ export default async function WorkspaceSettingsPage() {
   const integrations = await getIntegrationSettings();
   const domains = await getDomainSettings();
   const bookingUrl = await getBookingUrl();
+  const reportFooter = await getReportFooter();
   const supportEmail = await getSupportEmail();
   const themeColors = await getThemeColors();
   /**
@@ -138,6 +141,16 @@ export default async function WorkspaceSettingsPage() {
         </CardHeader>
         <CardContent>
           <BookingSettingsForm initial={bookingUrl} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>PDF report footer</CardTitle>
+          <CardDescription>What prints at the foot of your respondents&apos; PDF reports.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ReportFooterForm initial={reportFooter.footer} canEdit={reportFooter.canEdit} />
         </CardContent>
       </Card>
 

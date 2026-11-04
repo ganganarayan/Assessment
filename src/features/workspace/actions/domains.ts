@@ -27,7 +27,7 @@ import {
 import { forgetServedHost, forgetRoutedHosts } from "@/lib/tenant/served-host";
 import {
   cloudflareSaasConfigured,
-  cloudflareSaasFallbackOrigin,
+  cloudflareSaasZoneHost,
   cloudflareCreateCustomHostname,
   cloudflareCustomHostnameStatus,
   cloudflareFindCustomHostname,
@@ -64,7 +64,6 @@ async function provisionDomain(
   // terminates TLS for the customer's host and forwards to us, and the Worker rewrites
   // the Host to one Railway already routes. Railway is never told about the host.
   if (cloudflareSaasConfigured()) {
-    const fallback = cloudflareSaasFallbackOrigin() ?? origin;
     try {
       const ch =
         (existingCfId ? await cloudflareCustomHostnameStatus(existingCfId) : null) ??
@@ -74,7 +73,7 @@ async function provisionDomain(
         const live = saasCertIsLive(ch.sslStatus, ch.status);
         return {
           verified: live,
-          dnsTarget: fallback,
+          dnsTarget: origin,
           dnsRecords: ch.dnsRecords,
           railwayDomainId: null,
           cfHostnameId: ch.id,
@@ -177,7 +176,7 @@ function recordLabel(name: string | null | undefined, hostname: string): string 
   return parts.length <= 2 ? "@" : parts.slice(0, parts.length - 2).join(".");
 }
 
-/** The host a tenant points their CNAME at when Railway auto-provisioning is OFF. */
+/** The platform's own host: what a tenant points their CNAME at. */
 function appHost(): string {
   try {
     return new URL(env.NEXT_PUBLIC_APP_URL).host.toLowerCase();
@@ -342,6 +341,13 @@ export async function addDomain(rawHostname: string): Promise<ActionResult> {
     if (hostname.endsWith(`.${root}`)) {
       return { ok: false, error: `Subdomains of ${root} are automatic - you only need this for your OWN domain.` };
     }
+  }
+
+  // Refused here because it would otherwise sit at "Provisioning" forever, on a host the
+  // tenant can do nothing about. See cloudflareSaasZoneHost.
+  const zone = cloudflareSaasZoneHost();
+  if (zone && (hostname === zone || hostname.endsWith(`.${zone}`))) {
+    return { ok: false, error: `${hostname} is inside the platform's own domain, so it can't connect as a custom domain. Use a domain you own.` };
   }
 
   let domainId: string;

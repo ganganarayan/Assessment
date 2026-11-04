@@ -24,6 +24,7 @@ import { EventType, Prisma } from "@prisma/client";
 import { emitEvent } from "@/lib/events/emit";
 import { sendNurtureForSubmission } from "@/lib/nurture/send";
 import { resultUrlFor, vidapulseParamForTenant } from "@/lib/events/completion";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { appendVidapulseId } from "@/lib/vidapulse";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { type EmitInput, type PayloadCategory, type PayloadGate } from "@/features/events/types";
@@ -91,6 +92,7 @@ const DEFAULT_RESULT_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
  *  is on, so the id rides on the URL the CRM stores + the operator re-sends for VSL
  *  nurture. No-op when the param/customerId is absent. */
 function buildResultUrl(
+  origin: string,
   targetUrl: string | null,
   slug: string,
   submissionId: string,
@@ -100,7 +102,7 @@ function buildResultUrl(
 ): string {
   // r duplicates t (same result token): our builder forwards the page URL's ?r= onto
   // the VidaPulse iframe src, so it maps the viewer even in FB/IG in-app browsers.
-  let url = `${env.NEXT_PUBLIC_APP_URL}/a/${slug}/r/${submissionId}${
+  let url = `${origin}/a/${slug}/r/${submissionId}${
     token ? `?t=${encodeURIComponent(token)}&r=${encodeURIComponent(token)}` : ""
   }`;
   if (targetUrl && token) {
@@ -218,7 +220,8 @@ async function resolvePaidCheckout(opts: {
         name: PAYMENT_BUSINESS_NAME,
         description: "Assessment results + consultation",
         prefill: { name: opts.customer.name, email: opts.customer.email, contact: opts.customer.phone },
-        callbackUrl: `${env.NEXT_PUBLIC_APP_URL}/api/payments/verify?submission=${encodeURIComponent(opts.submissionId)}`,
+        // On the tenant's own home, so someone who paid on their domain comes back to it.
+        callbackUrl: `${await publicOriginFor(opts.tenantId)}/api/payments/verify?submission=${encodeURIComponent(opts.submissionId)}`,
         notes: { submissionId: opts.submissionId },
       };
       return { payment };
@@ -1125,6 +1128,7 @@ export async function requestPreviousResults(
       // Send the SAME token-gated respondent link completion sends (targetUrl?t=token
       // &cid=<customerId>), never the admin-only /r/ page. This is what the CRM emails.
       resultUrl: resultUrlFor(
+        await publicOriginFor(assessment.tenant?.id),
         assessment.targetUrl,
         assessment.slug,
         last.id,
@@ -1233,6 +1237,7 @@ export async function completeSubmission(
   // below so the opaque customerId rides on the URL (and the CRM completion webhook),
   // which the operator re-sends via WABA/email to nurture non-watchers to the VSL.
   const vidapulseParam = await vidapulseParamForTenant(submission.tenantId);
+  const publicOrigin = await publicOriginFor(submission.tenantId);
 
   // Persist the optional pre-results details (sanitized + capped - untrusted client
   // input). Saved regardless of the completion branch; non-fatal on failure.
@@ -1279,7 +1284,7 @@ export async function completeSubmission(
   // result/checkout. A paid-mode completion that is NOT yet paid is re-doable
   // (edit until pay): reset it to STARTED so the scoring flow below re-runs.
   const returnCompleted = async () => {
-    const resultUrl = buildResultUrl(submission.assessment.targetUrl, submission.assessment.slug, submissionId, submission.resultToken, submission.customerId, vidapulseParam);
+    const resultUrl = buildResultUrl(publicOrigin, submission.assessment.targetUrl, submission.assessment.slug, submissionId, submission.resultToken, submission.customerId, vidapulseParam);
     const paid = await resolvePaidCheckout({
       tenantId: submission.tenantId,
       paidMode: submission.assessment.paidMode,
@@ -1574,6 +1579,7 @@ export async function completeSubmission(
     });
     const paidExit = !!(paid.payment || paid.paymentRedirectUrl);
     const resultUrl = buildResultUrl(
+      publicOrigin,
       assessment.nextStep === "RESULTS" ? null : assessment.targetUrl,
       assessment.slug,
       submissionId,
@@ -1692,7 +1698,7 @@ export async function completeSubmission(
     categories: categoryResults,
     clinic: clinicSnap ?? undefined,
   });
-  const resultUrl = buildResultUrl(vslTarget, assessment.slug, submissionId, token, customerId, vidapulseParam);
+  const resultUrl = buildResultUrl(publicOrigin, vslTarget, assessment.slug, submissionId, token, customerId, vidapulseParam);
 
   // Persist atomically. The final statement is a compare-and-swap on status:
   // only a writer that flips STARTED -> COMPLETED "wins". This makes scoring
@@ -1774,7 +1780,7 @@ export async function completeSubmission(
       customer,
     });
     const paidExit = !!(paid.payment || paid.paymentRedirectUrl);
-    const resultUrl = buildResultUrl(vslTarget, assessment.slug, submissionId, existing?.resultToken ?? null, customerId, vidapulseParam);
+    const resultUrl = buildResultUrl(publicOrigin, vslTarget, assessment.slug, submissionId, existing?.resultToken ?? null, customerId, vidapulseParam);
     return {
       ok: true,
       data: { submissionId, ...(paidExit ? {} : { resultUrl }), ...paid },
