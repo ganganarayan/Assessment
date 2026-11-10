@@ -63,7 +63,7 @@ console.log("\n=== Permanent delete covers the schema (lib/tenant/purge) ===");
   for (const line of schema.split("\n")) {
     const m = /^model (\w+) \{/.exec(line);
     if (m) {
-      model = m[1];
+      model = m[1] ?? "";
       hasTid = false;
       hasRel = false;
       continue;
@@ -84,7 +84,7 @@ console.log("\n=== Permanent delete covers the schema (lib/tenant/purge) ===");
    *    the library. (Owner-private templates cascade.)
    */
   const KEEP = new Set(["AiUsage", "Template"]);
-  const camel = (s: string) => s[0].toLowerCase() + s.slice(1);
+  const camel = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
   for (const m of [...setNull, ...bare].sort()) {
     if (KEEP.has(m)) {
       expect(`${m}: kept on purpose`, true);
