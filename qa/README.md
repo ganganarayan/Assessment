@@ -300,6 +300,41 @@ only be spent once, a metric Meta did not report stays null), `verify:legal` (bo
 pages exist, every header link resolves, nothing company-specific is hardcoded),
 `verify:contact-consent`, `verify:vault` and `verify:workflow-queue`.
 
+## Tenancy: Phases 1 and 2 of the multi-tenant review, on the live app
+
+```
+railway run --service Assessment npm run qa:tenancy     # seed, run, clean up
+npm run qa:tenancy -- --keep                             # leave the qa-tn- workspaces to look at
+npm run qa:tenancy -- --cleanup                          # remove every qa-tn- row of every run
+```
+
+`verify:isolation` and `verify:lifecycle` pin each fix in the source, in the build. A pin
+proves the line is there, not that it works on the deployed app. This pass asks staging,
+through the doors a person or an attacker would use (the sign-in form, the console's own
+buttons, the public funnel URL, the public endpoints):
+
+| Case | What it proves |
+|---|---|
+| p1-email-link | a forged or unsigned /e/c link goes home, a signed one is followed |
+| p1-purchase-eventid | the public lookup returns a platform capture and never a business workspace's |
+| p1-api-tokens | /w/api lists the workspace's own tokens and not another's |
+| p1-razorpay-webhook | A's signed webhook settles A's lead, records nothing for B's, and the CAPI row is not pinned on B's lead |
+| p2-signup | a mailinator signup is refused with a reason and leaves no login; a workspace named "Admin" gets admin-ws, linked to its login, on trial |
+| p2-over-plan | three published funnels on a Gate grant: the two earliest serve, the newest shows the paused page, and /w/assessments says so |
+| p2-suspend | the console's Suspend locks the admin out to /workspace-unavailable, pauses the funnel, is audited and listed on /platform/audit; Unsuspend restores both |
+| p2-console-create | the slug "admin" is refused; a typed-in password sends the first sign-in to /change-password; the creation is audited |
+| p2-delete-purge | Delete sends the admin to /workspace-unavailable (no loop); Delete permanently removes the funnel, lead, page view, CAPI log, sale and webhook delivery by name, keeps the subscription payment, AI usage and login unlinked, and audits it |
+
+It writes two qa-tn- workspaces (A on a Gate grant with three funnels, B on an Agency grant),
+one more through the console form and one through public signup, and removes all of it at
+the end. Audit rows stay: outliving the workspace is their job. No workspace it makes has a
+pixel or CAPI token, so nothing reaches Meta.
+
+`railway run --service Assessment` is there for BETTER_AUTH_SECRET: the webhook case stores
+A's webhook secret the way the app reads it, and the signed-link control signs a link. Both
+skip, with the reason, when it is absent. It is read from the process and printed nowhere.
+The signup case spends one of the IP's 20 signups an hour.
+
 ## What it does not cover
 
 Whether Meta actually received and attributed an event, real email or WhatsApp delivery,
