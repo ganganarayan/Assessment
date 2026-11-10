@@ -5,6 +5,7 @@ import { LOCATION_HINT } from "@/features/calendar/types";
 import { bookingTypeOwner, publicBookingView } from "@/features/calendar/data";
 import { ownerOrPlatformServedHere } from "@/lib/tenant/public-scope";
 import { PublicBooking } from "@/features/calendar/components/public-booking";
+import { TenantLegalFooter } from "@/components/tenant-legal-footer";
 
 /**
  * The public booking page: /b/<slug>.
@@ -96,6 +97,7 @@ export default async function BookingPage({
           mobile: submission?.leadMobile ?? "",
         }}
       />
+      <TenantLegalFooter tenantId={owner} />
     </main>
   );
 }

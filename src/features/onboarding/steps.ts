@@ -139,7 +139,7 @@ export const ONBOARDING_STEPS: readonly OnboardingStepDef[] = [
     kind: "text",
     question: "What is your business called?",
     hint: "It names your workspace and signs the emails your funnel sends.",
-    placeholder: "Divine Leads",
+    placeholder: "Your business name",
   },
   {
     key: "website",

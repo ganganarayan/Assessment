@@ -3,7 +3,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import React from "react";
-import { Document, Page, Text, View, StyleSheet, Font, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image, StyleSheet, Font, renderToBuffer } from "@react-pdf/renderer";
 
 /**
  * Branded A4 band report (react-pdf). Consumes the STORED result only - no model
@@ -28,7 +28,16 @@ const T_CRIT = { deep: "#9B2C2C", scale: "#C0392B" };
 const DEFAULT_THEME = { deep: "#0E4C5C", scale: "#145E71" }; // fallback teal
 const THEME: Record<string, { deep: string; scale: string }> = { LOW: T_LOW, MEDIUM: T_MED, HIGH: T_HIGH, CRITICAL: T_CRIT };
 const BAND_ORDER = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
-const BAND_SCALE_LABEL: Record<string, string> = { LOW: "Stable", MEDIUM: "Strained", HIGH: "Overwhelmed", CRITICAL: "Critical" };
+/**
+ * Neutral scale names, used only where the funnel has no band at that level. The report
+ * used to print the Gita wellness words (Stable / Strained / Overwhelmed / Critical) on
+ * every tenant's report whatever the funnel measured; the funnel's own band titles now
+ * arrive in ReportData.scaleLabels.
+ */
+const BAND_SCALE_LABEL: Record<string, string> = { LOW: "Low", MEDIUM: "Moderate", HIGH: "High", CRITICAL: "Very high" };
+/** The closing line when the tenant has not written one (Settings, Brand and legal). */
+export const DEFAULT_REPORT_DISCLAIMER = "This report is an indicative self-assessment based on your answers.";
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 const SCALE_SEGS = [T_LOW.scale, T_MED.scale, T_HIGH.scale, T_CRIT.scale];
 
 /** Severity by a 0-100 share (higher share = more struggle, matching the engine). */
@@ -42,10 +51,10 @@ function tierScale(pct: number): string {
 /** Fallback band from the overall % when a submission has no stored band, so the
  *  band name + theme always render (quartiles match the 4-band scale). */
 function fallbackBand(pct: number): { level: string; title: string } {
-  if (pct < 25) return { level: "LOW", title: "Stable" };
-  if (pct < 50) return { level: "MEDIUM", title: "Strained" };
-  if (pct < 75) return { level: "HIGH", title: "Overwhelmed" };
-  return { level: "CRITICAL", title: "Critical" };
+  if (pct < 25) return { level: "LOW", title: "Low" };
+  if (pct < 50) return { level: "MEDIUM", title: "Moderate" };
+  if (pct < 75) return { level: "HIGH", title: "High" };
+  return { level: "CRITICAL", title: "Very high" };
 }
 
 /**
@@ -98,6 +107,16 @@ export interface ReportData {
   reportNote: string | null;
   /** See lib/pdf/footer.ts. Empty prints the disclaimer alone. */
   footerLines: string[];
+  /** Whose report this is: the funnel owner's business name (white label). Default Assess360. */
+  brandName?: string;
+  /** The owner's logo as a data URI (fetched by the route, never a live URL in the render). */
+  logoDataUri?: string | null;
+  /** The owner's primary colour for the accent rule (#rrggbb). Default the house gold. */
+  accentColor?: string | null;
+  /** The funnel's own band titles by level, for the scale under the result. */
+  scaleLabels?: Partial<Record<string, string>>;
+  /** The closing line under every page. Default DEFAULT_REPORT_DISCLAIMER. */
+  disclaimer?: string | null;
 }
 
 const s = StyleSheet.create({
@@ -105,6 +124,7 @@ const s = StyleSheet.create({
   // Cover breaks out of the page padding to sit flush + full-bleed on page 1 only.
   cover: { marginTop: -34, marginHorizontal: -44, paddingHorizontal: 44, paddingTop: 30, paddingBottom: 24 },
   goldRule: { height: 3, backgroundColor: GOLD, width: 70, marginBottom: 14 },
+  coverLogo: { height: 34, maxWidth: 160, objectFit: "contain", marginBottom: 12, alignSelf: "flex-start" },
   coverKicker: { color: "#ffffffcc", fontSize: 10, letterSpacing: 2, textTransform: "uppercase" },
   coverTitle: { color: "#ffffff", fontFamily: "Cormorant", fontSize: 30, marginTop: 2 },
   coverName: { color: "#ffffff", fontFamily: "Cormorant", fontSize: 18, marginTop: 12 },
@@ -200,13 +220,13 @@ function parseNote(text: string): NoteLine[] {
   return out;
 }
 
-function Footer({ lines }: { lines: string[] }) {
+function Footer({ lines, disclaimer }: { lines: string[]; disclaimer: string }) {
   return (
     <View style={s.footer} fixed>
       {lines.map((line, i) => (
         <Text key={i} style={s.footLine}>{line}</Text>
       ))}
-      <Text style={s.disclaimer}>This is an indicative self-assessment, not a clinical diagnosis.</Text>
+      <Text style={s.disclaimer}>{disclaimer}</Text>
     </View>
   );
 }
@@ -220,14 +240,21 @@ function AssessmentReport({ data }: { data: ReportData }) {
   const narrative = paragraphs(data.aiStatement);
   const practice = PRACTICE_BY_BAND[level] ?? data.resultSuggestion;
   const noteLines = data.reportNote ? parseNote(data.reportNote) : [];
+  const brand = data.brandName?.trim() || "Assess360";
+  const accent = data.accentColor && HEX_COLOR.test(data.accentColor) ? data.accentColor : GOLD;
+  const scaleLabel = (lv: string) => data.scaleLabels?.[lv]?.trim() || BAND_SCALE_LABEL[lv];
+  const disclaimer = data.disclaimer?.trim() || DEFAULT_REPORT_DISCLAIMER;
 
   return (
-    <Document title={`Assess360 Report - ${data.name}`} author="Assess360">
+    <Document title={`${brand} Report - ${data.name}`} author={brand}>
       <Page size="A4" style={s.page}>
         {/* Cover - themed by band */}
         <View style={[s.cover, { backgroundColor: theme.deep }]}>
-          <View style={s.goldRule} />
-          <Text style={s.coverKicker}>Your Assess360 Report</Text>
+          {/* react-pdf's Image has no alt: a PDF image is not an HTML img. */}
+          {/* eslint-disable-next-line jsx-a11y/alt-text */}
+          {data.logoDataUri ? <Image src={data.logoDataUri} style={s.coverLogo} /> : null}
+          <View style={[s.goldRule, { backgroundColor: accent }]} />
+          <Text style={s.coverKicker}>{`Your ${brand} Report`}</Text>
           <Text style={s.coverTitle}>{data.assessmentTitle}</Text>
           <Text style={s.coverName}>{data.name}</Text>
           <Text style={s.coverMeta}>
@@ -256,7 +283,7 @@ function AssessmentReport({ data }: { data: ReportData }) {
           <View style={s.scaleLabels}>
             {BAND_ORDER.map((lv) => (
               <Text key={lv} style={s.scaleLabel}>
-                {BAND_SCALE_LABEL[lv]}
+                {scaleLabel(lv)}
               </Text>
             ))}
           </View>
@@ -349,7 +376,7 @@ function AssessmentReport({ data }: { data: ReportData }) {
           </View>
         ) : null}
 
-        <Footer lines={data.footerLines} />
+        <Footer lines={data.footerLines} disclaimer={disclaimer} />
       </Page>
     </Document>
   );

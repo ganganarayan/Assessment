@@ -92,8 +92,13 @@ export function ApiTokensManager({
         <p className="text-xs text-[var(--muted-foreground)]">
           Send the token as <code>Authorization: Bearer &lt;token&gt;</code>. A key only works for
           its own scope. <span className="font-mono">meta_match</span> returns raw marketing match
-          fields (hash in n8n before Meta); <span className="font-mono">gita_mentor</span> returns
-          the assessment result snapshot.
+          fields (hash in n8n before Meta)
+          {scopes.some((s) => s.value === "gita_mentor") ? (
+            <>
+              ; <span className="font-mono">gita_mentor</span> returns the assessment result snapshot
+            </>
+          ) : null}
+          .
         </p>
       </div>
 

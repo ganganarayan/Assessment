@@ -56,6 +56,8 @@ export interface ClinicReportData {
   costPerEnquiry: number;
   /** See lib/pdf/footer.ts. Empty prints no footer. */
   footerLines: string[];
+  /** The funnel owner's business name, for the document properties. Default Assess360. */
+  brandName?: string;
 }
 
 const s = StyleSheet.create({
@@ -160,7 +162,7 @@ function ClinicReport({ data }: { data: ClinicReportData }) {
   const casePotLabel = `${casePot.text} patient${casePot.text === "1" ? "" : "s"}/month${casePot.hint ? ` (${casePot.hint})` : ""}`;
 
   return (
-    <Document title={`Patient Acquisition Audit - ${data.name}`} author="Assess360">
+    <Document title={`Patient Acquisition Audit - ${data.name}`} author={data.brandName?.trim() || "Assess360"}>
       <Page size="A4" style={s.page}>
         <View style={s.cover}>
           <View style={s.goldRule} />

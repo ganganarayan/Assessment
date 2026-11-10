@@ -6,6 +6,8 @@ import { AbandonedSetting } from "@/features/admin/components/abandoned-setting"
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
 import { DomainSettings } from "@/features/workspace/components/domain-settings";
 import { ReportFooterForm } from "@/features/workspace/components/report-footer-form";
+import { BrandLegalForm } from "@/features/workspace/components/brand-legal-form";
+import { getBrandLegal } from "@/features/workspace/actions/brand-legal";
 import { getReportFooter } from "@/features/workspace/actions/report-footer";
 import {
   getIntegrationSettings,
@@ -77,6 +79,8 @@ export default async function SettingsPage() {
   const impersonating = actingId !== null;
 
   const reportFooter = impersonating ? await getReportFooter() : null;
+  // Acting-scoped: this tenant while impersonating, the platform row otherwise.
+  const brandLegal = await getBrandLegal();
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
   const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn, onboardingVideoUrl, onboardingSteps, dfyScarcity, dfyWaba, bookingTypes] = await Promise.all([
@@ -120,6 +124,20 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <ThemeSelector />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{impersonating ? "Brand and legal (this tenant)" : "Reply-to and PDF line (platform)"}</CardTitle>
+          <CardDescription>
+            {impersonating
+              ? "The tenant's logo, tab icon, share image, legal links and reply-to address: what its respondents see as the tenant's."
+              : "Where replies to platform emails go, and the closing line of platform PDF reports."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BrandLegalForm initial={brandLegal} />
         </CardContent>
       </Card>
 

@@ -11,6 +11,19 @@ import { fillPlaceholders, toE164Digits, type LeadFields, type NurtureConfig } f
 import { pickResultUrl, vidapulseParamForTenant } from "@/lib/events/completion";
 import { instrumentEmailLinks } from "@/lib/nurture/tracking";
 import { env } from "@/lib/env";
+import { appSettingWhere } from "@/lib/settings/tenant-row";
+
+/**
+ * The sender's own Reply-To (Settings, Brand and legal). A caller that names one (the
+ * support threads) wins; otherwise a reply reaches the BUSINESS, not the sending inbox,
+ * which for most tenants is a no-reply address on their email provider. Never throws.
+ */
+async function defaultReplyTo(tenantId: string | null): Promise<string | null> {
+  const row = await prisma.appSetting
+    .findUnique({ where: appSettingWhere(tenantId), select: { replyToEmail: true } })
+    .catch(() => null);
+  return row?.replyToEmail?.trim() || null;
+}
 
 /**
  * Nurture sender - one-shot Email (SMTP) + WhatsApp (Meta Cloud API) fired on opt-in.
@@ -121,6 +134,7 @@ export async function sendEmail(
   // Send Mail token in the SMTP password column, and the migration moved it, but a row
   // mid-deploy or restored from an old backup may still only have it there.
   const apiKey = cfg.apiKey ?? cfg.pass;
+  const replyTo = opts?.replyTo ?? (await defaultReplyTo(tenantId));
   try {
     return await provider.send(
       { apiKey, host: cfg.host, port: cfg.port, secure: cfg.secure, user: cfg.user, pass: cfg.pass },
@@ -133,7 +147,7 @@ export async function sendEmail(
         html: renderEmailBody(htmlBody),
         fromEmail: cfg.fromEmail,
         fromName: cfg.fromName,
-        replyTo: opts?.replyTo ?? null,
+        replyTo,
       },
     );
   } catch (e) {

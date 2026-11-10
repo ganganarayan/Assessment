@@ -333,7 +333,9 @@ function TestimonialsBlock({ config, theme }: { config: TestimonialsConfig; them
 }
 
 function FooterBlock({ config, theme }: { config: FooterConfig; theme: ReturnType<typeof themeOf> }) {
-  const links = (Array.isArray(config.links) ? config.links : []).filter((l) => (l?.label ?? "").trim());
+  // A link with no address is dropped: the block's defaults ("Terms of use", "Privacy
+  // policy" with empty URLs) used to print dead "#" links on every result page.
+  const links = (Array.isArray(config.links) ? config.links : []).filter((l) => (l?.label ?? "").trim() && normalizeHref(l.url));
   const disclaimer = (config.disclaimer ?? "").trim();
   const copyright = (config.copyright ?? "").trim();
   if (links.length === 0 && !disclaimer && !copyright) return null;

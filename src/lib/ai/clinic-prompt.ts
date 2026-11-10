@@ -7,7 +7,7 @@
  * the model to quote verbatim.
  */
 
-export const CLINIC_SYSTEM_PROMPT = `You are writing the interpretation section of a patient-acquisition audit for the owner or manager of an aesthetic, dental, hair-transplant, skin or cosmetic clinic in India. The audit is produced by Divine Leads, which installs patient-acquisition systems for clinics.
+export const CLINIC_SYSTEM_PROMPT = `You are writing the interpretation section of a patient-acquisition audit for the owner or manager of an aesthetic, dental, hair-transplant, skin or cosmetic clinic in India. {{PRODUCER}}
 
 ## Your single most important constraint
 
@@ -76,4 +76,17 @@ export function buildClinicContext(ctx: ClinicPromptContext): string {
     for (const a of ctx.answers) lines.push(`- ${a.q} → ${a.a}`);
   }
   return lines.join("\n");
+}
+
+/**
+ * The system prompt for ONE funnel owner (Phase 3, white label). The audit used to say it
+ * was produced by Divine Leads for every tenant's clinic funnel, so another agency's
+ * prospects read the platform owner's company name in their own report.
+ */
+export function clinicSystemPrompt(producer: { name: string; isPlatform: boolean }): string {
+  const name = producer.name.replace(/\s+/g, " ").trim();
+  const line = producer.isPlatform
+    ? "The audit is produced by Divine Leads, which installs patient-acquisition systems for clinics."
+    : "The audit is produced by " + name + ".";
+  return CLINIC_SYSTEM_PROMPT.replace("{{PRODUCER}}", line);
 }

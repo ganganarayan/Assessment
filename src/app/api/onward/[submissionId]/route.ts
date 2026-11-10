@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { appendVidapulseId, stampVidapulseCtaUrl } from "@/lib/vidapulse";
 import { vidapulseParamForTenant } from "@/lib/events/completion";
 import { isPlatformHost } from "@/lib/seo/urls";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
 
 /**
  * Onward redirect for the "Show results on assess360" flow. The result page's
@@ -98,7 +99,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ submissionId: s
 
   const target = sub?.assessment.resultsContinueUrl?.trim() || null;
   // No submission, or no onward URL configured - nothing to forward to.
-  if (!sub || !target) return NextResponse.redirect(env.NEXT_PUBLIC_APP_URL, 302);
+  if (!sub) return NextResponse.redirect(env.NEXT_PUBLIC_APP_URL, 302);
+  // A tenant's respondent goes to the TENANT's address, never the Assess360 homepage.
+  if (!target) return NextResponse.redirect(await publicOriginFor(sub.assessment.tenantId), 302);
 
   // Record the onward click as a VSL hit, and stamp the first-view time once.
   // Awaited (a redirect isn't latency-critical) so the count records reliably;

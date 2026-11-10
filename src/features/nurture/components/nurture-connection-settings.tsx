@@ -133,7 +133,7 @@ function SmtpForm({ initial }: { initial: NurtureSettingsView["smtp"] }) {
             <Input type="password" value={v.apiKey} placeholder={initial.hasApiKey ? "••••••••" : ""} onChange={(e) => setV({ ...v, apiKey: e.target.value })} />
           </Field>
         )}
-        <Field label="From name"><Input value={v.fromName} placeholder="Ganga Narayan Das" onChange={(e) => setV({ ...v, fromName: e.target.value })} /></Field>
+        <Field label="From name"><Input value={v.fromName} placeholder="Your name or business" onChange={(e) => setV({ ...v, fromName: e.target.value })} /></Field>
         <Field label="From email"><Input value={v.fromEmail} placeholder="hello@yourdomain.com" onChange={(e) => setV({ ...v, fromEmail: e.target.value })} /></Field>
       </div>
       {isSmtp ? (

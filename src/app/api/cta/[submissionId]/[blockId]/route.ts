@@ -77,7 +77,9 @@ export async function GET(
   // rendered from, so the destination is always one the operator saved.
   const page = readResultPage(sub.assessment.resultPagePublished ?? null);
   const block = page.blocks.find((b) => b.id === blockId && b.type === "button");
-  if (!block) return fallback();
+  // A button that is no longer on the page: back to the result they were reading, on the
+  // tenant's own address (it used to be the Assess360 homepage).
+  if (!block) return NextResponse.redirect(ctaResultUrl(publicOrigin, sub.assessment.slug, sub.id, sub.resultToken), 302);
   const config = block.config as ButtonConfig;
 
   const label = (config.label ?? "").trim() || null;

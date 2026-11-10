@@ -4,18 +4,10 @@ import { MARKETING } from "@/lib/marketing/content";
 import { currentOrigin } from "@/lib/seo/site";
 import { THEME_COOKIE, THEME_INIT_SCRIPT } from "@/lib/theme";
 import { getCurrentTenant } from "@/lib/tenant/context";
+import { tenantThemeCss } from "@/lib/tenant/theme-css";
 import "./globals.css";
 
-const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
-/** Only emit CSS for values that are strictly hex - never inject stored text as-is. */
-function tenantThemeCss(primary?: string | null, secondary?: string | null): string | null {
-  const p = primary && HEX.test(primary) ? primary : null;
-  const s = secondary && HEX.test(secondary) ? secondary : null;
-  if (!p && !s) return null;
-  const vars = `${p ? `--primary:${p};` : ""}${s ? `--secondary:${s};` : ""}`;
-  // Apply in both light and dark so the brand accent wins in either mode.
-  return `:root{${vars}}.dark{${p ? `--primary:${p};` : ""}}`;
-}
+const httpsOnly = (u: string | null | undefined): string | null => (u && /^https:\/\/[^\s"'<>]+$/i.test(u.trim()) ? u.trim() : null);
 
 /**
  * The DEFAULTS every route inherits, and they have to be host-aware, because this one
@@ -39,7 +31,16 @@ export async function generateMetadata(): Promise<Metadata> {
   const metadataBase = new URL(origin);
 
   if (tenant) {
-    return { metadataBase, title: { default: tenant.name, template: `%s · ${tenant.name}` } };
+    // White label: the tenant's own tab icon and share image on its host. Absent = the
+    // app's icon, which is the platform's; set in Settings, Brand and legal.
+    const favicon = httpsOnly(tenant.theme?.faviconUrl);
+    const share = httpsOnly(tenant.theme?.shareImageUrl);
+    return {
+      metadataBase,
+      title: { default: tenant.name, template: `%s · ${tenant.name}` },
+      ...(favicon ? { icons: { icon: favicon, shortcut: favicon, apple: favicon } } : {}),
+      ...(share ? { openGraph: { images: [share], siteName: tenant.name } } : {}),
+    };
   }
 
   return {

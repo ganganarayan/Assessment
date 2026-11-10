@@ -42,6 +42,19 @@ Status key: 🟢 in production · 🟡 staging only · ⚪ designed and agreed, 
   changed at first sign-in; workspace import no longer reveals other workspaces' slugs.
   NOT done: email verification (needs a platform sender), seat overage after a downgrade
   (waits on the Phase 5 seat numbers), releasing a parked tenant's domain slot (owner call).
+- 🟡 White label (multi-tenant review Phase 3, staging 10-11-2026, pinned by verify:whitelabel):
+  one brand answer per tenant (lib/tenant/brand.ts). Razorpay checkout shows the tenant's name,
+  logo and colour; Meta server events carry the tenant's live domain (lib/meta/send.ts choke
+  point); CTA/onward/email-click fallbacks land on the tenant's address; PDF report uses the
+  owner's name, logo, colour, the funnel's own band titles and a per-tenant closing line (file
+  named <Brand>_Report_<Name>.pdf, stored copies re-render on a brand change); funnels wear the
+  owner's colours and favicon on any host, share card = cover image else the tenant's share
+  image; Settings, Brand and legal card (/w/settings and /admin/settings) for logo/favicon/share
+  upload, privacy/terms links, reply-to, PDF line; legal footer on funnel, result and booking
+  pages (never the platform's policy for a business tenant); reply-to on every email; the clinic
+  AI prompt names the tenant; owner and Divine Leads placeholders gone from tenant screens.
+  NOT done: links beside the opt-in consent text, the clinic result page's Divine Leads palette,
+  the editable consent text field.
 - 🟢 Platform tenant as a real row, Scope as a type, configTenantOf wired, verify:owner-stamp
   in the build chain. The data move itself has NOT run anywhere.
 - 🟢 Staff accounts VIEW / EDIT with canEdit enforced on every mutation, plus a seat cap.

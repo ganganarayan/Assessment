@@ -362,6 +362,8 @@ model Theme {
   secondaryColor String   @default("#64748b")
   logoUrl        String?
   faviconUrl     String?
+  // Social share card for the tenant's pages when a funnel has no cover image (Phase 3).
+  shareImageUrl  String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -2869,6 +2871,16 @@ model AppSetting {
   // The tenant's own PDF report footer, one printed line per line. Honoured only above
   // Gate, which prints the Assess360 watermark - see lib/pdf/footer.ts.
   reportFooter String?
+
+  // White label (Phase 3 of the multi-tenant review): what the tenant's RESPONDENTS see.
+  // privacyUrl/termsUrl are linked under the tenant's funnel, result and booking pages
+  // (null = no link, never the platform's own policy). replyToEmail goes on every email
+  // the tenant sends, so a reply reaches the business and not the sending inbox.
+  // reportDisclaimer is the closing line of the PDF report (null = a neutral default).
+  privacyUrl       String?
+  termsUrl         String?
+  replyToEmail     String?
+  reportDisclaimer String?
 
   // Marketing landing videos - PLATFORM ONLY, never copied to a tenant.
   // { hero?: string, tiles?: { "<capability title>": string } }. Each value is the

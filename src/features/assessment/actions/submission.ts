@@ -65,12 +65,12 @@ import {
 import { buildClinicContext, type ClinicPromptContext } from "@/lib/ai/clinic-prompt";
 import { formatINR, pctLabel } from "@/lib/format/inr";
 import { isRazorpayConfigured, createOrder } from "@/lib/payments/razorpay";
-import { resolveRazorpayConfig } from "@/lib/settings/config";
+import { resolveRazorpayConfig, resolvePaymentLinkDescription } from "@/lib/settings/config";
 import { type PaymentCheckout } from "@/lib/payments/types";
 import { paymentsAllowed } from "@/lib/payments/enabled";
 import { createHandoff } from "@/lib/payments/handoff";
 
-const PAYMENT_BUSINESS_NAME = "Assess360";
+import { tenantBrand } from "@/lib/tenant/brand";
 import {
   buildSpine,
   defaultRouteOf,
@@ -214,13 +214,19 @@ async function resolvePaidCheckout(opts: {
         currency: "INR",
         notes: { submissionId: opts.submissionId, purpose: "assessment_unlock" },
       }, rzp);
+      // 🔴 The checkout runs on the TENANT's own Razorpay account, so it must say the
+      // tenant's name. It said "Assess360" for every business, which is the name the
+      // buyer then does not recognise on their statement: a chargeback waiting to happen.
+      const brand = await tenantBrand(opts.tenantId);
       const payment: PaymentCheckout = {
         keyId: rzp.keyId,
         orderId: order.id,
         amount: order.amount,
         currency: order.currency,
-        name: PAYMENT_BUSINESS_NAME,
-        description: "Assessment results + consultation",
+        name: brand.name,
+        description: (await resolvePaymentLinkDescription(opts.tenantId)) || "Assessment results + consultation",
+        image: brand.logoUrl,
+        themeColor: brand.primaryColor,
         prefill: { name: opts.customer.name, email: opts.customer.email, contact: opts.customer.phone },
         // On the tenant's own home, so someone who paid on their domain comes back to it.
         callbackUrl: `${await publicOriginFor(opts.tenantId)}/api/payments/verify?submission=${encodeURIComponent(opts.submissionId)}`,

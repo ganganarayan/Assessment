@@ -11,7 +11,9 @@ import { type ResultSnapshot } from "@/lib/result/snapshot";
 import { getSubmissionQuestionBreakdown } from "@/features/admin/data/submission-questions";
 import { resolvePlan } from "@/lib/billing/plan-resolve";
 import { reportFooterLines } from "@/lib/pdf/footer";
-import { renderReportPdf, type ReportData } from "@/lib/pdf/report";
+import { renderReportPdf, DEFAULT_REPORT_DISCLAIMER, type ReportData } from "@/lib/pdf/report";
+import { logoDataUri } from "@/lib/pdf/logo";
+import { tenantBrand } from "@/lib/tenant/brand";
 import { renderClinicReportPdf, type ClinicReportData } from "@/lib/pdf/clinic-report";
 import { computeResult, deriveInputs, resolveEngineConfig } from "@/lib/scoring/clinic-audit";
 import { getClinicRawAnswers } from "@/features/admin/data/clinic-answers";
@@ -40,7 +42,7 @@ const safeName = (s: string) => s.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+
  * route after authorisation, never handed out as a bucket URL or a signed link. Nothing
  * a client receives says where the file sits.
  */
-function pdfResponse(req: Request, bytes: Uint8Array, firstName: string): Response {
+function pdfResponse(req: Request, bytes: Uint8Array, firstName: string, brandName: string): Response {
   const download = new URL(req.url).searchParams.get("download") === "1";
   // Copied into a plain ArrayBuffer: a Uint8Array over a SharedArrayBuffer is not a
   // valid Response body, and the typed-array view alone does not satisfy BodyInit.
@@ -48,7 +50,7 @@ function pdfResponse(req: Request, bytes: Uint8Array, firstName: string): Respon
   return new Response(body, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `${download ? "attachment" : "inline"}; filename="Assess360_Report_${safeName(firstName)}.pdf"`,
+      "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${safeName(brandName)}_Report_${safeName(firstName)}.pdf"`,
       // Not cached by the browser or any proxy: a report is personal data, and the
       // stored copy in R2 is already the thing that makes repeat views cheap.
       "Cache-Control": "no-store",
@@ -103,6 +105,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
           engine: true,
           tenantId: true,
           categories: { select: { name: true, displayOrder: true } },
+          resultBands: { select: { level: true, title: true }, orderBy: { minScore: "asc" } },
         },
       },
     },
@@ -129,20 +132,42 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
 
   const ownerId = sub.assessment.tenantId;
   const footerSetting = ownerId
-    ? await prisma.appSetting.findUnique({ where: { tenantId: ownerId }, select: { reportFooter: true } })
+    ? await prisma.appSetting.findUnique({ where: { tenantId: ownerId }, select: { reportFooter: true, reportDisclaimer: true } })
     : null;
+  // White label: the report is the FUNNEL OWNER's, not Assess360's. The platform's own
+  // closing line lives on the singleton row; null-tenant funnels read it there.
+  const brand = await tenantBrand(ownerId);
+  const disclaimer =
+    (ownerId
+      ? footerSetting?.reportDisclaimer
+      : (await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { reportDisclaimer: true } }))?.reportDisclaimer
+    )?.trim() || DEFAULT_REPORT_DISCLAIMER;
+  // The funnel's own band names for the scale, first title per level.
+  const scaleLabels: Partial<Record<string, string>> = {};
+  for (const b of sub.assessment.resultBands) scaleLabels[b.level] ??= b.title;
   const footerLines = reportFooterLines(
     await resolvePlan(ownerId),
     footerSetting?.reportFooter,
     new URL(env.NEXT_PUBLIC_APP_URL).host,
   );
+  // The stored copy is keyed on everything printed around the result, so a new logo,
+  // colour, name or closing line re-renders it once. "brand-v1" marks the template.
+  const stampLines = [
+    ...footerLines,
+    "brand-v1",
+    brand.name,
+    brand.logoUrl ?? "",
+    brand.primaryColor ?? "",
+    disclaimer,
+    JSON.stringify(scaleLabels),
+  ];
 
   // A stored copy short-circuits everything below: no layout, no fonts, no buffering.
   // Skipped on an internal call, because the worker is being asked to RENDER - reading
   // back a stored file there would make the request a no-op.
   if (!internal) {
-    const stored = await getStoredReport(submissionId, footerLines);
-    if (stored) return pdfResponse(req, stored, firstName);
+    const stored = await getStoredReport(submissionId, stampLines);
+    if (stored) return pdfResponse(req, stored, firstName, brand.name);
 
     // Not stored: try the worker first, so react-pdf runs in a process whose
     // out-of-memory cannot take the funnel with it.
@@ -150,8 +175,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
     if (fromWorker) {
       // Store it for next time, but do not wait: the operator gets their report now,
       // and a storage hiccup costs the next request a re-render, not this one a failure.
-      void putStoredReport(submissionId, sub.assessment.tenantId, fromWorker, footerLines);
-      return pdfResponse(req, fromWorker, firstName);
+      void putStoredReport(submissionId, sub.assessment.tenantId, fromWorker, stampLines);
+      return pdfResponse(req, fromWorker, firstName, brand.name);
     }
     // Worker unset, down, or erroring - fall through and render here, exactly as before.
   }
@@ -184,6 +209,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
       bookingUrl: setting?.bookingUrl ?? null,
       costPerEnquiry: liveConfig.costPerEnquiry,
       footerLines,
+      brandName: brand.name,
     };
     pdf = await renderClinicReportPdf(data);
   } else {
@@ -212,6 +238,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
       resultSuggestion: snap.resultSuggestion ?? null,
       reportNote: sub.reportNote ?? null,
       footerLines,
+      brandName: brand.name,
+      logoDataUri: await logoDataUri(brand.logoUrl),
+      accentColor: brand.primaryColor,
+      scaleLabels,
+      disclaimer,
       categories: orderedCats.map((c) => ({
             name: c.name,
             score: c.score,
@@ -232,8 +263,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ submissi
   // Not on an internal call - the worker returns the bytes and the APP stores them, so
   // there is one writer and the worker stays a pure renderer.
   if (!internal) {
-    void putStoredReport(submissionId, sub.assessment.tenantId, new Uint8Array(pdf), footerLines);
+    void putStoredReport(submissionId, sub.assessment.tenantId, new Uint8Array(pdf), stampLines);
   }
 
-  return pdfResponse(req, new Uint8Array(pdf), firstName);
+  return pdfResponse(req, new Uint8Array(pdf), firstName, brand.name);
 }

@@ -349,10 +349,12 @@ export async function supportEmailFor(tenantId: string | null): Promise<string |
     if (isBusinessTenant(tenantId)) {
       const s = await prisma.appSetting.findUnique({
         where: { tenantId },
-        select: { supportEmail: true },
+        select: { supportEmail: true, replyToEmail: true },
       });
-      const own = clean(s?.supportEmail);
-      if (own) return own;
+      // 🔴 A business tenant's respondent is never pointed at the PLATFORM's inbox (it
+      // was the Gita support address): its own support address, else its reply-to, else
+      // no mailto at all.
+      return clean(s?.supportEmail) ?? clean(s?.replyToEmail);
     }
     const singleton = await prisma.appSetting.findUnique({ where: { id: "singleton" }, select: { supportEmail: true } });
     return clean(singleton?.supportEmail);

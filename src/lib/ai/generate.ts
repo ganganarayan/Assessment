@@ -12,7 +12,8 @@ import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 import { resolvePlan, tenantCan } from "@/lib/billing/entitlements";
 import { modelForTenant, parsePlanModels } from "@/lib/ai/plan-models";
 import { costMicroUsd, hasCostReport } from "@/lib/ai/pricing";
-import { CLINIC_SYSTEM_PROMPT } from "@/lib/ai/clinic-prompt";
+import { clinicSystemPrompt } from "@/lib/ai/clinic-prompt";
+import { tenantBrand } from "@/lib/tenant/brand";
 import { appSettingWhere } from "@/lib/settings/tenant-row";
 
 /**
@@ -229,7 +230,7 @@ export async function generateClinicStatement(
   try {
     const cfg = await getAiConfig(tenantId);
     if (!cfg) return null;
-    const raw = await callProvider(cfg, CLINIC_SYSTEM_PROMPT, context, { tenantId, purpose: "clinic-statement" });
+    const raw = await callProvider(cfg, clinicSystemPrompt(await tenantBrand(tenantId)), context, { tenantId, purpose: "clinic-statement" });
     return clean(raw);
   } catch (e) {
     console.error("[ai] clinic statement error:", e instanceof Error ? e.message : String(e));

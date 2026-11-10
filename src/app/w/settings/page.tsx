@@ -10,6 +10,8 @@ import { ReportFooterForm } from "@/features/workspace/components/report-footer-
 import { getReportFooter } from "@/features/workspace/actions/report-footer";
 import { SupportSettingsForm } from "@/features/workspace/components/support-settings-form";
 import { ThemeColorForm } from "@/features/workspace/components/theme-color-form";
+import { BrandLegalForm } from "@/features/workspace/components/brand-legal-form";
+import { getBrandLegal } from "@/features/workspace/actions/brand-legal";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
 import { DomainSettings } from "@/features/workspace/components/domain-settings";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
@@ -47,6 +49,7 @@ export default async function WorkspaceSettingsPage() {
   const reportFooter = await getReportFooter();
   const supportEmail = await getSupportEmail();
   const themeColors = await getThemeColors();
+  const brandLegal = await getBrandLegal();
   /**
    * Sender credentials for this workspace.
    *
@@ -128,6 +131,18 @@ export default async function WorkspaceSettingsPage() {
         </CardHeader>
         <CardContent>
           <ThemeColorForm initial={themeColors} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Brand and legal</CardTitle>
+          <CardDescription>
+            Your logo, tab icon and share image, your privacy and terms links, and where replies go. This is what your respondents see as yours.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BrandLegalForm initial={brandLegal} />
         </CardContent>
       </Card>
 

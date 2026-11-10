@@ -332,7 +332,7 @@ export function IntegrationSettingsForm({
             value={payDescription}
             onChange={(e) => setPayDescription(e.target.value)}
             maxLength={200}
-            placeholder="e.g. Consulting retainer - Divine Leads"
+            placeholder="e.g. Consulting retainer - Your Brand"
           />
         </div>
         <div>

@@ -28,6 +28,7 @@ import {
   readExits,
 } from "@/features/assessment/schemas";
 import { normalizeCustomFields } from "@/features/assessment/custom-fields";
+import { tenantBrand } from "@/lib/tenant/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -89,12 +90,23 @@ export async function generateMetadata({
   if (plan.parked || (await notServing(a.tenantId, a.id))) return { robots: { index: false, follow: false } };
 
   const origin = await tenantCanonicalOrigin(a.tenantId);
+  const brand = await tenantBrand(a.tenantId);
+  const shareImage = (a.coverImageUrl && /^https:\/\//i.test(a.coverImageUrl) ? a.coverImageUrl : null) ?? brand.shareImageUrl;
   return {
-    // A bare string, so the root layout's template appends the owner's name: on a tenant
-    // host that reads "Clinic Growth Audit · Acme", which is theirs, not ours.
-    title: a.title,
+    // A bare string, so the root layout's template appends the host's name: on a tenant
+    // host that reads "Clinic Growth Audit · Acme". On the PLATFORM host a business
+    // tenant's funnel would read "· Assess360", so it names its owner outright.
+    title: brand.isPlatform ? a.title : { absolute: `${a.title} · ${brand.name}` },
     ...(a.description ? { description: a.description } : {}),
     alternates: { canonical: `${origin}/a/${slug}` },
+    // The share card: the funnel's cover image, else the owner's share image.
+    openGraph: {
+      title: a.title,
+      ...(a.description ? { description: a.description } : {}),
+      url: `${origin}/a/${slug}`,
+      siteName: brand.name,
+      ...(shareImage ? { images: [shareImage] } : {}),
+    },
   };
 }
 

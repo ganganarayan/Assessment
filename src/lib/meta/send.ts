@@ -1,6 +1,8 @@
 import { env } from "@/lib/env";
 import { buildCapiEvent, resolveCapiConfig, type CapiEventInput } from "@/lib/meta/capi";
 import { resolveMetaConfig, resolvePlatformMetaConfig } from "@/lib/settings/config";
+import { publicOriginFor, platformOrigin } from "@/lib/tenant/public-origin";
+import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
 
 /**
  * Network sender for Meta Conversions API. Imports env (so it is NOT imported by
@@ -19,6 +21,29 @@ const TIMEOUT_MS = 4_000;
 function withSourceUrl(input: CapiEventInput): CapiEventInput {
   const src = input.eventSourceUrl?.trim();
   return { ...input, eventSourceUrl: src && src.length > 0 ? src : env.NEXT_PUBLIC_APP_URL };
+}
+
+/**
+ * The same guarantee, on the TENANT's own website (Phase 3 of the multi-tenant review).
+ *
+ * 🔴 Every respondent event was stamped with the PLATFORM's host: callers build
+ * `${NEXT_PUBLIC_APP_URL}/a/<slug>`, and an event with no URL got the platform root. So
+ * a tenant's conversions told Meta they happened on Assess360, while the browser pixel
+ * for the same person reported the tenant's domain. Fixed HERE, at the one choke point
+ * every tenant send passes, rather than at a dozen call sites, so a caller added next
+ * month cannot bring it back: a platform-host URL is moved onto the tenant's live public
+ * origin (its connected domain, or the platform host when it has none), path kept.
+ *
+ * A URL on some other host (an external targetUrl) is the tenant's own and left alone.
+ */
+async function withTenantSourceUrl(input: CapiEventInput, tenantId: string | null): Promise<CapiEventInput> {
+  const withUrl = withSourceUrl(input);
+  if (!isBusinessTenant(tenantId)) return withUrl;
+  const platform = platformOrigin();
+  const url = withUrl.eventSourceUrl ?? platform;
+  if (url !== platform && !url.startsWith(`${platform}/`)) return withUrl;
+  const origin = await publicOriginFor(tenantId);
+  return origin === platform ? withUrl : { ...withUrl, eventSourceUrl: `${origin}${url.slice(platform.length)}` };
 }
 
 /**
@@ -134,7 +159,7 @@ export async function sendCapiEventVerbose(input: CapiEventInput, tenantId: stri
   if (!cfg) {
     return { ok: false, error: "No Meta pixel id + Conversions API token for this scope. Set them in Settings; environment variables are no longer read." };
   }
-  const body = JSON.stringify({ data: [buildCapiEvent(withSourceUrl(input))] }); // real conversion - no test code
+  const body = JSON.stringify({ data: [buildCapiEvent(await withTenantSourceUrl(input, tenantId))] }); // real conversion - no test code
   const url = `https://graph.facebook.com/${cfg.version}/${cfg.datasetId}/events?access_token=${encodeURIComponent(cfg.accessToken)}`;
   try {
     const res = await fetch(url, {
@@ -206,7 +231,7 @@ export async function sendCapiEvent(input: CapiEventInput, tenantId: string | nu
   // (Purchase121, AssessmentCompleted…) to Events Manager → Test Events, where
   // the campaign can't count it. The CAPI Tester uses its own (testCapi) path.
   const body = JSON.stringify({
-    data: [buildCapiEvent(withSourceUrl(input))],
+    data: [buildCapiEvent(await withTenantSourceUrl(input, tenantId))],
   });
 
   const url = `https://graph.facebook.com/${cfg.version}/${cfg.datasetId}/events?access_token=${encodeURIComponent(cfg.accessToken)}`;

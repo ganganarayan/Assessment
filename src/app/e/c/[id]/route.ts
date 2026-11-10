@@ -2,6 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { decodeTrackedUrl, trackedUrlSignatureValid } from "@/lib/nurture/tracking";
+import { publicOriginFor } from "@/lib/tenant/public-origin";
+
+/** Where a link that cannot be followed lands: the sending tenant's own address. */
+async function homeFor(id: string): Promise<string> {
+  const log = await prisma.nurtureLog.findUnique({ where: { id }, select: { tenantId: true } }).catch(() => null);
+  return publicOriginFor(log?.tenantId ?? null);
+}
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +28,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   // A forged or altered signed link counts no click and goes nowhere but home.
   const s = req.nextUrl.searchParams.get("s");
   if (u && s && !trackedUrlSignatureValid(id, u, s, env.BETTER_AUTH_SECRET)) {
-    return NextResponse.redirect(env.NEXT_PUBLIC_APP_URL, { status: 302, headers: { "cache-control": "no-store" } });
+    return NextResponse.redirect(await homeFor(id), { status: 302, headers: { "cache-control": "no-store" } });
   }
 
   // First-click stamp only (clickedAt: null filter), best-effort.
@@ -68,6 +75,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
         (await prisma.nurtureLog.findUnique({ where: { id }, select: { id: true } }).catch(() => null)) != null
     : false;
 
-  const safe = trusted && target && /^https?:\/\//i.test(target) ? target : env.NEXT_PUBLIC_APP_URL;
+  const safe = trusted && target && /^https?:\/\//i.test(target) ? target : await homeFor(id);
   return NextResponse.redirect(safe, { status: 302, headers: { "cache-control": "no-store" } });
 }

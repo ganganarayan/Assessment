@@ -14,6 +14,8 @@ interface RazorpayOptions {
   currency: string;
   name: string;
   description: string;
+  image?: string;
+  theme?: { color: string };
   prefill: { name?: string; email?: string; contact?: string };
   notes: Record<string, string>;
   callback_url: string;
@@ -68,6 +70,8 @@ export async function openRazorpayCheckout(p: PaymentCheckout, onDismiss: () => 
     currency: p.currency,
     name: p.name,
     description: p.description,
+    ...(p.image ? { image: p.image } : {}),
+    ...(p.themeColor ? { theme: { color: p.themeColor } } : {}),
     prefill: cleanPrefill(p.prefill),
     notes: p.notes,
     callback_url: p.callbackUrl,
