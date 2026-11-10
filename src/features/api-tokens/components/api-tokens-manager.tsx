@@ -16,13 +16,10 @@ import { formatIST } from "@/lib/date";
 export function ApiTokensManager({
   initialTokens,
   endpointBase,
-  tenantId = null,
   allowedScopes,
 }: {
   initialTokens: ApiTokenRow[];
   endpointBase: string;
-  /** The context's tenant (null = platform/admin). Scopes the refresh to the same set. */
-  tenantId?: string | null;
   /** Restrict which scopes are shown/mintable. Omit = all. Tenants get only meta_match
    *  (gita_mentor is the platform's own product, not a tenant feature). */
   allowedScopes?: readonly string[];
@@ -40,7 +37,7 @@ export function ApiTokensManager({
   const base = endpointBase.replace(/\/+$/, "");
 
   const refresh = async () => {
-    const r = await listApiTokens(tenantId);
+    const r = await listApiTokens();
     if (r.ok && r.data) setTokens(r.data);
   };
 

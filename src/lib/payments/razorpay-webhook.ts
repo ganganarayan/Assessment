@@ -7,6 +7,7 @@ import { resolveRazorpayAccounts, type RazorpayAccountKind } from "@/lib/setting
 import { recordCapture } from "@/lib/meta/capi-log";
 import { emitCompletedPaid } from "@/lib/events/completion";
 import { settlePaymentLink } from "@/features/payments/settle";
+import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
 
 /**
  * Shared Razorpay webhook handler, parameterized by TENANT.
@@ -83,6 +84,21 @@ export async function handleRazorpayWebhook(req: Request, tenantId: string | nul
   const providerPaymentId = asStr(payment.id);
   if (!providerPaymentId) return NextResponse.json({ ok: true, warning: "no payment id" });
 
+  /**
+   * 🔴 WHOSE ROWS THIS WEBHOOK MAY TOUCH. A business tenant's webhook is signed with a
+   * secret THAT TENANT typed into Settings, so its signature proves only that the
+   * tenant sent it - not that the payment, link or submission it names is theirs. Left
+   * unchecked, a tenant could sign a made-up capture naming another tenant's
+   * submission id (they ride public result URLs) and unlock that lead, fire the
+   * victim's CRM paid event and send a fake Purchase to the victim's Meta dataset.
+   *
+   * So on a business tenant's webhook every row named in the notes must belong to that
+   * same tenant, or it is ignored. The platform's own webhook (tenantId null) is signed
+   * with the owner's secret and keeps serving every tenant the owner runs.
+   */
+  const scopedTo = isBusinessTenant(tenantId) ? tenantId : null;
+  const ownsRow = (rowTenantId: string | null) => scopedTo === null || rowTenantId === scopedTo;
+
   const rawStatus = asStr(payment.status) ?? "captured";
   const amount = asInt(payment.amount);
   const currency = asStr(payment.currency) ?? "INR";
@@ -135,7 +151,9 @@ export async function handleRazorpayWebhook(req: Request, tenantId: string | nul
       where: { id: paymentLinkId },
       select: { id: true, tenantId: true, submissionId: true, assessmentId: true, account: true },
     });
-    if (link) {
+    if (link && !ownsRow(link.tenantId)) {
+      console.error("[razorpay] webhook: payment link belongs to another tenant, ignored", paymentLinkId);
+    } else if (link) {
       await settlePaymentLink({
         link,
         providerPaymentId,
@@ -154,7 +172,11 @@ export async function handleRazorpayWebhook(req: Request, tenantId: string | nul
   // 3) IN-APP sale bookkeeping: the Razorpay order carried our submissionId, so
   //    record the Payment + fire completed_paid for the CRM. CAPI is handled above.
   if (submissionId) {
-    const sub = await prisma.submission.findUnique({ where: { id: submissionId }, select: { id: true, tenantId: true, assessmentId: true } });
+    const found = await prisma.submission.findUnique({ where: { id: submissionId }, select: { id: true, tenantId: true, assessmentId: true } });
+    if (found && !ownsRow(found.tenantId)) {
+      console.error("[razorpay] webhook: submission belongs to another tenant, ignored", submissionId);
+    }
+    const sub = found && ownsRow(found.tenantId) ? found : null;
     if (sub) {
       const purpose = asStr(notes.purpose) ?? "assessment_unlock";
       try {

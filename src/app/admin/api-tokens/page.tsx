@@ -1,5 +1,4 @@
 import { requireSuperAdmin } from "@/lib/auth/guards";
-import { actingTenantId } from "@/lib/tenant/acting";
 import { env } from "@/lib/env";
 import { listApiTokens } from "@/features/api-tokens/actions";
 import { ApiTokensManager } from "@/features/api-tokens/components/api-tokens-manager";
@@ -8,9 +7,8 @@ export const dynamic = "force-dynamic";
 
 export default async function ApiTokensPage() {
   await requireSuperAdmin();
-  // Scope to the entered tenant when impersonating; null = platform/Gita.
-  const t = await actingTenantId();
-  const res = await listApiTokens(t);
+  // The list scopes itself to the entered tenant (or the platform's own tokens).
+  const res = await listApiTokens();
   const tokens = res.ok && res.data ? res.data : [];
 
   return (
@@ -24,7 +22,7 @@ export default async function ApiTokensPage() {
           n8n CAPI lookup.
         </p>
       </div>
-      <ApiTokensManager initialTokens={tokens} endpointBase={env.NEXT_PUBLIC_APP_URL} tenantId={t} />
+      <ApiTokensManager initialTokens={tokens} endpointBase={env.NEXT_PUBLIC_APP_URL} />
     </div>
   );
 }

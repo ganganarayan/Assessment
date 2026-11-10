@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope, scopeEditDenied, configTenantOf, type ActingScope } from "@/lib/tenant/acting";
+import { resolveActingScope, scopeEditDenied, scopeOwnerDenied, configTenantOf, type ActingScope } from "@/lib/tenant/acting";
 import { env } from "@/lib/env";
 import { encryptWithSecret, decryptWithSecret } from "@/lib/crypto";
 import { isAiProvider, type AiProvider } from "@/lib/ai/types";
@@ -251,6 +251,9 @@ export async function updateAiAdminKeys(input: {
 }): Promise<ActionResult> {
   const scope = await resolveActingScope();
   if (!scope.isSuper) return { ok: false, error: "Super admin only." };
+  // The providers' ADMIN keys read the whole organisation's billing: owner only.
+  const notOwner = scopeOwnerDenied(scope);
+  if (notOwner) return notOwner;
 
   const data: Record<string, string | null> = {};
   const claude = input.claudeAdminKey?.trim();

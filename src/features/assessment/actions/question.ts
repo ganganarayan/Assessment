@@ -229,14 +229,22 @@ export async function restoreOptions(
   const clean = (snapshot ?? []).filter((s) => s && typeof s.id === "string" && s.id.length > 0);
   if (clean.length === 0) return { ok: true };
 
-  // Authorize via the assessment that owns these options (all from one copy, so one
-  // assessment). Reject if the first option can't be traced to an in-scope assessment.
-  const first = await prisma.option.findUnique({
-    where: { id: clean[0]!.id },
+  // Authorize EVERY option, not just the first. A snapshot comes from one copy and so
+  // from one assessment, but it arrives from the browser: checking only clean[0] let
+  // an editor append another tenant's option id (they reach the browser through every
+  // public runner) and rewrite its label and score. All ids must resolve, all to the
+  // SAME assessment, and that assessment must be in scope.
+  const ids = [...new Set(clean.map((s) => s.id))];
+  const owners = await prisma.option.findMany({
+    where: { id: { in: ids } },
     select: { question: { select: { category: { select: { assessmentId: true } } } } },
   });
-  const assessmentId = first?.question.category.assessmentId;
-  if (!assessmentId || !(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
+  const assessmentIds = new Set(owners.map((o) => o.question.category.assessmentId));
+  const assessmentId = owners[0]?.question.category.assessmentId;
+  if (owners.length !== ids.length || assessmentIds.size !== 1 || !assessmentId) {
+    return { ok: false, error: "Not found." };
+  }
+  if (!(await assessmentInScope(assessmentId))) return { ok: false, error: "Not found." };
   const denied = await assertEdit();
   if (denied) return denied;
 

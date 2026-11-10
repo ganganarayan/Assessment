@@ -2,15 +2,29 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
+import { resolveActingScope, configTenantOf, scopeOwnerDenied } from "@/lib/tenant/acting";
+import { ownedWhere } from "@/lib/tenant/platform-tenant";
 import { tenantCan } from "@/lib/billing/entitlements";
 import { generateApiToken } from "@/lib/api-auth/token";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { isApiTokenScope, type ApiTokenRow } from "@/features/api-tokens/scopes";
 
-export async function listApiTokens(tenantId: string | null): Promise<ActionResult<ApiTokenRow[]>> {
+/**
+ * The caller's own tokens. The scope is resolved HERE, never taken as an argument:
+ * this is a server action the browser calls to refresh the list, so a tenant id
+ * parameter let anyone, signed in or not, list any workspace's tokens (label, scope,
+ * prefix, last used) by naming it. Owner admins only, like minting.
+ */
+export async function listApiTokens(): Promise<ActionResult<ApiTokenRow[]>> {
+  const acting = await resolveActingScope();
+  const notOwner = scopeOwnerDenied(acting);
+  if (notOwner) return notOwner;
+  if (!acting.isSuper && !acting.tenantId) return { ok: false, error: "No workspace." };
   const rows = await prisma.apiToken.findMany({
-    where: { tenantId },
+    // ownedWhere, not the acting where-fragment: the platform's tokens were minted with
+    // a null tenant (mint stamps the raw acting id), and the platform is matched in both
+    // spellings.
+    where: ownedWhere(configTenantOf(acting)),
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -41,7 +55,7 @@ export async function listApiTokens(tenantId: string | null): Promise<ActionResu
  */
 export async function mintApiToken(scope: string, label: string): Promise<ActionResult<{ token: string }>> {
   const acting = await resolveActingScope();
-  const denied = scopeEditDenied(acting);
+  const denied = scopeOwnerDenied(acting);
   if (denied) return denied;
   if (!acting.isSuper && !acting.tenantId) return { ok: false, error: "No workspace." };
   // Billing gate: API access is an Agency capability. The app owner (super admin) is
@@ -64,9 +78,9 @@ export async function mintApiToken(scope: string, label: string): Promise<Action
 /** Revoke (soft) - the token stops authenticating immediately. */
 export async function revokeApiToken(id: string): Promise<ActionResult> {
   const acting = await resolveActingScope();
-  const denied = scopeEditDenied(acting);
+  const denied = scopeOwnerDenied(acting);
   if (denied) return denied;
-  const owned = await prisma.apiToken.findFirst({ where: { id, ...tenantScope(acting) }, select: { id: true } });
+  const owned = await prisma.apiToken.findFirst({ where: { id, ...ownedWhere(configTenantOf(acting)) }, select: { id: true } });
   if (!owned) return { ok: false, error: "Token not found." };
   await prisma.apiToken.update({ where: { id }, data: { revokedAt: new Date() } });
   revalidatePath("/admin/api-tokens");

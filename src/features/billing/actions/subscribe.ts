@@ -3,7 +3,7 @@
 import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { resolveActingScope, scopeEditDenied } from "@/lib/tenant/acting";
+import { resolveActingScope, scopeOwnerDenied } from "@/lib/tenant/acting";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { resolvePlatformMetaConfig } from "@/lib/settings/config";
@@ -87,7 +87,7 @@ export async function startSubscriptionCheckout(
   termInput: string = "MONTHLY",
 ): Promise<ActionResult<CheckoutStart>> {
   const scope = await resolveActingScope();
-  const denied = scopeEditDenied(scope);
+  const denied = scopeOwnerDenied(scope);
   if (denied) return denied;
   if (!scope.tenantId) {
     return { ok: false, error: "Select a workspace to subscribe. The platform owner has no tenant subscription." };
@@ -182,7 +182,7 @@ export interface VerifyResult {
  */
 export async function verifySubscriptionPayment(input: VerifyInput): Promise<ActionResult<VerifyResult>> {
   const scope = await resolveActingScope();
-  const denied = scopeEditDenied(scope);
+  const denied = scopeOwnerDenied(scope);
   if (denied) return denied;
   if (!scope.tenantId) return { ok: false, error: "No workspace." };
 
@@ -308,7 +308,7 @@ export interface CancelResult {
  */
 export async function cancelSubscription(): Promise<ActionResult<CancelResult>> {
   const scope = await resolveActingScope();
-  const denied = scopeEditDenied(scope);
+  const denied = scopeOwnerDenied(scope);
   if (denied) return denied;
   if (!scope.tenantId) {
     return { ok: false, error: "Select a workspace first. The platform owner has no subscription to cancel." };

@@ -59,7 +59,10 @@ than throwing. Any encrypted-secret read on a live path must be fail-soft.
 
 Goal: move the owner's platform data out of `tenantId = null` into the Platform tenant, then make
 `tenantId` NOT NULL, then re-point domains. The model fix shipped 30-09-2026 and the config
-accessor is wired. **No data has moved in any environment.** The sequence:
+accessor is wired. **Production was re-homed on 01-10-2026** (only history rows and 3
+users stay unowned there); **staging has never been re-homed** and still holds the
+pre-move shape, so NOT NULL is gated on staging. Measure with verify:tenancy rather than
+trusting this line. The sequence:
 
 ```
 npm run verify:tenancy -- --funnel apply-gita     # read-only, safe on prod

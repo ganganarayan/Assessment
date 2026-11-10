@@ -10,6 +10,7 @@ import { resolveEmailConfig, resolveWabaConfig, resolveNurtureConfig } from "@/l
 import { fillPlaceholders, toE164Digits, type LeadFields, type NurtureConfig } from "@/features/nurture/config";
 import { pickResultUrl, vidapulseParamForTenant } from "@/lib/events/completion";
 import { instrumentEmailLinks } from "@/lib/nurture/tracking";
+import { env } from "@/lib/env";
 
 /**
  * Nurture sender - one-shot Email (SMTP) + WhatsApp (Meta Cloud API) fired on opt-in.
@@ -68,7 +69,7 @@ export async function sendTrackedEmailWithLog(
   // links as bare URLs, and only once renderEmailBody has turned them into anchors is
   // there anything for the click tracker to rewrite. A body that was already HTML comes
   // back untouched, so every message written before this existed is unaffected.
-  const html = instrumentEmailLinks(renderEmailBody(htmlBody), logId, await publicOriginFor(tenantId));
+  const html = instrumentEmailLinks(renderEmailBody(htmlBody), logId, await publicOriginFor(tenantId), env.BETTER_AUTH_SECRET);
   const err = await sendEmail(tenantId, to, subject, html);
   await prisma.nurtureLog
     .create({

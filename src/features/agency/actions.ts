@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser, isSuperAdmin, currentUserCanEdit } from "@/lib/auth/guards";
+import { requireUser, isSuperAdmin, currentUserCanEdit, isStaff } from "@/lib/auth/guards";
 import { formatIST } from "@/lib/date";
 import { provisionWorkspace } from "@/lib/tenant/provision";
 import { assertCanCreateAgencyTenant, agencyTenantUsage, type AgencyTenantUsage } from "@/lib/billing/gate";
@@ -112,7 +112,7 @@ function toRow(t: TenantRecord): AgencyTenantRow {
  * entered. Returns the reason instead when this caller cannot resell at all.
  */
 async function agencyAdminScope(): Promise<
-  | { ok: true; tenantId: string; canEdit: boolean }
+  | { ok: true; tenantId: string; canEdit: boolean; isOwner: boolean }
   | { ok: false; blocked: "notReselling" | "nested" | "platform"; error: string }
 > {
   const user = await requireUser();
@@ -140,7 +140,7 @@ async function agencyAdminScope(): Promise<
       error: "This workspace belongs to an agency, so it cannot have workspaces of its own.",
     };
   }
-  return { ok: true, tenantId: own, canEdit: await currentUserCanEdit() };
+  return { ok: true, tenantId: own, canEdit: await currentUserCanEdit(), isOwner: !isStaff(user) };
 }
 
 export async function getAgencyTenantsView(): Promise<AgencyTenantsView> {
@@ -174,12 +174,12 @@ export async function getAgencyTenantsView(): Promise<AgencyTenantsView> {
     tenants: mapped.filter((r) => !r.removed),
     removed: mapped.filter((r) => r.removed),
     usage,
-    canEdit: scope.canEdit,
+    canEdit: scope.canEdit && scope.isOwner,
     blocked: usage.limit > 0 ? "no" : "notReselling",
     insideId: inside,
     extraPriceUsd: agencyTenantExtraUsd(resolved.plan),
     parkedMessage: resolved.parked ? PARKED_MESSAGE : null,
-    canBuySlots: scope.canEdit && usage.included > 0 && !resolved.parked && !resolved.trialing,
+    canBuySlots: scope.isOwner && usage.included > 0 && !resolved.parked && !resolved.trialing,
   };
 }
 
@@ -198,7 +198,9 @@ export async function createAgencyTenant(
 ): Promise<ActionResult<{ id: string }>> {
   const scope = await agencyAdminScope();
   if (!scope.ok) return { ok: false, error: scope.error };
-  if (!scope.canEdit) return { ok: false, error: "You have view-only access - ask an admin for edit rights." };
+  // Owner only: a client workspace is a paid slot and a whole business's data. EDIT
+  // staff work inside workspaces; they do not create or remove them.
+  if (!scope.isOwner) return { ok: false, error: "Only the workspace owner can do this - ask them to." };
 
   const gate = await assertCanCreateAgencyTenant(scope.tenantId);
   if (!gate.ok) {
@@ -265,7 +267,9 @@ export async function exitAgencyTenant(): Promise<void> {
 export async function removeAgencyTenant(tenantId: string): Promise<ActionResult> {
   const scope = await agencyAdminScope();
   if (!scope.ok) return { ok: false, error: scope.error };
-  if (!scope.canEdit) return { ok: false, error: "You have view-only access - ask an admin for edit rights." };
+  // Owner only: a client workspace is a paid slot and a whole business's data. EDIT
+  // staff work inside workspaces; they do not create or remove them.
+  if (!scope.isOwner) return { ok: false, error: "Only the workspace owner can do this - ask them to." };
   if (!(await isAgencyTenantOf(tenantId, scope.tenantId))) {
     return { ok: false, error: "That workspace isn't one of yours." };
   }
@@ -288,7 +292,9 @@ export async function removeAgencyTenant(tenantId: string): Promise<ActionResult
 export async function restoreAgencyTenant(tenantId: string): Promise<ActionResult> {
   const scope = await agencyAdminScope();
   if (!scope.ok) return { ok: false, error: scope.error };
-  if (!scope.canEdit) return { ok: false, error: "You have view-only access - ask an admin for edit rights." };
+  // Owner only: a client workspace is a paid slot and a whole business's data. EDIT
+  // staff work inside workspaces; they do not create or remove them.
+  if (!scope.isOwner) return { ok: false, error: "Only the workspace owner can do this - ask them to." };
   const row = await prisma.tenant.findFirst({
     where: { id: tenantId, agencyAdminTenantId: scope.tenantId, deletedAt: { not: null } },
     select: { id: true },

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { rateLimit } from "@/lib/rate-limit";
+import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 
 /**
  * Public read endpoint for the thank-you page's Meta browser↔server dedup.
@@ -51,6 +52,44 @@ function num(v: string | null, fallback: number | null): number | null {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
+/**
+ * 🔴 WHOSE PAYMENTS THIS ENDPOINT MAY ANSWER WITH. It is public and keyed by nothing
+ * but a time window and an amount band, so unfenced it handed out the newest payment
+ * id and amount of EVERY tenant on the platform (CORS stops browsers, not curl), and
+ * could feed one tenant's payment id into another site's browser dedup.
+ *
+ * It exists for the owner's own thank-you pages, so it answers only with captures that
+ * belong to the owner: the platform (both spellings, null and "platform"), any internal
+ * tenant (Tenant.unlimited, the ones the owner runs rather than sells to), and the
+ * tenant whose custom domain sits under the calling page's own host. A paying business
+ * tenant's sales are never in that set.
+ */
+async function ownerTenantFence(origin: string | null): Promise<{ tenantId: string | null }[]> {
+  const ids = new Set<string>([PLATFORM_TENANT_ID]);
+  const internal = await prisma.tenant.findMany({ where: { unlimited: true }, select: { id: true } });
+  for (const t of internal) ids.add(t.id);
+  const host = originHost(origin);
+  if (host) {
+    const bare = host.replace(/^www\./, "");
+    const owned = await prisma.domain.findMany({
+      where: { OR: [{ hostname: host }, { hostname: bare }, { hostname: { endsWith: `.${bare}` } }] },
+      select: { tenantId: true },
+    });
+    for (const d of owned) ids.add(d.tenantId);
+  }
+  return [{ tenantId: null }, ...[...ids].map((id) => ({ tenantId: id }))];
+}
+
+/** The host of an ALLOWED origin only; anything else contributes no domain owner. */
+function originHost(origin: string | null): string | null {
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) return null;
+  try {
+    return new URL(origin).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
 export function purchaseEventIdOPTIONS(req: Request): NextResponse {
   return new NextResponse(null, { status: 204, headers: corsHeaders(req.headers.get("origin")) });
 }
@@ -78,6 +117,7 @@ export async function purchaseEventIdGET(req: Request): Promise<NextResponse> {
       providerPaymentId: { not: null },
       createdAt: { gte: since },
       amountPaise,
+      OR: await ownerTenantFence(req.headers.get("origin")),
     },
     orderBy: { createdAt: "desc" },
     select: { providerPaymentId: true, amountPaise: true, currency: true, createdAt: true },

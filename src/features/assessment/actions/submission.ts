@@ -45,6 +45,7 @@ import { metaEventOn } from "@/features/assessment/meta-events";
 import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
 import { fbcCreationMs } from "@/lib/meta/capi";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
+import { intakeAllowed } from "@/lib/rate-limit-intake";
 import { isResponseLocked, meterResponse, responsesOverCap, supportEmailFor, tenantCan } from "@/lib/billing/gate";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { generatePersonalStatement, generateClinicStatement } from "@/lib/ai/generate";
@@ -755,6 +756,11 @@ export async function startSubmission(
     console.warn(`[start] blocked by CRAWLER-UA (slug=${slug}, ua=${(metaCtx.clientUserAgent ?? "").slice(0, 120)})`);
     return { ok: false, error: "Something went wrong. Please try again." };
   }
+  // Bot guard #3 - one source flooding one funnel (see lib/rate-limit-intake).
+  if (!preview && !intakeAllowed("start", metaCtx.clientIpAddress, assessment.id)) {
+    console.warn(`[start] blocked by RATE-LIMIT (slug=${slug}, ip=${metaCtx.clientIpAddress})`);
+    return { ok: false, error: "Too many attempts from this connection. Please wait a few minutes and try again." };
+  }
   // fbclid_timestamp (unix MILLISECONDS), ALWAYS set: prefer the REAL fbc creation
   // time from the _fbc cookie when the pixel wrote one; else fall back to the opt-in
   // moment. Same unit as Meta's fbc (fb.1.<ms>.<fbclid>) so n8n uses it verbatim.
@@ -1231,6 +1237,16 @@ export async function completeSubmission(
   // are allowed through).
   if (submission.editToken && submission.editToken !== editToken) {
     return { ok: false, error: "Not authorized." };
+  }
+  // The metered step: one source may not spend a tenant's monthly responses in bulk.
+  // Checked only for a first completion (a COMPLETED row re-submitted is not metered
+  // again), and never for the owner's preview.
+  if (!submission.isPreview && submission.status !== "COMPLETED" && submission.assessmentId) {
+    const ip = (await getMetaRequestContext()).clientIpAddress;
+    if (!intakeAllowed("complete", ip, submission.assessmentId)) {
+      console.warn(`[complete] blocked by RATE-LIMIT (submission=${submissionId}, ip=${ip})`);
+      return { ok: false, error: "Too many attempts from this connection. Please wait a little and try again." };
+    }
   }
 
   // Resolve the tenant's VidaPulse param once; threaded into every result-URL build

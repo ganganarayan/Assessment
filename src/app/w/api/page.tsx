@@ -52,7 +52,7 @@ export default async function WorkspaceApiTokensPage() {
     );
   }
 
-  const res = await listApiTokens(tenantId);
+  const res = await listApiTokens();
   const tokens = res.ok && res.data ? res.data : [];
 
   return (
@@ -68,7 +68,6 @@ export default async function WorkspaceApiTokensPage() {
       <ApiTokensManager
         initialTokens={tokens}
         endpointBase={env.NEXT_PUBLIC_APP_URL}
-        tenantId={tenantId}
         allowedScopes={["meta_match"]}
       />
     </div>

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireSuperAdmin } from "@/lib/auth/guards";
+import { requireSuperAdmin, isStaff } from "@/lib/auth/guards";
 import { formatIST } from "@/lib/date";
 import { stageLabel, planToday } from "@/lib/lifecycle/plan";
 import { sendDueLifecycle } from "@/lib/lifecycle/send";
@@ -131,7 +131,9 @@ export async function lifecycleSummary(): Promise<LifecycleSummary> {
  * at everybody at once.
  */
 export async function approveLifecyclePlan(formData: FormData): Promise<void> {
-  await requireSuperAdmin();
+  // Owner only: this is the engine that writes to customers, and platform staff -
+  // VIEW or EDIT - do not approve, release or send its messages.
+  if (isStaff(await requireSuperAdmin())) return;
   const id = String(formData.get("id") ?? "");
   const subject = String(formData.get("emailSubject") ?? "").trim();
   const body = String(formData.get("emailBody") ?? "").trim();
@@ -146,7 +148,9 @@ export async function approveLifecyclePlan(formData: FormData): Promise<void> {
 
 /** Say no to one plan. The reason is kept: it is the training data for the catalogue. */
 export async function skipLifecyclePlan(formData: FormData): Promise<void> {
-  await requireSuperAdmin();
+  // Owner only: this is the engine that writes to customers, and platform staff -
+  // VIEW or EDIT - do not approve, release or send its messages.
+  if (isStaff(await requireSuperAdmin())) return;
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   const reason = String(formData.get("reason") ?? "").trim() || "Skipped by the owner.";
@@ -167,7 +171,9 @@ export async function skipLifecyclePlan(formData: FormData): Promise<void> {
  * before it carries its own dryRun stamp and stays unsent.
  */
 export async function setLifecycleLive(formData: FormData): Promise<void> {
-  await requireSuperAdmin();
+  // Owner only: this is the engine that writes to customers, and platform staff -
+  // VIEW or EDIT - do not approve, release or send its messages.
+  if (isStaff(await requireSuperAdmin())) return;
   const live = String(formData.get("live") ?? "") === "on";
   await prisma.appSetting.update({ where: { id: "singleton" }, data: { lifecycleLive: live } });
   console.info(`[lifecycle] sending ${live ? "TURNED ON" : "turned off"}`);
@@ -176,7 +182,9 @@ export async function setLifecycleLive(formData: FormData): Promise<void> {
 
 /** Drain whatever is due right now rather than waiting for the next heartbeat. */
 export async function sendLifecycleNow(): Promise<void> {
-  await requireSuperAdmin();
+  // Owner only: this is the engine that writes to customers, and platform staff -
+  // VIEW or EDIT - do not approve, release or send its messages.
+  if (isStaff(await requireSuperAdmin())) return;
   const s = await sendDueLifecycle();
   console.info(
     `[lifecycle] manual drain: claimed ${s.claimed}, sent ${s.sent}, skipped ${s.skipped}, failed ${s.failed}`,
@@ -191,7 +199,9 @@ export async function sendLifecycleNow(): Promise<void> {
  * so this cannot produce a second message for anybody.
  */
 export async function runLifecyclePlannerNow(): Promise<void> {
-  await requireSuperAdmin();
+  // Owner only: this is the engine that writes to customers, and platform staff -
+  // VIEW or EDIT - do not approve, release or send its messages.
+  if (isStaff(await requireSuperAdmin())) return;
   const s = await planToday();
   console.info(
     `[lifecycle] manual run: considered ${s.considered}, planned ${s.planned}, escalated ${s.escalated}`,

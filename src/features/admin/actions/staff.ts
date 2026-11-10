@@ -65,11 +65,26 @@ function revalidate() {
   revalidatePath("/w/staff");
 }
 
+/**
+ * 🔴 A tenant admin manages THEIR tenant's staff, and "no tenant" is not a tenant. A
+ * non-super login with a null tenant (a self-provision that failed half way) used to
+ * match every row whose tenant is also null - which is where the PLATFORM's staff live -
+ * so it could list, re-permission and delete the owner's own team. Such a caller now
+ * owns nothing, and super-admin rows are never a tenant admin's to touch.
+ */
+function tenantAdminMayTouch(
+  ownTenant: string | null,
+  target: { tenantId: string | null; role: string },
+): boolean {
+  return ownTenant !== null && target.tenantId === ownTenant && target.role !== "SUPER_ADMIN";
+}
+
 export async function getStaff(): Promise<StaffView> {
   const { isSuper, ownTenant } = await scope();
+  if (!isSuper && !ownTenant) return { isSuper, staff: [], tenants: [] };
   const where = isSuper
     ? { staffPermission: { not: null } }
-    : { staffPermission: { not: null }, tenantId: ownTenant };
+    : { staffPermission: { not: null }, tenantId: ownTenant, role: "ADMIN" as const };
   const rows = await prisma.user.findMany({
     where,
     orderBy: { createdAt: "desc" },
@@ -189,9 +204,9 @@ export async function setStaffPermission(userId: string, permission: string): Pr
   const { isSuper, ownTenant } = await scope();
   if (permission !== "VIEW" && permission !== "EDIT") return { ok: false, error: "Invalid permission." };
   // Only a STAFF row can be targeted - an owner/admin (null permission) is never matched.
-  const target = await prisma.user.findUnique({ where: { id: userId }, select: { staffPermission: true, tenantId: true } });
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { staffPermission: true, tenantId: true, role: true } });
   if (!target || !target.staffPermission) return { ok: false, error: "Staff member not found." };
-  if (!isSuper && target.tenantId !== ownTenant) return { ok: false, error: "Not allowed." };
+  if (!isSuper && !tenantAdminMayTouch(ownTenant, target)) return { ok: false, error: "Not allowed." };
   await prisma.user.update({ where: { id: userId }, data: { staffPermission: permission as StaffPermission } });
   revalidate();
   return { ok: true };
@@ -199,9 +214,9 @@ export async function setStaffPermission(userId: string, permission: string): Pr
 
 export async function removeStaff(userId: string): Promise<ActionResult> {
   const { isSuper, ownTenant } = await scope();
-  const target = await prisma.user.findUnique({ where: { id: userId }, select: { staffPermission: true, tenantId: true } });
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { staffPermission: true, tenantId: true, role: true } });
   if (!target || !target.staffPermission) return { ok: false, error: "Staff member not found." };
-  if (!isSuper && target.tenantId !== ownTenant) return { ok: false, error: "Not allowed." };
+  if (!isSuper && !tenantAdminMayTouch(ownTenant, target)) return { ok: false, error: "Not allowed." };
   await prisma.user.delete({ where: { id: userId } }); // cascades sessions + accounts
   revalidate();
   return { ok: true };

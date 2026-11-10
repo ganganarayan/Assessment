@@ -9,6 +9,7 @@ import { tenantCan } from "@/lib/billing/plan-resolve";
 import { sendCapiEventVerbose, isCapiConfigured, sendPlatformCapiEvent, isPlatformCapiConfigured } from "@/lib/meta/send";
 import { buildPurchaseUserData, PURCHASE_EVENT_NAME } from "@/lib/meta/purchase";
 import type { CapiEventInput } from "@/lib/meta/capi";
+import { isBusinessTenant } from "@/lib/tenant/platform-tenant";
 
 /**
  * Why nothing reached Meta when the plan does not include CAPI. Named once because it is
@@ -220,16 +221,26 @@ export function resolvePurchasePlan(
   return { eventName, autoFire: s.autoFireAmounts.includes(amountRupees) };
 }
 
-/** Attribution source: the in-app submission by id, else the latest completed by email. */
-async function findSubmission(submissionId: string | null, email: string | null) {
+/**
+ * Attribution source: the in-app submission by id, else the latest completed by email.
+ *
+ * 🔴 `tenantId` FENCES THE SEARCH when it names a business tenant. A capture that came
+ * through tenant A's webhook or payment link is A's sale, so it may only be matched to
+ * A's own leads: matched across tenants, somebody who once took tenant B's quiz and
+ * later paid tenant A put A's Purchase on B's Meta dataset and showed B A's payment id
+ * and amount in its log. The platform's own captures (null or the Platform tenant) are
+ * the owner's account serving every tenant the owner runs, so they stay unfenced.
+ */
+async function findSubmission(submissionId: string | null, email: string | null, tenantId: string | null) {
+  const fence = isBusinessTenant(tenantId) ? { tenantId } : {};
   if (submissionId) {
-    const s = await prisma.submission.findUnique({ where: { id: submissionId }, select: SUB_SELECT });
+    const s = await prisma.submission.findFirst({ where: { id: submissionId, ...fence }, select: SUB_SELECT });
     if (s) return s;
   }
   const norm = email?.trim().toLowerCase();
   if (norm) {
     return prisma.submission.findFirst({
-      where: { status: "COMPLETED", leadEmail: { equals: norm, mode: "insensitive" } },
+      where: { status: "COMPLETED", leadEmail: { equals: norm, mode: "insensitive" }, ...fence },
       orderBy: { completedAt: "desc" },
       select: SUB_SELECT,
     });
@@ -258,7 +269,10 @@ export async function recordCapture(input: {
   const amountRupees = input.amountPaise != null ? Math.round(input.amountPaise / 100) : null;
   const settings = await loadPurchaseSettings();
   const plan = resolvePurchasePlan(amountRupees, settings);
-  const sub = await findSubmission(input.submissionId, input.email);
+  const sub = await findSubmission(input.submissionId, input.email, input.tenantId ?? null);
+  // A submission id the fence refused is not stored either: the row would otherwise
+  // point at another tenant's lead and the re-fire path would read it back.
+  const fenced = isBusinessTenant(input.tenantId ?? null);
   const name = sub ? [sub.leadFirstName, sub.leadLastName].filter(Boolean).join(" ") || null : null;
 
   let rowId: string;
@@ -273,7 +287,7 @@ export async function recordCapture(input: {
         currency: input.currency,
         eventName: plan.eventName,
         matched: !!sub,
-        submissionId: sub?.id ?? input.submissionId ?? null,
+        submissionId: sub?.id ?? (fenced ? null : input.submissionId ?? null),
         tenantId: sub?.tenantId ?? input.tenantId ?? null,
         // The funnel's own ad account, resolved through the matched submission. No
         // match means no assessment and therefore no better answer than the tenant
@@ -317,7 +331,7 @@ export async function fireCapiLogRow(
   const eventName = opts?.eventNameOverride?.trim() || log.eventName;
 
   // Resolved BEFORE the config check, because which account to check is the question.
-  const sub = await findSubmission(log.submissionId, log.email);
+  const sub = await findSubmission(log.submissionId, log.email, log.tenantId);
 
   /**
    * Which ad account this row fires to.

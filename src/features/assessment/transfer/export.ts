@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
+import { ownedWhere } from "@/lib/tenant/platform-tenant";
 import { type AssessmentBodyExport } from "./schema";
 import { bodiesToJson, bodiesToCsv } from "./format";
 
@@ -50,8 +51,11 @@ export async function buildAssessmentBody(
    */
   let aiInstructions: string | null = null;
   if (a.aiPromptVersionId) {
-    const version = await prisma.aiPromptVersion.findUnique({
-      where: { id: a.aiPromptVersionId },
+    // Fenced to the funnel's OWN tenant, exactly as the runtime resolver is
+    // (lib/ai/versions.ts). The id is whatever the builder saved, and a funnel pointed
+    // at another workspace's version id must not export that workspace's prompt.
+    const version = await prisma.aiPromptVersion.findFirst({
+      where: { id: a.aiPromptVersionId, ...ownedWhere(a.tenantId) },
       select: { instructions: true },
     });
     aiInstructions = version?.instructions.trim() || null;

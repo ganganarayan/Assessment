@@ -3,7 +3,7 @@
 import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser, isSuperAdmin, currentUserCanEdit } from "@/lib/auth/guards";
+import { requireUser, isSuperAdmin, isStaff } from "@/lib/auth/guards";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { agencyTenantUsage } from "@/lib/billing/gate";
@@ -46,8 +46,10 @@ async function agencyBillingScope(): Promise<
   if (isSuperAdmin(user)) {
     return { ok: false, error: "The platform owner has no subscription to add workspaces to." };
   }
-  if (!(await currentUserCanEdit())) {
-    return { ok: false, error: "You have view-only access - ask an admin for edit rights." };
+  // Owner only: a slot is a recurring charge on the workspace's card, and EDIT staff
+  // are trusted to work in the workspace, not to spend its money.
+  if (isStaff(user)) {
+    return { ok: false, error: "Only the workspace owner can do this - ask them to." };
   }
   const fresh = await prisma.user.findUnique({
     where: { id: user.id },

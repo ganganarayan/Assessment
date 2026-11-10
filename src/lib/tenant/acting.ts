@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser, isSuperAdmin, canEdit, type AuthUser } from "@/lib/auth/guards";
+import { requireUser, isSuperAdmin, canEdit, isStaff, type AuthUser } from "@/lib/auth/guards";
 import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
 import { readActingTenant } from "@/lib/tenant/acting-cookie";
 import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
@@ -81,6 +81,18 @@ export interface ActingScope {
  *  return when the caller is view-only staff, else null to proceed. */
 export function scopeEditDenied(scope: ActingScope): { ok: false; error: string } | null {
   return scope.canEdit ? null : { ok: false, error: "You have view-only access - ask an admin for edit rights." };
+}
+
+/**
+ * For an action only the workspace OWNER may take: buying or cancelling the plan,
+ * minting API keys, adding or removing client workspaces. Staff are refused whatever
+ * their permission - EDIT is for working inside the workspace, not for spending its
+ * money or handing out its keys. Super admins who are not staff pass.
+ */
+export function scopeOwnerDenied(scope: ActingScope): { ok: false; error: string } | null {
+  return isStaff(scope.user)
+    ? { ok: false, error: "Only the workspace owner can do this - ask them to." }
+    : null;
 }
 
 /** For a mutation action that authorizes via assessmentInScope() (not the scope
