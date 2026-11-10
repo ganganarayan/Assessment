@@ -1,6 +1,7 @@
 "use server";
 
 import { promises as dns } from "dns";
+import { withCapLock } from "@/lib/db/cap-lock";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
@@ -288,7 +289,7 @@ export async function getDomainSettings(): Promise<DomainSettingsView> {
   };
 }
 
-export async function addDomain(rawHostname: string): Promise<ActionResult> {
+async function addDomainUnderCapLock(rawHostname: string): Promise<ActionResult> {
   const { user, tenantId } = await requireWorkspace();
   const denied = editDenied(user);
   if (denied) return denied;
@@ -501,4 +502,12 @@ export async function removeDomain(id: string): Promise<ActionResult> {
   forgetRoutedHosts();
   revalidatePath("/w/settings");
   return { ok: true };
+}
+
+/**
+ * addDomain, with the workspace's domains cap held for the whole action, so two at once cannot both
+ * pass the count (lib/db/cap-lock.ts).
+ */
+export async function addDomain(rawHostname: string): Promise<ActionResult> {
+  return withCapLock("domains", () => addDomainUnderCapLock(rawHostname));
 }

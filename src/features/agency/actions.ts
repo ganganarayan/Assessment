@@ -1,6 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { withCapLock } from "@/lib/db/cap-lock";
+import { audit } from "@/lib/audit/log";
+import { forgetTenantActive } from "@/lib/tenant/active";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { requireUser, isSuperAdmin, currentUserCanEdit, isStaff } from "@/lib/auth/guards";
@@ -190,7 +193,7 @@ export async function getAgencyTenantsView(): Promise<AgencyTenantsView> {
  * and a trial clock of its own would expire mid-contract and tell a paying agency's
  * client that their trial has run out.
  */
-export async function createAgencyTenant(
+async function createAgencyTenantUnderCapLock(
   name: string,
   email: string,
   password: string,
@@ -231,6 +234,13 @@ export async function createAgencyTenant(
     trial: false,
   });
   if (!done.ok) return { ok: false, error: done.error };
+  await audit({
+    actor: await requireUser(),
+    action: "agency.client.create",
+    tenantId: done.tenantId,
+    summary: `Agency workspace ${scope.tenantId} created client workspace "${name.trim()}".`,
+    detail: { agencyTenantId: scope.tenantId },
+  });
   revalidatePath("/w/agency-tenants");
   return { ok: true, data: { id: done.tenantId } };
 }
@@ -284,12 +294,14 @@ export async function removeAgencyTenant(tenantId: string): Promise<ActionResult
   // workspace that no longer serves anybody.
   const user = await requireUser();
   if ((await readActingTenant(user.id)) === tenantId) await clearActingTenant();
+  forgetTenantActive(tenantId);
+  await audit({ actor: user, action: "agency.client.remove", tenantId, summary: "Agency removed a client workspace (recoverable).", detail: { agencyTenantId: scope.tenantId } });
   revalidatePath("/w/agency-tenants");
   return { ok: true };
 }
 
 /** Put a removed agency tenant back, if there is a slot for it. */
-export async function restoreAgencyTenant(tenantId: string): Promise<ActionResult> {
+async function restoreAgencyTenantUnderCapLock(tenantId: string): Promise<ActionResult> {
   const scope = await agencyAdminScope();
   if (!scope.ok) return { ok: false, error: scope.error };
   // Owner only: a client workspace is a paid slot and a whole business's data. EDIT
@@ -319,6 +331,24 @@ export async function restoreAgencyTenant(tenantId: string): Promise<ActionResul
     console.error("[agency] restoreAgencyTenant failed:", e instanceof Error ? e.message : String(e));
     return { ok: false, error: "Couldn't restore that workspace (a temporary database error). Try again." };
   }
+  forgetTenantActive(tenantId);
+  await audit({ actor: await requireUser(), action: "agency.client.restore", tenantId, summary: "Agency restored a client workspace.", detail: { agencyTenantId: scope.tenantId } });
   revalidatePath("/w/agency-tenants");
   return { ok: true };
+}
+
+/**
+ * createAgencyTenant, with the workspace's agencyTenants cap held for the whole action, so two at once cannot both
+ * pass the count (lib/db/cap-lock.ts).
+ */
+export async function createAgencyTenant(name: string, email: string, password: string, slug?: string): Promise<ActionResult<{ id: string }>> {
+  return withCapLock("agencyTenants", () => createAgencyTenantUnderCapLock(name, email, password, slug));
+}
+
+/**
+ * restoreAgencyTenant, with the workspace's agencyTenants cap held for the whole action, so two at once cannot both
+ * pass the count (lib/db/cap-lock.ts).
+ */
+export async function restoreAgencyTenant(tenantId: string): Promise<ActionResult> {
+  return withCapLock("agencyTenants", () => restoreAgencyTenantUnderCapLock(tenantId));
 }

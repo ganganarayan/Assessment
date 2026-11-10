@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { env } from "@/lib/env";
 import { resetCredentialPassword } from "@/lib/auth/recover";
+import { audit } from "@/lib/audit/log";
 
 /**
  * Break-glass super-admin password recovery (HTTP). Gated by ADMIN_RECOVERY_SECRET.
@@ -56,5 +57,13 @@ export async function POST(req: Request) {
   console.warn(
     `[recover] break-glass password reset used for ${result.email}${result.promoted ? " (restored to SUPER_ADMIN)" : ""}`,
   );
+  // And in the audit log, where the owner will actually look. The actor is the secret,
+  // not a login, so it is named as such.
+  await audit({
+    actor: { email: "break-glass (ADMIN_RECOVERY_SECRET)" },
+    action: "user.password",
+    targetType: "user",
+    summary: `Break-glass password reset for ${result.email}${result.promoted ? " (restored to super admin)" : ""}.`,
+  });
   return NextResponse.json({ ok: true, promoted: result.promoted });
 }

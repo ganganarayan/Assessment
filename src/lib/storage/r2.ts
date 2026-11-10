@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "@/lib/db/prisma";
@@ -220,6 +221,36 @@ export const storage = {
     await client.send(
       new DeleteObjectCommand({ Bucket: config.bucket, Key: key }),
     );
+  },
+
+  /**
+   * Delete every object under a key prefix. Returns how many were removed.
+   *
+   * One DeleteObject per key rather than a DeleteObjects batch: the batch call carries a
+   * checksum header that newer SDKs compute in a way R2 has rejected before (see the
+   * presigned-upload checksum trap), and a tenant's prefix holds tens of reports and
+   * attachments, not millions. Bounded by `max` so a runaway prefix cannot hang a request.
+   *
+   * 🔴 The prefix must end in "/" and must be a tenant prefix: an empty or bare prefix
+   * would list the whole bucket. Refused rather than trusted.
+   */
+  async deletePrefix(prefix: string, max = 5000): Promise<number> {
+    if (!/^tenants\/[^/]+\/$/.test(prefix)) throw new Error("deletePrefix only takes a tenants/<id>/ prefix.");
+    const { client, config } = await getClient();
+    let removed = 0;
+    let token: string | undefined;
+    do {
+      const page = await client.send(
+        new ListObjectsV2Command({ Bucket: config.bucket, Prefix: prefix, ContinuationToken: token }),
+      );
+      for (const o of page.Contents ?? []) {
+        if (!o.Key || removed >= max) continue;
+        await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: o.Key }));
+        removed += 1;
+      }
+      token = page.IsTruncated && removed < max ? page.NextContinuationToken : undefined;
+    } while (token);
+    return removed;
   },
 
   /** Presigned URL for direct browser upload (PUT). */

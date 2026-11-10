@@ -18,6 +18,33 @@ export async function slugExists(slug: string): Promise<boolean> {
 }
 
 /**
+ * Who holds a slug, from ONE workspace's point of view: "mine", "elsewhere" (another
+ * workspace or the platform) or "free".
+ *
+ * 🔴 Funnel addresses are unique across the whole install, so a workspace import has to
+ * know when one is taken. It must not be TOLD whose: the preview used to mark a slug
+ * "exists" whatever owned it, which let any workspace test addresses one by one and map
+ * the funnels other businesses run. A workspace now only ever hears about its own; an
+ * address held elsewhere is quietly imported under a free one.
+ */
+export async function slugHolder(slug: string, tenantId: string): Promise<"mine" | "elsewhere" | "free"> {
+  const row = await prisma.assessment.findUnique({ where: { slug }, select: { tenantId: true } });
+  if (!row) return "free";
+  return row.tenantId === tenantId ? "mine" : "elsewhere";
+}
+
+/** The first free `<base>-<n>`, for an address another workspace already holds. */
+export async function generateFreeSlug(base: string, taken: Set<string> = new Set()): Promise<string> {
+  let n = 2;
+  let candidate = `${base}-${n}`;
+  while (n < 500 && (taken.has(candidate) || (await slugExists(candidate)))) {
+    n += 1;
+    candidate = `${base}-${n}`;
+  }
+  return candidate;
+}
+
+/**
  * Generate a unique `…-copy` slug. `taken` lets the caller reserve slugs that
  * are being created in the same import but don't exist in the DB yet, so two
  * same-base entries in one file can't resolve to the same slug.

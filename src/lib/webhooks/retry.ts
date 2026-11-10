@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { tenantState } from "@/lib/tenant/active";
 import { deliverWebhook } from "@/lib/webhooks/dispatch";
 
 /**
@@ -16,6 +17,9 @@ const BACKOFF_MS = [2, 5, 15, 30, 60].map((m) => m * 60_000);
 // A claimed row is leased forward this long. If the worker dies mid-attempt the row
 // becomes due again on its own (no stuck "sending" state to reclaim).
 const LEASE_MS = 120_000;
+
+/** How long a parked or suspended workspace's delivery is held before it is looked at again. */
+const HOLD_MS = 60 * 60 * 1000;
 
 export async function processDelivery(id: string): Promise<void> {
   const now = new Date();
@@ -36,6 +40,23 @@ export async function processDelivery(id: string): Promise<void> {
   if (!wh || wh.status !== "ACTIVE") {
     await prisma.webhookDelivery
       .update({ where: { id }, data: { status: "dead", lastError: "webhook removed or inactive" } })
+      .catch(() => {});
+    return;
+  }
+
+  // A workspace that may not operate does not send. Parked or suspended: held, without
+  // spending an attempt, and retried in an hour, so paying (or being reinstated) lets the
+  // queue drain. Deleted or gone: dead, because nobody is coming back for it.
+  const state = await tenantState(d.tenantId);
+  if (state !== "active") {
+    const gone = state === "deleted" || state === "missing";
+    await prisma.webhookDelivery
+      .update({
+        where: { id },
+        data: gone
+          ? { status: "dead", lastError: "workspace deleted" }
+          : { nextAttemptAt: new Date(Date.now() + HOLD_MS), lastError: `workspace ${state}, held` },
+      })
       .catch(() => {});
     return;
   }

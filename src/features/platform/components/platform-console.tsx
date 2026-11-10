@@ -9,6 +9,7 @@ import {
   deleteTenant,
   setTenantUnlimited,
   setTenantPayments,
+  setTenantSuspended,
   setTenantPlanGrant,
   restoreTenant,
   purgeTenant,
@@ -233,6 +234,18 @@ export function PlatformConsole({
       await refresh();
     });
 
+  // Suspend is the owner's brake: sign-ins to the workspace stop, its funnels pause and
+  // nothing it queued is sent. Nothing is deleted, so Unsuspend puts it back exactly.
+  const toggleSuspended = (t: TenantRow) =>
+    start(async () => {
+      setError(null);
+      const suspending = t.status !== "SUSPENDED";
+      if (suspending && !window.confirm(`Suspend "${t.name}"? Its logins are locked out, its funnels pause and nothing it scheduled is sent until you unsuspend it. Nothing is deleted.`)) return;
+      const r = await setTenantSuspended(t.id, suspending);
+      if (!r.ok) return setError(r.error);
+      await refresh();
+    });
+
   const restoreT = (t: TenantRow) =>
     start(async () => {
       setError(null);
@@ -419,7 +432,7 @@ export function PlatformConsole({
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-col gap-0.5">
-                        <span>{t.status}</span>
+                        <span className={t.status === "SUSPENDED" ? "font-semibold text-red-600" : undefined}>{t.status}</span>
                         {t.unlimited ? (
                           <span className="text-[10px] font-semibold uppercase tracking-wide text-green-600">
                             Unlimited
@@ -460,6 +473,21 @@ export function PlatformConsole({
                             }
                           >
                             {t.paymentsEnabled ? "Payments: on" : "Payments: off"}
+                          </Button>
+                        )}
+                        {t.id === PLATFORM_TENANT_ID ? null : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={pending}
+                            onClick={() => toggleSuspended(t)}
+                            title={
+                              t.status === "SUSPENDED"
+                                ? "Let this workspace sign in, serve its funnels and send again"
+                                : "Lock this workspace out and stop everything it sends (nothing is deleted)"
+                            }
+                          >
+                            {t.status === "SUSPENDED" ? "Unsuspend" : "Suspend"}
                           </Button>
                         )}
                         {t.id === PLATFORM_TENANT_ID ? (

@@ -230,6 +230,35 @@ model Tenant {
   @@map("tenant")
 }
 
+/// Who did what to whom, for the owner's own console (Phase 2 of the multi-tenant review).
+///
+/// Entering a workspace, granting a plan, overriding limits, suspending, deleting and
+/// resetting a password used to leave no trace at all. One row per action, written by
+/// src/lib/audit/log.ts, which never throws into the action it describes.
+///
+/// 🔴 `tenantId` is a BARE id with no foreign key, on purpose: the most important row in
+/// this table is the one that records a tenant being permanently deleted, and a foreign
+/// key would delete (or null) that record together with the tenant it describes.
+/// `actorEmail` is copied for the same reason: a login can be deleted too.
+model AuditLog {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  actorId    String?
+  actorEmail String
+  /// Dotted verb, e.g. "tenant.purge", "plan.grant", "user.password". See AuditAction.
+  action     String
+  tenantId   String?
+  targetType String?
+  targetId   String?
+  /// One readable sentence, shown as-is on the audit screen.
+  summary    String
+  detail     Json?
+
+  @@index([createdAt])
+  @@index([tenantId, createdAt])
+  @@map("audit_log")
+}
+
 enum TenantStatus {
   ACTIVE
   SUSPENDED

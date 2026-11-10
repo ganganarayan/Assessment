@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { auth } from "@/lib/auth/auth";
 import { TRIAL_DAYS } from "@/lib/billing/plans";
 import { slugSchema } from "@/features/assessment/schemas";
+import { isReservedTenantSlug } from "@/lib/tenant/signup-rules";
 
 /**
  * PROVISION A WORKSPACE - the one place a tenant row and its login are created together.
@@ -61,6 +62,9 @@ export async function provisionWorkspace(input: ProvisionInput): Promise<Provisi
     : nm.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32);
   const s = slugSchema.safeParse(rawSlug);
   if (!s.success) return { ok: false, error: s.error.issues[0]?.message ?? "Invalid slug." };
+  if (isReservedTenantSlug(s.data)) {
+    return { ok: false, error: `"${s.data}" is reserved by the platform. Choose another workspace slug.` };
+  }
 
   // A soft-deleted tenant still holds its slug, and saying so is the difference between
   // "that name is taken" and a name the operator can actually free.
@@ -83,19 +87,27 @@ export async function provisionWorkspace(input: ProvisionInput): Promise<Provisi
   const ctx = await auth.$context;
   const hashed = await ctx.password.hash(pw);
   const trialEndsAt = input.trial ? new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000) : null;
-  const t = await prisma.tenant.create({
-    data: {
-      slug: s.data,
-      name: nm,
-      trialEndsAt,
-      agencyAdminTenantId: input.agencyAdminTenantId ?? null,
-    },
-  });
-  const u = await prisma.user.create({
-    data: { name: nm, email: em, role: Role.ADMIN, tenantId: t.id, emailVerified: true },
-  });
-  await prisma.account.create({
-    data: { accountId: u.id, providerId: "credential", password: hashed, userId: u.id },
+  // ONE transaction: the workspace, its admin login and the password together, or none
+  // of them. Three separate writes could leave a workspace holding its slug with no way
+  // in (the login write failing), which is a name nobody can use or free.
+  const { t, u } = await prisma.$transaction(async (tx) => {
+    const t = await tx.tenant.create({
+      data: {
+        slug: s.data,
+        name: nm,
+        trialEndsAt,
+        agencyAdminTenantId: input.agencyAdminTenantId ?? null,
+      },
+    });
+    const u = await tx.user.create({
+      // Somebody else typed this password (the owner, or an agency admin), so the
+      // workspace admin is made to replace it at their first sign-in.
+      data: { name: nm, email: em, role: Role.ADMIN, tenantId: t.id, emailVerified: true, mustChangePassword: true },
+    });
+    await tx.account.create({
+      data: { accountId: u.id, providerId: "credential", password: hashed, userId: u.id },
+    });
+    return { t, u };
   });
   return { ok: true, tenantId: t.id, userId: u.id };
 }

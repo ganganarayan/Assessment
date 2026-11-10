@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser, isSuperAdmin, canEdit, isStaff, type AuthUser } from "@/lib/auth/guards";
+import { requireUser, isSuperAdmin, canEdit, isStaff, applyTenantState, type AuthUser } from "@/lib/auth/guards";
 import { ACTING_TENANT_COOKIE } from "@/lib/tenant/constants";
 import { readActingTenant } from "@/lib/tenant/acting-cookie";
 import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
@@ -80,6 +80,7 @@ export interface ActingScope {
 /** For a mutation action using resolveActingScope(): returns an error result to
  *  return when the caller is view-only staff, else null to proceed. */
 export function scopeEditDenied(scope: ActingScope): { ok: false; error: string } | null {
+  if (scope.user.writeLocked) return { ok: false, error: scope.user.writeLocked };
   return scope.canEdit ? null : { ok: false, error: "You have view-only access - ask an admin for edit rights." };
 }
 
@@ -121,7 +122,11 @@ export async function resolveActingScope(): Promise<ActingScope> {
   });
   const own = fresh?.tenantId ?? null;
   const entered = own ? await enteredAgencyTenant(user.id, own) : null;
-  return { user, tenantId: entered ?? own, isSuper: false, canEdit: canEdit(user), viaAgency: entered != null };
+  const tenantId = entered ?? own;
+  // A parked or suspended workspace may be read but not written: see applyTenantState.
+  // Super admins above are exempt, because they are operating the workspace, not using it.
+  const scoped = tenantId ? await applyTenantState(user, tenantId) : user;
+  return { user: scoped, tenantId, isSuper: false, canEdit: canEdit(scoped), viaAgency: entered != null };
 }
 
 /** Prisma where-fragment for a scope: filter by tenant, or {} for super-global.

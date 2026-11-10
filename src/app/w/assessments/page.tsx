@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { tenantOnly } from "@/lib/tenant/scope";
 import { formatIST } from "@/lib/date";
+import { funnelOverage } from "@/lib/billing/overage";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,10 @@ export default async function WorkspaceAssessmentsPage() {
   // At the plan cap, the "New assessment" button points to Billing instead - so the
   // limit is clear before the form, not only at save. Super admins aren't limited.
   const cap = impersonating ? ({ ok: true } as const) : await assertCanCreateAssessment(tenantId);
+  // Published funnels past the plan's limit (after a downgrade) are not serving. Said
+  // here, by name, so the tenant is not left wondering why a live link shows "paused".
+  const overage = await funnelOverage(tenantId);
+  const paused = new Set(overage.pausedIds);
 
   return (
     <div className="flex flex-col gap-4">
@@ -74,6 +79,17 @@ export default async function WorkspaceAssessmentsPage() {
           ) : null}
         </div>
       </div>
+      {paused.size > 0 ? (
+        <div className="rounded-lg border border-amber-500 bg-amber-500/10 p-4 text-sm">
+          <p className="font-medium">
+            {paused.size} published funnel{paused.size === 1 ? " is" : "s are"} paused: your plan includes {overage.limit} live funnel{overage.limit === 1 ? "" : "s"}.
+          </p>
+          <p className="mt-1 text-[var(--muted-foreground)]">
+            The ones you published first stay live. Upgrade, or unpublish{" "}
+            {paused.size === 1 ? "one funnel" : `${paused.size} funnels`}, to turn the rest back on. Nothing has been deleted.
+          </p>
+        </div>
+      ) : null}
       {assessments.length === 0 ? (
         <p className="rounded-lg border p-4 text-sm text-[var(--muted-foreground)]">
           No assessments yet. Click <strong>New assessment</strong> to build your first one.
@@ -97,7 +113,14 @@ export default async function WorkspaceAssessmentsPage() {
                 <tr key={a.id}>
                   <td className="px-3 py-2 font-medium">{a.title}</td>
                   <td className="px-3 py-2 font-mono text-xs">{a.slug}</td>
-                  <td className="px-3 py-2">{a.status}</td>
+                  <td className="px-3 py-2">
+                    {a.status}
+                    {paused.has(a.id) ? (
+                      <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
+                        Paused, over plan
+                      </span>
+                    ) : null}
+                  </td>
                   {/* An import creates a fresh row, so createdAt is the import time -
                       one column answers both "when did I build this" and "when did I
                       bring it in". Rendered in IST off a fixed offset, because the

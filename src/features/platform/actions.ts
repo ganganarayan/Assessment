@@ -14,6 +14,9 @@ import {
   type LimitsDraft,
 } from "@/features/platform/limits-override";
 import { formatIST } from "@/lib/date";
+import { audit } from "@/lib/audit/log";
+import { purgeTenantEverywhere, type PurgeReport } from "@/lib/tenant/purge";
+import { forgetTenantActive } from "@/lib/tenant/active";
 
 /** Tenant/user management is OWNER-only - never a staff member (even EDIT). */
 const OWNER_ONLY = { ok: false as const, error: "Only an owner can manage tenants and users." };
@@ -70,6 +73,7 @@ export async function enterTenant(tenantId: string): Promise<void> {
   });
   if (t) {
     await writeActingTenant(me.id, tenantId);
+    await audit({ actor: me, action: "tenant.enter", tenantId, summary: "Entered the workspace." });
   }
   redirect("/admin");
 }
@@ -119,13 +123,16 @@ export async function deleteTenant(tenantId: string): Promise<ActionResult> {
       await prisma.tenant.update({ where: { id: tenantId }, data: { deletedAt: new Date() } });
     },
   );
+  if (r.ok) forgetTenantActive(tenantId);
+  if (r.ok) await audit({ actor: me, action: "tenant.delete", tenantId, summary: "Deleted the workspace (recoverable)." });
   revalidatePath("/platform");
   return r;
 }
 
 /** Restore a soft-deleted tenant, with its data and its logins, exactly as it was. */
 export async function restoreTenant(tenantId: string): Promise<ActionResult> {
-  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
   const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
   if (!t) return { ok: false, error: "Tenant not found." };
   const r = await softFail(
@@ -135,6 +142,8 @@ export async function restoreTenant(tenantId: string): Promise<ActionResult> {
       await prisma.tenant.update({ where: { id: tenantId }, data: { deletedAt: null } });
     },
   );
+  if (r.ok) forgetTenantActive(tenantId);
+  if (r.ok) await audit({ actor: me, action: "tenant.restore", tenantId, summary: "Restored the deleted workspace." });
   revalidatePath("/platform");
   return r;
 }
@@ -187,15 +196,26 @@ export async function purgeTenant(tenantId: string, confirmSlug: string): Promis
   if ((await readActingTenant(me.id)) === tenantId) {
     await clearActingTenant();
   }
+  // Every row by name in ONE transaction, then the domain slot and the files. See
+  // lib/tenant/purge.ts for why a cascade alone handed the tenant's data to the platform.
+  const reports: PurgeReport[] = [];
   const r = await softFail(
     "purgeTenant",
-    "Couldn't permanently delete that tenant (a temporary database error). Try again.",
+    "Couldn't permanently delete that tenant (a temporary database error). Nothing was deleted. Try again.",
     async () => {
-      // Preserve logins: unassign before the FK cascade would delete them.
-      await prisma.user.updateMany({ where: { tenantId }, data: { tenantId: null } });
-      await prisma.tenant.delete({ where: { id: tenantId } });
+      reports.push(await purgeTenantEverywhere(tenantId));
     },
   );
+  const done = reports[0];
+  if (r.ok && done) {
+    await audit({
+      actor: me,
+      action: "tenant.purge",
+      tenantId,
+      summary: `Permanently deleted workspace "${t.slug}".${done.leftovers.length ? ` ${done.leftovers.length} external cleanup step(s) need a look.` : ""}`,
+      detail: { slug: t.slug, ...done },
+    });
+  }
   revalidatePath("/platform");
   return r;
 }
@@ -214,7 +234,8 @@ export async function purgeTenant(tenantId: string, confirmSlug: string): Promis
  * an internal tenant cannot be downgraded by accident.
  */
 export async function setTenantUnlimited(tenantId: string, unlimited: boolean): Promise<ActionResult> {
-  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
   const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
   if (!t) return { ok: false, error: "Tenant not found." };
   const r = await softFail(
@@ -224,6 +245,8 @@ export async function setTenantUnlimited(tenantId: string, unlimited: boolean): 
       await prisma.tenant.update({ where: { id: tenantId }, data: { unlimited } });
     },
   );
+  if (r.ok) forgetTenantActive(tenantId);
+  if (r.ok) await audit({ actor: me, action: "tenant.unlimited", tenantId, summary: unlimited ? "Marked Unlimited (internal)." : "Put back on its plan (Unlimited off)." });
   revalidatePath("/platform");
   return r;
 }
@@ -240,7 +263,8 @@ export async function setTenantUnlimited(tenantId: string, unlimited: boolean): 
  * external-gateway return, and the owner decides who may use them.
  */
 export async function setTenantPayments(tenantId: string, enabled: boolean): Promise<ActionResult> {
-  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
   const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
   if (!t) return { ok: false, error: "Tenant not found." };
   const r = await softFail(
@@ -250,6 +274,43 @@ export async function setTenantPayments(tenantId: string, enabled: boolean): Pro
       await prisma.tenant.update({ where: { id: tenantId }, data: { paymentsEnabled: enabled } });
     },
   );
+  if (r.ok) await audit({ actor: me, action: "tenant.payments", tenantId, summary: enabled ? "Respondent payments switched on." : "Respondent payments switched off." });
+  revalidatePath("/platform");
+  return r;
+}
+
+/**
+ * SUSPEND or unsuspend a tenant: the owner's brake for abuse or a payment dispute.
+ *
+ * The status column existed with nothing reading it. It is now read by the one
+ * "tenant may operate" check (lib/tenant/active.ts): a suspended workspace's logins
+ * are turned away, its funnels show the paused page, every save is refused and every
+ * queue (broadcasts, automations, workflows, webhook retries) skips it. Nothing is
+ * deleted and nothing is released, so unsuspending puts it back exactly as it was.
+ */
+export async function setTenantSuspended(tenantId: string, suspended: boolean): Promise<ActionResult> {
+  const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
+  if (tenantId === PLATFORM_TENANT_ID) return { ok: false, error: "The Platform tenant can't be suspended." };
+  const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+  if (!t) return { ok: false, error: "Tenant not found." };
+  if (suspended && (await readActingTenant(me.id)) === tenantId) await clearActingTenant();
+  const r = await softFail(
+    "setTenantSuspended",
+    "Couldn't change that tenant (a temporary database error). Try again.",
+    async () => {
+      await prisma.tenant.update({ where: { id: tenantId }, data: { status: suspended ? "SUSPENDED" : "ACTIVE" } });
+    },
+  );
+  if (r.ok) {
+    forgetTenantActive(tenantId);
+    await audit({
+      actor: me,
+      action: suspended ? "tenant.suspend" : "tenant.unsuspend",
+      tenantId,
+      summary: suspended ? "Suspended the workspace." : "Unsuspended the workspace.",
+    });
+  }
   revalidatePath("/platform");
   return r;
 }
@@ -277,7 +338,8 @@ export async function setTenantPlanGrant(
   plan: string,
   untilDate: string | null,
 ): Promise<ActionResult<{ summary: string; planExpiresAt: string | null }>> {
-  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
   if (!(PLAN_IDS as readonly string[]).includes(plan)) return { ok: false, error: "Unknown plan." };
   const t = await prisma.tenant.findUnique({
     where: { id: tenantId },
@@ -318,6 +380,14 @@ export async function setTenantPlanGrant(
       : expiresAt.getTime() <= Date.now()
         ? `Saved, but ${until} is in the past, so this grant entitles nothing.`
         : `${plan} until ${until}.`;
+  forgetTenantActive(tenantId);
+  await audit({
+    actor: me,
+    action: "plan.grant",
+    tenantId,
+    summary: expiresAt === null ? "Cleared the manual plan grant." : `Granted ${plan} until ${until}.`,
+    detail: { plan, planExpiresAt: expiresAt?.toISOString() ?? null },
+  });
   return {
     ok: true,
     data: { summary, planExpiresAt: expiresAt?.toISOString() ?? null },
@@ -452,7 +522,8 @@ export async function setTenantLimitOverrides(
   tenantId: string,
   draft: LimitsDraft,
 ): Promise<ActionResult<{ summary: string }>> {
-  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
 
   const t = await prisma.tenant.findUnique({
     where: { id: tenantId },
@@ -493,6 +564,13 @@ export async function setTenantLimitOverrides(
 
   const base = parseLimitsSnapshot(t.subscription.limitsSnapshot, t.subscription.plan as PlanId);
   const changes = summariseOverride(base, parsed.value);
+  await audit({
+    actor: me,
+    action: "plan.limits",
+    tenantId,
+    summary: parsed.value === null ? "Cleared the limit override." : "Changed the limit override.",
+    detail: { override: parsed.value },
+  });
   const unlimitedNote = t.unlimited
     ? " This tenant is Unlimited, so the override is not what entitles it."
     : "";
@@ -673,13 +751,15 @@ export async function createTenant(
   password: string,
   slug?: string,
 ): Promise<ActionResult<{ id: string }>> {
-  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
   // The steps themselves live in provisionWorkspace, shared with createAgencyTenant, so
   // the owner's create screen and an agency admin's cannot drift apart. The trial is
   // stamped here because a tenant under the super admin has no other entitlement: born
   // without it, it resolves as PARKED and is read-only from its first second.
   const done = await provisionWorkspace({ name, email, password, slug, trial: true });
   if (!done.ok) return { ok: false, error: done.error };
+  await audit({ actor: me, action: "tenant.create", tenantId: done.tenantId, summary: `Created workspace "${name.trim()}" with admin ${email.trim().toLowerCase()}.` });
   revalidatePath("/platform");
   return { ok: true, data: { id: done.tenantId } };
 }
@@ -741,7 +821,8 @@ export async function listDeletedUsers(): Promise<ActionResult<PlatformUserRow[]
 
 /** Assign a login to a tenant as its ADMIN (or unassign with tenantId=null). */
 export async function assignUserToTenant(userId: string, tenantId: string | null): Promise<ActionResult> {
-  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
+  const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, role: true } });
   if (!target) return { ok: false, error: "User not found." };
   if (isPlatformOwner(target.email)) return { ok: false, error: "The platform owner isn't a tenant admin." };
@@ -765,6 +846,16 @@ export async function assignUserToTenant(userId: string, tenantId: string | null
       await prisma.user.update({ where: { id: userId }, data: { tenantId, role: Role.ADMIN } });
     },
   );
+  if (r.ok) {
+    await audit({
+      actor: me,
+      action: "user.assign",
+      tenantId,
+      targetType: "user",
+      targetId: userId,
+      summary: tenantId ? `Assigned ${target.email} to the workspace as admin.` : `Unassigned ${target.email} from their workspace.`,
+    });
+  }
   revalidatePath("/platform");
   // Return the RESULT, not a blanket success: this returned { ok: true } regardless, so
   // a failed write told the operator the assignment had been made when it had not.
@@ -782,6 +873,13 @@ export async function setUserSuperAdmin(userId: string, superAdmin: boolean): Pr
   await prisma.user.update({
     where: { id: userId },
     data: { role: superAdmin ? Role.SUPER_ADMIN : Role.ADMIN, ...(superAdmin ? { tenantId: null } : {}) },
+  });
+  await audit({
+    actor: me,
+    action: "user.superadmin",
+    targetType: "user",
+    targetId: userId,
+    summary: superAdmin ? `Made ${target.email} a super admin.` : `Removed super-admin access from ${target.email}.`,
   });
   revalidatePath("/platform");
   return { ok: true };
@@ -807,14 +905,16 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
       ]);
     },
   );
+  if (r.ok) await audit({ actor: me, action: "user.delete", targetType: "user", targetId: userId, summary: `Deleted login ${target.email} (recoverable).` });
   revalidatePath("/platform");
   return r;
 }
 
 /** Restore a soft-deleted login (leaves it unassigned - reassign a tenant after). */
 export async function restoreUser(userId: string): Promise<ActionResult> {
-  if (isStaff(await requireSuperAdmin())) return OWNER_ONLY;
-  const target = await prisma.user.findUnique({ where: { id: userId }, select: { deletedAt: true } });
+  const me = await requireSuperAdmin();
+  if (isStaff(me)) return OWNER_ONLY;
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { deletedAt: true, email: true } });
   if (!target) return { ok: false, error: "User not found." };
   const r = await softFail(
     "restoreUser",
@@ -823,6 +923,7 @@ export async function restoreUser(userId: string): Promise<ActionResult> {
       await prisma.user.update({ where: { id: userId }, data: { deletedAt: null } });
     },
   );
+  if (r.ok) await audit({ actor: me, action: "user.restore", targetType: "user", targetId: userId, summary: `Restored login ${target.email}.` });
   revalidatePath("/platform");
   return r;
 }
@@ -849,6 +950,13 @@ export async function setUserPassword(userId: string, newPassword: string): Prom
     prisma.user.update({ where: { id: userId }, data: { mustChangePassword: true } }),
     prisma.session.deleteMany({ where: { userId } }),
   ]);
+  await audit({
+    actor: me,
+    action: "user.password",
+    targetType: "user",
+    targetId: userId,
+    summary: `Set a new password for ${target.email} (must change it at next sign-in).`,
+  });
   revalidatePath("/platform");
   return { ok: true };
 }

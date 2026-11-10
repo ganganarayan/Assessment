@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { withCapLock } from "@/lib/db/cap-lock";
 import { fireTenantWorkflowTrigger } from "@/lib/workflows/enqueue";
 import { isPlatformScope } from "@/lib/tenant/platform-tenant";
 import { invalidatePublicAssessmentById } from "@/features/assessment/data";
@@ -115,7 +116,7 @@ async function sanitizeAdAccountId(wantedRaw: string | undefined, tenantId: stri
   return found ? wanted : null;
 }
 
-export async function createAssessment(
+async function createAssessmentUnderCapLock(
   input: AssessmentInput,
 ): Promise<ActionResult<{ id: string }>> {
   const scope = await resolveActingScope();
@@ -491,7 +492,7 @@ export async function setAssessmentStatus(
  * Never copies submissions/payments/events - the copy starts clean. Scoped: a tenant
  * can only duplicate its own; the copy inherits the acting tenant.
  */
-export async function duplicateAssessment(id: string): Promise<ActionResult<{ id: string }>> {
+async function duplicateAssessmentUnderCapLock(id: string): Promise<ActionResult<{ id: string }>> {
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
@@ -674,4 +675,20 @@ export async function duplicateAssessment(id: string): Promise<ActionResult<{ id
   revalidatePath("/admin/assessments");
   revalidatePath("/w/assessments");
   return { ok: true, data: { id: created.id } };
+}
+
+/**
+ * createAssessment, with the workspace's assessments cap held for the whole action, so two at once cannot both
+ * pass the count (lib/db/cap-lock.ts).
+ */
+export async function createAssessment(input: AssessmentInput): Promise<ActionResult<{ id: string }>> {
+  return withCapLock("assessments", () => createAssessmentUnderCapLock(input));
+}
+
+/**
+ * duplicateAssessment, with the workspace's assessments cap held for the whole action, so two at once cannot both
+ * pass the count (lib/db/cap-lock.ts).
+ */
+export async function duplicateAssessment(id: string): Promise<ActionResult<{ id: string }>> {
+  return withCapLock("assessments", () => duplicateAssessmentUnderCapLock(id));
 }

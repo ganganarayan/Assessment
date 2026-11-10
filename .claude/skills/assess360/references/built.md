@@ -31,6 +31,17 @@ Status key: 🟢 in production · 🟡 staging only · ⚪ designed and agreed, 
 ## Tenancy, platform and access
 
 - 🟢 Multi-tenant isolation, /admin and /w surfaces, acting-tenant cookie impersonation.
+- 🟡 Tenant lifecycle (multi-tenant review Phase 2, staging 10-11-2026, pinned by verify:lifecycle):
+  permanent delete removes every row by name in one transaction then releases the domain slot
+  and R2 files (lib/tenant/purge.ts, checked against the schema); one "may operate" check
+  (lib/tenant/active.ts) stops saves, broadcasts, automations, workflows and webhook retries for
+  parked/suspended/deleted workspaces; Suspend button on /platform; cap checks run under a
+  per-workspace advisory lock (lib/db/cap-lock.ts); published funnels past the plan limit pause,
+  earliest-published stay live (lib/billing/overage.ts); audit_log table + /platform/audit;
+  reserved slugs, throwaway-email block and a 20/hour signup throttle; typed-in passwords must be
+  changed at first sign-in; workspace import no longer reveals other workspaces' slugs.
+  NOT done: email verification (needs a platform sender), seat overage after a downgrade
+  (waits on the Phase 5 seat numbers), releasing a parked tenant's domain slot (owner call).
 - 🟢 Platform tenant as a real row, Scope as a type, configTenantOf wired, verify:owner-stamp
   in the build chain. The data move itself has NOT run anywhere.
 - 🟢 Staff accounts VIEW / EDIT with canEdit enforced on every mutation, plus a seat cap.

@@ -6,6 +6,7 @@ import { isPlatformOwner } from "@/lib/auth/platform";
 import { readActingTenant } from "@/lib/tenant/acting-cookie";
 import { enteredAgencyTenant } from "@/lib/tenant/agency";
 import { SIGN_IN_EXPIRED } from "@/lib/auth/routes";
+import { tenantState, writeRefusal } from "@/lib/tenant/active";
 
 /** The session user shape we rely on (Better Auth surfaces role + tenantId + staffPermission). */
 export interface AuthUser {
@@ -16,6 +17,12 @@ export interface AuthUser {
   tenantId?: string | null;
   /** NULL = full-access owner/admin; "VIEW" = read-only staff; "EDIT" = editor staff. */
   staffPermission?: string | null;
+  /**
+   * Set by the workspace guards when the workspace may not be written to (parked or
+   * suspended), to the sentence a refused save shows. Never on the session itself: it
+   * is decided per request from the tenant's live state, so paying unlocks at once.
+   */
+  writeLocked?: string | null;
 }
 
 /**
@@ -48,21 +55,40 @@ export async function currentUserCanEdit(): Promise<boolean> {
 
 /** May this user MUTATE within their scope? Owners/admins (null) and EDIT staff yes;
  *  VIEW staff no. The single source of truth for the read-only vs. edit gate. */
-export function canEdit(user: { staffPermission?: string | null }): boolean {
-  return user.staffPermission !== "VIEW";
+export function canEdit(user: { staffPermission?: string | null; writeLocked?: string | null }): boolean {
+  return user.staffPermission !== "VIEW" && !user.writeLocked;
 }
 
 /** For a mutation Server Action: returns an error result to bail with when the
  *  caller is view-only, else null to proceed. */
-export function editDenied(user: { staffPermission?: string | null }): { ok: false; error: string } | null {
+export function editDenied(user: { staffPermission?: string | null; writeLocked?: string | null }): { ok: false; error: string } | null {
+  if (user.writeLocked) return { ok: false, error: user.writeLocked };
   return canEdit(user) ? null : { ok: false, error: "You have view-only access - ask an admin for edit rights." };
 }
 
 /** THROW when the caller is view-only - for mutation actions whose return type is
  *  not ActionResult (so a graceful error object wouldn't type-check). Safe: the
  *  write never runs. */
-export function assertCanEditOrThrow(user: { staffPermission?: string | null }): void {
+export function assertCanEditOrThrow(user: { staffPermission?: string | null; writeLocked?: string | null }): void {
+  if (user.writeLocked) throw new Error(user.writeLocked);
   if (!canEdit(user)) throw new Error("View-only access - ask an admin for edit rights.");
+}
+
+/**
+ * The workspace's live state, applied to the person operating it (Phase 2 of the
+ * multi-tenant review). "Parked" used to be a lock on the SCREEN only, so every save
+ * action still ran for a parked workspace. Now:
+ *  - suspended or deleted: the login is sent to /workspace-unavailable.
+ *  - parked: the login gets in (billing, support and the export are how parking ends),
+ *    but `writeLocked` is set, so every editDenied / scopeEditDenied refuses the save.
+ *
+ * Billing and support actions do not go through editDenied, which is what keeps paying
+ * and asking for help open to a parked account.
+ */
+export async function applyTenantState(user: AuthUser, tenantId: string): Promise<AuthUser> {
+  const state = await tenantState(tenantId);
+  if (state === "suspended" || state === "deleted" || state === "missing") redirect("/workspace-unavailable");
+  return state === "active" ? user : { ...user, writeLocked: writeRefusal(state) };
 }
 
 /**
@@ -153,12 +179,12 @@ export async function requireWorkspace(): Promise<{ user: AuthUser; tenantId: st
   // back whole) but must not be able to operate it meanwhile. /dashboard is where a
   // tenant-less login already lands, so they see the same "no workspace" state rather
   // than an error.
-  if (fresh.tenant?.deletedAt) redirect("/dashboard");
+  if (fresh.tenant?.deletedAt) redirect("/workspace-unavailable");
   // An AGENCY ADMIN who has entered one of their agency tenants operates that workspace
   // instead of their own. 🔴 `impersonating` stays FALSE: across /w that flag means
   // "skip the caps" (see the assertCanCreateAssessment call sites), which is correct for
   // the platform owner and would hand an agency tenant unlimited everything.
   const entered = await enteredAgencyTenant(user.id, fresh.tenantId);
-  if (entered) return { user, tenantId: entered, impersonating: false, viaAgency: true };
-  return { user, tenantId: fresh.tenantId, impersonating: false, viaAgency: false };
+  if (entered) return { user: await applyTenantState(user, entered), tenantId: entered, impersonating: false, viaAgency: true };
+  return { user: await applyTenantState(user, fresh.tenantId), tenantId: fresh.tenantId, impersonating: false, viaAgency: false };
 }

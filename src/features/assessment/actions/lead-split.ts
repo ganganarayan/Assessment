@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { funnelNotServing } from "@/lib/billing/overage";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { generateCustomerId, generateToken } from "@/lib/ids";
@@ -99,6 +100,11 @@ export async function captureSplitLead(
     },
   });
   if (!assessment) return { ok: false, error: "Assessment not available." };
+  // Parked, suspended, or past the plan's funnel limit: the same answer the page and the
+  // START action give, so the email screen cannot take a lead the funnel would refuse.
+  if (await funnelNotServing(assessment.tenantId, assessment.id)) {
+    return { ok: false, error: "This assessment isn't accepting responses right now." };
+  }
 
   // Structural check, not a preference: this route only exists for a SPLIT funnel that
   // actually collects an email. Anything else means a row edited around the builder's

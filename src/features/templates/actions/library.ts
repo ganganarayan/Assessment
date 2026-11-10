@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { withCapLock } from "@/lib/db/cap-lock";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, scopeEditDenied, configTenantOf } from "@/lib/tenant/acting";
 import { assertCanCreateAssessment } from "@/lib/billing/gate";
@@ -41,7 +42,7 @@ import { type TemplateImportResult } from "@/features/templates/import";
  * rated against a plan at all - on the platform scope or inside a workspace - exactly
  * as the Assessments screen already treats them.
  */
-export async function importTemplate(
+async function importTemplateUnderCapLock(
   templateId: string,
   /** Which result page to bring, when the template carries both and somebody chose. */
   resultPageKind?: "RESULTS" | "VSL" | null,
@@ -342,4 +343,12 @@ export async function applyTemplateToAssessment(
   revalidatePath("/admin/assessments");
   revalidatePath("/w/assessments");
   return { ok: true, data: out };
+}
+
+/**
+ * importTemplate, with the workspace's assessments cap held for the whole action, so two at once cannot both
+ * pass the count (lib/db/cap-lock.ts).
+ */
+export async function importTemplate(templateId: string, resultPageKind?: "RESULTS" | "VSL" | null): Promise<ActionResult<TemplateImportResult>> {
+  return withCapLock("assessments", () => importTemplateUnderCapLock(templateId, resultPageKind));
 }

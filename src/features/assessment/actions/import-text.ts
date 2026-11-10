@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { withCapLock } from "@/lib/db/cap-lock";
 import { BandLevel } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { resolveActingScope, tenantScope, scopeEditDenied } from "@/lib/tenant/acting";
@@ -104,7 +105,7 @@ export interface CreatedFromText {
  * from pasted text. NO bands are written here; the parsed bands are returned as
  * editable suggestions for step 2 (importBandsForAssessment).
  */
-export async function createAssessmentFromText(text: string): Promise<ActionResult<CreatedFromText>> {
+async function createAssessmentFromTextUnderCapLock(text: string): Promise<ActionResult<CreatedFromText>> {
   const scope = await resolveActingScope();
   const denied = scopeEditDenied(scope);
   if (denied) return denied;
@@ -273,4 +274,12 @@ export async function importBandsForAssessment(input: ImportBandsInput): Promise
   revalidatePath(`/admin/assessments/${assessment.id}`);
   revalidatePath(`/w/assessments/${assessment.id}`);
   return { ok: true };
+}
+
+/**
+ * createAssessmentFromText, with the workspace's assessments cap held for the whole action, so two at once cannot both
+ * pass the count (lib/db/cap-lock.ts).
+ */
+export async function createAssessmentFromText(text: string): Promise<ActionResult<CreatedFromText>> {
+  return withCapLock("assessments", () => createAssessmentFromTextUnderCapLock(text));
 }

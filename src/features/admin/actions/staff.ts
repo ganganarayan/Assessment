@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { audit } from "@/lib/audit/log";
+import { withCapLock } from "@/lib/db/cap-lock";
 import { z } from "zod";
 import { Role, StaffPermission } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
@@ -123,8 +125,8 @@ export async function getStaff(): Promise<StaffView> {
   };
 }
 
-export async function createStaff(input: CreateStaffInput): Promise<ActionResult> {
-  const { isSuper, ownTenant } = await scope();
+async function createStaffUnderCapLock(input: CreateStaffInput): Promise<ActionResult> {
+  const { user, isSuper, ownTenant } = await scope();
   const parsed = createSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   const d = parsed.data;
@@ -189,11 +191,23 @@ export async function createStaff(input: CreateStaffInput): Promise<ActionResult
       role,
       tenantId,
       staffPermission: d.permission as StaffPermission,
+      // The admin typed this password, so it is a shared secret from the first second.
+      // The staff member is made to replace it at their first sign-in, the same rule a
+      // super admin's password set already follows (enforceAccountState).
+      mustChangePassword: true,
     },
     select: { id: true },
   });
   await prisma.account.create({
     data: { accountId: created.id, providerId: "credential", password: hashed, userId: created.id },
+  });
+  await audit({
+    actor: user,
+    action: "staff.create",
+    tenantId,
+    targetType: "user",
+    targetId: created.id,
+    summary: `Added ${d.email} as ${d.permission} staff.`,
   });
 
   revalidate();
@@ -201,23 +215,33 @@ export async function createStaff(input: CreateStaffInput): Promise<ActionResult
 }
 
 export async function setStaffPermission(userId: string, permission: string): Promise<ActionResult> {
-  const { isSuper, ownTenant } = await scope();
+  const { user, isSuper, ownTenant } = await scope();
   if (permission !== "VIEW" && permission !== "EDIT") return { ok: false, error: "Invalid permission." };
   // Only a STAFF row can be targeted - an owner/admin (null permission) is never matched.
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { staffPermission: true, tenantId: true, role: true } });
   if (!target || !target.staffPermission) return { ok: false, error: "Staff member not found." };
   if (!isSuper && !tenantAdminMayTouch(ownTenant, target)) return { ok: false, error: "Not allowed." };
   await prisma.user.update({ where: { id: userId }, data: { staffPermission: permission as StaffPermission } });
+  await audit({ actor: user, action: "staff.permission", tenantId: target.tenantId, targetType: "user", targetId: userId, summary: `Changed a staff member to ${permission}.` });
   revalidate();
   return { ok: true };
 }
 
 export async function removeStaff(userId: string): Promise<ActionResult> {
-  const { isSuper, ownTenant } = await scope();
+  const { user, isSuper, ownTenant } = await scope();
   const target = await prisma.user.findUnique({ where: { id: userId }, select: { staffPermission: true, tenantId: true, role: true } });
   if (!target || !target.staffPermission) return { ok: false, error: "Staff member not found." };
   if (!isSuper && !tenantAdminMayTouch(ownTenant, target)) return { ok: false, error: "Not allowed." };
   await prisma.user.delete({ where: { id: userId } }); // cascades sessions + accounts
+  await audit({ actor: user, action: "staff.remove", tenantId: target.tenantId, targetType: "user", targetId: userId, summary: "Removed a staff member." });
   revalidate();
   return { ok: true };
+}
+
+/**
+ * createStaff, with the workspace's seats cap held for the whole action, so two at once cannot both
+ * pass the count (lib/db/cap-lock.ts).
+ */
+export async function createStaff(input: CreateStaffInput): Promise<ActionResult> {
+  return withCapLock("seats", () => createStaffUnderCapLock(input));
 }

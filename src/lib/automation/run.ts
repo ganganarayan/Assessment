@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
+import { tenantState } from "@/lib/tenant/active";
 import { publicOriginFor } from "@/lib/tenant/public-origin";
 import { formatISTDate } from "@/lib/date";
 import { sendTrackedEmailWithLog, sendWaba } from "@/lib/nurture/send";
@@ -206,6 +207,16 @@ export async function processRun(runId: string): Promise<"sent" | "failed" | "sk
   if (!automation.active) {
     await skip(run.id, "The automation was switched off.");
     return "skipped";
+  }
+  // The workspace itself: parked, suspended or deleted sends nothing. Skipped rather
+  // than held, because a reminder held until someone pays is a reminder for a call that
+  // has already happened (the same reasoning as the staleness guard above).
+  {
+    const state = await tenantState(run.tenantId);
+    if (state !== "active") {
+      await skip(run.id, `The workspace is ${state}.`);
+      return "skipped";
+    }
   }
   if (automation.actions.length === 0) {
     await skip(run.id, "The automation has no messages on it.");

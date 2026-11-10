@@ -1,4 +1,6 @@
 import { betterAuth } from "better-auth";
+import { createAuthMiddleware, APIError } from "better-auth/api";
+import { isDisposableEmail, isReservedTenantSlug } from "@/lib/tenant/signup-rules";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { Prisma, Role } from "@prisma/client";
@@ -63,7 +65,11 @@ function resetPasswordEmailHtml(name: string | null | undefined, url: string): s
 /** Slug from a name/email: lowercase, alphanumeric + hyphens, capped. */
 function tenantSlugFrom(seed: string): string {
   const s = seed.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32);
-  return s || "tenant";
+  // A reserved name ("admin", "api", "mail") would become a platform-looking subdomain.
+  // Signup derives the slug from a name nobody chose as a slug, so it is suffixed rather
+  // than refused: the person never sees this and should not have signup fail over it.
+  if (!s) return "tenant";
+  return isReservedTenantSlug(s) ? `${s}-ws` : s;
 }
 
 /**
@@ -76,6 +82,34 @@ function tenantSlugFrom(seed: string): string {
  */
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
+  /**
+   * Signup throttle, per IP (Phase 2 of the multi-tenant review). Every signup is a
+   * 14-day trial and email verification is still off, so an unthrottled endpoint is an
+   * endless supply of trials. 20 an hour, not 3: Indian mobile carriers put many people
+   * behind one address, and a paid-ad signup refused for someone else's traffic is money
+   * lost. Memory storage, per process, which is what Better Auth runs by default.
+   */
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 100,
+    customRules: {
+      "/sign-up/email": { window: 3600, max: 20 },
+    },
+  },
+  hooks: {
+    // Throwaway inboxes are refused at the door, with a sentence a real person can act on.
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-up/email") return;
+      const body = ctx.body as { email?: unknown } | undefined;
+      const email = typeof body?.email === "string" ? body.email : "";
+      if (isDisposableEmail(email)) {
+        throw new APIError("BAD_REQUEST", {
+          message: "Please sign up with your work or personal email. Temporary inboxes can't be used.",
+        });
+      }
+    }),
+  },
   secret: env.BETTER_AUTH_SECRET,
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   /**
@@ -294,10 +328,15 @@ export const auth = betterAuth({
             // rather than at first login, so the clock starts when the account does and
             // there is no path into the app that skips it.
             const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-            const tenant = await prisma.tenant.create({
-              data: { name: user.name || user.email, slug, trialEndsAt, ...acq },
+            // ONE transaction: a workspace created and then not linked to its login (the
+            // second write failing) used to stay behind holding its name, with nobody able
+            // to reach it and the next signup under that name pushed onto a suffix.
+            await prisma.$transaction(async (tx) => {
+              const tenant = await tx.tenant.create({
+                data: { name: user.name || user.email, slug, trialEndsAt, ...acq },
+              });
+              await tx.user.update({ where: { id: user.id }, data: { tenantId: tenant.id, role: Role.ADMIN } });
             });
-            await prisma.user.update({ where: { id: user.id }, data: { tenantId: tenant.id, role: Role.ADMIN } });
             // Welcome mail, AFTER the workspace exists so every link in it works. Inside
             // this try on purpose: it is already best-effort, and the one thing worse
             // than a missing welcome email is a signup that fails because of one.

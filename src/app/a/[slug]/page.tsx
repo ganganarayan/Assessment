@@ -22,6 +22,7 @@ import { resolvePlan } from "@/lib/billing/entitlements";
 import { hasFeature } from "@/lib/billing/plans";
 import { AssessBadge } from "@/features/assessment/components/public/assess-badge";
 import { FunnelPaused } from "@/features/assessment/components/public/funnel-paused";
+import { funnelNotServing } from "@/lib/billing/overage";
 import {
   qualificationSchema,
   readExits,
@@ -42,6 +43,8 @@ export const dynamic = "force-dynamic";
  * have been two calls and two queries for answers that arrive in one row.
  */
 const planFor = cache(async (tenantId: string | null) => resolvePlan(tenantId));
+/** Parked, suspended, or past the plan's funnel limit. Deduped across metadata and page. */
+const notServing = cache(async (tenantId: string | null, assessmentId: string) => funnelNotServing(tenantId, assessmentId));
 
 /**
  * Metadata for a public funnel. Three jobs:
@@ -83,7 +86,7 @@ export async function generateMetadata({
   if (!(await funnelServedHere(a.tenantId))) return {};
 
   const plan = await planFor(a.tenantId);
-  if (plan.parked) return { robots: { index: false, follow: false } };
+  if (plan.parked || (await notServing(a.tenantId, a.id))) return { robots: { index: false, follow: false } };
 
   const origin = await tenantCanonicalOrigin(a.tenantId);
   return {
@@ -149,7 +152,7 @@ export default async function PublicAssessmentPage({
   // needs to see what they are paying to turn back on, and the preview path stores
   // nothing either way.
   const plan = await planFor(a.tenantId);
-  if (plan.parked && !preview) return <FunnelPaused title={a.title} />;
+  if ((plan.parked || (await notServing(a.tenantId, a.id))) && !preview) return <FunnelPaused title={a.title} />;
 
   // The consent line under the opt-in form. Resolved server-side because the stored
   // wording has to be the wording that was displayed, and the browser is not the

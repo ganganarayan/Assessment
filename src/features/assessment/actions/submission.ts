@@ -48,6 +48,7 @@ import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { intakeAllowed } from "@/lib/rate-limit-intake";
 import { isResponseLocked, meterResponse, responsesOverCap, supportEmailFor, tenantCan } from "@/lib/billing/gate";
 import { resolvePlan } from "@/lib/billing/entitlements";
+import { funnelNotServing } from "@/lib/billing/overage";
 import { generatePersonalStatement, generateClinicStatement } from "@/lib/ai/generate";
 import {
   resolveEngineConfig,
@@ -597,7 +598,9 @@ export async function startSubmission(
   //
   // `preview` is exempt: it writes no submission on any path, and the owner has to be
   // able to see what paying would turn back on.
-  if (!preview && (await resolvePlan(assessment.tenantId)).parked) {
+  // Not only parked: suspended, deleted, or past the plan's funnel limit after a
+  // downgrade (lib/billing/overage.ts). One question, shared with the public page.
+  if (!preview && (await funnelNotServing(assessment.tenantId, assessment.id))) {
     return { ok: false, error: "This assessment isn't accepting responses right now." };
   }
 
@@ -1230,7 +1233,11 @@ export async function completeSubmission(
   // out, or a tab left open overnight. Refuse rather than meter: metering would stamp a
   // periodSeq against a limit of 0, locking the lead behind the cap screen, which claims
   // a volume problem the tenant does not have. The partial submission stays as-is.
-  if ((await resolvePlan(submission.tenantId)).parked) {
+  if (
+    !submission.isPreview &&
+    ((await resolvePlan(submission.tenantId)).parked ||
+      (submission.assessmentId ? await funnelNotServing(submission.tenantId, submission.assessmentId) : false))
+  ) {
     return { ok: false, error: "This assessment isn't accepting responses right now." };
   }
   // Ownership: a submission with an edit token requires it (legacy null-token rows

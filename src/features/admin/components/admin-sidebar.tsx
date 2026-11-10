@@ -42,6 +42,8 @@ const SECTIONS: NavSection[] = [
       // The switches that hold a finished feature back from every tenant. Its own page,
       // not a card under the tenant list, where it was below the fold on a real account.
       { href: "/platform/releases", label: "Feature releases" },
+      // Who entered which workspace, granted which plan, deleted what. Owner-only.
+      { href: "/platform/audit", label: "Audit log" },
       { href: "/platform/stats", label: "Marketing stats" },
       // The file store whose links get pasted into other products (VidaPulse, an LMS,
       // a landing page). Under Platform because it is the owner's own vault, not

@@ -11,6 +11,7 @@ import { fillPlaceholders, toE164Digits } from "@/features/nurture/config";
 import { isSuppressed, unsubscribeUrlFor } from "@/lib/contacts/dnd";
 import { defaultCountryCodeFor } from "@/lib/contacts/upsert";
 import { materialiseAudience } from "@/lib/broadcasts/audience";
+import { tenantMayOperate } from "@/lib/tenant/active";
 
 /**
  * Sending a broadcast, slowly and on purpose.
@@ -47,6 +48,9 @@ export async function runDueBroadcasts(now: Date = new Date()): Promise<Broadcas
   });
   for (const b of due) {
     if (!(await featureAllowedFor("broadcasts", b.tenantId))) continue;
+    // Parked, suspended or deleted: stays SCHEDULED and goes out once the workspace is
+    // active again, rather than being sent from an account that is not.
+    if (!(await tenantMayOperate(b.tenantId))) continue;
     const claim = await prisma.broadcast.updateMany({
       where: { id: b.id, status: "SCHEDULED" },
       data: { status: "SENDING", startedAt: now },
@@ -74,6 +78,7 @@ export async function runDueBroadcasts(now: Date = new Date()): Promise<Broadcas
 
   for (const b of sending) {
     if (!(await featureAllowedFor("broadcasts", b.tenantId))) continue;
+    if (!(await tenantMayOperate(b.tenantId))) continue;
 
     const batch = await prisma.broadcastRecipient.findMany({
       where: { broadcastId: b.id, status: "PENDING" },

@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
+import { tenantState } from "@/lib/tenant/active";
 import { featureAllowedFor } from "@/lib/features/release";
 import { type WorkflowStep } from "@prisma/client";
 import { sendEmail, sendWaba } from "@/lib/nurture/send";
@@ -61,6 +62,21 @@ export async function runDueWorkflows(now: Date = new Date()): Promise<RunOutcom
     // the person resumes where they were if it is switched on again - nobody is
     // dropped, and nobody gets a message from a feature that was pulled.
     if (!(await featureAllowedFor("workflows", tenantId))) continue;
+    // The workspace itself. Parked or suspended: held an hour, still PENDING, so the
+    // person resumes if the workspace comes back, and so held rows move off the front of
+    // this dueAt-ordered batch instead of filling it and starving every other tenant.
+    // Deleted or gone: cancelled, because nobody is coming back for it.
+    {
+      const state = await tenantState(tenantId);
+      if (state !== "active") {
+        const gone = state === "deleted" || state === "missing";
+        await prisma.workflowRun.updateMany({
+          where: { id, status: "PENDING" },
+          data: gone ? { status: "CANCELLED" } : { dueAt: new Date(now.getTime() + 60 * 60 * 1000) },
+        });
+        continue;
+      }
+    }
     // Claim it before doing anything. Two workers (the cron and an inline drain) can
     // overlap, and the claim is what stops one person getting a message twice.
     const claim = await prisma.workflowRun.updateMany({

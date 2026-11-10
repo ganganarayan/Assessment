@@ -1,6 +1,7 @@
 "use server";
 
 import { Prisma } from "@prisma/client";
+import { withCapLock } from "@/lib/db/cap-lock";
 import { revalidatePath } from "next/cache";
 import { requireSuperAdmin, requireWorkspace, editDenied } from "@/lib/auth/guards";
 import { resolveActingScope, configTenantOf } from "@/lib/tenant/acting";
@@ -11,6 +12,8 @@ import {
   parseImportText,
   slugExists,
   generateCopySlug,
+  generateFreeSlug,
+  slugHolder,
   performImportAll,
   type ImportOutcome,
   type ImportItem,
@@ -147,11 +150,13 @@ export async function previewTenantImport(
   raw: string,
   format: Format,
 ): Promise<ActionResult<ImportPreviewItem[]> & { errors?: string[] }> {
-  const { user } = await requireWorkspace();
+  const { user, tenantId } = await requireWorkspace();
   { const __d = editDenied(user); if (__d) return __d; }
   const parsed = parseImportText(raw, format);
   if (!parsed.ok) return { ok: false, error: "Validation failed.", errors: parsed.errors };
 
+  // "Exists" means exists IN THIS WORKSPACE. See slugHolder for why another workspace's
+  // address is never reported here.
   const items: ImportPreviewItem[] = [];
   for (const a of parsed.data.assessments) {
     items.push({
@@ -160,14 +165,14 @@ export async function previewTenantImport(
       categoryCount: a.categories.length,
       questionCount: a.categories.reduce((n, c) => n + c.questions.length, 0),
       resultBandCount: a.resultBands.length,
-      slugExists: await slugExists(a.slug),
+      slugExists: (await slugHolder(a.slug, tenantId)) === "mine",
     });
   }
   return { ok: true, data: items };
 }
 
 /** Tenant import - creates the assessments under the acting tenant. */
-export async function importTenantAssessments(
+async function importTenantAssessmentsUnderCapLock(
   raw: string,
   format: Format,
   mode: ImportMode,
@@ -185,18 +190,25 @@ export async function importTenantAssessments(
   const conflicts: string[] = [];
   const items: ImportItem[] = [];
   const usedSlugs = new Set<string>();
+  // Addresses another workspace holds, moved to a free one before anything is written.
+  const movedAway: ImportOutcome["renamed"] = [];
 
   for (const body of parsed.data.assessments) {
-    const taken = (await slugExists(body.slug)) || usedSlugs.has(body.slug);
+    const holder = await slugHolder(body.slug, tenantId);
     let finalSlug = body.slug;
     let replace = false;
 
-    if (mode === "create") {
-      if (taken) { conflicts.push(body.slug); continue; }
+    if (holder === "elsewhere") {
+      // Never a conflict and never a replace: it is not this workspace's to report on
+      // or to overwrite. Imported under a free address, and said so as a rename.
+      finalSlug = await generateFreeSlug(body.slug, usedSlugs);
+      movedAway.push({ from: body.slug, to: finalSlug });
+    } else if (mode === "create") {
+      if (holder === "mine" || usedSlugs.has(body.slug)) { conflicts.push(body.slug); continue; }
     } else if (mode === "copy") {
-      if (taken) finalSlug = await generateCopySlug(body.slug, usedSlugs);
+      if (holder === "mine" || usedSlugs.has(body.slug)) finalSlug = await generateCopySlug(body.slug, usedSlugs);
     } else {
-      replace = await slugExists(body.slug);
+      replace = holder === "mine";
       while (usedSlugs.has(finalSlug)) finalSlug = await generateCopySlug(finalSlug, usedSlugs);
     }
 
@@ -207,7 +219,7 @@ export async function importTenantAssessments(
   if (mode === "create" && conflicts.length > 0) {
     return {
       ok: false,
-      error: `These slugs already exist: ${conflicts.join(", ")}. Choose “Create copy” or “Replace existing”.`,
+      error: `These slugs already exist in this workspace: ${conflicts.join(", ")}. Choose “Create copy” or “Replace existing”.`,
     };
   }
 
@@ -234,7 +246,7 @@ export async function importTenantAssessments(
     const { count, renamed } = await performImportAll(items, user.id, tenantId);
     invalidateReplaced(items);
     revalidatePath("/w/assessments");
-    return { ok: true, data: { count, renamed } };
+    return { ok: true, data: { count, renamed: [...movedAway, ...renamed] } };
   } catch (e) {
     const code = e instanceof Prisma.PrismaClientKnownRequestError ? e.code : "";
     if (code === "P2002") {
@@ -245,4 +257,12 @@ export async function importTenantAssessments(
     }
     return { ok: false, error: "Import failed; no changes were made." };
   }
+}
+
+/**
+ * importTenantAssessments, with the workspace's assessments cap held for the whole action, so two at once cannot both
+ * pass the count (lib/db/cap-lock.ts).
+ */
+export async function importTenantAssessments(raw: string, format: Format, mode: ImportMode): Promise<ActionResult<ImportOutcome> & { errors?: string[] }> {
+  return withCapLock("assessments", () => importTenantAssessmentsUnderCapLock(raw, format, mode));
 }

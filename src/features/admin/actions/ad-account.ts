@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { withCapLock } from "@/lib/db/cap-lock";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { encryptWithSecret } from "@/lib/crypto";
@@ -145,7 +146,7 @@ export async function getAdAccountsForTenant(tenantId: string): Promise<AdAccoun
  * Add an ad account. The FIRST one a workspace has becomes its default, so there is
  * never a state with accounts configured and no fallback for assessments that name none.
  */
-export async function createAdAccount(
+async function createAdAccountUnderCapLock(
   label: string,
   pixelId: string,
   capiToken: string,
@@ -312,4 +313,12 @@ export async function deleteAdAccount(id: string): Promise<ActionResult> {
   }
   revalidateAdAccounts();
   return { ok: true };
+}
+
+/**
+ * createAdAccount, with the workspace's adAccounts cap held for the whole action, so two at once cannot both
+ * pass the count (lib/db/cap-lock.ts).
+ */
+export async function createAdAccount(label: string, pixelId: string, capiToken: string): Promise<ActionResult<{ id: string }>> {
+  return withCapLock("adAccounts", () => createAdAccountUnderCapLock(label, pixelId, capiToken));
 }

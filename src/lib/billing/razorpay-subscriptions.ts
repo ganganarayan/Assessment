@@ -1,6 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { forgetTenantActive } from "@/lib/tenant/active";
 import { nextRenewal } from "@/lib/billing/renewal";
 import { razorpayRequest, type RazorpayKeys } from "@/lib/payments/razorpay";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
@@ -379,6 +380,9 @@ export async function activateSubscription(input: ActivateInput): Promise<void> 
     }),
     prisma.tenant.update({ where: { id: input.tenantId }, data: { plan: input.plan } }),
   ]);
+  // Paying ends parking: drop the cached "may operate" answer so saves and queues
+  // resume at once in this process instead of up to 30 seconds later.
+  forgetTenantActive(input.tenantId);
 
   // THE LEDGER ROW, after the entitlement is already committed. A subscription that
   // activates but fails to record its payment is a bookkeeping problem; one that
