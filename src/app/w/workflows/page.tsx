@@ -1,4 +1,5 @@
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, canEdit } from "@/lib/auth/guards";
+import { ViewOnlyNote } from "@/components/view-only";
 import { requireReleasedFeature } from "@/lib/features/route-guard";
 import { listWorkflows } from "@/features/workflows/data";
 import { WorkflowList } from "@/features/workflows/components/workflow-list";
@@ -14,7 +15,8 @@ export const dynamic = "force-dynamic";
  */
 export default async function WorkspaceWorkflowsPage() {
   await requireReleasedFeature("workflows");
-  const { tenantId } = await requireWorkspace();
+  const { tenantId, user: viewer } = await requireWorkspace();
+  const readOnly = !canEdit(viewer);
   const rows = await listWorkflows(tenantId);
   return (
     <div className="flex flex-col gap-6">
@@ -25,6 +27,7 @@ export default async function WorkspaceWorkflowsPage() {
           unsubscribe.
         </p>
       </div>
+      {readOnly ? <ViewOnlyNote /> : null}
       <WorkflowList rows={rows} basePath="/w/workflows" isPlatform={false} />
     </div>
   );

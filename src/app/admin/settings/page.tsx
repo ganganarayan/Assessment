@@ -8,6 +8,9 @@ import { DomainSettings } from "@/features/workspace/components/domain-settings"
 import { ReportFooterForm } from "@/features/workspace/components/report-footer-form";
 import { BrandLegalForm } from "@/features/workspace/components/brand-legal-form";
 import { getBrandLegal } from "@/features/workspace/actions/brand-legal";
+import { RegionForm } from "@/features/workspace/components/region-form";
+import { getRegion } from "@/features/workspace/actions/region";
+import { getAbandonedHours } from "@/features/events/actions/settings";
 import { getReportFooter } from "@/features/workspace/actions/report-footer";
 import {
   getIntegrationSettings,
@@ -81,6 +84,10 @@ export default async function SettingsPage() {
   const reportFooter = impersonating ? await getReportFooter() : null;
   // Acting-scoped: this tenant while impersonating, the platform row otherwise.
   const brandLegal = await getBrandLegal();
+  const region = await getRegion();
+  // The ACTING workspace's own value (this tenant while impersonating), never the
+  // platform's shown inside a tenant.
+  const abandonedHours = await getAbandonedHours();
 
   // Resolve the Ads & payments view + a matching domains view for the active scope.
   const [integrations, domains, legal, platformPixel, logins, paymentsOn, showWaba, wabaOn, onboardingVideoUrl, onboardingSteps, dfyScarcity, dfyWaba, bookingTypes] = await Promise.all([
@@ -138,6 +145,16 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <BrandLegalForm initial={brandLegal} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{impersonating ? "Region (this tenant)" : "Region (platform)"}</CardTitle>
+          <CardDescription>Timezone for bookings and reminders, and the currency respondents pay in.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RegionForm initial={region} />
         </CardContent>
       </Card>
 
@@ -477,7 +494,7 @@ export default async function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <AbandonedSetting hours={setting?.abandonedAfterHours ?? 24} />
+          <AbandonedSetting hours={abandonedHours} />
         </CardContent>
       </Card>
     </div>

@@ -218,9 +218,9 @@ export interface PayloadClinic {
  *  could describe a button that has since changed or been removed. */
 /**
  * One appointment, as a CRM reads it. Times are ISO instants (machine fields stay
- * ISO UTC) plus a pre-formatted IST string, because the one thing a CRM does with an
- * appointment is put it in front of a person, and left to a template a bare ISO
- * instant renders as US-order local time for whoever opens it.
+ * ISO UTC) plus a pre-formatted string on the workspace's own clock, because the one
+ * thing a CRM does with an appointment is put it in front of a person, and left to a
+ * template a bare ISO instant renders as US-order local time for whoever opens it.
  */
 export interface PayloadAppointment {
   id: string;
@@ -228,8 +228,10 @@ export interface PayloadAppointment {
   bookingType: string | null;
   startAt: string;
   endAt: string;
-  /** DD-MM-YYYY HH:MM, IST. */
+  /** DD-MM-YYYY HH:MM in the workspace's timezone (timeZone below; IST by default). */
   startLabel: string;
+  /** The IANA zone startLabel is in, e.g. "Asia/Kolkata" or "America/New_York". */
+  timeZone: string;
   durationMin: number;
   status: string;
   locationKind: string | null;

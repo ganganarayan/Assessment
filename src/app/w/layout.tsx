@@ -86,7 +86,9 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   const unread = staff ? { SUPPORT: 0, ONBOARDING: 0 } : await tenantUnreadCounts(tenantId);
   const hasOpen = { SUPPORT: unread.SUPPORT > 0, ONBOARDING: unread.ONBOARDING > 0 };
   if (staff) {
-    hiddenNav.push("/w/support", "/w/onboarding");
+    // Staff are refused by the owner-only guards behind these four, so the menu does not
+    // offer them (Phase 5: they used to click through and get bounced or a blank list).
+    hiddenNav.push("/w/support", "/w/onboarding", "/w/staff", "/w/billing", "/w/api", "/w/agency-tenants");
   } else {
     if (routing.support === "OFF" && !hasOpen.SUPPORT) hiddenNav.push("/w/support");
     if (routing.onboarding === "OFF" && !hasOpen.ONBOARDING) hiddenNav.push("/w/onboarding");

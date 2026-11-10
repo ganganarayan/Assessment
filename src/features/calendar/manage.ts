@@ -2,11 +2,12 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { formatIST } from "@/lib/date";
+import { formatInZone, zoneLabel } from "@/lib/region/zone";
+import { tenantTimeZone } from "@/lib/tenant/region";
 import { rateLimit } from "@/lib/rate-limit";
 import { reportAppointment } from "@/lib/calendar/signals";
-import { istDateKey, istMinutesOfDay, minutesToHHMM, slotLockFor } from "@/lib/calendar/slots";
-import { openSlotsByDate, slotSourceOf } from "@/features/calendar/data";
+import { slotLockFor, zoneDateKey } from "@/lib/calendar/slots";
+import { openSlotsByDate, publicDays, slotSourceOf } from "@/features/calendar/data";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import {
   type ManageBookingView,
@@ -71,13 +72,6 @@ const APPOINTMENT_SELECT = {
   },
 } as const;
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
-const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
-function dayLabel(dateKey: string): string {
-  const d = new Date(`${dateKey}T00:00:00.000Z`);
-  return `${DAYS_SHORT[d.getUTCDay()]} ${String(d.getUTCDate()).padStart(2, "0")} ${MONTHS[d.getUTCMonth()]}`;
-}
-
 /**
  * Their booking, and what can still be done to it. Null when the token matches nothing,
  * which the page renders as a plain "this link is no longer valid" rather than an error.
@@ -94,6 +88,8 @@ export async function loadManageView(token: string): Promise<ManageBookingView |
 
   const now = Date.now();
   const started = a.startAt.getTime() <= now;
+  // The tenant's zone: the one the booking page offered this time in.
+  const zone = await tenantTimeZone(a.tenantId);
 
   // Why they cannot change it, said once, in their words. Order matters: a cancelled
   // call that is also in the past should read as cancelled.
@@ -115,17 +111,13 @@ export async function loadManageView(token: string): Promise<ManageBookingView |
     // Their call is with a PARTICULAR person. Moving it offers that person's free
     // times, not the team's: a respondent who booked Asha and reschedules should not
     // silently end up with somebody else.
-    const slotMap = await openSlotsByDate(slotSourceOf(a.bookingType, a.assignedUserId), now);
-    days = [...slotMap.entries()].map(([dateKey, slots]) => ({
-      dateKey,
-      label: dayLabel(dateKey),
-      slots: slots
-        // Their current slot is not a move. Offering it would let somebody "reschedule"
-        // to the time they already have and wonder what happened.
-        .filter((s) => s.startMs !== a.startAt.getTime())
-        .map((s) => ({ startMs: s.startMs, timeLabel: minutesToHHMM(istMinutesOfDay(s.startMs)) })),
-    }));
-    days = days.filter((d) => d.slots.length > 0);
+    const slotMap = await openSlotsByDate(slotSourceOf({ ...a.bookingType, timeZone: zone }, a.assignedUserId), now);
+    // Their current slot is not a move. Offering it would let somebody "reschedule" to
+    // the time they already have and wonder what happened. Emptied days drop out.
+    const movable = new Map(
+      [...slotMap.entries()].map(([k, slots]) => [k, slots.filter((s) => s.startMs !== a.startAt.getTime())]),
+    );
+    days = publicDays(movable, zone);
   }
 
   const resultToken = a.submission?.resultToken ?? "";
@@ -133,7 +125,8 @@ export async function loadManageView(token: string): Promise<ManageBookingView |
     token: clean,
     hostName: a.tenant.name,
     what: a.bookingType?.name ?? "Your appointment",
-    startLabel: formatIST(a.startAt),
+    startLabel: formatInZone(a.startAt, zone),
+    zoneLabel: zoneLabel(zone, a.startAt.getTime()),
     durationMin: Math.max(1, Math.round((a.endAt.getTime() - a.startAt.getTime()) / 60_000)),
     status: a.status as AppointmentStatusValue,
     locationKind: (a.bookingType?.locationKind as BookingLocationKindValue | undefined) ?? null,
@@ -217,8 +210,9 @@ export async function rescheduleMyBooking(token: string, startMs: number): Promi
 
   const now = Date.now();
   // Same person as before - see the comment in loadManageView.
-  const slotMap = await openSlotsByDate(slotSourceOf(a.bookingType, a.assignedUserId), now);
-  const slot = slotMap.get(istDateKey(startMs))?.find((s) => s.startMs === startMs);
+  const zone = await tenantTimeZone(a.tenantId);
+  const slotMap = await openSlotsByDate(slotSourceOf({ ...a.bookingType, timeZone: zone }, a.assignedUserId), now);
+  const slot = slotMap.get(zoneDateKey(startMs, zone))?.find((s) => s.startMs === startMs);
   if (!slot) return { ok: false, error: "That time has just been taken. Pick another slot." };
 
   try {

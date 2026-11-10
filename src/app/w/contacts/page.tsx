@@ -1,5 +1,6 @@
 
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, canEdit } from "@/lib/auth/guards";
+import { ViewOnlyNote } from "@/components/view-only";
 import { requireReleasedFeature } from "@/lib/features/route-guard";
 import { listContacts } from "@/features/contacts/data";
 import { ContactsScreen } from "@/features/contacts/components/contacts-screen";
@@ -17,7 +18,8 @@ export default async function WorkspaceContactsPage({
 }) {
   // Held back until the owner releases it: a hidden link is presentation, not a permission.
   await requireReleasedFeature("contacts");
-  const { tenantId } = await requireWorkspace();
+  const { tenantId, user: viewer } = await requireWorkspace();
+  const readOnly = !canEdit(viewer);
   const sp = await searchParams;
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
 
@@ -39,6 +41,7 @@ export default async function WorkspaceContactsPage({
           unsubscribe state here are what a workflow or a broadcast reads.
         </p>
       </div>
+      {readOnly ? <ViewOnlyNote /> : null}
       <ContactsScreen view={view} filters={filters} basePath="/w/contacts" />
     </div>
   );

@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:tenant-scope && npm run verify:isolation && npm run verify:lifecycle && npm run verify:whitelabel && npm run verify:report-footer && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:template-builder && npm run verify:calendar && npm run verify:automations && npm run verify:releases && npm run verify:billing-term && npm run verify:billing-ledger && npm run verify:workflow-queue && npm run verify:vault && npm run verify:contact-consent && npm run verify:contact-fields && npm run verify:client-bundle && npm run verify:email-providers && npm run verify:whatsapp && npm run verify:wa-templates && npm run verify:legal && npm run verify:ai && npm run verify:platform-capi && next build",
+    "build": "prisma generate && npm run verify:schema-migrations && npm run verify:owner-stamp && npm run verify:tenant-scope && npm run verify:isolation && npm run verify:lifecycle && npm run verify:whitelabel && npm run verify:region-roles && npm run verify:report-footer && npm run verify:import-sample && npm run verify:onboarding && npm run verify:templates && npm run verify:template-builder && npm run verify:calendar && npm run verify:automations && npm run verify:releases && npm run verify:billing-term && npm run verify:billing-ledger && npm run verify:workflow-queue && npm run verify:vault && npm run verify:contact-consent && npm run verify:contact-fields && npm run verify:client-bundle && npm run verify:email-providers && npm run verify:whatsapp && npm run verify:wa-templates && npm run verify:legal && npm run verify:ai && npm run verify:platform-capi && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -22,6 +22,7 @@
     "verify:isolation": "tsx --conditions=react-server scripts/verify-isolation.ts",
     "verify:lifecycle": "tsx --conditions=react-server scripts/verify-lifecycle.ts",
     "verify:whitelabel": "tsx --conditions=react-server scripts/verify-whitelabel.ts",
+    "verify:region-roles": "tsx --conditions=react-server scripts/verify-region-roles.ts",
     "verify:tenant-scope": "tsx scripts/verify-tenant-scope.ts",
     "verify:report-footer": "tsx scripts/verify-report-footer.ts",
     "preview:rehome": "tsx scripts/preview-rehome.ts",

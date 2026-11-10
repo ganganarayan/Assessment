@@ -6,7 +6,8 @@ import { emitEvent } from "@/lib/events/emit";
 import { sendCapiEventVerbose } from "@/lib/meta/send";
 import { bumpFunnelEventCount } from "@/lib/meta/funnel-count";
 import { tenantCan } from "@/lib/billing/plan-resolve";
-import { formatIST } from "@/lib/date";
+import { formatInZone } from "@/lib/region/zone";
+import { tenantTimeZone } from "@/lib/tenant/region";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { deleteZoomMeeting } from "@/lib/zoom/meetings";
 import { fireWorkflowTrigger } from "@/lib/workflows/enqueue";
@@ -247,12 +248,16 @@ export async function reportAppointment(appointmentId: string, moment: Appointme
       1,
       Math.round((appointment.endAt.getTime() - appointment.startAt.getTime()) / 60_000),
     );
+    // The CRM messages the LEAD with this, so it reads on the workspace's own clock (the
+    // zone its booking page showed them), with the zone named beside it for templates.
+    const zone = await tenantTimeZone(appointment.tenantId);
     const payload: PayloadAppointment = {
       id: appointment.id,
       bookingType: appointment.bookingType?.name ?? null,
       startAt: appointment.startAt.toISOString(),
       endAt: appointment.endAt.toISOString(),
-      startLabel: formatIST(appointment.startAt),
+      startLabel: formatInZone(appointment.startAt, zone),
+      timeZone: zone,
       durationMin,
       status: appointment.status,
       locationKind: appointment.bookingType?.locationKind ?? null,

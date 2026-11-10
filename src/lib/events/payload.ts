@@ -373,6 +373,7 @@ export function buildSamplePayload(eventName: string, baseUrl: string): Record<s
             startAt: "2026-01-05T05:30:00.000Z",
             endAt: "2026-01-05T06:00:00.000Z",
             startLabel: "05-01-2026 11:00",
+            timeZone: "Asia/Kolkata",
             durationMin: 30,
             status: EVENT_NAME[type] === "appointment.no_show" ? "NO_SHOW" : "BOOKED",
             locationKind: "MEET_LINK",

@@ -49,7 +49,7 @@ export function ManageBooking({ view }: { view: ManageBookingView }) {
       <div className="flex flex-col gap-3 rounded-lg border p-5">
         <h2 className="text-lg font-semibold">Your call has moved</h2>
         <p className="text-sm">
-          <strong>{current.startLabel}</strong> IST, {current.durationMin} minutes, with {current.hostName}.
+          <strong>{current.startLabel}</strong> {current.zoneLabel}, {current.durationMin} minutes, with {current.hostName}.
         </p>
         <p className="text-xs text-[var(--muted-foreground)]">
           This page keeps working, so you can change it again from the same link.
@@ -72,7 +72,7 @@ export function ManageBooking({ view }: { view: ManageBookingView }) {
       <section className="flex flex-col gap-2 rounded-lg border p-5">
         <h2 className="text-base font-semibold">{current.what}</h2>
         <p className="text-sm">
-          <strong>{current.startLabel}</strong> IST · {current.durationMin} minutes · with {current.hostName}
+          <strong>{current.startLabel}</strong> {current.zoneLabel} · {current.durationMin} minutes · with {current.hostName}
         </p>
         {current.locationValue && current.locationKind ? (
           <p className="text-sm text-[var(--muted-foreground)]">
@@ -132,7 +132,7 @@ export function ManageBooking({ view }: { view: ManageBookingView }) {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <h3 className="text-sm font-semibold">Pick a time (IST)</h3>
+                  <h3 className="text-sm font-semibold">Pick a time ({day?.zoneLabel ?? current.zoneLabel})</h3>
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                     {(day?.slots ?? []).map((s) => (
                       <button
@@ -167,6 +167,7 @@ export function ManageBooking({ view }: { view: ManageBookingView }) {
                             startLabel: chosen
                               ? `${day?.label ?? ""} ${chosen.timeLabel}`.trim()
                               : c.startLabel,
+                            zoneLabel: chosen && day ? day.zoneLabel : c.zoneLabel,
                           }));
                           setDone("moved");
                         },

@@ -100,7 +100,9 @@ export const RELEASABLE_FEATURES: readonly ReleasableFeature[] = [
       "Nothing new is queued and the queue is not drained. Runs already waiting stay where they are and resume on release, so a long hold can deliver a few of their steps close together.",
     // The engine shipped before its screens. Held back until there is something to look at.
     defaultReleased: false,
-    routes: ["/w/workflows"],
+    // Both pages: the nav hides by exact path, so the logs link stayed visible and then
+    // bounced to the dashboard while workflows were held back.
+    routes: ["/w/workflows", "/w/workflows/logs"],
   },
   {
     key: "calendar",

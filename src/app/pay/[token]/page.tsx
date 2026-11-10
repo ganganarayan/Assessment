@@ -6,6 +6,7 @@ import { paymentsAllowed } from "@/lib/payments/enabled";
 import { resolveRazorpayAccount, resolvePaymentLinkDescription, asRazorpayAccount } from "@/lib/settings/config";
 import { isRazorpayConfigured } from "@/lib/payments/razorpay";
 import { PayForm } from "@/features/payments/components/pay-form";
+import { formatMoney, toMajor } from "@/lib/region/money";
 
 /**
  * /pay/<token> - the page a client opens from a link the operator sent by hand.
@@ -69,6 +70,7 @@ export default async function PayPage({
       account: true,
       amountPaise: true,
       minPaise: true,
+      currency: true,
       status: true,
       description: true,
       paidPaise: true,
@@ -104,12 +106,12 @@ export default async function PayPage({
   // Settled: the verify route sends them back here with ?paid=1, and a revisit of a
   // spent link lands in the same place. Showing the amount is the receipt.
   if (link.status === "PAID") {
-    const paid = link.paidPaise != null ? link.paidPaise / 100 : null;
+    const paid = link.paidPaise != null ? formatMoney(link.paidPaise, link.currency) : null;
     return (
       <Shell title="Payment received">
         <p className="text-sm">
           Thank you{name ? `, ${name.split(" ")[0]}` : ""}. {payee} has received
-          {paid != null ? ` ₹${paid.toLocaleString("en-IN")}` : " your payment"}.
+          {paid != null ? ` ${paid}` : " your payment"}.
         </p>
         <p className="text-xs text-[var(--muted-foreground)]">
           Razorpay has emailed you the receipt. This link is now closed - ask {payee} for a new one if
@@ -155,7 +157,12 @@ export default async function PayPage({
         {sub?.leadEmail ? <Detail label="Email" value={sub.leadEmail} /> : null}
         {sub?.leadMobile ? <Detail label="Phone" value={sub.leadMobile} /> : null}
       </div>
-      <PayForm token={token} suggested={link.amountPaise / 100} minAmount={link.minPaise / 100} />
+      <PayForm
+        token={token}
+        suggested={toMajor(link.amountPaise, link.currency)}
+        minAmount={toMajor(link.minPaise, link.currency)}
+        currency={link.currency}
+      />
     </Shell>
   );
 }

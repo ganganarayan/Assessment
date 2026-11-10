@@ -7,6 +7,7 @@ import { resolveRazorpayAccount, resolvePaymentLinkDescription, asRazorpayAccoun
 import { paymentsAllowed } from "@/lib/payments/enabled";
 import { payBaseUrl } from "@/features/payments/settle";
 import { PAY_MAX_PAISE, type PayOrderResult } from "@/features/payments/links-shared";
+import { formatMoney, toMinor } from "@/lib/region/money";
 
 /**
  * The PUBLIC half of a payment link: the client has opened /pay/<token>, typed an
@@ -44,6 +45,7 @@ export async function createPayOrder(raw: unknown): Promise<PayOrderResult> {
       submissionId: true,
       account: true,
       minPaise: true,
+      currency: true,
       status: true,
       description: true,
     },
@@ -52,9 +54,10 @@ export async function createPayOrder(raw: unknown): Promise<PayOrderResult> {
   if (link.status === "PAID") return { ok: false, error: "This link has already been paid." };
   if (link.status !== "CREATED") return { ok: false, error: "This payment link is no longer active." };
 
-  const amountPaise = Math.round(amount * 100);
+  // Minor units of the LINK's currency, snapshotted when it was made (Phase 4).
+  const amountPaise = toMinor(amount, link.currency);
   if (amountPaise < link.minPaise) {
-    return { ok: false, error: `The minimum for this link is ₹${(link.minPaise / 100).toLocaleString("en-IN")}.` };
+    return { ok: false, error: `The minimum for this link is ${formatMoney(link.minPaise, link.currency)}.` };
   }
   if (amountPaise > PAY_MAX_PAISE) return { ok: false, error: "That amount is too large." };
 
@@ -92,7 +95,7 @@ export async function createPayOrder(raw: unknown): Promise<PayOrderResult> {
     order = await createOrder(
       {
         amountPaise,
-        currency: "INR",
+        currency: link.currency,
         // These notes are the binding. The verify route and the webhook both read
         // paymentLinkId back off the ORDER, so a valid signed payment cannot be
         // replayed against a different link.

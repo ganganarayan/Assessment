@@ -1,4 +1,5 @@
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, canEdit } from "@/lib/auth/guards";
+import { ViewOnly, ViewOnlyNote } from "@/components/view-only";
 import { getIntegrationSettings, updateMetaSettings, updateMetaNotUsed, updateRazorpaySettings, updateRazorpayNonGstSettings, updatePaymentLinkDescription, updateHeatmapSettings, updateVidapulseSettings } from "@/features/workspace/actions/integrations";
 import { HeatmapSettingsForm } from "@/features/workspace/components/heatmap-settings-form";
 import { getDomainSettings } from "@/features/workspace/actions/domains";
@@ -12,6 +13,10 @@ import { SupportSettingsForm } from "@/features/workspace/components/support-set
 import { ThemeColorForm } from "@/features/workspace/components/theme-color-form";
 import { BrandLegalForm } from "@/features/workspace/components/brand-legal-form";
 import { getBrandLegal } from "@/features/workspace/actions/brand-legal";
+import { RegionForm } from "@/features/workspace/components/region-form";
+import { getRegion } from "@/features/workspace/actions/region";
+import { getAbandonedHours } from "@/features/events/actions/settings";
+import { AbandonedSetting } from "@/features/admin/components/abandoned-setting";
 import { IntegrationSettingsForm } from "@/features/workspace/components/integration-settings-form";
 import { DomainSettings } from "@/features/workspace/components/domain-settings";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
@@ -42,7 +47,12 @@ export const dynamic = "force-dynamic";
  * singleton. An unconfigured tenant simply has no AI (it never borrows Gita's key).
  */
 export default async function WorkspaceSettingsPage() {
-  const { user, tenantId, impersonating } = await requireWorkspace();
+  const { user, tenantId, impersonating, viaAgency } = await requireWorkspace();
+  // Inside someone else's workspace (super admin impersonating, or an agency owner in a
+  // client workspace): show THAT workspace's logins, not "change your password".
+  const operatingOther = impersonating || viaAgency;
+  // VIEW staff read the settings; the forms are greyed out rather than failing on save.
+  const readOnly = !canEdit(user);
   const integrations = await getIntegrationSettings();
   const domains = await getDomainSettings();
   const bookingUrl = await getBookingUrl();
@@ -50,6 +60,8 @@ export default async function WorkspaceSettingsPage() {
   const supportEmail = await getSupportEmail();
   const themeColors = await getThemeColors();
   const brandLegal = await getBrandLegal();
+  const region = await getRegion();
+  const abandonedHours = await getAbandonedHours();
   /**
    * Sender credentials for this workspace.
    *
@@ -63,7 +75,7 @@ export default async function WorkspaceSettingsPage() {
   const whatsapp = showWaba ? await getWhatsAppConnectInfo() : null;
   // Same trap as /admin: impersonating, "your own password" is the operator's, not
   // this tenant's. Inside someone else's workspace, show THEIR logins instead.
-  const logins = impersonating ? await listWorkspaceLogins() : null;
+  const logins = operatingOther ? await listWorkspaceLogins() : null;
   /**
    * The WhatsApp number support replies to, read for THIS login.
    *
@@ -86,6 +98,7 @@ export default async function WorkspaceSettingsPage() {
           and never shared with any other tenant or the platform.
         </p>
       </div>
+      {readOnly ? <ViewOnlyNote /> : null}
 
       <Card>
         <CardHeader>
@@ -96,7 +109,7 @@ export default async function WorkspaceSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <IntegrationSettingsForm
+          <ViewOnly readOnly={readOnly} bare><IntegrationSettingsForm
             initial={integrations}
             saveMetaAction={updateMetaSettings}
             saveRazorpayAction={updateRazorpaySettings}
@@ -104,7 +117,7 @@ export default async function WorkspaceSettingsPage() {
             savePayDescriptionAction={updatePaymentLinkDescription}
             saveVidapulseAction={updateVidapulseSettings}
             saveMetaNotUsedAction={updateMetaNotUsed}
-          />
+          /></ViewOnly>
         </CardContent>
       </Card>
 
@@ -117,7 +130,7 @@ export default async function WorkspaceSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <HeatmapSettingsForm initial={integrations.heatmapCode} saveAction={updateHeatmapSettings} />
+          <ViewOnly readOnly={readOnly} bare><HeatmapSettingsForm initial={integrations.heatmapCode} saveAction={updateHeatmapSettings} /></ViewOnly>
         </CardContent>
       </Card>
 
@@ -130,7 +143,7 @@ export default async function WorkspaceSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ThemeColorForm initial={themeColors} />
+          <ViewOnly readOnly={readOnly} bare><ThemeColorForm initial={themeColors} /></ViewOnly>
         </CardContent>
       </Card>
 
@@ -142,7 +155,30 @@ export default async function WorkspaceSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <BrandLegalForm initial={brandLegal} />
+          <ViewOnly readOnly={readOnly} bare><BrandLegalForm initial={brandLegal} /></ViewOnly>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Region</CardTitle>
+          <CardDescription>Your timezone for bookings and reminders, and the currency your respondents pay in.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ViewOnly readOnly={readOnly} bare><RegionForm initial={region} /></ViewOnly>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Abandoned assessments</CardTitle>
+          <CardDescription>
+            How many hours after someone starts without finishing before they count as abandoned (and your
+            abandoned follow-ups and the Meta event fire).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ViewOnly readOnly={readOnly} bare><AbandonedSetting hours={abandonedHours} /></ViewOnly>
         </CardContent>
       </Card>
 
@@ -155,7 +191,7 @@ export default async function WorkspaceSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <BookingSettingsForm initial={bookingUrl} />
+          <ViewOnly readOnly={readOnly} bare><BookingSettingsForm initial={bookingUrl} /></ViewOnly>
         </CardContent>
       </Card>
 
@@ -165,7 +201,7 @@ export default async function WorkspaceSettingsPage() {
           <CardDescription>What prints at the foot of your respondents&apos; PDF reports.</CardDescription>
         </CardHeader>
         <CardContent>
-          <ReportFooterForm initial={reportFooter.footer} canEdit={reportFooter.canEdit} />
+          <ViewOnly readOnly={readOnly} bare><ReportFooterForm initial={reportFooter.footer} canEdit={reportFooter.canEdit} /></ViewOnly>
         </CardContent>
       </Card>
 
@@ -178,7 +214,7 @@ export default async function WorkspaceSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <SupportSettingsForm initial={supportEmail} />
+          <ViewOnly readOnly={readOnly} bare><SupportSettingsForm initial={supportEmail} /></ViewOnly>
         </CardContent>
       </Card>
 
@@ -192,7 +228,7 @@ export default async function WorkspaceSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NurtureConnectionSettings initial={nurtureSettings} showWaba={showWaba} whatsapp={whatsapp} />
+          <ViewOnly readOnly={readOnly} bare><NurtureConnectionSettings initial={nurtureSettings} showWaba={showWaba} whatsapp={whatsapp} /></ViewOnly>
         </CardContent>
       </Card>
 
@@ -205,11 +241,11 @@ export default async function WorkspaceSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <DomainSettings initial={domains} />
+          <ViewOnly readOnly={readOnly} bare><DomainSettings initial={domains} /></ViewOnly>
         </CardContent>
       </Card>
 
-      {impersonating ? (
+      {operatingOther ? (
         <Card>
           <CardHeader>
             <CardTitle>Workspace logins</CardTitle>

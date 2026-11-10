@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireWorkspace } from "@/lib/auth/guards";
 import { countCapiLogs, listCapiLogs } from "@/features/events/data";
 import { cn } from "@/lib/utils";
+import { formatMajor } from "@/lib/region/money";
 
 export const dynamic = "force-dynamic";
 
@@ -118,7 +119,7 @@ export default async function WorkspaceConversionsPage({
                   </td>
                   <td className="px-3 py-2 font-mono text-xs">{r.eventName}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    {r.amountRupees != null ? `₹${r.amountRupees}` : "-"}
+                    {r.amountRupees != null ? formatMajor(r.amountRupees, r.currency) : "-"}
                   </td>
                   <td className="px-3 py-2 text-center">{r.status}</td>
                 </tr>

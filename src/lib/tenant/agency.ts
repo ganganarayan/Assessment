@@ -35,6 +35,10 @@ import { readActingTenant } from "@/lib/tenant/acting-cookie";
 export async function enteredAgencyTenant(userId: string, ownTenantId: string): Promise<string | null> {
   const acting = await readActingTenant(userId);
   if (!acting || acting === ownTenantId) return null;
+  // 🔴 Only the agency's OWNER login works inside a client. Staff help run the agency's
+  // own workspace; a cookie written before this rule (or by hand) is ignored for them.
+  const who = await prisma.user.findUnique({ where: { id: userId }, select: { staffPermission: true } });
+  if (!who || who.staffPermission !== null) return null;
   const target = await prisma.tenant.findFirst({
     where: { id: acting, agencyAdminTenantId: ownTenantId, deletedAt: null },
     select: { id: true },

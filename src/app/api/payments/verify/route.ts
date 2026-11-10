@@ -5,6 +5,7 @@ import { platformOrigin, publicOriginFor } from "@/lib/tenant/public-origin";
 import { verifyPaymentSignature, fetchOrder } from "@/lib/payments/razorpay";
 import { resolveRazorpayConfig } from "@/lib/settings/config";
 import { recordCapture } from "@/lib/meta/capi-log";
+import { toMinor } from "@/lib/region/money";
 import { emitCompletedPaid } from "@/lib/events/completion";
 
 export const dynamic = "force-dynamic";
@@ -90,10 +91,12 @@ export async function POST(req: Request) {
   if (!s || !s.assessment) return failed;
 
   // A cheaper order must not unlock a costlier assessment.
-  if (s.assessment.paymentAmount != null && order.amount !== s.assessment.paymentAmount * 100) {
+  // Compared in the ORDER's currency (the tenant's, Phase 4), minor units both sides.
+  const currency = order.currency || "INR";
+  if (s.assessment.paymentAmount != null && order.amount !== toMinor(s.assessment.paymentAmount, currency)) {
     return failed;
   }
-  const amountRupees = s.assessment.paymentAmount ?? (order.amount != null ? order.amount / 100 : null);
+  const amountMinor = order.amount ?? null;
 
   // Record the payment (authoritative - has the submission link). Dedup/idempotent.
   await prisma.payment
@@ -105,13 +108,13 @@ export async function POST(req: Request) {
         providerOrderId: orderId,
         purpose: "assessment_unlock",
         submissionId,
-        amount: amountRupees != null ? amountRupees * 100 : null,
-        currency: "INR",
+        amount: amountMinor,
+        currency,
         status: "captured",
         event: "checkout.verified",
         notes: { submissionId } as Prisma.InputJsonValue,
       },
-      update: { submissionId, providerOrderId: orderId, status: "captured", amount: amountRupees != null ? amountRupees * 100 : undefined },
+      update: { submissionId, providerOrderId: orderId, status: "captured", amount: amountMinor ?? undefined },
     })
     .catch(() => {});
 
@@ -129,8 +132,8 @@ export async function POST(req: Request) {
     providerPaymentId: paymentId,
     email: s.leadEmail,
     phone: s.leadMobile,
-    amountPaise: amountRupees != null ? amountRupees * 100 : null,
-    currency: "INR",
+    amountPaise: amountMinor,
+    currency,
     submissionId,
   }).catch(() => {});
 

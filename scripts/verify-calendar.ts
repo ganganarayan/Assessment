@@ -13,6 +13,7 @@
  */
 import {
   IST_OFFSET_MIN,
+  IST_ZONE,
   addDays,
   calendarKey,
   calendarOwnerKey,
@@ -34,6 +35,8 @@ import {
   TIME_PASSED_HORIZON_MS,
   utcMsFor,
   windowsForDate,
+  zoneDateKey,
+  zoneMinutesOfDay,
   type SlotExceptionInput,
   type SlotRuleInput,
 } from "../src/lib/calendar/slots";
@@ -52,6 +55,8 @@ function check(name: string, cond: boolean) {
 
 /* ------------------------------------------------------------------- IST --- */
 
+const NY = "America/New_York";
+
 console.log("IST conversion");
 check("the offset is UTC+5:30", IST_OFFSET_MIN === 330);
 // 2026-10-20T18:45Z is 00:15 IST on the 21st. The case that catches a UTC-dated grid.
@@ -63,7 +68,7 @@ check(
   "minutes of day are IST minutes",
   istMinutesOfDay(Date.parse("2026-10-20T04:30:00.000Z")) === 10 * 60,
 );
-check("utcMsFor is the inverse", utcMsFor("2026-10-20", 600) === Date.parse("2026-10-20T04:30:00.000Z"));
+check("utcMsFor is the inverse", utcMsFor("2026-10-20", 600, IST_ZONE) === Date.parse("2026-10-20T04:30:00.000Z"));
 check("20-10-2026 is a Tuesday", istWeekday("2026-10-20") === 2);
 check("addDays crosses a month end", addDays("2026-10-31", 1) === "2026-11-01");
 check("isDateKey rejects the 31st of February", !isDateKey("2026-02-31"));
@@ -71,7 +76,7 @@ check("isDateKey accepts a real date", isDateKey("2026-02-28"));
 check("minutesToHHMM pads", minutesToHHMM(570) === "09:30" && minutesToHHMM(0) === "00:00");
 check("hhmmToMinutes parses and rejects", hhmmToMinutes("09:30") === 570 && hhmmToMinutes("9:75") === null);
 check("hhmmToMinutes accepts 24:00 as an end of day", hhmmToMinutes("24:00") === 1440);
-check("the horizon starts today and is as long as asked", horizonDateKeys(Date.parse("2026-10-20T06:00:00.000Z"), 3).join(",") === "2026-10-20,2026-10-21,2026-10-22");
+check("the horizon starts today and is as long as asked", horizonDateKeys(Date.parse("2026-10-20T06:00:00.000Z"), 3, IST_ZONE).join(",") === "2026-10-20,2026-10-21,2026-10-22");
 
 /* --------------------------------------------------------------- windows --- */
 
@@ -126,6 +131,7 @@ console.log("\nSlots");
 const now = Date.parse("2026-10-19T00:30:00.000Z");
 const base = {
   dateKey: "2026-10-20",
+  timeZone: IST_ZONE,
   rules: tuesday,
   exceptions: [] as SlotExceptionInput[],
   busy: [],
@@ -154,7 +160,7 @@ check(
 );
 
 // A booking at 11:00 takes 11:00, and with a buffer it takes the slots around it too.
-const busyAt11 = [{ startMs: utcMsFor("2026-10-20", 660), endMs: utcMsFor("2026-10-20", 690) }];
+const busyAt11 = [{ startMs: utcMsFor("2026-10-20", 660, IST_ZONE), endMs: utcMsFor("2026-10-20", 690, IST_ZONE) }];
 const around = daySlots({ ...base, busy: busyAt11 }).map((s) => minutesToHHMM(istMinutesOfDay(s.startMs)));
 check("an existing booking removes exactly its own slot", !around.includes("11:00") && around.length === 5);
 check(
@@ -194,34 +200,120 @@ check("a zero-length call offers nothing rather than looping", daySlots({ ...bas
 /* ------------------------------------------------------------- slot lock --- */
 
 console.log("\nDouble-booking guard");
-const lockA = slotLockFor("tnt_1", "usr_asha", new Date(utcMsFor("2026-10-20", 600)));
+const lockA = slotLockFor("tnt_1", "usr_asha", new Date(utcMsFor("2026-10-20", 600, IST_ZONE)));
 check(
   "the lock is the same string for the same calendar and instant",
-  lockA === slotLockFor("tnt_1", "usr_asha", utcMsFor("2026-10-20", 600)),
+  lockA === slotLockFor("tnt_1", "usr_asha", utcMsFor("2026-10-20", 600, IST_ZONE)),
 );
 check(
   "another workspace at the same instant is a different lock",
-  lockA !== slotLockFor("tnt_2", "usr_asha", utcMsFor("2026-10-20", 600)),
+  lockA !== slotLockFor("tnt_2", "usr_asha", utcMsFor("2026-10-20", 600, IST_ZONE)),
 );
 check(
   "a different time is a different lock",
-  lockA !== slotLockFor("tnt_1", "usr_asha", utcMsFor("2026-10-20", 630)),
+  lockA !== slotLockFor("tnt_1", "usr_asha", utcMsFor("2026-10-20", 630, IST_ZONE)),
 );
 // The point of per-staff calendars: two people CAN hold the same hour, and one of them
 // cannot hold it twice - including through two different booking links of their own.
 check(
   "a second staff member can hold the same instant",
-  lockA !== slotLockFor("tnt_1", "usr_bina", utcMsFor("2026-10-20", 600)),
+  lockA !== slotLockFor("tnt_1", "usr_bina", utcMsFor("2026-10-20", 600, IST_ZONE)),
 );
 check(
   "the shared calendar is its own diary, not everybody's",
-  lockA !== slotLockFor("tnt_1", null, utcMsFor("2026-10-20", 600)) &&
-    slotLockFor("tnt_1", null, utcMsFor("2026-10-20", 600)) ===
-      slotLockFor("tnt_1", undefined, utcMsFor("2026-10-20", 600)),
+  lockA !== slotLockFor("tnt_1", null, utcMsFor("2026-10-20", 600, IST_ZONE)) &&
+    slotLockFor("tnt_1", null, utcMsFor("2026-10-20", 600, IST_ZONE)) ===
+      slotLockFor("tnt_1", undefined, utcMsFor("2026-10-20", 600, IST_ZONE)),
 );
 check(
   "the calendar key is what the lock is built from",
   lockA.startsWith(calendarKey("tnt_1", "usr_asha")),
+);
+
+/* ------------------------------------------------------------ tenant zone --- */
+
+console.log("\nTenant timezone (Phase 4)");
+// The same rules, read on a New York tenant's wall clock. EST is UTC-5 in January,
+// EDT is UTC-4 in July, so the one "10:00" lands on two different UTC hours.
+check("IST helpers equal the IST zone", istDateKey(now) === zoneDateKey(now, IST_ZONE));
+check(
+  "New York 10:00 in January is 15:00 UTC (EST)",
+  utcMsFor("2026-01-13", 600, NY) === Date.parse("2026-01-13T15:00:00.000Z"),
+);
+check(
+  "New York 10:00 in July is 14:00 UTC (EDT)",
+  utcMsFor("2026-07-14", 600, NY) === Date.parse("2026-07-14T14:00:00.000Z"),
+);
+check(
+  "minutes of day read back on the tenant's clock in both seasons",
+  zoneMinutesOfDay(Date.parse("2026-01-13T15:00:00.000Z"), NY) === 600 &&
+    zoneMinutesOfDay(Date.parse("2026-07-14T14:00:00.000Z"), NY) === 600,
+);
+// 02:00 UTC on the 15th is 22:00 on the 14th in New York and 07:30 on the 15th in IST:
+// the day key has to be the tenant's, or an evening slot files under tomorrow.
+const lateNy = Date.parse("2026-07-15T02:00:00.000Z");
+check("a tenant-zone day key is the tenant's date", zoneDateKey(lateNy, NY) === "2026-07-14");
+check("the same instant is the next day in IST", zoneDateKey(lateNy, IST_ZONE) === "2026-07-15");
+check(
+  "the horizon starts on the tenant's today",
+  horizonDateKeys(lateNy, 2, NY).join(",") === "2026-07-14,2026-07-15",
+);
+{
+  const nyBase = { ...base, timeZone: NY, nowMs: Date.parse("2026-07-13T12:00:00.000Z") };
+  const july = daySlots({ ...nyBase, dateKey: "2026-07-14" });
+  check(
+    "a New York Tuesday 10:00-13:00 gives 6 slots from 14:00 UTC",
+    july.length === 6 && july[0]?.startMs === Date.parse("2026-07-14T14:00:00.000Z"),
+  );
+  const jan = daySlots({ ...nyBase, nowMs: Date.parse("2026-01-12T12:00:00.000Z"), dateKey: "2026-01-13" });
+  check(
+    "the same rule in January starts at 15:00 UTC",
+    jan.length === 6 && jan[0]?.startMs === Date.parse("2026-01-13T15:00:00.000Z"),
+  );
+}
+// Spring forward: Sunday 08-03-2026, 02:00 EST jumps to 03:00 EDT (07:00 UTC).
+check(
+  "on the change day 10:00 is already EDT",
+  utcMsFor("2026-03-08", 600, NY) === Date.parse("2026-03-08T14:00:00.000Z"),
+);
+check(
+  "on the change day 01:30 is still EST",
+  utcMsFor("2026-03-08", 90, NY) === Date.parse("2026-03-08T06:30:00.000Z"),
+);
+check(
+  "a wall time the clock skips lands an hour on",
+  utcMsFor("2026-03-08", 150, NY) === Date.parse("2026-03-08T07:30:00.000Z"),
+);
+{
+  const sundayNight: SlotRuleInput[] = [{ weekday: 0, startMin: 60, endMin: 240 }]; // Sun 01:00-04:00
+  const change = daySlots({
+    ...base,
+    timeZone: NY,
+    rules: sundayNight,
+    dateKey: "2026-03-08",
+    nowMs: Date.parse("2026-03-06T12:00:00.000Z"),
+  });
+  const labels = change.map((s) => minutesToHHMM(zoneMinutesOfDay(s.startMs, NY))).join(",");
+  check("the skipped hour offers no slots and none twice", labels === "01:00,01:30,03:00,03:30");
+  check(
+    "slots across the change are 30 real minutes apart where the clock is continuous",
+    change[1]!.startMs - change[0]!.startMs === 30 * 60_000 && change[2]!.startMs === Date.parse("2026-03-08T07:00:00.000Z"),
+  );
+}
+// Fall back: Sunday 01-11-2026, 02:00 EDT returns to 01:00 EST. An ambiguous 01:30 takes
+// the first (daylight) one; a daytime 10:00 is EST.
+check(
+  "an ambiguous wall time takes its first occurrence",
+  utcMsFor("2026-11-01", 90, NY) === Date.parse("2026-11-01T05:30:00.000Z"),
+);
+check(
+  "after falling back 10:00 is EST",
+  utcMsFor("2026-11-01", 600, NY) === Date.parse("2026-11-01T15:00:00.000Z"),
+);
+check(
+  "a zone with a positive offset works the same way",
+  utcMsFor("2026-07-14", 600, "Australia/Sydney") === Date.parse("2026-07-14T00:00:00.000Z") &&
+    zoneDateKey(Date.parse("2026-07-14T00:00:00.000Z"), "Australia/Sydney") === "2026-07-14",
 );
 
 /* ------------------------------------------------------------------- ics --- */
@@ -230,21 +322,33 @@ console.log("\niCalendar");
 const ics = buildIcsCalendar("Acme bookings", [
   {
     uid: "appointment-apt_1@assess360",
-    startMs: utcMsFor("2026-10-20", 600),
-    endMs: utcMsFor("2026-10-20", 630),
+    startMs: utcMsFor("2026-10-20", 600, IST_ZONE),
+    endMs: utcMsFor("2026-10-20", 630, IST_ZONE),
     summary: "Strategy call with Ganesh; Kumar, Jr",
     description: "Line one\nLine two",
     location: "https://meet.example.com/x",
     status: "CONFIRMED",
     attendeeEmail: "ganesh@example.com",
   },
-]);
+], IST_ZONE);
 check("the calendar is wrapped and closed", ics.startsWith("BEGIN:VCALENDAR\r\n") && ics.trimEnd().endsWith("END:VCALENDAR"));
 check("lines are CRLF terminated", ics.includes("\r\n") && !/[^\r]\n/.test(ics));
 check("the start is a UTC stamp", ics.includes("DTSTART:20261020T043000Z"));
 check("a semicolon in a name is escaped", ics.includes("Ganesh\\; Kumar\\, Jr"));
 check("a newline in a note becomes the literal escape", ics.includes("Line one\\nLine two"));
 check("the attendee rides along", ics.includes("ATTENDEE:mailto:ganesh@example.com"));
+check("the calendar names the IST zone", ics.includes("X-WR-TIMEZONE:Asia/Kolkata"));
+check(
+  "the calendar names the tenant's zone, and the instants stay UTC",
+  (() => {
+    const ny = buildIcsCalendar(
+      "Acme",
+      [{ uid: "u@assess360", startMs: utcMsFor("2026-07-14", 600, NY), endMs: utcMsFor("2026-07-14", 630, NY), summary: "x" }],
+      NY,
+    );
+    return ny.includes("X-WR-TIMEZONE:America/New_York") && ny.includes("DTSTART:20260714T140000Z");
+  })(),
+);
 
 // A long summary has to fold, and every continuation line starts with one space.
 const long = buildIcsCalendar(
@@ -252,11 +356,12 @@ const long = buildIcsCalendar(
   [
     {
       uid: "appointment-apt_2@assess360",
-      startMs: utcMsFor("2026-10-20", 600),
-      endMs: utcMsFor("2026-10-20", 630),
+      startMs: utcMsFor("2026-10-20", 600, IST_ZONE),
+      endMs: utcMsFor("2026-10-20", 630, IST_ZONE),
       summary: "x".repeat(200),
     },
   ],
+  IST_ZONE,
 );
 const folded = long.split("\r\n").filter((l) => l.startsWith(" "));
 check("a long line folds with leading-space continuations", folded.length >= 2);
@@ -269,12 +374,12 @@ check(
   buildIcsCalendar("Acme", [
     {
       uid: "u@assess360",
-      startMs: utcMsFor("2026-10-20", 600),
-      endMs: utcMsFor("2026-10-20", 630),
+      startMs: utcMsFor("2026-10-20", 600, IST_ZONE),
+      endMs: utcMsFor("2026-10-20", 630, IST_ZONE),
       summary: "Called off",
       status: "CANCELLED",
     },
-  ]).includes("STATUS:CANCELLED"),
+  ], IST_ZONE).includes("STATUS:CANCELLED"),
 );
 
 /* ------------------------------------------------------- google oauth --- */
@@ -400,7 +505,7 @@ check(
 /* ------------------------------------------------------- team booking --- */
 
 console.log("\nA team link's open slots");
-const at = (min: number) => ({ startMs: utcMsFor("2026-10-20", min), endMs: utcMsFor("2026-10-20", min + 30) });
+const at = (min: number) => ({ startMs: utcMsFor("2026-10-20", min, IST_ZONE), endMs: utcMsFor("2026-10-20", min + 30, IST_ZONE) });
 
 // Asha is free at 10:00 and 11:00; Bina at 11:00 and 12:00. The link offers all three.
 const team = mergeOwnerSlots([
@@ -411,11 +516,11 @@ check("the union is every time somebody is free", team.length === 3);
 check("the slots come back in order", team.map((s) => s.startMs).every((v, i, a) => i === 0 || a[i - 1]! < v));
 check(
   "a time only one person has free carries only that person",
-  team.find((s) => s.startMs === utcMsFor("2026-10-20", 600))?.freeOwners.join() === "asha",
+  team.find((s) => s.startMs === utcMsFor("2026-10-20", 600, IST_ZONE))?.freeOwners.join() === "asha",
 );
 check(
   "a time both have free carries both - that is the capacity",
-  (team.find((s) => s.startMs === utcMsFor("2026-10-20", 660))?.freeOwners.length ?? 0) === 2,
+  (team.find((s) => s.startMs === utcMsFor("2026-10-20", 660, IST_ZONE))?.freeOwners.length ?? 0) === 2,
 );
 check("nobody free anywhere is no slots", mergeOwnerSlots([{ owner: "asha", slots: [] }]).length === 0);
 check(
@@ -464,13 +569,13 @@ console.log("\nTwo people booking the same minute on a team link");
 // different locks and BOTH commit. That is the capacity a team page sells.
 check(
   "two members can hold the same instant",
-  slotLockFor("tnt_1", "asha", utcMsFor("2026-10-20", 660)) !==
-    slotLockFor("tnt_1", "bina", utcMsFor("2026-10-20", 660)),
+  slotLockFor("tnt_1", "asha", utcMsFor("2026-10-20", 660, IST_ZONE)) !==
+    slotLockFor("tnt_1", "bina", utcMsFor("2026-10-20", 660, IST_ZONE)),
 );
 check(
   "the same member cannot hold it twice",
-  slotLockFor("tnt_1", "asha", utcMsFor("2026-10-20", 660)) ===
-    slotLockFor("tnt_1", "asha", utcMsFor("2026-10-20", 660)),
+  slotLockFor("tnt_1", "asha", utcMsFor("2026-10-20", 660, IST_ZONE)) ===
+    slotLockFor("tnt_1", "asha", utcMsFor("2026-10-20", 660, IST_ZONE)),
 );
 
 console.log("\nThe call nobody marked");

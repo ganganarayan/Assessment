@@ -104,6 +104,22 @@ export function AgencyTenantManager({ view }: { view: AgencyTenantsView }) {
           you choose to give it one. You run them all from this login.
         </div>
       ) : (
+        <>
+        {/* Combined view across every client workspace (Phase 5). */}
+        <div className="grid grid-cols-3 gap-2 rounded-lg border p-3 text-center">
+          <div>
+            <p className="text-lg font-bold tabular-nums">{view.tenants.reduce((n, t) => n + t.assessmentCount, 0)}</p>
+            <p className="text-[11px] text-[var(--muted-foreground)]">scorecards</p>
+          </div>
+          <div>
+            <p className="text-lg font-bold tabular-nums">{view.tenants.reduce((n, t) => n + t.submissionCount, 0)}</p>
+            <p className="text-[11px] text-[var(--muted-foreground)]">responses</p>
+          </div>
+          <div>
+            <p className="text-lg font-bold tabular-nums">{view.tenants.reduce((n, t) => n + t.recentCount, 0)}</p>
+            <p className="text-[11px] text-[var(--muted-foreground)]">in the last 30 days</p>
+          </div>
+        </div>
         <ul className="flex flex-col gap-3">
           {view.tenants.map((t) => (
             <li key={t.id} className="flex flex-col gap-2 rounded-lg border p-3">
@@ -124,13 +140,15 @@ export function AgencyTenantManager({ view }: { view: AgencyTenantsView }) {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    disabled={pending}
-                    onClick={() => start(async () => { await enterAgencyTenant(t.id); })}
-                  >
-                    Enter
-                  </Button>
+                  {readOnly ? null : (
+                    <Button
+                      size="sm"
+                      disabled={pending}
+                      onClick={() => start(async () => { await enterAgencyTenant(t.id); })}
+                    >
+                      Enter
+                    </Button>
+                  )}
                   {readOnly ? null : (
                     <Button size="sm" variant="outline" disabled={pending} onClick={() => remove(t)}>
                       Remove
@@ -140,11 +158,12 @@ export function AgencyTenantManager({ view }: { view: AgencyTenantsView }) {
               </div>
               <div className="text-xs text-[var(--muted-foreground)]">
                 {t.assessmentCount} scorecard{t.assessmentCount === 1 ? "" : "s"} ·{" "}
-                {t.submissionCount} response{t.submissionCount === 1 ? "" : "s"} · added {t.created}
+                {t.submissionCount} response{t.submissionCount === 1 ? "" : "s"} ({t.recentCount} in 30 days) · added {t.created}
               </div>
             </li>
           ))}
         </ul>
+        </>
       )}
 
       {readOnly ? null : (

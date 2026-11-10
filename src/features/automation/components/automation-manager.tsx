@@ -585,7 +585,7 @@ function AutomationForm({
                     rows={7}
                     value={a.body}
                     placeholder={
-                      "Hi {{firstName}},\n\nYour {{bookingName}} is on {{appointmentDate}} at {{appointmentTime}} IST.\n\nJoin here: {{meetingLink}}\nAdd it to your calendar: {{icsUrl}}\n\nNeed to change it? {{manageUrl}}"
+                      "Hi {{firstName}},\n\nYour {{bookingName}} is on {{appointmentDate}} at {{appointmentTime}} {{timezone}}.\n\nJoin here: {{meetingLink}}\nAdd it to your calendar: {{icsUrl}}\n\nNeed to change it? {{manageUrl}}"
                     }
                     data-ph="1"
                     onChange={(e) => setAction(i, { body: e.target.value })}

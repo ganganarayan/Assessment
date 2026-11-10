@@ -39,6 +39,7 @@ import { ownerScopeOf } from "@/lib/tenant/scope";
 import { featureAllowedFor } from "@/lib/features/release";
 import { readMetaEvents } from "@/features/assessment/meta-events";
 import { normalizeCustomFields } from "@/features/assessment/custom-fields";
+import { tenantCurrency } from "@/lib/tenant/region";
 
 export const dynamic = "force-dynamic";
 
@@ -297,7 +298,7 @@ export default async function EditAssessmentPage({
         />
       </BuilderStep>
 
-      <AssessmentForm mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} audienceLists={audienceLists} adAccounts={adAccounts} canPlatformSignup={canPlatformSignup} qualificationLive={gateIsLiveForPreview} />
+      <AssessmentForm priceCurrency={await tenantCurrency(a.tenantId)} mode="edit" id={a.id} initial={initial} promptVersions={promptVersions} assessmentOptions={routeTargets} audienceLists={audienceLists} adAccounts={adAccounts} canPlatformSignup={canPlatformSignup} qualificationLive={gateIsLiveForPreview} />
 
       <BuilderStep step="gate">
       <section className="flex flex-col gap-3">

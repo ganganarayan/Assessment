@@ -154,8 +154,12 @@ export interface PickerOption {
 /** A date the public page can offer, with its open slots. */
 export interface PublicDay {
   dateKey: string;
-  /** "Mon 20 Oct" - built server-side in IST. */
+  /** "Mon 20 Oct" - built server-side, a date in the tenant's zone. */
   label: string;
+  /** The tenant zone's short name on this day, e.g. "IST" or "EDT". Per day because a
+   *  DST change can fall inside the horizon. */
+  zoneLabel: string;
+  /** timeLabel is HH:MM on the tenant's wall clock. */
   slots: { startMs: number; timeLabel: string }[];
 }
 
@@ -170,12 +174,17 @@ export interface PublicBookingView {
   days: PublicDay[];
   /** Workspace name, shown so the respondent knows whose diary this is. */
   hostName: string;
+  /** The tenant zone's short name ("IST", "EDT"), for "Pick a time (EDT)". */
+  zoneLabel: string;
 }
 
 /** The result of a successful booking, for the confirmation screen. */
 export interface BookingConfirmation {
   appointmentId: string;
+  /** DD-MM-YYYY HH:MM on the tenant's wall clock. */
   startLabel: string;
+  /** The tenant zone's short name at that time, e.g. "IST" or "EDT". */
+  zoneLabel: string;
   durationMin: number;
   locationKind: BookingLocationKindValue;
   locationValue: string | null;
@@ -192,7 +201,10 @@ export interface ManageBookingView {
   token: string;
   hostName: string;
   what: string;
+  /** DD-MM-YYYY HH:MM on the tenant's wall clock. */
   startLabel: string;
+  /** The tenant zone's short name at that time, e.g. "IST" or "EDT". */
+  zoneLabel: string;
   durationMin: number;
   status: AppointmentStatusValue;
   locationKind: BookingLocationKindValue | null;

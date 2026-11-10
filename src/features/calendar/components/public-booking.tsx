@@ -15,8 +15,9 @@ import { getOrCreateExternalId } from "@/lib/external-id";
  * screen: pick a day, pick a time, say who you are. A multi-page wizard loses people
  * between pages, and this is the step the whole funnel exists to reach.
  *
- * Times are IST, said out loud, because the alternative is a respondent in another
- * timezone guessing. Converting to their local time would be a lie unless we knew it.
+ * Times are on the workspace's own clock (the tenant's zone, IST by default), with the
+ * zone said out loud, because the alternative is a respondent in another timezone
+ * guessing. Converting to their local time would be a lie unless we knew it.
  */
 export function PublicBooking({
   view,
@@ -80,7 +81,7 @@ export function PublicBooking({
       <div className="flex flex-col gap-4 rounded-lg border p-5">
         <h2 className="text-lg font-semibold">You are booked in</h2>
         <p className="text-sm">
-          <strong>{done.startLabel}</strong> IST, {done.durationMin} minutes, with {view.hostName}.
+          <strong>{done.startLabel}</strong> {done.zoneLabel}, {done.durationMin} minutes, with {view.hostName}.
         </p>
         {done.locationValue ? (
           <p className="text-sm text-[var(--muted-foreground)]">
@@ -167,7 +168,7 @@ export function PublicBooking({
 
       {/* Step 2: the time */}
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-semibold">Pick a time (IST)</h2>
+        <h2 className="text-sm font-semibold">Pick a time ({day?.zoneLabel ?? view.zoneLabel})</h2>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {(day?.slots ?? []).map((s) => (
             <button

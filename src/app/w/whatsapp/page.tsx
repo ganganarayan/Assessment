@@ -1,4 +1,4 @@
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, canEdit } from "@/lib/auth/guards";
 import { requireReleasedFeature } from "@/lib/features/route-guard";
 import { getWabaDashboard } from "@/features/whatsapp/dashboard-data";
 import { WabaDashboard } from "@/features/whatsapp/components/waba-dashboard";
@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function WorkspaceWhatsAppPage() {
   await requireReleasedFeature("whatsapp");
-  const { tenantId } = await requireWorkspace();
+  const { tenantId, user } = await requireWorkspace();
   const view = await getWabaDashboard(tenantId);
   return (
     <div className="flex flex-col gap-6">
@@ -26,7 +26,7 @@ export default async function WorkspaceWhatsAppPage() {
           every visit.
         </p>
       </div>
-      <WabaDashboard view={view} />
+      <WabaDashboard view={view} canEdit={canEdit(user)} />
     </div>
   );
 }

@@ -9,6 +9,8 @@ import { resolveRazorpayAccount } from "@/lib/settings/config";
 import { isRazorpayConfigured } from "@/lib/payments/razorpay";
 import { paymentsAllowed } from "@/lib/payments/enabled";
 import { payBaseUrl } from "@/features/payments/settle";
+import { tenantCurrency } from "@/lib/tenant/region";
+import { formatMoney, minChargeMinor, toMinor } from "@/lib/region/money";
 import {
   PAY_MIN_PAISE,
   PAY_MAX_PAISE,
@@ -46,12 +48,6 @@ export async function createPaymentLink(raw: unknown): Promise<CreateLinkResult>
   if (!parsed.success) return { ok: false, error: "Enter a valid amount." };
   const { submissionId, amount, account, minAmount, description } = parsed.data;
 
-  const amountPaise = Math.round(amount * 100);
-  if (amountPaise < PAY_MIN_PAISE) return { ok: false, error: "Amount is below the ₹1 minimum." };
-  const minPaise = Math.max(PAY_MIN_PAISE, Math.round((minAmount ?? 0) * 100));
-  if (minPaise > amountPaise) {
-    return { ok: false, error: "The minimum cannot be more than the amount you are asking for." };
-  }
 
   // Same scoping rule as every other action on this screen: a super admin who has not
   // entered a workspace may act on any submission, everyone else only on their own.
@@ -71,6 +67,16 @@ export async function createPaymentLink(raw: unknown): Promise<CreateLinkResult>
   // taking money at all, so it must not be able to mint a link that does.
   if (!(await paymentsAllowed(sub.tenantId))) {
     return { ok: false, error: "Payments are switched off for this workspace." };
+  }
+
+  // In the workspace's own currency (Settings, Region), snapshotted onto the link.
+  const currency = await tenantCurrency(sub.tenantId);
+  const floor = Math.max(PAY_MIN_PAISE, minChargeMinor(currency));
+  const amountPaise = toMinor(amount, currency);
+  if (amountPaise < floor) return { ok: false, error: `Amount is below the ${formatMoney(floor, currency)} minimum.` };
+  const minPaise = Math.max(floor, toMinor(minAmount ?? 0, currency));
+  if (minPaise > amountPaise) {
+    return { ok: false, error: "The minimum cannot be more than the amount you are asking for." };
   }
 
   // The chosen account must actually be configured, checked BEFORE a link exists -
@@ -99,6 +105,7 @@ export async function createPaymentLink(raw: unknown): Promise<CreateLinkResult>
       account,
       amountPaise,
       minPaise,
+      currency,
       description: description?.trim() || null,
       createdByUserId: scope.user.id,
     },

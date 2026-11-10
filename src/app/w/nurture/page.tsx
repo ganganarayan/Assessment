@@ -1,6 +1,7 @@
 import { getNurtureSettings, getNurtureLogs } from "@/features/nurture/actions";
 import { NurtureComposer } from "@/features/nurture/components/nurture-composer";
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, canEdit } from "@/lib/auth/guards";
+import { ViewOnly } from "@/components/view-only";
 import { wabaVisible } from "@/lib/nurture/waba-visible";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,8 @@ export const dynamic = "force-dynamic";
  * sender should be able to use it.
  */
 export default async function WorkspaceNurturePage() {
-  const { tenantId } = await requireWorkspace();
+  const { tenantId, user: viewer } = await requireWorkspace();
+  const readOnly = !canEdit(viewer);
   const [settings, logs, showWaba] = await Promise.all([
     getNurtureSettings(),
     getNurtureLogs(),
@@ -32,7 +34,7 @@ export default async function WorkspaceNurturePage() {
         </p>
       </div>
 
-      <NurtureComposer initialConfig={settings.config} initialLogs={logs} showWaba={showWaba} />
+      <ViewOnly readOnly={readOnly}><NurtureComposer initialConfig={settings.config} initialLogs={logs} showWaba={showWaba} /></ViewOnly>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, canEdit } from "@/lib/auth/guards";
+import { ViewOnly } from "@/components/view-only";
 import { getWebhooks } from "@/features/events/data";
 import { WebhooksManager } from "@/features/events/components/webhooks-manager";
 import { ACTIVE_EVENT_TYPES, EVENT_LABEL, DEFAULT_EVENT_NAME } from "@/features/events/types";
@@ -8,7 +9,8 @@ import { buttonVariants } from "@/components/ui/button";
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceWebhooksPage() {
-  const { tenantId } = await requireWorkspace();
+  const { tenantId, user: viewer } = await requireWorkspace();
+  const readOnly = !canEdit(viewer);
   const { active, inactive } = await getWebhooks(tenantId);
   const triggers = ACTIVE_EVENT_TYPES.map((t) => ({
     value: t as string,
@@ -30,7 +32,7 @@ export default async function WorkspaceWebhooksPage() {
           Delivery logs →
         </Link>
       </div>
-      <WebhooksManager active={active} inactive={inactive} triggers={triggers} />
+      <ViewOnly readOnly={readOnly}><WebhooksManager active={active} inactive={inactive} triggers={triggers} /></ViewOnly>
     </div>
   );
 }

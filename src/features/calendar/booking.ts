@@ -3,13 +3,13 @@
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { formatIST } from "@/lib/date";
+import { formatInZone, zoneLabel } from "@/lib/region/zone";
 import { resolvePlan } from "@/lib/billing/plan-resolve";
 import { rateLimit } from "@/lib/rate-limit";
 import { getMetaRequestContext } from "@/lib/meta/request-context";
 import { normalizeAttribution } from "@/lib/events/payload";
 import { reportAppointment } from "@/lib/calendar/signals";
-import { calendarOwnerKey, istDateKey, pickRoundRobin, slotLockFor } from "@/lib/calendar/slots";
+import { calendarOwnerKey, pickRoundRobin, slotLockFor, zoneDateKey } from "@/lib/calendar/slots";
 import { bookingTypeBySlug, openSlotsByDate, slotSourceOf } from "@/features/calendar/data";
 import { publicBookingSchema } from "@/features/calendar/schemas";
 import { type ActionResult } from "@/features/assessment/actions/shared";
@@ -120,7 +120,8 @@ export async function bookSlot(input: unknown): Promise<ActionResult<BookingConf
 
   const now = Date.now();
   const slotMap = await openSlotsByDate(slotSourceOf(bookingType), now);
-  const dateKey = istDateKey(v.startMs);
+  // A date in the TENANT's zone: the slot map is keyed that way.
+  const dateKey = zoneDateKey(v.startMs, bookingType.timeZone);
   const slot = slotMap.get(dateKey)?.find((s) => s.startMs === v.startMs);
   if (!slot) {
     return { ok: false, error: "That time has just been taken. Pick another slot." };
@@ -240,7 +241,9 @@ export async function bookSlot(input: unknown): Promise<ActionResult<BookingConf
       ok: true,
       data: {
         appointmentId: created.id,
-        startLabel: formatIST(created.startAt),
+        // The respondent's time, on the tenant's clock, with the zone said beside it.
+        startLabel: formatInZone(created.startAt, bookingType.timeZone),
+        zoneLabel: zoneLabel(bookingType.timeZone, created.startAt.getTime()),
         durationMin: bookingType.durationMin,
         locationKind: bookingType.locationKind as BookingLocationKindValue,
         // Told only now that there is a booking to attach it to. On the slot picker the

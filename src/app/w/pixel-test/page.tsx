@@ -1,13 +1,15 @@
 import { PixelTester } from "@/features/events/components/pixel-tester";
 import { CapiTester } from "@/features/events/components/capi-tester";
+import { buildEventChoices } from "@/lib/meta/event-catalog";
 import { ManualPurchaseResend } from "@/features/events/components/manual-purchase-resend";
 import { PurchaseRecovery } from "@/features/events/components/purchase-recovery";
 import { CapiLogPanel } from "@/features/events/components/capi-log-panel";
-import { listRecentPurchases, listCapiLogs } from "@/features/events/data";
+import { listRecentPurchases, listCapiLogs, listConfiguredEventNames } from "@/features/events/data";
 import { getPurchaseSettingsForm } from "@/features/events/actions/capi-test";
 import { actingTenantId } from "@/lib/tenant/acting";
 import { getAdAccountsView } from "@/features/admin/actions/ad-account";
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, canEdit } from "@/lib/auth/guards";
+import { ViewOnly } from "@/components/view-only";
 
 export const dynamic = "force-dynamic";
 
@@ -17,13 +19,16 @@ export default async function WorkspacePixelTestPage() {
   // impersonating = a super admin operating this workspace; a real tenant admin gets
   // only the self-serve testers. The purchase-management panels below (resend, log
   // firing, auto-fire settings) are platform-level and stay super-admin-only.
-  const { impersonating } = await requireWorkspace();
+  const { impersonating, tenantId, user } = await requireWorkspace();
   const t = await actingTenantId();
   // So a workspace with several accounts can test the one it is worried about.
   const adAccounts = (await getAdAccountsView()).accounts.map((a) => ({ id: a.id, label: a.label, isDefault: a.isDefault }));
   const purchases = impersonating ? await listRecentPurchases(t) : [];
   const capiLogs = impersonating ? await listCapiLogs(t) : [];
   const purchaseSettings = impersonating ? await getPurchaseSettingsForm() : null;
+  // The same event list /admin offers (Phase 5): the funnel's own events plus the names
+  // this workspace configured. It only ever tested the default name before.
+  const eventChoices = buildEventChoices(await listConfiguredEventNames(tenantId));
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -40,7 +45,9 @@ export default async function WorkspacePixelTestPage() {
 
       <PixelTester />
 
-      <CapiTester accounts={adAccounts} />
+      <ViewOnly readOnly={!canEdit(user)}>
+        <CapiTester accounts={adAccounts} events={eventChoices} />
+      </ViewOnly>
 
       {impersonating && purchaseSettings ? (
         <>

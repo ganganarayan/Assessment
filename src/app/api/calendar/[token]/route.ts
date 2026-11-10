@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { buildIcsCalendar, type IcsEvent } from "@/lib/calendar/ics";
+import { tenantTimeZone } from "@/lib/tenant/region";
 import { STATUS_LABEL, type AppointmentStatusValue } from "@/features/calendar/types";
 
 /**
@@ -92,7 +93,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     };
   });
 
-  const body = buildIcsCalendar(`${setting.tenant?.name ?? "Assess360"} bookings`, events);
+  const zone = await tenantTimeZone(setting.tenantId);
+  const body = buildIcsCalendar(`${setting.tenant?.name ?? "Assess360"} bookings`, events, zone);
   return new Response(body, {
     headers: {
       "content-type": "text/calendar; charset=utf-8",

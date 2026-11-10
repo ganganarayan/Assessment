@@ -8,7 +8,8 @@ import { type ActionResult } from "@/features/assessment/actions/shared";
 import { automationSchema } from "@/features/automation/schemas";
 import { fillPlaceholders } from "@/features/nurture/config";
 import { sendEmail } from "@/lib/nurture/send";
-import { formatIST, formatISTDate } from "@/lib/date";
+import { formatDateInZone, formatInZone, zoneLabel } from "@/lib/region/zone";
+import { tenantTimeZone } from "@/lib/tenant/region";
 
 /**
  * The automation builder's actions: save a rule, delete one, and send yourself a test
@@ -190,6 +191,8 @@ export async function sendAutomationTest(automationId: string, to: string): Prom
   // Sample values, obviously sample. A test that renders real-looking details invites
   // the reader to check them, which is not what they are being asked to look at.
   const inAnHour = new Date(Date.now() + 60 * 60_000);
+  // The workspace's zone, exactly as a real reminder renders it.
+  const zone = await tenantTimeZone(auth.tenantId);
   const lead = {
     firstName: "Sample",
     lastName: "Lead",
@@ -198,8 +201,9 @@ export async function sendAutomationTest(automationId: string, to: string): Prom
     profession: "Business Owner",
   };
   const extra: Record<string, string> = {
-    appointmentTime: formatIST(inAnHour).slice(11),
-    appointmentDate: formatISTDate(inAnHour),
+    appointmentTime: formatInZone(inAnHour, zone).slice(11),
+    appointmentDate: formatDateInZone(inAnHour, zone),
+    timezone: zoneLabel(zone, inAnHour.getTime()),
     bookingName: "30-minute strategy call",
     meetingLink: "https://example.com/meet/sample",
     bookingUrl: "https://example.com/b/sample",

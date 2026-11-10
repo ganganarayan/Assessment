@@ -104,8 +104,12 @@ function vevent(event: IcsEvent): string[] {
  *
  * PRODID names this app because some clients show it, and X-WR-CALNAME is what Google
  * and Apple display as the calendar's name in the sidebar.
+ *
+ * `timeZone` is the tenant's IANA zone, written as X-WR-TIMEZONE (the calendar's default
+ * display zone in clients that honour it). DTSTART and DTEND stay UTC instants, so the
+ * zone never moves a call; it only says whose clock the calendar was made on.
  */
-export function buildIcsCalendar(calendarName: string, events: IcsEvent[]): string {
+export function buildIcsCalendar(calendarName: string, events: IcsEvent[], timeZone: string): string {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -113,7 +117,7 @@ export function buildIcsCalendar(calendarName: string, events: IcsEvent[]): stri
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${esc(calendarName)}`,
-    "X-WR-TIMEZONE:Asia/Kolkata",
+    `X-WR-TIMEZONE:${esc(timeZone)}`,
     ...events.flatMap(vevent),
     "END:VCALENDAR",
   ];

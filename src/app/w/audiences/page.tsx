@@ -1,6 +1,7 @@
 import { getAudienceLists, getAudienceUsage } from "@/features/admin/actions/audience-list";
 import { AudienceManager } from "@/features/admin/components/audience-manager";
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, canEdit } from "@/lib/auth/guards";
+import { ViewOnlyNote } from "@/components/view-only";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,8 @@ export const dynamic = "force-dynamic";
  * part of owning your data.
  */
 export default async function WorkspaceAudiencesPage() {
-  await requireWorkspace();
+  const { user: viewer } = await requireWorkspace();
+  const readOnly = !canEdit(viewer);
   const [lists, usage] = await Promise.all([getAudienceLists(), getAudienceUsage()]);
 
   return (
@@ -25,6 +27,7 @@ export default async function WorkspaceAudiencesPage() {
         </p>
       </div>
 
+      {readOnly ? <ViewOnlyNote /> : null}
       <AudienceManager lists={lists} rows={usage.rows} canonical={usage.canonical} />
     </div>
   );

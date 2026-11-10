@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { buildIcsCalendar, type IcsEvent } from "@/lib/calendar/ics";
+import { tenantTimeZone } from "@/lib/tenant/region";
 
 /**
  * One appointment as a downloadable .ics, for the respondent's own confirmation screen
@@ -29,6 +30,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       startAt: true,
       endAt: true,
       status: true,
+      tenantId: true,
       title: true,
       createdAt: true,
       updatedAt: true,
@@ -54,7 +56,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     attendeeName: a.attendeeName,
   };
 
-  return new Response(buildIcsCalendar(what, [event]), {
+  // The tenant's zone, the same one the booking page showed the respondent their time in.
+  const zone = await tenantTimeZone(a.tenantId);
+  return new Response(buildIcsCalendar(what, [event], zone), {
     headers: {
       "content-type": "text/calendar; charset=utf-8",
       "content-disposition": 'attachment; filename="appointment.ics"',

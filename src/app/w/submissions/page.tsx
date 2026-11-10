@@ -18,6 +18,7 @@ import {
 } from "@/features/admin/components/submissions-table";
 import { tenantOnly } from "@/lib/tenant/scope";
 import { SUBMISSIONS_WINDOW } from "@/features/admin/data/analytics";
+import { tenantCurrency } from "@/lib/tenant/region";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function WorkspaceSubmissionsPage({
   searchParams: Promise<{ assessment?: string; from?: string; to?: string }>;
 }) {
   const { tenantId } = await requireWorkspace();
+  const currency = await tenantCurrency(tenantId);
   const canDelete = await currentUserCanEdit();
   const sp = await searchParams;
   // The VSL `cid` param for this tenant - appended to each row's Result URL so the
@@ -208,7 +210,7 @@ export default async function WorkspaceSubmissionsPage({
       {rows.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">No submissions yet.</p>
       ) : (
-        <SubmissionsTable rows={rows} exportBase="/api/w/submissions/export" canDelete={canDelete} hideGroupTitle={!!scoped} basePath="/w/submissions" payAccounts={payAccounts} />
+        <SubmissionsTable currency={currency} rows={rows} exportBase="/api/w/submissions/export" canDelete={canDelete} hideGroupTitle={!!scoped} basePath="/w/submissions" payAccounts={payAccounts} />
       )}
     </div>
   );

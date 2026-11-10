@@ -1,16 +1,21 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { formatIST } from "@/lib/date";
+import { zoneLabel } from "@/lib/region/zone";
+import { tenantTimeZone } from "@/lib/tenant/region";
 import { googleBusyWindows, keyForAppointment } from "@/lib/google/calendar";
 import {
   calendarOwnerKey,
   daySlots,
   horizonDateKeys,
+  IST_ZONE,
   istDateKey,
   istMinutesOfDay,
   mergeOwnerSlots,
   minutesToHHMM,
   utcMsFor,
+  zoneDateKey,
+  zoneMinutesOfDay,
   type BusyInput,
   type SlotExceptionInput,
   type SlotRuleInput,
@@ -41,7 +46,7 @@ import {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
 const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
-/** "Mon 20 Oct" for an IST date key. Built here rather than with toLocaleDateString,
+/** "Mon 20 Oct" for a date key (a date has no zone). Built here rather than with toLocaleDateString,
  *  which would render in the runtime's locale (US order on Railway). */
 function dayLabel(dateKey: string): string {
   const d = new Date(`${dateKey}T00:00:00.000Z`);
@@ -165,8 +170,8 @@ export async function listMonthAppointments(
   if (!isMonthKey(monthKey)) return [];
   // Bounded by the first instant of this IST month and of the next one, so a booking at
   // 23:30 IST on the last day of the month lands in the month its owner calls it.
-  const gte = new Date(utcMsFor(`${monthKey}-01`, 0));
-  const lt = new Date(utcMsFor(`${shiftMonth(monthKey, 1)}-01`, 0));
+  const gte = new Date(utcMsFor(`${monthKey}-01`, 0, IST_ZONE));
+  const lt = new Date(utcMsFor(`${shiftMonth(monthKey, 1)}-01`, 0, IST_ZONE));
   const rows = await prisma.appointment.findMany({
     where: { tenantId, startAt: { gte, lt }, ...(assignedUserId === undefined ? {} : { assignedUserId }) },
     orderBy: { startAt: "asc" },
@@ -348,6 +353,12 @@ interface SlotSource {
   id: string;
   tenantId: string;
   /**
+   * The tenant's IANA zone. The rules, exceptions and per-day cap are its wall clock, and
+   * the date keys this produces are its calendar dates. Never IST by assumption: an owner
+   * in New York who says "Tuesday 10:00" means ten in New York.
+   */
+  timeZone: string;
+  /**
    * The calendars this link sells time in: one for a SINGLE link (null meaning the
    * workspace's shared calendar), or every member for a ROUND_ROBIN one.
    *
@@ -382,11 +393,12 @@ async function ownerSlotsByDate(
   owner: string | null,
   nowMs: number,
 ): Promise<Map<string, { startMs: number; endMs: number }[]>> {
-  const dateKeys = horizonDateKeys(nowMs, source.horizonDays);
+  const zone = source.timeZone;
+  const dateKeys = horizonDateKeys(nowMs, source.horizonDays, zone);
   const firstKey = dateKeys[0] as string;
   const lastKey = dateKeys[dateKeys.length - 1] as string;
-  const fromMs = utcMsFor(firstKey, 0);
-  const toMs = utcMsFor(lastKey, 1440);
+  const fromMs = utcMsFor(firstKey, 0, zone);
+  const toMs = utcMsFor(lastKey, 1440, zone);
   const busy = await busyIntervals(source.tenantId, fromMs, toMs, owner);
 
   /**
@@ -408,13 +420,13 @@ async function ownerSlotsByDate(
   );
   for (const w of googleBusy) busy.push({ ...w, isBooking: false });
 
-  // Live bookings per IST date, for the per-day cap. Counted from the same busy rows
+  // Live bookings per tenant-local date, for the per-day cap. Counted from the same busy rows
   // rather than a second query: the cap is about this workspace's day, which is what
   // these rows are. Blocked-out time is excluded - it is not a call anybody booked.
   const perDay = new Map<string, number>();
   for (const b of busy) {
     if (!b.isBooking) continue;
-    const key = istDateKey(b.startMs);
+    const key = zoneDateKey(b.startMs, zone);
     perDay.set(key, (perDay.get(key) ?? 0) + 1);
   }
 
@@ -422,6 +434,7 @@ async function ownerSlotsByDate(
   for (const dateKey of dateKeys) {
     const slots = daySlots({
       dateKey,
+      timeZone: zone,
       rules: source.rules,
       exceptions: source.exceptions,
       busy,
@@ -470,7 +483,7 @@ export async function openSlotsByDate(
   const merged = mergeOwnerSlots(perOwner);
   const out = new Map<string, TeamSlot[]>();
   for (const slot of merged) {
-    const key = istDateKey(slot.startMs);
+    const key = zoneDateKey(slot.startMs, source.timeZone);
     const list = out.get(key) ?? [];
     list.push(slot);
     out.set(key, list);
@@ -478,9 +491,10 @@ export async function openSlotsByDate(
   return out;
 }
 
-/** Load a booking type by its public slug, with everything the slot math needs. */
+/** Load a booking type by its public slug, with everything the slot math needs,
+ *  including the owning tenant's timezone. */
 export async function bookingTypeBySlug(slug: string) {
-  return prisma.bookingType.findFirst({
+  const t = await prisma.bookingType.findFirst({
     where: { slug, active: true, tenant: { deletedAt: null } },
     include: {
       rules: true,
@@ -490,6 +504,8 @@ export async function bookingTypeBySlug(slug: string) {
       tenant: { select: { id: true, name: true, status: true } },
     },
   });
+  if (!t) return null;
+  return { ...t, timeZone: await tenantTimeZone(t.tenantId) };
 }
 
 /**
@@ -504,6 +520,8 @@ function slotSourceOf(
   t: {
     id: string;
     tenantId: string;
+    /** The tenant's zone (tenantTimeZone). Required so no caller can fall back to IST. */
+    timeZone: string;
     assignedUserId: string | null;
     assignmentMode?: string;
     members?: { userId: string }[];
@@ -524,6 +542,7 @@ function slotSourceOf(
   return {
     id: t.id,
     tenantId: t.tenantId,
+    timeZone: t.timeZone,
     owners,
     durationMin: t.durationMin,
     bufferMin: t.bufferMin,
@@ -564,14 +583,7 @@ export async function publicBookingView(slug: string, nowMs = Date.now()): Promi
   if (!t || t.tenant.status !== "ACTIVE") return null;
 
   const slotMap = await openSlotsByDate(slotSourceOf(t), nowMs);
-  const days: PublicDay[] = [...slotMap.entries()].map(([dateKey, slots]) => ({
-    dateKey,
-    label: dayLabel(dateKey),
-    slots: slots.map((s) => ({
-      startMs: s.startMs,
-      timeLabel: minutesToHHMM(istMinutesOfDay(s.startMs)),
-    })),
-  }));
+  const days = publicDays(slotMap, t.timeZone);
 
   return {
     slug: t.slug,
@@ -584,7 +596,29 @@ export async function publicBookingView(slug: string, nowMs = Date.now()): Promi
     locationValue: null,
     days,
     hostName: t.tenant.name,
+    // Said out loud on the picker, at the first offered time (or now), so a respondent in
+    // another zone is not left guessing. Each day carries its own for a DST change.
+    zoneLabel: days[0]?.zoneLabel ?? zoneLabel(t.timeZone, nowMs),
   };
+}
+
+/**
+ * Open slots as the public picker shows them: tenant-local dates, HH:MM in the tenant's
+ * zone, and the zone's short name per day (it can change across a DST switch). Shared by
+ * the booking page and the manage page so both say a time the same way.
+ */
+export function publicDays(slotMap: Map<string, { startMs: number }[]>, zone: string): PublicDay[] {
+  return [...slotMap.entries()]
+    .filter(([, slots]) => slots.length > 0)
+    .map(([dateKey, slots]) => ({
+      dateKey,
+      label: dayLabel(dateKey),
+      zoneLabel: zoneLabel(zone, slots[0]?.startMs ?? Date.parse(`${dateKey}T12:00:00.000Z`)),
+      slots: slots.map((s) => ({
+        startMs: s.startMs,
+        timeLabel: minutesToHHMM(zoneMinutesOfDay(s.startMs, zone)),
+      })),
+    }));
 }
 
 /**

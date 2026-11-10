@@ -71,6 +71,8 @@ import { paymentsAllowed } from "@/lib/payments/enabled";
 import { createHandoff } from "@/lib/payments/handoff";
 
 import { tenantBrand } from "@/lib/tenant/brand";
+import { tenantCurrency } from "@/lib/tenant/region";
+import { toMinor } from "@/lib/region/money";
 import {
   buildSpine,
   defaultRouteOf,
@@ -209,9 +211,11 @@ async function resolvePaidCheckout(opts: {
   const rzp = await resolveRazorpayConfig(opts.tenantId);
   if (isRazorpayConfigured(rzp) && rzp.keyId && opts.paymentAmount && opts.paymentAmount > 0) {
     try {
+      // The tenant's own currency (Settings, Region). The price is whole major units.
+      const currency = await tenantCurrency(opts.tenantId);
       const order = await createOrder({
-        amountPaise: opts.paymentAmount * 100,
-        currency: "INR",
+        amountPaise: toMinor(opts.paymentAmount, currency),
+        currency,
         notes: { submissionId: opts.submissionId, purpose: "assessment_unlock" },
       }, rzp);
       // 🔴 The checkout runs on the TENANT's own Razorpay account, so it must say the

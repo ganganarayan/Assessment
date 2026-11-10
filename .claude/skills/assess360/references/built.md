@@ -55,6 +55,19 @@ Status key: 🟢 in production · 🟡 staging only · ⚪ designed and agreed, 
   AI prompt names the tenant; owner and Divine Leads placeholders gone from tenant screens.
   NOT done: links beside the opt-in consent text, the clinic result page's Divine Leads palette,
   the editable consent text field.
+- 🟡 Region and roles (multi-tenant review Phases 4 and 5, staging 11-11-2026, pinned by
+  verify:region-roles and verify:calendar): Settings, Region card (timezone + payment currency,
+  AppSetting.timeZone / paymentCurrency); booking slots, booking pages, .ics, Zoom and reminder
+  placeholders run in the tenant's zone, admin screens stay IST; respondent payments charge in
+  the tenant's currency (lib/region/money.ts, minor units), PaymentLink.currency snapshotted at
+  creation; staff menu hides Staff/Billing/API/Client workspaces; VIEW staff get greyed-out
+  editors (components/view-only.tsx) and a Preview link instead of the builder; agency staff can
+  no longer enter client workspaces; a client's Staff page and logins card show the client's
+  own; agency list shows combined totals and 30-day responses; workspace stats filter by
+  funnel; workspace pixel tester offers the event list; abandoned hours are per workspace.
+  Settled, not gaps: AI cost (response limit caps it) and 1 seat per workspace (owner design).
+  NOT done: a second full admin per workspace (needs a role), mixed-currency totals (stats
+  assume one currency per workspace).
 - 🟢 Platform tenant as a real row, Scope as a type, configTenantOf wired, verify:owner-stamp
   in the build chain. The data move itself has NOT run anywhere.
 - 🟢 Staff accounts VIEW / EDIT with canEdit enforced on every mutation, plus a seat cap.

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { getAiSettings } from "@/features/admin/actions/ai-settings";
 import { PromptVersionsManager } from "@/features/admin/components/prompt-versions-manager";
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, canEdit } from "@/lib/auth/guards";
+import { ViewOnly } from "@/components/view-only";
 import { tenantCan } from "@/lib/billing/entitlements";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -24,7 +25,8 @@ export const dynamic = "force-dynamic";
  * A super admin operating the workspace is never gated.
  */
 export default async function WorkspaceAiPage() {
-  const { tenantId, impersonating } = await requireWorkspace();
+  const { tenantId, impersonating, user } = await requireWorkspace();
+  const readOnly = !canEdit(user);
   const entitled = impersonating || (await tenantCan(tenantId, "aiReports"));
 
   if (!entitled) {
@@ -78,13 +80,15 @@ export default async function WorkspaceAiPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PromptVersionsManager
-            versions={settings.versions}
-            wordMin={settings.wordMin}
-            wordMax={settings.wordMax}
-            sampleName={settings.sampleName}
-            showBuiltins={settings.showBuiltins}
-          />
+          <ViewOnly readOnly={readOnly}>
+            <PromptVersionsManager
+              versions={settings.versions}
+              wordMin={settings.wordMin}
+              wordMax={settings.wordMax}
+              sampleName={settings.sampleName}
+              showBuiltins={settings.showBuiltins}
+            />
+          </ViewOnly>
         </CardContent>
       </Card>
     </div>

@@ -10,6 +10,7 @@ import { auth } from "@/lib/auth/auth";
 import { requireOwnerAdmin, isSuperAdmin } from "@/lib/auth/guards";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { assertCanAddSeat } from "@/lib/billing/gate";
+import { enteredAgencyTenant } from "@/lib/tenant/agency";
 import { resolvePlan } from "@/lib/billing/entitlements";
 import { PARKED_MESSAGE } from "@/lib/billing/plans";
 
@@ -59,7 +60,13 @@ export interface StaffView {
 
 async function scope() {
   const user = await requireOwnerAdmin();
-  return { user, isSuper: isSuperAdmin(user), ownTenant: user.tenantId ?? null };
+  const isSuper = isSuperAdmin(user);
+  // 🔴 Inside a client workspace the agency owner manages THAT workspace's staff. This
+  // read the session's own tenant, so the client's Staff page listed the agency's staff
+  // and new staff (and the seat cap) landed on the agency.
+  const own = user.tenantId ?? null;
+  const entered = !isSuper && own ? await enteredAgencyTenant(user.id, own) : null;
+  return { user, isSuper, ownTenant: entered ?? own };
 }
 
 function revalidate() {

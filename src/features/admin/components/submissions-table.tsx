@@ -14,6 +14,7 @@ import { type LookupHit } from "@/features/admin/lookup-types";
 import { type PayloadAttribution } from "@/features/events/types";
 import { PaymentLinkCell } from "@/features/payments/components/payment-link-cell";
 import { type PaymentLinkAccount, type PaymentLinkView } from "@/features/payments/links-shared";
+import { formatMajor } from "@/lib/region/money";
 
 /**
  * The two manual Meta verdict buttons for one row, stacked.
@@ -250,8 +251,11 @@ export function SubmissionsTable({
   hideGroupTitle = false,
   basePath = "/admin/submissions",
   payAccounts = [],
+  currency = "INR",
 }: {
   rows: SubmissionRow[];
+  /** The workspace's payment currency (Settings, Region) for the paid columns. */
+  currency?: string;
   exportBase?: string;
   /** Which Razorpay accounts this workspace has keys for. Empty = the Payment link
    *  column tells the operator to add keys instead of offering a link that cannot be
@@ -706,7 +710,7 @@ export function SubmissionsTable({
                         </span>
                         <span className="text-xs">
                           {s.paidAmount != null ? (
-                            <span className="font-medium text-green-600 tabular-nums">₹{s.paidAmount}</span>
+                            <span className="font-medium text-green-600 tabular-nums">{formatMajor(s.paidAmount, currency)}</span>
                           ) : (
                             <span className="text-[var(--muted-foreground)]">-</span>
                           )}
@@ -727,7 +731,7 @@ export function SubmissionsTable({
                           className="mt-1 text-[11px] font-medium text-green-600 tabular-nums"
                           title={s.productPaidAt ? `Paid ${formatIST(s.productPaidAt)} IST` : undefined}
                         >
-                          Sale ₹{s.productPaidAmount.toLocaleString("en-IN")}
+                          Sale {formatMajor(s.productPaidAmount, currency)}
                         </div>
                       ) : null}
                     </td>

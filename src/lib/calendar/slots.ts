@@ -1,22 +1,33 @@
+import { zoneOffsetMin } from "@/lib/region/zone";
+
 /**
  * Slot arithmetic for the booking calendar. PURE: no DB, no env, no next/headers, so
  * scripts/verify-calendar.ts can prove it without a server or a database.
  *
- * Everything here is integer minutes against a FIXED IST offset, never the host's
- * timezone. Railway runs UTC, so "10:00 on Tuesday" resolved through the runtime would
- * be 10:00 UTC - half past three in the afternoon for the person who typed it. The same
- * reasoning as formatIST in src/lib/date.ts, and the reason availability is stored as
+ * Everything here is integer minutes against an EXPLICIT timezone, never the host's.
+ * Railway runs UTC, so "10:00 on Tuesday" resolved through the runtime would be 10:00
+ * UTC - half past three in the afternoon for an owner in India. The same reasoning as
+ * formatIST in src/lib/date.ts, and the reason availability is stored as
  * minutes-from-midnight plus a weekday rather than as timestamps.
  *
+ * WHOSE ZONE (Phase 4). Availability rules, exceptions and the per-day cap are the
+ * TENANT's local wall clock: the zone set in Settings (AppSetting.timeZone, default
+ * Asia/Kolkata). The public booking path passes that zone; the admin month grid and
+ * board pass IST_ZONE, because admin screens are IST by the owner's rule. Every existing
+ * tenant defaults to Asia/Kolkata, so rows entered as IST still mean IST.
+ *
  * The vocabulary, once:
- *   dateKey   an IST calendar date, "YYYY-MM-DD". What a respondent picks.
- *   minutes   minutes from IST midnight. 0 = 00:00, 570 = 09:30, 1440 = midnight.
+ *   zone      an IANA timezone, e.g. "Asia/Kolkata" or "America/New_York".
+ *   dateKey   a calendar date in that zone, "YYYY-MM-DD". What a respondent picks.
+ *   minutes   minutes from that zone's midnight. 0 = 00:00, 570 = 09:30, 1440 = midnight.
  *   window    a continuous span of bookable minutes on one date.
  *   busy      an instant range already taken, in epoch ms (UTC).
  */
 
-/** IST is UTC+5:30 and has no DST, which is what makes a fixed offset correct here. */
+/** IST is UTC+5:30 and has no DST. Kept for the admin side and for the proof. */
 export const IST_OFFSET_MIN = 330;
+/** The zone every admin screen reads in. */
+export const IST_ZONE = "Asia/Kolkata";
 const MS_PER_MIN = 60_000;
 const MINUTES_PER_DAY = 1440;
 
@@ -25,7 +36,7 @@ export interface AvailabilityWindow {
   endMin: number;
 }
 
-/** One recurring weekly window. weekday: 0 = Sunday through 6 = Saturday, IST. */
+/** One recurring weekly window. weekday: 0 = Sunday through 6 = Saturday, tenant-local. */
 export interface SlotRuleInput {
   weekday: number;
   startMin: number;
@@ -56,6 +67,8 @@ export interface Slot {
 
 export interface DaySlotInput {
   dateKey: string;
+  /** The tenant's zone: what dateKey, the rules and the exceptions are local to. */
+  timeZone: string;
   rules: SlotRuleInput[];
   exceptions: SlotExceptionInput[];
   /** Every live appointment in the workspace, not just this booking type's: one shared
@@ -69,21 +82,31 @@ export interface DaySlotInput {
   nowMs: number;
   horizonDays: number;
   maxPerDay: number | null;
-  /** Live bookings already held on this IST date, for the per-day cap. */
+  /** Live bookings already held on this tenant-local date, for the per-day cap. */
   bookedCountOnDay: number;
 }
 
 /* ------------------------------------------------------------------ dates --- */
 
-/** The IST calendar date of an instant, as "YYYY-MM-DD". */
-export function istDateKey(ms: number): string {
-  return new Date(ms + IST_OFFSET_MIN * MS_PER_MIN).toISOString().slice(0, 10);
+/** The calendar date of an instant in a zone, as "YYYY-MM-DD". */
+export function zoneDateKey(ms: number, zone: string): string {
+  return new Date(ms + zoneOffsetMin(zone, ms) * MS_PER_MIN).toISOString().slice(0, 10);
 }
 
-/** Minutes past IST midnight for an instant. */
-export function istMinutesOfDay(ms: number): number {
-  const shifted = new Date(ms + IST_OFFSET_MIN * MS_PER_MIN);
+/** Minutes past the zone's midnight for an instant. */
+export function zoneMinutesOfDay(ms: number, zone: string): number {
+  const shifted = new Date(ms + zoneOffsetMin(zone, ms) * MS_PER_MIN);
   return shifted.getUTCHours() * 60 + shifted.getUTCMinutes();
+}
+
+/** The IST calendar date of an instant. Admin screens only; respondents get zoneDateKey. */
+export function istDateKey(ms: number): string {
+  return zoneDateKey(ms, IST_ZONE);
+}
+
+/** Minutes past IST midnight for an instant. Admin screens only. */
+export function istMinutesOfDay(ms: number): number {
+  return zoneMinutesOfDay(ms, IST_ZONE);
 }
 
 /** True for a well-formed "YYYY-MM-DD" that names a real date. */
@@ -93,26 +116,43 @@ export function isDateKey(value: string): boolean {
   return Number.isFinite(ms) && new Date(ms).toISOString().slice(0, 10) === value;
 }
 
-/** The instant (epoch ms, UTC) at `minutes` past IST midnight on an IST date. */
-export function utcMsFor(dateKey: string, minutes: number): number {
-  return Date.parse(`${dateKey}T00:00:00.000Z`) + (minutes - IST_OFFSET_MIN) * MS_PER_MIN;
+/**
+ * The instant (epoch ms, UTC) at `minutes` past midnight on a date, in a zone.
+ *
+ * DST-aware without a loop: read the wall clock as if it were UTC, shift by the zone's
+ * offset at that guess, then re-read the offset at the result. Where the two readings
+ * disagree the wall time sits next to a clock change, and the one that round-trips wins.
+ * On the spring-forward day a wall time that does not exist (02:30 in New York) has no
+ * round-trip and lands at the later reading, an hour on, which is what the wall clock
+ * shows. On the fall-back day an ambiguous time takes the earlier (daylight) instant.
+ */
+export function utcMsFor(dateKey: string, minutes: number, zone: string): number {
+  const wall = Date.parse(`${dateKey}T00:00:00.000Z`) + minutes * MS_PER_MIN;
+  const first = wall - zoneOffsetMin(zone, wall) * MS_PER_MIN;
+  const second = wall - zoneOffsetMin(zone, first) * MS_PER_MIN;
+  if (second === first) return first;
+  const roundTrips = (ms: number) => ms + zoneOffsetMin(zone, ms) * MS_PER_MIN === wall;
+  const a = Math.min(first, second);
+  const b = Math.max(first, second);
+  if (roundTrips(a)) return a;
+  return b;
 }
 
-/** 0 = Sunday through 6 = Saturday, for an IST date. */
+/** 0 = Sunday through 6 = Saturday, for a calendar date. A date has no zone. */
 export function istWeekday(dateKey: string): number {
   return new Date(`${dateKey}T00:00:00.000Z`).getUTCDay();
 }
 
-/** The IST date `days` after (or before, when negative) the given one. */
+/** The date `days` after (or before, when negative) the given one. */
 export function addDays(dateKey: string, days: number): string {
   return new Date(Date.parse(`${dateKey}T00:00:00.000Z`) + days * MINUTES_PER_DAY * MS_PER_MIN)
     .toISOString()
     .slice(0, 10);
 }
 
-/** Every IST date the public page may offer, today first. */
-export function horizonDateKeys(nowMs: number, horizonDays: number): string[] {
-  const first = istDateKey(nowMs);
+/** Every date (in the tenant's zone) the public page may offer, today first. */
+export function horizonDateKeys(nowMs: number, horizonDays: number, zone: string): string[] {
+  const first = zoneDateKey(nowMs, zone);
   const span = Math.max(1, Math.min(horizonDays, 400));
   return Array.from({ length: span }, (_, i) => addDays(first, i));
 }
@@ -169,7 +209,7 @@ function subtract(windows: AvailabilityWindow[], cut: AvailabilityWindow): Avail
 }
 
 /**
- * The bookable windows on one IST date: the weekly rules for that weekday, plus any
+ * The bookable windows on one tenant-local date: the weekly rules for that weekday, plus any
  * OPEN exception for the date, minus every BLOCK exception for it.
  *
  * Order matters and is deliberate. BLOCK is applied LAST, so a day off beats a window
@@ -216,7 +256,7 @@ function overlapsBusy(slot: Slot, busy: BusyInput[], bufferMs: number): boolean 
 }
 
 /**
- * Every slot that can still be booked on one IST date.
+ * Every slot that can still be booked on one tenant-local date.
  *
  * Returns [] rather than throwing for every ordinary "nothing here" case: a date in the
  * past, past the horizon, a day with no rules, a day at its cap. The public page shows
@@ -225,6 +265,7 @@ function overlapsBusy(slot: Slot, busy: BusyInput[], bufferMs: number): boolean 
 export function daySlots(input: DaySlotInput): Slot[] {
   const {
     dateKey,
+    timeZone,
     rules,
     exceptions,
     busy,
@@ -241,7 +282,7 @@ export function daySlots(input: DaySlotInput): Slot[] {
   if (!isDateKey(dateKey) || durationMin <= 0) return [];
   if (maxPerDay != null && bookedCountOnDay >= maxPerDay) return [];
 
-  const todayKey = istDateKey(nowMs);
+  const todayKey = zoneDateKey(nowMs, timeZone);
   const lastKey = addDays(todayKey, Math.max(0, horizonDays - 1));
   if (dateKey < todayKey || dateKey > lastKey) return [];
 
@@ -256,7 +297,11 @@ export function daySlots(input: DaySlotInput): Slot[] {
   const slots: Slot[] = [];
   for (const window of windowsForDate(dateKey, rules, exceptions)) {
     for (let min = window.startMin; min + durationMin <= window.endMin; min += step) {
-      const startMs = utcMsFor(dateKey, min);
+      const startMs = utcMsFor(dateKey, min, timeZone);
+      // A wall time the clock skips (02:30 on a spring-forward night) resolves to the
+      // hour after, which is already its own slot. Offering it twice would sell one
+      // instant as two times, so a slot that does not read back as itself is dropped.
+      if (zoneMinutesOfDay(startMs, timeZone) !== min) continue;
       const endMs = startMs + durationMin * MS_PER_MIN;
       if (startMs < earliestMs) continue;
       if (overlapsBusy({ startMs, endMs }, busy, bufferMs)) continue;

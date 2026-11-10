@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { listPromptVersions } from "@/lib/ai/versions";
 import { getAudienceListsForTenant } from "@/features/admin/actions/audience-list";
 import { getAdAccountsForTenant } from "@/features/admin/actions/ad-account";
+import { tenantCurrency } from "@/lib/tenant/region";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +59,7 @@ export default async function WorkspaceNewAssessmentPage() {
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">New assessment</h1>
       </div>
-      <AssessmentForm mode="create" basePath="/w/assessments" promptVersions={promptVersions} audienceLists={audienceLists} adAccounts={adAccounts} />
+      <AssessmentForm priceCurrency={await tenantCurrency(tenantId)} mode="create" basePath="/w/assessments" promptVersions={promptVersions} audienceLists={audienceLists} adAccounts={adAccounts} />
     </div>
   );
 }

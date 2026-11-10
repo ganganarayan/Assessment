@@ -34,6 +34,7 @@ import {
 import type { ActionResult } from "@/features/assessment/actions/shared";
 import { splitPreviewLabels } from "@/features/assessment/flow/lead-split";
 import { audienceGateRenders } from "@/features/assessment/audience-gate";
+import { currencySymbol } from "@/lib/region/money";
 
 export type AssessmentFormValues = AssessmentInput;
 
@@ -230,7 +231,10 @@ export function AssessmentForm({
   adAccounts = [],
   canPlatformSignup = false,
   qualificationLive,
+  priceCurrency = "INR",
 }: {
+  /** The owner workspace's payment currency (Settings, Region), for the Price label. */
+  priceCurrency?: string;
   /** True only in the PLATFORM scope. The server forces the flag false anywhere else,
    *  so showing the control there would offer a switch that silently does nothing. */
   canPlatformSignup?: boolean;
@@ -1524,7 +1528,7 @@ export function AssessmentForm({
             {values.nextStep === "PAYMENT" ? (
               <div className="flex flex-col gap-3 border-l-2 pl-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="paymentAmount">Price (₹)</Label>
+                  <Label htmlFor="paymentAmount">Price ({currencySymbol(priceCurrency).trim()})</Label>
                   <Input
                     id="paymentAmount"
                     type="number"

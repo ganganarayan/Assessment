@@ -112,6 +112,8 @@ export const RUN_STATUS_CLASS: Record<AutomationRunStatusValue, string> = {
 export const APPOINTMENT_PLACEHOLDERS = [
   "appointmentTime",
   "appointmentDate",
+  // The workspace's zone, short ("IST", "EDT"), for "at {{appointmentTime}} {{timezone}}".
+  "timezone",
   "bookingName",
   "meetingLink",
   "bookingUrl",

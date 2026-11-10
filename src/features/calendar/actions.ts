@@ -9,7 +9,7 @@ import { featureDenied } from "@/lib/features/release";
 import { appSettingWhere, tenantAppSettingId } from "@/lib/settings/tenant-row";
 import { type ActionResult } from "@/features/assessment/actions/shared";
 import { reportAppointment } from "@/lib/calendar/signals";
-import { slotLockFor, utcMsFor } from "@/lib/calendar/slots";
+import { IST_ZONE, slotLockFor, utcMsFor } from "@/lib/calendar/slots";
 import {
   availabilityExceptionSchema,
   availabilityRuleSchema,
@@ -233,8 +233,9 @@ export async function addAvailabilityException(input: unknown): Promise<ActionRe
   await prisma.availabilityException.create({
     data: {
       bookingTypeId: v.bookingTypeId,
-      // Midnight UTC on the IST calendar date: the column is a DATE, so this is the
-      // date itself rather than an instant that could shift a day on a UTC host.
+      // Midnight UTC on the calendar date, which is a date in the WORKSPACE's zone (its
+      // hours and exceptions are its own wall clock): the column is a DATE, so this is
+      // the date itself rather than an instant that could shift a day on a UTC host.
       date: new Date(`${v.date}T00:00:00.000Z`),
       kind: v.kind,
       startMin: v.start,
@@ -261,7 +262,8 @@ export async function deleteAvailabilityException(exceptionId: string): Promise<
 
 /* ------------------------------------------------------------- appointments --- */
 
-/** Start and end instants from the form's IST date and times. */
+/** Start and end instants from the form's IST date and times. The admin calendar is IST
+ *  by the owner's rule, whatever zone the workspace's public booking page runs on. */
 async function instantsFor(
   v: { date: string; start: number; end: number | null; assignedUserId?: string },
   bookingTypeId: string,
@@ -288,8 +290,9 @@ async function instantsFor(
     });
     if (!staff) return null;
   }
-  const startAt = new Date(utcMsFor(v.date, v.start));
-  const endAt = v.end != null ? new Date(utcMsFor(v.date, v.end)) : new Date(startAt.getTime() + durationMin * 60_000);
+  const startAt = new Date(utcMsFor(v.date, v.start, IST_ZONE));
+  const endAt =
+    v.end != null ? new Date(utcMsFor(v.date, v.end, IST_ZONE)) : new Date(startAt.getTime() + durationMin * 60_000);
   return {
     startAt,
     endAt,

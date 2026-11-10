@@ -17,6 +17,7 @@ import {
   shiftMonth,
 } from "@/features/calendar/data";
 import { istDateKey } from "@/lib/calendar/slots";
+import { DEFAULT_TIME_ZONE, zoneOr } from "@/lib/region/zone";
 import type {
   AppointmentRow,
   BookingTypeRow,
@@ -124,6 +125,13 @@ export interface AvailabilityPageProps {
   /** True in the platform scope, where those credentials are editable. */
   isPlatform: boolean;
   canEdit: boolean;
+  /**
+   * The zone the weekly hours and date exceptions are entered in: the workspace's own
+   * (Settings), since that is what the public booking page reads them as. "IST" for the
+   * default, otherwise the IANA name ("America/New_York"), which, unlike "EST", stays
+   * true on both sides of a DST change.
+   */
+  timeZoneLabel: string;
 }
 
 export async function availabilityPageProps(): Promise<AvailabilityPageProps> {
@@ -135,7 +143,7 @@ export async function availabilityPageProps(): Promise<AvailabilityPageProps> {
     bookingPickers(tenantId),
     prisma.appSetting.findUnique({
       where: appSettingWhere(tenantId) as Prisma.AppSettingWhereUniqueInput,
-      select: { calendarFeedToken: true },
+      select: { calendarFeedToken: true, timeZone: true },
     }),
     calendarStaff(tenantId),
     googleCalendarStatus(tenantId),
@@ -160,5 +168,10 @@ export async function availabilityPageProps(): Promise<AvailabilityPageProps> {
     googleAppConfigured: !!platformSetting?.googleClientId && !!platformSetting?.googleClientSecretEnc,
     isPlatform: isPlatformScope(tenantId),
     canEdit: scope.canEdit,
+    timeZoneLabel: hoursZoneLabel(zoneOr(setting?.timeZone)),
   };
+}
+
+function hoursZoneLabel(zone: string): string {
+  return zone === DEFAULT_TIME_ZONE ? "IST" : zone.replace(/_/g, " ");
 }

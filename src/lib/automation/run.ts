@@ -2,13 +2,13 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { tenantState } from "@/lib/tenant/active";
 import { publicOriginFor } from "@/lib/tenant/public-origin";
-import { formatISTDate } from "@/lib/date";
+import { formatDateInZone, formatInZone, zoneLabel } from "@/lib/region/zone";
+import { tenantTimeZone } from "@/lib/tenant/region";
 import { sendTrackedEmailWithLog, sendWaba } from "@/lib/nurture/send";
 import { wabaVisible } from "@/lib/nurture/waba-visible";
 import { featureAllowedFor } from "@/lib/features/release";
 import { resolveWabaConfig } from "@/lib/settings/config";
 import { fillPlaceholders, toE164Digits, type LeadFields } from "@/features/nurture/config";
-import { istMinutesOfDay, minutesToHHMM } from "@/lib/calendar/slots";
 import { isStale, respectsSuppression } from "@/lib/automation/schedule";
 import { createZoomMeeting } from "@/lib/zoom/meetings";
 // The contacts module owns consent; the automation sender asks it, never decides it.
@@ -254,6 +254,9 @@ export async function processRun(runId: string): Promise<"sent" | "failed" | "sk
   }
 
   const origin = await outboundOrigin(run.tenantId);
+  // The workspace's own clock, the one its booking page showed this person: a reminder
+  // that says a different hour from the confirmation is a no-show waiting to happen.
+  const zone = await tenantTimeZone(run.tenantId);
   const token = appointment.submission?.resultToken ?? "";
   // Their way out of the list, on the workspace's own domain, and blank when the run has
   // no contact behind it rather than a link that goes nowhere.
@@ -265,8 +268,10 @@ export async function processRun(runId: string): Promise<"sent" | "failed" | "sk
     // carry it: somebody whose plans changed will either move the call or disappear, and
     // which one they do is decided by whether there is a link in front of them.
     manageUrl: `${origin}/b/manage/${appointment.publicToken}`,
-    appointmentTime: minutesToHHMM(istMinutesOfDay(appointment.startAt.getTime())),
-    appointmentDate: formatISTDate(appointment.startAt),
+    appointmentTime: formatInZone(appointment.startAt, zone).slice(11),
+    appointmentDate: formatDateInZone(appointment.startAt, zone),
+    // "IST", "EDT": said beside the time, at the appointment's own instant (DST-aware).
+    timezone: zoneLabel(zone, appointment.startAt.getTime()),
     bookingName: appointment.bookingType?.name ?? "your call",
     // The Zoom meeting made for THIS person wins over the booking link's static
     // location, so a rule with a meeting step needs no configuration anywhere else:

@@ -3,7 +3,8 @@ import { StatsWindowForm } from "@/features/admin/components/stats-window-form";
 import { AssessmentScopeBar } from "@/features/admin/components/assessment-scope-bar";
 import { getAssessmentForAnalytics } from "@/features/assessment/data";
 import { actingDataScope } from "@/lib/tenant/acting";
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, canEdit } from "@/lib/auth/guards";
+import { ViewOnly } from "@/components/view-only";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,8 @@ export default async function WorkspaceDataWindowPage({
 }: {
   searchParams: Promise<{ assessment?: string }>;
 }) {
-  await requireWorkspace();
+  const { user: viewer } = await requireWorkspace();
+  const readOnly = !canEdit(viewer);
   const sp = await searchParams;
   const scoped = sp.assessment
     ? await getAssessmentForAnalytics(sp.assessment, await actingDataScope())
@@ -36,11 +38,13 @@ export default async function WorkspaceDataWindowPage({
       {scoped ? (
         <AssessmentScopeBar assessmentTitle={scoped.title} allHref="/w/data-window" />
       ) : null}
-      <StatsWindowForm
-        startAtInput={startAtInput}
-        startAtIso={startAtIso}
-        assessmentId={scoped?.id}
-      />
+      <ViewOnly readOnly={readOnly}>
+        <StatsWindowForm
+          startAtInput={startAtInput}
+          startAtIso={startAtIso}
+          assessmentId={scoped?.id}
+        />
+      </ViewOnly>
     </div>
   );
 }

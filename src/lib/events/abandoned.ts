@@ -1,4 +1,5 @@
-import { EventType } from "@prisma/client";
+import { EventType, type Prisma } from "@prisma/client";
+import { PLATFORM_TENANT_ID } from "@/lib/tenant/platform-tenant";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { emitEvent } from "@/lib/events/emit";
@@ -13,6 +14,35 @@ const DEFAULT_HOURS = 24;
 const BATCH = 500;
 
 /**
+ * Each workspace's own "abandoned after" hours (Phase 5). This was one platform value,
+ * and saving it while inside a tenant changed it for everybody. The sweeps now run one
+ * query per distinct setting, so every tenant is judged on its own clock:
+ *  - the platform's own funnels (null tenant, or the Platform tenant) on the singleton;
+ *  - each group of tenants that changed it, on theirs;
+ *  - every other tenant on the default.
+ * The tenant sets are disjoint, so a row is never swept by two groups.
+ */
+async function cutoffGroups(): Promise<Array<{ cutoff: Date; assessment: Prisma.AssessmentWhereInput }>> {
+  const rows = await prisma.appSetting.findMany({ select: { id: true, tenantId: true, abandonedAfterHours: true } });
+  const now = Date.now();
+  const at = (h: number) => new Date(now - h * 60 * 60 * 1000);
+  const platformHours = rows.find((r) => r.id === "singleton")?.abandonedAfterHours ?? DEFAULT_HOURS;
+  const byHours = new Map<number, string[]>();
+  for (const r of rows) {
+    if (r.id === "singleton" || !r.tenantId || r.tenantId === PLATFORM_TENANT_ID) continue;
+    if (r.abandonedAfterHours === DEFAULT_HOURS) continue;
+    byHours.set(r.abandonedAfterHours, [...(byHours.get(r.abandonedAfterHours) ?? []), r.tenantId]);
+  }
+  const custom = [...byHours.values()].flat();
+  return [
+    { cutoff: at(platformHours), assessment: { OR: [{ tenantId: null }, { tenantId: PLATFORM_TENANT_ID }] } },
+    // NOT IN never matches a null tenant, so the platform's rows stay in the group above.
+    { cutoff: at(DEFAULT_HOURS), assessment: { tenantId: { notIn: [...custom, PLATFORM_TENANT_ID] } } },
+    ...[...byHours.entries()].map(([h, ids]) => ({ cutoff: at(h), assessment: { tenantId: { in: ids } } })),
+  ];
+}
+
+/**
  * Find submissions that were STARTED (lead.created) but never COMPLETED after
  * the configured delay, mark them abandoned (once), and emit assessment.abandoned.
  *
@@ -21,11 +51,9 @@ const BATCH = 500;
  * once per submission even if the sweep overlaps with itself or a completion.
  */
 export async function sweepAbandoned(): Promise<{ swept: number; scanned: number }> {
-  const setting = await prisma.appSetting.findUnique({ where: { id: "singleton" } });
-  const hours = setting?.abandonedAfterHours ?? DEFAULT_HOURS;
-  const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+  const groups = await cutoffGroups();
 
-  const candidates = await prisma.submission.findMany({
+  const candidates = (await Promise.all(groups.map((g) => prisma.submission.findMany({
     // completedAt: null excludes ever-completed submissions - a paid-mode respondent
     // who completed then returned to edit is reset to STARTED (keeping the old
     // startedAt), and must NOT be swept as abandoned / nurtured as a lost lead.
@@ -36,7 +64,7 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
     // The one exception is handled below, not here: a route that ENDS at a thank-you
     // never offered an assessment, so its opt-ins are not abandoners. That needs the
     // route's mode, which lives in the assessment's JSON rather than in a column.
-    where: { status: "STARTED", abandonedAt: null, completedAt: null, startedAt: { lt: cutoff } },
+    where: { status: "STARTED", abandonedAt: null, completedAt: null, startedAt: { lt: g.cutoff }, assessment: g.assessment },
     select: {
       id: true,
       assessmentId: true,
@@ -58,7 +86,7 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
       },
     },
     take: BATCH,
-  });
+  })))).flat();
 
   let swept = 0;
   for (const s of candidates) {
@@ -119,11 +147,9 @@ export async function sweepAbandoned(): Promise<{ swept: number; scanned: number
  * which is expected for this kind of audience.
  */
 export async function sweepGateAbandoned(): Promise<{ fired: number; scanned: number }> {
-  const setting = await prisma.appSetting.findUnique({ where: { id: "singleton" } });
-  const hours = setting?.abandonedAfterHours ?? DEFAULT_HOURS;
-  const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+  const groups = await cutoffGroups();
 
-  const candidates = await prisma.gateEntry.findMany({
+  const candidates = (await Promise.all(groups.map((g) => prisma.gateEntry.findMany({
     // Two ways a verdict becomes due:
     //   abandonDueAt  - the visitor was SEEN leaving the opt-in page, and the grace
     //                   period since has elapsed.
@@ -132,7 +158,8 @@ export async function sweepGateAbandoned(): Promise<{ fired: number; scanned: nu
     // The second is what stops a lost beacon meaning a lost signal.
     where: {
       abandonedFiredAt: null,
-      OR: [{ abandonDueAt: { lte: new Date() } }, { abandonDueAt: null, passedAt: { lt: cutoff } }],
+      assessment: g.assessment,
+      OR: [{ abandonDueAt: { lte: new Date() } }, { abandonDueAt: null, passedAt: { lt: g.cutoff } }],
     },
     select: {
       id: true,
@@ -156,7 +183,7 @@ export async function sweepGateAbandoned(): Promise<{ fired: number; scanned: nu
       },
     },
     take: BATCH,
-  });
+  })))).flat();
 
   let fired = 0;
   for (const g of candidates) {

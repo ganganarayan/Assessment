@@ -102,7 +102,7 @@ console.log("\n=== Pinned fixes (source scan) ===");
   const subscribe = src("src/features/billing/actions/subscribe.ts");
   expect("Plan checkout, verify and cancel are owner-only", (subscribe.match(/scopeOwnerDenied\(scope\)/g) ?? []).length === 3 && !subscribe.includes("scopeEditDenied"));
   expect("Extra workspace slots are owner-only", src("src/features/billing/actions/slots.ts").includes("if (isStaff(user))"));
-  expect("Client workspace create/remove/restore are owner-only", (src("src/features/agency/actions.ts").match(/if \(!scope\.isOwner\)/g) ?? []).length === 3);
+  expect("Client workspace create/remove/restore/enter are owner-only", (src("src/features/agency/actions.ts").match(/if \(!scope\.isOwner\)/g) ?? []).length === 4);
   expect("Lifecycle mutations refuse platform staff", (src("src/features/platform/lifecycle.ts").match(/if \(isStaff\(await requireSuperAdmin\(\)\)\) return;/g) ?? []).length === 5);
 
   const sub = src("src/features/assessment/actions/submission.ts");

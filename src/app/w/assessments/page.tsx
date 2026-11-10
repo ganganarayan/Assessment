@@ -145,7 +145,17 @@ export default async function WorkspaceAssessmentsPage() {
                           Edit
                         </Link>
                       ) : (
-                        <span className="text-xs text-[var(--muted-foreground)]">View only</span>
+                        // View-only staff cannot open the builder (its saves would all be
+                        // refused), so they read the funnel the way a respondent sees it:
+                        // the preview, which never reports to Meta.
+                        <a
+                          href={`/a/${a.slug}?preview=1`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={buttonVariants({ variant: "outline", size: "sm" })}
+                        >
+                          Preview
+                        </a>
                       )}
                     </div>
                   </td>

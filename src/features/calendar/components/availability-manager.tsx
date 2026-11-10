@@ -123,6 +123,7 @@ export function AvailabilityManager({
   staff,
   feedPath,
   canEdit,
+  timeZoneLabel,
 }: {
   bookingTypes: BookingTypeRow[];
   assessments: PickerOption[];
@@ -132,6 +133,8 @@ export function AvailabilityManager({
   /** Null until somebody generates one. A path; made absolute below. */
   feedPath: string | null;
   canEdit: boolean;
+  /** The workspace's zone, which the hours below are on: "IST" or an IANA name. */
+  timeZoneLabel: string;
 }) {
   const router = useRouter();
   const [msg, setMsg] = useState<string | null>(null);
@@ -254,7 +257,7 @@ export function AvailabilityManager({
                 {/* Weekly hours */}
                 <div className="flex flex-col gap-2 rounded-md border border-dashed p-3">
                   <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-                    Weekly hours (IST)
+                    Weekly hours ({timeZoneLabel})
                   </h4>
                   {WEEKDAY_LABELS.map((label, weekday) => {
                     const windows = t.rules.filter((r) => r.weekday === weekday);

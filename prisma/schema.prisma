@@ -2425,6 +2425,10 @@ model PaymentLink {
   /// Floor enforced SERVER-SIDE on whatever the client types. The payer sets the
   /// amount, so without a floor a sale can arrive as ₹1.
   minPaise Int @default(100)
+  /// The currency this link charges in, snapshotted from the tenant's setting when the
+  /// link is made (Phase 4), so a later change of currency never re-prices a sent link.
+  /// Amounts above are minor units of THIS currency despite the "Paise" names.
+  currency String @default("INR")
 
   /// Overrides the tenant's standing description for this one link, when the sale
   /// needs naming (a package, a retainer). Blank = the tenant's setting.
@@ -2881,6 +2885,13 @@ model AppSetting {
   termsUrl         String?
   replyToEmail     String?
   reportDisclaimer String?
+  // Region (Phase 4, selling outside India). timeZone is an IANA zone ("America/New_York")
+  // for what a RESPONDENT sees: booking slots, the booking page, appointment reminders.
+  // null = Asia/Kolkata. Admin screens stay IST whatever this says (owner rule).
+  // paymentCurrency is the ISO 4217 code respondent payments are charged in on the
+  // tenant's own Razorpay account (null = INR). Never the platform's USD plans.
+  timeZone         String?
+  paymentCurrency  String?
 
   // Marketing landing videos - PLATFORM ONLY, never copied to a tenant.
   // { hero?: string, tiles?: { "<capability title>": string } }. Each value is the

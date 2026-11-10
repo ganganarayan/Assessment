@@ -1,5 +1,6 @@
 "use client";
 
+import { currencySymbol, formatMajor } from "@/lib/region/money";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,12 +21,15 @@ export function PayForm({
   token,
   suggested,
   minAmount,
+  currency = "INR",
 }: {
   token: string;
-  /** Prefilled rupee amount, as the sender typed it. */
+  /** Prefilled amount in major units of the link's currency, as the sender typed it. */
   suggested: number;
-  /** Floor in rupees, enforced again on the server. */
+  /** Floor in major units, enforced again on the server. */
   minAmount: number;
+  /** The link's currency (Phase 4). */
+  currency?: string;
 }) {
   const [amount, setAmount] = useState(String(suggested));
   const [busy, setBusy] = useState(false);
@@ -38,7 +42,7 @@ export function PayForm({
       return;
     }
     if (value < minAmount) {
-      setError(`The minimum for this link is ₹${minAmount.toLocaleString("en-IN")}.`);
+      setError(`The minimum for this link is ${formatMajor(minAmount, currency)}.`);
       return;
     }
     setBusy(true);
@@ -63,7 +67,7 @@ export function PayForm({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <Label className="text-xs" htmlFor="pay-amount">
-          Amount (₹)
+          Amount ({currencySymbol(currency).trim()})
         </Label>
         <Input
           id="pay-amount"
@@ -78,7 +82,7 @@ export function PayForm({
         />
         <p className="text-xs text-[var(--muted-foreground)]">
           Change this if you are paying a different amount.
-          {minAmount > 1 ? ` Minimum ₹${minAmount.toLocaleString("en-IN")}.` : ""}
+          {minAmount > 1 ? ` Minimum ${formatMajor(minAmount, currency)}.` : ""}
         </p>
       </div>
       <Button onClick={pay} disabled={busy} className="h-11 w-full text-base">

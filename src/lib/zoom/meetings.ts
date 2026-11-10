@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { zoomAccessToken } from "@/lib/zoom/oauth";
+import { tenantTimeZone } from "@/lib/tenant/region";
 
 /**
  * Making and unmaking a Zoom meeting for one appointment.
@@ -44,6 +45,7 @@ export async function createZoomMeeting(args: {
     await note(args.appointmentId, "Zoom is not connected for this workspace.");
     return null;
   }
+  const zone = await tenantTimeZone(args.tenantId);
 
   try {
     const res = await fetch(`${API}/users/me/meetings`, {
@@ -54,9 +56,9 @@ export async function createZoomMeeting(args: {
         type: 2, // scheduled, at a fixed time
         start_time: args.startAt.toISOString(),
         duration: args.durationMin,
-        // The instant is already absolute in start_time; naming the timezone keeps
-        // Zoom's own UI showing the owner the hour they expect.
-        timezone: "Asia/Kolkata",
+        // The instant is already absolute in start_time; naming the workspace's own
+        // timezone keeps Zoom's UI showing the owner the hour they expect.
+        timezone: zone,
         settings: {
           // Somebody who followed a link from an email should not then sit in a waiting
           // room wondering whether they are in the right place.

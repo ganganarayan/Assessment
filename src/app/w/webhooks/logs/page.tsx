@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, canEdit } from "@/lib/auth/guards";
+import { ViewOnlyNote } from "@/components/view-only";
 import { listEventActivity } from "@/features/events/data";
 import { WebhookLogsTable } from "@/features/events/components/webhook-logs-table";
 import { buttonVariants } from "@/components/ui/button";
@@ -12,7 +13,8 @@ export default async function WorkspaceWebhookLogsPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
-  const { tenantId } = await requireWorkspace();
+  const { tenantId, user: viewer } = await requireWorkspace();
+  const readOnly = !canEdit(viewer);
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
 
@@ -32,6 +34,7 @@ export default async function WorkspaceWebhookLogsPage({
         <span className="text-sm text-[var(--muted-foreground)]">{total} total</span>
       </div>
 
+      {readOnly ? <ViewOnlyNote /> : null}
       <WebhookLogsTable rows={rows} />
 
       <div className="flex items-center justify-between text-sm">

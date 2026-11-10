@@ -42,6 +42,8 @@ export interface AgencyTenantRow {
   domain: string | null;
   assessmentCount: number;
   submissionCount: number;
+  /** Responses in the last 30 days, for the combined view across clients. */
+  recentCount: number;
   /** Removed, slot freed, data intact. Restorable while the cap allows it. */
   removed: boolean;
 }
@@ -95,7 +97,7 @@ type TenantRecord = {
   _count: { assessments: number; submissions: number };
 };
 
-function toRow(t: TenantRecord): AgencyTenantRow {
+function toRow(t: TenantRecord, recent: Map<string | null, number>): AgencyTenantRow {
   const primary = t.domains.find((d) => d.isPrimary) ?? t.domains[0] ?? null;
   return {
     id: t.id,
@@ -106,6 +108,7 @@ function toRow(t: TenantRecord): AgencyTenantRow {
     domain: primary?.hostname ?? null,
     assessmentCount: t._count.assessments,
     submissionCount: t._count.submissions,
+    recentCount: recent.get(t.id) ?? 0,
     removed: t.deletedAt != null,
   };
 }
@@ -171,7 +174,18 @@ export async function getAgencyTenantsView(): Promise<AgencyTenantsView> {
     readActingTenant(user.id),
   ]);
 
-  const mapped = rows.map(toRow);
+  // One combined look across every client (Phase 5): responses in the last 30 days,
+  // per client, in one grouped query.
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const recentRows = rows.length
+    ? await prisma.submission.groupBy({
+        by: ["tenantId"],
+        where: { tenantId: { in: rows.map((r) => r.id) }, createdAt: { gte: since } },
+        _count: { _all: true },
+      })
+    : [];
+  const recent = new Map(recentRows.map((r) => [r.tenantId, r._count._all]));
+  const mapped = rows.map((r) => toRow(r, recent));
   const inside = acting && mapped.some((r) => r.id === acting) ? acting : null;
   return {
     tenants: mapped.filter((r) => !r.removed),
@@ -253,6 +267,8 @@ async function createAgencyTenantUnderCapLock(
 export async function enterAgencyTenant(tenantId: string): Promise<void> {
   const scope = await agencyAdminScope();
   if (!scope.ok) redirect("/w");
+  // Staff do not enter client workspaces (the per-request check refuses them too).
+  if (!scope.isOwner) redirect("/w/agency-tenants");
   const user = await requireUser();
   if (!(await isAgencyTenantOf(tenantId, scope.tenantId))) redirect("/w/agency-tenants");
   await writeActingTenant(user.id, tenantId);

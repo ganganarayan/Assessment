@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { OperationsPanel } from "@/features/assessment/components/admin/operations-panel";
 import { actingTenantId } from "@/lib/tenant/acting";
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, canEdit } from "@/lib/auth/guards";
+import { ViewOnly } from "@/components/view-only";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,8 @@ export const dynamic = "force-dynamic";
  *  workspace's tenant, MINUS the CRM senders: those read the platform settings row, so
  *  they are singleton-wide and belong on the super-admin console only. */
 export default async function WorkspaceOperationsPage() {
-  await requireWorkspace();
+  const { user: viewer } = await requireWorkspace();
+  const readOnly = !canEdit(viewer);
   const assessments = await prisma.assessment.findMany({
     where: { tenantId: await actingTenantId() },
     orderBy: { createdAt: "asc" },
@@ -24,7 +26,7 @@ export default async function WorkspaceOperationsPage() {
           Data maintenance for existing contacts. Pick an assessment, then run a tool.
         </p>
       </div>
-      <OperationsPanel assessments={assessments} />
+      <ViewOnly readOnly={readOnly}><OperationsPanel assessments={assessments} /></ViewOnly>
     </div>
   );
 }

@@ -31,6 +31,7 @@ export const RESERVED_PLACEHOLDERS: readonly string[] = [
   // The appointment placeholders a calendar automation fills from the booking itself.
   "appointmentTime",
   "appointmentDate",
+  "timezone",
   "bookingName",
 ];
 

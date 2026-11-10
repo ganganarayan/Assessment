@@ -10,6 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangeFilter } from "@/features/admin/components/date-range-filter";
 import { AnalyticsToolbar } from "@/features/admin/components/analytics-toolbar";
 import { formatIST } from "@/lib/date";
+import { tenantCurrency } from "@/lib/tenant/region";
+import { formatMajor } from "@/lib/region/money";
+import { AssessmentPicker } from "@/features/admin/components/assessment-picker";
+import { getAssessmentForAnalytics, listAssessments } from "@/features/assessment/data";
 
 export const dynamic = "force-dynamic";
 
@@ -40,18 +44,28 @@ const BotTag = () => (
 export default async function WorkspaceStatsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; assessment?: string }>;
 }) {
   const { tenantId } = await requireWorkspace();
+  // Respondent payments are in the workspace's own currency (Settings, Region).
+  const currency = await tenantCurrency(tenantId);
   const sp = await searchParams;
-  const range = { from: sp.from, to: sp.to };
   // A workspace is always exactly one tenant - never the all-tenants scope.
   const dataScope = tenantOnly(tenantId);
+  // One funnel at a time (Phase 5), the same way /admin does it: the funnel's saved
+  // reporting start is the floor, and the lookup is scoped so another workspace's id
+  // finds nothing.
+  const scoped = sp.assessment ? await getAssessmentForAnalytics(sp.assessment, dataScope) : null;
+  const range = { from: scoped ? undefined : sp.from, to: sp.to };
+  const stickyStart = scoped?.statsResetAt ? formatIST(scoped.statsResetAt.toISOString()).split(" ")[0] : "";
+  const assessmentOptions = (await listAssessments(dataScope)).map((a) => ({ id: a.id, title: a.title }));
+  const aScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : undefined;
+  const pvScope = scoped ? { assessmentId: scoped.id, floor: scoped.statsResetAt } : {};
   const [s, utm, log, botRows] = await Promise.all([
-    getAnalyticsStats(range, dataScope),
-    getUtmBreakdown(range, dataScope),
-    listPageViews({ ...range, limit: 100, scope: dataScope }),
-    getBotSourceRows({ ...range, scope: dataScope }),
+    getAnalyticsStats(range, dataScope, aScope),
+    getUtmBreakdown(range, dataScope, aScope),
+    listPageViews({ ...range, limit: 100, scope: dataScope, ...pvScope }),
+    getBotSourceRows({ ...range, scope: dataScope, ...pvScope }),
   ]);
 
   const items: { label: string; value: number; hint?: string }[] = [
@@ -145,7 +159,16 @@ export default async function WorkspaceStatsPage({
         <AnalyticsToolbar exportGroups={exportGroups} />
       </div>
 
-      <DateRangeFilter basePath="/w/stats" from={sp.from} to={sp.to} />
+      <AssessmentPicker assessments={assessmentOptions} selectedId={scoped?.id ?? null} basePath="/w/stats" />
+
+      <DateRangeFilter
+        basePath="/w/stats"
+        from={sp.from}
+        to={sp.to}
+        extraQuery={scoped ? { assessment: scoped.id } : undefined}
+        stickyStartAssessmentId={scoped?.id}
+        stickyStartValue={stickyStart}
+      />
 
       {/* Dense on purpose: the funnel is read as a whole or not at all, so every number
           has to be on one screen - five across on a laptop, two on a phone - rather than
@@ -170,7 +193,7 @@ export default async function WorkspaceStatsPage({
           </CardHeader>
           <CardContent className="px-3">
             <p className="text-2xl font-bold tabular-nums text-green-600">{s.paidCount.toLocaleString()}</p>
-            <p className="text-[11px] leading-snug text-[var(--muted-foreground)]">₹{s.paidAmount.toLocaleString()} total</p>
+            <p className="text-[11px] leading-snug text-[var(--muted-foreground)]">{formatMajor(s.paidAmount, currency)} total</p>
           </CardContent>
         </Card>
         {/* Product sales - what was sold by hand on a payment link AFTER the funnel
@@ -186,7 +209,7 @@ export default async function WorkspaceStatsPage({
           <CardContent className="px-3">
             <p className="text-2xl font-bold tabular-nums text-green-600">{s.productSaleCount.toLocaleString()}</p>
             <p className="text-[11px] leading-snug text-[var(--muted-foreground)]">
-              ₹{s.productSaleAmount.toLocaleString()} total
+              {formatMajor(s.productSaleAmount, currency)} total
             </p>
           </CardContent>
         </Card>

@@ -1,4 +1,5 @@
-import { requireWorkspace } from "@/lib/auth/guards";
+import { requireWorkspace, canEdit } from "@/lib/auth/guards";
+import { ViewOnlyNote } from "@/components/view-only";
 import { requireReleasedFeature } from "@/lib/features/route-guard";
 import { listBroadcasts, broadcastOptions } from "@/features/broadcasts/data";
 import { BroadcastList } from "@/features/broadcasts/components/broadcast-list";
@@ -14,7 +15,8 @@ export const dynamic = "force-dynamic";
  */
 export default async function WorkspaceBroadcastsPage() {
   await requireReleasedFeature("broadcasts");
-  const { tenantId } = await requireWorkspace();
+  const { tenantId, user: viewer } = await requireWorkspace();
+  const readOnly = !canEdit(viewer);
   const [rows, options] = await Promise.all([listBroadcasts(tenantId), broadcastOptions(tenantId)]);
   return (
     <div className="flex flex-col gap-6">
@@ -25,6 +27,7 @@ export default async function WorkspaceBroadcastsPage() {
           unsubscribed is excluded, and it goes out at a deliberately modest rate.
         </p>
       </div>
+      {readOnly ? <ViewOnlyNote /> : null}
       <BroadcastList rows={rows} basePath="/w/broadcasts" wabaAvailable={options.wabaAvailable} />
     </div>
   );
