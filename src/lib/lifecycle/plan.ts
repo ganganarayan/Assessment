@@ -280,6 +280,27 @@ export async function planToday(now: Date = new Date()): Promise<PlanSummary> {
         }
       }
 
+      // Every AI call is a spend, and the per-tenant AI usage screen reads only ai_usage.
+      // The platform pays for this one, on behalf of the workspace being nurtured.
+      // Fail-soft: a missing meter row must never stop the plan being written.
+      if (model && (inputTokens > 0 || outputTokens > 0)) {
+        await prisma.aiUsage
+          .create({
+            data: {
+              tenantId: profile.tenantId,
+              provider: "claude",
+              model,
+              purpose: "lifecycle",
+              onPlatformKey: true,
+              inputTokens,
+              outputTokens,
+            },
+          })
+          .catch((e: unknown) =>
+            console.error("[lifecycle] usage not recorded:", e instanceof Error ? e.message : String(e)),
+          );
+      }
+
       const status =
         verdict === "ESCALATE" ? "NEEDS_INPUT" : verdict === "SKIP" ? "SKIPPED" : "DRAFT";
       if (verdict === "ESCALATE") out.escalated++;

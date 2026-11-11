@@ -14,7 +14,8 @@
  *   --slug=<funnel>        default: the funnel with the most AI statements in 120 days
  *   --cases=10             real respondents, spread across bands
  *   --models=a,b,c         default: the five below
- *   --runs=2               runs per case for the precise prompt (consistency)
+ *   --prompt=v6-precise    candidate prompt file in prompts/ (without .txt)
+ *   --runs=2               runs per case for the candidate prompt (consistency)
  *   --live-runs=1          runs per case for the tenant's live prompt
  *   --max-tokens=4000      per call; outputs over 900 are flagged (the app's limit today)
  *   --no-judge             skip the judge pass
@@ -198,8 +199,10 @@ async function main() {
   const liveVersion = await resolvePromptVersion(funnel.aiPromptVersionId ?? cfg.promptVersion, funnel.tenantId);
   if (!liveVersion) throw new Error("No live prompt version resolved.");
   const words = await getWordWindow(funnel.tenantId);
-  const preciseText = readFileSync(join(QA_ROOT, "src", "ai-eval", "prompts", "v6-precise.txt"), "utf8");
-  const precise: PromptVersion = instructionVersion({ id: "v6-precise", label: "V6 precise", instructions: preciseText });
+  // --prompt=<name> picks qa/src/ai-eval/prompts/<name>.txt as the candidate prompt.
+  const promptName = arg("prompt", "v6-precise") ?? "v6-precise";
+  const preciseText = readFileSync(join(QA_ROOT, "src", "ai-eval", "prompts", `${promptName}.txt`), "utf8");
+  const precise: PromptVersion = instructionVersion({ id: promptName, label: promptName, instructions: preciseText });
   console.log(`funnel=${funnel.slug} cases=${cases.length} liveModel=${cfg.model} livePrompt=${liveVersion.label} words=${words.min}-${words.max}`);
 
   const jobs: Array<{ c: EvalCase; prompt: "live" | "precise"; version: PromptVersion; model: string; run: number }> = [];

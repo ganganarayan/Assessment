@@ -86,7 +86,8 @@ const REST_TOPIC = /\b((?<!the )rest(?! of)(?:ing)?|holiday|vacation|time off|da
 const HELPLINE = /(tele-?manas|helpline|hotline|\b\d{5,}\b|crisis line|if you ever feel)/i;
 const CLINICAL = /\b(burn ?out|burnout|anxiety|anxious disorder|depress\w*|trauma\w*|disorder|ptsd|adrenal)\b/i;
 const REASSURE = /\b(you(?:'re| are) not alone|it'?s okay|it is okay|don'?t worry|you(?:'ll| will) be fine|this is fixable|there is hope|you can do this|be kind to yourself)\b/i;
-const LONG_DASH = /[\u2013\u2014]/;
+const STOCK = /\b(both (?:of these )?(?:are|things are) true|at the same time|side by side|is named in the video below|it is completely true (?:for|of) you|redlined|running hot|medium load)\b/i;
+const LONG_DASH =/[\u2013\u2014]/;
 const MARKDOWN = /(\*\*|__|^#|^\s*[-*•]\s|`)/m;
 const EMOJI = /\p{Extended_Pictographic}/u;
 
@@ -146,6 +147,14 @@ export function scoreStatement(
     { id: "no-reassure", label: "No reassurance", pass: !REASSURE.test(t), detail: t.match(REASSURE)?.[0] },
     { id: "no-labels", label: "No band or category names", pass: names.length === 0, detail: names.join(", ") || undefined },
     { id: "no-percent", label: "No percentage", pass: !/\d+\s?%|percent/i.test(t) },
+    // Lines every model fell back on in the 11-11-2026 run: once a phrase appears in
+    // every statement, nobody reads it as written for them.
+    {
+      id: "no-stock",
+      label: "No stock phrasing",
+      pass: !STOCK.test(t),
+      detail: t.match(STOCK)?.[0],
+    },
     { id: "clean", label: "No long dash, markdown, emoji or !", pass: !LONG_DASH.test(t) && !MARKDOWN.test(t) && !EMOJI.test(t) && !t.includes("!") },
   ];
   return checks;

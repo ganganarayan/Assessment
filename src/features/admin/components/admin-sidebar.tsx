@@ -39,6 +39,8 @@ const SECTIONS: NavSection[] = [
       // Separate from Tenants on purpose: that list is read while operating a
       // workspace, this one is read down a column to see who pays and what they cost.
       { href: "/platform/accounts", label: "Revenue" },
+      // Cumulative AI spend per workspace, one line each, read from ai_usage.
+      { href: "/platform/ai-usage", label: "AI usage" },
       // The switches that hold a finished feature back from every tenant. Its own page,
       // not a card under the tenant list, where it was below the fold on a real account.
       { href: "/platform/releases", label: "Feature releases" },

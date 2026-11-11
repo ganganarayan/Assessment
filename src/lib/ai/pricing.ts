@@ -30,6 +30,16 @@ export const MODEL_RATES: Readonly<Record<string, ModelRate>> = {
   "gpt-4o-mini": { inPerM: 0.15, outPerM: 0.6 },
   "gemini-1.5-pro": { inPerM: 1.25, outPerM: 5 },
   "gemini-1.5-flash": { inPerM: 0.075, outPerM: 0.3 },
+  // Claude, entered 11-11-2026 from Anthropic list prices. Used ONLY to estimate spend
+  // per tenant on the AI usage screen: Claude rows still store tokens with cost 0, and
+  // the billed figure comes from the provider cost report (see recordAiUsage).
+  "claude-haiku-4-5": { inPerM: 1, outPerM: 5 },
+  "claude-haiku-5-5": { inPerM: 0.1, outPerM: 0.5 },
+  "claude-sonnet-4-6": { inPerM: 3, outPerM: 15 },
+  "claude-sonnet-5": { inPerM: 2, outPerM: 10 },
+  "claude-sonnet-5-5": { inPerM: 2, outPerM: 10 },
+  "claude-opus-5": { inPerM: 5, outPerM: 25 },
+  "claude-opus-5-5": { inPerM: 4, outPerM: 20 },
 };
 
 /**

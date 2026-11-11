@@ -27,8 +27,12 @@ import { appSettingWhere } from "@/lib/settings/tenant-row";
 // shows a 10s "Analyzing…" countdown, so allow headroom before failing soft.
 const TIMEOUT_MS = 30_000;
 // Headroom so a message NEVER gets cut mid-word. Length is governed by the
-// instructions (e.g. "180-240 words"), not this ceiling. ~240 words ≈ 330 tokens.
-const MAX_TOKENS = 900;
+// instructions (e.g. "70-100 words"), not this ceiling.
+// 🔴 Was 900 until 11-11-2026. Current Claude models think before they write and the
+// thinking counts against this same ceiling: on the eval of 10 real respondents
+// (npm run qa:ai-eval) Sonnet 5.5 used up to 1,340 output tokens for a 75-word
+// statement and Opus 5.5 up to 1,114, so 900 cut statements off mid-sentence.
+const MAX_TOKENS = 4000;
 
 /** Decrypt whichever key a settings row holds for its selected provider. */
 function keyFromRow(s: {
