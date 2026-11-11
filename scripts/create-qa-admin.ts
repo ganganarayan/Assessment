@@ -43,7 +43,11 @@ import { auth } from "../src/lib/auth/auth";
 
 const prisma = new PrismaClient();
 const EMAIL = (process.argv[2] ?? "qa-screens@qa.invalid").trim().toLowerCase();
-const ENV_FILE = join(process.cwd(), "qa", ".env.qa");
+// QA_ENV_FILE picks another file (qa/.env.qa.prod for the prod login), so creating the
+// prod account never overwrites the staging password.
+const ENV_FILE = process.env.QA_ENV_FILE?.trim()
+  ? join(process.cwd(), process.env.QA_ENV_FILE.trim())
+  : join(process.cwd(), "qa", ".env.qa");
 
 /** The host of the database about to be written to, with the credentials dropped. */
 function dbHost(): string {

@@ -300,7 +300,7 @@ only be spent once, a metric Meta did not report stays null), `verify:legal` (bo
 pages exist, every header link resolves, nothing company-specific is hardcoded),
 `verify:contact-consent`, `verify:vault` and `verify:workflow-queue`.
 
-## Tenancy: Phases 1 and 2 of the multi-tenant review, on the live app
+## Tenancy: Phases 1 to 5 of the multi-tenant review, on the live app
 
 ```
 railway run --service Assessment npm run qa:tenancy     # seed, run, clean up
@@ -308,7 +308,7 @@ npm run qa:tenancy -- --keep                             # leave the qa-tn- work
 npm run qa:tenancy -- --cleanup                          # remove every qa-tn- row of every run
 ```
 
-`verify:isolation` and `verify:lifecycle` pin each fix in the source, in the build. A pin
+`verify:isolation`, `verify:lifecycle`, `verify:whitelabel` and `verify:region-roles` pin each fix in the source, in the build. A pin
 proves the line is there, not that it works on the deployed app. This pass asks staging,
 through the doors a person or an attacker would use (the sign-in form, the console's own
 buttons, the public funnel URL, the public endpoints):
@@ -321,6 +321,14 @@ buttons, the public funnel URL, the public endpoints):
 | p1-razorpay-webhook | A's signed webhook settles A's lead, records nothing for B's, and the CAPI row is not pinned on B's lead |
 | p2-signup | a mailinator signup is refused with a reason and leaves no login; a workspace named "Admin" gets admin-ws, linked to its login, on trial |
 | p2-over-plan | three published funnels on a Gate grant: the two earliest serve, the newest shows the paused page, and /w/assessments says so |
+| p3-brand | A's funnel carries A's primary colour, favicon, share image, "<funnel> · <A>" title and A's privacy and terms links; B (no policy pages) never gets the platform's /privacy or /terms |
+| p3-report | A's admin gets A's PDF named <brand>_Report_<name>, never Assess360; B's admin gets 404 for it |
+| p3-p4-settings | /w/settings carries the Brand and legal card and the Region card |
+| p4-booking-zone | B is on America/New_York: its booking page labels times in that zone and every slot sits inside 09:00 to 17:00 New York, not IST |
+| p4-pay-currency | a payment link made in B (USD) asks "Amount ($)", prefilled 19.99, no rupee sign |
+| p5-view-staff | view-only staff: no Staff, Billing, API or Client workspaces in the menu (the owner's menu has them), a view-only note on editors, Preview instead of Edit |
+| p5-agency | the agency owner sees the client with its 30-day responses and can filter stats to one funnel; agency staff get no menu link and their Enter is refused, while the owner's Enter goes in |
+| p5-held-feature | a feature held back by its release switch (WhatsApp, while it is) is neither in a real workspace login's menu nor reachable by typing its address; skipped where it is released. The screens pass cannot check this, because the operator inside a workspace is exempt by design |
 | p2-suspend | the console's Suspend locks the admin out to /workspace-unavailable, pauses the funnel, is audited and listed on /platform/audit; Unsuspend restores both |
 | p2-console-create | the slug "admin" is refused; a typed-in password sends the first sign-in to /change-password; the creation is audited |
 | p2-delete-purge | Delete sends the admin to /workspace-unavailable (no loop); Delete permanently removes the funnel, lead, page view, CAPI log, sale and webhook delivery by name, keeps the subscription payment, AI usage and login unlinked, and audits it |
@@ -334,6 +342,30 @@ pixel or CAPI token, so nothing reaches Meta.
 A's webhook secret the way the app reads it, and the signed-link control signs a link. Both
 skip, with the reason, when it is absent. It is read from the process and printed nowhere.
 The signup case spends one of the IP's 20 signups an hour.
+
+**No test browser talks to Meta.** Every context the harness opens (sweep, screens,
+tenancy) refuses Facebook's pixel script and endpoint (qa/src/drive/no-meta.ts), and every
+workspace the tenancy pass makes is stamped as having already reported StartTrial before
+anyone opens it. On prod the platform pixel is live, so both matter.
+
+### On prod
+
+Prod keeps its own file, so it never overwrites the staging login: qa/.env.qa.prod
+(gitignored, like every qa/.env.qa* except the example).
+
+```
+QA_ENV_FILE=qa/.env.qa.prod BETTER_AUTH_SECRET=x BETTER_AUTH_URL=https://assess360.divineleads.guru railway run -e production --service Postgres npm run qa:admin
+QA_ENV_FILE=qa/.env.qa.prod railway run -e production --service Assessment npm run qa:tenancy -- --i-know-this-is-prod
+```
+
+The prod file sets QA_BASE_URL, QA_DATABASE_URL (prod DATABASE_PUBLIC_URL) and
+QA_SIGNUP_EMAIL, the owner's real inbox. With that set, the pass keeps ONE workspace
+signed up under that exact address for good (never cleaned up, a year's Signal grant so
+its funnels never pause), writes its password and id into the file as QA_KEEP_PASSWORD and
+QA_FIXTURE_TENANT, and makes its throwaway signups plus-addresses of the same inbox, so
+every welcome email lands somewhere read. QA_FIXTURE_TENANT is what `npm run qa:seed`
+seeds the funnel fixtures into on prod: the platform there has a live pixel, the kept
+workspace has none.
 
 ## What it does not cover
 

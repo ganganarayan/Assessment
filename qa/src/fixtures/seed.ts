@@ -17,6 +17,7 @@
  *   railway run npm run qa:seed -- --rm  remove them again
  */
 import { db } from "../db.js";
+import { loadQaEnv } from "../env.js";
 
 const PREFIX = "qa-fixture-";
 
@@ -362,7 +363,10 @@ async function seedOne(spec: FixtureSpec): Promise<string> {
       subheadline: "A fixture for the verification harness. Safe to take as often as you like.",
       status: "PUBLISHED",
       publishedAt: new Date(),
-      tenantId: null,
+      // The platform by default. QA_FIXTURE_TENANT puts them inside a workspace instead,
+      // which is how prod runs them: the platform there has a live pixel, a QA workspace
+      // has none, so the same funnels are driven and nothing reaches Meta.
+      tenantId: loadQaEnv().fixtureTenantId || null,
       questionDisplayMode: spec.displayMode,
       leadCaptureAfter: spec.optinAfter,
       retakePolicy: spec.retake,

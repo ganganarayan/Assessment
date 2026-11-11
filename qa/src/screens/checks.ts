@@ -652,14 +652,19 @@ const workflowScreens: ScreenGroup = {
                 ),
           );
         }
+        // This pass is the platform owner INSIDE a workspace, and requireReleasedFeature
+        // lets an impersonating operator through by design (they must be able to look at
+        // a held feature before releasing it). So the operator reaching it is the right
+        // answer here; whether a real workspace login is kept out is checked by the
+        // tenancy pass (p5-held-feature), which signs in as one.
         const held = await visit(page, baseUrl, "/w/whatsapp");
-        const blocked = held.crashed || !held.url.includes("/w/whatsapp");
+        const opened = !held.crashed && held.url.includes("/w/whatsapp");
         out.push(
-          blocked
-            ? pass("/w/whatsapp is not reachable while WhatsApp is held back", held.url)
+          opened
+            ? pass("/w/whatsapp opens for the operator inside a workspace, held features included", held.url)
             : fail(
-                "/w/whatsapp opened for a workspace",
-                "WhatsApp is held back pending Meta approval, so this page should have redirected. A hidden link is not a permission.",
+                "/w/whatsapp refused the operator inside a workspace",
+                "an impersonating operator is exempt from release switches, so this should have opened. The route guard's impersonation exemption may have been lost.",
               ),
         );
         return out;

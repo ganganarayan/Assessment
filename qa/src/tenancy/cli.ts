@@ -29,11 +29,12 @@
  * the workspace is their job). Nothing reaches Meta: no pixel or CAPI token is set on
  * any of these workspaces, and every capture row is marked as a fixture.
  */
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createHmac, randomBytes } from "node:crypto";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
-import { loadQaEnv, QA_ROOT } from "../env.js";
+import { blockMeta } from "../drive/no-meta.js";
+import { ENV_FILE_PATH, loadQaEnv, QA_ROOT } from "../env.js";
 import { closeDb, db, withDbRetry } from "../db.js";
 import { newRunId } from "../drive/identity.js";
 import { signIn } from "../drive/sign-in.js";
@@ -44,6 +45,7 @@ import { cleanupTenancy, PREFIX, seedTenancy, type Seed } from "./seed.js";
 import { encryptWithSecret } from "../../../src/lib/crypto.js";
 import { encodeTrackedUrl, trackedUrlSignature } from "../../../src/lib/nurture/tracking.js";
 import { tenantAppSettingId } from "../../../src/lib/settings/tenant-row.js";
+import { zoneLabel } from "../../../src/lib/region/zone.js";
 
 /* -------------------------------------------------------------------------- */
 /* Small helpers                                                               */
@@ -147,6 +149,10 @@ interface Ctx {
   seed: Seed;
   secret: string;
   emailDomain: string;
+  /** A real inbox for the signup cases (prod), and the kept account it owns. */
+  signupEmail: string;
+  keepPassword: string;
+  fixtureTenantId: string;
   owner: Page | null;
   ownerProblem: string | null;
   newPage: () => Promise<Page>;
@@ -307,7 +313,9 @@ const signup: Case = {
     checks.push(ok("the refusal says why in words", /Temporary inboxes/i.test(r1Text), "Temporary inboxes can't be used", r1Text.slice(0, 120)));
     checks.push(ok("no login was created for it", made === null, "none", made ? "a user row exists" : "none"));
 
-    const email = `${PREFIX}signup-${c.seed.runId}@${c.emailDomain}`;
+    // With a real inbox configured (prod), the throwaway signup is a plus-address of it,
+    // so its welcome email lands where somebody reads it instead of bouncing.
+    const email = c.signupEmail ? plusAddress(c.signupEmail, `${PREFIX}${c.seed.runId}`) : `${PREFIX}signup-${c.seed.runId}@${c.emailDomain}`;
     const r2 = await post(email, "Admin");
     const r2Text = await r2.text().catch(() => "");
     checks.push(ok("a normal signup goes through", r2.ok, "2xx", `HTTP ${r2.status} ${r2.ok ? "" : r2Text.slice(0, 120)}`));
@@ -318,13 +326,89 @@ const signup: Case = {
       30,
     );
     const t = user?.tenant ?? null;
+    if (t) await stampStartTrial(t.id);
     checks.push(ok("the login is linked to its new workspace, as its admin", !!t && user?.role === "ADMIN", "ADMIN of a workspace", t ? `${user?.role} of ${t.slug}` : "no workspace linked"));
     checks.push(ok("a workspace named \"Admin\" does not get the reserved slug", !!t && t.slug !== "admin" && t.slug.startsWith("admin-ws"), "admin-ws...", t?.slug ?? "none"));
-    checks.push(ok("the workspace starts on its trial", !!t?.trialEndsAt && t.trialEndsAt.getTime() > Date.now(), "a trial end in the future", t?.trialEndsAt?.toISOString() ?? "none"));
+    checks.push(ok("the workspace starts on its trial", !!t?.trialEndsAt && t.trialEndsAt.getTime() > Date.now(), "a trial end in the future", t?.trialEndsAt ? `ends ${ddmmyyyy(t.trialEndsAt)}` : "none"));
     if (t) c.signup = { email, password, tenantId: t.id, slug: t.slug };
+
+    if (c.signupEmail) checks.push(...(await keptAccount(c, post)));
     return checks;
   },
 };
+
+/** local+tag@domain. Gmail and most providers deliver it to the same inbox. */
+function plusAddress(email: string, tag: string): string {
+  const at = email.lastIndexOf("@");
+  return `${email.slice(0, at)}+${tag}${email.slice(at)}`;
+}
+
+/** DD-MM-YYYY, for anything a person reads in the report. IST, from a fixed offset. */
+function ddmmyyyy(d: Date): string {
+  const ist = new Date(d.getTime() + 330 * 60_000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(ist.getUTCDate())}-${p(ist.getUTCMonth() + 1)}-${ist.getUTCFullYear()}`;
+}
+
+/**
+ * Stamp a workspace as having already reported StartTrial, BEFORE anyone opens it.
+ * The first open of a new workspace fires StartTrial to the PLATFORM pixel, which on
+ * prod is live; a workspace this pass made is not a trial anybody started.
+ */
+async function stampStartTrial(tenantId: string): Promise<void> {
+  await withDbRetry(() => db().tenant.updateMany({ where: { id: tenantId, startTrialFiredAt: null }, data: { startTrialFiredAt: new Date() } }));
+}
+
+/**
+ * The KEPT test account (prod): one workspace signed up under the owner's real inbox,
+ * never deleted, used again by every later run. Its welcome email is the delivery test.
+ * The first run makes it through the real public signup and writes its password and id
+ * into the run's env file; later runs only sign in to it.
+ */
+async function keptAccount(c: Ctx, post: (email: string, name: string) => Promise<Response>): Promise<Check[]> {
+  const checks: Check[] = [];
+  const email = c.signupEmail;
+  let existing = await withDbRetry(() => db().user.findFirst({ where: { email }, select: { tenantId: true } }));
+  let password = c.keepPassword;
+  if (!existing) {
+    password = randomBytes(18).toString("base64url");
+    const r = await post(email, "Assess360 QA Test");
+    checks.push(ok(`the kept test account ${email} signs up`, r.ok, "2xx", `HTTP ${r.status}`));
+    existing = await until(() => db().user.findFirst({ where: { email }, select: { tenantId: true } }), (u) => !!u?.tenantId, 30);
+    if (existing?.tenantId) {
+      await stampStartTrial(existing.tenantId);
+      // A year on Signal, so its funnels never pause on a lapsed trial. A grant sits
+      // BELOW a subscription, so buying a plan on it later still works as for anyone.
+      await withDbRetry(() => db().tenant.update({ where: { id: existing!.tenantId! }, data: { plan: "SIGNAL", planExpiresAt: new Date(Date.now() + 365 * 24 * 3600 * 1000) }, select: { id: true } }));
+      writeEnvLines({ QA_KEEP_PASSWORD: password, QA_FIXTURE_TENANT: existing.tenantId });
+    }
+  } else if (existing.tenantId && !c.fixtureTenantId) {
+    writeEnvLines({ QA_FIXTURE_TENANT: existing.tenantId });
+  }
+  if (!existing?.tenantId) {
+    checks.push(ok("the kept test account has a workspace", false, "a workspace", "none"));
+    return checks;
+  }
+  if (!password) {
+    checks.push(warn("signing in to the kept test account", `QA_KEEP_PASSWORD is not in ${ENV_FILE_PATH}; use Forgot password on ${email} to set one, then add it there`));
+    return checks;
+  }
+  const page = await c.newPage();
+  const problem = await signIn(page, c.baseUrl, email, password);
+  const v = problem ? null : await landOn(page, c.baseUrl, "/w");
+  checks.push(ok("the kept test account signs in and reaches its workspace", !problem && !!v && v.path.startsWith("/w"), "/w", problem ?? v?.path ?? "?"));
+  return checks;
+}
+
+/** Replace or append KEY=value lines in the run's env file (gitignored). Values are never printed. */
+function writeEnvLines(values: Record<string, string>): void {
+  let text = existsSync(ENV_FILE_PATH) ? readFileSync(ENV_FILE_PATH, "utf8") : "";
+  for (const [k, v] of Object.entries(values)) {
+    const re = new RegExp(`^${k}=.*$`, "m");
+    text = re.test(text) ? text.replace(re, `${k}=${v}`) : `${text.replace(/\s*$/, "")}\n${k}=${v}\n`;
+  }
+  writeFileSync(ENV_FILE_PATH, text);
+}
 
 const overPlan: Case = {
   id: "p2-over-plan",
@@ -429,6 +513,7 @@ const createTenant: Case = {
     const t0 = new Date();
     await fill(slug);
     const t = await until(() => db().tenant.findUnique({ where: { slug }, select: { id: true, trialEndsAt: true, users: { select: { email: true, mustChangePassword: true } } } }), (r) => !!r && r.users.length > 0);
+    if (t) await stampStartTrial(t.id);
     const admin = t?.users.find((x) => x.email === email);
     checks.push(ok("the workspace and its admin are created together", !!t && !!admin, "workspace + login", t ? `${t.users.length} login(s)` : "no workspace"));
     checks.push(ok("the typed-in password is marked to be changed", admin?.mustChangePassword === true, "mustChangePassword", String(admin?.mustChangePassword)));
@@ -529,7 +614,269 @@ const deleteAndPurge: Case = {
   },
 };
 
-const CASES: Case[] = [emailLink, purchaseEventId, apiTokens, razorpayWebhook, signup, overPlan, suspend, createTenant, deleteAndPurge];
+/* -------------------------------------------------------------------------- */
+/* Phases 3 to 5                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Count the links to one path in the workspace menu.
+ *
+ * 🔴 The menu is an accordion and a CLOSED group renders no links at all, so a count on
+ * /w reads zero for the owner and the staff alike and every "hidden" check passes for
+ * the wrong reason. Every item these checks look for lives in the Account group, and a
+ * screen inside that group (/w/settings) opens it, so the count is taken there.
+ */
+async function menuLinksTo(page: Page, baseUrl: string, href: string): Promise<number> {
+  if (pathOf(page) !== "/w/settings") await landOn(page, baseUrl, "/w/settings");
+  return page.locator(`a[href="${href}"]`).count();
+}
+const linksTo = (page: Page, href: string) => page.locator(`a[href="${href}"]`).count();
+
+/**
+ * A signed-in browser for one login, reused for the whole run. Better Auth throttles
+ * sign-in per IP, so signing the same person in again for every case is what trips it.
+ */
+const sessions = new Map<string, Page>();
+async function as(c: Ctx, who: string, email: string, password: string): Promise<{ page: Page | null; checks: Check[] }> {
+  const open = sessions.get(email);
+  if (open && !open.isClosed()) return { page: open, checks: [] };
+  const page = await c.newPage();
+  const problem = await signIn(page, c.baseUrl, email, password);
+  if (problem) return { page: null, checks: [ok(`${who} can sign in`, false, "signed in", problem)] };
+  sessions.set(email, page);
+  return { page, checks: [] };
+}
+
+const brand: Case = {
+  id: "p3-brand",
+  title: "Phase 3: a business funnel wears its owner's colours, favicon, share image, title and legal links, never the platform's",
+  async run(c) {
+    const { a, b, brandA } = c.seed;
+    const ra = await get(`${c.baseUrl}/a/${a.funnels[0]}`);
+    const titleA = /<title>([^<]*)<\/title>/i.exec(ra.text)?.[1] ?? "";
+    const rb = await get(`${c.baseUrl}/a/${b.funnels[0]}`);
+    const titleB = /<title>([^<]*)<\/title>/i.exec(rb.text)?.[1] ?? "";
+    const has = (s: string) => (ra.text.includes(s) ? "present" : "missing");
+    const platformLegal = ['href="/privacy"', 'href="/terms"'].filter((h) => rb.text.includes(h));
+    return [
+      ok("A's funnel answers", ra.status === 200, "200", String(ra.status)),
+      ok("A's funnel wears A's primary colour", ra.text.includes(`--primary:${brandA.primary}`), `--primary:${brandA.primary}`, has(`--primary:${brandA.primary}`)),
+      ok("A's funnel shows A's favicon", ra.text.includes(brandA.favicon), brandA.favicon, has(brandA.favicon)),
+      ok("A's funnel shares with A's share image", ra.text.includes(brandA.share), brandA.share, has(brandA.share)),
+      ok("A's funnel title carries A's name, not Assess360", titleA.includes(a.name) && !/Assess360\s*$/.test(titleA), `... · ${a.name}`, titleA || "(no title)"),
+      ok("A's funnel footer links A's privacy page", ra.text.includes(`href="${brandA.privacy}"`), brandA.privacy, has(`href="${brandA.privacy}"`)),
+      ok("A's funnel footer links A's terms page", ra.text.includes(`href="${brandA.terms}"`), brandA.terms, has(`href="${brandA.terms}"`)),
+      ok("B's funnel title never ends in Assess360", !!titleB && !/Assess360\s*$/.test(titleB), `... · ${b.name}`, titleB || "(no title)"),
+      ok("B, with no policy pages of its own, is never given the platform's", platformLegal.length === 0, "no /privacy or /terms link", platformLegal.join(", ") || "none"),
+    ];
+  },
+};
+
+const report: Case = {
+  id: "p3-report",
+  title: "Phase 3: the PDF report is named for its owner, and another workspace cannot open it",
+  async run(c) {
+    const url = `${c.baseUrl}/api/reports/${c.seed.reportSubmissionId}`;
+    const ownA = await as(c, "workspace A's admin", c.seed.a.adminEmail, c.seed.a.adminPassword);
+    if (!ownA.page) return ownA.checks;
+    const r = await ownA.page.request.get(url, { timeout: 120_000 });
+    const type = r.headers()["content-type"] ?? "";
+    const disp = r.headers()["content-disposition"] ?? "";
+    const checks: Check[] = [
+      ok("A's admin gets A's report as a PDF", r.status() === 200 && type.includes("pdf"), "200 application/pdf", `${r.status()} ${type}`),
+      ok("the file is named for the owner, not Assess360", disp.includes("_Report_") && !/Assess360/i.test(disp), "<brand>_Report_<name>.pdf", disp || "(no disposition)"),
+    ];
+    const other = await as(c, "workspace B's admin", c.seed.b.adminEmail, c.seed.b.adminPassword);
+    if (!other.page) return [...checks, ...other.checks];
+    const x = await other.page.request.get(url, { timeout: 60_000 });
+    checks.push(ok("B's admin cannot open A's report", x.status() === 404, "404", String(x.status())));
+    return checks;
+  },
+};
+
+const settingsCards: Case = {
+  id: "p3-p4-settings",
+  title: "Phases 3 and 4: a workspace's Settings carries the Brand and legal card and the Region card",
+  async run(c) {
+    const s = await as(c, "workspace A's admin", c.seed.a.adminEmail, c.seed.a.adminPassword);
+    if (!s.page) return s.checks;
+    const v = await landOn(s.page, c.baseUrl, "/w/settings");
+    return [
+      ok("/w/settings opens", v.path === "/w/settings", "/w/settings", v.path),
+      ok("the Brand and legal card is there", v.text.includes("Brand and legal"), "Brand and legal", v.text.includes("Brand and legal") ? "present" : "missing"),
+      ok("the Region card is there", /\bRegion\b/.test(v.text), "Region", /\bRegion\b/.test(v.text) ? "present" : "missing"),
+    ];
+  },
+};
+
+const booking: Case = {
+  id: "p4-booking-zone",
+  title: "Phase 4: a booking page offers times on the workspace's own clock (New York), not IST",
+  async run(c) {
+    const page = await c.newPage();
+    const v = await landOn(page, c.baseUrl, `/b/${c.seed.bookingSlugB}`);
+    const label = zoneLabel(c.seed.zoneB);
+    const times = [...v.text.matchAll(/\b([01]\d|2[0-3]):([0-5]\d)\b/g)].map((m) => Number(m[1]) * 60 + Number(m[2]));
+    const outside = times.filter((t) => t < 540 || t >= 1020);
+    return [
+      ok("the booking page opens", v.path === `/b/${c.seed.bookingSlugB}`, `/b/${c.seed.bookingSlugB}`, v.path),
+      ok(`the times are labelled in the workspace's zone (${label})`, v.text.includes(`(${label})`), `Pick a time (${label})`, v.text.includes(`(${label})`) ? "present" : v.text.match(/Pick a time \([^)]*\)/)?.[0] ?? "no label"),
+      ok("slots are offered", times.length > 0, "at least one time", `${times.length} time(s)`),
+      ok("every slot sits inside 09:00 to 17:00 New York time", times.length > 0 && outside.length === 0, "09:00 to 16:30", outside.length ? `outside: ${outside.slice(0, 4).map((t) => `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`).join(", ")}` : "all inside"),
+    ];
+  },
+};
+
+const payLink: Case = {
+  id: "p4-pay-currency",
+  title: "Phase 4: a payment link made in a USD workspace asks for dollars",
+  async run(c) {
+    if (!c.secret) {
+      return [skip("the pay page in dollars", "the page shows its amount field only for a workspace with a Razorpay key, which is stored encrypted with BETTER_AUTH_SECRET; run under `railway run --service Assessment`")];
+    }
+    // A TEST key that is never used: the page only checks that one is configured, and
+    // nothing here submits the form, so no order is ever created against it.
+    const keyEnc = encryptWithSecret("qa-tenancy-not-a-real-secret", c.secret);
+    await withDbRetry(() =>
+      db().appSetting.update({
+        where: { id: tenantAppSettingId(c.seed.b.id) },
+        data: { razorpayKeyId: "rzp_test_qatenancy", razorpayKeySecretEnc: keyEnc },
+        select: { id: true },
+      }),
+    );
+    const raw = await get(`${c.baseUrl}/pay/${c.seed.payTokenB}`);
+    // React puts empty comment markers between text and an interpolated value.
+    const r = { ...raw, text: raw.text.replace(/<!-- -->/g, "") };
+    const unavailable = r.text.includes("Payment unavailable");
+    return [
+      ok("the pay page answers", r.status === 200, "200", String(r.status)),
+      ok("the pay page offers the form (a key is configured)", !unavailable, "the payment form", unavailable ? "Payment unavailable" : "the form"),
+      ok("the amount is asked for in dollars", r.text.includes("Amount ($)"), "Amount ($)", r.text.includes("Amount ($)") ? "present" : r.text.match(/Amount \([^)]*\)/)?.[0] ?? "no amount field"),
+      ok("the prefilled amount is 19.99", r.text.includes("19.99"), "19.99", r.text.includes("19.99") ? "present" : "missing"),
+      ok("no rupee sign on a dollar link", !r.text.includes("₹"), "no ₹", r.text.includes("₹") ? "₹ on the page" : "none"),
+    ];
+  },
+};
+
+const viewStaff: Case = {
+  id: "p5-view-staff",
+  title: "Phase 5: view-only staff see no owner-only menu items, get a note instead of dead editors, and Preview instead of Edit",
+  async run(c) {
+    const { a, staffA } = c.seed;
+    const owner = await as(c, "workspace A's admin", a.adminEmail, a.adminPassword);
+    if (!owner.page) return owner.checks;
+    const ownerStaffLinks = await menuLinksTo(owner.page, c.baseUrl, "/w/staff");
+    const ownerBillingLinks = await menuLinksTo(owner.page, c.baseUrl, "/w/billing");
+    const s = await as(c, "A's view-only staff", staffA.email, staffA.password);
+    if (!s.page) return s.checks;
+    const home = await landOn(s.page, c.baseUrl, "/w");
+    const checks: Check[] = [
+      ok("control: the owner's menu offers Staff", ownerStaffLinks > 0, "a Staff link", `${ownerStaffLinks} link(s)`),
+      ok("control: the owner's menu offers Billing", ownerBillingLinks > 0, "a Billing link", `${ownerBillingLinks} link(s)`),
+      ok("the staff login reaches the workspace", home.path.startsWith("/w"), "/w", home.path),
+    ];
+    const settings = await landOn(s.page, c.baseUrl, "/w/settings");
+    checks.push(ok("control: the staff menu's Account group is open", settings.path === "/w/settings" && (await linksTo(s.page, "/w/settings")) > 0, "a Settings link", settings.path));
+    for (const href of ["/w/staff", "/w/billing", "/w/api", "/w/agency-tenants"]) {
+      const n = await linksTo(s.page, href);
+      checks.push(ok(`the staff menu does not offer ${href}`, n === 0, "no link", `${n} link(s)`));
+    }
+    const hooks = await landOn(s.page, c.baseUrl, "/w/webhooks");
+    checks.push(ok("a view-only editor says so instead of failing on save", /view-only access here/i.test(hooks.text), "You have view-only access here", hooks.path !== "/w/webhooks" ? `landed on ${hooks.path}` : /view-only access here/i.test(hooks.text) ? "said" : "no note"));
+    await landOn(s.page, c.baseUrl, "/w/assessments");
+    const preview = await linksTo(s.page, `/a/${a.funnels[0]}?preview=1`);
+    checks.push(ok("the funnel list offers Preview to view-only staff", preview > 0, `/a/${a.funnels[0]}?preview=1`, `${preview} link(s)`));
+    return checks;
+  },
+};
+
+/** Click Enter on one client's row and come back to the list, which says where you are. */
+async function tryEnter(page: Page, baseUrl: string, clientName: string): Promise<{ offered: boolean; inside: boolean }> {
+  await landOn(page, baseUrl, "/w/agency-tenants");
+  const row = page.locator("li").filter({ hasText: clientName });
+  const button = row.getByRole("button", { name: "Enter", exact: true });
+  if ((await button.count()) === 0) return { offered: false, inside: false };
+  // A server action that redirects: wait for the navigation it causes, never networkidle,
+  // or the next goto aborts the action mid-request and the cookie is never written.
+  await Promise.all([page.waitForURL(() => true, { timeout: 20_000 }).catch(() => {}), button.first().click()]);
+  await page.waitForTimeout(2500);
+  const back = await landOn(page, baseUrl, "/w/agency-tenants");
+  const inside = page.locator("li").filter({ hasText: clientName }).filter({ hasText: "you are in here" });
+  return { offered: true, inside: back.path === "/w/agency-tenants" && (await inside.count()) > 0 };
+}
+
+const agency: Case = {
+  id: "p5-agency",
+  title: "Phase 5: the agency owner sees client totals and 30-day responses; agency staff cannot enter a client workspace",
+  async run(c) {
+    const { b, staffB, clientB } = c.seed;
+    const owner = await as(c, "workspace B's admin", b.adminEmail, b.adminPassword);
+    if (!owner.page) return owner.checks;
+    const ownerLink = await menuLinksTo(owner.page, c.baseUrl, "/w/agency-tenants");
+    const list = await landOn(owner.page, c.baseUrl, "/w/agency-tenants");
+    const checks: Check[] = [
+      ok("the agency owner opens the client list", list.path === "/w/agency-tenants", "/w/agency-tenants", list.path),
+      ok("control: the owner's menu offers client workspaces", ownerLink > 0, "a link", `${ownerLink} link(s)`),
+      ok("the client is listed", list.text.includes(clientB.name), clientB.name, list.text.includes(clientB.name) ? "listed" : "missing"),
+      ok("each client shows its 30-day responses", /\(1 in 30 days\)/.test(list.text), "(1 in 30 days)", list.text.match(/\(\d+ in 30 days\)/)?.[0] ?? "no 30-day figure"),
+    ];
+    const b1 = await withDbRetry(() => db().assessment.findUnique({ where: { slug: b.funnels[0] ?? "" }, select: { id: true } }));
+    const stats = await landOn(owner.page, c.baseUrl, `/w/stats?assessment=${b1?.id ?? ""}`);
+    checks.push(ok("workspace stats filter to one funnel", stats.path === "/w/stats" && stats.text.includes("QA tenancy B1"), "stats for QA tenancy B1", stats.path !== "/w/stats" ? `landed on ${stats.path}` : stats.text.includes("QA tenancy B1") ? "filtered" : "funnel not named"));
+
+    // Staff first, then the owner, so the owner's own Enter cannot leave anything behind
+    // that the staff check would then read.
+    const s = await as(c, "B's edit staff", staffB.email, staffB.password);
+    if (!s.page) return [...checks, ...s.checks];
+    const n = await menuLinksTo(s.page, c.baseUrl, "/w/agency-tenants");
+    checks.push(ok("agency staff are not offered client workspaces in the menu", n === 0, "no link", `${n} link(s)`));
+    const staffTry = await tryEnter(s.page, c.baseUrl, clientB.name);
+    checks.push(ok("agency staff who click Enter stay out of the client workspace", !staffTry.inside, "not inside", staffTry.offered ? (staffTry.inside ? "entered the client" : "refused, still in the agency") : "no Enter button offered"));
+    const ownerTry = await tryEnter(owner.page, c.baseUrl, clientB.name);
+    checks.push(ok("control: the agency owner's Enter does go in", ownerTry.inside, "you are in here", ownerTry.offered ? (ownerTry.inside ? "inside" : "did not enter") : "no Enter button"));
+    return checks;
+  },
+};
+
+
+const heldFeature: Case = {
+  id: "p5-held-feature",
+  title: "Release switches: a feature held back from every workspace is refused to a real workspace login, not just hidden",
+  async run(c) {
+    const row = await withDbRetry(() => db().featureRelease.findUnique({ where: { key: "whatsapp" }, select: { released: true } }));
+    if (row?.released) {
+      return [skip("a held feature is refused", "WhatsApp is released on this environment, so there is nothing held to try")];
+    }
+    const owner = await as(c, "workspace A's admin", c.seed.a.adminEmail, c.seed.a.adminPassword);
+    if (!owner.page) return owner.checks;
+    const menu = await menuLinksTo(owner.page, c.baseUrl, "/w/whatsapp");
+    const held = await landOn(owner.page, c.baseUrl, "/w/whatsapp");
+    return [
+      ok("the menu does not offer the held feature", menu === 0, "no link", `${menu} link(s)`),
+      ok("typing its address is refused", held.path !== "/w/whatsapp", "redirected away", held.path),
+    ];
+  },
+};
+
+const CASES: Case[] = [
+  emailLink,
+  purchaseEventId,
+  apiTokens,
+  razorpayWebhook,
+  signup,
+  overPlan,
+  brand,
+  report,
+  settingsCards,
+  booking,
+  payLink,
+  viewStaff,
+  agency,
+  heldFeature,
+  suspend,
+  createTenant,
+  deleteAndPurge,
+];
 
 /* -------------------------------------------------------------------------- */
 /* The run                                                                     */
@@ -578,12 +925,12 @@ async function run(argv: string[]): Promise<number> {
   const contexts: BrowserContext[] = [];
   // Every person gets their own context, so one login's cookie can never answer for another.
   const newPage = async () => {
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, userAgent: UA });
+    const ctx = await blockMeta(await browser.newContext({ viewport: { width: 1440, height: 900 }, userAgent: UA }));
     contexts.push(ctx);
     return ctx.newPage();
   };
   const results: CaseResult[] = [];
-  const c: Ctx = { baseUrl: env.baseUrl, seed, secret, emailDomain: env.emailDomain, owner: null, ownerProblem: null, newPage, signup: null };
+  const c: Ctx = { baseUrl: env.baseUrl, seed, secret, emailDomain: env.emailDomain, signupEmail: env.signupEmail, keepPassword: env.keepPassword, fixtureTenantId: env.fixtureTenantId, owner: null, ownerProblem: null, newPage, signup: null };
 
   try {
     if (env.adminEmail && env.adminPassword) {

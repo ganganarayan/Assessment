@@ -40,7 +40,19 @@ function readEnvFile(path: string): Record<string, string> {
   return out;
 }
 
-const file = readEnvFile(resolve(QA_ROOT, ".env.qa"));
+/**
+ * Which file holds the standing values. qa/.env.qa by default (staging); QA_ENV_FILE
+ * points a run at another one, which is how prod keeps its own login and its own kept
+ * test account without ever overwriting the staging ones:
+ *
+ *   QA_ENV_FILE=qa/.env.qa.prod npm run qa:tenancy -- --i-know-this-is-prod
+ *
+ * Relative paths are read from the repo root. Every qa/.env.qa* file is gitignored.
+ */
+export const ENV_FILE_PATH = process.env.QA_ENV_FILE?.trim()
+  ? resolve(REPO_ROOT, process.env.QA_ENV_FILE.trim())
+  : resolve(QA_ROOT, ".env.qa");
+const file = readEnvFile(ENV_FILE_PATH);
 
 function pick(...keys: string[]): string {
   for (const k of keys) {
@@ -67,6 +79,17 @@ export interface QaEnv {
   emailDomain: string;
   mobilePrefix: string;
   webhookCatcher: string;
+  /**
+   * A REAL inbox for the signup cases (prod). When set, the tenancy pass keeps one
+   * workspace signed up under this exact address for good, and its throwaway signups
+   * use plus-addresses of it, so every welcome email lands in an inbox that is read
+   * instead of bouncing. Empty: the QA_EMAIL_DOMAIN addresses, nothing kept.
+   */
+  signupEmail: string;
+  /** The kept account's password, written here by the pass the first time it signs up. */
+  keepPassword: string;
+  /** Seed the funnel fixtures inside this workspace instead of the platform (prod). */
+  fixtureTenantId: string;
   /** True when the base URL does not look like a staging or local host. */
   looksLikeProd: boolean;
 }
@@ -92,6 +115,9 @@ export function loadQaEnv(): QaEnv {
     emailDomain: pick("QA_EMAIL_DOMAIN") || "qa.invalid",
     mobilePrefix: pick("QA_MOBILE_PREFIX") || "99900",
     webhookCatcher: pick("QA_WEBHOOK_CATCHER"),
+    signupEmail: pick("QA_SIGNUP_EMAIL").toLowerCase(),
+    keepPassword: pick("QA_KEEP_PASSWORD"),
+    fixtureTenantId: pick("QA_FIXTURE_TENANT"),
     looksLikeProd: host.length > 0 && !STAGING_HINTS.some((h) => host.includes(h)),
   };
 }

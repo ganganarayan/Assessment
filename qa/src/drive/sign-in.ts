@@ -10,6 +10,17 @@
 import type { Page } from "playwright";
 
 export async function signIn(page: Page, baseUrl: string, email: string, password: string): Promise<string | null> {
+  // Better Auth throttles sign-in (a few a window per IP). A pass that signs several
+  // logins in back to back meets it, and that is the app working, not a refusal: wait
+  // out the window and try again, up to three times, before calling it a finding.
+  for (let attempt = 0; ; attempt++) {
+    const problem = await signInOnce(page, baseUrl, email, password);
+    if (!problem?.includes("(429") || attempt >= 3) return problem;
+    await page.waitForTimeout(12_000);
+  }
+}
+
+async function signInOnce(page: Page, baseUrl: string, email: string, password: string): Promise<string | null> {
   await page.goto(`${baseUrl}/sign-in`, { waitUntil: "domcontentloaded", timeout: 60_000 });
   /**
    * 🔴 WAIT FOR THE FORM TO HYDRATE BEFORE CLICKING IT.

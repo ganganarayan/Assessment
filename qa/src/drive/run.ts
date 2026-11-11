@@ -15,6 +15,7 @@
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { blockMeta } from "./no-meta.js";
 import { QA_ROOT } from "../env.js";
 import type { CasePlan } from "../oracle/types.js";
 import type { Funnel } from "../config/read.js";
@@ -128,6 +129,16 @@ export function setTopmost(browser: Browser, on: boolean): void {
   }, on ? 1500 : 0);
 }
 
+/**
+ * Wait for the page's scripts to settle before touching it. The opt-in is a client
+ * form: clicked before React attaches its handler, the browser submits it natively,
+ * the page reloads empty and the run reads as "no submission". That is the harness
+ * outrunning hydration, not the funnel failing, so it must not be reported as one.
+ */
+async function hydrated(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
+}
+
 export async function newCaseContext(browser: Browser, opts: DriveOptions): Promise<BrowserContext> {
   // A fresh context per case: the gate's rejection flag lives in localStorage and the
   // visitor id in a cookie, so a shared context would let one case decide the next.
@@ -138,6 +149,7 @@ export async function newCaseContext(browser: Browser, opts: DriveOptions): Prom
     hasTouch: !opts.desktop,
     locale: "en-IN",
   });
+  await blockMeta(context);
   if (opts.trace) await context.tracing.start({ screenshots: true, snapshots: true });
   return context;
 }
@@ -203,6 +215,7 @@ export async function driveCase(
 
   const url = `${opts.baseUrl}/a/${funnel.row.slug}`;
   await page.goto(url, { waitUntil: "domcontentloaded" });
+  await hydrated(page);
   obs.trail.push(`opened ${url}`);
 
   const abandons = plan.behaviours.includes("abandon-at-optin");
@@ -310,6 +323,7 @@ export async function driveCase(
         reloaded = true;
         obs.trail.push("reloaded mid-flow");
         await page.reload({ waitUntil: "domcontentloaded" });
+        await hydrated(page);
         continue;
       }
       const moved = await answerQuestionScreen(page, plan, obs, { skipsRequired });

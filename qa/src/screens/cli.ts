@@ -15,6 +15,7 @@
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
+import { blockMeta } from "../drive/no-meta.js";
 import { loadQaEnv, QA_ROOT } from "../env.js";
 import { newRunId } from "../drive/identity.js";
 import { renderTerminal, writeHtml, writeResultJson } from "../report/render.js";
@@ -104,6 +105,7 @@ async function run(argv: string[]): Promise<number> {
     isMobile: !args.desktop,
     hasTouch: !args.desktop,
   });
+  await blockMeta(context);
   const page = await context.newPage();
   const results: CaseResult[] = [];
   let signInProblem: string | null = null;

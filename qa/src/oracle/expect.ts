@@ -53,7 +53,10 @@ function submittedGateChoices(funnel: Funnel, choices: Record<string, string>): 
     const pickedId = choices[question.id];
     if (!pickedId) continue;
     const picked = question.options.find((o) => o.id === pickedId);
-    if (picked?.disqualifies) break;
+    // A WAITLIST answer (exit key "waitlist") does not stop the gate: since 24-10-2026
+    // the runner holds it and settles it after the last question, so it and every
+    // answer after it are submitted. Only a true disqualify routes out at once.
+    if (picked?.disqualifies && (picked.exitKey ?? "").trim() !== "waitlist") break;
     out[question.id] = pickedId;
   }
   return out;

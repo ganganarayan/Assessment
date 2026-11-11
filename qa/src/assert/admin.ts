@@ -12,6 +12,7 @@
  * session. Nothing is written: this pass only reads.
  */
 import type { Browser } from "playwright";
+import { blockMeta } from "../drive/no-meta.js";
 import { loadQaEnv } from "../env.js";
 import { runPrefix } from "../drive/identity.js";
 import type { Check } from "./compare.js";
@@ -43,7 +44,7 @@ export async function adminPass(
   }
 
   const checks: Check[] = [];
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const context = await blockMeta(await browser.newContext({ viewport: { width: 1280, height: 900 } }));
   const page = await context.newPage();
   try {
     await page.goto(`${baseUrl}/sign-in`, { waitUntil: "domcontentloaded" });
