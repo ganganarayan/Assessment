@@ -119,7 +119,8 @@
     "qa:admin": "tsx --conditions=react-server scripts/create-qa-admin.ts",
     "probe:zoom": "tsx --env-file=.env --conditions=react-server scripts/probe-zoom-recordings.ts",
     "verify:industries": "tsx scripts/verify-industries.ts",
-    "qa:ai-eval": "tsx --conditions=react-server qa/src/ai-eval/cli.ts"
+    "qa:ai-eval": "tsx --conditions=react-server qa/src/ai-eval/cli.ts",
+    "qa:ai-live": "tsx --conditions=react-server qa/src/ai-live/cli.ts"
   },
   "prisma": {
     "seed": "tsx --conditions=react-server prisma/seed.ts"

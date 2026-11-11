@@ -21,7 +21,7 @@ import type { CasePlan } from "../oracle/types.js";
 import type { Funnel } from "../config/read.js";
 import { identityFor, type Identity } from "./identity.js";
 
-const CHROME_UA =
+export const CHROME_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 /** Screens that end a run: nothing further is pressed. */

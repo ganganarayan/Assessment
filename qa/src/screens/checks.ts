@@ -49,7 +49,7 @@ const ok = (what: string, cond: boolean, expected: string, observed: string): Ch
 });
 const warn = (what: string, observed: string): Check => ({ verdict: "warn", what, observed });
 
-interface Visit {
+export interface Visit {
   status: number;
   url: string;
   text: string;
@@ -57,7 +57,7 @@ interface Visit {
 }
 
 /** Open a screen and bring back the four things every check below is built on. */
-async function visit(page: Page, baseUrl: string, path: string): Promise<Visit> {
+export async function visit(page: Page, baseUrl: string, path: string): Promise<Visit> {
   const res = await page.goto(`${baseUrl}${path}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
   // Client-rendered panels settle after the document does, and anything this pass then
   // CLICKS - a provider dropdown, an Enter button - is dead until React has hydrated, so
@@ -82,7 +82,7 @@ async function visit(page: Page, baseUrl: string, path: string): Promise<Visit> 
  * for a screen it never opened, and the group went on to assert things about the console.
  * A test that quietly examines a different page than it names is worse than no test.
  */
-function arrived(v: Visit, path: string): Check[] {
+export function arrived(v: Visit, path: string): Check[] {
   const landed = (() => {
     try {
       return new URL(v.url).pathname.replace(/\/+$/, "") || "/";
@@ -127,7 +127,7 @@ function arrived(v: Visit, path: string): Check[] {
  * clever: in d-d-yyyy, a SECOND component above 12 cannot be a month, so the string must
  * be month-first. Ambiguous dates are left alone instead of guessed at.
  */
-function datesAreIndian(v: Visit, path: string): Check[] {
+export function datesAreIndian(v: Visit, path: string): Check[] {
   const checks: Check[] = [];
   const found = [...v.text.matchAll(/\b(\d{1,2})-(\d{1,2})-(20\d\d)\b/g)];
   const monthFirst = found.filter((m) => Number(m[2]) > 12).map((m) => m[0]);

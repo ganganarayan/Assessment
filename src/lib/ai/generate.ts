@@ -23,9 +23,13 @@ import { appSettingWhere } from "@/lib/settings/tenant-row";
  * is never broken. The API key is decrypted here and never leaves the server.
  */
 
-// Generous: a 100-150 word Sonnet completion can run ~9-13s, and the funnel
-// shows a 10s "Analyzing…" countdown, so allow headroom before failing soft.
-const TIMEOUT_MS = 30_000;
+// Generous: the funnel shows a 10s "Analyzing…" countdown and the client waits for
+// completion with no limit of its own, so a slow statement only costs a few seconds
+// while a timed-out one costs the personal statement itself.
+// 🟡 Was 30_000 until 11-11-2026. On the prod check of 12 real respondents
+// (npm run qa:ai-live) Sonnet 5.5 took 12 to 27.5 s, thinking up to 2,618 tokens, so
+// 30 s was one slow call away from losing a statement. 45 s keeps that headroom.
+const TIMEOUT_MS = 45_000;
 // Headroom so a message NEVER gets cut mid-word. Length is governed by the
 // instructions (e.g. "70-100 words"), not this ceiling.
 // 🔴 Was 900 until 11-11-2026. Current Claude models think before they write and the

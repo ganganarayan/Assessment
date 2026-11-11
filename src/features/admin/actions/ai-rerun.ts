@@ -88,7 +88,8 @@ export async function previewAiSamples(
       leadFirstName: true,
       leadProfession: true,
       resultSnapshot: true,
-      assessment: { select: { title: true } },
+      tenantId: true,
+      assessment: { select: { title: true, aiPromptVersionId: true } },
     },
   });
 
@@ -136,7 +137,10 @@ export async function previewAiSamples(
           questions: qByCat.get(c.name) ?? [],
         })),
       };
-      const text = await generatePersonalStatement(input);
+      // The funnel's own workspace and prompt version, exactly as completion uses them.
+      // Without these the preview ran on the PLATFORM's key and prompt, so a tenant
+      // judged someone else's prompt on their own contacts (found 11-11-2026).
+      const text = await generatePersonalStatement(input, s.tenantId, s.assessment.aiPromptVersionId);
       return {
         customerId: s.customerId,
         firstName: s.leadFirstName,
@@ -180,7 +184,8 @@ export async function regenerateAiBatch(
       leadFirstName: true,
       leadProfession: true,
       resultSnapshot: true,
-      assessment: { select: { title: true } },
+      tenantId: true,
+      assessment: { select: { title: true, aiPromptVersionId: true } },
     },
   });
 
@@ -215,7 +220,9 @@ export async function regenerateAiBatch(
         })),
       };
 
-      const text = await generatePersonalStatement(input);
+      // Same tenant and version as completion, or the re-run rewrites every contact
+      // with the platform's prompt on the platform's key.
+      const text = await generatePersonalStatement(input, s.tenantId, s.assessment.aiPromptVersionId);
       if (!text) {
         failed += 1;
         return;

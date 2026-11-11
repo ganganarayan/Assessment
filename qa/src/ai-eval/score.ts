@@ -66,7 +66,10 @@ export function rankedAnswers(input: EvalInput): Array<EvalQuestion & { category
 
 /** Which answers the statement visibly reflects back, by content-word overlap with the question. */
 export function reflectedAnswers(text: string, input: EvalInput): Array<{ text: string; ratio: number; overlap: number }> {
-  const said = new Set(contentWords(text));
+  // The statement side keeps every word, stemmed: the question's "going" stems to "go",
+  // and a statement that says "you go through the motions" must count as saying it.
+  // (The length filter is for picking the question's significant words, not this side.)
+  const said = new Set((text.toLowerCase().match(/[a-z']+/g) ?? []).map((w) => stem(w.replace(/'/g, ""))));
   const out: Array<{ text: string; ratio: number; overlap: number }> = [];
   for (const q of rankedAnswers(input)) {
     const words = [...new Set(contentWords(`${q.text} ${q.answer ?? ""}`))];
