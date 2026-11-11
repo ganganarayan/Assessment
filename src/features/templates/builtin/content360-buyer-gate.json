@@ -1,0 +1,168 @@
+{
+  "slug": "content360-buyer-gate",
+  "title": "Content Engine: qualify before signup",
+  "category": "Platform",
+  "summary": "The Content Engine front door, gate only. Five questions find the person whose posting earns money, who has no time to do it and can pay for it: a business owner, a paid creator or someone who posts for clients. Hobbyists leave, not-yet goes to a waitlist.",
+  "shape": "GATE_ONLY",
+  "aiInstructions": null,
+  "body": {
+    "title": "Is your business silent on social because you have no time?",
+    "slug": "content-engine-fit",
+    "description": null,
+    "coverImageUrl": null,
+    "estimatedMinutes": 1,
+    "thankYouMessage": null,
+    "eyebrow": "FOR BUSY OWNERS WHO SHOULD BE POSTING",
+    "subheadline": "5 questions, under a minute. They decide whether Content Engine is worth your week, before you set anything up.",
+    "collectFirstName": true,
+    "firstNameRequired": true,
+    "collectLastName": false,
+    "lastNameRequired": false,
+    "collectEmail": true,
+    "emailRequired": true,
+    "collectMobile": true,
+    "mobileRequired": true,
+    "collectProfession": false,
+    "professionRequired": false,
+    "firstNameLabel": "Your name",
+    "emailLabel": "Email",
+    "mobileLabel": "WhatsApp number (with country code)",
+    "leadCaptureAfter": true,
+    "leadCaptureMode": "ALL_AT_ONCE",
+    "startButtonLabel": "Start",
+    "engine": "GENERIC",
+    "engineConfig": null,
+    "useAiStatement": false,
+    "nextStep": "DESTINATION",
+    "targetUrl": "https://content360.divineleads.guru/",
+    "platformSignup": false,
+    "questionDisplayMode": "SINGLE",
+    "retakePolicy": "NEVER",
+    "retakeDays": 30,
+    "uniqueIdentifier": "EMAIL",
+    "fireMetaCapi": true,
+    "metaEvents": {
+      "registration": true,
+      "completion": true,
+      "gateDisqualified": true,
+      "abandoned": false,
+      "gateIncomplete": true,
+      "gatePassed": false
+    },
+    "qualification": {
+      "enabled": true,
+      "showResultOfGate": false,
+      "bands": {
+        "enabled": true,
+        "passMin": 75,
+        "reviewMin": 60,
+        "belowExitKey": "waitlist"
+      },
+      "questions": [
+        {
+          "id": "g1",
+          "text": "What does posting on social media do for your income?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g1a", "label": "It brings customers to my business or practice", "points": 20 },
+            { "id": "g1b", "label": "My content is my income: brand deals, courses, paid work", "points": 18 },
+            { "id": "g1c", "label": "Clients pay me to post for them", "points": 18 },
+            { "id": "g1d", "label": "Nothing yet, I am still building an audience", "points": 6, "disqualifies": true, "exitKey": "waitlist" },
+            { "id": "g1e", "label": "Nothing, I post for fun", "points": 0, "disqualifies": true, "exitKey": "disqualified" }
+          ]
+        },
+        {
+          "id": "g2",
+          "text": "A busy week arrives. What happens to the posting?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g2a", "label": "It stops. The work wins every time", "points": 20 },
+            { "id": "g2b", "label": "I pay someone, and I still chase and correct them", "points": 18 },
+            { "id": "g2c", "label": "It goes out late, rushed, or on one channel only", "points": 17 },
+            { "id": "g2d", "label": "Nothing slips. Every post goes out on time, everywhere", "points": 4 }
+          ]
+        },
+        {
+          "id": "g3",
+          "text": "What does getting posts out cost you today? Think of the idea, the caption, and a thumbnail resized for every platform.",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g3a", "label": "My own hours, which I do not have", "points": 20 },
+            { "id": "g3b", "label": "Money: a freelancer, an agency or an employee", "points": 20 },
+            { "id": "g3c", "label": "My team's time, pulled away from their real work", "points": 17 },
+            { "id": "g3d", "label": "Nothing. We do not post, and that costs me nothing", "points": 0, "disqualifies": true, "exitKey": "disqualified" }
+          ]
+        },
+        {
+          "id": "g4",
+          "text": "What does your business or work bring in during a normal month?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g4a", "label": "Under ₹50,000", "points": 0, "disqualifies": true, "exitKey": "waitlist" },
+            { "id": "g4b", "label": "₹50,000 to ₹1 lakh", "points": 12 },
+            { "id": "g4c", "label": "₹1 lakh to ₹5 lakh", "points": 20 },
+            { "id": "g4d", "label": "More than ₹5 lakh", "points": 20 }
+          ]
+        },
+        {
+          "id": "g5",
+          "text": "Content Engine is about ₹3,775 a month with GST for one brand, after a 7-day trial. Where do you stand?",
+          "type": "choice",
+          "required": true,
+          "options": [
+            { "id": "g5a", "label": "I decide, and that is less than this problem costs me now", "points": 20 },
+            { "id": "g5b", "label": "I decide. I will use the 7 days, and pay if it does the job", "points": 18 },
+            { "id": "g5c", "label": "Someone else has to approve the spend", "points": 6, "disqualifies": true, "exitKey": "waitlist" },
+            { "id": "g5d", "label": "I am looking for something free", "points": 0, "disqualifies": true, "exitKey": "disqualified" }
+          ]
+        }
+      ]
+    },
+    "disqualifiedContent": {
+      "heading": "This is not built for you, and that is fine.",
+      "subtext": "Content Engine is for people whose posting earns them money and who have no time left to do it.",
+      "bodyHtml": "<p>From your answers, that is not your situation today. You do not need a paid engine posting for you every day, and we would rather say so now than after you have set it up.</p><p>Nothing has been stored and nobody will follow up.</p>",
+      "buttonLabel": "Back to Content Engine",
+      "buttonUrl": "https://content360.divineleads.guru/",
+      "fireDisqualifiedEvent": true,
+      "exits": [
+        {
+          "key": "disqualified",
+          "name": "Disqualified",
+          "mode": "PAGE",
+          "heading": "This is not built for you, and that is fine.",
+          "subtext": "Content Engine is for people whose posting earns them money and who have no time left to do it.",
+          "bodyHtml": "<p>From your answers, that is not your situation today. You do not need a paid engine posting for you every day, and we would rather say so now than after you have set it up.</p><p>Nothing has been stored and nobody will follow up.</p>",
+          "buttonLabel": "Back to Content Engine",
+          "buttonUrl": "https://content360.divineleads.guru/",
+          "fireDisqualifiedEvent": true,
+          "eventName": "GateDisqualified",
+          "contentCategory": "wrong_fit",
+          "completionEventName": "",
+          "neverExclude": false
+        },
+        {
+          "key": "waitlist",
+          "name": "Waitlisted",
+          "mode": "OPTIN",
+          "heading": "Not a no. A not yet.",
+          "subtext": "The need is real. One piece is missing today: the income to carry it, or the person who signs off.",
+          "bodyHtml": "<p>Leave your details and you keep your place. When that piece is in place, come back through the same door and you will not be asked to start over.</p><p>Until then, the main page shows everything the engine does.</p>",
+          "buttonLabel": "See what Content Engine does",
+          "buttonUrl": "https://content360.divineleads.guru/",
+          "fireDisqualifiedEvent": true,
+          "eventName": "GateWaitlisted",
+          "contentCategory": "not_yet",
+          "completionEventName": "",
+          "neverExclude": true
+        }
+      ]
+    },
+    "categories": [],
+    "resultBands": []
+  }
+}

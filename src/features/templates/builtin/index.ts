@@ -44,6 +44,13 @@ import indiaTripExpectations from "./india-trip-expectations.json";
 // passing the gate IS the trial sign-up. No assessment behind it and no result page -
 // a qualified answer hands the person to /sign-up and their workspace is built.
 import platformJunkLeadsGate from "./platform-junk-leads-gate.json";
+// Platform-owned: the front door of Content Engine (content360), a separate product
+// that shares this platform's inbox and WhatsApp number, so it gets a funnel here and
+// not a tenant. Gate only. It filters on whether posting EARNS the person money and
+// whether they can pay, never on what they call themselves: a paid creator and a
+// social media manager with clients pass alongside the busy owner. The destination is
+// a placeholder the owner points at the Content Engine onboarding after import.
+import content360BuyerGate from "./content360-buyer-gate.json";
 // Two instruments in one funnel: Part A (how the last programme was bought) carries a
 // near-zero weight so it bands on its own without moving the Part B headline, and the
 // override rules live in the AI instructions because the engine has no rule layer.
@@ -87,4 +94,5 @@ export const BUILTIN_TEMPLATE_DOCS: unknown[] = [
   hniChildrenCultureShift,
   cancellationExitWhyYouLeft,
   platformJunkLeadsGate,
+  content360BuyerGate,
 ];
