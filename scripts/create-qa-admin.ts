@@ -37,7 +37,7 @@
 import "./public-db-url";
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { PrismaClient, Role } from "@prisma/client";
 import { auth } from "../src/lib/auth/auth";
 
@@ -144,7 +144,7 @@ async function main(): Promise<void> {
   writeFileSync(ENV_FILE, next);
 
   console.log(existing ? "Password rotated." : "Account created.");
-  console.log("Its password was written to qa/.env.qa and printed nowhere.");
+  console.log(`Its password was written to ${relative(process.cwd(), ENV_FILE)} and printed nowhere.`);
 }
 
 main()

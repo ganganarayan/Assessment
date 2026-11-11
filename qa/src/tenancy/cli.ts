@@ -298,11 +298,13 @@ const signup: Case = {
   async run(c) {
     const checks: Check[] = [];
     const password = randomBytes(18).toString("base64url");
-    const post = (email: string, name: string) =>
+    // The password is a parameter, not the closure's: the kept account signs up with its
+    // OWN password, the one written to the env file, or it can never sign in again.
+    const post = (email: string, name: string, pw: string = password) =>
       fetch(`${c.baseUrl}/api/auth/sign-up/email`, {
         method: "POST",
         headers: { "content-type": "application/json", origin: c.baseUrl, "user-agent": UA },
-        body: JSON.stringify({ email, password, name }),
+        body: JSON.stringify({ email, password: pw, name }),
       });
 
     const throwaway = `${PREFIX}${c.seed.runId}@mailinator.com`;
@@ -365,14 +367,14 @@ async function stampStartTrial(tenantId: string): Promise<void> {
  * The first run makes it through the real public signup and writes its password and id
  * into the run's env file; later runs only sign in to it.
  */
-async function keptAccount(c: Ctx, post: (email: string, name: string) => Promise<Response>): Promise<Check[]> {
+async function keptAccount(c: Ctx, post: (email: string, name: string, pw?: string) => Promise<Response>): Promise<Check[]> {
   const checks: Check[] = [];
   const email = c.signupEmail;
   let existing = await withDbRetry(() => db().user.findFirst({ where: { email }, select: { tenantId: true } }));
   let password = c.keepPassword;
   if (!existing) {
     password = randomBytes(18).toString("base64url");
-    const r = await post(email, "Assess360 QA Test");
+    const r = await post(email, "Assess360 QA Test", password);
     checks.push(ok(`the kept test account ${email} signs up`, r.ok, "2xx", `HTTP ${r.status}`));
     existing = await until(() => db().user.findFirst({ where: { email }, select: { tenantId: true } }), (u) => !!u?.tenantId, 30);
     if (existing?.tenantId) {
