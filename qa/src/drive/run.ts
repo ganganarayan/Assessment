@@ -195,7 +195,9 @@ export async function driveCase(
     // Browser chatter that says nothing about the funnel: permissions-policy notices
     // from embedded players, and favicon misses. A warning nobody can act on is a
     // warning people learn to ignore, which costs more than it saves.
-    if (/permissions policy|compute-pressure|favicon.ico/i.test(text)) return;
+    // ERR_BLOCKED_BY_CLIENT is the harness's own Meta block (no-meta.ts) doing its job,
+    // for instance on the home page the abandon case walks to, which carries the pixel.
+    if (/permissions policy|compute-pressure|favicon.ico|ERR_BLOCKED_BY_CLIENT/i.test(text)) return;
     obs.consoleErrors.push(text.slice(0, 300));
   });
   page.on("request", (r) => {
