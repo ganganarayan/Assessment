@@ -330,7 +330,12 @@ async function main(): Promise<number> {
   const before = await getAiUsageByTenant();
   const beforeRow = before.rows.find((r) => r.tenantId === funnel.tenantId);
   const respondents = await loadRespondents(funnel.id, funnel.title, nCases);
-  statements.checks.push(ok(`${nCases} real respondents to test on`, respondents.length === nCases, String(nCases), String(respondents.length)));
+  // Fewer completions than asked for is the funnel's data, not a fault: caution, unless there are none.
+  statements.checks.push(
+    respondents.length > 0 && respondents.length < nCases
+      ? warn(`${nCases} real respondents to test on`, `only ${respondents.length} completed, tested all of them`)
+      : ok(`${nCases} real respondents to test on`, respondents.length === nCases, String(nCases), String(respondents.length)),
+  );
 
   const rows: StatementRow[] = [];
   const seen = new Set<string>();

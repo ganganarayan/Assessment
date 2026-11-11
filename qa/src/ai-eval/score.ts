@@ -112,7 +112,11 @@ export function scoreStatement(
   const t = text.trim();
   const words = wordCount(t);
   // The form's first-name field sometimes holds a full name; the first word is what a person is called.
-  const first = (input.firstName ?? "").trim().split(/\s+/)[0] ?? "";
+  // A leading honorific ("Mr Sharma", "Dr. Rao") is not what the statement calls them.
+  const nameWords = (input.firstName ?? "").trim().split(/\s+/).filter(Boolean);
+  const HONORIFIC = /^(mr|mrs|ms|miss|dr|prof|shri|sri|smt|kumari|ca|adv|er)\.?$/i;
+  while (nameWords.length > 1 && HONORIFIC.test(nameWords[0] ?? "")) nameWords.shift();
+  const first = nameWords[0] ?? "";
   const opening = t.split(/\s+/).slice(0, 6).join(" ").toLowerCase();
   const tail = t.split(/\s+/).slice(-25).join(" ").toLowerCase();
   const reflected = reflectedAnswers(t, input);
