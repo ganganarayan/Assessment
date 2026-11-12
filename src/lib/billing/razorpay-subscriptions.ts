@@ -499,6 +499,9 @@ export async function activateSubscription(input: ActivateInput): Promise<void> 
         kind: billingChangeKind(previousPlan, input.plan, earlierCharges > 0),
         plan: input.plan,
         amountText: input.test ? `${testAmountText(input.plan)} (test charge)` : input.amountUsd != null ? `USD ${input.amountUsd}` : null,
+        previousPlan,
+        term: input.term,
+        recurringAmountText: input.test ? testAmountText(input.plan) : input.amountUsd != null ? `USD ${input.amountUsd}` : null,
         paymentId: input.paymentId,
         renewsAt: data.renewsAt,
       });

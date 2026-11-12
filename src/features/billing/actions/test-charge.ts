@@ -184,6 +184,9 @@ export async function downgradeTestSubscription(tenantId: string, planInput: str
     tenantId,
     kind: "downgraded",
     plan,
+    previousPlan: held,
+    term: "MONTHLY",
+    recurringAmountText: testAmountText(plan),
     noChargeToday: true,
     renewsAt: row?.renewsAt ?? null,
   });
